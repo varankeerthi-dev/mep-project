@@ -6,6 +6,7 @@ import DCList from './pages/DCList';
 import DateWiseConsolidation from './pages/DateWiseConsolidation';
 import MaterialWiseConsolidation from './pages/MaterialWiseConsolidation';
 import MaterialsList from './pages/MaterialsList';
+import StockTransfer from './pages/StockTransfer';
 import { Login, Signup, AuthCallback, SelectOrganisation } from './pages/Auth';
 import { OrganisationSettings } from './pages/Organisation';
 import { supabase, getCurrentUser, onAuthStateChange, getUserOrganisations, createOrganisation, signOut, initStorageBuckets } from './supabase';
@@ -195,6 +196,7 @@ export default function App() {
       case '/store/materials': return <MaterialsList />;
       case '/store/inward': return <MaterialInward onSuccess={() => navigate('/store/stock')} onCancel={() => navigate('/store/inward')} />;
       case '/store/outward': return <MaterialOutward onSuccess={() => navigate('/store/stock')} onCancel={() => navigate('/store/outward')} />;
+      case '/store/transfer': return <StockTransfer onCancel={() => navigate('/store/transfer')} />;
       case '/store/stock': return <StockBalance />;
       case '/tools': return <ToolsList />;
       case '/dc/create': return <CreateDC onSuccess={() => navigate('/dc/list')} onCancel={() => navigate('/dc/list')} />;
@@ -982,18 +984,21 @@ function MaterialInward({ onCancel }) {
           <table className="table" style={{ margin: 0 }}>
             <thead>
               <tr>
-                <th style={{ width: '50px' }}>#</th>
-                <th style={{ minWidth: '280px' }}>Item</th>
-                <th style={{ width: '150px' }}>Variant</th>
-                <th style={{ width: '90px' }}>Qty</th>
-                <th style={{ width: '100px' }}>Rate</th>
-                <th style={{ width: '110px' }}>Amount</th>
-                <th style={{ width: '50px' }}></th>
+                <th style={{ width: '40px' }}>#</th>
+                <th style={{ minWidth: '180px' }}>Item</th>
+                <th style={{ width: '90px' }}>Type</th>
+                <th style={{ width: '120px' }}>Variant</th>
+                <th style={{ width: '150px' }}>Project</th>
+                <th style={{ width: '70px' }}>Qty</th>
+                <th style={{ width: '80px' }}>Rate</th>
+                <th style={{ width: '90px' }}>Amount</th>
+                <th style={{ width: '40px' }}></th>
               </tr>
             </thead>
             <tbody>
               {items.map((item, index) => {
                 const mat = getMaterial(item.item_id);
+                const itemSupplyType = item.supply_type || formData.supply_type;
                 return (
                   <tr key={item.id} style={{ background: !item.valid && item.item_id ? '#fff3cd' : 'transparent' }}>
                     <td style={{ textAlign: 'center', color: '#666' }}>{index + 1}</td>
@@ -1001,31 +1006,58 @@ function MaterialInward({ onCancel }) {
                       <select 
                         value={item.item_id} 
                         onChange={e => updateItem(item.id, 'item_id', e.target.value)}
-                        style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd' }}
+                        style={{ width: '100%', padding: '6px', borderRadius: '4px', border: '1px solid #ddd' }}
                       >
                         <option value="">Select Item</option>
                         {materials.map(m => (
-                          <option key={m.id} value={m.id}>
-                            {m.display_name || m.name}
-                          </option>
+                          <option key={m.id} value={m.id}>{m.display_name || m.name}</option>
                         ))}
                       </select>
                     </td>
                     <td>
                       <select 
-                        value={item.variant_id} 
+                        value={item.supply_type || formData.supply_type} 
+                        onChange={e => updateItem(item.id, 'supply_type', e.target.value)}
+                        style={{ width: '100%', padding: '6px', borderRadius: '4px', border: '1px solid #ddd', fontSize: '12px' }}
+                      >
+                        <option value="WAREHOUSE">Warehouse</option>
+                        <option value="DIRECT_SUPPLY">Direct</option>
+                      </select>
+                    </td>
+                    <td>
+                      <select 
+                        value={item.variant_id || ''} 
                         onChange={e => updateItem(item.id, 'variant_id', e.target.value)}
                         disabled={!item.uses_variant}
                         style={{ 
                           width: '100%', 
-                          padding: '8px', 
+                          padding: '6px', 
                           borderRadius: '4px', 
                           border: '1px solid #ddd',
-                          background: item.uses_variant ? '#fff' : '#f5f5f5'
+                          background: item.uses_variant ? '#fff' : '#f5f5f5',
+                          fontSize: '12px'
                         }}
                       >
-                        <option value="">{item.uses_variant ? 'Select Variant' : 'No Variant'}</option>
+                        <option value="">{item.uses_variant ? 'Select' : 'N/A'}</option>
                         {activeVariants.map(v => (<option key={v.id} value={v.id}>{v.variant_name}</option>))}
+                      </select>
+                    </td>
+                    <td>
+                      <select 
+                        value={item.project_id || ''} 
+                        onChange={e => updateItem(item.id, 'project_id', e.target.value)}
+                        disabled={itemSupplyType !== 'DIRECT_SUPPLY'}
+                        style={{ 
+                          width: '100%', 
+                          padding: '6px', 
+                          borderRadius: '4px', 
+                          border: '1px solid #ddd',
+                          background: itemSupplyType === 'DIRECT_SUPPLY' ? '#fff' : '#f5f5f5',
+                          fontSize: '12px'
+                        }}
+                      >
+                        <option value="">{itemSupplyType === 'DIRECT_SUPPLY' ? 'Select Project' : 'N/A'}</option>
+                        {projects.map(p => (<option key={p.id} value={p.id}>{p.name}</option>))}
                       </select>
                     </td>
                     <td>
@@ -1034,7 +1066,7 @@ function MaterialInward({ onCancel }) {
                         value={item.quantity} 
                         onChange={e => updateItem(item.id, 'quantity', e.target.value)}
                         placeholder="0" 
-                        style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', textAlign: 'right' }}
+                        style={{ width: '100%', padding: '6px', borderRadius: '4px', border: '1px solid #ddd', textAlign: 'right', fontSize: '12px' }}
                       />
                     </td>
                     <td>
@@ -1044,10 +1076,10 @@ function MaterialInward({ onCancel }) {
                         onChange={e => updateItem(item.id, 'rate', e.target.value)}
                         placeholder="0" 
                         step="0.01"
-                        style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', textAlign: 'right' }}
+                        style={{ width: '100%', padding: '6px', borderRadius: '4px', border: '1px solid #ddd', textAlign: 'right', fontSize: '12px' }}
                       />
                     </td>
-                    <td style={{ textAlign: 'right', fontWeight: '600', padding: '8px' }}>
+                    <td style={{ textAlign: 'right', fontWeight: '600', padding: '6px', fontSize: '12px' }}>
                       ₹{item.amount.toFixed(2)}
                     </td>
                     <td>
