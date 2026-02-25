@@ -4,6 +4,7 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
 export default function StockTransfer({ onCancel }) {
+  console.log('StockTransfer component rendered');
   const [transfers, setTransfers] = useState([]);
   const [view, setView] = useState('list');
   const [editingTransfer, setEditingTransfer] = useState(null);
@@ -59,10 +60,15 @@ export default function StockTransfer({ onCancel }) {
   return (
     <div>
       <div className="page-header">
-        <h1 className="page-title">Stock Transfers</h1>
+        <h1 className="page-title">Stock Transfers - {testData}</h1>
         <button className="btn btn-primary" onClick={() => { setEditingTransfer(null); setView('form'); }}>
           + New Transfer
         </button>
+      </div>
+
+      <div style={{padding: '10px', border: '1px solid red', margin: '10px'}}>
+        <p>Testing: {testData}</p>
+        <p>Transfers: {transfers.length}</p>
       </div>
 
       <div className="card">
