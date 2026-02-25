@@ -969,7 +969,7 @@ function MaterialInward({ onCancel }) {
                         <option value="">Select Item</option>
                         {materials.map(m => (
                           <option key={m.id} value={m.id}>
-                            {m.item_code ? `${m.item_code} - ` : ''}{m.display_name || m.name}
+                            {m.display_name || m.name}
                           </option>
                         ))}
                       </select>
