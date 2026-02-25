@@ -125,7 +125,15 @@ function TransferForm({ transfer, onSave, onCancel }) {
   const isEditing = !!transfer;
   const isLocked = transfer?.status !== 'DRAFT';
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { 
+    loadData(); 
+  }, []);
+
+  useEffect(() => {
+    if (warehouses.length === 0) {
+      console.log('No warehouses found - please create warehouses first');
+    }
+  }, [warehouses]);
   
   useEffect(() => {
     if (transfer) {
@@ -144,17 +152,28 @@ function TransferForm({ transfer, onSave, onCancel }) {
 
   const loadData = async () => {
     console.log('Loading stock transfer data...');
-    const [mat, wh, varData, stockData] = await Promise.all([
-      supabase.from('materials').select('id, display_name, name, unit').eq('is_active', true).order('name'),
-      supabase.from('warehouses').select('*').order('warehouse_name'),
-      supabase.from('company_variants').select('*').eq('is_active', true).order('variant_name'),
-      supabase.from('item_stock').select('*')
-    ]);
-    console.log('Warehouses:', wh.data);
-    setMaterials(mat.data || []);
-    setWarehouses(wh.data || []);
-    setVariants(varData.data || []);
-    setStock(stockData.data || []);
+    try {
+      const warehouseQuery = await supabase.from('warehouses').select('*').eq('is_active', true).order('name');
+      console.log('Warehouse query result:', warehouseQuery);
+      
+      if (warehouseQuery.error) {
+        alert('Error loading warehouses: ' + warehouseQuery.error.message);
+      }
+      
+      const [mat, varData, stockData] = await Promise.all([
+        supabase.from('materials').select('id, display_name, name, unit').eq('is_active', true).order('name'),
+        supabase.from('company_variants').select('*').eq('is_active', true).order('variant_name'),
+        supabase.from('item_stock').select('*')
+      ]);
+      
+      setMaterials(mat.data || []);
+      setWarehouses(warehouseQuery.data || []);
+      setVariants(varData.data || []);
+      setStock(stockData.data || []);
+    } catch (err) {
+      console.error('Error loading data:', err);
+      alert('Error: ' + err.message);
+    }
   };
 
   const loadTransferItems = async (transferId) => {
@@ -470,14 +489,14 @@ function TransferForm({ transfer, onSave, onCancel }) {
             <div className="form-group" style={{ margin: 0, minWidth: '150px' }}>
               <label className="form-label">From Warehouse *</label>
               <select className="form-select" value={formData.from_warehouse_id} onChange={e => handleWarehouseChange('from_warehouse_id', e.target.value)} disabled={isLocked}>
-                <option value="">Select</option>
+                <option value="">Select{warehouses.length === 0 ? ' (Create warehouse first)' : ''}</option>
                 {warehouses.map(w => (<option key={w.id} value={w.id}>{w.warehouse_name || w.name || 'Warehouse'}</option>))}
               </select>
             </div>
             <div className="form-group" style={{ margin: 0, minWidth: '150px' }}>
               <label className="form-label">To Warehouse *</label>
               <select className="form-select" value={formData.to_warehouse_id} onChange={e => setFormData({...formData, to_warehouse_id: e.target.value})} disabled={isLocked}>
-                <option value="">Select</option>
+                <option value="">Select{warehouses.length === 0 ? ' (Create warehouse first)' : ''}</option>
                 {warehouses.filter(w => w.id !== formData.from_warehouse_id).map(w => (<option key={w.id} value={w.id}>{w.warehouse_name || w.name || 'Warehouse'}</option>))}
               </select>
             </div>

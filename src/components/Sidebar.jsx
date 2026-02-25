@@ -100,7 +100,8 @@ const menuData = [
           { id: 'material-inward', label: 'Material Inward', path: '/store/inward' },
           { id: 'material-outward', label: 'Material Outward', path: '/store/outward' },
           { id: 'stock-transfer', label: 'Stock Transfer', path: '/store/transfer' },
-          { id: 'stock-balance', label: 'Stock Balance', path: '/store/stock' }
+          { id: 'stock-balance', label: 'Stock Balance', path: '/store/stock' },
+          { id: 'warehouses', label: 'Warehouses', path: '/store/materials?tab=warehouses' }
         ]
       }
     ]
