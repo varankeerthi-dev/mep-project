@@ -1,7 +1,18 @@
--- Add uses_variant column to materials table
+-- Add variant support to material tables
 -- Run this in Supabase SQL Editor
 
-ALTER TABLE materials ADD COLUMN IF NOT EXISTS uses_variant BOOLEAN DEFAULT false;
+-- Material Inward table
+ALTER TABLE material_inward ADD COLUMN IF NOT EXISTS warehouse_id UUID;
+ALTER TABLE material_inward ADD COLUMN IF NOT EXISTS variant_id UUID REFERENCES company_variants(id);
 
--- Create index for faster queries
-CREATE INDEX IF NOT EXISTS idx_materials_uses_variant ON materials(uses_variant) WHERE uses_variant = true;
+-- Material Inward Items table
+ALTER TABLE material_inward_items ADD COLUMN IF NOT EXISTS material_id UUID REFERENCES materials(id);
+ALTER TABLE material_inward_items ADD COLUMN IF NOT EXISTS variant_id UUID REFERENCES company_variants(id);
+
+-- Material Outward table
+ALTER TABLE material_outward ADD COLUMN IF NOT EXISTS warehouse_id UUID;
+ALTER TABLE material_outward ADD COLUMN IF NOT EXISTS variant_id UUID REFERENCES company_variants(id);
+
+-- Material Outward Items table
+ALTER TABLE material_outward_items ADD COLUMN IF NOT EXISTS material_id UUID REFERENCES materials(id);
+ALTER TABLE material_outward_items ADD COLUMN IF NOT EXISTS variant_id UUID REFERENCES company_variants(id);
