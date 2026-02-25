@@ -852,6 +852,7 @@ function MaterialInward({ onCancel }) {
         const { error: itemError } = await supabase.from('material_inward_items').insert({
           inward_id: inward.id,
           material_id: item.item_id,
+          material_name: mat?.display_name || mat?.name || '',
           variant_id: itemVariantId,
           warehouse_id: formData.warehouse_id,
           quantity: qty,
