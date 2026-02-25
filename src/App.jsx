@@ -858,6 +858,7 @@ function MaterialInward({ onCancel }) {
           inward_id: inward.id,
           material_id: item.item_id,
           material_name: materialName,
+          unit: mat.unit || 'nos',
           quantity: qty,
           rate: rate,
           amount: qty * rate
