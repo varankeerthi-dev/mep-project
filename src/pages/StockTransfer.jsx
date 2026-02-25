@@ -50,6 +50,8 @@ export default function StockTransfer({ onCancel }) {
         supabase.from('item_stock').select('*')
       ]);
       
+      console.log('Materials loaded:', mat.data?.length);
+      console.log('Warehouses loaded:', wh.data?.length);
       setMaterials(mat.data || []);
       setWarehouses(wh.data || []);
       setVariants(varData.data || []);
@@ -90,10 +92,12 @@ export default function StockTransfer({ onCancel }) {
 
   const updateItem = (id, field, value) => {
     if (isLocked) return;
+    console.log('updateItem:', id, field, value);
     setItems(items.map(item => {
       if (item.id !== id) return item;
       const updates = { [field]: value };
       if (field === 'item_id' && value) {
+        console.log('Selected item:', value, getMaterial(value));
         updates.available_qty = getAvailableQty(value, item.variant_id);
       }
       if (field === 'variant_id' && item.item_id) {
@@ -190,6 +194,7 @@ export default function StockTransfer({ onCancel }) {
               </select>
             </div>
             <div><label className="form-label">Vehicle No</label><input type="text" className="form-input" value={formData.vehicle_no} onChange={e => setFormData({...formData, vehicle_no: e.target.value})} placeholder="XX-XX-XXXX" /></div>
+            <div><label className="form-label">Transporter</label><input type="text" className="form-input" value={formData.transporter_name} onChange={e => setFormData({...formData, transporter_name: e.target.value})} placeholder="Transporter Name" /></div>
           </div>
         </div>
         <table className="table">
