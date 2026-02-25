@@ -70,3 +70,31 @@ CREATE POLICY "stock_transfer_items_all_access" ON stock_transfer_items FOR ALL 
 CREATE INDEX IF NOT EXISTS idx_stock_transfers_date ON stock_transfers(transfer_date);
 CREATE INDEX IF NOT EXISTS idx_stock_transfers_status ON stock_transfers(status);
 CREATE INDEX IF NOT EXISTS idx_stock_transfer_items_transfer ON stock_transfer_items(transfer_id);
+
+-- ============================================
+-- DELIVERY CHALLAN ENHANCEMENTS
+-- ============================================
+-- Add source_type to delivery_challans
+ALTER TABLE delivery_challans ADD COLUMN IF NOT EXISTS source_type VARCHAR(50) DEFAULT 'WAREHOUSE';
+ALTER TABLE delivery_challans ADD COLUMN IF NOT EXISTS warehouse_id UUID REFERENCES warehouses(id);
+
+-- Add E-Way Bill fields
+ALTER TABLE delivery_challans ADD COLUMN IF NOT EXISTS eway_bill_no VARCHAR(50);
+ALTER TABLE delivery_challans ADD COLUMN IF NOT EXISTS eway_bill_date DATE;
+ALTER TABLE delivery_challans ADD COLUMN IF NOT EXISTS eway_valid_till DATE;
+
+-- Add Ship To fields
+ALTER TABLE delivery_challans ADD COLUMN IF NOT EXISTS ship_to_name VARCHAR(255);
+ALTER TABLE delivery_challans ADD COLUMN IF NOT EXISTS ship_to_address_line1 TEXT;
+ALTER TABLE delivery_challans ADD COLUMN IF NOT EXISTS ship_to_address_line2 TEXT;
+ALTER TABLE delivery_challans ADD COLUMN IF NOT EXISTS ship_to_city VARCHAR(100);
+ALTER TABLE delivery_challans ADD COLUMN IF NOT EXISTS ship_to_state VARCHAR(100);
+ALTER TABLE delivery_challans ADD COLUMN IF NOT EXISTS ship_to_pincode VARCHAR(20);
+ALTER TABLE delivery_challans ADD COLUMN IF NOT EXISTS ship_to_gstin VARCHAR(50);
+ALTER TABLE delivery_challans ADD COLUMN IF NOT EXISTS ship_to_contact VARCHAR(100);
+
+-- Add status field
+ALTER TABLE delivery_challans ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'DRAFT';
+
+-- Add variant_id to delivery_challan_items
+ALTER TABLE delivery_challan_items ADD COLUMN IF NOT EXISTS variant_id UUID REFERENCES company_variants(id);

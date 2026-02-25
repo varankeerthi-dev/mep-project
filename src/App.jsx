@@ -200,6 +200,11 @@ export default function App() {
       case '/store/stock': return <StockBalance />;
       case '/tools': return <ToolsList />;
       case '/dc/create': return <CreateDC onSuccess={() => navigate('/dc/list')} onCancel={() => navigate('/dc/list')} />;
+      default:
+        if (currentPath.startsWith('/dc/edit/')) {
+          const dcId = currentPath.split('/dc/edit/')[1];
+          return <DCEdit dcId={dcId} onCancel={() => navigate('/dc/list')} />;
+        }
       case '/dc/list': return <DCList />;
       case '/dc/consolidation/date': return <DateWiseConsolidation />;
       case '/dc/consolidation/material': return <MaterialWiseConsolidation />;
@@ -1256,6 +1261,26 @@ function MaterialOutward({ onSuccess, onCancel }) {
 
 function StockBalance() { return <div><div className="page-header"><h1 className="page-title">Stock Balance</h1></div><div className="card"><div className="empty-state"><h3>Stock Balance</h3></div></div></div>; }
 function StockReport() { return <div><div className="page-header"><h1 className="page-title">Stock Report</h1></div><div className="card"><div className="empty-state"><h3>Stock Report</h3></div></div></div>; }
+
+function DCEdit({ dcId, onCancel }) {
+  const [editDC, setEditDC] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadDC();
+  }, [dcId]);
+
+  const loadDC = async () => {
+    const { data } = await supabase.from('delivery_challans').select('*').eq('id', dcId).single();
+    setEditDC(data);
+    setLoading(false);
+  };
+
+  if (loading) return <div>Loading...</div>;
+  if (!editDC) return <div>DC not found</div>;
+
+  return <CreateDC editDC={editDC} onSuccess={() => onCancel()} onCancel={onCancel} />;
+}
 function PurchaseReport() { return <div><div className="page-header"><h1 className="page-title">Purchase Report</h1></div><div className="card"><div className="empty-state"><h3>Purchase Report</h3></div></div></div>; }
 function SalesReport() { return <div><div className="page-header"><h1 className="page-title">Sales Report</h1></div><div className="card"><div className="empty-state"><h3>Sales Report</h3></div></div></div>; }
 

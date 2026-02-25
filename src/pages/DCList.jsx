@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { fetchDeliveryChallans, deleteDeliveryChallan, fetchProjects } from '../api';
 import { format } from 'date-fns';
 import { exportDCToPDF } from '../utils/pdfExport';
 
 export default function DCList() {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [challans, setChallans] = useState([]);
   const [projects, setProjects] = useState([]);
@@ -183,6 +185,16 @@ export default function DCList() {
                             <polyline points="14 2 14 8 20 8"/>
                             <line x1="16" y1="13" x2="8" y2="13"/>
                             <line x1="16" y1="17" x2="8" y2="17"/>
+                          </svg>
+                        </button>
+                        <button 
+                          className="action-btn" 
+                          title="Edit"
+                          onClick={() => navigate(`/dc/edit/${challan.id}`)}
+                        >
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                           </svg>
                         </button>
                         <button 
