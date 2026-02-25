@@ -42,6 +42,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
   const [items, setItems] = useState([
     { id: 1, material_id: '', variant_id: '', material_name: '', unit: 'nos', quantity: '', rate: '', amount: 0, uses_variant: false, available_qty: 0, valid: false }
   ]);
+  const [dcSettings, setDcSettings] = useState({ prefix: 'DC', suffix: '', padding: '5' });
 
   useEffect(() => { loadData(); }, []);
   
@@ -74,6 +75,18 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
       setStock(stockData.data || []);
       setClients(clientData.data || []);
       console.log('Clients loaded:', clientData.data?.length);
+      
+      // Load DC settings
+      const { data: settingsData } = await supabase.from('settings').select('key, value');
+      if (settingsData) {
+        const settings = {};
+        settingsData.forEach(s => { settings[s.key] = s.value; });
+        setDcSettings({
+          prefix: settings.dc_prefix || 'DC',
+          suffix: settings.dc_suffix || '',
+          padding: settings.dc_padding || '5'
+        });
+      }
       
       const priceMap = {};
       stockData.data?.forEach(s => {
@@ -280,7 +293,10 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
       
       const dcData = {
         ...formData,
-        warehouse_id: formData.source_type === 'WAREHOUSE' ? formData.warehouse_id : null
+        warehouse_id: formData.source_type === 'WAREHOUSE' ? formData.warehouse_id : null,
+        eway_bill_date: formData.eway_bill_date || null,
+        eway_valid_till: formData.eway_valid_till || null,
+        project_id: formData.project_id || null
       };
       
       let dcId;
@@ -359,7 +375,8 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
   const generateDCNo = async () => {
     const { count } = await supabase.from('delivery_challans').select('*', { count: 'exact' });
     const num = (count || 0) + 1;
-    return `DC-${String(num).padStart(5, '0')}`;
+    const paddedNum = String(num).padStart(parseInt(dcSettings.padding) || 5, '0');
+    return `${dcSettings.prefix || ''}${paddedNum}${dcSettings.suffix || ''}`;
   };
 
   const generatePDF = async (dc) => {

@@ -15,11 +15,33 @@ export function OrganisationSettings({ organisation, userId }) {
     gstin: organisation.gstin || ''
   })
   const [isAdmin, setIsAdmin] = useState(false)
+  const [dcSettings, setDcSettings] = useState({ prefix: 'DC', suffix: '', padding: '5' })
 
   useEffect(() => {
     loadMembers()
     checkAdmin()
+    loadDcSettings()
   }, [organisation.id, userId])
+
+  const loadDcSettings = async () => {
+    const { data } = await supabase.from('settings').select('key, value')
+    if (data) {
+      const settings = {}
+      data.forEach(s => { settings[s.key] = s.value })
+      setDcSettings({
+        prefix: settings.dc_prefix || 'DC',
+        suffix: settings.dc_suffix || '',
+        padding: settings.dc_padding || '5'
+      })
+    }
+  }
+
+  const saveDcSettings = async () => {
+    await supabase.from('settings').upsert({ key: 'dc_prefix', value: dcSettings.prefix }, { onConflict: 'key' })
+    await supabase.from('settings').upsert({ key: 'dc_suffix', value: dcSettings.suffix }, { onConflict: 'key' })
+    await supabase.from('settings').upsert({ key: 'dc_padding', value: dcSettings.padding }, { onConflict: 'key' })
+    alert('DC Settings saved!')
+  }
 
   const checkAdmin = async () => {
     const { data } = await supabase
@@ -126,6 +148,58 @@ export function OrganisationSettings({ organisation, userId }) {
         {isAdmin && (
           <button onClick={handleUpdateOrg} className="btn btn-primary">
             Save Changes
+          </button>
+        )}
+      </div>
+
+      <div className="card" style={{ marginTop: '24px' }}>
+        <h3 className="card-title">DC Number Settings</h3>
+        <p style={{ color: '#666', marginBottom: '16px' }}>Configure how DC numbers are auto-generated</p>
+        
+        <div className="form-row">
+          <div className="form-group">
+            <label className="form-label">Prefix</label>
+            <input
+              type="text"
+              className="form-input"
+              value={dcSettings.prefix}
+              onChange={(e) => setDcSettings({...dcSettings, prefix: e.target.value})}
+              placeholder="DC"
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Padding (digits)</label>
+            <select
+              className="form-select"
+              value={dcSettings.padding}
+              onChange={(e) => setDcSettings({...dcSettings, padding: e.target.value})}
+            >
+              <option value="3">3 (001)</option>
+              <option value="4">4 (0001)</option>
+              <option value="5">5 (00001)</option>
+              <option value="6">6 (000001)</option>
+            </select>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Suffix</label>
+            <input
+              type="text"
+              className="form-input"
+              value={dcSettings.suffix}
+              onChange={(e) => setDcSettings({...dcSettings, suffix: e.target.value})}
+              placeholder=""
+            />
+          </div>
+        </div>
+        
+        <div style={{ marginTop: '12px' }}>
+          <strong>Preview: </strong>
+          {dcSettings.prefix}{'0'.repeat(parseInt(dcSettings.padding) || 5)}1{dcSettings.suffix}
+        </div>
+        
+        {isAdmin && (
+          <button onClick={saveDcSettings} className="btn btn-primary" style={{ marginTop: '16px' }}>
+            Save DC Settings
           </button>
         )}
       </div>

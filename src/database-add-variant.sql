@@ -123,3 +123,23 @@ CREATE POLICY "client_shipping_addresses_all_access" ON client_shipping_addresse
 
 -- Add city to clients table
 ALTER TABLE clients ADD COLUMN IF NOT EXISTS city VARCHAR(100);
+
+-- Settings table for DC number generation
+CREATE TABLE IF NOT EXISTS settings (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  key VARCHAR(100) UNIQUE NOT NULL,
+  value TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE settings ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "settings_all_access" ON settings;
+CREATE POLICY "settings_all_access" ON settings FOR ALL USING (true) WITH CHECK (true);
+
+-- Insert default DC settings
+INSERT INTO settings (key, value) VALUES 
+  ('dc_prefix', 'DC'),
+  ('dc_suffix', ''),
+  ('dc_padding', '5')
+ON CONFLICT (key) DO NOTHING;
