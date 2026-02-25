@@ -59,13 +59,24 @@ ALTER TABLE materials ENABLE ROW LEVEL SECURITY;
 ALTER TABLE delivery_challans ENABLE ROW LEVEL SECURITY;
 ALTER TABLE delivery_challan_items ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies if they exist (to allow re-running the script)
+DROP POLICY IF EXISTS "Enable all access for projects" ON projects;
+DROP POLICY IF EXISTS "Enable all access for materials" ON materials;
+DROP POLICY IF EXISTS "Enable all access for delivery_challans" ON delivery_challans;
+DROP POLICY IF EXISTS "Enable all access for delivery_challan_items" ON delivery_challan_items;
+
 -- Create policies for public access (adjust as needed)
 CREATE POLICY "Enable all access for projects" ON projects FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Enable all access for materials" ON materials FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Enable all access for delivery_challans" ON delivery_challans FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Enable all access for delivery_challan_items" ON delivery_challan_items FOR ALL USING (true) WITH CHECK (true);
 
--- Create indexes for better performance
+-- Create indexes for better performance (drop first if exists to allow re-running)
+DROP INDEX IF EXISTS idx_delivery_challans_dc_date;
+DROP INDEX IF EXISTS idx_delivery_challans_project_id;
+DROP INDEX IF EXISTS idx_delivery_challan_items_challan_id;
+DROP INDEX IF EXISTS idx_delivery_challan_items_material;
+
 CREATE INDEX idx_delivery_challans_dc_date ON delivery_challans(dc_date);
 CREATE INDEX idx_delivery_challans_project_id ON delivery_challans(project_id);
 CREATE INDEX idx_delivery_challan_items_challan_id ON delivery_challan_items(delivery_challan_id);
