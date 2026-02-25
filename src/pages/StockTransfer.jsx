@@ -125,15 +125,30 @@ function TransferForm({ transfer, onSave, onCancel }) {
   const isEditing = !!transfer;
   const isLocked = transfer?.status !== 'DRAFT';
 
+  const loadData = async () => {
+    console.log('Loading stock transfer data...');
+    try {
+      const [mat, wh, varData, stockData] = await Promise.all([
+        supabase.from('materials').select('id, item_code, display_name, name, unit').eq('is_active', true).order('name'),
+        supabase.from('warehouses').select('*').eq('is_active', true).order('warehouse_name'),
+        supabase.from('company_variants').select('*').eq('is_active', true).order('variant_name'),
+        supabase.from('item_stock').select('*')
+      ]);
+      
+      console.log('Warehouses:', wh.data);
+      console.log('Materials:', mat.data?.length);
+      setMaterials(mat.data || []);
+      setWarehouses(wh.data || []);
+      setVariants(varData.data || []);
+      setStock(stockData.data || []);
+    } catch (err) {
+      console.error('Error loading data:', err);
+    }
+  };
+
   useEffect(() => { 
     loadData(); 
   }, []);
-
-  useEffect(() => {
-    if (warehouses.length === 0) {
-      console.log('No warehouses found - please create warehouses first');
-    }
-  }, [warehouses]);
   
   useEffect(() => {
     if (transfer) {
@@ -149,32 +164,6 @@ function TransferForm({ transfer, onSave, onCancel }) {
       loadTransferItems(transfer.id);
     }
   }, [transfer]);
-
-  const loadData = async () => {
-    console.log('Loading stock transfer data...');
-    try {
-      const warehouseQuery = await supabase.from('warehouses').select('*').eq('is_active', true).order('name');
-      console.log('Warehouse query result:', warehouseQuery);
-      
-      if (warehouseQuery.error) {
-        alert('Error loading warehouses: ' + warehouseQuery.error.message);
-      }
-      
-      const [mat, varData, stockData] = await Promise.all([
-        supabase.from('materials').select('id, display_name, name, unit').eq('is_active', true).order('name'),
-        supabase.from('company_variants').select('*').eq('is_active', true).order('variant_name'),
-        supabase.from('item_stock').select('*')
-      ]);
-      
-      setMaterials(mat.data || []);
-      setWarehouses(warehouseQuery.data || []);
-      setVariants(varData.data || []);
-      setStock(stockData.data || []);
-    } catch (err) {
-      console.error('Error loading data:', err);
-      alert('Error: ' + err.message);
-    }
-  };
 
   const loadTransferItems = async (transferId) => {
     const { data } = await supabase
@@ -478,6 +467,17 @@ function TransferForm({ transfer, onSave, onCancel }) {
       <div className="page-header">
         <h1 className="page-title">{isEditing ? 'Edit Transfer' : 'New Stock Transfer'}</h1>
       </div>
+      
+      {warehouses.length === 0 && (
+        <div style={{ padding: '10px', background: '#ffcccc', marginBottom: '10px' }}>
+          Debug: No warehouses loaded. Check console for errors.
+        </div>
+      )}
+      {materials.length === 0 && (
+        <div style={{ padding: '10px', background: '#ffcccc', marginBottom: '10px' }}>
+          Debug: No materials loaded. Need materials with is_active=true.
+        </div>
+      )}
 
       <div className="card" style={{ padding: '0', overflow: 'hidden' }}>
         <div style={{ background: '#f8f9fa', padding: '16px 20px', borderBottom: '1px solid #e0e0e0' }}>
