@@ -845,20 +845,32 @@ function MaterialInward({ onCancel }) {
 
       for (const item of validItems) {
         const mat = getMaterial(item.item_id);
-        const itemVariantId = mat?.uses_variant ? formData.variant_id : null;
+        if (!mat) {
+          alert('Material not found for item: ' + item.item_id);
+          continue;
+        }
+        const itemVariantId = mat.uses_variant ? formData.variant_id : null;
         const qty = parseFloat(item.quantity);
         const rate = parseFloat(item.rate);
+        const materialName = mat.display_name || mat.name || 'Unknown Item';
 
-        const { error: itemError } = await supabase.from('material_inward_items').insert({
+        const insertData = {
           inward_id: inward.id,
           material_id: item.item_id,
-          material_name: mat?.display_name || mat?.name || '',
-          variant_id: itemVariantId,
-          warehouse_id: formData.warehouse_id,
+          material_name: materialName,
           quantity: qty,
           rate: rate,
           amount: qty * rate
-        });
+        };
+        
+        if (formData.warehouse_id) insertData.warehouse_id = formData.warehouse_id;
+        if (itemVariantId) insertData.variant_id = itemVariantId;
+
+        const { error: itemError } = await supabase.from('material_inward_items').insert(insertData);
+        if (itemError) {
+          alert('Error saving item: ' + itemError.message + '\nItem: ' + materialName);
+          throw itemError;
+        }
         if (itemError) throw itemError;
 
         const { data: existing } = await supabase.from('item_stock')
