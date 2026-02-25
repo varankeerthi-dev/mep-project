@@ -64,7 +64,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
         supabase.from('warehouses').select('*').eq('is_active', true).order('warehouse_name'),
         supabase.from('company_variants').select('*').eq('is_active', true).order('variant_name'),
         supabase.from('item_stock').select('*'),
-        supabase.from('clients').select('*').order('name')
+        supabase.from('clients').select('*').order('client_name')
       ]);
       
       setProjects(projData.data || []);
@@ -73,6 +73,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
       setVariants(varData.data || []);
       setStock(stockData.data || []);
       setClients(clientData.data || []);
+      console.log('Clients loaded:', clientData.data?.length);
       
       const priceMap = {};
       stockData.data?.forEach(s => {
@@ -482,6 +483,12 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
       <div className="card-header">
         <h2 className="card-title">{isEditing ? 'Edit Delivery Challan' : 'Create Delivery Challan'}</h2>
       </div>
+      
+      {clients.length === 0 && (
+        <div style={{ padding: '10px', background: '#ffcccc', margin: '10px' }}>
+          No clients found. Please create clients in database.
+        </div>
+      )}
       
       <form onSubmit={handleSubmit}>
         <div style={{ background: '#f8f9fa', padding: '16px', marginBottom: '16px', borderRadius: '8px' }}>
