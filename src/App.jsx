@@ -200,11 +200,12 @@ export default function App() {
       case '/store/stock': return <StockBalance />;
       case '/tools': return <ToolsList />;
       case '/dc/create': return <CreateDC onSuccess={() => navigate('/dc/list')} onCancel={() => navigate('/dc/list')} />;
-      default:
+      case '/dc/edit':
         if (currentPath.startsWith('/dc/edit/')) {
           const dcId = currentPath.split('/dc/edit/')[1];
           return <DCEdit dcId={dcId} onCancel={() => navigate('/dc/list')} />;
         }
+        return <DCList />;
       case '/dc/list': return <DCList />;
       case '/dc/consolidation/date': return <DateWiseConsolidation />;
       case '/dc/consolidation/material': return <MaterialWiseConsolidation />;
