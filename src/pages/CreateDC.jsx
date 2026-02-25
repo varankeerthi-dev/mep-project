@@ -16,7 +16,7 @@ export default function CreateDC({ onSuccess, onCancel }) {
     remarks: ''
   });
   const [items, setItems] = useState([
-    { s_no: 1, material_name: '', unit: 'nos', size: '', quantity: '', rate: '' }
+    { s_no: 1, material_name: '', material_id: '', unit: 'nos', size: '', quantity: '', rate: '' }
   ]);
 
   useEffect(() => {
@@ -46,10 +46,11 @@ export default function CreateDC({ onSuccess, onCancel }) {
     newItems[index][field] = value;
     
     if (field === 'material_name') {
-      const material = materials.find(m => m.name === value);
+      const material = materials.find(m => (m.display_name || m.name) === value);
       if (material) {
         newItems[index].unit = material.unit;
-        newItems[index].rate = material.default_rate || '';
+        newItems[index].rate = material.sale_price || material.default_rate || '';
+        newItems[index].material_id = material.id;
       }
     }
     
@@ -60,6 +61,7 @@ export default function CreateDC({ onSuccess, onCancel }) {
     setItems([...items, { 
       s_no: items.length + 1, 
       material_name: '', 
+      material_id: '',
       unit: 'nos', 
       size: '', 
       quantity: '', 
@@ -106,6 +108,7 @@ export default function CreateDC({ onSuccess, onCancel }) {
       
       const itemsToSave = validItems.map(item => ({
         delivery_challan_id: createdChallan.id,
+        material_id: item.material_id || null,
         material_name: item.material_name,
         unit: item.unit,
         size: item.size,
@@ -291,8 +294,8 @@ export default function CreateDC({ onSuccess, onCancel }) {
           </button>
           
           <datalist id="materials-list">
-            {materials.map(m => (
-              <option key={m.id} value={m.name} />
+            {materials.filter(m => m.is_active !== false).map(m => (
+              <option key={m.id} value={m.display_name || m.name} />
             ))}
           </datalist>
         </div>

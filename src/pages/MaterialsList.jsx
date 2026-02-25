@@ -279,9 +279,16 @@ function ItemsTab() {
   };
 
   const handleUsesVariantChange = async (checked) => {
-    if (!editingMaterial || !checked) {
-      setFormData({ ...formData, uses_variant: checked });
-      return;
+    if (editingMaterial && !checked && formData.uses_variant === true) {
+      const records = await checkVariantRecords(editingMaterial.id);
+      if (records.hasPricing || records.hasStock) {
+        let message = 'Cannot disable variant for this item because:';
+        if (records.hasPricing) message += '\n- Variant pricing records exist';
+        if (records.hasStock) message += '\n- Variant stock records exist';
+        message += '\n\nPlease delete these records first or contact support.';
+        alert(message);
+        return;
+      }
     }
     setFormData({ ...formData, uses_variant: checked });
   };
@@ -576,37 +583,21 @@ function ItemsTab() {
                 </label>
               </div>
 
-              {editingMaterial && (
-                <div style={{ background: '#fff3cd', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                    <input 
-                      type="checkbox" 
-                      checked={formData.uses_variant} 
-                      onChange={e => handleUsesVariantChange(e.target.checked)}
-                    />
-                    This item uses Variant
-                  </label>
-                  <p style={{ fontSize: '12px', color: '#856404', marginTop: '8px' }}>
-                    Uncheck to disable variant. Note: This will prevent adding variant-specific stock or pricing.
-                  </p>
-                </div>
-              )}
-
-              {!editingMaterial && (
-                <div style={{ background: '#e8f4f8', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: '500' }}>
-                    <input 
-                      type="checkbox" 
-                      checked={formData.uses_variant} 
-                      onChange={e => setFormData({...formData, uses_variant: e.target.checked})}
-                    />
-                    This item uses Variant
-                  </label>
-                  <p style={{ fontSize: '12px', color: '#666', marginTop: '8px' }}>
-                    Enable to set different prices for different variants (Retail, Wholesale, etc.)
-                  </p>
-                </div>
-              )}
+              <div style={{ background: formData.uses_variant ? '#e8f4f8' : '#f8f9fa', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: '500' }}>
+                  <input 
+                    type="checkbox" 
+                    checked={formData.uses_variant} 
+                    onChange={e => editingMaterial ? handleUsesVariantChange(e.target.checked) : setFormData({...formData, uses_variant: e.target.checked})}
+                  />
+                  This item uses Variant
+                </label>
+                <p style={{ fontSize: '12px', color: '#666', marginTop: '8px' }}>
+                  {formData.uses_variant 
+                    ? 'Prices will be set per variant below. At least one variant price is required before saving.'
+                    : 'Enable to set different prices for different variants (Retail, Wholesale, Special, etc.)'}
+                </p>
+              </div>
 
               {formData.uses_variant && (
                 <div style={{ background: '#f0f7ff', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
