@@ -98,3 +98,28 @@ ALTER TABLE delivery_challans ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAUL
 
 -- Add variant_id to delivery_challan_items
 ALTER TABLE delivery_challan_items ADD COLUMN IF NOT EXISTS variant_id UUID REFERENCES company_variants(id);
+
+-- ============================================
+-- CLIENT SHIPPING ADDRESSES
+-- ============================================
+CREATE TABLE IF NOT EXISTS client_shipping_addresses (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  client_id UUID REFERENCES clients(id) ON DELETE CASCADE,
+  address_name VARCHAR(100),
+  address_line1 TEXT,
+  address_line2 TEXT,
+  city VARCHAR(100),
+  state VARCHAR(100),
+  pincode VARCHAR(20),
+  gstin VARCHAR(50),
+  contact VARCHAR(100),
+  is_default BOOLEAN DEFAULT false,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE client_shipping_addresses ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "client_shipping_addresses_all_access" ON client_shipping_addresses;
+CREATE POLICY "client_shipping_addresses_all_access" ON client_shipping_addresses FOR ALL USING (true) WITH CHECK (true);
+
+-- Add city to clients table
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS city VARCHAR(100);

@@ -284,18 +284,32 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
       
       let dcId;
       
+      console.log('Saving DC with data:', dcData);
+      
       if (isEditing) {
         await supabase.from('delivery_challans').update(dcData).eq('id', editDC.id);
         dcId = editDC.id;
         await supabase.from('delivery_challan_items').delete().eq('delivery_challan_id', dcId);
       } else {
         const dcNo = await generateDCNo();
-        const { data } = await supabase.from('delivery_challans').insert({
+        console.log('Generated DC No:', dcNo);
+        const { data, error } = await supabase.from('delivery_challans').insert({
           ...dcData,
           dc_number: dcNo
         }).select().single();
+        
+        if (error) {
+          console.error('Error creating DC:', error);
+          alert('Error creating DC: ' + error.message);
+          setLoading(false);
+          return;
+        }
+        
         dcId = data.id;
       }
+      
+      console.log('DC saved, ID:', dcId);
+      console.log('Saving items:', validItems);
       
       const itemsToSave = validItems.map(item => ({
         delivery_challan_id: dcId,
@@ -474,15 +488,31 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
           <div className="form-row">
             <div className="form-group">
               <label className="form-label">Client *</label>
-              <input 
-                type="text" 
+              <select 
                 name="client_name"
-                className="form-input"
+                className="form-select"
                 value={formData.client_name}
-                onChange={handleInputChange}
-                placeholder="Client name"
+                onChange={(e) => {
+                  const client = clients.find(c => c.client_name === e.target.value);
+                  setFormData(prev => ({
+                    ...prev,
+                    client_name: e.target.value,
+                    ship_to_name: client?.client_name || '',
+                    ship_to_address_line1: client?.address1 || client?.shipping_address || '',
+                    ship_to_address_line2: client?.address2 || '',
+                    ship_to_city: client?.city || '',
+                    ship_to_state: client?.state || '',
+                    ship_to_gstin: client?.gstin || '',
+                    ship_to_contact: client?.contact || ''
+                  }));
+                }}
                 disabled={isLocked}
-              />
+              >
+                <option value="">Select Client</option>
+                {clients.map(c => (
+                  <option key={c.id} value={c.client_name}>{c.client_name}</option>
+                ))}
+              </select>
             </div>
             <div className="form-group">
               <label className="form-label">Project</label>
