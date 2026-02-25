@@ -1,0 +1,4 @@
+-- Disable RLS temporarily to test
+ALTER TABLE organisations DISABLE ROW LEVEL SECURITY;
+ALTER TABLE org_members DISABLE ROW LEVEL SECURITY;
+ALTER TABLE user_profiles DISABLE ROW LEVEL SECURITY;
