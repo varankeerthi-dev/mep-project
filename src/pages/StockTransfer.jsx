@@ -15,7 +15,7 @@ export default function StockTransfer({ onCancel }) {
   const loadTransfers = async () => {
     const { data } = await supabase
       .from('stock_transfers')
-      .select('*, from_warehouse:warehouses!from_warehouse_id(warehouse_name), to_warehouse:warehouses!to_warehouse_id(warehouse_name)')
+      .select('*, from_warehouse:warehouses!from_warehouse_id(warehouse_name, name), to_warehouse:warehouses!to_warehouse_id(warehouse_name, name)')
       .order('created_at', { ascending: false });
     setTransfers(data || []);
   };
@@ -84,8 +84,8 @@ export default function StockTransfer({ onCancel }) {
               <tr key={t.id}>
                 <td><strong>{t.transfer_no}</strong></td>
                 <td>{t.transfer_date}</td>
-                <td>{t.from_warehouse?.warehouse_name || '-'}</td>
-                <td>{t.to_warehouse?.warehouse_name || '-'}</td>
+                <td>{t.from_warehouse?.warehouse_name || t.from_warehouse?.name || '-'}</td>
+                <td>{t.to_warehouse?.warehouse_name || t.to_warehouse?.name || '-'}</td>
                 <td>{getStatusBadge(t.status)}</td>
                 <td>
                   <button className="btn btn-sm btn-secondary" onClick={() => { setEditingTransfer(t); setView('form'); }}>Edit</button>
@@ -143,12 +143,14 @@ function TransferForm({ transfer, onSave, onCancel }) {
   }, [transfer]);
 
   const loadData = async () => {
+    console.log('Loading stock transfer data...');
     const [mat, wh, varData, stockData] = await Promise.all([
       supabase.from('materials').select('id, display_name, name, unit').eq('is_active', true).order('name'),
-      supabase.from('warehouses').select('*').eq('is_active', true).order('warehouse_name'),
+      supabase.from('warehouses').select('*').order('warehouse_name'),
       supabase.from('company_variants').select('*').eq('is_active', true).order('variant_name'),
       supabase.from('item_stock').select('*')
     ]);
+    console.log('Warehouses:', wh.data);
     setMaterials(mat.data || []);
     setWarehouses(wh.data || []);
     setVariants(varData.data || []);
@@ -186,7 +188,10 @@ function TransferForm({ transfer, onSave, onCancel }) {
   };
 
   const getMaterial = (id) => materials.find(m => m.id === id);
-  const getWarehouse = (id) => warehouses.find(w => w.id === id);
+  const getWarehouse = (id) => {
+    const w = warehouses.find(x => x.id === id);
+    return w ? (w.warehouse_name || w.name || 'Warehouse') : '-';
+  };
 
   const addItem = () => {
     setItems([...items, { id: nextId, item_id: '', variant_id: '', available_qty: 0, quantity: '', valid: false }]);
@@ -466,14 +471,14 @@ function TransferForm({ transfer, onSave, onCancel }) {
               <label className="form-label">From Warehouse *</label>
               <select className="form-select" value={formData.from_warehouse_id} onChange={e => handleWarehouseChange('from_warehouse_id', e.target.value)} disabled={isLocked}>
                 <option value="">Select</option>
-                {warehouses.map(w => (<option key={w.id} value={w.id}>{w.warehouse_name}</option>))}
+                {warehouses.map(w => (<option key={w.id} value={w.id}>{w.warehouse_name || w.name || 'Warehouse'}</option>))}
               </select>
             </div>
             <div className="form-group" style={{ margin: 0, minWidth: '150px' }}>
               <label className="form-label">To Warehouse *</label>
               <select className="form-select" value={formData.to_warehouse_id} onChange={e => setFormData({...formData, to_warehouse_id: e.target.value})} disabled={isLocked}>
                 <option value="">Select</option>
-                {warehouses.filter(w => w.id !== formData.from_warehouse_id).map(w => (<option key={w.id} value={w.id}>{w.warehouse_name}</option>))}
+                {warehouses.filter(w => w.id !== formData.from_warehouse_id).map(w => (<option key={w.id} value={w.id}>{w.warehouse_name || w.name || 'Warehouse'}</option>))}
               </select>
             </div>
             <div className="form-group" style={{ margin: 0, minWidth: '120px' }}>
