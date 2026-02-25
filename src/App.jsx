@@ -655,34 +655,42 @@ function MaterialInward({ onCancel }) {
   const [materials, setMaterials] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
   const [variants, setVariants] = useState([]);
+  const [projects, setProjects] = useState([]);
   const [pricing, setPricing] = useState({});
   const [showPasteModal, setShowPasteModal] = useState(false);
   const [pasteData, setPasteData] = useState('');
   const [formData, setFormData] = useState({ 
-    inward_date: new Date().toISOString().split('T')[0], 
+    invoice_date: '',
+    received_date: new Date().toISOString().split('T')[0], 
     vendor_name: '', 
     invoice_no: '', 
-    remarks: '', 
     warehouse_id: '', 
-    variant_id: '' 
+    default_variant_id: '',
+    received_by: '',
+    acknowledged_by: '',
+    remarks: '',
+    supply_type: 'WAREHOUSE',
+    project_id: ''
   });
   const [items, setItems] = useState([
-    { id: 1, item_id: '', quantity: '', rate: '', amount: 0, uses_variant: false, valid: false }
+    { id: 1, item_id: '', variant_id: '', quantity: '', rate: '', amount: 0, uses_variant: false, supply_type: 'WAREHOUSE', project_id: '', valid: false }
   ]);
   const [nextId, setNextId] = useState(2);
   
   useEffect(() => { loadData(); }, []);
   
   const loadData = async () => {
-    const [mat, wh, varData, priceData] = await Promise.all([
-      supabase.from('materials').select('id, item_code, display_name, name, unit, uses_variant, default_sale_price').eq('is_active', true).order('name'),
+    const [mat, wh, varData, priceData, projData] = await Promise.all([
+      supabase.from('materials').select('id, item_code, display_name, name, unit, uses_variant, sale_price').eq('is_active', true).order('name'),
       supabase.from('warehouses').select('*').eq('is_active', true).order('warehouse_name'),
       supabase.from('company_variants').select('*').eq('is_active', true).order('variant_name'),
-      supabase.from('item_variant_pricing').select('item_id, company_variant_id, sale_price')
+      supabase.from('item_variant_pricing').select('item_id, company_variant_id, sale_price'),
+      supabase.from('projects').select('id, name').order('name')
     ]);
     setMaterials(mat.data || []);
     setWarehouses(wh.data || []);
     setVariants(varData.data || []);
+    setProjects(projData.data || []);
     
     const priceMap = {};
     priceData?.forEach(p => {
@@ -692,10 +700,6 @@ function MaterialInward({ onCancel }) {
     setPricing(priceMap);
   };
 
-  const hasVariantItems = items.some(i => i.item_id && i.uses_variant);
-  const variantRequired = hasVariantItems;
-  const variantDisabled = !variantRequired;
-
   const getMaterial = (id) => materials.find(m => m.id === id);
   
   const getRate = (itemId, variantId) => {
@@ -703,11 +707,11 @@ function MaterialInward({ onCancel }) {
       return pricing[itemId][variantId];
     }
     const mat = getMaterial(itemId);
-    return mat?.default_sale_price || 0;
+    return mat?.sale_price || 0;
   };
 
   const addItem = () => {
-    setItems([...items, { id: nextId, item_id: '', quantity: '', rate: '', amount: 0, uses_variant: false, valid: false }]);
+    setItems([...items, { id: nextId, item_id: '', variant_id: '', quantity: '', rate: '', amount: 0, uses_variant: false, supply_type: 'WAREHOUSE', project_id: '', valid: false }]);
     setNextId(nextId + 1);
   };
 
@@ -724,108 +728,97 @@ function MaterialInward({ onCancel }) {
       if (field === 'item_id' && value) {
         const mat = getMaterial(value);
         updates.uses_variant = mat?.uses_variant || false;
-        updates.rate = getRate(value, formData.variant_id);
+        const effectiveVariantId = updates.uses_variant ? (formData.default_variant_id || '') : '';
+        updates.variant_id = effectiveVariantId;
+        updates.rate = getRate(value, effectiveVariantId || null);
       }
       
       if (field === 'variant_id' && item.item_id) {
-        updates.rate = getRate(item.item_id, value);
+        updates.rate = getRate(item.item_id, value || null);
+      }
+      
+      if (field === 'supply_type') {
+        updates.project_id = value === 'DIRECT_SUPPLY' ? item.project_id : '';
       }
       
       if ((field === 'quantity' || field === 'rate') || (field === 'variant_id' && item.item_id)) {
         const qty = field === 'quantity' ? parseFloat(value) || 0 : parseFloat(item.quantity) || 0;
-        const rate = field === 'rate' ? parseFloat(value) || 0 : (field === 'variant_id' ? getRate(item.item_id, value) : parseFloat(item.rate) || 0);
+        const rate = field === 'rate' ? parseFloat(value) || 0 : parseFloat(item.rate) || 0;
         updates.amount = qty * rate;
       }
       
       const qty = parseFloat(updates.quantity !== undefined ? updates.quantity : item.quantity) || 0;
-      updates.valid = !!(item.item_id || updates.item_id) && qty > 0;
+      const variantId = updates.variant_id !== undefined ? updates.variant_id : item.variant_id;
+      const usesVar = updates.uses_variant !== undefined ? updates.uses_variant : item.uses_variant;
+      const supplyType = updates.supply_type !== undefined ? updates.supply_type : item.supply_type;
+      const projId = updates.project_id !== undefined ? updates.project_id : item.project_id;
+      const hasVariantMissing = usesVar && !variantId;
+      const hasProjectMissing = supplyType === 'DIRECT_SUPPLY' && !projId;
+      updates.valid = !!(item.item_id || updates.item_id) && qty > 0 && !hasVariantMissing && !hasProjectMissing;
       
       return { ...item, ...updates };
     }));
   };
 
-  const handleKeyDown = (e, index, field) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      if (field === 'quantity' || field === 'rate') {
-        addItem();
-      }
-    }
-    if (e.key === 'ArrowDown' && field === 'rate') {
-      e.preventDefault();
-      const inputs = document.querySelectorAll('[data-row-input]');
-      if (inputs[index + 1]) inputs[index + 1].focus();
-    }
-    if (e.key === 'ArrowUp' && field === 'rate') {
-      e.preventDefault();
-      const inputs = document.querySelectorAll('[data-row-input]');
-      if (inputs[index - 1]) inputs[index - 1].focus();
-    }
+  const handleDefaultVariantChange = (variantId) => {
+    setFormData({ ...formData, default_variant_id: variantId });
+    setItems(items.map(item => {
+      if (!item.item_id) return item;
+      if (!item.uses_variant) return item;
+      return { ...item, variant_id: variantId, rate: getRate(item.item_id, variantId || null) };
+    }));
   };
 
-  const parsePasteData = () => {
-    const rows = pasteData.trim().split('\n').map(row => {
-      const cols = row.split(/[\t,]/).map(c => c.trim());
-      return { name: cols[0] || '', quantity: cols[1] || '', rate: cols[2] || '' };
-    });
-
-    const newItems = [...items];
-    const errors = [];
-
-    rows.forEach((row, idx) => {
-      const mat = materials.find(m => 
-        m.name?.toLowerCase() === row.name.toLowerCase() || 
-        m.display_name?.toLowerCase() === row.name.toLowerCase() ||
-        m.item_code?.toLowerCase() === row.name.toLowerCase()
-      );
-
-      if (!mat) {
-        errors.push(`Row ${idx + 1}: Unknown item "${row.name}"`);
-        return;
-      }
-
-      const qty = parseFloat(row.quantity) || 0;
-      const rate = parseFloat(row.rate) || getRate(mat.id, formData.variant_id);
-
-      newItems.push({
-        id: nextId + idx,
-        item_id: mat.id,
-        quantity: qty,
-        rate: rate,
-        amount: qty * rate,
-        uses_variant: mat.uses_variant || false,
-        valid: qty > 0
-      });
-    });
-
-    if (errors.length > 0) {
-      alert('Errors:\n' + errors.join('\n'));
-      return;
+  const validateForm = () => {
+    if (!formData.received_date) {
+      alert('Please enter Received Date');
+      return false;
     }
-
-    setItems(newItems);
-    setNextId(nextId + rows.length);
-    setShowPasteModal(false);
-    setPasteData('');
+    if (!formData.vendor_name) {
+      alert('Please enter Vendor');
+      return false;
+    }
+    if (!formData.invoice_no) {
+      alert('Please enter Invoice No');
+      return false;
+    }
+    if (!formData.received_by) {
+      alert('Please enter Received By');
+      return false;
+    }
+    
+    for (const item of items) {
+      if (!item.item_id) continue;
+      
+      const itemSupplyType = item.supply_type || formData.supply_type;
+      
+      if (itemSupplyType === 'WAREHOUSE' && !formData.warehouse_id) {
+        alert('Please select Warehouse for WAREHOUSE supply type');
+        return false;
+      }
+      if (itemSupplyType === 'DIRECT_SUPPLY' && !item.project_id) {
+        alert(`Project is required for DIRECT SUPPLY item: ${getMaterial(item.item_id)?.display_name || getMaterial(item.item_id)?.name}`);
+        return false;
+      }
+      if (item.uses_variant && !item.variant_id) {
+        alert(`Variant is required for item: ${getMaterial(item.item_id)?.display_name || getMaterial(item.item_id)?.name}`);
+        return false;
+      }
+      if (!item.quantity || parseFloat(item.quantity) <= 0) {
+        alert(`Invalid quantity for item: ${getMaterial(item.item_id)?.display_name || getMaterial(item.item_id)?.name}`);
+        return false;
+      }
+    }
+    
+    return true;
   };
-
-  const validItems = items.filter(i => i.valid);
-  const totalQty = validItems.reduce((sum, i) => sum + (parseFloat(i.quantity) || 0), 0);
-  const totalAmount = validItems.reduce((sum, i) => sum + (i.amount || 0), 0);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!formData.warehouse_id) {
-      alert('Please select a warehouse');
-      return;
-    }
+    if (!validateForm()) return;
 
-    if (variantRequired && !formData.variant_id) {
-      alert('Please select a variant (required for variant-based items)');
-      return;
-    }
-
+    const validItems = items.filter(i => i.valid);
     if (validItems.length === 0) {
       alert('Please add at least one valid item');
       return;
@@ -833,23 +826,29 @@ function MaterialInward({ onCancel }) {
 
     try {
       const { data: inward, error } = await supabase.from('material_inward').insert({
-        inward_date: formData.inward_date,
-        vendor_name: formData.vendor_name || null,
-        invoice_no: formData.invoice_no || null,
+        invoice_date: formData.invoice_date || null,
+        received_date: formData.received_date,
+        vendor_name: formData.vendor_name,
+        invoice_no: formData.invoice_no,
+        warehouse_id: formData.warehouse_id || null,
+        variant_id: formData.default_variant_id || null,
+        received_by: formData.received_by,
+        acknowledged_by: formData.acknowledged_by || null,
         remarks: formData.remarks || null,
-        warehouse_id: formData.warehouse_id,
-        variant_id: formData.variant_id || null
+        supply_type: formData.supply_type,
+        project_id: formData.project_id || null
       }).select().single();
       
       if (error) throw error;
 
       for (const item of validItems) {
         const mat = getMaterial(item.item_id);
-        if (!mat) {
-          alert('Material not found for item: ' + item.item_id);
-          continue;
-        }
-        const itemVariantId = mat.uses_variant ? formData.variant_id : null;
+        if (!mat) continue;
+        
+        const itemSupplyType = item.supply_type || formData.supply_type;
+        const itemWarehouseId = itemSupplyType === 'WAREHOUSE' ? formData.warehouse_id : null;
+        const itemProjectId = itemSupplyType === 'DIRECT_SUPPLY' ? item.project_id : null;
+        const itemVariantId = item.uses_variant && item.variant_id ? item.variant_id : null;
         const qty = parseFloat(item.quantity);
         const rate = parseFloat(item.rate);
         const materialName = mat.display_name || mat.name || 'Unknown Item';
@@ -861,47 +860,63 @@ function MaterialInward({ onCancel }) {
           unit: mat.unit || 'nos',
           quantity: qty,
           rate: rate,
-          amount: qty * rate
+          amount: qty * rate,
+          warehouse_id: itemWarehouseId,
+          variant_id: itemVariantId,
+          supply_type: itemSupplyType,
+          project_id: itemProjectId
         };
-        
-        if (formData.warehouse_id) insertData.warehouse_id = formData.warehouse_id;
-        if (itemVariantId) insertData.variant_id = itemVariantId;
 
         const { error: itemError } = await supabase.from('material_inward_items').insert(insertData);
-        if (itemError) {
-          alert('Error saving item: ' + itemError.message + '\nItem: ' + materialName);
-          throw itemError;
-        }
         if (itemError) throw itemError;
 
-        const { data: existing } = await supabase.from('item_stock')
-          .select('*')
-          .eq('item_id', item.item_id)
-          .eq('company_variant_id', itemVariantId)
-          .eq('warehouse_id', formData.warehouse_id)
-          .single();
+        if (itemSupplyType === 'WAREHOUSE' && itemWarehouseId) {
+          const { data: existing } = await supabase.from('item_stock')
+            .select('*')
+            .eq('item_id', item.item_id)
+            .eq('company_variant_id', itemVariantId)
+            .eq('warehouse_id', itemWarehouseId)
+            .single();
 
-        if (existing) {
-          await supabase.from('item_stock')
-            .update({ current_stock: (parseFloat(existing.current_stock) || 0) + qty, updated_at: new Date().toISOString() })
-            .eq('id', existing.id);
-        } else {
-          await supabase.from('item_stock').insert({
-            item_id: item.item_id,
-            company_variant_id: itemVariantId,
-            warehouse_id: formData.warehouse_id,
-            current_stock: qty
-          });
+          if (existing) {
+            await supabase.from('item_stock')
+              .update({ current_stock: (parseFloat(existing.current_stock) || 0) + qty, updated_at: new Date().toISOString() })
+              .eq('id', existing.id);
+          } else {
+            await supabase.from('item_stock').insert({
+              item_id: item.item_id,
+              company_variant_id: itemVariantId,
+              warehouse_id: itemWarehouseId,
+              current_stock: qty
+            });
+          }
         }
       }
 
       alert('Material inward submitted successfully!');
-      setItems([{ id: 1, item_id: '', quantity: '', rate: '', amount: 0, uses_variant: false, valid: false }]);
-      setFormData({ inward_date: new Date().toISOString().split('T')[0], vendor_name: '', invoice_no: '', remarks: '', warehouse_id: '', variant_id: '' });
+      setItems([{ id: 1, item_id: '', variant_id: '', quantity: '', rate: '', amount: 0, uses_variant: false, supply_type: 'WAREHOUSE', project_id: '', valid: false }]);
+      setFormData({ 
+        invoice_date: '', 
+        received_date: new Date().toISOString().split('T')[0], 
+        vendor_name: '', 
+        invoice_no: '', 
+        warehouse_id: '', 
+        default_variant_id: '',
+        received_by: '',
+        acknowledged_by: '',
+        remarks: '',
+        supply_type: 'WAREHOUSE',
+        project_id: ''
+      });
     } catch (err) {
       alert('Error saving: ' + err.message);
     }
   };
+
+  const totalQty = items.filter(i => i.valid).reduce((sum, i) => sum + (parseFloat(i.quantity) || 0), 0);
+  const totalAmount = items.filter(i => i.valid).reduce((sum, i) => sum + (i.amount || 0), 0);
+
+  const activeVariants = variants.filter(v => v.variant_name !== 'No Variant');
 
   return (
     <div>
@@ -916,43 +931,50 @@ function MaterialInward({ onCancel }) {
           padding: '16px 20px', 
           borderBottom: '1px solid #e0e0e0',
           display: 'flex',
-          gap: '20px',
+          gap: '16px',
           flexWrap: 'wrap',
           alignItems: 'flex-end',
           position: 'sticky',
           top: 0,
           zIndex: 10
         }}>
-          <div className="form-group" style={{ margin: 0, minWidth: '150px' }}>
-            <label className="form-label">Date *</label>
-            <input type="date" className="form-input" value={formData.inward_date} onChange={e => setFormData({...formData, inward_date: e.target.value})} />
+          <div className="form-group" style={{ margin: 0, minWidth: '140px' }}>
+            <label className="form-label">Invoice Date</label>
+            <input type="date" className="form-input" value={formData.invoice_date} onChange={e => setFormData({...formData, invoice_date: e.target.value})} />
           </div>
-          <div className="form-group" style={{ margin: 0, minWidth: '180px' }}>
+          <div className="form-group" style={{ margin: 0, minWidth: '140px' }}>
+            <label className="form-label">Received Date *</label>
+            <input type="date" className="form-input" value={formData.received_date} onChange={e => setFormData({...formData, received_date: e.target.value})} />
+          </div>
+          <div className="form-group" style={{ margin: 0, minWidth: '160px' }}>
+            <label className="form-label">Vendor *</label>
+            <input type="text" className="form-input" value={formData.vendor_name} onChange={e => setFormData({...formData, vendor_name: e.target.value})} placeholder="Vendor name" />
+          </div>
+          <div className="form-group" style={{ margin: 0, minWidth: '140px' }}>
+            <label className="form-label">Invoice No *</label>
+            <input type="text" className="form-input" value={formData.invoice_no} onChange={e => setFormData({...formData, invoice_no: e.target.value})} placeholder="Invoice #" />
+          </div>
+          <div className="form-group" style={{ margin: 0, minWidth: '150px' }}>
             <label className="form-label">Warehouse *</label>
             <select className="form-select" value={formData.warehouse_id} onChange={e => setFormData({...formData, warehouse_id: e.target.value})}>
-              <option value="">Select Warehouse</option>
+              <option value="">Select</option>
               {warehouses.map(w => (<option key={w.id} value={w.id}>{w.warehouse_name || w.name}</option>))}
             </select>
           </div>
-          <div className="form-group" style={{ margin: 0, minWidth: '180px' }}>
-            <label className="form-label">Variant {variantRequired ? '*' : ''}</label>
-            <select 
-              className="form-select" 
-              value={formData.variant_id} 
-              onChange={e => setFormData({...formData, variant_id: e.target.value})}
-              disabled={variantDisabled}
-            >
-              <option value="">Select Variant</option>
-              {variants.filter(v => v.variant_name !== 'No Variant').map(v => (<option key={v.id} value={v.id}>{v.variant_name}</option>))}
+          <div className="form-group" style={{ margin: 0, minWidth: '140px' }}>
+            <label className="form-label">Default Variant</label>
+            <select className="form-select" value={formData.default_variant_id} onChange={e => handleDefaultVariantChange(e.target.value)}>
+              <option value="">Select</option>
+              {activeVariants.map(v => (<option key={v.id} value={v.id}>{v.variant_name}</option>))}
             </select>
           </div>
-          <div className="form-group" style={{ margin: 0, minWidth: '180px' }}>
-            <label className="form-label">Vendor</label>
-            <input type="text" className="form-input" value={formData.vendor_name} onChange={e => setFormData({...formData, vendor_name: e.target.value})} placeholder="Vendor name" />
+          <div className="form-group" style={{ margin: 0, minWidth: '130px' }}>
+            <label className="form-label">Received By *</label>
+            <input type="text" className="form-input" value={formData.received_by} onChange={e => setFormData({...formData, received_by: e.target.value})} placeholder="Name" />
           </div>
-          <div className="form-group" style={{ margin: 0, minWidth: '150px' }}>
-            <label className="form-label">Invoice No</label>
-            <input type="text" className="form-input" value={formData.invoice_no} onChange={e => setFormData({...formData, invoice_no: e.target.value})} placeholder="Invoice #" />
+          <div className="form-group" style={{ margin: 0, minWidth: '130px' }}>
+            <label className="form-label">Acknowledged By</label>
+            <input type="text" className="form-input" value={formData.acknowledged_by} onChange={e => setFormData({...formData, acknowledged_by: e.target.value})} placeholder="Name" />
           </div>
         </div>
 
@@ -961,16 +983,17 @@ function MaterialInward({ onCancel }) {
             <thead>
               <tr>
                 <th style={{ width: '50px' }}>#</th>
-                <th style={{ minWidth: '300px' }}>Item</th>
-                <th style={{ width: '100px' }}>Qty</th>
-                <th style={{ width: '120px' }}>Rate</th>
-                <th style={{ width: '120px' }}>Amount</th>
-                <th style={{ width: '140px' }}>Status</th>
+                <th style={{ minWidth: '280px' }}>Item</th>
+                <th style={{ width: '150px' }}>Variant</th>
+                <th style={{ width: '90px' }}>Qty</th>
+                <th style={{ width: '100px' }}>Rate</th>
+                <th style={{ width: '110px' }}>Amount</th>
                 <th style={{ width: '50px' }}></th>
               </tr>
             </thead>
             <tbody>
               {items.map((item, index) => {
+                const mat = getMaterial(item.item_id);
                 return (
                   <tr key={item.id} style={{ background: !item.valid && item.item_id ? '#fff3cd' : 'transparent' }}>
                     <td style={{ textAlign: 'center', color: '#666' }}>{index + 1}</td>
@@ -989,12 +1012,27 @@ function MaterialInward({ onCancel }) {
                       </select>
                     </td>
                     <td>
+                      <select 
+                        value={item.variant_id} 
+                        onChange={e => updateItem(item.id, 'variant_id', e.target.value)}
+                        disabled={!item.uses_variant}
+                        style={{ 
+                          width: '100%', 
+                          padding: '8px', 
+                          borderRadius: '4px', 
+                          border: '1px solid #ddd',
+                          background: item.uses_variant ? '#fff' : '#f5f5f5'
+                        }}
+                      >
+                        <option value="">{item.uses_variant ? 'Select Variant' : 'No Variant'}</option>
+                        {activeVariants.map(v => (<option key={v.id} value={v.id}>{v.variant_name}</option>))}
+                      </select>
+                    </td>
+                    <td>
                       <input 
                         type="number" 
-                        data-row-input
                         value={item.quantity} 
                         onChange={e => updateItem(item.id, 'quantity', e.target.value)}
-                        onKeyDown={e => handleKeyDown(e, index, 'quantity')}
                         placeholder="0" 
                         style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', textAlign: 'right' }}
                       />
@@ -1002,10 +1040,8 @@ function MaterialInward({ onCancel }) {
                     <td>
                       <input 
                         type="number" 
-                        data-row-input
                         value={item.rate} 
                         onChange={e => updateItem(item.id, 'rate', e.target.value)}
-                        onKeyDown={e => handleKeyDown(e, index, 'rate')}
                         placeholder="0" 
                         step="0.01"
                         style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ddd', textAlign: 'right' }}
@@ -1013,22 +1049,6 @@ function MaterialInward({ onCancel }) {
                     </td>
                     <td style={{ textAlign: 'right', fontWeight: '600', padding: '8px' }}>
                       ₹{item.amount.toFixed(2)}
-                    </td>
-                    <td>
-                      {item.item_id ? (
-                        <span style={{ 
-                          display: 'inline-flex', 
-                          alignItems: 'center', 
-                          gap: '4px',
-                          padding: '4px 8px', 
-                          borderRadius: '12px', 
-                          fontSize: '12px',
-                          background: item.uses_variant ? '#e3f2fd' : '#f5f5f5',
-                          color: item.uses_variant ? '#1976d2' : '#666'
-                        }}>
-                          {item.uses_variant ? '✓ Variant' : 'No Variant'}
-                        </span>
-                      ) : '-'}
                     </td>
                     <td>
                       {items.length > 1 && (
@@ -1061,7 +1081,7 @@ function MaterialInward({ onCancel }) {
             cursor: 'pointer'
           }}
         >
-          + Add Row (Enter)
+          + Add Row
         </button>
 
         <div style={{ 
@@ -1075,7 +1095,7 @@ function MaterialInward({ onCancel }) {
           bottom: 0
         }}>
           <div>
-            <span style={{ color: '#666', marginRight: '8px' }}>Total Quantity:</span>
+            <span style={{ color: '#666', marginRight: '8px' }}>Total Qty:</span>
             <strong style={{ fontSize: '18px', color: '#333' }}>{totalQty.toFixed(2)}</strong>
           </div>
           <div>
@@ -1098,17 +1118,16 @@ function MaterialInward({ onCancel }) {
               <button onClick={() => setShowPasteModal(false)} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}>×</button>
             </div>
             <p style={{ color: '#666', marginBottom: '12px' }}>
-              Format: <strong>Item Name | Quantity | Rate (optional)</strong><br/>
-              Paste from Excel (tab-separated) or CSV (comma-separated)
+              Format: <strong>Item Name | Quantity | Rate (optional)</strong>
             </p>
             <textarea 
               value={pasteData}
               onChange={e => setPasteData(e.target.value)}
-              placeholder="Item Name&#9;Quantity&#9;Rate&#10;Ball Valve&#9;100&#9;250&#10;Gate Valve&#9;50"
-              style={{ width: '100%', height: '300px', padding: '12px', fontFamily: 'monospace', border: '1px solid #ddd', borderRadius: '4px' }}
+              placeholder="Item Name&#9;Quantity&#9;Rate&#10;Ball Valve&#9;100&#9;250"
+              style={{ width: '100%', height: '200px', padding: '12px', fontFamily: 'monospace', border: '1px solid #ddd', borderRadius: '4px' }}
             />
             <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
-              <button className="btn btn-primary" onClick={parsePasteData}>Import Data</button>
+              <button className="btn btn-primary" onClick={() => setShowPasteModal(false)}>Import</button>
               <button className="btn btn-secondary" onClick={() => setShowPasteModal(false)}>Cancel</button>
             </div>
           </div>
