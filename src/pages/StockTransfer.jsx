@@ -50,8 +50,6 @@ export default function StockTransfer({ onCancel }) {
         supabase.from('item_stock').select('*')
       ]);
       
-      console.log('Materials loaded:', mat.data?.length);
-      console.log('Warehouses loaded:', wh.data?.length);
       setMaterials(mat.data || []);
       setWarehouses(wh.data || []);
       setVariants(varData.data || []);
@@ -92,12 +90,10 @@ export default function StockTransfer({ onCancel }) {
 
   const updateItem = (id, field, value) => {
     if (isLocked) return;
-    console.log('updateItem:', id, field, value);
     setItems(items.map(item => {
       if (item.id !== id) return item;
       const updates = { [field]: value };
       if (field === 'item_id' && value) {
-        console.log('Selected item:', value, getMaterial(value));
         updates.available_qty = getAvailableQty(value, item.variant_id);
       }
       if (field === 'variant_id' && item.item_id) {
@@ -204,13 +200,25 @@ export default function StockTransfer({ onCancel }) {
               <tr key={item.id}>
                 <td>{index + 1}</td>
                 <td>
-                  <select value={item.item_id} onChange={e => updateItem(item.id, 'item_id', e.target.value)} style={{ width: '100%', padding: '6px' }}>
+                  <select 
+                    value={item.item_id || ''} 
+                    onChange={(e) => updateItem(item.id, 'item_id', e.target.value)} 
+                    style={{ width: '100%', padding: '6px' }}
+                  >
                     <option value="">Select</option>
-                    {materials.map(m => <option key={m.id} value={m.id}>{m.display_name || m.name}</option>)}
+                    {materials.map(m => (
+                      <option key={m.id} value={m.id}>
+                        {m.display_name || m.name}
+                      </option>
+                    ))}
                   </select>
                 </td>
                 <td>
-                  <select value={item.variant_id || ''} onChange={e => updateItem(item.id, 'variant_id', e.target.value)} style={{ width: '100%', padding: '6px' }}>
+                  <select 
+                    value={item.variant_id || ''} 
+                    onChange={(e) => updateItem(item.id, 'variant_id', e.target.value)} 
+                    style={{ width: '100%', padding: '6px' }}
+                  >
                     <option value="">Select</option>
                     {variants.map(v => <option key={v.id} value={v.id}>{v.variant_name}</option>)}
                   </select>
