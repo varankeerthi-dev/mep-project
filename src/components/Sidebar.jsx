@@ -1,6 +1,4 @@
 import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { ChevronDown } from 'lucide-react';
 
 const menuData = [
   {
@@ -144,8 +142,23 @@ const menuData = [
   }
 ];
 
+function ChevronDownIcon({ style }) {
+  return (
+    <svg 
+      width="16" 
+      height="16" 
+      viewBox="0 0 24 24" 
+      fill="none" 
+      stroke="currentColor" 
+      strokeWidth="2"
+      style={style}
+    >
+      <polyline points="6 9 12 15 18 9"></polyline>
+    </svg>
+  );
+}
+
 export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle }) {
-  const location = useLocation();
   const [expandedMenus, setExpandedMenus] = useState(() => {
     const defaults = [];
     menuData.forEach(section => {
@@ -159,12 +172,15 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle }
     return defaults;
   });
 
-  const isActive = (path) => location.pathname === path;
   const isParentActive = (item) => {
     if (item.submenu) {
-      return item.submenu.some(sub => isActive(sub.path));
+      return item.submenu.some(sub => currentPath === sub.path || currentPath.startsWith(sub.path));
     }
-    return item.path && isActive(item.path);
+    return item.path && (currentPath === item.path || currentPath.startsWith(item.path));
+  };
+
+  const isActive = (path) => {
+    return currentPath === path || currentPath.startsWith(path);
   };
 
   const toggleMenu = (menuId) => {
@@ -173,6 +189,18 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle }
         ? prev.filter(id => id !== menuId)
         : [...prev, menuId]
     );
+  };
+
+  const handleClick = (item) => {
+    if (item.submenu) {
+      toggleMenu(item.id);
+    } else if (item.path) {
+      onNavigate(item.path);
+    }
+  };
+
+  const handleSubmenuClick = (path) => {
+    onNavigate(path);
   };
 
   return (
@@ -193,11 +221,10 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle }
                   <>
                     <div
                       className={`sidebar-item ${parentActive ? "active" : ""}`}
-                      onClick={() => toggleMenu(item.id)}
+                      onClick={() => handleClick(item)}
                     >
                       <span>{item.label}</span>
-                      <ChevronDown
-                        size={16}
+                      <ChevronDownIcon
                         style={{
                           marginLeft: "auto",
                           transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)",
@@ -209,32 +236,32 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle }
                     {isExpanded && (
                       <div style={{ paddingLeft: collapsed ? 0 : 18 }}>
                         {item.submenu.map(subItem => (
-                          <Link
+                          <div
                             key={subItem.id}
-                            to={subItem.path}
                             className={`sidebar-item ${
                               isActive(subItem.path) ? "active" : ""
                             }`}
+                            onClick={() => handleSubmenuClick(subItem.path)}
                             style={{
                               fontSize: "13px",
                               opacity: 0.9
                             }}
                           >
                             <span>{subItem.label}</span>
-                          </Link>
+                          </div>
                         ))}
                       </div>
                     )}
                   </>
                 ) : (
-                  <Link
-                    to={item.path}
+                  <div
                     className={`sidebar-item ${
                       isActive(item.path) ? "active" : ""
                     }`}
+                    onClick={() => handleClick(item)}
                   >
                     <span>{item.label}</span>
-                  </Link>
+                  </div>
                 )}
               </div>
             );
@@ -246,8 +273,7 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle }
         className="sidebar-toggle"
         onClick={onToggle}
       >
-        <ChevronDown
-          size={16}
+        <ChevronDownIcon
           style={{
             transform: collapsed ? "rotate(90deg)" : "rotate(-90deg)",
             transition: "0.2s ease"
