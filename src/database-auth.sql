@@ -58,6 +58,15 @@ ALTER TABLE org_members ENABLE ROW LEVEL SECURITY;
 -- RLS POLICIES
 -- ============================================
 
+-- Drop existing policies first (to allow re-running)
+DROP POLICY IF EXISTS "_org_members_view" ON organisations;
+DROP POLICY IF EXISTS "org_admins_manage" ON organisations;
+DROP POLICY IF EXISTS "users_view_own_profile" ON user_profiles;
+DROP POLICY IF EXISTS "users_update_own_profile" ON user_profiles;
+DROP POLICY IF EXISTS "users_insert_own_profile" ON user_profiles;
+DROP POLICY IF EXISTS "org_members_view_members" ON org_members;
+DROP POLICY IF EXISTS "org_members_manage" ON org_members;
+
 -- Organisations - members can view their org
 CREATE POLICY "_org_members_view" ON organisations
   FOR SELECT USING (
@@ -149,6 +158,10 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- ============================================
 -- INDEXES
 -- ============================================
+DROP INDEX IF EXISTS idx_org_members_org;
+DROP INDEX IF EXISTS idx_org_members_user;
+DROP INDEX IF EXISTS idx_user_profiles_email;
+
 CREATE INDEX idx_org_members_org ON org_members(organisation_id);
 CREATE INDEX idx_org_members_user ON org_members(user_id);
 CREATE INDEX idx_user_profiles_email ON user_profiles(user_id);
@@ -159,6 +172,10 @@ CREATE INDEX idx_user_profiles_email ON user_profiles(user_id);
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('avatars', 'avatars', true)
 ON CONFLICT DO NOTHING;
+
+-- Drop existing storage policies
+DROP POLICY IF EXISTS "Avatar owners can upload" ON storage.objects;
+DROP POLICY IF EXISTS "Anyone can view avatars" ON storage.objects;
 
 CREATE POLICY "Avatar owners can upload" ON storage.objects
   FOR INSERT WITH CHECK (bucket_id = 'avatars' AND auth.uid() = owner);

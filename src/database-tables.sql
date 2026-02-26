@@ -1,5 +1,8 @@
 -- Run this in Supabase SQL Editor
 
+-- Enable UUID extension (if not already enabled)
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
 -- Clients table
 CREATE TABLE IF NOT EXISTS clients (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -18,6 +21,7 @@ CREATE TABLE IF NOT EXISTS clients (
 );
 
 ALTER TABLE clients ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Enable all access" ON clients;
 CREATE POLICY "Enable all access" ON clients FOR ALL USING (true) WITH CHECK (true);
 
 -- Todos table
@@ -29,6 +33,7 @@ CREATE TABLE IF NOT EXISTS todos (
 );
 
 ALTER TABLE todos ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Enable all access" ON todos;
 CREATE POLICY "Enable all access" ON todos FOR ALL USING (true) WITH CHECK (true);
 
 -- Reminders table
@@ -41,6 +46,7 @@ CREATE TABLE IF NOT EXISTS reminders (
 );
 
 ALTER TABLE reminders ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Enable all access" ON reminders;
 CREATE POLICY "Enable all access" ON reminders FOR ALL USING (true) WITH CHECK (true);
 
 -- Daily Updates table
@@ -53,6 +59,7 @@ CREATE TABLE IF NOT EXISTS daily_updates (
 );
 
 ALTER TABLE daily_updates ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Enable all access" ON daily_updates;
 CREATE POLICY "Enable all access" ON daily_updates FOR ALL USING (true) WITH CHECK (true);
 
 -- Users table (for user access rights)
@@ -66,6 +73,7 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Enable all access" ON users;
 CREATE POLICY "Enable all access" ON users FOR ALL USING (true) WITH CHECK (true);
 
 -- Material Inward table
@@ -115,12 +123,20 @@ ALTER TABLE material_inward_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE material_outward ENABLE ROW LEVEL SECURITY;
 ALTER TABLE material_outward_items ENABLE ROW LEVEL SECURITY;
 
--- Create policies
+-- Create policies (drop first if exists)
+DROP POLICY IF EXISTS "Enable all access" ON material_inward;
+DROP POLICY IF EXISTS "Enable all access" ON material_inward_items;
+DROP POLICY IF EXISTS "Enable all access" ON material_outward;
+DROP POLICY IF EXISTS "Enable all access" ON material_outward_items;
+
 CREATE POLICY "Enable all access" ON material_inward FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Enable all access" ON material_inward_items FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Enable all access" ON material_outward FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Enable all access" ON material_outward_items FOR ALL USING (true) WITH CHECK (true);
 
--- Create indexes
+-- Create indexes (drop first if exist)
+DROP INDEX IF EXISTS idx_material_inward_date;
+DROP INDEX IF EXISTS idx_material_outward_date;
+
 CREATE INDEX idx_material_inward_date ON material_inward(inward_date);
 CREATE INDEX idx_material_outward_date ON material_outward(outward_date);
