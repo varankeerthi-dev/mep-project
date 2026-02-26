@@ -137,7 +137,14 @@ const menuData = [
   {
     section: 'Settings',
     items: [
-      { id: 'settings', label: 'Settings', path: '/settings' }
+      { 
+        id: 'settings', 
+        label: 'Settings', 
+        submenu: [
+          { id: 'settings-general', label: 'General', path: '/settings' },
+          { id: 'settings-document', label: 'Document Settings', path: '/settings/document-series' }
+        ]
+      }
     ]
   }
 ];

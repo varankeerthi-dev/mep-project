@@ -18,6 +18,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
 
   const [formData, setFormData] = useState({
     project_id: '',
+    dc_no: '',
     dc_date: new Date().toISOString().split('T')[0],
     client_name: '',
     source_type: 'WAREHOUSE',
@@ -50,6 +51,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
     if (editDC) {
       setFormData({
         ...editDC,
+        dc_no: editDC.dc_number || '',
         eway_bill_date: editDC.eway_bill_date || '',
         eway_valid_till: editDC.eway_valid_till || ''
       });
@@ -86,6 +88,12 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
           suffix: settings.dc_suffix || '',
           padding: settings.dc_padding || '5'
         });
+      }
+      
+      // Generate DC No if new record
+      if (!editDC) {
+        const dcNo = await generateDCNo();
+        setFormData(prev => ({ ...prev, dc_no: dcNo }));
       }
       
       const priceMap = {};
@@ -308,11 +316,9 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
         dcId = editDC.id;
         await supabase.from('delivery_challan_items').delete().eq('delivery_challan_id', dcId);
       } else {
-        const dcNo = await generateDCNo();
-        console.log('Generated DC No:', dcNo);
         const { data, error } = await supabase.from('delivery_challans').insert({
           ...dcData,
-          dc_number: dcNo
+          dc_number: formData.dc_no
         }).select().single();
         
         if (error) {
@@ -373,6 +379,37 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
   };
 
   const generateDCNo = async () => {
+    // First try to get from new document_series table
+    const { data: seriesData } = await supabase
+      .from('document_series')
+      .select('configs, current_number')
+      .eq('is_default', true)
+      .single();
+    
+    if (seriesData?.configs?.dc?.enabled) {
+      const config = seriesData.configs.dc;
+      const currentNum = (seriesData.current_number || config.start_number || 1);
+      const paddedNum = String(currentNum).padStart(4, '0');
+      
+      // Update current number for next time
+      await supabase.from('document_series').update({ 
+        current_number: currentNum + 1 
+      }).eq('is_default', true);
+      
+      // Get FY prefix if auto
+      let prefix = config.prefix || '';
+      if (prefix.includes('{FY}')) {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = now.getMonth();
+        const fy = month < 3 ? `${year - 1}-${year.toString().slice(-2)}` : `${year}-${(year + 1).toString().slice(-2)}`;
+        prefix = prefix.replace('{FY}', fy);
+      }
+      
+      return `${prefix}${paddedNum}${config.suffix || ''}`;
+    }
+    
+    // Fallback to old settings
     const { count } = await supabase.from('delivery_challans').select('*', { count: 'exact' });
     const num = (count || 0) + 1;
     const paddedNum = String(num).padStart(parseInt(dcSettings.padding) || 5, '0');
@@ -511,6 +548,29 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
         <div style={{ background: '#f8f9fa', padding: '16px', marginBottom: '16px', borderRadius: '8px' }}>
           <div className="form-row">
             <div className="form-group">
+              <label className="form-label">DC No *</label>
+              <input 
+                type="text" 
+                name="dc_no"
+                className="form-input"
+                value={formData.dc_no}
+                onChange={handleInputChange}
+                placeholder="Auto-generated"
+                disabled={isLocked}
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label">DC Date *</label>
+              <input 
+                type="date" 
+                name="dc_date"
+                className="form-input"
+                value={formData.dc_date}
+                onChange={handleInputChange}
+                disabled={isLocked}
+              />
+            </div>
+            <div className="form-group">
               <label className="form-label">Client *</label>
               <select 
                 name="client_name"
@@ -565,17 +625,6 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
                 <option value="WAREHOUSE">Warehouse</option>
                 <option value="DIRECT_SUPPLY">Direct Supply</option>
               </select>
-            </div>
-            <div className="form-group">
-              <label className="form-label">DC Date *</label>
-              <input 
-                type="date" 
-                name="dc_date"
-                className="form-input"
-                value={formData.dc_date}
-                onChange={handleInputChange}
-                disabled={isLocked}
-              />
             </div>
           </div>
           

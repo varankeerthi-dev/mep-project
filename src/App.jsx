@@ -7,6 +7,7 @@ import DateWiseConsolidation from './pages/DateWiseConsolidation';
 import MaterialWiseConsolidation from './pages/MaterialWiseConsolidation';
 import MaterialsList from './pages/MaterialsList';
 import StockTransfer from './pages/StockTransfer';
+import TransactionNumberSeries from './pages/TransactionNumberSeries';
 import { Login, Signup, AuthCallback, SelectOrganisation } from './pages/Auth';
 import { OrganisationSettings } from './pages/Organisation';
 import { supabase, getCurrentUser, onAuthStateChange, getUserOrganisations, createOrganisation, signOut, initStorageBuckets } from './supabase';
@@ -213,6 +214,7 @@ export default function App() {
       case '/reports/sales': return <SalesReport />;
       case '/settings': return <SettingsPage />;
       case '/settings/organisation': return <OrganisationSettings organisation={authOrg} userId={authUser?.id} />;
+      case '/settings/document-series': return <TransactionNumberSeries />;
       default: return <DCList />;
     }
   };
