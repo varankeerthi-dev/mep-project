@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabase';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -12,6 +12,16 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
   const [stock, setStock] = useState([]);
   const [pricing, setPricing] = useState({});
   const [clients, setClients] = useState([]);
+  
+  // Shipping address state
+  const [shippingAddresses, setShippingAddresses] = useState([]);
+  const [selectedShippingIndex, setSelectedShippingIndex] = useState(-1);
+  const [showShippingDropdown, setShowShippingDropdown] = useState(false);
+  const [showAddShippingModal, setShowAddShippingModal] = useState(false);
+  const [newShippingAddress, setNewShippingAddress] = useState({
+    address_name: '', address_line1: '', address_line2: '', city: '', state: '', pincode: '', gstin: '', contact: ''
+  });
+  const shippingDropdownRef = useRef(null);
   
   const isEditing = !!editDC;
   const isLocked = editDC?.status === 'APPROVED';
@@ -46,6 +56,17 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
   const [dcSettings, setDcSettings] = useState({ prefix: 'DC', suffix: '', padding: '5' });
 
   useEffect(() => { loadData(); }, []);
+  
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (shippingDropdownRef.current && !shippingDropdownRef.current.contains(event.target)) {
+        setShowShippingDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
   
   useEffect(() => {
     if (editDC) {
@@ -127,6 +148,66 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
         };
       });
       setItems(loaded);
+    }
+  };
+
+  const loadShippingAddresses = async (clientId) => {
+    const { data } = await supabase
+      .from('client_shipping_addresses')
+      .select('*')
+      .eq('client_id', clientId)
+      .order('created_at', { ascending: true });
+    setShippingAddresses(data || []);
+    setSelectedShippingIndex(-1);
+  };
+
+  const handleSelectShippingAddress = (index) => {
+    setSelectedShippingIndex(index);
+    setShowShippingDropdown(false);
+    if (index >= 0 && shippingAddresses[index]) {
+      const addr = shippingAddresses[index];
+      setFormData(prev => ({
+        ...prev,
+        ship_to_name: addr.address_name || prev.client_name,
+        ship_to_address_line1: addr.address_line1 || '',
+        ship_to_address_line2: addr.address_line2 || '',
+        ship_to_city: addr.city || '',
+        ship_to_state: addr.state || '',
+        ship_to_pincode: addr.pincode || '',
+        ship_to_gstin: addr.gstin || '',
+        ship_to_contact: addr.contact || ''
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        ship_to_name: '',
+        ship_to_address_line1: '',
+        ship_to_address_line2: '',
+        ship_to_city: '',
+        ship_to_state: '',
+        ship_to_pincode: '',
+        ship_to_gstin: '',
+        ship_to_contact: ''
+      }));
+    }
+  };
+
+  const handleAddShippingAddress = async () => {
+    const client = clients.find(c => c.client_name === formData.client_name);
+    if (!client) {
+      alert('Please select a client first');
+      return;
+    }
+    const { error } = await supabase.from('client_shipping_addresses').insert({
+      client_id: client.id,
+      ...newShippingAddress
+    });
+    if (error) {
+      alert('Error adding address: ' + error.message);
+    } else {
+      setShowAddShippingModal(false);
+      setNewShippingAddress({ address_name: '', address_line1: '', address_line2: '', city: '', state: '', pincode: '', gstin: '', contact: '' });
+      await loadShippingAddresses(client.id);
     }
   };
 
@@ -589,6 +670,12 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
                     ship_to_gstin: client?.gstin || '',
                     ship_to_contact: client?.contact || ''
                   }));
+                  if (client) {
+                    loadShippingAddresses(client.id);
+                  } else {
+                    setShippingAddresses([]);
+                    setSelectedShippingIndex(-1);
+                  }
                 }}
                 disabled={isLocked}
               >
@@ -672,47 +759,149 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
           </div>
         </div>
         
-        <div style={{ background: '#fff3cd', padding: '16px', marginBottom: '16px', borderRadius: '8px' }}>
-          <h4 style={{ margin: '0 0 12px 0' }}>Ship To</h4>
-          <div className="form-row">
-            <div className="form-group" style={{ flex: 2 }}>
-              <label className="form-label">Name</label>
-              <input type="text" name="ship_to_name" className="form-input" value={formData.ship_to_name} onChange={handleInputChange} disabled={isLocked} />
-            </div>
-            <div className="form-group" style={{ flex: 1 }}>
-              <label className="form-label">City</label>
-              <input type="text" name="ship_to_city" className="form-input" value={formData.ship_to_city} onChange={handleInputChange} disabled={isLocked} />
-            </div>
-            <div className="form-group" style={{ flex: 1 }}>
-              <label className="form-label">State</label>
-              <input type="text" name="ship_to_state" className="form-input" value={formData.ship_to_state} onChange={handleInputChange} disabled={isLocked} />
-            </div>
+        {/* Billing & Shipping Address Section */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+          {/* Billing Address */}
+          <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '12px', minHeight: '160px' }}>
+            <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '8px', color: '#374151' }}>Billing Address</div>
+            {formData.client_name ? (
+              <div style={{ fontSize: '13px', color: '#4b5563', whiteSpace: 'pre-line', lineHeight: '1.5' }}>
+                {formData.client_name}
+                {formData.client_name && '\n'}{formData.ship_to_address_line1 || formData.ship_to_address_line1}{formData.ship_to_address_line1 && '\n'}{formData.ship_to_address_line2}
+                {(formData.ship_to_city || formData.ship_to_pincode) && '\n'}{formData.ship_to_city}{formData.ship_to_city && formData.ship_to_pincode && ' - '}{formData.ship_to_pincode}
+                {formData.ship_to_state && '\n'}{formData.ship_to_state}
+                {formData.ship_to_gstin && '\n'}GSTIN: {formData.ship_to_gstin}
+                {formData.ship_to_contact && '\n'}Contact: {formData.ship_to_contact}
+              </div>
+            ) : (
+              <div style={{ fontSize: '13px', color: '#9ca3af', fontStyle: 'italic' }}>Select a client</div>
+            )}
           </div>
-          <div className="form-row">
-            <div className="form-group">
-              <label className="form-label">Address Line 1</label>
-              <input type="text" name="ship_to_address_line1" className="form-input" value={formData.ship_to_address_line1} onChange={handleInputChange} disabled={isLocked} />
+
+          {/* Shipping Address */}
+          <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '12px', minHeight: '160px', position: 'relative' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <div style={{ fontWeight: 600, fontSize: '14px', color: '#374151' }}>Shipping Address</div>
+              {shippingAddresses.length > 0 && (
+                <div style={{ position: 'relative' }} ref={shippingDropdownRef}>
+                  <button
+                    type="button"
+                    onClick={() => setShowShippingDropdown(!showShippingDropdown)}
+                    style={{ background: '#fff', border: '1px solid #d1d5db', borderRadius: '4px', padding: '4px 8px', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                  >
+                    {selectedShippingIndex >= 0 ? `Address ${selectedShippingIndex + 1}` : 'Select'}
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9"/></svg>
+                  </button>
+                  {showShippingDropdown && (
+                    <div style={{ position: 'absolute', top: '100%', right: 0, background: '#fff', border: '1px solid #e5e7eb', borderRadius: '6px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', zIndex: 100, minWidth: '200px', marginTop: '4px' }}>
+                      <div
+                        onClick={() => handleSelectShippingAddress(-1)}
+                        style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '13px', borderBottom: '1px solid #f3f4f6', background: selectedShippingIndex === -1 ? '#eff6ff' : 'transparent' }}
+                      >
+                        None
+                      </div>
+                      {shippingAddresses.map((addr, idx) => (
+                        <div
+                          key={addr.id}
+                          onClick={() => handleSelectShippingAddress(idx)}
+                          style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '13px', borderBottom: '1px solid #f3f4f6', background: selectedShippingIndex === idx ? '#eff6ff' : 'transparent' }}
+                        >
+                          <div style={{ fontWeight: 500 }}>{addr.address_name || `Address ${idx + 1}`}</div>
+                          <div style={{ fontSize: '11px', color: '#6b7280' }}>{addr.address_line1}, {addr.city}</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
-            <div className="form-group">
-              <label className="form-label">Address Line 2</label>
-              <input type="text" name="ship_to_address_line2" className="form-input" value={formData.ship_to_address_line2} onChange={handleInputChange} disabled={isLocked} />
-            </div>
-          </div>
-          <div className="form-row">
-            <div className="form-group">
-              <label className="form-label">Pincode</label>
-              <input type="text" name="ship_to_pincode" className="form-input" value={formData.ship_to_pincode} onChange={handleInputChange} disabled={isLocked} />
-            </div>
-            <div className="form-group">
-              <label className="form-label">GSTIN</label>
-              <input type="text" name="ship_to_gstin" className="form-input" value={formData.ship_to_gstin} onChange={handleInputChange} disabled={isLocked} />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Contact</label>
-              <input type="text" name="ship_to_contact" className="form-input" value={formData.ship_to_contact} onChange={handleInputChange} disabled={isLocked} />
-            </div>
+            
+            {(selectedShippingIndex >= 0 && shippingAddresses[selectedShippingIndex]) ? (
+              <div style={{ fontSize: '13px', color: '#4b5563', whiteSpace: 'pre-line', lineHeight: '1.5' }}>
+                {shippingAddresses[selectedShippingIndex].address_name || shippingAddresses[selectedShippingIndex].address_name}
+                {shippingAddresses[selectedShippingIndex].address_name && '\n'}{shippingAddresses[selectedShippingIndex].address_line1}
+                {shippingAddresses[selectedShippingIndex].address_line1 && '\n'}{shippingAddresses[selectedShippingIndex].address_line2}
+                {(shippingAddresses[selectedShippingIndex].city || shippingAddresses[selectedShippingIndex].pincode) && '\n'}{shippingAddresses[selectedShippingIndex].city}{shippingAddresses[selectedShippingIndex].city && shippingAddresses[selectedShippingIndex].pincode && ' - '}{shippingAddresses[selectedShippingIndex].pincode}
+                {shippingAddresses[selectedShippingIndex].state && '\n'}{shippingAddresses[selectedShippingIndex].state}
+                {shippingAddresses[selectedShippingIndex].gstin && '\n'}GSTIN: {shippingAddresses[selectedShippingIndex].gstin}
+                {shippingAddresses[selectedShippingIndex].contact && '\n'}Contact: {shippingAddresses[selectedShippingIndex].contact}
+              </div>
+            ) : formData.client_name ? (
+              <div>
+                {shippingAddresses.length === 0 ? (
+                  <div style={{ fontSize: '13px', color: '#9ca3af', fontStyle: 'italic' }}>No shipping address available</div>
+                ) : (
+                  <div style={{ fontSize: '13px', color: '#9ca3af', fontStyle: 'italic' }}>No shipping address selected</div>
+                )}
+                {formData.client_name && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAddShippingModal(true)}
+                    style={{ marginTop: '8px', background: '#fff', border: '1px solid #d1d5db', borderRadius: '4px', padding: '4px 10px', fontSize: '12px', cursor: 'pointer' }}
+                  >
+                    + Add Shipping Address
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div style={{ fontSize: '13px', color: '#9ca3af', fontStyle: 'italic' }}>Select a client</div>
+            )}
           </div>
         </div>
+        
+        {/* Add Shipping Address Modal */}
+        {showAddShippingModal && (
+          <div className="modal-overlay open" onClick={() => setShowAddShippingModal(false)}>
+            <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+              <div className="modal-header">
+                <h2 className="modal-title">Add Shipping Address</h2>
+                <button onClick={() => setShowAddShippingModal(false)} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', color: '#666' }}>&times;</button>
+              </div>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label className="form-label">Address Name</label>
+                  <input type="text" className="form-input" value={newShippingAddress.address_name} onChange={(e) => setNewShippingAddress({...newShippingAddress, address_name: e.target.value})} placeholder="e.g. Main Office" />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Address Line 1</label>
+                  <input type="text" className="form-input" value={newShippingAddress.address_line1} onChange={(e) => setNewShippingAddress({...newShippingAddress, address_line1: e.target.value})} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Address Line 2</label>
+                  <input type="text" className="form-input" value={newShippingAddress.address_line2} onChange={(e) => setNewShippingAddress({...newShippingAddress, address_line2: e.target.value})} />
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">City</label>
+                    <input type="text" className="form-input" value={newShippingAddress.city} onChange={(e) => setNewShippingAddress({...newShippingAddress, city: e.target.value})} />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">State</label>
+                    <input type="text" className="form-input" value={newShippingAddress.state} onChange={(e) => setNewShippingAddress({...newShippingAddress, state: e.target.value})} />
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">Pincode</label>
+                    <input type="text" className="form-input" value={newShippingAddress.pincode} onChange={(e) => setNewShippingAddress({...newShippingAddress, pincode: e.target.value})} />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">GSTIN</label>
+                    <input type="text" className="form-input" value={newShippingAddress.gstin} onChange={(e) => setNewShippingAddress({...newShippingAddress, gstin: e.target.value})} />
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Contact</label>
+                  <input type="text" className="form-input" value={newShippingAddress.contact} onChange={(e) => setNewShippingAddress({...newShippingAddress, contact: e.target.value})} />
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setShowAddShippingModal(false)}>Cancel</button>
+                <button type="button" className="btn btn-primary" onClick={handleAddShippingAddress}>Save Address</button>
+              </div>
+            </div>
+          </div>
+        )}
         
         <div className="form-group">
           <label className="form-label">Items</label>
