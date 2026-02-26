@@ -24,7 +24,7 @@ export default function App() {
   const [organisations, setOrganisations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [authView, setAuthView] = useState('login');
-  const [currentPath, setCurrentPath] = useState('/dc/list');
+  const [currentPath, setCurrentPath] = useState('/');
   const [editingVisit, setEditingVisit] = useState(null);
 
   useEffect(() => {

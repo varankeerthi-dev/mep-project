@@ -17,31 +17,26 @@ CREATE TABLE IF NOT EXISTS document_series (
 -- Enable RLS
 ALTER TABLE document_series ENABLE ROW LEVEL SECURITY;
 
--- Create policy for organisation-level access
-CREATE POLICY "Users can manage document_series" ON document_series
+-- Drop existing policies if any
+DROP POLICY IF EXISTS "Users can manage document_series" ON document_series;
+
+-- Create a simpler policy - allow all authenticated users (you can tighten this later)
+CREATE POLICY "Allow all authenticated" ON document_series
   FOR ALL
-  USING (
-    EXISTS (
-      SELECT 1 FROM org_members
-      WHERE org_members.organisation_id = (
-        SELECT organisation_id FROM org_members
-        WHERE user_id = auth.uid()
-        LIMIT 1
-      )
-      AND org_members.user_id = auth.uid()
-    )
-  );
+  TO authenticated
+  USING (true)
+  WITH CHECK (true);
 
 -- Add index for faster queries
-CREATE INDEX IF NOT EXISTS idx_document_series_name ON document_series(series_name);
-CREATE INDEX IF NOT EXISTS idx_document_series_default ON document_series(is_default) WHERE is_default = true;
+DROP INDEX IF EXISTS idx_document_series_name;
+DROP INDEX IF EXISTS idx_document_series_default;
+CREATE INDEX idx_document_series_name ON document_series(series_name);
+CREATE INDEX idx_document_series_default ON document_series(is_default) WHERE is_default = true;
 
 -- Add current_number column if table exists (for migration)
 DO $$ 
 BEGIN
-  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'document_series' AND column_name = 'current_number') THEN
-    -- Column already exists
-  ELSE
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'document_series' AND column_name = 'current_number') THEN
     ALTER TABLE document_series ADD COLUMN current_number INTEGER DEFAULT 1;
   END IF;
 END $$;

@@ -268,10 +268,6 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
         <div className="sidebar-content">
           {menuData.map(section => (
             <div key={section.section} className="sidebar-section">
-              <div className="sidebar-section-title">
-                {section.section}
-              </div>
-
               {section.items.map(item => {
                 const parentActive = isParentActive(item);
                 const isExpanded = expandedMenus.includes(item.id);

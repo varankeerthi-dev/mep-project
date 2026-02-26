@@ -236,25 +236,36 @@ function SeriesModal({ series, onClose, onSave, generatePreview }) {
       return;
     }
 
-    if (formData.is_default) {
-      await supabase.from('document_series').update({ is_default: false }).neq('id', series?.id || '');
+    try {
+      if (formData.is_default) {
+        // First, remove default from all other series
+        await supabase.from('document_series').update({ is_default: false }).neq('id', series?.id || '00000000-0000-0000-0000-000000000000');
+      }
+
+      const dataToSave = {
+        series_name: formData.series_name,
+        financial_year: formData.financial_year,
+        is_default: formData.is_default,
+        current_number: formData.current_number || 1,
+        configs: formData.configs
+      };
+
+      let result;
+      if (series?.id) {
+        result = await supabase.from('document_series').update(dataToSave).eq('id', series.id).select();
+      } else {
+        result = await supabase.from('document_series').insert(dataToSave).select();
+      }
+
+      if (result.error) {
+        alert('Error saving: ' + result.error.message);
+        return;
+      }
+
+      onSave();
+    } catch (err) {
+      alert('Error: ' + err.message);
     }
-
-    const dataToSave = {
-      series_name: formData.series_name,
-      financial_year: formData.financial_year,
-      is_default: formData.is_default,
-      current_number: formData.current_number,
-      configs: formData.configs
-    };
-
-    if (series?.id) {
-      await supabase.from('document_series').update(dataToSave).eq('id', series.id);
-    } else {
-      await supabase.from('document_series').insert(dataToSave);
-    }
-
-    onSave();
   };
 
   const getCurrentFinancialYear = () => {
@@ -274,15 +285,15 @@ function SeriesModal({ series, onClose, onSave, generatePreview }) {
 
   return (
     <div className="modal-overlay open" onClick={onClose}>
-      <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '900px', width: '95%', maxHeight: '90vh', overflow: 'auto' }}>
+      <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '800px', width: '95%', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
         <div className="modal-header">
           <h2 className="modal-title">{series ? 'Edit Series' : 'New Series'}</h2>
           <button className="modal-close" onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', color: '#666' }}>&times;</button>
         </div>
         
         <form onSubmit={handleSubmit}>
-          <div className="modal-body">
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
+          <div className="modal-body" style={{ overflowY: 'auto', flex: 1 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginBottom: '16px' }}>
               <div className="form-group">
                 <label className="form-label">Series Name *</label>
                 <input
@@ -311,9 +322,20 @@ function SeriesModal({ series, onClose, onSave, generatePreview }) {
                   <option value="manual">Manual</option>
                 </select>
               </div>
+
+              <div className="form-group">
+                <label className="form-label">Current Number</label>
+                <input
+                  type="number"
+                  className="form-input"
+                  value={formData.current_number || 1}
+                  onChange={(e) => setFormData({ ...formData, current_number: parseInt(e.target.value) || 1 })}
+                  min={1}
+                />
+              </div>
             </div>
 
-            <div style={{ marginBottom: '24px' }}>
+            <div style={{ marginBottom: '20px' }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
                 <input 
                   type="checkbox" 
@@ -327,54 +349,57 @@ function SeriesModal({ series, onClose, onSave, generatePreview }) {
 
             <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '16px', color: '#1f2937' }}>Number Format Builder</h3>
             
-            <div style={{ display: 'grid', gap: '16px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
               {DOCUMENT_TYPES.map(docType => (
                 <div key={docType.id} style={{ 
                   border: '1px solid #e5e7eb', 
                   borderRadius: '8px', 
-                  padding: '16px',
-                  background: formData.configs[docType.id]?.enabled ? '#f0fdf4' : '#fff'
+                  padding: '12px',
+                  background: formData.configs[docType.id]?.enabled ? '#f0fdf4' : '#fafafa'
                 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
                     <input 
                       type="checkbox"
                       checked={formData.configs[docType.id]?.enabled || false}
                       onChange={(e) => updateConfig(docType.id, 'enabled', e.target.checked)}
-                      style={{ width: '18px', height: '18px' }}
+                      style={{ width: '16px', height: '16px' }}
                     />
-                    <span style={{ fontWeight: 600, color: '#374151' }}>{docType.label}</span>
+                    <span style={{ fontWeight: 600, color: '#374151', fontSize: '14px' }}>{docType.label}</span>
                   </div>
                   
                   {formData.configs[docType.id]?.enabled && (
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
                       <div className="form-group" style={{ margin: 0 }}>
-                        <label className="form-label">Prefix</label>
+                        <label className="form-label" style={{ fontSize: '11px' }}>Prefix</label>
                         <input
                           type="text"
                           className="form-input"
+                          style={{ padding: '6px 8px', fontSize: '12px' }}
                           value={formData.configs[docType.id]?.prefix || ''}
                           onChange={(e) => updateConfig(docType.id, 'prefix', e.target.value)}
-                          placeholder="e.g., APF/INV/"
+                          placeholder="Prefix"
                         />
                       </div>
                       <div className="form-group" style={{ margin: 0 }}>
-                        <label className="form-label">Starting Number</label>
+                        <label className="form-label" style={{ fontSize: '11px' }}>Start No.</label>
                         <input
                           type="number"
                           className="form-input"
+                          style={{ padding: '6px 8px', fontSize: '12px' }}
                           value={formData.configs[docType.id]?.start_number || 1}
                           onChange={(e) => updateConfig(docType.id, 'start_number', parseInt(e.target.value) || 1)}
                           min={1}
                         />
                       </div>
                       <div className="form-group" style={{ margin: 0 }}>
-                        <label className="form-label">Suffix</label>
+                        <label className="form-label" style={{ fontSize: '11px' }}>Suffix</label>
                         <input
                           type="text"
                           className="form-input"
+                          style={{ padding: '6px 8px', fontSize: '12px' }}
                           value={formData.configs[docType.id]?.suffix || ''}
                           onChange={(e) => updateConfig(docType.id, 'suffix', e.target.value)}
-                          placeholder="e.g., -A"
+                          placeholder="Suffix"
                         />
                       </div>
                     </div>

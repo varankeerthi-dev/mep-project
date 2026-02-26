@@ -190,8 +190,7 @@ body {
   height: calc(100vh - 60px);
   background: #fafbfc;
   border-right: 1px solid #e5e7eb;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden;
   transition: width 0.25s ease;
   z-index: 900;
   display: flex;
@@ -205,15 +204,17 @@ body {
 /* Sidebar Content Wrapper */
 .sidebar-content {
   flex: 1;
-  padding: 16px 12px;
+  padding: 6px 8px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 1px;
   overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
 }
 
 .sidebar-section {
-  padding: 8px 0;
+  padding: 4px 0;
 }
 
 .sidebar-section-title {
@@ -234,10 +235,10 @@ body {
 .sidebar-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 12px;
-  margin: 1px 4px;
-  border-radius: 8px;
+  gap: 10px;
+  padding: 7px 10px;
+  margin: 1px 3px;
+  border-radius: 6px;
   color: #4b5563;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -302,17 +303,17 @@ body {
 /* Submenu */
 .sidebar-submenu {
   padding-left: 20px;
-  margin-top: 2px;
-  margin-bottom: 4px;
+  margin-top: 1px;
+  margin-bottom: 2px;
 }
 
 .sidebar-submenu-item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
+  gap: 8px;
+  padding: 5px 10px;
   margin: 1px 0;
-  border-radius: 6px;
+  border-radius: 5px;
   color: #6b7280;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -337,11 +338,11 @@ body {
 
 /* Sidebar Bottom */
 .sidebar-bottom {
-  padding: 12px;
+  padding: 8px;
   border-top: 1px solid #e5e7eb;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
   flex-shrink: 0;
 }
 
@@ -350,7 +351,7 @@ body {
   align-items: center;
   justify-content: center;
   gap: 10px;
-  padding: 10px 12px;
+  padding: 8px 10px;
   margin: 2px 4px;
   border-radius: 8px;
   color: #6b7280;
