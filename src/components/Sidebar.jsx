@@ -258,8 +258,8 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle }
         </div>
 
         {menuData.map(section => (
-          <div key={section.section} className="menu-section">
-            {!collapsed && <div className="section-title">{section.section}</div>}
+          <div key={section.section} className="sidebar-section">
+            {!collapsed && <div className="sidebar-section-title">{section.section}</div>}
             {section.items.map(item => (
               <div key={item.id} className="menu-wrapper">
                 <div 
