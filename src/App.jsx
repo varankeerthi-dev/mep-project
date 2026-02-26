@@ -8,6 +8,9 @@ import MaterialWiseConsolidation from './pages/MaterialWiseConsolidation';
 import MaterialsList from './pages/MaterialsList';
 import StockTransfer from './pages/StockTransfer';
 import TransactionNumberSeries from './pages/TransactionNumberSeries';
+import CreatePO from './pages/CreatePO';
+import POList from './pages/POList';
+import PODetails from './pages/PODetails';
 import { Login, Signup, AuthCallback, SelectOrganisation } from './pages/Auth';
 import { OrganisationSettings } from './pages/Organisation';
 import { supabase, getCurrentUser, onAuthStateChange, getUserOrganisations, createOrganisation, signOut, initStorageBuckets } from './supabase';
@@ -215,6 +218,9 @@ export default function App() {
       case '/settings': return <SettingsPage />;
       case '/settings/organisation': return <OrganisationSettings organisation={authOrg} userId={authUser?.id} />;
       case '/settings/document-series': return <TransactionNumberSeries />;
+      case '/client-po': return <POList />;
+      case '/client-po/create': return <CreatePO />;
+      case '/client-po/details': return <PODetails />;
       default: return <DCList />;
     }
   };

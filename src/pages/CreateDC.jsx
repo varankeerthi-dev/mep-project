@@ -37,7 +37,8 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
     driver_name: '',
     eway_bill_no: '',
     eway_bill_date: '',
-    eway_valid_till: '',
+    po_no: '',
+    po_date: '',
     remarks: '',
     ship_to_name: '',
     ship_to_address_line1: '',
@@ -626,36 +627,40 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
       )}
       
       <form onSubmit={handleSubmit}>
-        <div style={{ background: '#f8f9fa', padding: '16px', marginBottom: '16px', borderRadius: '8px' }}>
-          <div className="form-row">
-            <div className="form-group">
-              <label className="form-label">DC No *</label>
+        {/* Ultra Compact Top Row */}
+        <div style={{ background: '#f8f9fa', padding: '12px', marginBottom: '12px', borderRadius: '6px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '10px' }}>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label" style={{ fontWeight: 600, fontSize: '11px', marginBottom: '2px' }}>DC No *</label>
               <input 
                 type="text" 
                 name="dc_no"
                 className="form-input"
+                style={{ padding: '6px 8px', fontSize: '13px' }}
                 value={formData.dc_no}
                 onChange={handleInputChange}
-                placeholder="Auto-generated"
+                placeholder="Auto"
                 disabled={isLocked}
               />
             </div>
-            <div className="form-group">
-              <label className="form-label">DC Date *</label>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label" style={{ fontWeight: 600, fontSize: '11px', marginBottom: '2px' }}>DC Date *</label>
               <input 
                 type="date" 
                 name="dc_date"
                 className="form-input"
+                style={{ padding: '6px 8px', fontSize: '13px' }}
                 value={formData.dc_date}
                 onChange={handleInputChange}
                 disabled={isLocked}
               />
             </div>
-            <div className="form-group">
-              <label className="form-label">Client *</label>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label" style={{ fontWeight: 600, fontSize: '11px', marginBottom: '2px' }}>Client *</label>
               <select 
                 name="client_name"
                 className="form-select"
+                style={{ padding: '6px 8px', fontSize: '13px' }}
                 value={formData.client_name}
                 onChange={(e) => {
                   const client = clients.find(c => c.client_name === e.target.value);
@@ -679,22 +684,23 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
                 }}
                 disabled={isLocked}
               >
-                <option value="">Select Client</option>
+                <option value="">Select</option>
                 {clients.map(c => (
                   <option key={c.id} value={c.client_name}>{c.client_name}</option>
                 ))}
               </select>
             </div>
-            <div className="form-group">
-              <label className="form-label">Project</label>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label" style={{ fontWeight: 600, fontSize: '11px', marginBottom: '2px' }}>Project</label>
               <select 
                 name="project_id" 
                 className="form-select"
+                style={{ padding: '6px 8px', fontSize: '13px' }}
                 value={formData.project_id}
                 onChange={(e) => handleProjectChange(e.target.value)}
                 disabled={isLocked}
               >
-                <option value="">Select Project</option>
+                <option value="">Select</option>
                 {projects.map(p => (
                   <option key={p.id} value={p.id}>{p.name}</option>
                 ))}
@@ -705,23 +711,26 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
               <select 
                 name="source_type" 
                 className="form-select"
+                style={{ padding: '6px 8px', fontSize: '13px' }}
                 value={formData.source_type}
                 onChange={(e) => handleSourceTypeChange(e.target.value)}
                 disabled={isLocked}
               >
                 <option value="WAREHOUSE">Warehouse</option>
-                <option value="DIRECT_SUPPLY">Direct Supply</option>
+                <option value="DIRECT_SUPPLY">Direct</option>
               </select>
             </div>
           </div>
           
-          <div className="form-row">
+          {/* Ultra Compact Logistics Row */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '10px', marginBottom: '12px' }}>
             {formData.source_type === 'WAREHOUSE' && (
-              <div className="form-group">
-                <label className="form-label">Warehouse *</label>
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label" style={{ fontWeight: 600, fontSize: '11px', marginBottom: '2px' }}>Warehouse *</label>
                 <select 
                   name="warehouse_id" 
                   className="form-select"
+                  style={{ padding: '6px 8px', fontSize: '13px' }}
                   value={formData.warehouse_id}
                   onChange={(e) => handleWarehouseChange(e.target.value)}
                   disabled={isLocked}
@@ -733,39 +742,48 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
                 </select>
               </div>
             )}
-            <div className="form-group">
-              <label className="form-label">Vehicle No</label>
-              <input type="text" name="vehicle_number" className="form-input" value={formData.vehicle_number} onChange={handleInputChange} disabled={isLocked} />
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label" style={{ fontWeight: 600, fontSize: '11px', marginBottom: '2px' }}>Vehicle No</label>
+              <input type="text" name="vehicle_number" className="form-input" style={{ padding: '6px 8px', fontSize: '13px' }} maxLength={20} value={formData.vehicle_number} onChange={handleInputChange} disabled={isLocked} />
             </div>
-            <div className="form-group">
-              <label className="form-label">Driver Name</label>
-              <input type="text" name="driver_name" className="form-input" value={formData.driver_name} onChange={handleInputChange} disabled={isLocked} />
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label" style={{ fontWeight: 600, fontSize: '11px', marginBottom: '2px' }}>Driver</label>
+              <input type="text" name="driver_name" className="form-input" style={{ padding: '6px 8px', fontSize: '13px' }} value={formData.driver_name} onChange={handleInputChange} disabled={isLocked} />
+            </div>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label" style={{ fontWeight: 600, fontSize: '11px', marginBottom: '2px' }}>E-Way Bill</label>
+              <input type="text" name="eway_bill_no" className="form-input" style={{ padding: '6px 8px', fontSize: '13px' }} maxLength={20} value={formData.eway_bill_no} onChange={handleInputChange} disabled={isLocked} />
+            </div>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label" style={{ fontWeight: 600, fontSize: '11px', marginBottom: '2px' }}>E-Way Date</label>
+              <input type="date" name="eway_bill_date" className="form-input" style={{ padding: '6px 8px', fontSize: '13px' }} value={formData.eway_bill_date} onChange={handleInputChange} disabled={isLocked} />
+            </div>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label" style={{ fontWeight: 600, fontSize: '11px', marginBottom: '2px' }}>PO No</label>
+              <input type="text" name="po_no" className="form-input" style={{ padding: '6px 8px', fontSize: '13px' }} value={formData.po_no || ''} onChange={handleInputChange} disabled={isLocked} />
+            </div>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label" style={{ fontWeight: 600, fontSize: '11px', marginBottom: '2px' }}>PO Date</label>
+              <input type="date" name="po_date" className="form-input" style={{ padding: '6px 8px', fontSize: '13px' }} value={formData.po_date || ''} onChange={handleInputChange} disabled={isLocked} />
             </div>
           </div>
           
-          <div className="form-row">
-            <div className="form-group">
-              <label className="form-label">E-Way Bill No</label>
-              <input type="text" name="eway_bill_no" className="form-input" value={formData.eway_bill_no} onChange={handleInputChange} disabled={isLocked} />
-            </div>
-            <div className="form-group">
-              <label className="form-label">E-Way Bill Date</label>
-              <input type="date" name="eway_bill_date" className="form-input" value={formData.eway_bill_date} onChange={handleInputChange} disabled={isLocked} />
-            </div>
-            <div className="form-group">
-              <label className="form-label">E-Way Valid Till</label>
-              <input type="date" name="eway_valid_till" className="form-input" value={formData.eway_valid_till} onChange={handleInputChange} disabled={isLocked} />
+          {/* Remarks Row */}
+          <div style={{ marginBottom: '12px' }}>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label" style={{ fontWeight: 600, fontSize: '11px', marginBottom: '2px' }}>Remarks</label>
+              <input type="text" name="remarks" className="form-input" style={{ padding: '6px 8px', fontSize: '13px' }} value={formData.remarks || ''} onChange={handleInputChange} disabled={isLocked} placeholder="Add remarks..." />
             </div>
           </div>
         </div>
         
-        {/* Billing & Shipping Address Section */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+        {/* Compact Billing & Shipping Address Section */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
           {/* Billing Address */}
-          <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '12px', minHeight: '160px' }}>
-            <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '8px', color: '#374151' }}>Billing Address</div>
+          <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '6px', padding: '10px', minHeight: '130px' }}>
+            <div style={{ fontWeight: 600, fontSize: '12px', marginBottom: '6px', color: '#374151' }}>Billing Address</div>
             {formData.client_name ? (
-              <div style={{ fontSize: '13px', color: '#4b5563', whiteSpace: 'pre-line', lineHeight: '1.5' }}>
+              <div style={{ fontSize: '12px', color: '#4b5563', whiteSpace: 'pre-line', lineHeight: '1.4' }}>
                 {formData.client_name}
                 {formData.client_name && '\n'}{formData.ship_to_address_line1 || formData.ship_to_address_line1}{formData.ship_to_address_line1 && '\n'}{formData.ship_to_address_line2}
                 {(formData.ship_to_city || formData.ship_to_pincode) && '\n'}{formData.ship_to_city}{formData.ship_to_city && formData.ship_to_pincode && ' - '}{formData.ship_to_pincode}
@@ -780,23 +798,23 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
 
           {/* Shipping Address */}
           <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '12px', minHeight: '160px', position: 'relative' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-              <div style={{ fontWeight: 600, fontSize: '14px', color: '#374151' }}>Shipping Address</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <div style={{ fontWeight: 600, fontSize: '12px', color: '#374151' }}>Shipping Address</div>
               {shippingAddresses.length > 0 && (
                 <div style={{ position: 'relative' }} ref={shippingDropdownRef}>
                   <button
                     type="button"
                     onClick={() => setShowShippingDropdown(!showShippingDropdown)}
-                    style={{ background: '#fff', border: '1px solid #d1d5db', borderRadius: '4px', padding: '4px 8px', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                    style={{ background: '#fff', border: '1px solid #d1d5db', borderRadius: '4px', padding: '3px 6px', fontSize: '11px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
                   >
-                    {selectedShippingIndex >= 0 ? `Address ${selectedShippingIndex + 1}` : 'Select'}
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9"/></svg>
+                    {selectedShippingIndex >= 0 ? `Addr ${selectedShippingIndex + 1}` : 'Select'}
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6 9 12 15 18 9"/></svg>
                   </button>
                   {showShippingDropdown && (
-                    <div style={{ position: 'absolute', top: '100%', right: 0, background: '#fff', border: '1px solid #e5e7eb', borderRadius: '6px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', zIndex: 100, minWidth: '200px', marginTop: '4px' }}>
+                    <div style={{ position: 'absolute', top: '100%', right: 0, background: '#fff', border: '1px solid #e5e7eb', borderRadius: '6px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', zIndex: 100, minWidth: '180px', marginTop: '4px' }}>
                       <div
                         onClick={() => handleSelectShippingAddress(-1)}
-                        style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '13px', borderBottom: '1px solid #f3f4f6', background: selectedShippingIndex === -1 ? '#eff6ff' : 'transparent' }}
+                        style={{ padding: '6px 10px', cursor: 'pointer', fontSize: '12px', borderBottom: '1px solid #f3f4f6', background: selectedShippingIndex === -1 ? '#eff6ff' : 'transparent' }}
                       >
                         None
                       </div>
@@ -804,10 +822,10 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
                         <div
                           key={addr.id}
                           onClick={() => handleSelectShippingAddress(idx)}
-                          style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '13px', borderBottom: '1px solid #f3f4f6', background: selectedShippingIndex === idx ? '#eff6ff' : 'transparent' }}
+                          style={{ padding: '6px 10px', cursor: 'pointer', fontSize: '12px', borderBottom: '1px solid #f3f4f6', background: selectedShippingIndex === idx ? '#eff6ff' : 'transparent' }}
                         >
                           <div style={{ fontWeight: 500 }}>{addr.address_name || `Address ${idx + 1}`}</div>
-                          <div style={{ fontSize: '11px', color: '#6b7280' }}>{addr.address_line1}, {addr.city}</div>
+                          <div style={{ fontSize: '10px', color: '#6b7280' }}>{addr.address_line1}, {addr.city}</div>
                         </div>
                       ))}
                     </div>
@@ -817,7 +835,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
             </div>
             
             {(selectedShippingIndex >= 0 && shippingAddresses[selectedShippingIndex]) ? (
-              <div style={{ fontSize: '13px', color: '#4b5563', whiteSpace: 'pre-line', lineHeight: '1.5' }}>
+              <div style={{ fontSize: '12px', color: '#4b5563', whiteSpace: 'pre-line', lineHeight: '1.4' }}>
                 {shippingAddresses[selectedShippingIndex].address_name || shippingAddresses[selectedShippingIndex].address_name}
                 {shippingAddresses[selectedShippingIndex].address_name && '\n'}{shippingAddresses[selectedShippingIndex].address_line1}
                 {shippingAddresses[selectedShippingIndex].address_line1 && '\n'}{shippingAddresses[selectedShippingIndex].address_line2}
@@ -829,22 +847,22 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
             ) : formData.client_name ? (
               <div>
                 {shippingAddresses.length === 0 ? (
-                  <div style={{ fontSize: '13px', color: '#9ca3af', fontStyle: 'italic' }}>No shipping address available</div>
+                  <div style={{ fontSize: '12px', color: '#9ca3af', fontStyle: 'italic' }}>No shipping address</div>
                 ) : (
-                  <div style={{ fontSize: '13px', color: '#9ca3af', fontStyle: 'italic' }}>No shipping address selected</div>
+                  <div style={{ fontSize: '12px', color: '#9ca3af', fontStyle: 'italic' }}>No address selected</div>
                 )}
                 {formData.client_name && (
                   <button
                     type="button"
                     onClick={() => setShowAddShippingModal(true)}
-                    style={{ marginTop: '8px', background: '#fff', border: '1px solid #d1d5db', borderRadius: '4px', padding: '4px 10px', fontSize: '12px', cursor: 'pointer' }}
+                    style={{ marginTop: '6px', background: '#fff', border: '1px solid #d1d5db', borderRadius: '4px', padding: '3px 8px', fontSize: '11px', cursor: 'pointer' }}
                   >
-                    + Add Shipping Address
+                    + Add
                   </button>
                 )}
               </div>
             ) : (
-              <div style={{ fontSize: '13px', color: '#9ca3af', fontStyle: 'italic' }}>Select a client</div>
+              <div style={{ fontSize: '12px', color: '#9ca3af', fontStyle: 'italic' }}>Select a client</div>
             )}
           </div>
         </div>
