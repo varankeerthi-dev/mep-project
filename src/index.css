@@ -27,8 +27,8 @@ body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background-color: var(--gray-50);
   color: var(--gray-800);
- 14px;
-  font-size:  line-height: 1.5;
+  font-size: 14px;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
 
