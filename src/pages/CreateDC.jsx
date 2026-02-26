@@ -737,7 +737,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
                 >
                   <option value="">Select</option>
                   {warehouses.map(w => (
-                    <option key={w.id} value={w.id}>{w.name}</option>
+                    <option key={w.id} value={w.id}>{w.warehouse_name || w.name}</option>
                   ))}
                 </select>
               </div>
@@ -749,14 +749,6 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
             <div className="form-group" style={{ margin: 0 }}>
               <label className="form-label" style={{ fontWeight: 600, fontSize: '11px', marginBottom: '2px' }}>Driver</label>
               <input type="text" name="driver_name" className="form-input" style={{ padding: '6px 8px', fontSize: '13px' }} value={formData.driver_name} onChange={handleInputChange} disabled={isLocked} />
-            </div>
-            <div className="form-group" style={{ margin: 0 }}>
-              <label className="form-label" style={{ fontWeight: 600, fontSize: '11px', marginBottom: '2px' }}>E-Way Bill</label>
-              <input type="text" name="eway_bill_no" className="form-input" style={{ padding: '6px 8px', fontSize: '13px' }} maxLength={20} value={formData.eway_bill_no} onChange={handleInputChange} disabled={isLocked} />
-            </div>
-            <div className="form-group" style={{ margin: 0 }}>
-              <label className="form-label" style={{ fontWeight: 600, fontSize: '11px', marginBottom: '2px' }}>E-Way Date</label>
-              <input type="date" name="eway_bill_date" className="form-input" style={{ padding: '6px 8px', fontSize: '13px' }} value={formData.eway_bill_date} onChange={handleInputChange} disabled={isLocked} />
             </div>
             <div className="form-group" style={{ margin: 0 }}>
               <label className="form-label" style={{ fontWeight: 600, fontSize: '11px', marginBottom: '2px' }}>PO No</label>
