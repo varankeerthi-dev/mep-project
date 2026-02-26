@@ -158,7 +158,7 @@ function ChevronDownIcon({ style }) {
   );
 }
 
-export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle }) {
+export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, mobileOpen }) {
   const [expandedMenus, setExpandedMenus] = useState(() => {
     const defaults = [];
     menuData.forEach(section => {
@@ -204,7 +204,9 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle }
   };
 
   return (
-    <aside className={`sidebar ${collapsed ? "collapsed" : ""}`}>
+    <>
+      {mobileOpen && <div className="sidebar-overlay" onClick={() => onNavigate(currentPath)} />}
+      <aside className={`sidebar ${collapsed ? "collapsed" : ""} ${mobileOpen ? "mobile-open" : ""}`}>
       {menuData.map(section => (
         <div key={section.section} className="sidebar-section">
           <div className="sidebar-section-title">
@@ -281,5 +283,6 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle }
         />
       </div>
     </aside>
+    </>
   );
 }

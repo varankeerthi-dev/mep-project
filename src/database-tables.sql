@@ -140,3 +140,14 @@ DROP INDEX IF EXISTS idx_material_outward_date;
 
 CREATE INDEX idx_material_inward_date ON material_inward(inward_date);
 CREATE INDEX idx_material_outward_date ON material_outward(outward_date);
+
+-- Add contact person columns to clients table
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS contact_person VARCHAR(100);
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS contact_designation VARCHAR(100);
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS contact_person_2 VARCHAR(100);
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS contact_designation_2 VARCHAR(100);
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS purchase_person VARCHAR(100);
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS purchase_designation VARCHAR(100);
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS purchase_contact VARCHAR(100);
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS city VARCHAR(100);
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS pincode VARCHAR(20);
