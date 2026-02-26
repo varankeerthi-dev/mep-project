@@ -574,27 +574,6 @@ function CreateClient({ onSuccess, onCancel, editMode, clientData }) {
     loadShippingAddresses(clientData.id);
   };
 
-  const handleGstChange = (e) => {
-    const value = e.target.value.toUpperCase();
-    if (value.length <= 15) {
-      setFormData({ ...formData, gstin: value });
-      
-      if (value.length >= 2) {
-        const stateCode = value.substring(0, 2);
-        const detectedState = gstStateCodes[stateCode];
-        if (detectedState) {
-          setFormData(prev => ({ ...prev, gstin: value, state: detectedState }));
-        }
-      }
-      
-      if (value.length > 0 && value.length < 15) {
-        setGstError('GSTIN must be exactly 15 characters');
-      } else {
-        setGstError('');
-      }
-    }
-  };
-
   const copyToShipping = () => {
     setFormData({
       ...formData,
