@@ -61,9 +61,9 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
     try {
       const [projData, matData, whData, varData, stockData, clientData] = await Promise.all([
         supabase.from('projects').select('*').order('name'),
-        supabase.from('materials').select('id, display_name, name, unit, uses_variant, sale_price').eq('is_active', true).order('name'),
-        supabase.from('warehouses').select('*').eq('is_active', true).order('warehouse_name'),
-        supabase.from('company_variants').select('*').eq('is_active', true).order('variant_name'),
+        supabase.from('materials').select('id, display_name, name, unit, uses_variant, sale_price').order('name'),
+        supabase.from('warehouses').select('*').order('name'),
+        supabase.from('company_variants').select('*').order('variant_name'),
         supabase.from('item_stock').select('*'),
         supabase.from('clients').select('*').order('client_name')
       ]);
@@ -592,7 +592,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
                 >
                   <option value="">Select</option>
                   {warehouses.map(w => (
-                    <option key={w.id} value={w.id}>{w.warehouse_name}</option>
+                    <option key={w.id} value={w.id}>{w.name}</option>
                   ))}
                 </select>
               </div>

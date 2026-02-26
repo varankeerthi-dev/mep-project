@@ -740,9 +740,9 @@ function MaterialInward({ onCancel }) {
   
   const loadData = async () => {
     const [mat, wh, varData, priceData, projData] = await Promise.all([
-      supabase.from('materials').select('id, item_code, display_name, name, unit, uses_variant, sale_price').eq('is_active', true).order('name'),
-      supabase.from('warehouses').select('*').eq('is_active', true).order('warehouse_name'),
-      supabase.from('company_variants').select('*').eq('is_active', true).order('variant_name'),
+      supabase.from('materials').select('id, item_code, display_name, name, unit, uses_variant, sale_price').order('name'),
+      supabase.from('warehouses').select('*').order('name'),
+      supabase.from('company_variants').select('*').order('variant_name'),
       supabase.from('item_variant_pricing').select('item_id, company_variant_id, sale_price'),
       supabase.from('projects').select('id, name').order('name')
     ]);
@@ -1236,7 +1236,7 @@ function MaterialOutward({ onSuccess, onCancel }) {
   const loadData = async () => {
     const [mat, wh, varData] = await Promise.all([
       supabase.from('materials').select('id, display_name, name').eq('is_active', true).order('name'),
-      supabase.from('warehouses').select('*').eq('is_active', true).order('warehouse_name'),
+      supabase.from('warehouses').select('*').order('name'),
       supabase.from('company_variants').select('*').eq('is_active', true).order('variant_name')
     ]);
     setMaterials(mat.data || []);

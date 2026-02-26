@@ -424,6 +424,67 @@ body {
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.form-row-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.form-row-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+}
+
+/* Item list for forms - compact grid */
+.item-list {
+  border: 1px solid var(--gray-200);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.item-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--gray-100);
+}
+
+.item-row:last-child {
+  border-bottom: none;
+}
+
+.item-row.header {
+  background: var(--gray-50);
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--gray-600);
+  padding: 10px 12px;
+}
+
+.item-row input,
+.item-row select {
+  padding: 6px 8px;
+  font-size: 13px;
+  border: 1px solid var(--gray-300);
+  border-radius: 4px;
+  width: 100%;
+}
+
+.item-row input:focus,
+.item-row select:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
 /* Tables */
 .table-container {
   overflow-x: auto;

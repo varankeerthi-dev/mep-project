@@ -44,9 +44,9 @@ export default function StockTransfer({ onCancel }) {
   const loadData = async () => {
     try {
       const [mat, wh, varData, stockData] = await Promise.all([
-        supabase.from('materials').select('id, item_code, display_name, name, unit').eq('is_active', true).order('name'),
-        supabase.from('warehouses').select('*').eq('is_active', true).order('warehouse_name'),
-        supabase.from('company_variants').select('*').eq('is_active', true).order('variant_name'),
+        supabase.from('materials').select('id, item_code, display_name, name, unit').order('name'),
+        supabase.from('warehouses').select('*').order('name'),
+        supabase.from('company_variants').select('*').order('variant_name'),
         supabase.from('item_stock').select('*')
       ]);
       

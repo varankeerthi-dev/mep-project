@@ -174,13 +174,13 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle }
 
   const isParentActive = (item) => {
     if (item.submenu) {
-      return item.submenu.some(sub => currentPath === sub.path || currentPath.startsWith(sub.path));
+      return item.submenu.some(sub => currentPath === sub.path);
     }
-    return item.path && (currentPath === item.path || currentPath.startsWith(item.path));
+    return item.path && currentPath === item.path;
   };
 
   const isActive = (path) => {
-    return currentPath === path || currentPath.startsWith(path);
+    return currentPath === path;
   };
 
   const toggleMenu = (menuId) => {
