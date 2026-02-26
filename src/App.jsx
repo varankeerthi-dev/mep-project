@@ -573,13 +573,6 @@ function CreateClient({ onSuccess, onCancel, editMode, clientData }) {
     await supabase.from('client_shipping_addresses').delete().eq('id', id);
     loadShippingAddresses(clientData.id);
   };
-    '13': 'Nagaland', '14': 'Manipur', '15': 'Mizoram', '16': 'Tripura',
-    '17': 'Meghalaya', '18': 'Assam', '19': 'West Bengal', '20': 'Jharkhand',
-    '21': 'Odisha', '22': 'Chhattisgarh', '23': 'Madhya Pradesh', '24': 'Gujarat',
-    '25': 'Maharashtra', '26': 'Karnataka', '27': 'Goa', '28': 'Lakshadweep',
-    '29': 'Kerala', '30': 'Tamil Nadu', '31': 'Puducherry', '32': 'Andaman and Nicobar Islands',
-    '33': 'Telangana', '34': 'Andhra Pradesh', '35': 'Ladakh'
-  };
 
   const handleGstChange = (e) => {
     const value = e.target.value.toUpperCase();
