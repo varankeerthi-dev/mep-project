@@ -274,8 +274,9 @@ body {
 }
 
 .sidebar-item.active {
-  background: var(--accent-color);
-  color: white;
+  background: var(--active-bg);
+  color: var(--text-primary);
+  font-weight: 600;
 }
 
 .sidebar-item svg {
