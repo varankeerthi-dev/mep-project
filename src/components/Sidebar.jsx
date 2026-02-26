@@ -1,17 +1,12 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { 
-  Home, Folder, Users, CheckSquare, FileText, List, 
-  FolderOpen, AlertCircle, MessageCircle, Warehouse, 
-  Tool, Truck, Chart, Settings, Calendar, Inbox, 
-  MapPin, HardHat, ChevronDown, ChevronRight
-} from 'lucide-react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 
 const menuData = [
   {
     section: 'Overview',
     items: [
-      { id: 'dashboard', label: 'Dashboard', icon: 'home', path: '/' }
+      { id: 'dashboard', label: 'Dashboard', path: '/' }
     ]
   },
   {
@@ -20,7 +15,6 @@ const menuData = [
       { 
         id: 'projects', 
         label: 'Project', 
-        icon: 'folder',
         submenu: [
           { id: 'projects-new', label: 'New Project', path: '/projects/new' },
           { id: 'projects-list', label: 'Project List', path: '/projects' },
@@ -28,8 +22,8 @@ const menuData = [
           { id: 'site-materials', label: 'Site Materials', path: '/projects/site-materials' }
         ]
       },
-      { id: 'todo', label: 'To Do List', icon: 'check', path: '/todo' },
-      { id: 'approvals', label: 'Approvals', icon: 'checkCircle', path: '/approvals' }
+      { id: 'todo', label: 'To Do List', path: '/todo' },
+      { id: 'approvals', label: 'Approvals', path: '/approvals' }
     ]
   },
   {
@@ -38,7 +32,6 @@ const menuData = [
       { 
         id: 'clients', 
         label: 'Client', 
-        icon: 'users',
         submenu: [
           { id: 'clients-new', label: 'Create Client', path: '/clients/new' },
           { id: 'clients-list', label: 'Client List', path: '/clients' }
@@ -47,7 +40,6 @@ const menuData = [
       {
         id: 'meetings',
         label: 'Meetings',
-        icon: 'calendar',
         submenu: [
           { id: 'meetings-dashboard', label: 'Dashboard', path: '/meetings' },
           { id: 'meetings-create', label: 'Create Meeting', path: '/meetings/create' }
@@ -56,7 +48,6 @@ const menuData = [
       {
         id: 'site-visit',
         label: 'Site Visit',
-        icon: 'mapPin',
         submenu: [
           { id: 'site-visit-dashboard', label: 'Dashboard', path: '/site-visits' },
           { id: 'site-visit-create', label: 'New Visit', path: '/site-visits/new' }
@@ -65,7 +56,6 @@ const menuData = [
       {
         id: 'subcontractor',
         label: 'Sub-Contractor',
-        icon: 'hardHat',
         submenu: [
           { id: 'subcontractor-dashboard', label: 'Dashboard', path: '/subcontractors' },
           { id: 'subcontractor-create', label: 'Add New', path: '/subcontractors/new' },
@@ -80,7 +70,6 @@ const menuData = [
       {
         id: 'client-requests',
         label: 'Client Request',
-        icon: 'inbox',
         path: '/client-requests'
       }
     ]
@@ -88,11 +77,11 @@ const menuData = [
   {
     section: 'Documents',
     items: [
-      { id: 'quotation', label: 'Quotation', icon: 'fileText', path: '/quotation' },
-      { id: 'boq', label: 'BOQ', icon: 'list', path: '/boq' },
-      { id: 'documents', label: 'Documents', icon: 'folderOpen', path: '/documents' },
-      { id: 'issue', label: 'Issue', icon: 'alertCircle', path: '/issue' },
-      { id: 'client-comm', label: 'Client Communication', icon: 'messageCircle', path: '/client-comm' }
+      { id: 'quotation', label: 'Quotation', path: '/quotation' },
+      { id: 'boq', label: 'BOQ', path: '/boq' },
+      { id: 'documents', label: 'Documents', path: '/documents' },
+      { id: 'issue', label: 'Issue', path: '/issue' },
+      { id: 'client-comm', label: 'Client Communication', path: '/client-comm' }
     ]
   },
   {
@@ -101,7 +90,6 @@ const menuData = [
       { 
         id: 'store', 
         label: 'Material', 
-        icon: 'warehouse',
         submenu: [
           { id: 'materials-list', label: 'Items/Materials', path: '/store/materials' },
           { id: 'material-inward', label: 'Material Inward', path: '/store/inward' },
@@ -116,7 +104,7 @@ const menuData = [
   {
     section: 'Tools',
     items: [
-      { id: 'tools', label: 'Tools', icon: 'tool', path: '/tools' }
+      { id: 'tools', label: 'Tools', path: '/tools' }
     ]
   },
   {
@@ -125,7 +113,6 @@ const menuData = [
       { 
         id: 'dc', 
         label: 'Delivery Challan', 
-        icon: 'truck',
         submenu: [
           { id: 'dc-create', label: 'Create DC', path: '/dc/create' },
           { id: 'dc-list', label: 'DC List', path: '/dc/list' },
@@ -141,7 +128,6 @@ const menuData = [
       { 
         id: 'reports', 
         label: 'Report', 
-        icon: 'chart',
         submenu: [
           { id: 'stock-report', label: 'Stock Report', path: '/reports/stock' },
           { id: 'purchase-report', label: 'Purchase Report', path: '/reports/purchase' },
@@ -153,32 +139,10 @@ const menuData = [
   {
     section: 'Settings',
     items: [
-      { id: 'settings', label: 'Settings', icon: 'settings', path: '/settings' }
+      { id: 'settings', label: 'Settings', path: '/settings' }
     ]
   }
 ];
-
-const icons = {
-  home: Home,
-  folder: Folder,
-  users: Users,
-  check: CheckSquare,
-  checkCircle: CheckSquare,
-  fileText: FileText,
-  list: List,
-  folderOpen: FolderOpen,
-  alertCircle: AlertCircle,
-  messageCircle: MessageCircle,
-  warehouse: Warehouse,
-  tool: Tool,
-  truck: Truck,
-  chart: Chart,
-  settings: Settings,
-  calendar: Calendar,
-  inbox: Inbox,
-  mapPin: MapPin,
-  hardHat: HardHat,
-};
 
 export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle }) {
   const location = useLocation();
@@ -219,11 +183,6 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle }
     }
   };
 
-  const IconComponent = ({ icon, size = 22, className = '' }) => {
-    const Icon = icons[icon];
-    return Icon ? <Icon size={size} className={className} /> : null;
-  };
-
   if (collapsed) {
     return (
       <aside className="w-20 h-screen bg-white border-r border-gray-200 flex flex-col shadow-sm">
@@ -245,7 +204,7 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle }
                           isParentActive(item) ? 'bg-blue-50 text-blue-600' : 'text-gray-500 hover:bg-gray-100'
                         }`}
                       >
-                        <IconComponent icon={item.icon} size={24} />
+                        <span className="font-semibold text-sm">{item.label.charAt(0)}</span>
                       </button>
                       {expandedMenus.includes(item.id) && (
                         <div className="absolute left-full top-0 ml-1 bg-white border border-gray-200 rounded-xl shadow-xl py-2 z-50 min-w-[200px]">
@@ -275,7 +234,7 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle }
                         isActive(item.path) ? 'bg-blue-50 text-blue-600' : 'text-gray-500 hover:bg-gray-100'
                       }`}
                     >
-                      <IconComponent icon={item.icon} size={24} />
+                      <span className="font-semibold text-sm">{item.label.charAt(0)}</span>
                     </Link>
                   )}
                 </div>
@@ -324,12 +283,7 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle }
                             : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                         }`}
                       >
-                        <div className="flex items-center gap-3">
-                          <span className={`p-1.5 rounded-lg ${isParentActive(item) ? 'bg-blue-100' : 'bg-gray-100'}`}>
-                            <IconComponent icon={item.icon} size={20} />
-                          </span>
-                          {item.label}
-                        </div>
+                        <span>{item.label}</span>
                         <ChevronDown
                           size={16}
                           className={`transition-transform duration-200 ${
@@ -339,7 +293,7 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle }
                       </button>
                       
                       {expandedMenus.includes(item.id) && (
-                        <div className="ml-4 mt-1 space-y-0.5 border-l-2 border-gray-100 pl">
+                        <div className="ml-4 mt-1 space-y-0.5 border-l-2 border-gray-100 pl-3">
                           {item.submenu.map(subItem => (
                             <Link
                               key={subItem.id}
@@ -359,15 +313,12 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle }
                   ) : (
                     <Link
                       to={item.path}
-                      className={`flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium transition-all duration-200 ${
+                      className={`flex items-center px-3 py-2.5 rounded-lg font-medium transition-all duration-200 ${
                         isActive(item.path) 
                           ? 'bg-blue-50 text-blue-600' 
                           : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                       }`}
                     >
-                      <span className={`p-1.5 rounded-lg ${isActive(item.path) ? 'bg-blue-100' : 'bg-gray-100'}`}>
-                        <IconComponent icon={item.icon} size={20} />
-                      </span>
                       {item.label}
                     </Link>
                   )}
