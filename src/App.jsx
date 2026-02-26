@@ -164,6 +164,7 @@ export default function App() {
       case '/remindme': return <RemindMe />;
       case '/approvals': return <Approvals />;
       case '/clients/new': return <CreateClient onSuccess={() => navigate('/clients')} onCancel={() => navigate('/clients')} />;
+      case '/clients/edit': return <CreateClientEdit onSuccess={() => navigate('/clients')} onCancel={() => navigate('/clients')} />;
       case '/clients': return <ClientList />;
       case '/meetings': return <MeetingsDashboard onNavigate={navigate} />;
       case '/meetings/create': return <CreateMeeting onSuccess={() => navigate('/meetings')} onCancel={() => navigate('/meetings')} />;
@@ -479,12 +480,36 @@ function RemindMe() {
 
 function Approvals() { return <div><div className="page-header"><h1 className="page-title">Approvals</h1></div><div className="card"><div className="empty-state"><h3>Approvals</h3><p>View pending approvals</p></div></div></div>; }
 
+function CreateClientEdit({ onSuccess, onCancel }) {
+  const [clientData, setClientData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const clientId = window.location.hash.split('/edit/')[1];
+    if (clientId) {
+      loadClient(clientId);
+    }
+  }, []);
+
+  const loadClient = async (id) => {
+    const { data } = await supabase.from('clients').select('*').eq('id', id).single();
+    setClientData(data);
+    setLoading(false);
+  };
+
+  if (loading) return <div>Loading...</div>;
+
+  return <CreateClient editMode={true} clientData={clientData} onSuccess={onSuccess} onCancel={onCancel} />;
+}
+
 function CreateClient({ onSuccess, onCancel, editMode, clientData }) {
   const [formData, setFormData] = useState(clientData || { 
     client_name: '', address1: '', address2: '', state: '', city: '', pincode: '',
     gstin: '', contact: '', email: '', vendor_no: '', remarks: '', category: 'Active',
-    contact_person: '', contact_designation: '', contact_person_2: '', contact_designation_2: '',
-    purchase_person: '', purchase_designation: '', purchase_contact: ''
+    contact_person: '', contact_designation: '', contact_person_email: '',
+    contact_person_2: '', contact_designation_2: '', contact_person_2_contact: '', contact_person_2_email: '',
+    purchase_person: '', purchase_designation: '', purchase_contact: '', purchase_email: '',
+    about_client: ''
   });
   const [gstError, setGstError] = useState('');
   const [shippingAddresses, setShippingAddresses] = useState([]);
@@ -625,22 +650,25 @@ function CreateClient({ onSuccess, onCancel, editMode, clientData }) {
           </div>
           
           {/* Contact Persons Section */}
-          <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '8px', marginBottom: '16px' }}>
-            <div style={{ fontWeight: '600', marginBottom: '12px', color: '#475569' }}>Contact Persons</div>
-            <div className="form-row">
+          <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', marginBottom: '16px' }}>
+            <div style={{ fontWeight: '600', marginBottom: '8px', color: '#475569' }}>Contact Persons</div>
+            <div className="form-row" style={{ marginBottom: '8px' }}>
               <div className="form-group"><label className="form-label">Primary Contact Person</label><input type="text" className="form-input" value={formData.contact_person || ''} onChange={e => setFormData({...formData, contact_person: e.target.value})} placeholder="Name" /></div>
               <div className="form-group"><label className="form-label">Designation</label><input type="text" className="form-input" value={formData.contact_designation || ''} onChange={e => setFormData({...formData, contact_designation: e.target.value})} placeholder="e.g. Manager" /></div>
               <div className="form-group"><label className="form-label">Contact Number</label><input type="text" className="form-input" value={formData.contact || ''} onChange={e => setFormData({...formData, contact: e.target.value})} placeholder="Phone" /></div>
+              <div className="form-group"><label className="form-label">Email</label><input type="email" className="form-input" value={formData.contact_person_email || ''} onChange={e => setFormData({...formData, contact_person_email: e.target.value})} placeholder="email@example.com" /></div>
             </div>
-            <div className="form-row">
+            <div className="form-row" style={{ marginBottom: '8px' }}>
               <div className="form-group"><label className="form-label">Secondary Contact Person</label><input type="text" className="form-input" value={formData.contact_person_2 || ''} onChange={e => setFormData({...formData, contact_person_2: e.target.value})} placeholder="Name" /></div>
               <div className="form-group"><label className="form-label">Designation</label><input type="text" className="form-input" value={formData.contact_designation_2 || ''} onChange={e => setFormData({...formData, contact_designation_2: e.target.value})} placeholder="e.g. Engineer" /></div>
-              <div className="form-group"><label className="form-label">Contact Number</label><input type="text" className="form-input" value={formData.contact_person_2 ? '' : ''} placeholder="Phone" /></div>
+              <div className="form-group"><label className="form-label">Contact Number</label><input type="text" className="form-input" value={formData.contact_person_2_contact || ''} onChange={e => setFormData({...formData, contact_person_2_contact: e.target.value})} placeholder="Phone" /></div>
+              <div className="form-group"><label className="form-label">Email</label><input type="email" className="form-input" value={formData.contact_person_2_email || ''} onChange={e => setFormData({...formData, contact_person_2_email: e.target.value})} placeholder="email@example.com" /></div>
             </div>
-            <div className="form-row">
+            <div className="form-row" style={{ marginBottom: '0' }}>
               <div className="form-group"><label className="form-label">Purchase/Account Person</label><input type="text" className="form-input" value={formData.purchase_person || ''} onChange={e => setFormData({...formData, purchase_person: e.target.value})} placeholder="Name" /></div>
               <div className="form-group"><label className="form-label">Designation</label><input type="text" className="form-input" value={formData.purchase_designation || ''} onChange={e => setFormData({...formData, purchase_designation: e.target.value})} placeholder="e.g. Purchase Manager" /></div>
               <div className="form-group"><label className="form-label">Contact Number</label><input type="text" className="form-input" value={formData.purchase_contact || ''} onChange={e => setFormData({...formData, purchase_contact: e.target.value})} placeholder="Phone" /></div>
+              <div className="form-group"><label className="form-label">Email</label><input type="email" className="form-input" value={formData.purchase_email || ''} onChange={e => setFormData({...formData, purchase_email: e.target.value})} placeholder="email@example.com" /></div>
             </div>
           </div>
 
@@ -739,6 +767,7 @@ function CreateClient({ onSuccess, onCancel, editMode, clientData }) {
           </div>
           
           <div className="form-group"><label className="form-label">Remarks</label><textarea className="form-textarea" value={formData.remarks} onChange={e => setFormData({...formData, remarks: e.target.value})} /></div>
+          <div className="form-group"><label className="form-label">About Client</label><textarea className="form-textarea" value={formData.about_client || ''} onChange={e => setFormData({...formData, about_client: e.target.value})} placeholder="Additional information about the client..." /></div>
           <div style={{ display: 'flex', gap: '12px' }}><button type="submit" className="btn btn-primary">{editMode ? 'Update' : 'Submit'}</button><button type="button" className="btn btn-secondary" onClick={onCancel}>Cancel</button></div>
         </form>
       </div>
@@ -749,7 +778,6 @@ function CreateClient({ onSuccess, onCancel, editMode, clientData }) {
 function ClientList() {
   const [clients, setClients] = useState([]);
   const [filter, setFilter] = useState('All');
-  const [editingClient, setEditingClient] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
 
   const loadClients = async () => {
@@ -836,7 +864,7 @@ function ClientList() {
                   <td>{c.gstin || '-'}</td>
                   <td>{c.state || '-'}</td>
                   <td>
-                    <button className="btn btn-sm btn-secondary" onClick={() => setEditingClient(c)}>Edit</button>
+                    <button className="btn btn-sm btn-secondary" onClick={() => window.location.hash = `/clients/edit/${c.id}`}>Edit</button>
                     <button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px' }} onClick={() => deleteClient(c.id)}>Delete</button>
                   </td>
                 </tr>
@@ -845,19 +873,6 @@ function ClientList() {
           </div>
         )}
       </div>
-
-      {editingClient && (
-        <div className="modal-overlay open" onClick={() => setEditingClient(null)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <CreateClient 
-              editMode={true} 
-              clientData={editingClient} 
-              onSuccess={() => { setEditingClient(null); loadClients(); }} 
-              onCancel={() => setEditingClient(null)} 
-            />
-          </div>
-        </div>
-      )}
     </div>
   );
 }
