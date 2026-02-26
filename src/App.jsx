@@ -33,7 +33,7 @@ export default function App() {
     window.addEventListener('edit-visit', handleEditVisit);
     return () => window.removeEventListener('edit-visit', handleEditVisit);
   }, []);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [dbSetup, setDbSetup] = useState(false);
 
   const checkDatabase = async () => {
