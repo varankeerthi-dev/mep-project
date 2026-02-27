@@ -1,22 +1,88 @@
 -- Enhanced Projects Module
 -- Run this in Supabase SQL Editor
 
+-- First, ensure created_at exists in projects table
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'projects' AND column_name = 'created_at') THEN
+    ALTER TABLE projects ADD COLUMN created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+  END IF;
+END $$;
+
 -- Step 1: Add new columns to existing projects table (run this first if table exists)
--- First add the column, then migrate data if needed
-ALTER TABLE projects ADD COLUMN IF NOT EXISTS client_id UUID REFERENCES clients(id);
-ALTER TABLE projects ADD COLUMN IF NOT EXISTS project_code VARCHAR(50) UNIQUE;
-ALTER TABLE projects ADD COLUMN IF NOT EXISTS project_name VARCHAR(255);
-ALTER TABLE projects ADD COLUMN IF NOT EXISTS parent_project_id UUID REFERENCES projects(id);
-ALTER TABLE projects ADD COLUMN IF NOT EXISTS project_type VARCHAR(50);
-ALTER TABLE projects ADD COLUMN IF NOT EXISTS project_estimated_value DECIMAL(15,2);
-ALTER TABLE projects ADD COLUMN IF NOT EXISTS po_required BOOLEAN DEFAULT true;
-ALTER TABLE projects ADD COLUMN IF NOT EXISTS po_status VARCHAR(50);
-ALTER TABLE projects ADD COLUMN IF NOT EXISTS start_date DATE;
-ALTER TABLE projects ADD COLUMN IF NOT EXISTS expected_end_date DATE;
-ALTER TABLE projects ADD COLUMN IF NOT EXISTS actual_end_date DATE;
-ALTER TABLE projects ADD COLUMN IF NOT EXISTS completion_percentage DECIMAL(5,2) DEFAULT 0;
-ALTER TABLE projects ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'Draft';
-ALTER TABLE projects ADD COLUMN IF NOT EXISTS remarks TEXT;
+-- Use DO block to safely add columns if they don't exist
+DO $$
+BEGIN
+  -- Add client_id column
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'projects' AND column_name = 'client_id') THEN
+    ALTER TABLE projects ADD COLUMN client_id UUID REFERENCES clients(id);
+  END IF;
+  
+  -- Add project_code column
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'projects' AND column_name = 'project_code') THEN
+    ALTER TABLE projects ADD COLUMN project_code VARCHAR(50) UNIQUE;
+  END IF;
+  
+  -- Add project_name column
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'projects' AND column_name = 'project_name') THEN
+    ALTER TABLE projects ADD COLUMN project_name VARCHAR(255);
+  END IF;
+  
+  -- Add parent_project_id column
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'projects' AND column_name = 'parent_project_id') THEN
+    ALTER TABLE projects ADD COLUMN parent_project_id UUID REFERENCES projects(id);
+  END IF;
+  
+  -- Add project_type column
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'projects' AND column_name = 'project_type') THEN
+    ALTER TABLE projects ADD COLUMN project_type VARCHAR(50);
+  END IF;
+  
+  -- Add project_estimated_value column
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'projects' AND column_name = 'project_estimated_value') THEN
+    ALTER TABLE projects ADD COLUMN project_estimated_value DECIMAL(15,2);
+  END IF;
+  
+  -- Add po_required column
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'projects' AND column_name = 'po_required') THEN
+    ALTER TABLE projects ADD COLUMN po_required BOOLEAN DEFAULT true;
+  END IF;
+  
+  -- Add po_status column
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'projects' AND column_name = 'po_status') THEN
+    ALTER TABLE projects ADD COLUMN po_status VARCHAR(50);
+  END IF;
+  
+  -- Add start_date column
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'projects' AND column_name = 'start_date') THEN
+    ALTER TABLE projects ADD COLUMN start_date DATE;
+  END IF;
+  
+  -- Add expected_end_date column
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'projects' AND column_name = 'expected_end_date') THEN
+    ALTER TABLE projects ADD COLUMN expected_end_date DATE;
+  END IF;
+  
+  -- Add actual_end_date column
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'projects' AND column_name = 'actual_end_date') THEN
+    ALTER TABLE projects ADD COLUMN actual_end_date DATE;
+  END IF;
+  
+  -- Add completion_percentage column
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'projects' AND column_name = 'completion_percentage') THEN
+    ALTER TABLE projects ADD COLUMN completion_percentage DECIMAL(5,2) DEFAULT 0;
+  END IF;
+  
+  -- Add status column
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'projects' AND column_name = 'status') THEN
+    ALTER TABLE projects ADD COLUMN status VARCHAR(50) DEFAULT 'Draft';
+  END IF;
+  
+  -- Add remarks column
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'projects' AND column_name = 'remarks') THEN
+    ALTER TABLE projects ADD COLUMN remarks TEXT;
+  END IF;
+END $$;
 
 -- Migrate data from old 'name' column if it exists
 DO $$
@@ -35,28 +101,31 @@ END $$;
 
 -- Now update any remaining NULL project_name values
 UPDATE projects SET project_name = 'Untitled-' || SUBSTRING(id::TEXT FROM 1 FOR 8) WHERE project_name IS NULL;
-ALTER TABLE projects ALTER COLUMN project_name SET NOT NULL;
 
--- Add CHECK constraints
+-- Add CHECK constraints (will fail gracefully if already exists)
 ALTER TABLE projects ADD CONSTRAINT chk_project_type CHECK (project_type IN ('Main', 'Expansion', 'Service'));
 ALTER TABLE projects ADD CONSTRAINT chk_po_status CHECK (po_status IN ('Not Required', 'Pending', 'Received'));
 ALTER TABLE projects ADD CONSTRAINT chk_status CHECK (status IN ('Draft', 'Active', 'Execution Completed', 'Financially Closed', 'Closed'));
 
 -- Step 2: Create function to generate project code
-CREATE OR REPLACE FUNCTION generate_project_code()
+-- Drop existing function and trigger first to ensure clean update
+DROP TRIGGER IF EXISTS trigger_generate_project_code ON projects;
+DROP FUNCTION IF EXISTS generate_project_code() CASCADE;
+
+CREATE FUNCTION generate_project_code()
 RETURNS TRIGGER AS $$
 DECLARE
-  year_part VARCHAR(4);
+  year_part TEXT;
   count_num INTEGER;
-  count_part VARCHAR(4);
+  count_part TEXT;
 BEGIN
-  year_part := EXTRACT(YEAR FROM CURRENT_DATE)::VARCHAR;
+  year_part := EXTRACT(YEAR FROM CURRENT_DATE)::TEXT;
   
-  SELECT COUNT(*) + 1 INTO count_num
+  SELECT COUNT(*) INTO count_num
   FROM projects
   WHERE EXTRACT(YEAR FROM created_at) = EXTRACT(YEAR FROM CURRENT_DATE);
   
-  count_part := LPAD(count_num::VARCHAR, 4, '0');
+  count_part := LPAD((count_num + 1)::TEXT, 4, '0');
   
   NEW.project_code := 'PRJ-' || year_part || '-' || count_part;
   RETURN NEW;
@@ -72,7 +141,12 @@ CREATE TRIGGER trigger_generate_project_code
   EXECUTE FUNCTION generate_project_code();
 
 -- Step 4: Add project_id to client_purchase_orders
-ALTER TABLE client_purchase_orders ADD COLUMN IF NOT EXISTS project_id UUID REFERENCES projects(id);
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'client_purchase_orders' AND column_name = 'project_id') THEN
+    ALTER TABLE client_purchase_orders ADD COLUMN project_id UUID REFERENCES projects(id);
+  END IF;
+END $$;
 
 -- Create index for project_id in client_purchase_orders
 CREATE INDEX IF NOT EXISTS idx_client_purchase_orders_project_id ON client_purchase_orders(project_id);
