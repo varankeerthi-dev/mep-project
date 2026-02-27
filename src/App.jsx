@@ -19,6 +19,8 @@ import QuotationList from './pages/QuotationList';
 import CreateQuotation from './pages/CreateQuotation';
 import QuotationView from './pages/QuotationView';
 import TemplateSettings from './pages/TemplateSettings';
+import QuickStockCheckList from './pages/QuickStockCheckList';
+import QuickStockCheck from './pages/QuickStockCheck';
 import { supabase, getCurrentUser, onAuthStateChange, getUserOrganisations, createOrganisation, signOut, initStorageBuckets } from './supabase';
 
 const AuthContext = createContext(null);
@@ -229,6 +231,10 @@ export default function App() {
       case '/settings/organisation': return <OrganisationSettings organisation={authOrg} userId={authUser?.id} />;
       case '/settings/document-series': return <TransactionNumberSeries />;
       case '/settings/template': return <TemplateSettings />;
+      case '/quick-stock-check': return <QuickStockCheckList />;
+      case '/quick-stock-check/create': return <QuickStockCheck />;
+      case '/quick-stock-check/edit': return <QuickStockCheck />;
+      case '/quick-stock-check/view': return <QuickStockCheck />;
       case '/client-po': return <POList />;
       case '/client-po/create': return <CreatePO />;
       case '/client-po/details': return <PODetails />;
