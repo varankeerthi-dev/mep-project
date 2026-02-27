@@ -48,9 +48,10 @@ CREATE POLICY "org_members_manage" ON org_members
   );
 
 -- Create or replace the function
+DROP FUNCTION IF EXISTS public.create_organisation_with_admin(VARCHAR, UUID);
 CREATE OR REPLACE FUNCTION public.create_organisation_with_admin(
   org_name VARCHAR,
-  user_id UUID
+  p_user_id UUID
 )
 RETURNS UUID AS $$
 DECLARE
@@ -61,9 +62,9 @@ BEGIN
   RETURNING id INTO org_id;
 
   INSERT INTO org_members (organisation_id, user_id, role)
-  VALUES (org_id, user_id, 'admin');
+  VALUES (org_id, p_user_id, 'admin');
 
-  UPDATE user_profiles SET role = 'admin' WHERE user_id = user_id;
+  UPDATE user_profiles SET role = 'admin' WHERE user_id = p_user_id;
 
   RETURN org_id;
 END;

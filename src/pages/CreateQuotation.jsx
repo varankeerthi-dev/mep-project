@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '../supabase';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
@@ -24,6 +24,8 @@ export default function CreateQuotation() {
   const [clients, setClients] = useState([]);
   const [projects, setProjects] = useState([]);
   const [materials, setMaterials] = useState([]);
+  const [variants, setVariants] = useState([]);
+  const [variantPricing, setVariantPricing] = useState({});
   const [companyState, setCompanyState] = useState('Maharashtra');
   
   const [showItemPicker, setShowItemPicker] = useState(false);
@@ -48,6 +50,7 @@ export default function CreateQuotation() {
   });
 
   const [items, setItems] = useState([]);
+  const itemsTableRef = useRef(null);
 
   useEffect(() => {
     loadInitialData();
@@ -56,15 +59,24 @@ export default function CreateQuotation() {
   const loadInitialData = async () => {
     setLoading(true);
     try {
-      const [clientsData, projectsData, materialsData] = await Promise.all([
+      const [clientsData, projectsData, materialsData, variantsData, pricingData] = await Promise.all([
         supabase.from('clients').select('*').order('client_name'),
         supabase.from('projects').select('id, project_name, project_code, client_id').order('project_name'),
-        supabase.from('materials').select('*').order('name')
+        supabase.from('materials').select('*').order('name'),
+        supabase.from('company_variants').select('id, variant_name').eq('is_active', true).order('variant_name'),
+        supabase.from('item_variant_pricing').select('item_id, company_variant_id, sale_price')
       ]);
 
       setClients(clientsData.data || []);
       setProjects(projectsData.data || []);
       setMaterials(materialsData.data || []);
+      setVariants(variantsData.data || []);
+      const pricingMap = {};
+      (pricingData.data || []).forEach((row) => {
+        if (!pricingMap[row.item_id]) pricingMap[row.item_id] = {};
+        pricingMap[row.item_id][row.company_variant_id] = parseFloat(row.sale_price) || 0;
+      });
+      setVariantPricing(pricingMap);
 
       if (editId) {
         await loadQuotation(editId);
@@ -147,20 +159,29 @@ export default function CreateQuotation() {
     );
   }, [materials, itemSearch]);
 
+  const getRateForMaterialVariant = (material, variantId) => {
+    if (!material) return 0;
+    if (variantId && variantPricing[material.id]?.[variantId] !== undefined) {
+      return variantPricing[material.id][variantId];
+    }
+    return parseFloat(material.sale_price) || 0;
+  };
+
   const handleAddItemToPicker = (material) => {
-    const existing = pickerItems.find(i => i.item_id === material.id);
+    const existing = pickerItems.find(i => i.item_id === material.id && (i.variant_id || null) === null);
     if (existing) {
       setPickerItems(pickerItems.map(i => 
-        i.item_id === material.id ? { ...i, qty: i.qty + 1 } : i
+        i.item_id === material.id && (i.variant_id || null) === null ? { ...i, qty: i.qty + 1 } : i
       ));
     } else {
       setPickerItems([...pickerItems, {
         item_id: material.id,
+        variant_id: null,
         material: material,
         qty: 1,
-        rate: material.sale_price || 0,
+        rate: getRateForMaterialVariant(material, null),
         uom: material.unit || 'Nos',
-        tax_percent: material.tax_percent || 18,
+        tax_percent: material.gst_rate || 18,
         discount_percent: 0,
         description: material.display_name || material.name
       }]);
@@ -181,10 +202,22 @@ export default function CreateQuotation() {
     setPickerItems(pickerItems.filter(i => i.item_id !== itemId));
   };
 
+  const handlePickerChange = (itemId, field, value) => {
+    setPickerItems(pickerItems.map(i => {
+      if (i.item_id !== itemId) return i;
+      const updated = { ...i, [field]: value };
+      if (field === 'variant_id') {
+        updated.rate = getRateForMaterialVariant(i.material, value || null);
+      }
+      return updated;
+    }));
+  };
+
   const handleAddItemsToQuotation = () => {
     const newItems = pickerItems.map((p, idx) => ({
       id: Date.now() + idx,
       item_id: p.item_id,
+      variant_id: p.variant_id || null,
       material: p.material,
       description: p.description,
       qty: p.qty,
@@ -203,6 +236,9 @@ export default function CreateQuotation() {
     setPickerItems([]);
     setShowItemPicker(false);
     setItemSearch('');
+    setTimeout(() => {
+      itemsTableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 50);
   };
 
   const updateItem = (id, field, value) => {
@@ -515,7 +551,7 @@ export default function CreateQuotation() {
         </div>
       </div>
 
-      <div className="card" style={{ marginBottom: '16px' }}>
+      <div className="card" style={{ marginBottom: '16px' }} ref={itemsTableRef}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
           <h3 style={{ margin: 0 }}>Items</h3>
           <button 
@@ -526,29 +562,32 @@ export default function CreateQuotation() {
           </button>
         </div>
 
-        {items.length === 0 ? (
-          <div style={{ padding: '40px', textAlign: 'center', color: '#6b7280' }}>
-            No items added. Click "Add Multiple Items" to add items.
-          </div>
-        ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table className="table" style={{ minWidth: '1000px' }}>
-              <thead>
+        <div style={{ overflowX: 'auto' }}>
+          <table className="table" style={{ minWidth: '1120px' }}>
+            <thead>
+              <tr>
+                <th style={{ width: '40px' }}>#</th>
+                <th>Item</th>
+                <th style={{ width: '150px' }}>Variant</th>
+                <th>Description</th>
+                <th style={{ width: '80px' }}>Qty</th>
+                <th style={{ width: '80px' }}>UOM</th>
+                <th style={{ width: '100px' }}>Rate</th>
+                <th style={{ width: '80px' }}>Disc %</th>
+                <th style={{ width: '100px' }}>Tax %</th>
+                <th style={{ width: '120px' }}>Line Total</th>
+                <th style={{ width: '40px' }}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.length === 0 ? (
                 <tr>
-                  <th style={{ width: '40px' }}>#</th>
-                  <th>Item</th>
-                  <th>Description</th>
-                  <th style={{ width: '80px' }}>Qty</th>
-                  <th style={{ width: '80px' }}>UOM</th>
-                  <th style={{ width: '100px' }}>Rate</th>
-                  <th style={{ width: '80px' }}>Disc %</th>
-                  <th style={{ width: '100px' }}>Tax %</th>
-                  <th style={{ width: '120px' }}>Line Total</th>
-                  <th style={{ width: '40px' }}></th>
+                  <td colSpan={11} style={{ padding: '28px', textAlign: 'center', color: '#6b7280' }}>
+                    No items added. Click "Add Multiple Items" to add items.
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {items.map((item, index) => (
+              ) : (
+                items.map((item, index) => (
                   <tr key={item.id}>
                     <td>{index + 1}</td>
                     <td>
@@ -562,7 +601,7 @@ export default function CreateQuotation() {
                           if (mat) {
                             updateItem(item.id, 'material', mat);
                             updateItem(item.id, 'description', mat.display_name || mat.name);
-                            updateItem(item.id, 'rate', mat.sale_price || 0);
+                            updateItem(item.id, 'rate', getRateForMaterialVariant(mat, item.variant_id || null));
                             updateItem(item.id, 'uom', mat.unit || 'Nos');
                           }
                         }}
@@ -570,6 +609,23 @@ export default function CreateQuotation() {
                         <option value="">Select Item</option>
                         {materials.map(m => (
                           <option key={m.id} value={m.id}>{m.display_name || m.name}</option>
+                        ))}
+                      </select>
+                    </td>
+                    <td>
+                      <select
+                        className="form-select"
+                        value={item.variant_id || ''}
+                        onChange={(e) => {
+                          const nextVariant = e.target.value || null;
+                          updateItem(item.id, 'variant_id', nextVariant);
+                          const mat = materials.find(m => m.id === item.item_id);
+                          if (mat) updateItem(item.id, 'rate', getRateForMaterialVariant(mat, nextVariant));
+                        }}
+                      >
+                        <option value="">No Variant</option>
+                        {variants.map(v => (
+                          <option key={v.id} value={v.id}>{v.variant_name}</option>
                         ))}
                       </select>
                     </td>
@@ -648,11 +704,11 @@ export default function CreateQuotation() {
                       </button>
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 350px', gap: '16px' }}>
@@ -749,7 +805,7 @@ export default function CreateQuotation() {
         </button>
       </div>
 
-      {showItemPicker && (
+            {showItemPicker && (
         <div style={{
           position: 'fixed',
           top: 0,
@@ -765,31 +821,31 @@ export default function CreateQuotation() {
           <div style={{
             background: '#fff',
             borderRadius: '8px',
-            width: '90%',
-            maxWidth: '900px',
-            maxHeight: '80vh',
+            width: '94%',
+            maxWidth: '1200px',
+            height: '84vh',
             overflow: 'hidden',
             display: 'flex',
             flexDirection: 'column'
           }} onClick={e => e.stopPropagation()}>
             <div style={{ padding: '16px', borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 style={{ margin: 0 }}>Add Items</h3>
-              <button onClick={() => setShowItemPicker(false)} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}>×</button>
+              <h3 style={{ margin: 0 }}>Add Multiple Items</h3>
+              <button onClick={() => setShowItemPicker(false)} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}>x</button>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', flex: 1, overflow: 'hidden' }}>
-              <div style={{ borderRight: '1px solid #e5e7eb', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ borderRight: '1px solid #e5e7eb', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
                 <div style={{ padding: '12px', borderBottom: '1px solid #e5e7eb' }}>
                   <input
-                    type="text"
-                    className="form-input"
-                    placeholder="Search items..."
+                    type='text'
+                    className='form-input'
+                    placeholder='Search items...'
                     value={itemSearch}
                     onChange={(e) => setItemSearch(e.target.value)}
                     autoFocus
                   />
                 </div>
-                <div style={{ flex: 1, overflow: 'auto', padding: '8px' }}>
-                  {filteredMaterials.map(m => (
+                <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '8px', scrollBehavior: 'smooth' }}>
+                  {filteredMaterials.map((m) => (
                     <div
                       key={m.id}
                       style={{
@@ -806,44 +862,104 @@ export default function CreateQuotation() {
                     >
                       <div>
                         <div style={{ fontWeight: 500 }}>{m.display_name || m.name}</div>
-                        <div style={{ fontSize: '12px', color: '#6b7280' }}>{m.item_code} | {m.unit} | ₹{m.sale_price || 0}</div>
+                        <div style={{ fontSize: '12px', color: '#6b7280' }}>{m.item_code} | {m.unit} | Rs {m.sale_price || 0}</div>
                       </div>
                       <button style={{ background: '#2563eb', color: '#fff', border: 'none', borderRadius: '4px', padding: '4px 12px', cursor: 'pointer' }}>+</button>
                     </div>
                   ))}
                 </div>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <div style={{ flex: 1, overflow: 'auto', padding: '12px' }}>
+
+              <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                <div style={{ padding: '12px', borderBottom: '1px solid #e5e7eb', fontWeight: 600 }}>
+                  Selected Items ({pickerItems.length})
+                </div>
+                <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '12px', scrollBehavior: 'smooth' }}>
                   {pickerItems.length === 0 ? (
                     <div style={{ textAlign: 'center', color: '#6b7280', padding: '40px' }}>
-                      Click items to add them here
+                      Click items from left panel to add here
                     </div>
                   ) : (
-                    pickerItems.map(p => (
-                      <div key={p.item_id} style={{ padding: '10px', border: '1px solid #e5e7eb', borderRadius: '6px', marginBottom: '8px' }}>
+                    pickerItems.map((p) => (
+                      <div key={`${p.item_id}-${p.variant_id || 'none'}`} style={{ padding: '10px', border: '1px solid #e5e7eb', borderRadius: '6px', marginBottom: '8px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                           <span style={{ fontWeight: 500 }}>{p.material?.display_name || p.material?.name}</span>
-                          <button onClick={() => handleRemoveFromPicker(p.item_id)} style={{ background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer' }}>×</button>
+                          <button onClick={() => handleRemoveFromPicker(p.item_id)} style={{ background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer' }}>x</button>
                         </div>
-                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
+                          <div>
+                            <label className='form-label' style={{ fontSize: '11px' }}>Variant</label>
+                            <select
+                              className='form-select'
+                              value={p.variant_id || ''}
+                              onChange={(e) => handlePickerChange(p.item_id, 'variant_id', e.target.value || null)}
+                            >
+                              <option value=''>No Variant</option>
+                              {variants.map((v) => (
+                                <option key={v.id} value={v.id}>{v.variant_name}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <label className='form-label' style={{ fontSize: '11px' }}>Rate</label>
+                            <input
+                              type='number'
+                              className='form-input'
+                              value={p.rate}
+                              onChange={(e) => handlePickerChange(p.item_id, 'rate', e.target.value)}
+                              min='0'
+                              step='0.01'
+                            />
+                          </div>
+                          <div>
+                            <label className='form-label' style={{ fontSize: '11px' }}>Discount %</label>
+                            <input
+                              type='number'
+                              className='form-input'
+                              value={p.discount_percent}
+                              onChange={(e) => handlePickerChange(p.item_id, 'discount_percent', e.target.value)}
+                              min='0'
+                              max='100'
+                              step='0.01'
+                            />
+                          </div>
+                          <div>
+                            <label className='form-label' style={{ fontSize: '11px' }}>Tax %</label>
+                            <input
+                              type='number'
+                              className='form-input'
+                              value={p.tax_percent}
+                              onChange={(e) => handlePickerChange(p.item_id, 'tax_percent', e.target.value)}
+                              min='0'
+                              max='100'
+                              step='0.01'
+                            />
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', borderTop: '1px solid #f1f5f9', paddingTop: '8px' }}>
                           <button onClick={() => handlePickerQtyChange(p.item_id, -1)} style={{ width: '28px', height: '28px', border: '1px solid #e5e7eb', borderRadius: '4px', background: '#fff', cursor: 'pointer' }}>-</button>
                           <span style={{ width: '30px', textAlign: 'center' }}>{p.qty}</span>
                           <button onClick={() => handlePickerQtyChange(p.item_id, 1)} style={{ width: '28px', height: '28px', border: '1px solid #e5e7eb', borderRadius: '4px', background: '#fff', cursor: 'pointer' }}>+</button>
-                          <span style={{ marginLeft: 'auto', fontWeight: 500 }}>{formatCurrency(p.qty * p.rate)}</span>
+                          <span style={{ marginLeft: 'auto', fontWeight: 500 }}>{formatCurrency((parseFloat(p.qty) || 0) * (parseFloat(p.rate) || 0))}</span>
                         </div>
                       </div>
                     ))
                   )}
                 </div>
-                <div style={{ padding: '12px', borderTop: '1px solid #e5e7eb' }}>
+                <div style={{ padding: '12px', borderTop: '1px solid #e5e7eb', background: '#fafafa' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', fontWeight: 600 }}>
+                    <span>Selected Total</span>
+                    <span>{formatCurrency(pickerItems.reduce((sum, p) => sum + ((parseFloat(p.qty) || 0) * (parseFloat(p.rate) || 0)), 0))}</span>
+                  </div>
                   <button
-                    className="btn btn-primary"
+                    className='btn btn-primary'
                     style={{ width: '100%' }}
                     onClick={handleAddItemsToQuotation}
                     disabled={pickerItems.length === 0}
                   >
-                    Add {pickerItems.length} Item{pickerItems.length !== 1 ? 's' : ''} to Quotation
+                    Submit & Add {pickerItems.length} Item{pickerItems.length !== 1 ? 's' : ''} to Quotation
                   </button>
                 </div>
               </div>
@@ -881,3 +997,4 @@ function numberToWords(num) {
   
   return result;
 }
+

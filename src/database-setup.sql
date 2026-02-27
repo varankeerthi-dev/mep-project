@@ -96,7 +96,19 @@ INSERT INTO materials (name, unit, default_rate) VALUES
   ('Switch Board', 'nos', 120)
 ON CONFLICT DO NOTHING;
 
--- Insert sample project
-INSERT INTO projects (name, project_name, client_name, description) VALUES
-  ('Sample Project', 'Sample Project', 'ABC Construction', 'Sample MEP Project')
-ON CONFLICT DO NOTHING;
+-- Insert sample project (schema-safe for old/new projects table)
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'projects' AND column_name = 'project_name'
+  ) THEN
+    INSERT INTO projects (name, project_name, client_name, description)
+    VALUES ('Sample Project', 'Sample Project', 'ABC Construction', 'Sample MEP Project')
+    ON CONFLICT DO NOTHING;
+  ELSE
+    INSERT INTO projects (name, client_name, description)
+    VALUES ('Sample Project', 'ABC Construction', 'Sample MEP Project')
+    ON CONFLICT DO NOTHING;
+  END IF;
+END $$;

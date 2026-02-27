@@ -170,7 +170,10 @@ export default function ProjectList() {
         projectExpenses={projectExpenses}
         projectPayments={projectPayments}
         onBack={() => { setViewMode('list'); setSelectedProject(null); }}
-        onEdit={() => window.location.hash = `/projects/edit?id=${selectedProject.id}`}
+        onEdit={() => {
+          window.history.pushState({}, '', `/projects/edit?id=${selectedProject.id}`);
+          window.dispatchEvent(new PopStateEvent('popstate'));
+        }}
       />
     );
   }
@@ -179,7 +182,10 @@ export default function ProjectList() {
     <div>
       <div className="page-header">
         <h1 className="page-title">Projects</h1>
-        <button className="btn btn-primary" onClick={() => window.location.hash = '/projects/new'}>
+        <button className="btn btn-primary" onClick={() => {
+          window.history.pushState({}, '', '/projects/new');
+          window.dispatchEvent(new PopStateEvent('popstate'));
+        }}>
           + New Project
         </button>
       </div>
@@ -279,7 +285,10 @@ export default function ProjectList() {
                       <td>{p.completion_percentage || 0}%</td>
                       <td>
                         <button className="btn btn-sm btn-secondary" onClick={() => loadProjectDetails(p)}>View</button>
-                        <button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px' }} onClick={() => window.location.hash = `/projects/edit?id=${p.id}`}>Edit</button>
+                        <button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px' }} onClick={() => {
+                          window.history.pushState({}, '', `/projects/edit?id=${p.id}`);
+                          window.dispatchEvent(new PopStateEvent('popstate'));
+                        }}>Edit</button>
                         <button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px', color: '#dc2626' }} onClick={() => deleteProject(p.id)}>Delete</button>
                       </td>
                     </tr>
@@ -497,7 +506,10 @@ function ProjectDetailView({ project, financialSummary, projectPOs, projectInvoi
         <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
             <h3 style={{ margin: 0 }}>Purchase Orders</h3>
-            <button className="btn btn-primary" onClick={() => window.location.hash = `/client-po/create?project_id=${project.id}`}>
+            <button className="btn btn-primary" onClick={() => {
+              window.history.pushState({}, '', `/client-po/create?project_id=${project.id}`);
+              window.dispatchEvent(new PopStateEvent('popstate'));
+            }}>
               + Create PO
             </button>
           </div>
@@ -536,7 +548,10 @@ function ProjectDetailView({ project, financialSummary, projectPOs, projectInvoi
         <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
             <h3 style={{ margin: 0 }}>Invoices</h3>
-            <button className="btn btn-primary" onClick={() => window.location.hash = `/projects/invoice/new?project_id=${project.id}`}>
+            <button className="btn btn-primary" onClick={() => {
+              window.history.pushState({}, '', `/projects/invoice/new?project_id=${project.id}`);
+              window.dispatchEvent(new PopStateEvent('popstate'));
+            }}>
               + Create Invoice
             </button>
           </div>
@@ -575,7 +590,10 @@ function ProjectDetailView({ project, financialSummary, projectPOs, projectInvoi
         <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
             <h3 style={{ margin: 0 }}>Payments</h3>
-            <button className="btn btn-primary" onClick={() => window.location.hash = `/projects/payment/new?project_id=${project.id}`}>
+            <button className="btn btn-primary" onClick={() => {
+              window.history.pushState({}, '', `/projects/payment/new?project_id=${project.id}`);
+              window.dispatchEvent(new PopStateEvent('popstate'));
+            }}>
               + Record Payment
             </button>
           </div>
@@ -612,7 +630,10 @@ function ProjectDetailView({ project, financialSummary, projectPOs, projectInvoi
         <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
             <h3 style={{ margin: 0 }}>Expenses</h3>
-            <button className="btn btn-primary" onClick={() => window.location.hash = `/projects/expense/new?project_id=${project.id}`}>
+            <button className="btn btn-primary" onClick={() => {
+              window.history.pushState({}, '', `/projects/expense/new?project_id=${project.id}`);
+              window.dispatchEvent(new PopStateEvent('popstate'));
+            }}>
               + Add Expense
             </button>
           </div>

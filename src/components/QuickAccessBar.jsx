@@ -70,7 +70,12 @@ export default function QuickAccessBar({ onQuickAction, organisation, onLogout, 
               <span>{organisation?.name}</span>
             </div>
             <div className="user-dropdown-divider" />
-            <a href="#/settings" className="user-dropdown-item" onClick={() => setShowDropdown(false)}>
+            <a href="/settings" className="user-dropdown-item" onClick={(e) => {
+              e.preventDefault();
+              setShowDropdown(false);
+              window.history.pushState({}, '', '/settings');
+              window.dispatchEvent(new PopStateEvent('popstate'));
+            }}>
               {icons.settings}
               <span>Settings</span>
             </a>

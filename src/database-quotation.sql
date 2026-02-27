@@ -65,22 +65,45 @@ CREATE INDEX IF NOT EXISTS idx_quotation_header_status ON quotation_header(statu
 CREATE INDEX IF NOT EXISTS idx_quotation_header_date ON quotation_header(date);
 CREATE INDEX IF NOT EXISTS idx_quotation_items_quotation ON quotation_items(quotation_id);
 
--- Document Series for Quotation Number Generation
--- Note: Quotation number is generated in application code by querying max existing number
--- This table is optional and centralized can be used for number management
+-- Document Series (aligned with app usage: series_name/configs/current_number)
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'document_series') THEN
     CREATE TABLE document_series (
       id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-      document_type VARCHAR(50) UNIQUE NOT NULL,
-      prefix VARCHAR(20) DEFAULT '',
-      suffix VARCHAR(20) DEFAULT '',
-      next_number INTEGER DEFAULT 1,
-      padding INTEGER DEFAULT 4,
+      series_name TEXT NOT NULL,
+      financial_year TEXT DEFAULT 'auto',
+      is_default BOOLEAN DEFAULT false,
+      current_number INTEGER DEFAULT 1,
+      configs JSONB DEFAULT '{}'::jsonb,
+      has_transactions BOOLEAN DEFAULT false,
       created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
       updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
     );
+  ELSE
+    ALTER TABLE document_series ADD COLUMN IF NOT EXISTS series_name TEXT;
+    ALTER TABLE document_series ADD COLUMN IF NOT EXISTS financial_year TEXT DEFAULT 'auto';
+    ALTER TABLE document_series ADD COLUMN IF NOT EXISTS is_default BOOLEAN DEFAULT false;
+    ALTER TABLE document_series ADD COLUMN IF NOT EXISTS current_number INTEGER DEFAULT 1;
+    ALTER TABLE document_series ADD COLUMN IF NOT EXISTS configs JSONB DEFAULT '{}'::jsonb;
+    ALTER TABLE document_series ADD COLUMN IF NOT EXISTS has_transactions BOOLEAN DEFAULT false;
+    
+    -- Backfill series_name safely across old schemas
+    IF EXISTS (
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name = 'document_series'
+        AND column_name = 'document_type'
+    ) THEN
+      UPDATE document_series
+      SET series_name = COALESCE(series_name, document_type, 'Default Series')
+      WHERE series_name IS NULL;
+    ELSE
+      UPDATE document_series
+      SET series_name = COALESCE(series_name, 'Default Series')
+      WHERE series_name IS NULL;
+    END IF;
   END IF;
 END $$;
 

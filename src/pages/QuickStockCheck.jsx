@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabase';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import html2canvas from 'html2canvas';
@@ -9,10 +9,12 @@ const VARIANT_FILTERS = ['All', 'Green', 'Blue', 'Non-Variant'];
 
 export default function QuickStockCheck() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const editId = searchParams.get('id');
-  const viewId = searchParams.get('id');
-  const isViewMode = window.location.pathname.includes('/view');
+  const hashPath = window.location.hash.slice(1);
+  const query = window.location.search.slice(1) || window.location.hash.split('?')[1] || '';
+  const currentPath = `${window.location.pathname}${window.location.search}` || hashPath;
+  const editId = new URLSearchParams(query).get('id');
+  const viewId = new URLSearchParams(query).get('id');
+  const isViewMode = currentPath.includes('/quick-stock-check/view') || hashPath.includes('/quick-stock-check/view');
   
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -91,7 +93,7 @@ export default function QuickStockCheck() {
     try {
       let query = supabase
         .from('item_stock')
-        .select('warehouse_id, quantity, warehouse:warehouses(warehouse_name)')
+        .select('warehouse_id, current_stock, warehouse:warehouses(warehouse_name)')
         .eq('item_id', itemId);
 
       if (variantId) {
@@ -105,7 +107,7 @@ export default function QuickStockCheck() {
 
       warehouses.forEach(wh => {
         const stock = stockData?.find(s => s.warehouse_id === wh.id);
-        const qty = parseFloat(stock?.quantity) || 0;
+        const qty = parseFloat(stock?.current_stock) || 0;
         warehouseStock[wh.id] = qty;
         totalAvailable += qty;
       });

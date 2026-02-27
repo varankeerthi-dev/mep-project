@@ -29,6 +29,27 @@ export function useAuth() {
   return useContext(AuthContext);
 }
 
+function getCurrentPathFromLocation() {
+  const hashPath = window.location.hash.slice(1);
+  if (hashPath) return hashPath;
+  const path = `${window.location.pathname}${window.location.search}`;
+  return path || '/';
+}
+
+function getCurrentQueryParams() {
+  const hashQuery = window.location.hash.split('?')[1];
+  const searchQuery = window.location.search.slice(1);
+  return new URLSearchParams(hashQuery || searchQuery || '');
+}
+
+function pushPath(path) {
+  const nextPath = path || '/';
+  if (`${window.location.pathname}${window.location.search}` !== nextPath || window.location.hash) {
+    window.history.pushState({}, '', nextPath);
+    window.dispatchEvent(new PopStateEvent('popstate'));
+  }
+}
+
 export default function App() {
   const [user, setUser] = useState(null);
   const [organisation, setOrganisation] = useState(null);
@@ -134,34 +155,36 @@ export default function App() {
 
   const handleQuickAction = (action) => {
     switch (action) {
-      case 'new-dc': setCurrentPath('/dc/create'); break;
-      case 'daily-updates': setCurrentPath('/projects/daily-updates'); break;
-      case 'approvals': setCurrentPath('/approvals'); break;
-      case 'remind': setCurrentPath('/remindme'); break;
-      case 'search': setCurrentPath('/dc/list'); break;
-      case 'export': setCurrentPath('/dc/list'); break;
+      case 'new-dc': navigate('/dc/create'); break;
+      case 'daily-updates': navigate('/projects/daily-updates'); break;
+      case 'approvals': navigate('/approvals'); break;
+      case 'remind': navigate('/remindme'); break;
+      case 'search': navigate('/dc/list'); break;
+      case 'export': navigate('/dc/list'); break;
       default: break;
     }
   };
 
   const navigate = (path) => {
-    if (path.includes('/edit') && path.includes('?')) {
-      setCurrentPath(path);
-    } else {
-      const pathWithoutQuery = path.split('?')[0];
-      setCurrentPath(pathWithoutQuery);
+    const nextPath = path || '/';
+    setCurrentPath(nextPath);
+    if (`${window.location.pathname}${window.location.search}` !== nextPath || window.location.hash) {
+      window.history.pushState({}, '', nextPath);
     }
   };
 
   useEffect(() => {
-    const hash = window.location.hash.slice(1);
-    if (hash) {
-      if (hash.includes('/edit?') && hash.includes('id=')) {
-        setCurrentPath(hash);
-      } else {
-        setCurrentPath(hash.split('?')[0]);
-      }
-    }
+    const syncPathFromLocation = () => {
+      setCurrentPath(getCurrentPathFromLocation());
+    };
+
+    syncPathFromLocation();
+    window.addEventListener('hashchange', syncPathFromLocation);
+    window.addEventListener('popstate', syncPathFromLocation);
+    return () => {
+      window.removeEventListener('hashchange', syncPathFromLocation);
+      window.removeEventListener('popstate', syncPathFromLocation);
+    };
   }, []);
 
   const renderPage = (authUser, authOrg) => {
@@ -238,7 +261,7 @@ export default function App() {
       case '/client-po': return <POList />;
       case '/client-po/create': return <CreatePO />;
       case '/client-po/details': return <PODetails />;
-      default: return <DCList />;
+      default: return <Dashboard onNavigate={navigate} />;
     }
   };
 
@@ -473,7 +496,7 @@ function CreateClientEdit({ onSuccess, onCancel }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.hash.split('?')[1] || '');
+    const params = getCurrentQueryParams();
     const clientId = params.get('id');
     if (clientId) {
       loadClient(clientId);
@@ -808,7 +831,7 @@ function ClientList() {
     <div>
       <div className="page-header">
         <h1 className="page-title">Client List</h1>
-        <button className="btn btn-primary" onClick={() => window.location.hash = '/clients/new'}>+ Add Client</button>
+        <button className="btn btn-primary" onClick={() => pushPath('/clients/new')}>+ Add Client</button>
       </div>
 
       <div className="card" style={{ marginBottom: '16px' }}>
@@ -856,7 +879,7 @@ function ClientList() {
                   <td>{c.gstin || '-'}</td>
                   <td>{c.state || '-'}</td>
                   <td>
-                    <button className="btn btn-sm btn-secondary" onClick={() => window.location.hash = `/clients/edit?id=${c.id}`}>Edit</button>
+                    <button className="btn btn-sm btn-secondary" onClick={() => pushPath(`/clients/edit?id=${c.id}`)}>Edit</button>
                     <button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px' }} onClick={() => deleteClient(c.id)}>Delete</button>
                   </td>
                 </tr>
@@ -906,7 +929,7 @@ function MaterialInward({ onCancel }) {
   const loadData = async () => {
     const [mat, wh, varData, priceData, projData] = await Promise.all([
       supabase.from('materials').select('id, item_code, display_name, name, unit, uses_variant, sale_price').order('name'),
-      supabase.from('warehouses').select('*').order('name'),
+      supabase.from('warehouses').select('*'),
       supabase.from('company_variants').select('*').order('variant_name'),
       supabase.from('item_variant_pricing').select('item_id, company_variant_id, sale_price'),
       supabase.from('projects').select('id, name').order('name')
@@ -1401,7 +1424,7 @@ function MaterialOutward({ onSuccess, onCancel }) {
   const loadData = async () => {
     const [mat, wh, varData] = await Promise.all([
       supabase.from('materials').select('id, display_name, name').eq('is_active', true).order('name'),
-      supabase.from('warehouses').select('*').order('name'),
+      supabase.from('warehouses').select('*'),
       supabase.from('company_variants').select('*').eq('is_active', true).order('variant_name')
     ]);
     setMaterials(mat.data || []);
@@ -1540,7 +1563,7 @@ function SettingsPage() {
       <div className="card" style={{ marginBottom: '20px' }}>
         <h3 className="card-title">Organisation Settings</h3>
         <p>Manage your organisation details and members</p>
-        <a href="#/settings/organisation" className="btn btn-primary" onClick={(e) => { e.preventDefault(); window.location.hash = '/settings/organisation'; }}>Manage Organisation</a>
+        <a href="/settings/organisation" className="btn btn-primary" onClick={(e) => { e.preventDefault(); pushPath('/settings/organisation'); }}>Manage Organisation</a>
       </div>
 
       <div className="card">
@@ -1926,7 +1949,7 @@ function SiteVisitEdit({ editId, onSuccess, onCancel }) {
   }, [editId])
 
   if (loading) return <div style={{ padding: '20px' }}>Loading...</div>
-  if (!visitData) return <div style={{ padding: '20px' }}>Visit not found. <button onClick={() => window.location.hash = '#/site-visits'}>Go back</button></div>
+  if (!visitData) return <div style={{ padding: '20px' }}>Visit not found. <button onClick={onCancel}>Go back</button></div>
 
   return <CreateSiteVisit onSuccess={onSuccess} onCancel={onCancel} editMode={true} visitData={visitData} />
 }
@@ -2360,7 +2383,7 @@ function SubcontractorView({ onNavigate }) {
   const [invoices, setInvoices] = useState([])
 
   useEffect(() => {
-    const id = new URLSearchParams(window.location.hash.split('?')[1] || '').get('id')
+    const id = getCurrentQueryParams().get('id')
     if (id) {
       supabase.from('subcontractors').select('*').eq('id', id).single().then(({ data }) => setSub(data))
       supabase.from('subcontractor_work_orders').select('*').eq('subcontractor_id', id).then(({ data }) => setWorkOrders(data || []))
@@ -2424,7 +2447,7 @@ function SubcontractorView({ onNavigate }) {
 function SubcontractorEdit({ onNavigate }) {
   const [sub, setSub] = useState(null)
   useEffect(() => {
-    const id = new URLSearchParams(window.location.hash.split('?')[1] || '').get('id')
+    const id = getCurrentQueryParams().get('id')
     if (id) supabase.from('subcontractors').select('*').eq('id', id).single().then(({ data }) => setSub(data))
   }, [])
   if (!sub) return <div>Loading...</div>

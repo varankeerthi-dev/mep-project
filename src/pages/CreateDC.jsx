@@ -86,7 +86,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
       const [projData, matData, whData, varData, stockData, clientData] = await Promise.all([
         supabase.from('projects').select('*').order('name'),
         supabase.from('materials').select('id, display_name, name, unit, uses_variant, sale_price').order('name'),
-        supabase.from('warehouses').select('*').order('name'),
+        supabase.from('warehouses').select('*'),
         supabase.from('company_variants').select('*').order('variant_name'),
         supabase.from('item_stock').select('*'),
         supabase.from('clients').select('*').order('client_name')

@@ -154,7 +154,7 @@ function ItemsTab() {
   const checkVariantRecords = async (itemId) => {
     try {
       const [stockRes, pricingRes] = await Promise.all([
-        supabase.from('item_stock').select('id').eq('item_id', itemId).eq('company_variant_id').not.is('null'),
+        supabase.from('item_stock').select('id').eq('item_id', itemId).not('company_variant_id', 'is', null),
         supabase.from('item_variant_pricing').select('id').eq('item_id', itemId)
       ]);
       return {
@@ -1077,17 +1077,44 @@ function VariantsTab() {
 }
 
 export default function MaterialsList() {
-  const [activeTab, setActiveTab] = useState('items');
+  const getTabFromUrl = () => {
+    const hashQuery = window.location.hash.split('?')[1] || '';
+    const query = window.location.search.slice(1) || hashQuery;
+    const tab = new URLSearchParams(query).get('tab');
+    const allowedTabs = new Set(['items', 'service', 'category', 'unit', 'warehouses', 'variants']);
+    return allowedTabs.has(tab) ? tab : 'items';
+  };
+
+  const [activeTab, setActiveTab] = useState(getTabFromUrl);
+
+  useEffect(() => {
+    const syncTabFromUrl = () => {
+      setActiveTab(getTabFromUrl());
+    };
+    window.addEventListener('hashchange', syncTabFromUrl);
+    window.addEventListener('popstate', syncTabFromUrl);
+    return () => {
+      window.removeEventListener('hashchange', syncTabFromUrl);
+      window.removeEventListener('popstate', syncTabFromUrl);
+    };
+  }, []);
+
+  const changeTab = (tab) => {
+    setActiveTab(tab);
+    const nextPath = `/store/materials?tab=${tab}`;
+    window.history.pushState({}, '', nextPath);
+    window.dispatchEvent(new PopStateEvent('popstate'));
+  };
 
   return (
     <div>
       <div style={{ borderBottom: '1px solid #ddd', marginBottom: '20px', display: 'flex', gap: '0px' }}>
-        <TabButton active={activeTab === 'items'} onClick={() => setActiveTab('items')}>Items</TabButton>
-        <TabButton active={activeTab === 'service'} onClick={() => setActiveTab('service')}>Service</TabButton>
-        <TabButton active={activeTab === 'category'} onClick={() => setActiveTab('category')}>Category</TabButton>
-        <TabButton active={activeTab === 'unit'} onClick={() => setActiveTab('unit')}>Unit</TabButton>
-        <TabButton active={activeTab === 'warehouses'} onClick={() => setActiveTab('warehouses')}>Warehouses</TabButton>
-        <TabButton active={activeTab === 'variants'} onClick={() => setActiveTab('variants')}>Inventory Variants</TabButton>
+        <TabButton active={activeTab === 'items'} onClick={() => changeTab('items')}>Items</TabButton>
+        <TabButton active={activeTab === 'service'} onClick={() => changeTab('service')}>Service</TabButton>
+        <TabButton active={activeTab === 'category'} onClick={() => changeTab('category')}>Category</TabButton>
+        <TabButton active={activeTab === 'unit'} onClick={() => changeTab('unit')}>Unit</TabButton>
+        <TabButton active={activeTab === 'warehouses'} onClick={() => changeTab('warehouses')}>Warehouses</TabButton>
+        <TabButton active={activeTab === 'variants'} onClick={() => changeTab('variants')}>Inventory Variants</TabButton>
       </div>
 
       {activeTab === 'items' && <ItemsTab />}
