@@ -34,7 +34,7 @@ BEGIN
 END $$;
 
 -- Now update any remaining NULL project_name values
-UPDATE projects SET project_name = 'Untitled-' || LEFT(id::TEXT, 8) WHERE project_name IS NULL;
+UPDATE projects SET project_name = 'Untitled-' || SUBSTRING(id::TEXT FROM 1 FOR 8) WHERE project_name IS NULL;
 ALTER TABLE projects ALTER COLUMN project_name SET NOT NULL;
 
 -- Add CHECK constraints
@@ -47,15 +47,16 @@ CREATE OR REPLACE FUNCTION generate_project_code()
 RETURNS TRIGGER AS $$
 DECLARE
   year_part VARCHAR(4);
+  count_num INTEGER;
   count_part VARCHAR(4);
 BEGIN
   year_part := EXTRACT(YEAR FROM CURRENT_DATE)::VARCHAR;
   
-  SELECT COUNT(*)::VARCHAR + 1 INTO count_part
+  SELECT COUNT(*) + 1 INTO count_num
   FROM projects
   WHERE EXTRACT(YEAR FROM created_at) = EXTRACT(YEAR FROM CURRENT_DATE);
   
-  count_part := LPAD(count_part, 4, '0');
+  count_part := LPAD(count_num::VARCHAR, 4, '0');
   
   NEW.project_code := 'PRJ-' || year_part || '-' || count_part;
   RETURN NEW;

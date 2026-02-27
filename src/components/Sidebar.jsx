@@ -83,7 +83,14 @@ const menuData = [
   {
     section: 'Documents',
     items: [
-      { id: 'quotation', label: 'Quotation', path: '/quotation' },
+      { 
+        id: 'quotation', 
+        label: 'Quotation', 
+        submenu: [
+          { id: 'quotation-list', label: 'Quotation List', path: '/quotation' },
+          { id: 'quotation-create', label: 'Create Quotation', path: '/quotation/create' }
+        ]
+      },
       { id: 'boq', label: 'BOQ', path: '/boq' },
       { id: 'documents', label: 'Documents', path: '/documents' },
       { id: 'issue', label: 'Issue', path: '/issue' },
@@ -150,7 +157,8 @@ const menuData = [
         label: 'Settings', 
         submenu: [
           { id: 'settings-general', label: 'General', path: '/settings' },
-          { id: 'settings-document', label: 'Document Settings', path: '/settings/document-series' }
+          { id: 'settings-document', label: 'Document Settings', path: '/settings/document-series' },
+          { id: 'settings-template', label: 'Template Settings', path: '/settings/template' }
         ]
       }
     ]

@@ -15,6 +15,10 @@ import ProjectList from './pages/ProjectList';
 import CreateProject from './pages/CreateProject';
 import { Login, Signup, AuthCallback, SelectOrganisation } from './pages/Auth';
 import { OrganisationSettings } from './pages/Organisation';
+import QuotationList from './pages/QuotationList';
+import CreateQuotation from './pages/CreateQuotation';
+import QuotationView from './pages/QuotationView';
+import TemplateSettings from './pages/TemplateSettings';
 import { supabase, getCurrentUser, onAuthStateChange, getUserOrganisations, createOrganisation, signOut, initStorageBuckets } from './supabase';
 
 const AuthContext = createContext(null);
@@ -194,7 +198,10 @@ export default function App() {
       case '/subcontractors/invoices': return <SubcontractorInvoices onNavigate={navigate} />;
       case '/subcontractors/documents': return <SubcontractorDocuments onNavigate={navigate} />;
       case '/client-requests': return <ClientRequests />;
-      case '/quotation': return <Quotation />;
+      case '/quotation': return <QuotationList />;
+      case '/quotation/create': return <CreateQuotation />;
+      case '/quotation/edit': return <CreateQuotation />;
+      case '/quotation/view': return <QuotationView />;
       case '/boq': return <BOQ />;
       case '/issue': return <IssueList />;
       case '/client-comm': return <ClientComm />;
@@ -221,6 +228,7 @@ export default function App() {
       case '/settings': return <SettingsPage />;
       case '/settings/organisation': return <OrganisationSettings organisation={authOrg} userId={authUser?.id} />;
       case '/settings/document-series': return <TransactionNumberSeries />;
+      case '/settings/template': return <TemplateSettings />;
       case '/client-po': return <POList />;
       case '/client-po/create': return <CreatePO />;
       case '/client-po/details': return <PODetails />;
@@ -856,7 +864,6 @@ function ClientList() {
 }
 
 function ToolsList() { return <div><div className="page-header"><h1 className="page-title">Tools</h1></div><div className="card"><div className="empty-state"><h3>Tools</h3><p>Monitoring tools</p></div></div></div>; }
-function Quotation() { return <div><div className="page-header"><h1 className="page-title">Quotation</h1></div><div className="card"><div className="empty-state"><h3>Quotation</h3></div></div></div>; }
 function BOQ() { return <div><div className="page-header"><h1 className="page-title">BOQ</h1></div><div className="card"><div className="empty-state"><h3>BOQ</h3></div></div></div>; }
 function IssueList() { return <div><div className="page-header"><h1 className="page-title">Issue</h1></div><div className="card"><div className="empty-state"><h3>Issues</h3></div></div></div>; }
 function ClientComm() { return <div><div className="page-header"><h1 className="page-title">Client Communication</h1></div><div className="card"><div className="empty-state"><h3>Client Communication</h3></div></div></div>; }
