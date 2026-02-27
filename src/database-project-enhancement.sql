@@ -100,6 +100,15 @@ BEGIN
 END $$;
 
 -- Now update any remaining NULL project_name values
+-- First, try to populate from 'name' column if it exists
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'projects' AND column_name = 'name') THEN
+    UPDATE projects SET project_name = name WHERE project_name IS NULL AND name IS NOT NULL;
+  END IF;
+END $$;
+
+-- If still NULL, generate from id
 UPDATE projects SET project_name = 'Untitled-' || SUBSTRING(id::TEXT FROM 1 FOR 8) WHERE project_name IS NULL;
 
 -- Add CHECK constraints (will fail gracefully if already exists)

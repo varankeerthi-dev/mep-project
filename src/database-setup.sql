@@ -97,6 +97,6 @@ INSERT INTO materials (name, unit, default_rate) VALUES
 ON CONFLICT DO NOTHING;
 
 -- Insert sample project
-INSERT INTO projects (name, client_name, description) VALUES
-  ('Sample Project', 'ABC Construction', 'Sample MEP Project')
+INSERT INTO projects (name, project_name, client_name, description) VALUES
+  ('Sample Project', 'Sample Project', 'ABC Construction', 'Sample MEP Project')
 ON CONFLICT DO NOTHING;
