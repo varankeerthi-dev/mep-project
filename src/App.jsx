@@ -11,6 +11,8 @@ import TransactionNumberSeries from './pages/TransactionNumberSeries';
 import CreatePO from './pages/CreatePO';
 import POList from './pages/POList';
 import PODetails from './pages/PODetails';
+import ProjectList from './pages/ProjectList';
+import CreateProject from './pages/CreateProject';
 import { Login, Signup, AuthCallback, SelectOrganisation } from './pages/Auth';
 import { OrganisationSettings } from './pages/Organisation';
 import { supabase, getCurrentUser, onAuthStateChange, getUserOrganisations, createOrganisation, signOut, initStorageBuckets } from './supabase';
@@ -161,6 +163,7 @@ export default function App() {
     switch (pathKey) {
       case '/': return <Dashboard onNavigate={navigate} />;
       case '/projects/new': return <CreateProject onSuccess={() => navigate('/projects')} onCancel={() => navigate('/projects')} />;
+      case '/projects/edit': return <CreateProject />;
       case '/projects': return <ProjectList />;
       case '/projects/daily-updates': return <DailyUpdates />;
       case '/projects/site-materials': return <SiteMaterials />;
@@ -328,43 +331,6 @@ function Dashboard({ onNavigate }) {
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
           Daily Updates
         </button>
-      </div>
-    </div>
-  );
-}
-
-function CreateProject({ onSuccess, onCancel }) {
-  const [formData, setFormData] = useState({ name: '', client_name: '', description: '' });
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    await supabase.from('projects').insert(formData);
-    onSuccess();
-  };
-  return (
-    <div>
-      <div className="page-header"><h1 className="page-title">New Project</h1></div>
-      <div className="card">
-        <form onSubmit={handleSubmit}>
-          <div className="form-group"><label className="form-label">Project Name *</label><input type="text" className="form-input" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} required /></div>
-          <div className="form-group"><label className="form-label">Client Name</label><input type="text" className="form-input" value={formData.client_name} onChange={(e) => setFormData({...formData, client_name: e.target.value})} /></div>
-          <div className="form-group"><label className="form-label">Description</label><textarea className="form-textarea" value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} /></div>
-          <div style={{ display: 'flex', gap: '12px' }}><button type="submit" className="btn btn-primary">Create</button><button type="button" className="btn btn-secondary" onClick={onCancel}>Cancel</button></div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-function ProjectList() {
-  const [projects, setProjects] = useState([]);
-  useEffect(() => { supabase.from('projects').select('*').order('created_at', { ascending: false }).then(({ data }) => setProjects(data || [])); }, []);
-  return (
-    <div>
-      <div className="page-header"><h1 className="page-title">Project List</h1></div>
-      <div className="card">
-        {projects.length === 0 ? <div className="empty-state"><h3>No Projects</h3></div> : (
-          <div className="table-container"><table className="table"><thead><tr><th>Name</th><th>Client</th><th>Created</th></tr></thead><tbody>{projects.map(p => (<tr key={p.id}><td>{p.name}</td><td>{p.client_name || '-'}</td><td>{p.created_at ? new Date(p.created_at).toLocaleDateString() : '-'}</td></tr>))}</tbody></table></div>
-        )}
       </div>
     </div>
   );

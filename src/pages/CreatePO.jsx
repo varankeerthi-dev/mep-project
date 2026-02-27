@@ -6,13 +6,16 @@ export default function CreatePO() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const editId = searchParams.get('id');
+  const preSelectedProjectId = searchParams.get('project_id');
   
   const [loading, setLoading] = useState(false);
   const [clients, setClients] = useState([]);
+  const [projects, setProjects] = useState([]);
   const [saving, setSaving] = useState(false);
   
   const [formData, setFormData] = useState({
     client_id: '',
+    project_id: preSelectedProjectId || '',
     po_number: '',
     po_date: new Date().toISOString().split('T')[0],
     po_expiry_date: '',
@@ -27,6 +30,7 @@ export default function CreatePO() {
 
   useEffect(() => {
     loadClients();
+    loadProjects();
     if (editId) {
       loadPO(editId);
     }
@@ -37,28 +41,45 @@ export default function CreatePO() {
     setClients(data || []);
   };
 
+  const loadProjects = async () => {
+    const { data } = await supabase
+      .from('projects')
+      .select('id, project_code, project_name, client_id')
+      .order('project_name');
+    setProjects(data || []);
+  };
+
   const loadPO = async (id) => {
     setLoading(true);
-    const { data } = await supabase
-      .from('client_purchase_orders')
-      .select('*')
-      .eq('id', id)
-      .single();
-    
-    if (data) {
-      setFormData({
-        client_id: data.client_id || '',
-        po_number: data.po_number || '',
-        po_date: data.po_date || '',
-        po_expiry_date: data.po_expiry_date || '',
-        po_total_value: data.po_total_value || '',
-        po_utilized_value: data.po_utilized_value || 0,
-        status: data.status || 'Open',
-        remarks: data.remarks || ''
-      });
-      setAttachmentUrl(data.attachment_url || '');
+    try {
+      const { data, error } = await supabase
+        .from('client_purchase_orders')
+        .select('*')
+        .eq('id', id)
+        .single();
+      
+      if (error) throw error;
+      
+      if (data) {
+        setFormData({
+          client_id: data.client_id || '',
+          project_id: data.project_id || '',
+          po_number: data.po_number || '',
+          po_date: data.po_date || '',
+          po_expiry_date: data.po_expiry_date || '',
+          po_total_value: data.po_total_value || '',
+          po_utilized_value: data.po_utilized_value || 0,
+          status: data.status || 'Open',
+          remarks: data.remarks || ''
+        });
+        setAttachmentUrl(data.attachment_url || '');
+      }
+    } catch (err) {
+      console.error('Error loading PO:', err);
+      alert('Error loading PO: ' + err.message);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleInputChange = (e) => {
@@ -109,7 +130,7 @@ export default function CreatePO() {
       alert('Please select a client');
       return false;
     }
-    if (!formData.po_number.trim()) {
+    if (!formData.po_number || !formData.po_number.trim()) {
       alert('PO Number is required');
       return false;
     }
@@ -136,6 +157,7 @@ export default function CreatePO() {
     try {
       const poData = {
         client_id: formData.client_id,
+        project_id: formData.project_id || null,
         po_number: formData.po_number.trim(),
         po_date: formData.po_date,
         po_expiry_date: formData.po_expiry_date || null,
@@ -308,6 +330,21 @@ export default function CreatePO() {
                 <option value="">Select Client</option>
                 {clients.map(c => (
                   <option key={c.id} value={c.id}>{c.client_name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label" style={{ fontWeight: 600, fontSize: '11px', marginBottom: '4px' }}>Project</label>
+              <select
+                name="project_id"
+                className="form-select"
+                style={{ padding: '8px 12px' }}
+                value={formData.project_id}
+                onChange={handleInputChange}
+              >
+                <option value="">Select Project</option>
+                {projects.filter(p => !formData.client_id || p.client_id === formData.client_id).map(p => (
+                  <option key={p.id} value={p.id}>{p.project_code || 'N/A'} - {p.project_name || 'Unnamed'}</option>
                 ))}
               </select>
             </div>
