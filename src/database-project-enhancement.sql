@@ -2,42 +2,45 @@
 -- Run this in Supabase SQL Editor
 
 -- Step 1: Add new columns to existing projects table (run this first if table exists)
--- Use dynamic SQL to safely check and migrate
+-- First add the column, then migrate data if needed
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS client_id UUID REFERENCES clients(id);
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS project_code VARCHAR(50) UNIQUE;
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS project_name VARCHAR(255);
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS parent_project_id UUID REFERENCES projects(id);
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS project_type VARCHAR(50);
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS project_estimated_value DECIMAL(15,2);
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS po_required BOOLEAN DEFAULT true;
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS po_status VARCHAR(50);
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS start_date DATE;
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS expected_end_date DATE;
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS actual_end_date DATE;
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS completion_percentage DECIMAL(5,2) DEFAULT 0;
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'Draft';
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS remarks TEXT;
+
+-- Migrate data from old 'name' column if it exists
 DO $$
 DECLARE
   col_exists BOOLEAN;
 BEGIN
-  -- Check if name column exists
   SELECT EXISTS (
     SELECT 1 FROM information_schema.columns 
     WHERE table_name = 'projects' AND column_name = 'name'
   ) INTO col_exists;
   
   IF col_exists THEN
-    -- Migrate name to project_name if project_name is null
-    EXECUTE 'UPDATE projects SET project_name = name WHERE project_name IS NULL AND name IS NOT NULL';
+    UPDATE projects SET project_name = name WHERE project_name IS NULL AND name IS NOT NULL;
   END IF;
 END $$;
 
--- Add columns as nullable first, then make NOT NULL after data migration
-ALTER TABLE projects ADD COLUMN IF NOT EXISTS client_id UUID REFERENCES clients(id);
-ALTER TABLE projects ADD COLUMN IF NOT EXISTS project_code VARCHAR(50) UNIQUE;
-ALTER TABLE projects ADD COLUMN IF NOT EXISTS project_name VARCHAR(255);
-ALTER TABLE projects ADD COLUMN IF NOT EXISTS parent_project_id UUID REFERENCES projects(id);
-ALTER TABLE projects ADD COLUMN IF NOT EXISTS project_type VARCHAR(50) CHECK (project_type IN ('Main', 'Expansion', 'Service'));
-ALTER TABLE projects ADD COLUMN IF NOT EXISTS project_estimated_value DECIMAL(15,2);
-ALTER TABLE projects ADD COLUMN IF NOT EXISTS po_required BOOLEAN DEFAULT true;
-ALTER TABLE projects ADD COLUMN IF NOT EXISTS po_status VARCHAR(50) CHECK (po_status IN ('Not Required', 'Pending', 'Received'));
-ALTER TABLE projects ADD COLUMN IF NOT EXISTS start_date DATE;
-ALTER TABLE projects ADD COLUMN IF NOT EXISTS expected_end_date DATE;
-ALTER TABLE projects ADD COLUMN IF NOT EXISTS actual_end_date DATE;
-ALTER TABLE projects ADD COLUMN IF NOT EXISTS completion_percentage DECIMAL(5,2) DEFAULT 0;
-ALTER TABLE projects ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'Draft' CHECK (status IN ('Draft', 'Active', 'Execution Completed', 'Financially Closed', 'Closed'));
-ALTER TABLE projects ADD COLUMN IF NOT EXISTS remarks TEXT;
-
--- Now update any NULL project_name values and set NOT NULL constraint
+-- Now update any remaining NULL project_name values
 UPDATE projects SET project_name = 'Untitled-' || LEFT(id::TEXT, 8) WHERE project_name IS NULL;
 ALTER TABLE projects ALTER COLUMN project_name SET NOT NULL;
+
+-- Add CHECK constraints
+ALTER TABLE projects ADD CONSTRAINT chk_project_type CHECK (project_type IN ('Main', 'Expansion', 'Service'));
+ALTER TABLE projects ADD CONSTRAINT chk_po_status CHECK (po_status IN ('Not Required', 'Pending', 'Received'));
+ALTER TABLE projects ADD CONSTRAINT chk_status CHECK (status IN ('Draft', 'Active', 'Execution Completed', 'Financially Closed', 'Closed'));
 
 -- Step 2: Create function to generate project code
 CREATE OR REPLACE FUNCTION generate_project_code()
