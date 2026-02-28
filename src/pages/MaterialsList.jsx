@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 
 const MAIN_CATEGORIES = ['VALVE', 'PIPE', 'FITTING', 'FLANGE', 'ELECTRICAL', 'PLUMBING', 'HVAC', 'FIRE PROTECTION', 'BUILDING MATERIALS', 'TOOLS', 'SAFETY', 'OFFICE', 'OTHER'];
@@ -12,23 +12,13 @@ const GST_RATES = [
   { value: 28, label: '28%' },
 ];
 
-const AVAILABLE_COLUMNS = [
-  { key: 'display_name', label: 'Display Name', default: true },
-  { key: 'item_code', label: 'Item Code', default: true },
-  { key: 'main_category', label: 'Category', default: true },
-  { key: 'size', label: 'Size', default: true },
-  { key: 'pressure_class', label: 'Pressure Class', default: true },
-  { key: 'material', label: 'Material', default: true },
-  { key: 'unit', label: 'Unit', default: true },
-  { key: 'sale_price', label: 'Sale Price', default: true },
-  { key: 'purchase_price', label: 'Purchase Price', default: true },
-  { key: 'hsn_code', label: 'HSN/SAC', default: true },
-  { key: 'gst_rate', label: 'GST Rate', default: true },
-  { key: 'uses_variant', label: 'Uses Variant', default: true },
-  { key: 'track_inventory', label: 'Track Inv.', default: true },
-  { key: 'low_stock_level', label: 'Low Stock', default: true },
-  { key: 'current_stock', label: 'Current Stock', default: true },
-  { key: 'is_active', label: 'Active', default: true },
+const ITEM_DETAIL_TABS = [
+  { key: 'overview', label: 'Overview' },
+  { key: 'warehouse', label: 'Warehouse Report' },
+  { key: 'adjustments', label: 'Stock Adjustments' },
+  { key: 'quotation', label: 'Quotation' },
+  { key: 'invoice', label: 'Invoice' },
+  { key: 'challan', label: 'Delivery Challan' },
 ];
 
 function TabButton({ active, onClick, children }) {
@@ -58,14 +48,22 @@ function ItemsTab() {
   const [units, setUnits] = useState([]);
   const [variants, setVariants] = useState([]);
   const [showForm, setShowForm] = useState(false);
-  const [showColumnSettings, setShowColumnSettings] = useState(false);
   const [editingMaterial, setEditingMaterial] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
-
-  const [visibleColumns, setVisibleColumns] = useState(() => {
-    const saved = localStorage.getItem('materialColumns');
-    return saved ? JSON.parse(saved) : AVAILABLE_COLUMNS.filter(c => c.default).map(c => c.key);
+  const [hideInactive, setHideInactive] = useState(false);
+  const [selectedMaterialId, setSelectedMaterialId] = useState(null);
+  const [activeDetailTab, setActiveDetailTab] = useState('overview');
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteInProgress, setDeleteInProgress] = useState(false);
+  const [itemTransactions, setItemTransactions] = useState({
+    warehouseRows: [],
+    adjustmentRows: [],
+    quotationRows: [],
+    invoiceRows: [],
+    challanRows: [],
   });
 
   const [formData, setFormData] = useState({
@@ -76,6 +74,22 @@ function ItemsTab() {
   });
 
   const [variantPricing, setVariantPricing] = useState({});
+
+  const formatDate = (value) => {
+    if (!value) return '-';
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return '-';
+    return parsed.toLocaleDateString();
+  };
+
+  const formatCurrency = (value) => {
+    const amount = Number(value || 0);
+    return amount.toLocaleString('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 2,
+    });
+  };
 
   useEffect(() => {
     loadMaterials();
@@ -166,15 +180,330 @@ function ItemsTab() {
     }
   };
 
-  const toggleColumn = (key) => {
-    setVisibleColumns(prev => 
-      prev.includes(key) ? prev.filter(c => c !== key) : [...prev, key]
-    );
+  const runQuery = async (label, queryBuilder) => {
+    try {
+      const { data, error } = await queryBuilder;
+      if (error) throw error;
+      return data || [];
+    } catch (err) {
+      console.log(`${label} load warning:`, err.message);
+      return [];
+    }
+  };
+
+  const loadItemTransactions = async (itemId) => {
+    if (!itemId) return;
+    setDetailLoading(true);
+    setDetailError('');
+
+    try {
+      const [
+        warehouseStockRows,
+        warehouseMasterRows,
+        variantMasterRows,
+        inwardItemRows,
+        outwardItemRows,
+        quotationItemRows,
+        challanItemRows,
+      ] = await Promise.all([
+        runQuery(
+          'item_stock',
+          supabase
+            .from('item_stock')
+            .select('id, item_id, company_variant_id, warehouse_id, current_stock, low_stock_level, updated_at')
+            .eq('item_id', itemId)
+        ),
+        runQuery('warehouses', supabase.from('warehouses').select('id, warehouse_name, name, warehouse_code')),
+        runQuery('company_variants', supabase.from('company_variants').select('id, variant_name')),
+        runQuery(
+          'material_inward_items',
+          supabase
+            .from('material_inward_items')
+            .select('id, inward_id, material_id, quantity, unit, rate, amount, created_at')
+            .eq('material_id', itemId)
+            .order('created_at', { ascending: false })
+        ),
+        runQuery(
+          'material_outward_items',
+          supabase
+            .from('material_outward_items')
+            .select('id, outward_id, material_id, quantity, unit, created_at')
+            .eq('material_id', itemId)
+            .order('created_at', { ascending: false })
+        ),
+        runQuery(
+          'quotation_items',
+          supabase
+            .from('quotation_items')
+            .select('id, quotation_id, item_id, qty, uom, rate, line_total, created_at')
+            .eq('item_id', itemId)
+            .order('created_at', { ascending: false })
+        ),
+        runQuery(
+          'delivery_challan_items',
+          supabase
+            .from('delivery_challan_items')
+            .select('id, delivery_challan_id, material_id, quantity, unit, rate, amount, created_at')
+            .eq('material_id', itemId)
+            .order('created_at', { ascending: false })
+        ),
+      ]);
+
+      const inwardIds = [...new Set(inwardItemRows.map((row) => row.inward_id).filter(Boolean))];
+      const outwardIds = [...new Set(outwardItemRows.map((row) => row.outward_id).filter(Boolean))];
+      const quotationIds = [...new Set(quotationItemRows.map((row) => row.quotation_id).filter(Boolean))];
+      const challanIds = [...new Set(challanItemRows.map((row) => row.delivery_challan_id).filter(Boolean))];
+
+      const inwardRows = inwardIds.length
+        ? await runQuery(
+            'material_inward',
+            supabase
+              .from('material_inward')
+              .select('id, inward_date, vendor_name, invoice_no, remarks, created_at')
+              .in('id', inwardIds)
+          )
+        : [];
+
+      const outwardRows = outwardIds.length
+        ? await runQuery(
+            'material_outward',
+            supabase
+              .from('material_outward')
+              .select('id, outward_date, project_id, remarks, created_at')
+              .in('id', outwardIds)
+          )
+        : [];
+
+      const quotationRows = quotationIds.length
+        ? await runQuery(
+            'quotation_header',
+            supabase
+              .from('quotation_header')
+              .select('id, quotation_no, date, client_id, status, grand_total, created_at')
+              .in('id', quotationIds)
+          )
+        : [];
+
+      const challanRows = challanIds.length
+        ? await runQuery(
+            'delivery_challans',
+            supabase
+              .from('delivery_challans')
+              .select('id, dc_number, dc_date, status, client_name, created_at')
+              .in('id', challanIds)
+          )
+        : [];
+
+      const clientIds = [...new Set(quotationRows.map((row) => row.client_id).filter(Boolean))];
+      const clientRows = clientIds.length
+        ? await runQuery('clients', supabase.from('clients').select('id, client_name').in('id', clientIds))
+        : [];
+
+      const warehouseMap = {};
+      warehouseMasterRows.forEach((row) => {
+        warehouseMap[row.id] = row.warehouse_name || row.name || row.warehouse_code || 'Warehouse';
+      });
+
+      const variantMap = {};
+      variantMasterRows.forEach((row) => {
+        variantMap[row.id] = row.variant_name;
+      });
+
+      const inwardMap = {};
+      inwardRows.forEach((row) => {
+        inwardMap[row.id] = row;
+      });
+
+      const outwardMap = {};
+      outwardRows.forEach((row) => {
+        outwardMap[row.id] = row;
+      });
+
+      const quotationMap = {};
+      quotationRows.forEach((row) => {
+        quotationMap[row.id] = row;
+      });
+
+      const challanMap = {};
+      challanRows.forEach((row) => {
+        challanMap[row.id] = row;
+      });
+
+      const clientMap = {};
+      clientRows.forEach((row) => {
+        clientMap[row.id] = row.client_name;
+      });
+
+      const normalizedWarehouseRows = warehouseStockRows
+        .map((row) => ({
+          id: row.id,
+          warehouse: warehouseMap[row.warehouse_id] || 'Unassigned',
+          variant: variantMap[row.company_variant_id] || 'Default',
+          current_stock: parseFloat(row.current_stock) || 0,
+          low_stock_level: parseFloat(row.low_stock_level) || 0,
+          updated_at: row.updated_at,
+        }))
+        .sort((a, b) => a.warehouse.localeCompare(b.warehouse));
+
+      const inwardAdjustments = inwardItemRows.map((row) => {
+        const header = inwardMap[row.inward_id] || {};
+        return {
+          id: `in-${row.id}`,
+          type: 'Inward',
+          source: 'Material Inward',
+          doc_no: header.invoice_no || row.inward_id || '-',
+          txn_date: header.inward_date || row.created_at,
+          party: header.vendor_name || '-',
+          qty: parseFloat(row.quantity) || 0,
+          unit: row.unit || '-',
+          remarks: header.remarks || '-',
+        };
+      });
+
+      const outwardAdjustments = outwardItemRows.map((row) => {
+        const header = outwardMap[row.outward_id] || {};
+        return {
+          id: `out-${row.id}`,
+          type: 'Outward',
+          source: 'Material Outward/Rejection',
+          doc_no: row.outward_id || '-',
+          txn_date: header.outward_date || row.created_at,
+          party: header.project_id || '-',
+          qty: (parseFloat(row.quantity) || 0) * -1,
+          unit: row.unit || '-',
+          remarks: header.remarks || '-',
+        };
+      });
+
+      const normalizedAdjustments = [...inwardAdjustments, ...outwardAdjustments].sort(
+        (a, b) => new Date(b.txn_date || 0).getTime() - new Date(a.txn_date || 0).getTime()
+      );
+
+      const normalizedQuotationRows = quotationItemRows
+        .map((row) => {
+          const header = quotationMap[row.quotation_id] || {};
+          return {
+            id: row.id,
+            quotation_no: header.quotation_no || row.quotation_id || '-',
+            quote_date: header.date || row.created_at,
+            client_name: clientMap[header.client_id] || '-',
+            status: header.status || '-',
+            qty: parseFloat(row.qty) || 0,
+            uom: row.uom || '-',
+            rate: parseFloat(row.rate) || 0,
+            line_total: parseFloat(row.line_total) || 0,
+          };
+        })
+        .sort((a, b) => new Date(b.quote_date || 0).getTime() - new Date(a.quote_date || 0).getTime());
+
+      const normalizedChallanRows = challanItemRows
+        .map((row) => {
+          const header = challanMap[row.delivery_challan_id] || {};
+          return {
+            id: row.id,
+            dc_no: header.dc_number || row.delivery_challan_id || '-',
+            dc_date: header.dc_date || row.created_at,
+            client_name: header.client_name || '-',
+            status: header.status || '-',
+            qty: parseFloat(row.quantity) || 0,
+            unit: row.unit || '-',
+            amount: parseFloat(row.amount) || 0,
+          };
+        })
+        .sort((a, b) => new Date(b.dc_date || 0).getTime() - new Date(a.dc_date || 0).getTime());
+
+      const inwardInvoiceRows = inwardItemRows
+        .map((row) => {
+          const header = inwardMap[row.inward_id] || {};
+          return {
+            id: `inv-in-${row.id}`,
+            type: 'Purchase Invoice',
+            doc_no: header.invoice_no || '-',
+            doc_date: header.inward_date || row.created_at,
+            party: header.vendor_name || '-',
+            qty: parseFloat(row.quantity) || 0,
+            amount: parseFloat(row.amount) || (parseFloat(row.rate) || 0) * (parseFloat(row.quantity) || 0),
+          };
+        })
+        .filter((row) => row.doc_no && row.doc_no !== '-');
+
+      const challanInvoiceRows = challanItemRows.map((row) => {
+        const header = challanMap[row.delivery_challan_id] || {};
+        return {
+          id: `inv-dc-${row.id}`,
+          type: 'Sales Invoice',
+          doc_no: header.dc_number || '-',
+          doc_date: header.dc_date || row.created_at,
+          party: header.client_name || '-',
+          qty: parseFloat(row.quantity) || 0,
+          amount: parseFloat(row.amount) || 0,
+        };
+      });
+
+      const noteRows = outwardItemRows
+        .map((row) => {
+          const header = outwardMap[row.outward_id] || {};
+          const remarks = (header.remarks || '').toLowerCase();
+          const isCredit = remarks.includes('credit');
+          const isDebit = remarks.includes('debit');
+          if (!isCredit && !isDebit) return null;
+          return {
+            id: `note-${row.id}`,
+            type: isCredit ? 'Credit Note' : 'Debit Note',
+            doc_no: row.outward_id || '-',
+            doc_date: header.outward_date || row.created_at,
+            party: header.project_id || '-',
+            qty: parseFloat(row.quantity) || 0,
+            amount: 0,
+          };
+        })
+        .filter(Boolean);
+
+      const normalizedInvoiceRows = [...inwardInvoiceRows, ...challanInvoiceRows, ...noteRows].sort(
+        (a, b) => new Date(b.doc_date || 0).getTime() - new Date(a.doc_date || 0).getTime()
+      );
+
+      setItemTransactions({
+        warehouseRows: normalizedWarehouseRows,
+        adjustmentRows: normalizedAdjustments,
+        quotationRows: normalizedQuotationRows,
+        invoiceRows: normalizedInvoiceRows,
+        challanRows: normalizedChallanRows,
+      });
+    } catch (err) {
+      console.error('Item transaction load error:', err);
+      setDetailError(err.message || 'Unable to load linked transactions');
+      setItemTransactions({
+        warehouseRows: [],
+        adjustmentRows: [],
+        quotationRows: [],
+        invoiceRows: [],
+        challanRows: [],
+      });
+    } finally {
+      setDetailLoading(false);
+    }
   };
 
   useEffect(() => {
-    localStorage.setItem('materialColumns', JSON.stringify(visibleColumns));
-  }, [visibleColumns]);
+    if (!selectedMaterialId) return;
+    const exists = materials.some((item) => item.id === selectedMaterialId);
+    if (!exists) {
+      setSelectedMaterialId(null);
+      setItemTransactions({
+        warehouseRows: [],
+        adjustmentRows: [],
+        quotationRows: [],
+        invoiceRows: [],
+        challanRows: [],
+      });
+    }
+  }, [materials, selectedMaterialId]);
+
+  useEffect(() => {
+    if (!selectedMaterialId) return;
+    loadItemTransactions(selectedMaterialId);
+  }, [selectedMaterialId]);
 
   const generateItemCode = () => {
     return 'ITEM-' + Date.now().toString(36).toUpperCase();
@@ -309,8 +638,7 @@ function ItemsTab() {
   };
 
   const deleteMaterial = async (id) => {
-    if (!confirm('Delete this item?')) return;
-
+    setDeleteInProgress(true);
     try {
       const checks = await Promise.allSettled([
         supabase.from('quotation_items').select('id').eq('item_id', id).limit(1),
@@ -327,19 +655,35 @@ function ItemsTab() {
 
         const { error } = await supabase.from('materials').delete().eq('id', id);
         if (error) throw error;
+        setMaterials((prev) => prev.filter((m) => m.id !== id));
+        if (selectedMaterialId === id) {
+          setSelectedMaterialId(null);
+          setItemTransactions({
+            warehouseRows: [],
+            adjustmentRows: [],
+            quotationRows: [],
+            invoiceRows: [],
+            challanRows: [],
+          });
+        }
       } else {
         const { error } = await supabase
           .from('materials')
           .update({ is_active: false, updated_at: new Date().toISOString() })
           .eq('id', id);
         if (error) throw error;
+        setMaterials((prev) =>
+          prev.map((item) =>
+            item.id === id ? { ...item, is_active: false, updated_at: new Date().toISOString() } : item
+          )
+        );
         alert('Item is linked with transactions, so it was archived (disabled) instead of hard delete.');
       }
-
-      setMaterials((prev) => prev.filter((m) => m.id !== id));
     } catch (err) {
       console.error('Delete item error:', err);
       alert('Unable to delete item: ' + err.message);
+    } finally {
+      setDeleteInProgress(false);
     }
   };
 
@@ -347,8 +691,6 @@ function ItemsTab() {
     await supabase.from('materials').update({ is_active: !material.is_active, updated_at: new Date().toISOString() }).eq('id', material.id);
     loadMaterials();
   };
-
-  const [hideInactive, setHideInactive] = useState(false);
 
   const filteredMaterials = materials.filter(m => {
     const matchesSearch = 
@@ -361,6 +703,40 @@ function ItemsTab() {
     return matchesSearch && matchesCategory && matchesActive;
   });
 
+  const selectedMaterial = materials.find((item) => item.id === selectedMaterialId) || null;
+
+  const openDeleteModal = (material) => {
+    setDeleteTarget(material);
+  };
+
+  const closeDeleteModal = () => {
+    if (deleteInProgress) return;
+    setDeleteTarget(null);
+  };
+
+  const confirmDeleteMaterial = async () => {
+    if (!deleteTarget?.id) return;
+    await deleteMaterial(deleteTarget.id);
+    setDeleteTarget(null);
+  };
+
+  const selectMaterialRow = (material) => {
+    setSelectedMaterialId(material.id);
+    setActiveDetailTab('overview');
+  };
+
+  const overviewStats = {
+    totalStock: itemTransactions.warehouseRows.reduce((sum, row) => sum + (row.current_stock || 0), 0),
+    lowStockWarehouses: itemTransactions.warehouseRows.filter(
+      (row) => row.low_stock_level > 0 && row.current_stock <= row.low_stock_level
+    ).length,
+    linkedTransactions:
+      itemTransactions.adjustmentRows.length +
+      itemTransactions.quotationRows.length +
+      itemTransactions.invoiceRows.length +
+      itemTransactions.challanRows.length,
+  };
+
   const categoryList = ['All', ...categories.map(c => c.category_name)];
 
   return (
@@ -368,28 +744,11 @@ function ItemsTab() {
       <div className="page-header">
         <h1 className="page-title">Items</h1>
         <div style={{ display: 'flex', gap: '12px' }}>
-          <button className="btn btn-secondary" onClick={() => setShowColumnSettings(!showColumnSettings)}>
-            ⚙ Columns
-          </button>
           <button className="btn btn-primary" onClick={() => setShowForm(true)}>
             + Add Item
           </button>
         </div>
       </div>
-
-      {showColumnSettings && (
-        <div className="card" style={{ marginBottom: '16px' }}>
-          <h3 className="card-title">Customize Columns</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '12px' }}>
-            {AVAILABLE_COLUMNS.map(col => (
-              <label key={col.key} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                <input type="checkbox" checked={visibleColumns.includes(col.key)} onChange={() => toggleColumn(col.key)} />
-                {col.label}
-              </label>
-            ))}
-          </div>
-        </div>
-      )}
 
       <div className="card" style={{ marginBottom: '16px' }}>
         <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -405,84 +764,310 @@ function ItemsTab() {
         </div>
       </div>
 
-      <div className="card">
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
         {filteredMaterials.length === 0 ? (
           <div className="empty-state"><h3>No Items</h3></div>
         ) : (
           <div className="table-container" style={{ overflowX: 'auto' }}>
-            <table className="table">
+            <table className="table items-reference-table">
               <thead>
                 <tr>
-                  {visibleColumns.includes('display_name') && <th>Display Name</th>}
-                  {visibleColumns.includes('item_code') && <th>Item Code</th>}
-                  {visibleColumns.includes('main_category') && <th>Category</th>}
-                  {visibleColumns.includes('size') && <th>Size</th>}
-                  {visibleColumns.includes('pressure_class') && <th>Pressure</th>}
-                  {visibleColumns.includes('material') && <th>Material</th>}
-                  {visibleColumns.includes('unit') && <th>Unit</th>}
-                  {visibleColumns.includes('sale_price') && <th>Sale Price</th>}
-                  {visibleColumns.includes('purchase_price') && <th>Purchase Price</th>}
-                  {visibleColumns.includes('hsn_code') && <th>HSN/SAC</th>}
-                  {visibleColumns.includes('gst_rate') && <th>GST</th>}
-                  {visibleColumns.includes('uses_variant') && <th>Variant</th>}
-                  {visibleColumns.includes('track_inventory') && <th>Track</th>}
-                  {visibleColumns.includes('low_stock_level') && <th>Low Stock</th>}
-                  {visibleColumns.includes('current_stock') && <th>Stock</th>}
-                  {visibleColumns.includes('is_active') && <th>Active</th>}
-                  <th>Actions</th>
+                  <th>Name</th>
+                  <th>Code</th>
+                  <th>Category</th>
+                  <th>Unit</th>
+                  <th>Stock</th>
+                  <th>Status</th>
+                  <th style={{ width: '190px' }}>Action</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredMaterials.map(m => (
-                  <tr key={m.id} style={{ opacity: m.is_active === false ? 0.5 : 1, cursor: 'pointer' }} onClick={() => editMaterial(m)}>
-                    {visibleColumns.includes('display_name') && <td><strong>{m.display_name || m.name}</strong></td>}
-                    {visibleColumns.includes('item_code') && <td>{m.item_code || '-'}</td>}
-                    {visibleColumns.includes('main_category') && <td>{m.main_category || '-'}</td>}
-                    {visibleColumns.includes('size') && <td>{m.size || '-'}</td>}
-                    {visibleColumns.includes('pressure_class') && <td>{m.pressure_class || '-'}</td>}
-                    {visibleColumns.includes('material') && <td>{m.material || '-'}</td>}
-                    {visibleColumns.includes('unit') && <td>{m.unit}</td>}
-                    {visibleColumns.includes('sale_price') && <td>₹{m.sale_price || '-'}</td>}
-                    {visibleColumns.includes('purchase_price') && <td>₹{m.purchase_price || '-'}</td>}
-                    {visibleColumns.includes('hsn_code') && <td>{m.hsn_code || '-'}</td>}
-                    {visibleColumns.includes('gst_rate') && <td>{m.gst_rate || '-'}%</td>}
-                    {visibleColumns.includes('uses_variant') && (
+                {filteredMaterials.map((m) => {
+                  const isActive = m.is_active !== false;
+                  const isSelected = selectedMaterialId === m.id;
+                  const stock = stockData[m.id] || 0;
+                  return (
+                    <tr
+                      key={m.id}
+                      className={`item-click-row ${isSelected ? 'selected' : ''}`}
+                      style={{ opacity: isActive ? 1 : 0.55 }}
+                      onClick={() => selectMaterialRow(m)}
+                    >
                       <td>
-                        {m.uses_variant ? (
-                          <span style={{ 
-                            padding: '2px 8px', 
-                            borderRadius: '4px', 
-                            fontSize: '11px',
-                            background: '#e3f2fd', 
-                            color: '#1976d2',
-                            fontWeight: '500'
-                          }}>
-                            Yes
-                          </span>
-                        ) : '-'}
+                        <div className="item-main-cell">
+                          <div className="item-avatar">{(m.display_name || m.name || '?').slice(0, 1).toUpperCase()}</div>
+                          <div>
+                            <div className="item-main-name">{m.display_name || m.name}</div>
+                            <div className="item-main-sub">{m.material || m.size || 'Item'}</div>
+                          </div>
+                        </div>
                       </td>
-                    )}
-                    {visibleColumns.includes('track_inventory') && <td>{m.track_inventory ? '✓' : '-'}</td>}
-                    {visibleColumns.includes('low_stock_level') && <td>{m.low_stock_level || '-'}</td>}
-                    {visibleColumns.includes('current_stock') && (
-                      <td style={{ color: (stockData[m.id] || 0) < (m.low_stock_level || 0) ? '#dc3545' : '#28a745', fontWeight: 'bold' }}>
-                        {stockData[m.id] || 0}
+                      <td>{m.item_code || '-'}</td>
+                      <td>{m.main_category || '-'}</td>
+                      <td>{m.unit || '-'}</td>
+                      <td style={{ color: stock < (m.low_stock_level || 0) ? '#b42318' : '#067647', fontWeight: 600 }}>
+                        {stock}
                       </td>
-                    )}
-                    {visibleColumns.includes('is_active') && <td>{m.is_active ? '✓' : '✗'}</td>}
-                    <td>
-                      <button className="btn btn-sm btn-secondary" onClick={(e) => { e.stopPropagation(); editMaterial(m); }}>Edit</button>
-                      <button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px' }} onClick={(e) => { e.stopPropagation(); toggleActive(m); }}>{m.is_active ? 'Disable' : 'Enable'}</button>
-                      <button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px' }} onClick={(e) => { e.stopPropagation(); deleteMaterial(m.id); }}>Delete</button>
-                    </td>
-                  </tr>
-                ))}
+                      <td>
+                        <span className={`status-chip ${isActive ? 'active' : 'inactive'}`}>{isActive ? 'Active' : 'Inactive'}</span>
+                      </td>
+                      <td>
+                        <div className="item-actions-cell">
+                          <button className="btn btn-sm btn-secondary" onClick={(e) => { e.stopPropagation(); editMaterial(m); }}>Edit</button>
+                          <button className="btn btn-sm btn-secondary" onClick={(e) => { e.stopPropagation(); toggleActive(m); }}>
+                            {m.is_active ? 'Disable' : 'Enable'}
+                          </button>
+                          <button className="btn btn-sm btn-secondary" onClick={(e) => { e.stopPropagation(); openDeleteModal(m); }}>Delete</button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         )}
       </div>
 
+      {selectedMaterial && (
+        <div className="card item-details-card" style={{ marginTop: '16px' }}>
+          <div className="item-details-head">
+            <div>
+              <h3 style={{ margin: 0 }}>{selectedMaterial.display_name || selectedMaterial.name}</h3>
+              <div className="item-details-meta">
+                Code: {selectedMaterial.item_code || '-'} | Category: {selectedMaterial.main_category || '-'} | Unit: {selectedMaterial.unit || '-'}
+              </div>
+            </div>
+          </div>
+
+          <div className="item-mini-tabs">
+            {ITEM_DETAIL_TABS.map((tab) => (
+              <button
+                key={tab.key}
+                className={`item-mini-tab ${activeDetailTab === tab.key ? 'active' : ''}`}
+                onClick={() => setActiveDetailTab(tab.key)}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="item-detail-content">
+            {detailLoading && <div className="empty-state"><h3>Loading transactions...</h3></div>}
+            {!detailLoading && detailError && <div className="alert alert-error">{detailError}</div>}
+
+            {!detailLoading && !detailError && activeDetailTab === 'overview' && (
+              <div>
+                <div className="item-overview-grid">
+                  <div className="item-overview-stat">
+                    <div className="stat-label">Total Current Stock</div>
+                    <div className="stat-value">{overviewStats.totalStock.toFixed(2)}</div>
+                  </div>
+                  <div className="item-overview-stat">
+                    <div className="stat-label">Warehouses at Low Stock</div>
+                    <div className="stat-value">{overviewStats.lowStockWarehouses}</div>
+                  </div>
+                  <div className="item-overview-stat">
+                    <div className="stat-label">Linked Transactions</div>
+                    <div className="stat-value">{overviewStats.linkedTransactions}</div>
+                  </div>
+                  <div className="item-overview-stat">
+                    <div className="stat-label">Item Status</div>
+                    <div className="stat-value">{selectedMaterial.is_active === false ? 'Inactive' : 'Active'}</div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {!detailLoading && !detailError && activeDetailTab === 'warehouse' && (
+              itemTransactions.warehouseRows.length === 0 ? (
+                <div className="empty-state"><h3>No warehouse stock records</h3></div>
+              ) : (
+                <div className="table-container" style={{ overflowX: 'auto' }}>
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>Warehouse</th>
+                        <th>Variant</th>
+                        <th>Current Stock</th>
+                        <th>Low Stock Level</th>
+                        <th>Updated</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {itemTransactions.warehouseRows.map((row) => (
+                        <tr key={row.id}>
+                          <td>{row.warehouse}</td>
+                          <td>{row.variant}</td>
+                          <td>{row.current_stock.toFixed(2)}</td>
+                          <td>{row.low_stock_level.toFixed(2)}</td>
+                          <td>{formatDate(row.updated_at)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )
+            )}
+
+            {!detailLoading && !detailError && activeDetailTab === 'adjustments' && (
+              itemTransactions.adjustmentRows.length === 0 ? (
+                <div className="empty-state"><h3>No inward/rejection adjustments</h3></div>
+              ) : (
+                <div className="table-container" style={{ overflowX: 'auto' }}>
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>Type</th>
+                        <th>Source</th>
+                        <th>Doc No</th>
+                        <th>Date</th>
+                        <th>Party/Project</th>
+                        <th>Qty</th>
+                        <th>Remarks</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {itemTransactions.adjustmentRows.map((row) => (
+                        <tr key={row.id}>
+                          <td>{row.type}</td>
+                          <td>{row.source}</td>
+                          <td>{row.doc_no}</td>
+                          <td>{formatDate(row.txn_date)}</td>
+                          <td>{row.party}</td>
+                          <td style={{ color: row.qty < 0 ? '#b42318' : '#067647', fontWeight: 600 }}>
+                            {row.qty.toFixed(2)} {row.unit}
+                          </td>
+                          <td>{row.remarks}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )
+            )}
+
+            {!detailLoading && !detailError && activeDetailTab === 'quotation' && (
+              itemTransactions.quotationRows.length === 0 ? (
+                <div className="empty-state"><h3>No linked quotations</h3></div>
+              ) : (
+                <div className="table-container" style={{ overflowX: 'auto' }}>
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>Quotation No</th>
+                        <th>Date</th>
+                        <th>Client</th>
+                        <th>Status</th>
+                        <th>Qty</th>
+                        <th>Rate</th>
+                        <th>Line Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {itemTransactions.quotationRows.map((row) => (
+                        <tr key={row.id}>
+                          <td>{row.quotation_no}</td>
+                          <td>{formatDate(row.quote_date)}</td>
+                          <td>{row.client_name}</td>
+                          <td>{row.status}</td>
+                          <td>{row.qty.toFixed(2)} {row.uom}</td>
+                          <td>{formatCurrency(row.rate)}</td>
+                          <td>{formatCurrency(row.line_total)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )
+            )}
+
+            {!detailLoading && !detailError && activeDetailTab === 'invoice' && (
+              itemTransactions.invoiceRows.length === 0 ? (
+                <div className="empty-state"><h3>No invoice/debit/credit links found</h3></div>
+              ) : (
+                <div className="table-container" style={{ overflowX: 'auto' }}>
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>Type</th>
+                        <th>Document No</th>
+                        <th>Date</th>
+                        <th>Party</th>
+                        <th>Qty</th>
+                        <th>Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {itemTransactions.invoiceRows.map((row) => (
+                        <tr key={row.id}>
+                          <td>{row.type}</td>
+                          <td>{row.doc_no}</td>
+                          <td>{formatDate(row.doc_date)}</td>
+                          <td>{row.party}</td>
+                          <td>{Number(row.qty || 0).toFixed(2)}</td>
+                          <td>{formatCurrency(row.amount)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )
+            )}
+
+            {!detailLoading && !detailError && activeDetailTab === 'challan' && (
+              itemTransactions.challanRows.length === 0 ? (
+                <div className="empty-state"><h3>No delivery challan records</h3></div>
+              ) : (
+                <div className="table-container" style={{ overflowX: 'auto' }}>
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>DC No</th>
+                        <th>Date</th>
+                        <th>Client</th>
+                        <th>Status</th>
+                        <th>Qty</th>
+                        <th>Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {itemTransactions.challanRows.map((row) => (
+                        <tr key={row.id}>
+                          <td>{row.dc_no}</td>
+                          <td>{formatDate(row.dc_date)}</td>
+                          <td>{row.client_name}</td>
+                          <td>{row.status}</td>
+                          <td>{row.qty.toFixed(2)} {row.unit}</td>
+                          <td>{formatCurrency(row.amount)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )
+            )}
+          </div>
+        </div>
+      )}
+
+      {deleteTarget && (
+        <div className="modal-overlay open" onClick={closeDeleteModal}>
+          <div className="modal-content item-delete-modal" onClick={(e) => e.stopPropagation()}>
+            <h3 style={{ marginTop: 0, marginBottom: '8px' }}>Delete Item</h3>
+            <p style={{ margin: '0 0 16px 0', color: '#475467' }}>
+              Are you sure you want to delete <strong>{deleteTarget.display_name || deleteTarget.name}</strong>?
+              If this item is already linked with transactions, it will be archived instead of hard delete.
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button className="btn btn-secondary" type="button" onClick={closeDeleteModal} disabled={deleteInProgress}>Cancel</button>
+              <button className="btn btn-primary" type="button" onClick={confirmDeleteMaterial} disabled={deleteInProgress}>
+                {deleteInProgress ? 'Processing...' : 'Confirm Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {showForm && (
         <div className="modal-overlay open" onClick={resetForm}>
           <div className="modal-content" onClick={e => e.stopPropagation()} style={{ width: '92vw', maxWidth: '1100px', maxHeight: '92vh', overflowY: 'auto' }}>
@@ -794,7 +1379,7 @@ function ServiceTab() {
             <tbody>
               {filteredServices.map(s => (
                 <tr key={s.id} style={{ opacity: s.is_active === false ? 0.5 : 1 }}>
-                  <td>{s.service_code}</td><td><strong>{s.service_name}</strong></td><td>{s.unit}</td><td>₹{s.sale_price || '-'}</td><td>{s.hsn_code || '-'}</td><td>{s.is_active ? '✓' : '✗'}</td>
+                  <td>{s.service_code}</td><td><strong>{s.service_name}</strong></td><td>{s.unit}</td><td>â‚¹{s.sale_price || '-'}</td><td>{s.hsn_code || '-'}</td><td>{s.is_active ? '✓' : '✗'}</td>
                   <td><button className="btn btn-sm btn-secondary" onClick={() => editService(s)}>Edit</button><button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px' }} onClick={() => deleteService(s.id)}>Delete</button></td>
                 </tr>
               ))}
@@ -1167,3 +1752,5 @@ export default function MaterialsList() {
     </div>
   );
 }
+
+
