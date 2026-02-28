@@ -67,11 +67,22 @@ export const getUserProfile = async (userId) => {
 }
 
 export const getUserOrganisations = async (userId) => {
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from('org_members')
     .select('*, organisation:organisations(*)')
     .eq('user_id', userId)
-    .eq('status', 'active')
+    .or('status.eq.active,status.eq.Active,status.is.null')
+
+  // Fallback for legacy rows/schemas if status filtering causes issues.
+  if (error) {
+    const retry = await supabase
+      .from('org_members')
+      .select('*, organisation:organisations(*)')
+      .eq('user_id', userId)
+    data = retry.data
+    error = retry.error
+  }
+
   return { data, error }
 }
 
