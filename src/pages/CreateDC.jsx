@@ -386,7 +386,8 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
         warehouse_id: formData.source_type === 'WAREHOUSE' ? formData.warehouse_id : null,
         eway_bill_date: formData.eway_bill_date || null,
         eway_valid_till: formData.eway_valid_till || null,
-        project_id: formData.project_id || null
+        project_id: formData.project_id || null,
+        status: 'active'
       };
       
       let dcId;
