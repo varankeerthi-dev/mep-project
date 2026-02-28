@@ -295,6 +295,16 @@ export default function QuotationView() {
       const colSettings = (template && typeof template.column_settings === 'object' && template.column_settings) || {};
       const optionalCols = colSettings.optional || {};
       const mandatoryCols = colSettings.mandatory || ['sno', 'item', 'qty', 'uom'];
+      
+      // Get custom column labels from localStorage
+      const customColumnLabels = (() => {
+        try {
+          const saved = localStorage.getItem('quotationCustomColumns');
+          return saved ? JSON.parse(saved) : { custom1: '', custom2: '' };
+        } catch {
+          return { custom1: '', custom2: '' };
+        }
+      })();
 
       const columnConfig = [];
       if (mandatoryCols.includes('sno')) columnConfig.push({ header: '#', key: 'sno', width: 12 });
@@ -310,6 +320,9 @@ export default function QuotationView() {
       if (optionalCols.tax_percent) columnConfig.push({ header: 'Tax %', key: 'tax_percent', width: 15, align: 'right' });
       if (optionalCols.tax_amount) columnConfig.push({ header: 'Tax Amt', key: 'tax_amount', width: 22, align: 'right' });
       if (optionalCols.line_total) columnConfig.push({ header: 'Total', key: 'line_total', width: 30, align: 'right' });
+      // Custom columns
+      if (customColumnLabels.custom1) columnConfig.push({ header: customColumnLabels.custom1, key: 'custom1', width: 25 });
+      if (customColumnLabels.custom2) columnConfig.push({ header: customColumnLabels.custom2, key: 'custom2', width: 25 });
 
       let startY = 40;
 
@@ -365,6 +378,9 @@ export default function QuotationView() {
         if (optionalCols.tax_percent) row.tax_percent = `${item.tax_percent}%`;
         if (optionalCols.tax_amount) row.tax_amount = formatCurrency(item.tax_amount);
         if (optionalCols.line_total) row.line_total = formatCurrency(item.line_total);
+        // Custom columns
+        if (customColumnLabels.custom1) row.custom1 = item.custom1 || '-';
+        if (customColumnLabels.custom2) row.custom2 = item.custom2 || '-';
         return row;
       });
 
@@ -457,6 +473,16 @@ export default function QuotationView() {
     const colSettings = template.column_settings || {};
     const optionalCols = colSettings.optional || {};
     const mandatoryCols = colSettings.mandatory || ['sno', 'item', 'qty', 'uom'];
+    
+    // Get custom column labels from localStorage
+    const customColumnLabels = (() => {
+      try {
+        const saved = localStorage.getItem('quotationCustomColumns');
+        return saved ? JSON.parse(saved) : { custom1: '', custom2: '' };
+      } catch {
+        return { custom1: '', custom2: '' };
+      }
+    })();
 
     let columnsHTML = '';
     if (mandatoryCols.includes('sno')) columnsHTML += '<th>#</th>';
@@ -470,6 +496,9 @@ export default function QuotationView() {
     if (optionalCols.discount_percent) columnsHTML += '<th>Disc %</th>';
     if (optionalCols.tax_percent) columnsHTML += '<th>Tax %</th>';
     if (optionalCols.line_total) columnsHTML += '<th>Total</th>';
+    // Custom columns
+    if (customColumnLabels.custom1) columnsHTML += `<th>${customColumnLabels.custom1}</th>`;
+    if (customColumnLabels.custom2) columnsHTML += `<th>${customColumnLabels.custom2}</th>`;
 
     let rowsHTML = '';
     quotation.items.forEach((item, index) => {
@@ -486,6 +515,9 @@ export default function QuotationView() {
       if (optionalCols.discount_percent) rowHTML += `<td style="text-align:right">${item.discount_percent}%</td>`;
       if (optionalCols.tax_percent) rowHTML += `<td style="text-align:right">${item.tax_percent}%</td>`;
       if (optionalCols.line_total) rowHTML += `<td style="text-align:right;font-weight:bold">${formatCurrency(item.line_total)}</td>`;
+      // Custom columns
+      if (customColumnLabels.custom1) rowHTML += `<td>${item.custom1 || '-'}</td>`;
+      if (customColumnLabels.custom2) rowHTML += `<td>${item.custom2 || '-'}</td>`;
       rowHTML += '</tr>';
       rowsHTML += rowHTML;
     });

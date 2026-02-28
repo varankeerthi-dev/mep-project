@@ -13,6 +13,8 @@ const INDIAN_STATES = [
 ];
 
 const DEFAULT_PAYMENT_TERMS = 'Net 30 Days';
+const APPROVAL_ROLES = ['SalesManager', 'Finance', 'Admin'];
+const APPROVAL_EXPIRY_DAYS = 7;
 
 export default function CreateQuotation() {
   const navigate = useNavigate();
@@ -34,6 +36,20 @@ export default function CreateQuotation() {
   const [headerDiscounts, setHeaderDiscounts] = useState({});
   const [discountPopup, setDiscountPopup] = useState({ show: false, variantId: null, variantName: '', oldValue: 0, newValue: 0, affectedRows: 0, overriddenRows: 0 });
   
+  // Phase-2: Discount Approval System
+  const [discountSettings, setDiscountSettings] = useState({});
+  const [approvalStatus, setApprovalStatus] = useState({});
+  const [approvalHistory, setApprovalHistory] = useState([]);
+  const [activeTab, setActiveTab] = useState('items');
+  const [showApprovalModal, setShowApprovalModal] = useState(false);
+  
+  // Phase-1: Custom Column Labels (stored in localStorage)
+  const [customColumnLabels, setCustomColumnLabels] = useState(() => {
+    const saved = localStorage.getItem('quotationCustomColumns');
+    return saved ? JSON.parse(saved) : { custom1: 'Custom 1', custom2: 'Custom 2' };
+  });
+  const [showCustomLabelEditor, setShowCustomLabelEditor] = useState(false);
+  
   const [showItemPicker, setShowItemPicker] = useState(false);
   const [itemSearch, setItemSearch] = useState('');
   const [pickerItems, setPickerItems] = useState([]);
@@ -49,6 +65,7 @@ export default function CreateQuotation() {
     valid_till: '',
     payment_terms: DEFAULT_PAYMENT_TERMS,
     client_contact: '',
+    variant_id: '',
     reference: '',
     extra_discount_percent: 0,
     extra_discount_amount: 0,
@@ -142,12 +159,13 @@ export default function CreateQuotation() {
   const loadInitialData = async () => {
     setLoading(true);
     try {
-      const [clientsData, projectsData, materialsData, variantsData, pricingData] = await Promise.all([
+      const [clientsData, projectsData, materialsData, variantsData, pricingData, settingsData] = await Promise.all([
         supabase.from('clients').select('*').order('client_name'),
         supabase.from('projects').select('id, project_name, project_code, client_id').order('project_name'),
         supabase.from('materials').select('*').order('name'),
         supabase.from('company_variants').select('id, variant_name').eq('is_active', true).order('variant_name'),
-        supabase.from('item_variant_pricing').select('item_id, company_variant_id, sale_price')
+        supabase.from('item_variant_pricing').select('item_id, company_variant_id, sale_price'),
+        supabase.from('discount_settings').select('*').eq('is_active', true)
       ]);
 
       setClients(clientsData.data || []);
@@ -160,6 +178,17 @@ export default function CreateQuotation() {
         pricingMap[row.item_id][row.company_variant_id] = parseFloat(row.sale_price) || 0;
       });
       setVariantPricing(pricingMap);
+
+      // Phase-2: Load discount settings
+      const settingsMap = {};
+      (settingsData.data || []).forEach((row) => {
+        settingsMap[row.variant_id] = {
+          default: parseFloat(row.default_discount_percent) || 0,
+          min: parseFloat(row.min_discount_percent) || 0,
+          max: parseFloat(row.max_discount_percent) || 0
+        };
+      });
+      setDiscountSettings(settingsMap);
 
       if (editId) {
         await loadQuotation(editId);
@@ -225,9 +254,103 @@ export default function CreateQuotation() {
     }
   }, [headerDiscounts, items, variants]);
 
+  // Phase-2: Request approval for discount above limit
+  const requestApproval = async (variantId, discountValue) => {
+    if (!editId) {
+      alert('Please save the quotation first before requesting approval.');
+      return false;
+    }
+    
+    const settings = discountSettings[variantId];
+    if (!settings || discountValue <= settings.max) {
+      return false;
+    }
+    
+    const variant = variants.find(v => v.id === variantId);
+    const variantName = variant?.variant_name || 'Unknown Variant';
+    
+    const roles = APPROVAL_ROLES;
+    
+    try {
+      // Delete existing approvals for this variant
+      await supabase
+        .from('discount_approval')
+        .delete()
+        .eq('quotation_revision_id', editId)
+        .eq('variant_id', variantId);
+      
+      // Create new approval records
+      const approvalRecords = roles.map(role => ({
+        quotation_revision_id: editId,
+        variant_id: variantId,
+        role_name: role,
+        status: 'pending',
+        remark: `Discount ${discountValue}% exceeds max ${settings.max}% for ${variantName}`
+      }));
+      
+      const { error: insertError } = await supabase
+        .from('discount_approval')
+        .insert(approvalRecords);
+      
+      if (insertError) throw insertError;
+      
+      // Log the approval request
+      await supabase.from('discount_approval_log').insert({
+        quotation_revision_id: editId,
+        variant_id: variantId,
+        event_type: 'approval_requested',
+        old_value: headerDiscounts[variantId] || 0,
+        new_value: discountValue,
+        remark: `Approval requested for ${variantName}: ${discountValue}% (max: ${settings.max}%)`
+      });
+      
+      // Reload approval data
+      await loadApprovalData(editId);
+      
+      return true;
+    } catch (err) {
+      console.error('Error requesting approval:', err);
+      alert('Failed to request approval: ' + err.message);
+      return false;
+    }
+  };
+
+  // Phase-2: Check if any approval is pending or rejected
+  const hasPendingApproval = () => {
+    return Object.keys(approvalStatus).some(variantId => {
+      const variantApprovals = approvalStatus[variantId];
+      if (!variantApprovals) return false;
+      const roles = APPROVAL_ROLES;
+      return roles.some(role => {
+        const status = variantApprovals[role]?.status;
+        return status === 'pending' || status === 'rejected';
+      });
+    });
+  };
+
+  // Phase-2: Check if all approvals are approved and not expired
+  const isApprovalComplete = (variantId) => {
+    const variantApprovals = approvalStatus[variantId];
+    if (!variantApprovals) return true;
+    
+    const roles = APPROVAL_ROLES;
+    const allApproved = roles.every(role => variantApprovals[role]?.status === 'approved');
+    
+    if (!allApproved) return false;
+    
+    // Check expiry
+    const validUntil = variantApprovals['Admin']?.valid_until;
+    if (validUntil && new Date(validUntil) < new Date()) {
+      return false; // Expired
+    }
+    
+    return true;
+  };
+
   // Phase-1: Apply header discount changes
-  const applyDiscountChanges = useCallback(() => {
+  const applyDiscountChanges = useCallback(async () => {
     const { variantId, newValue } = discountPopup;
+    const settings = discountSettings[variantId];
     
     setHeaderDiscounts(prev => ({ ...prev, [variantId]: newValue }));
     
@@ -250,8 +373,16 @@ export default function CreateQuotation() {
       })
     );
     
+    // Phase-2: Only request approval if discount exceeds max AND items exist for this variant
+    if (settings && newValue > settings.max) {
+      const hasVariantItems = items.some(item => item.variant_id === variantId);
+      if (hasVariantItems && editId) {
+        await requestApproval(variantId, newValue);
+      }
+    }
+    
     setDiscountPopup({ show: false, variantId: null, variantName: '', oldValue: 0, newValue: 0, affectedRows: 0, overriddenRows: 0 });
-  }, [discountPopup]);
+  }, [discountPopup, discountSettings, items, editId]);
 
   // Phase-1: Cancel discount changes
   const cancelDiscountChanges = useCallback(() => {
@@ -289,6 +420,7 @@ export default function CreateQuotation() {
         valid_till: data.valid_till || '',
         payment_terms: data.payment_terms || DEFAULT_PAYMENT_TERMS,
         client_contact: '',
+        variant_id: data.variant_id || '',
         reference: data.remarks || data.reference || '',
         extra_discount_percent: data.extra_discount_percent || 0,
         extra_discount_amount: data.extra_discount_amount || 0,
@@ -307,13 +439,85 @@ export default function CreateQuotation() {
           applied_discount_percent: parseFloat(item.applied_discount_percent) || 0,
           is_override: item.is_override || false,
           final_rate_snapshot: parseFloat(item.final_rate_snapshot) || parseFloat(item.rate) || 0,
-          display_order: item.display_order || 0
+          display_order: item.display_order || 0,
+          // Phase-1: Custom columns
+          custom1: item.custom1 || '',
+          custom2: item.custom2 || ''
         })));
       }
       
       // Phase-1: Load variant discounts
       await loadVariantDiscounts(id);
+      
+      // Phase-2: Load approval status and history
+      await loadApprovalData(id);
     }
+  };
+  
+  // Phase-2: Load approval data for quotation
+  const loadApprovalData = async (quotationId) => {
+    try {
+      // Load approval records
+      const { data: approvals } = await supabase
+        .from('discount_approval')
+        .select('*')
+        .eq('quotation_revision_id', quotationId);
+      
+      // Load approval history log
+      const { data: history } = await supabase
+        .from('discount_approval_log')
+        .select('*')
+        .eq('quotation_revision_id', quotationId)
+        .order('timestamp', { ascending: false });
+      
+      // Build approval status map
+      const statusMap = {};
+      if (approvals && approvals.length > 0) {
+        approvals.forEach(approval => {
+          if (!statusMap[approval.variant_id]) {
+            statusMap[approval.variant_id] = {};
+          }
+          statusMap[approval.variant_id][approval.role_name] = {
+            status: approval.status,
+            action_by: approval.action_by_email,
+            action_at: approval.action_at,
+            valid_until: approval.approval_valid_until,
+            remark: approval.remark
+          };
+        });
+      }
+      setApprovalStatus(statusMap);
+      setApprovalHistory(history || []);
+    } catch (err) {
+      console.warn('Unable to load approval data:', err);
+    }
+  };
+
+  // Phase-2: Check if discount exceeds max and needs approval
+  const checkApprovalNeeded = (variantId, discountValue) => {
+    const settings = discountSettings[variantId];
+    if (!settings) return false;
+    return discountValue > settings.max;
+  };
+
+  // Phase-2: Get approval status for display
+  const getApprovalDisplayStatus = (variantId) => {
+    const variantApprovals = approvalStatus[variantId];
+    if (!variantApprovals) return 'none';
+    
+    const roles = APPROVAL_ROLES;
+    const allApproved = roles.every(role => variantApprovals[role]?.status === 'approved');
+    const anyRejected = roles.some(role => variantApprovals[role]?.status === 'rejected');
+    const anyPending = roles.some(role => variantApprovals[role]?.status === 'pending');
+    const isExpired = roles.some(role => {
+      const validUntil = variantApprovals[role]?.valid_until;
+      return validUntil && new Date(validUntil) < new Date();
+    });
+    
+    if (anyRejected || isExpired) return 'rejected';
+    if (allApproved) return 'approved';
+    if (anyPending) return 'pending';
+    return 'none';
   };
 
   const buildClientContacts = (client) => {
@@ -459,7 +663,10 @@ export default function CreateQuotation() {
         applied_discount_percent: headerDiscount,
         is_override: false,
         final_rate_snapshot: finalRate,
-        display_order: currentItemsLength + idx
+        display_order: currentItemsLength + idx,
+        // Phase-1: Custom columns
+        custom1: '',
+        custom2: ''
       };
     });
 
@@ -552,31 +759,37 @@ export default function CreateQuotation() {
 
   const addEmptyItemRow = () => {
     const rowId = Date.now() + Math.random();
+    const headerVariantId = formData.variant_id || null;
+    const headerVariantDiscount = headerVariantId ? (headerDiscounts[headerVariantId] || 0) : 0;
+    
     setItems((prev) => [
       ...prev,
       {
         id: rowId,
         item_id: '',
-        variant_id: null,
+        variant_id: headerVariantId,
         material: null,
         hsn_code: '',
         description: '',
         qty: 1,
         uom: 'Nos',
         rate: 0,
-        discount_percent: 0,
+        discount_percent: headerVariantDiscount,
         discount_amount: 0,
         tax_percent: 0,
         tax_amount: 0,
         line_total: 0,
         override_flag: false,
-        original_discount_percent: 0,
+        original_discount_percent: headerVariantDiscount,
         // Phase-1: New snapshot fields
         base_rate_snapshot: 0,
-        applied_discount_percent: 0,
+        applied_discount_percent: headerVariantDiscount,
         is_override: false,
         final_rate_snapshot: 0,
-        display_order: prev.length
+        display_order: prev.length,
+        // Phase-1: Custom columns
+        custom1: '',
+        custom2: ''
       }
     ]);
   };
@@ -684,6 +897,7 @@ export default function CreateQuotation() {
         date: formData.date,
         valid_till: formData.valid_till || null,
         payment_terms: formData.payment_terms,
+        variant_id: formData.variant_id || null,
         remarks: formData.reference || null,
         reference: formData.reference,
         subtotal: calculations.subtotal,
@@ -800,7 +1014,10 @@ export default function CreateQuotation() {
         applied_discount_percent: parseFloat(item.applied_discount_percent) || 0,
         is_override: item.is_override || false,
         final_rate_snapshot: parseFloat(item.final_rate_snapshot) || parseFloat(item.rate) || 0,
-        display_order: item.display_order || 0
+        display_order: item.display_order || 0,
+        // Phase-1: Custom columns
+        custom1: item.custom1 || '',
+        custom2: item.custom2 || ''
       }));
 
       const { error: insertItemsError } = await withTimeout(
@@ -845,6 +1062,7 @@ export default function CreateQuotation() {
           valid_till: '',
           payment_terms: DEFAULT_PAYMENT_TERMS,
           client_contact: '',
+          variant_id: '',
           reference: '',
           extra_discount_percent: 0,
           extra_discount_amount: 0,
@@ -853,6 +1071,7 @@ export default function CreateQuotation() {
           negotiation_mode: false
         });
         setItems([]);
+        setHeaderDiscounts({});
         await loadQuoteNoPreview();
       } else {
         navigate(`/quotation/view?id=${quotationId}`);
@@ -947,7 +1166,21 @@ export default function CreateQuotation() {
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1.5fr 1fr 1fr', gap: '8px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr 1fr', gap: '8px' }}>
+          <div className="form-group" style={{ margin: 0 }}>
+            <label className="form-label" style={compactLabelStyle}>Variant</label>
+            <select
+              className="form-select"
+              style={compactFieldStyle}
+              value={formData.variant_id || ''}
+              onChange={(e) => setFormData({ ...formData, variant_id: e.target.value })}
+            >
+              <option value="">Select Variant</option>
+              {variants.map((v) => (
+                <option key={v.id} value={v.id}>{v.variant_name}</option>
+              ))}
+            </select>
+          </div>
           <div className="form-group" style={{ margin: 0 }}>
             <label className="form-label" style={compactLabelStyle}>Remarks</label>
             <input
@@ -979,7 +1212,7 @@ export default function CreateQuotation() {
               disabled={!formData.client_id}
             >
               <option value="">
-                {formData.client_id ? 'Select Contact (Name + Email)' : 'Select Client First'}
+                {formData.client_id ? 'Select Contact' : 'Select Client First'}
               </option>
               {clientContactOptions.map((opt) => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -991,50 +1224,97 @@ export default function CreateQuotation() {
 
       {/* Phase-1: Dynamic Variant Discount Header Section */}
       {variants.length > 0 && (
-        <div className="card" style={{ marginBottom: '16px', padding: isMobile ? '12px' : '16px' }} data-html2canvas-ignore>
-          <div style={{ marginBottom: '12px' }}>
-            <h3 style={{ margin: 0, fontSize: '16px' }}>Discount Control</h3>
-            <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#6b7280' }}>
-              Set default discount % per variant. Overridden rows will be highlighted.
-            </p>
+        <div className="card" style={{ marginBottom: '16px', padding: isMobile ? '10px' : '12px', background: '#fef9e7', border: '1px solid #fcd34d' }} data-html2canvas-ignore>
+          <div style={{ marginBottom: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '13px', fontWeight: 600, color: '#92400e' }}>Discount Control</span>
+              <span style={{ fontSize: '11px', color: '#a16207' }}>(Set default % per variant)</span>
+            </div>
+            <button
+              className="btn btn-sm"
+              style={{ fontSize: '11px', padding: '4px 8px', background: '#fef3c7', border: '1px solid #fcd34d', color: '#92400e' }}
+              onClick={() => setActiveTab(activeTab === 'items' ? 'approval' : 'items')}
+            >
+              {activeTab === 'items' ? 'View Approval History' : 'Back to Items'}
+            </button>
           </div>
           
+          {activeTab === 'items' && (
           <div style={{ 
             display: 'flex', 
             flexWrap: 'wrap', 
-            gap: isMobile ? '12px' : '16px',
+            gap: isMobile ? '8px' : '12px',
             flexDirection: isMobile ? 'column' : 'row'
           }}>
-            {variants.map(variant => (
+            {variants.map(variant => {
+              const discountValue = headerDiscounts[variant.id] || 0;
+              const settings = discountSettings[variant.id];
+              const isAboveMax = settings && discountValue > settings.max;
+              const approvalDisplay = getApprovalDisplayStatus(variant.id);
+              
+              return (
               <div 
                 key={variant.id} 
                 style={{ 
-                  flex: isMobile ? '1 1 auto' : '0 1 180px',
-                  minWidth: isMobile ? '100%' : '160px',
-                  padding: '12px',
-                  background: '#f8fafc',
-                  borderRadius: '8px',
-                  border: '1px solid #e2e8f0'
+                  flex: isMobile ? '1 1 auto' : '0 1 140px',
+                  minWidth: isMobile ? '100%' : '120px',
+                  padding: '8px',
+                  background: '#fff',
+                  borderRadius: '6px',
+                  border: isAboveMax ? '2px solid #dc2626' : '1px solid #fcd34d'
                 }}
               >
-                <label style={{ 
-                  display: 'block', 
-                  fontSize: '12px', 
-                  fontWeight: 600, 
-                  marginBottom: '6px',
-                  color: '#475569'
-                }}>
-                  {variant.variant_name}
-                </label>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                  <label style={{ 
+                    display: 'block', 
+                    fontSize: '11px', 
+                    fontWeight: 600, 
+                    color: '#92400e'
+                  }}>
+                    {variant.variant_name}
+                  </label>
+                  {/* Phase-2: Approval Status Badge */}
+                  {approvalDisplay !== 'none' && (
+                    <span style={{
+                      fontSize: '9px',
+                      padding: '2px 6px',
+                      borderRadius: '10px',
+                      fontWeight: 600,
+                      background: approvalDisplay === 'approved' ? '#dcfce7' : approvalDisplay === 'pending' ? '#fef3c7' : '#fee2e2',
+                      color: approvalDisplay === 'approved' ? '#166534' : approvalDisplay === 'pending' ? '#92400e' : '#dc2626'
+                    }}>
+                      {approvalDisplay === 'approved' ? 'Approved' : approvalDisplay === 'pending' ? 'Pending' : 'Rejected'}
+                    </span>
+                  )}
+                  {isAboveMax && (
+                    <span style={{
+                      fontSize: '9px',
+                      padding: '2px 6px',
+                      borderRadius: '10px',
+                      fontWeight: 600,
+                      background: '#fee2e2',
+                      color: '#dc2626'
+                    }}>
+                      Above Limit
+                    </span>
+                  )}
+                </div>
+                {settings && (
+                  <div style={{ fontSize: '9px', color: '#a16207', marginBottom: '4px' }}>
+                    Max: {settings.max}%
+                  </div>
+                )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                   <input
                     type="number"
                     className="form-input"
                     style={{ 
-                      width: '80px', 
+                      width: '60px', 
                       textAlign: 'right',
-                      minHeight: '36px',
-                      fontSize: '14px'
+                      minHeight: '28px',
+                      fontSize: '12px',
+                      padding: '4px 6px',
+                      background: isAboveMax ? '#fef2f2' : '#fff'
                     }}
                     value={headerDiscounts[variant.id] || 0}
                     onBlur={(e) => {
@@ -1051,11 +1331,50 @@ export default function CreateQuotation() {
                     step="0.01"
                     placeholder="0"
                   />
-                  <span style={{ fontSize: '14px', color: '#64748b' }}>%</span>
+                  <span style={{ fontSize: '11px', color: '#92400e' }}>%</span>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
+          )}
+          
+          {/* Phase-2: Approval History Tab */}
+          {activeTab === 'approval' && (
+            <div style={{ marginTop: '12px' }}>
+              {approvalHistory.length === 0 ? (
+                <div style={{ padding: '20px', textAlign: 'center', color: '#6b7280' }}>
+                  No approval history yet. Discounts above the limit will require approval.
+                </div>
+              ) : (
+                <table className="table" style={{ fontSize: '12px' }}>
+                  <thead>
+                    <tr>
+                      <th style={{ padding: '8px' }}>Variant</th>
+                      <th style={{ padding: '8px' }}>Event</th>
+                      <th style={{ padding: '8px' }}>By</th>
+                      <th style={{ padding: '8px' }}>Date</th>
+                      <th style={{ padding: '8px' }}>Remark</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {approvalHistory.map((log) => {
+                      const variant = variants.find(v => v.id === log.variant_id);
+                      return (
+                        <tr key={log.id}>
+                          <td style={{ padding: '8px' }}>{variant?.variant_name || '-'}</td>
+                          <td style={{ padding: '8px' }}>{log.event_type}</td>
+                          <td style={{ padding: '8px' }}>{log.performed_by_email || '-'}</td>
+                          <td style={{ padding: '8px' }}>{log.timestamp ? new Date(log.timestamp).toLocaleString() : '-'}</td>
+                          <td style={{ padding: '8px' }}>{log.remark || '-'}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -1074,6 +1393,13 @@ export default function CreateQuotation() {
               onClick={() => setShowItemPicker(true)}
             >
               + Add Multiple Items
+            </button>
+            <button
+              className="btn btn-secondary"
+              style={{ fontSize: '12px', padding: '6px 12px' }}
+              onClick={() => setShowCustomLabelEditor(true)}
+            >
+              ⚙ Custom Columns
             </button>
           </div>
         </div>
@@ -1095,6 +1421,12 @@ export default function CreateQuotation() {
                 <th style={{ ...compactHeadCellStyle, width: '90px' }}>Rate</th>
                 <th style={{ ...compactHeadCellStyle, width: '70px' }}>Disc %</th>
                 <th style={{ ...compactHeadCellStyle, width: '80px' }}>Tax %</th>
+                {(customColumnLabels.custom1 || customColumnLabels.custom2) && (
+                  <>
+                    {customColumnLabels.custom1 && <th style={{ ...compactHeadCellStyle, width: '100px' }}>{customColumnLabels.custom1}</th>}
+                    {customColumnLabels.custom2 && <th style={{ ...compactHeadCellStyle, width: '100px' }}>{customColumnLabels.custom2}</th>}
+                  </>
+                )}
                 <th style={{ ...compactHeadCellStyle, width: '110px' }}>Amount</th>
                 <th style={{ ...compactHeadCellStyle, width: '40px' }}></th>
               </tr>
@@ -1102,7 +1434,7 @@ export default function CreateQuotation() {
             <tbody>
               {items.length === 0 ? (
                 <tr>
-                  <td colSpan={13} style={{ padding: '28px', textAlign: 'center', color: '#6b7280' }}>
+                  <td colSpan={15} style={{ padding: '28px', textAlign: 'center', color: '#6b7280' }}>
                     No items added. Click "Add Row" or "Add Multiple Items".
                   </td>
                 </tr>
@@ -1262,6 +1594,34 @@ export default function CreateQuotation() {
                         step="0.01"
                       />
                     </td>
+                    {(customColumnLabels.custom1 || customColumnLabels.custom2) && (
+                      <>
+                        {customColumnLabels.custom1 && (
+                          <td style={compactBodyCellStyle}>
+                            <input
+                              type="text"
+                              className="form-input"
+                              style={compactCellInputStyle}
+                              value={item.custom1 || ''}
+                              onChange={(e) => updateItem(item.id, 'custom1', e.target.value)}
+                              placeholder={customColumnLabels.custom1}
+                            />
+                          </td>
+                        )}
+                        {customColumnLabels.custom2 && (
+                          <td style={compactBodyCellStyle}>
+                            <input
+                              type="text"
+                              className="form-input"
+                              style={compactCellInputStyle}
+                              value={item.custom2 || ''}
+                              onChange={(e) => updateItem(item.id, 'custom2', e.target.value)}
+                              placeholder={customColumnLabels.custom2}
+                            />
+                          </td>
+                        )}
+                      </>
+                    )}
                     <td style={{ ...compactBodyCellStyle, fontWeight: 600, textAlign: 'right' }}>
                       {formatCurrency((parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0) - (item.discount_amount || 0))}
                     </td>
@@ -1438,6 +1798,85 @@ export default function CreateQuotation() {
                 style={{ minWidth: '140px' }}
               >
                 Apply Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Phase-1: Custom Column Labels Editor */}
+      {showCustomLabelEditor && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1100
+        }} onClick={() => setShowCustomLabelEditor(false)}>
+          <div style={{
+            background: '#fff',
+            borderRadius: '12px',
+            width: isMobile ? '94%' : '400px',
+            padding: isMobile ? '20px' : '24px',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)'
+          }} onClick={e => e.stopPropagation()}>
+            <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', color: '#1e293b' }}>
+              Custom Column Labels
+            </h3>
+            <p style={{ margin: '0 0 16px 0', fontSize: '13px', color: '#64748b' }}>
+              These labels will appear as columns in your quotation. Leave empty to hide.
+            </p>
+            
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: '#374151' }}>
+                Column 1 Label
+              </label>
+              <input
+                type="text"
+                className="form-input"
+                style={{ width: '100%', padding: '10px' }}
+                value={customColumnLabels.custom1}
+                onChange={(e) => setCustomColumnLabels({ ...customColumnLabels, custom1: e.target.value })}
+                placeholder="e.g., HSN Code, Make, Model, etc."
+              />
+            </div>
+
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: '#374151' }}>
+                Column 2 Label
+              </label>
+              <input
+                type="text"
+                className="form-input"
+                style={{ width: '100%', padding: '10px' }}
+                value={customColumnLabels.custom2}
+                onChange={(e) => setCustomColumnLabels({ ...customColumnLabels, custom2: e.target.value })}
+                placeholder="e.g., Warranty, Delivery, Notes, etc."
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <button 
+                className="btn btn-secondary"
+                onClick={() => setShowCustomLabelEditor(false)}
+                style={{ minWidth: '100px' }}
+              >
+                Cancel
+              </button>
+              <button 
+                className="btn btn-primary"
+                onClick={() => {
+                  localStorage.setItem('quotationCustomColumns', JSON.stringify(customColumnLabels));
+                  setShowCustomLabelEditor(false);
+                }}
+                style={{ minWidth: '100px' }}
+              >
+                Save
               </button>
             </div>
           </div>

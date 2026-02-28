@@ -19,6 +19,7 @@ import QuotationList from './pages/QuotationList';
 import CreateQuotation from './pages/CreateQuotation';
 import QuotationView from './pages/QuotationView';
 import TemplateSettings from './pages/TemplateSettings';
+import DiscountSettings from './pages/DiscountSettings';
 import QuickStockCheckList from './pages/QuickStockCheckList';
 import QuickStockCheck from './pages/QuickStockCheck';
 import { supabase, getCurrentUser, onAuthStateChange, getUserOrganisations, createOrganisation, signOut, initStorageBuckets } from './supabase';
@@ -253,6 +254,7 @@ export default function App() {
       case '/quotation/create': return <CreateQuotation />;
       case '/quotation/edit': return <CreateQuotation />;
       case '/quotation/view': return <QuotationView />;
+      case '/settings/discounts': return <DiscountSettings />;
       case '/boq': return <BOQ />;
       case '/issue': return <IssueList />;
       case '/client-comm': return <ClientComm />;
