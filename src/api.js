@@ -512,6 +512,36 @@ export async function duplicateQuotation(id) {
   return data;
 }
 
+export async function fetchDiscountProfiles() {
+  const { data, error } = await supabase
+    .from('discount_structures')
+    .select('*')
+    .eq('is_active', true)
+    .order('structure_number');
+  if (error) throw error;
+  return data;
+}
+
+export async function fetchDiscountVariantSettings(profileId) {
+  const { data, error } = await supabase
+    .from('discount_variant_settings')
+    .select('*, variant:company_variants(variant_name)')
+    .eq('structure_id', profileId);
+  if (error) throw error;
+  return data;
+}
+
+export async function updateClientPricingProfile(clientId, profileId) {
+  const { data, error } = await supabase
+    .from('clients')
+    .update({ discount_profile_id: profileId })
+    .eq('id', clientId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
 export async function fetchTemplates(documentType) {
   const { data, error } = await supabase
     .from('document_templates')
