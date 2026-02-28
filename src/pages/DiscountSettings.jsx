@@ -26,15 +26,17 @@ export default function DiscountSettings() {
     try {
       const { data: { user } } = await getCurrentUser();
       if (user) {
-        const { data: orgMember } = await supabase
-          .from('organisation_members')
+        // Check users table for role
+        const { data: userData } = await supabase
+          .from('users')
           .select('role')
-          .eq('user_id', user.id)
+          .eq('id', user.id)
           .single();
         
-        const role = orgMember?.role || 'Member';
+        const role = userData?.role || 'Member';
         setUserRole(role);
-        setIsAdmin(role === 'Admin' || role === 'SUPER_ADMIN');
+        setIsAdmin(role === 'Admin');
+        console.log('User role:', role, 'isAdmin:', role === 'Admin');
       }
     } catch (err) {
       console.warn('Could not check user role:', err);
