@@ -1930,6 +1930,12 @@ function SettingsPage() {
         <a href="/settings/organisation" className="btn btn-primary" onClick={(e) => { e.preventDefault(); pushPath('/settings/organisation'); }}>Manage Organisation</a>
       </div>
 
+      <div className="card" style={{ marginBottom: '20px' }}>
+        <h3 className="card-title">Discount Settings</h3>
+        <p>Configure discount limits per variant for different structures</p>
+        <a href="/settings/discounts" className="btn btn-primary" onClick={(e) => { e.preventDefault(); pushPath('/settings/discounts'); }}>Manage Discounts</a>
+      </div>
+
       <div className="card">
         <div className="page-header" style={{ marginBottom: '16px' }}>
           <h3 className="card-title" style={{ margin: 0 }}>User Access Rights</h3>
