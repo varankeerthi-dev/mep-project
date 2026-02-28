@@ -1,4 +1,4 @@
-import { useState, useEffect, createContext, useContext } from 'react';
+import { useState, useEffect, useMemo, createContext, useContext } from 'react';
 import Sidebar from './components/Sidebar';
 import QuickAccessBar from './components/QuickAccessBar';
 import CreateDC from './pages/CreateDC';
@@ -792,100 +792,289 @@ function CreateClient({ onSuccess, onCancel, editMode, clientData }) {
 
 function ClientList() {
   const [clients, setClients] = useState([]);
-  const [filter, setFilter] = useState('All');
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeClientId, setActiveClientId] = useState(null);
+  const [activeTab, setActiveTab] = useState('overview');
+  const [transactions, setTransactions] = useState([]);
+  const [txFilter, setTxFilter] = useState('all');
+  const [txSearch, setTxSearch] = useState('');
+  const [txDateFrom, setTxDateFrom] = useState('');
+  const [txDateTo, setTxDateTo] = useState('');
+  const [loadingTx, setLoadingTx] = useState(false);
 
   const loadClients = async () => {
-    let query = supabase.from('clients').select('*').order('created_at', { ascending: false });
-    if (filter !== 'All') {
-      query = query.eq('category', filter);
-    }
-    const { data } = await query;
-    setClients(data || []);
+    const { data } = await supabase.from('clients').select('*').order('client_name');
+    const rows = data || [];
+    setClients(rows);
+    if (!activeClientId && rows.length > 0) setActiveClientId(rows[0].id);
   };
 
-  useEffect(() => { loadClients(); }, [filter]);
+  useEffect(() => { loadClients(); }, []);
 
-  const deleteClient = async (id) => { if (confirm('Delete this client?')) { await supabase.from('clients').delete().eq('id', id); loadClients(); }};
-
-  const filteredClients = clients.filter(c => 
-    c.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.client_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.contact?.includes(searchTerm)
+  const activeClient = useMemo(
+    () => clients.find(c => c.id === activeClientId) || null,
+    [clients, activeClientId]
   );
 
-  const getCategoryColor = (category) => {
-    if (category === 'Active') return '#d4edda';
-    if (category === 'Inactive') return '#f8d7da';
-    return '#fff3cd';
+  const loadClientTransactions = async (client) => {
+    if (!client) return;
+    setLoadingTx(true);
+    const merged = [];
+
+    const safePush = (rows, mapFn) => {
+      (rows || []).forEach((r) => merged.push(mapFn(r)));
+    };
+
+    try {
+      const [quo, po, prj, visit, dc, meet] = await Promise.all([
+        supabase.from('quotation_header').select('id, quotation_no, date, grand_total, status, created_at').eq('client_id', client.id),
+        supabase.from('client_purchase_orders').select('id, po_number, po_date, po_total_value, status, created_at').eq('client_id', client.id),
+        supabase.from('projects').select('id, project_code, project_name, status, created_at').eq('client_id', client.id),
+        supabase.from('site_visits').select('id, visit_date, purpose, status, created_at').eq('client_id', client.id),
+        supabase.from('delivery_challans').select('id, dc_number, dc_date, status, created_at').eq('client_name', client.client_name),
+        supabase.from('meetings').select('id, meeting_date, agenda, status, created_at').eq('client_id', client.id)
+      ]);
+
+      safePush(quo.data, (r) => ({
+        type: 'quotation',
+        label: 'Quotation',
+        number: r.quotation_no || '-',
+        date: r.date || r.created_at,
+        amount: parseFloat(r.grand_total) || 0,
+        status: r.status || '-',
+        ref_id: r.id
+      }));
+
+      safePush(po.data, (r) => ({
+        type: 'client_po',
+        label: 'Client PO',
+        number: r.po_number || '-',
+        date: r.po_date || r.created_at,
+        amount: parseFloat(r.po_total_value) || 0,
+        status: r.status || '-',
+        ref_id: r.id
+      }));
+
+      safePush(prj.data, (r) => ({
+        type: 'project',
+        label: 'Project',
+        number: r.project_code || '-',
+        date: r.created_at,
+        amount: 0,
+        status: r.status || '-',
+        details: r.project_name || '-',
+        ref_id: r.id
+      }));
+
+      safePush(visit.data, (r) => ({
+        type: 'site_visit',
+        label: 'Site Visit',
+        number: `SV-${String(r.id).slice(0, 6)}`,
+        date: r.visit_date || r.created_at,
+        amount: 0,
+        status: r.status || '-',
+        details: r.purpose || '-',
+        ref_id: r.id
+      }));
+
+      safePush(dc.data, (r) => ({
+        type: 'delivery_challan',
+        label: 'Delivery Challan',
+        number: r.dc_number || '-',
+        date: r.dc_date || r.created_at,
+        amount: 0,
+        status: r.status || '-',
+        ref_id: r.id
+      }));
+
+      safePush(meet.data, (r) => ({
+        type: 'meeting',
+        label: 'Meeting',
+        number: `MT-${String(r.id).slice(0, 6)}`,
+        date: r.meeting_date || r.created_at,
+        amount: 0,
+        status: r.status || '-',
+        details: r.agenda || '-',
+        ref_id: r.id
+      }));
+    } catch (err) {
+      console.log('Transaction load warning:', err.message);
+    } finally {
+      merged.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+      setTransactions(merged);
+      setLoadingTx(false);
+    }
   };
 
-  const getCategoryTextColor = (category) => {
-    if (category === 'Active') return '#155724';
-    if (category === 'Inactive') return '#721c24';
-    return '#856404';
-  };
+  useEffect(() => {
+    if (activeClient) loadClientTransactions(activeClient);
+  }, [activeClientId]);
+
+  const filteredClients = clients.filter(c =>
+    c.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    c.client_id?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const filteredTransactions = transactions.filter((t) => {
+    if (txFilter !== 'all' && t.type !== txFilter) return false;
+    if (txDateFrom && new Date(t.date) < new Date(txDateFrom)) return false;
+    if (txDateTo && new Date(t.date) > new Date(txDateTo)) return false;
+    if (txSearch) {
+      const q = txSearch.toLowerCase();
+      if (
+        !(t.number || '').toLowerCase().includes(q) &&
+        !(t.label || '').toLowerCase().includes(q) &&
+        !(t.details || '').toLowerCase().includes(q)
+      ) return false;
+    }
+    return true;
+  });
+
+  const ledgerTotals = useMemo(() => {
+    let debit = 0;
+    let credit = 0;
+    transactions.forEach((t) => {
+      if (t.type === 'quotation') debit += t.amount || 0;
+      if (t.type === 'client_po') credit += t.amount || 0;
+    });
+    return { debit, credit, balance: debit - credit };
+  }, [transactions]);
 
   return (
-    <div>
-      <div className="page-header">
-        <h1 className="page-title">Client List</h1>
-        <button className="btn btn-primary" onClick={() => pushPath('/clients/new')}>+ Add Client</button>
-      </div>
-
-      <div className="card" style={{ marginBottom: '16px' }}>
-        <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
-          <button className={`btn ${filter === 'All' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setFilter('All')}>All</button>
-          <button className={`btn ${filter === 'Active' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setFilter('Active')}>Active</button>
-          <button className={`btn ${filter === 'Inactive' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setFilter('Inactive')}>Inactive</button>
-          <button className={`btn ${filter === 'Prospect' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setFilter('Prospect')}>Prospect</button>
-          <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <input 
-              type="text" 
-              className="form-input" 
-              placeholder="Search clients..." 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              style={{ width: '250px' }}
-            />
-          </div>
+    <div style={{ height: 'calc(100vh - 120px)', minHeight: '560px', display: 'grid', gridTemplateColumns: '300px 1fr', gap: '10px' }}>
+      <div className="card" style={{ padding: '8px', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+          <h3 style={{ margin: 0, fontSize: '16px' }}>Clients</h3>
+          <button className="btn btn-sm btn-primary" onClick={() => pushPath('/clients/new')} style={{ marginLeft: 'auto' }}>+ New</button>
+        </div>
+        <input
+          type="text"
+          className="form-input"
+          placeholder="Search client..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          style={{ marginBottom: '8px', padding: '6px 8px', fontSize: '12px' }}
+        />
+        <div style={{ overflowY: 'auto', minHeight: 0 }}>
+          {filteredClients.map((c) => (
+            <div
+              key={c.id}
+              onClick={() => setActiveClientId(c.id)}
+              style={{
+                padding: '8px',
+                borderRadius: '6px',
+                marginBottom: '6px',
+                border: activeClientId === c.id ? '1px solid #3b82f6' : '1px solid #e5e7eb',
+                background: activeClientId === c.id ? '#eff6ff' : '#fff',
+                cursor: 'pointer'
+              }}
+            >
+              <div style={{ fontSize: '13px', fontWeight: 600, lineHeight: 1.2 }}>{c.client_name}</div>
+              <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '2px' }}>{c.client_id || '-'} | {c.contact || '-'}</div>
+            </div>
+          ))}
         </div>
       </div>
 
-      <div className="card">
-        {filteredClients.length === 0 ? <div className="empty-state"><h3>No Clients</h3></div> : (
-          <div className="table-container">
-            <table className="table">
-              <thead><tr><th>Client ID</th><th>Client Name</th><th>Category</th><th>Contact</th><th>Email</th><th>GSTIN</th><th>State</th><th>Actions</th></tr></thead>
-              <tbody>{filteredClients.map(c => (
-                <tr key={c.id}>
-                  <td>{c.client_id}</td>
-                  <td>{c.client_name}</td>
-                  <td>
-                    <span style={{ 
-                      padding: '4px 8px', 
-                      borderRadius: '4px', 
-                      background: getCategoryColor(c.category),
-                      color: getCategoryTextColor(c.category),
-                      fontSize: '12px',
-                      fontWeight: 'bold'
-                    }}>
-                      {c.category || 'Active'}
-                    </span>
-                  </td>
-                  <td>{c.contact || '-'}</td>
-                  <td>{c.email || '-'}</td>
-                  <td>{c.gstin || '-'}</td>
-                  <td>{c.state || '-'}</td>
-                  <td>
-                    <button className="btn btn-sm btn-secondary" onClick={() => pushPath(`/clients/edit?id=${c.id}`)}>Edit</button>
-                    <button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px' }} onClick={() => deleteClient(c.id)}>Delete</button>
-                  </td>
-                </tr>
-              ))}</tbody>
-            </table>
-          </div>
+      <div className="card" style={{ padding: '10px', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+        {!activeClient ? (
+          <div className="empty-state"><h3>Select a client</h3></div>
+        ) : (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+              <h2 style={{ margin: 0, fontSize: '28px', lineHeight: 1.1 }}>{activeClient.client_name}</h2>
+              <button className="btn btn-sm btn-secondary" style={{ marginLeft: 'auto' }} onClick={() => pushPath(`/clients/edit?id=${activeClient.id}`)}>Edit</button>
+            </div>
+
+            <div style={{ display: 'flex', gap: '6px', borderBottom: '1px solid #e5e7eb', marginBottom: '8px' }}>
+              <button className={`btn btn-sm ${activeTab === 'overview' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('overview')}>Overview</button>
+              <button className={`btn btn-sm ${activeTab === 'ledger' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('ledger')}>Ledger Statement</button>
+              <button className={`btn btn-sm ${activeTab === 'transactions' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('transactions')}>Transactions</button>
+            </div>
+
+            <div style={{ minHeight: 0, overflow: 'auto' }}>
+              {activeTab === 'overview' && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '8px' }}>
+                  {[
+                    ['Client ID', activeClient.client_id || '-'],
+                    ['Contact', activeClient.contact || '-'],
+                    ['Email', activeClient.email || '-'],
+                    ['GSTIN', activeClient.gstin || '-'],
+                    ['State', activeClient.state || '-'],
+                    ['City', activeClient.city || '-'],
+                    ['Category', activeClient.category || 'Active'],
+                    ['Address', [activeClient.address1, activeClient.address2, activeClient.pincode].filter(Boolean).join(', ') || '-']
+                  ].map(([k, v]) => (
+                    <div key={k} style={{ border: '1px solid #e5e7eb', borderRadius: '6px', padding: '8px' }}>
+                      <div style={{ fontSize: '11px', color: '#6b7280' }}>{k}</div>
+                      <div style={{ fontSize: '13px', fontWeight: 600 }}>{v}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {activeTab === 'ledger' && (
+                <div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(140px, 1fr))', gap: '8px', marginBottom: '8px' }}>
+                    <div style={{ border: '1px solid #e5e7eb', borderRadius: '6px', padding: '8px' }}><div style={{ fontSize: '11px', color: '#6b7280' }}>Debit (Quotations)</div><div style={{ fontSize: '16px', fontWeight: 700 }}>Rs {ledgerTotals.debit.toFixed(2)}</div></div>
+                    <div style={{ border: '1px solid #e5e7eb', borderRadius: '6px', padding: '8px' }}><div style={{ fontSize: '11px', color: '#6b7280' }}>Credit (Client PO)</div><div style={{ fontSize: '16px', fontWeight: 700 }}>Rs {ledgerTotals.credit.toFixed(2)}</div></div>
+                    <div style={{ border: '1px solid #e5e7eb', borderRadius: '6px', padding: '8px' }}><div style={{ fontSize: '11px', color: '#6b7280' }}>Balance</div><div style={{ fontSize: '16px', fontWeight: 700 }}>Rs {ledgerTotals.balance.toFixed(2)}</div></div>
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#6b7280' }}>Ledger uses quotation amount as debit and client PO value as credit.</div>
+                </div>
+              )}
+
+              {activeTab === 'transactions' && (
+                <div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '160px 1fr 140px 140px', gap: '6px', marginBottom: '8px' }}>
+                    <select className="form-select" value={txFilter} onChange={(e) => setTxFilter(e.target.value)} style={{ padding: '6px 8px', fontSize: '12px' }}>
+                      <option value="all">All Types</option>
+                      <option value="quotation">Quotation</option>
+                      <option value="client_po">Client PO</option>
+                      <option value="project">Project</option>
+                      <option value="site_visit">Site Visit</option>
+                      <option value="delivery_challan">Delivery Challan</option>
+                      <option value="meeting">Meeting</option>
+                    </select>
+                    <input className="form-input" value={txSearch} onChange={(e) => setTxSearch(e.target.value)} placeholder="Search no/type/details..." style={{ padding: '6px 8px', fontSize: '12px' }} />
+                    <input type="date" className="form-input" value={txDateFrom} onChange={(e) => setTxDateFrom(e.target.value)} style={{ padding: '6px 8px', fontSize: '12px' }} />
+                    <input type="date" className="form-input" value={txDateTo} onChange={(e) => setTxDateTo(e.target.value)} style={{ padding: '6px 8px', fontSize: '12px' }} />
+                  </div>
+
+                  <div style={{ overflow: 'auto', border: '1px solid #e5e7eb', borderRadius: '6px' }}>
+                    <table className="table" style={{ margin: 0 }}>
+                      <thead>
+                        <tr>
+                          <th style={{ padding: '6px 8px', fontSize: '12px' }}>Type</th>
+                          <th style={{ padding: '6px 8px', fontSize: '12px' }}>Number</th>
+                          <th style={{ padding: '6px 8px', fontSize: '12px' }}>Date</th>
+                          <th style={{ padding: '6px 8px', fontSize: '12px' }}>Details</th>
+                          <th style={{ padding: '6px 8px', fontSize: '12px', textAlign: 'right' }}>Amount</th>
+                          <th style={{ padding: '6px 8px', fontSize: '12px' }}>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {loadingTx ? (
+                          <tr><td colSpan={6} style={{ padding: '8px' }}>Loading...</td></tr>
+                        ) : filteredTransactions.length === 0 ? (
+                          <tr><td colSpan={6} style={{ padding: '8px' }}>No transactions</td></tr>
+                        ) : filteredTransactions.map((t, idx) => (
+                          <tr key={`${t.type}-${t.ref_id}-${idx}`}>
+                            <td style={{ padding: '6px 8px', fontSize: '12px' }}>{t.label}</td>
+                            <td style={{ padding: '6px 8px', fontSize: '12px', fontWeight: 600 }}>{t.number}</td>
+                            <td style={{ padding: '6px 8px', fontSize: '12px' }}>{t.date ? new Date(t.date).toLocaleDateString() : '-'}</td>
+                            <td style={{ padding: '6px 8px', fontSize: '12px' }}>{t.details || '-'}</td>
+                            <td style={{ padding: '6px 8px', fontSize: '12px', textAlign: 'right' }}>Rs {(t.amount || 0).toFixed(2)}</td>
+                            <td style={{ padding: '6px 8px', fontSize: '12px' }}>{t.status}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          </>
         )}
       </div>
     </div>

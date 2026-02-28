@@ -188,6 +188,11 @@ function ItemsTab() {
       return;
     }
 
+    if (formData.hsn_code && !/^\d{1,10}$/.test(formData.hsn_code)) {
+      alert('HSN/SAC must be numeric and up to 10 digits.');
+      return;
+    }
+
     const materialData = {
       item_code: formData.item_code || generateItemCode(),
       name: formData.item_name,
@@ -452,7 +457,7 @@ function ItemsTab() {
 
       {showForm && (
         <div className="modal-overlay open" onClick={resetForm}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '800px', maxHeight: '90vh', overflowY: 'auto' }}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ width: '92vw', maxWidth: '1100px', maxHeight: '92vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <h2>{editingMaterial ? 'Edit Item' : 'Add Item'}</h2>
               <button onClick={resetForm} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}>×</button>
@@ -531,7 +536,15 @@ function ItemsTab() {
                   </div>
                   <div className="form-group">
                     <label className="form-label">HSN/SAC Code</label>
-                    <input type="text" className="form-input" value={formData.hsn_code} onChange={e => setFormData({...formData, hsn_code: e.target.value})} />
+                    <input
+                      type="text"
+                      className="form-input"
+                      inputMode="numeric"
+                      maxLength={10}
+                      placeholder="Numeric only (max 10 digits)"
+                      value={formData.hsn_code}
+                      onChange={e => setFormData({...formData, hsn_code: e.target.value.replace(/\D/g, '').slice(0, 10)})}
+                    />
                   </div>
                 </div>
                 <div className="form-row">

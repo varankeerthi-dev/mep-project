@@ -128,6 +128,7 @@ export default function CreateQuotation() {
       if (data.items) {
         setItems(data.items.map(item => ({
           ...item,
+          hsn_code: item.hsn_code || item.item?.hsn_code || null,
           id: item.id || Date.now() + Math.random()
         })));
       }
@@ -215,6 +216,7 @@ export default function CreateQuotation() {
       item_id: p.item_id,
       variant_id: p.variant_id || null,
       material: p.material,
+      hsn_code: p.material?.hsn_code || null,
       description: p.description,
       qty: p.qty,
       uom: p.uom,
@@ -235,6 +237,18 @@ export default function CreateQuotation() {
     setTimeout(() => {
       itemsTableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 50);
+  };
+
+  const withTimeout = async (promise, label, timeoutMs = 20000) => {
+    let timeoutId;
+    const timeoutPromise = new Promise((_, reject) => {
+      timeoutId = setTimeout(() => reject(new Error(`Timeout while ${label}. Please retry.`)), timeoutMs);
+    });
+    try {
+      return await Promise.race([promise, timeoutPromise]);
+    } finally {
+      clearTimeout(timeoutId);
+    }
   };
 
   const updateItem = (id, field, value) => {
@@ -348,7 +362,11 @@ export default function CreateQuotation() {
       let quotationId = editId;
 
       if (editId) {
-        await supabase.from('quotation_header').update(quotationData).eq('id', editId);
+        const { error: updateError } = await withTimeout(
+          supabase.from('quotation_header').update(quotationData).eq('id', editId),
+          'updating quotation header'
+        );
+        if (updateError) throw updateError;
       } else {
         const { data: existing } = await supabase
           .from('quotation_header')
@@ -362,20 +380,27 @@ export default function CreateQuotation() {
           quotationNo = `QT-${String(lastNum + 1).padStart(4, '0')}`;
         }
 
-        const { data, error } = await supabase
-          .from('quotation_header')
-          .insert({ ...quotationData, quotation_no: quotationNo })
-          .select()
-          .single();
+        const { data, error } = await withTimeout(
+          supabase
+            .from('quotation_header')
+            .insert({ ...quotationData, quotation_no: quotationNo })
+            .select()
+            .single(),
+          'creating quotation header'
+        );
         
         if (error) throw error;
         quotationId = data.id;
       }
 
-      await supabase
-        .from('quotation_items')
-        .delete()
-        .eq('quotation_id', quotationId);
+      const { error: deleteError } = await withTimeout(
+        supabase
+          .from('quotation_items')
+          .delete()
+          .eq('quotation_id', quotationId),
+        'clearing previous quotation items'
+      );
+      if (deleteError) throw deleteError;
 
       const itemsToInsert = items.map(item => ({
         quotation_id: quotationId,
@@ -394,7 +419,11 @@ export default function CreateQuotation() {
         override_flag: item.override_flag || false
       }));
 
-      await supabase.from('quotation_items').insert(itemsToInsert);
+      const { error: insertItemsError } = await withTimeout(
+        supabase.from('quotation_items').insert(itemsToInsert),
+        'saving quotation items'
+      );
+      if (insertItemsError) throw insertItemsError;
 
       alert(editId ? 'Quotation updated!' : 'Quotation created!');
       
@@ -572,16 +601,16 @@ export default function CreateQuotation() {
           <table className="table" style={{ minWidth: '1120px' }}>
             <thead>
               <tr>
-                <th style={{ width: '40px' }}>#</th>
+                <th style={{ width: '60px' }}>S.No</th>
+                <th style={{ width: '120px' }}>HSN/SAC</th>
                 <th>Item</th>
-                <th style={{ width: '150px' }}>Variant</th>
+                <th style={{ width: '140px' }}>Variant</th>
                 <th>Description</th>
                 <th style={{ width: '80px' }}>Qty</th>
-                <th style={{ width: '80px' }}>UOM</th>
-                <th style={{ width: '100px' }}>Rate</th>
-                <th style={{ width: '80px' }}>Disc %</th>
-                <th style={{ width: '100px' }}>Tax %</th>
-                <th style={{ width: '120px' }}>Line Total</th>
+                <th style={{ width: '90px' }}>Unit</th>
+                <th style={{ width: '110px' }}>Rate</th>
+                <th style={{ width: '90px' }}>Tax %</th>
+                <th style={{ width: '130px' }}>Amount</th>
                 <th style={{ width: '40px' }}></th>
               </tr>
             </thead>
@@ -597,6 +626,15 @@ export default function CreateQuotation() {
                   <tr key={item.id}>
                     <td>{index + 1}</td>
                     <td>
+                      <input
+                        type="text"
+                        className="form-input"
+                        value={item.hsn_code || item.material?.hsn_code || materials.find(m => m.id === item.item_id)?.hsn_code || ''}
+                        readOnly
+                        style={{ background: '#f8fafc' }}
+                      />
+                    </td>
+                    <td>
                       <select
                         className="form-select"
                         style={{ minWidth: '150px' }}
@@ -606,6 +644,7 @@ export default function CreateQuotation() {
                           updateItem(item.id, 'item_id', e.target.value);
                           if (mat) {
                             updateItem(item.id, 'material', mat);
+                            updateItem(item.id, 'hsn_code', mat.hsn_code || '');
                             updateItem(item.id, 'description', mat.display_name || mat.name);
                             updateItem(item.id, 'rate', getRateForMaterialVariant(mat, item.variant_id || null));
                             updateItem(item.id, 'uom', mat.unit || 'Nos');
@@ -678,18 +717,6 @@ export default function CreateQuotation() {
                       <input
                         type="number"
                         className="form-input"
-                        style={item.override_flag && formData.negotiation_mode ? { background: '#fef3c7' } : {}}
-                        value={item.discount_percent}
-                        onChange={(e) => updateItem(item.id, 'discount_percent', e.target.value)}
-                        min="0"
-                        max="100"
-                        step="0.01"
-                      />
-                    </td>
-                    <td>
-                      <input
-                        type="number"
-                        className="form-input"
                         value={item.tax_percent}
                         onChange={(e) => updateItem(item.id, 'tax_percent', e.target.value)}
                         min="0"
@@ -698,7 +725,7 @@ export default function CreateQuotation() {
                       />
                     </td>
                     <td style={{ fontWeight: 600, textAlign: 'right' }}>
-                      {formatCurrency(item.line_total)}
+                      {formatCurrency((parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0) - (item.discount_amount || 0))}
                     </td>
                     <td>
                       <button
@@ -838,8 +865,8 @@ export default function CreateQuotation() {
               <h3 style={{ margin: 0 }}>Add Multiple Items</h3>
               <button onClick={() => setShowItemPicker(false)} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}>x</button>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', flex: 1, overflow: 'hidden' }}>
-              <div style={{ borderRight: '1px solid #e5e7eb', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', flex: 1, minHeight: 0, overflow: 'hidden' }}>
+              <div style={{ borderRight: '1px solid #e5e7eb', display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>
                 <div style={{ padding: '12px', borderBottom: '1px solid #e5e7eb' }}>
                   <input
                     type='text'
@@ -850,7 +877,7 @@ export default function CreateQuotation() {
                     autoFocus
                   />
                 </div>
-                <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '6px', scrollBehavior: 'smooth' }}>
+                <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', padding: '6px', scrollBehavior: 'smooth' }}>
                   {filteredMaterials.map((m) => (
                     <div
                       key={m.id}
@@ -876,11 +903,11 @@ export default function CreateQuotation() {
                 </div>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>
                 <div style={{ padding: '12px', borderBottom: '1px solid #e5e7eb', fontWeight: 600 }}>
                   Selected Items ({pickerItems.length})
                 </div>
-                <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '12px', scrollBehavior: 'smooth' }}>
+                <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', padding: '12px', scrollBehavior: 'smooth' }}>
                   {pickerItems.length === 0 ? (
                     <div style={{ textAlign: 'center', color: '#6b7280', padding: '40px' }}>
                       Click items from left panel to add here
