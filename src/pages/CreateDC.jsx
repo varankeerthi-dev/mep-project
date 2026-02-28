@@ -13,6 +13,12 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
   const [pricing, setPricing] = useState({});
   const [clients, setClients] = useState([]);
   
+  // DC Settings - Allow insufficient stock
+  const [allowInsufficientStock, setAllowInsufficientStock] = useState(() => {
+    const saved = localStorage.getItem('dc_allow_insufficient_stock');
+    return saved === 'true';
+  });
+  
   // Shipping address state
   const [shippingAddresses, setShippingAddresses] = useState([]);
   const [selectedShippingIndex, setSelectedShippingIndex] = useState(-1);
@@ -334,11 +340,13 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
       
       let isValid = !!(item.material_id || updates.material_id) && qty > 0 && !hasVariantMissing;
       
-      if (isValid && formData.source_type === 'WAREHOUSE' && qty > avail) {
+      // If allow insufficient stock is enabled, mark as valid even with low stock
+      if (isValid && formData.source_type === 'WAREHOUSE' && qty > avail && !allowInsufficientStock) {
         isValid = false;
       }
       
       updates.valid = isValid;
+      updates.stock_warning = (formData.source_type === 'WAREHOUSE' && qty > avail);
       
       return { ...item, ...updates };
     }));
@@ -363,7 +371,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
         alert(`Invalid quantity for: ${item.material_name}`);
         return false;
       }
-      if (formData.source_type === 'WAREHOUSE' && parseFloat(item.quantity) > item.available_qty) {
+      if (formData.source_type === 'WAREHOUSE' && parseFloat(item.quantity) > item.available_qty && !allowInsufficientStock) {
         alert(`Insufficient stock for: ${item.material_name}`);
         return false;
       }
@@ -617,8 +625,20 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
 
   return (
     <div className="card">
-      <div className="card-header">
+      <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
         <h2 className="card-title">{isEditing ? 'Edit Delivery Challan' : 'Create Delivery Challan'}</h2>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', color: '#374151' }}>
+          <input
+            type="checkbox"
+            checked={allowInsufficientStock}
+            onChange={(e) => {
+              setAllowInsufficientStock(e.target.checked);
+              localStorage.setItem('dc_allow_insufficient_stock', e.target.checked);
+            }}
+            style={{ width: '16px', height: '16px' }}
+          />
+          Allow DC with insufficient stock
+        </label>
       </div>
       
       {clients.length === 0 && (
@@ -959,7 +979,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
                   </select>
                 </span>
                 {formData.source_type === 'WAREHOUSE' && (
-                  <span style={{ width: '80px', textAlign: 'right', color: item.quantity > item.available_qty ? '#dc3545' : '#28a745' }}>
+                  <span style={{ width: '80px', textAlign: 'right', color: (item.quantity > item.available_qty && !allowInsufficientStock) ? '#dc3545' : (item.quantity > item.available_qty ? '#f59e0b' : '#28a745') }}>
                     {item.available_qty.toFixed(2)}
                   </span>
                 )}

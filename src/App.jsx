@@ -1272,6 +1272,7 @@ function MaterialInward({ onCancel }) {
   const [pasteData, setPasteData] = useState('');
   const [formData, setFormData] = useState({ 
     invoice_date: '',
+    inward_date: new Date().toISOString().split('T')[0],
     received_date: new Date().toISOString().split('T')[0], 
     vendor_name: '', 
     invoice_no: '', 
@@ -1438,6 +1439,7 @@ function MaterialInward({ onCancel }) {
     try {
       const { data: inward, error } = await supabase.from('material_inward').insert({
         invoice_date: formData.invoice_date || null,
+        inward_date: formData.inward_date || null,
         received_date: formData.received_date,
         vendor_name: formData.vendor_name,
         invoice_no: formData.invoice_no,
@@ -1552,6 +1554,10 @@ function MaterialInward({ onCancel }) {
           <div className="form-group" style={{ margin: 0, minWidth: '140px' }}>
             <label className="form-label">Invoice Date</label>
             <input type="date" className="form-input" value={formData.invoice_date} onChange={e => setFormData({...formData, invoice_date: e.target.value})} />
+          </div>
+          <div className="form-group" style={{ margin: 0, minWidth: '140px' }}>
+            <label className="form-label">Inward Date *</label>
+            <input type="date" className="form-input" value={formData.inward_date} onChange={e => setFormData({...formData, inward_date: e.target.value})} />
           </div>
           <div className="form-group" style={{ margin: 0, minWidth: '140px' }}>
             <label className="form-label">Received Date *</label>
