@@ -940,6 +940,23 @@ body {
   color: #101828;
 }
 
+.item-name-link {
+  border: none;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  font-weight: 600;
+  color: #101828;
+  cursor: pointer;
+  text-align: left;
+}
+
+.item-name-link:hover {
+  color: #175cd3;
+  text-decoration: underline;
+}
+
 .item-main-sub {
   font-size: 12px;
   color: #667085;
@@ -1046,6 +1063,21 @@ body {
 .item-delete-modal {
   max-width: 480px;
   padding: 20px;
+}
+
+.bulk-price-modal {
+  padding: 20px;
+}
+
+.item-form-footer {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  gap: 12px;
+  padding-top: 14px;
+  margin-top: 18px;
+  border-top: 1px solid #eaecf0;
+  background: #fff;
 }
 
 /* Responsive */

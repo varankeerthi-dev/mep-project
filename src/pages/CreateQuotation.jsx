@@ -329,21 +329,23 @@ export default function CreateQuotation() {
   };
 
   const updateItem = (id, field, value) => {
-    setItems(items.map(item => {
-      if (item.id !== id) return item;
-      
-      const updates = { [field]: value };
-      
-      if (field === 'discount_percent' && formData.negotiation_mode) {
-        const original = item.original_discount_percent || 0;
-        updates.override_flag = value !== original;
-      }
-      if (field === 'rate' && formData.negotiation_mode) {
-        updates.override_flag = true;
-      }
-      
-      return { ...item, ...updates };
-    }));
+    setItems((prevItems) =>
+      prevItems.map((item) => {
+        if (item.id !== id) return item;
+
+        const updates = { [field]: value };
+
+        if (field === 'discount_percent' && formData.negotiation_mode) {
+          const original = item.original_discount_percent || 0;
+          updates.override_flag = value !== original;
+        }
+        if (field === 'rate' && formData.negotiation_mode) {
+          updates.override_flag = true;
+        }
+
+        return { ...item, ...updates };
+      })
+    );
   };
 
   const removeItem = (id) => {

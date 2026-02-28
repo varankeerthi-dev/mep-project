@@ -18,8 +18,108 @@ const ITEM_DETAIL_TABS = [
   { key: 'adjustments', label: 'Stock Adjustments' },
   { key: 'quotation', label: 'Quotation' },
   { key: 'invoice', label: 'Invoice' },
+  { key: 'purchase', label: 'Purchase Details' },
   { key: 'challan', label: 'Delivery Challan' },
+  { key: 'audit', label: 'Audit Trail' },
 ];
+
+const ITEM_TABLE_COLUMNS = [
+  { key: 'name', label: 'Name', default: true },
+  { key: 'code', label: 'Code', default: true },
+  { key: 'category', label: 'Category', default: true },
+  { key: 'unit', label: 'Unit', default: true },
+  { key: 'stock', label: 'Stock', default: true },
+  { key: 'status', label: 'Status', default: true },
+];
+
+const emptyItemTransactions = () => ({
+  warehouseRows: [],
+  adjustmentRows: [],
+  quotationRows: [],
+  invoiceRows: [],
+  purchaseRows: [],
+  challanRows: [],
+  auditRows: [],
+});
+
+const ITEM_AUDIT_STORAGE_KEY = 'items_audit_trail_v1';
+
+const getLocalAuditTrail = () => {
+  try {
+    const raw = localStorage.getItem(ITEM_AUDIT_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+const saveLocalAuditTrail = (entries) => {
+  try {
+    localStorage.setItem(ITEM_AUDIT_STORAGE_KEY, JSON.stringify(entries));
+  } catch {
+    // Ignore localStorage errors; detail tab still loads DB records if available.
+  }
+};
+
+const appendLocalAuditEntry = (entry) => {
+  const existing = getLocalAuditTrail();
+  const next = [entry, ...existing].slice(0, 400);
+  saveLocalAuditTrail(next);
+};
+
+const normalizeAuditChanges = (value) => {
+  if (Array.isArray(value)) return value;
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [value];
+    } catch {
+      return [value];
+    }
+  }
+  if (value && typeof value === 'object') {
+    return Object.entries(value).map(([key, val]) => `${key}: ${val}`);
+  }
+  return [];
+};
+
+const formatAuditValue = (value) => {
+  if (value === null || value === undefined || value === '') return '-';
+  if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+  return String(value);
+};
+
+const buildItemChangeLog = (before, after) => {
+  const keys = [
+    ['name', 'Item Name'],
+    ['display_name', 'Display Name'],
+    ['item_code', 'Item Code'],
+    ['main_category', 'Main Category'],
+    ['sub_category', 'Sub Category'],
+    ['size', 'Size'],
+    ['pressure_class', 'Pressure Class'],
+    ['schedule_type', 'Schedule'],
+    ['material', 'Material'],
+    ['end_connection', 'End Connection'],
+    ['unit', 'Unit'],
+    ['purchase_price', 'Purchase Price'],
+    ['sale_price', 'Sale Price'],
+    ['hsn_code', 'HSN/SAC'],
+    ['gst_rate', 'GST Rate'],
+    ['is_active', 'Active'],
+    ['uses_variant', 'Uses Variant'],
+  ];
+
+  return keys
+    .map(([key, label]) => {
+      const oldVal = before?.[key];
+      const newVal = after?.[key];
+      if (String(oldVal ?? '') === String(newVal ?? '')) return null;
+      return `${label}: ${formatAuditValue(oldVal)} -> ${formatAuditValue(newVal)}`;
+    })
+    .filter(Boolean);
+};
 
 function TabButton({ active, onClick, children }) {
   return (
@@ -48,22 +148,35 @@ function ItemsTab() {
   const [units, setUnits] = useState([]);
   const [variants, setVariants] = useState([]);
   const [showForm, setShowForm] = useState(false);
+  const [showColumnSettings, setShowColumnSettings] = useState(false);
+  const [showBulkPriceModal, setShowBulkPriceModal] = useState(false);
   const [editingMaterial, setEditingMaterial] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [hideInactive, setHideInactive] = useState(false);
+  const [saveNotice, setSaveNotice] = useState('');
+  const [bulkPriceText, setBulkPriceText] = useState('');
+  const [bulkPreviewRows, setBulkPreviewRows] = useState([]);
+  const [bulkParseErrors, setBulkParseErrors] = useState([]);
+  const [bulkApplyErrors, setBulkApplyErrors] = useState([]);
+  const [bulkInProgress, setBulkInProgress] = useState(false);
   const [selectedMaterialId, setSelectedMaterialId] = useState(null);
   const [activeDetailTab, setActiveDetailTab] = useState('overview');
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState('');
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteInProgress, setDeleteInProgress] = useState(false);
-  const [itemTransactions, setItemTransactions] = useState({
-    warehouseRows: [],
-    adjustmentRows: [],
-    quotationRows: [],
-    invoiceRows: [],
-    challanRows: [],
+  const [itemTransactions, setItemTransactions] = useState(emptyItemTransactions);
+  const [visibleColumns, setVisibleColumns] = useState(() => {
+    const saved = localStorage.getItem('itemsTableColumns');
+    if (!saved) return ITEM_TABLE_COLUMNS.filter((col) => col.default).map((col) => col.key);
+    try {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    } catch {
+      // ignore parse errors and use defaults
+    }
+    return ITEM_TABLE_COLUMNS.filter((col) => col.default).map((col) => col.key);
   });
 
   const [formData, setFormData] = useState({
@@ -91,12 +204,27 @@ function ItemsTab() {
     });
   };
 
+  const formatCurrencyOrDash = (value) => {
+    if (value === null || value === undefined || value === '') return '-';
+    return formatCurrency(value);
+  };
+
   useEffect(() => {
     loadMaterials();
     loadCategories();
     loadUnits();
     loadVariants();
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem('itemsTableColumns', JSON.stringify(visibleColumns));
+  }, [visibleColumns]);
+
+  useEffect(() => {
+    if (!saveNotice) return undefined;
+    const timer = window.setTimeout(() => setSaveNotice(''), 4000);
+    return () => window.clearTimeout(timer);
+  }, [saveNotice]);
 
   const loadMaterials = async () => {
     try {
@@ -112,11 +240,11 @@ function ItemsTab() {
           stockMap[s.item_id] += parseFloat(s.current_stock) || 0;
         });
         setStockData(stockMap);
-      } catch (e) {
+      } catch {
         console.log('item_stock table not found');
       }
-    } catch (e) {
-      console.log('materials table error', e);
+    } catch (error) {
+      console.log('materials table error', error);
     }
   };
 
@@ -124,7 +252,7 @@ function ItemsTab() {
     try {
       const { data } = await supabase.from('item_categories').select('*').eq('is_active', true).order('category_name');
       setCategories(data || []);
-    } catch (e) {
+    } catch {
       console.log('item_categories table not found, using defaults');
       setCategories([]);
     }
@@ -134,7 +262,7 @@ function ItemsTab() {
     try {
       const { data } = await supabase.from('item_units').select('*').eq('is_active', true).order('unit_name');
       setUnits(data || []);
-    } catch (e) {
+    } catch {
       console.log('item_units table not found, using defaults');
       setUnits([{ unit_code: 'nos', unit_name: 'Numbers' }]);
     }
@@ -144,7 +272,7 @@ function ItemsTab() {
     try {
       const { data } = await supabase.from('company_variants').select('*').eq('is_active', true).order('variant_name');
       setVariants(data || []);
-    } catch (e) {
+    } catch {
       console.log('company_variants table not found');
       setVariants([]);
     }
@@ -159,8 +287,8 @@ function ItemsTab() {
         pricingMap[p.company_variant_id] = { sale_price: p.sale_price, purchase_price: p.purchase_price };
       });
       setVariantPricing(pricingMap);
-    } catch (e) {
-      console.log('item_variant_pricing error', e);
+    } catch (error) {
+      console.log('item_variant_pricing error', error);
       setVariantPricing({});
     }
   };
@@ -175,9 +303,203 @@ function ItemsTab() {
         hasStock: (stockRes.data?.length || 0) > 0,
         hasPricing: (pricingRes.data?.length || 0) > 0
       };
-    } catch (e) {
+    } catch {
       return { hasStock: false, hasPricing: false };
     }
+  };
+
+  const toggleColumn = (columnKey) => {
+    setVisibleColumns((prev) => {
+      if (prev.includes(columnKey)) {
+        const next = prev.filter((col) => col !== columnKey);
+        return next.length > 0 ? next : prev;
+      }
+      return [...prev, columnKey];
+    });
+  };
+
+  const openBulkPriceModal = () => {
+    setShowBulkPriceModal(true);
+    setBulkPriceText('');
+    setBulkPreviewRows([]);
+    setBulkParseErrors([]);
+    setBulkApplyErrors([]);
+  };
+
+  const closeBulkPriceModal = () => {
+    if (bulkInProgress) return;
+    setShowBulkPriceModal(false);
+  };
+
+  const parseBulkPriceRows = () => {
+    const text = bulkPriceText.trim();
+    if (!text) {
+      setBulkPreviewRows([]);
+      setBulkParseErrors(['Paste data first.']);
+      return;
+    }
+
+    const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+    if (lines.length === 0) {
+      setBulkPreviewRows([]);
+      setBulkParseErrors(['No rows found in pasted data.']);
+      return;
+    }
+
+    const materialByCode = {};
+    const materialByName = {};
+    materials.forEach((item) => {
+      if (item.item_code) {
+        materialByCode[item.item_code.toLowerCase().trim()] = item;
+      }
+      if (item.display_name) {
+        materialByName[item.display_name.toLowerCase().trim()] = item;
+      }
+      if (item.name) {
+        materialByName[item.name.toLowerCase().trim()] = item;
+      }
+    });
+
+    const errors = [];
+    const rows = [];
+    let startIdx = 0;
+    const firstCols = lines[0].split('\t').map((c) => c.trim().toLowerCase());
+    const hasHeader = firstCols.some((c) => c.includes('item') || c.includes('code') || c.includes('sale') || c.includes('purchase'));
+    if (hasHeader) startIdx = 1;
+
+    for (let idx = startIdx; idx < lines.length; idx += 1) {
+      const raw = lines[idx];
+      const cols = raw.split('\t').map((c) => c.trim());
+      const rowNo = idx + 1;
+
+      if (cols.length < 2) {
+        errors.push(`Row ${rowNo}: requires at least 2 columns (Item Code/Name + Sale Price).`);
+        continue;
+      }
+
+      const identifier = cols[0];
+      const saleRaw = cols[1];
+      const purchaseRaw = cols[2] ?? '';
+
+      if (!identifier) {
+        errors.push(`Row ${rowNo}: missing item identifier.`);
+        continue;
+      }
+
+      const salePrice = saleRaw === '' ? null : parseFloat(saleRaw);
+      const purchasePrice = purchaseRaw === '' ? null : parseFloat(purchaseRaw);
+
+      if (saleRaw !== '' && Number.isNaN(salePrice)) {
+        errors.push(`Row ${rowNo}: invalid sale price "${saleRaw}".`);
+        continue;
+      }
+      if (purchaseRaw !== '' && Number.isNaN(purchasePrice)) {
+        errors.push(`Row ${rowNo}: invalid purchase price "${purchaseRaw}".`);
+        continue;
+      }
+      if (salePrice === null && purchasePrice === null) {
+        errors.push(`Row ${rowNo}: at least one price (sale/purchase) is required.`);
+        continue;
+      }
+
+      const key = identifier.toLowerCase().trim();
+      const found = materialByCode[key] || materialByName[key];
+      if (!found) {
+        errors.push(`Row ${rowNo}: item "${identifier}" not found.`);
+        continue;
+      }
+
+      const nextSale = salePrice === null ? found.sale_price : salePrice;
+      const nextPurchase = purchasePrice === null ? found.purchase_price : purchasePrice;
+      const hasChange = String(nextSale ?? '') !== String(found.sale_price ?? '') || String(nextPurchase ?? '') !== String(found.purchase_price ?? '');
+      if (!hasChange) continue;
+
+      rows.push({
+        rowNo,
+        identifier,
+        item: found,
+        nextSale,
+        nextPurchase,
+      });
+    }
+
+    setBulkPreviewRows(rows);
+    setBulkParseErrors(errors);
+  };
+
+  const applyBulkPriceUpdates = async () => {
+    if (bulkPreviewRows.length === 0) {
+      setBulkApplyErrors(['No valid rows to update. Click "Preview Changes" first.']);
+      return;
+    }
+
+    setBulkInProgress(true);
+    setBulkApplyErrors([]);
+    const failures = [];
+    let successCount = 0;
+    let canWriteDbAudit = true;
+
+    for (const row of bulkPreviewRows) {
+      const nowIso = new Date().toISOString();
+      const updateData = {
+        sale_price: row.nextSale,
+        purchase_price: row.nextPurchase,
+        updated_at: nowIso,
+      };
+
+      try {
+        const { error } = await supabase
+          .from('materials')
+          .update(updateData)
+          .eq('id', row.item.id);
+        if (error) throw error;
+
+        const auditChanges = buildItemChangeLog(row.item, { ...row.item, ...updateData });
+        const auditEntry = {
+          id: `local-bulk-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          item_id: row.item.id,
+          action: 'BULK_PRICE_UPDATE',
+          notes: `Bulk price update from Items page (Row ${row.rowNo})`,
+          changes: auditChanges,
+          created_at: nowIso,
+        };
+        appendLocalAuditEntry(auditEntry);
+
+        if (canWriteDbAudit) {
+          const { error: dbAuditError } = await supabase.from('item_audit_logs').insert({
+            item_id: row.item.id,
+            action: 'BULK_PRICE_UPDATE',
+            notes: auditEntry.notes,
+            changes: JSON.stringify(auditChanges),
+            created_at: nowIso,
+          });
+          if (dbAuditError) {
+            console.log('item_audit_logs bulk write warning:', dbAuditError.message);
+            canWriteDbAudit = false;
+          }
+        }
+
+        successCount += 1;
+      } catch (error) {
+        failures.push(`Row ${row.rowNo} (${row.identifier}): ${error.message}`);
+      }
+    }
+
+    await loadMaterials();
+    if (selectedMaterialId) {
+      await loadItemTransactions(selectedMaterialId);
+    }
+
+    setBulkApplyErrors(failures);
+    setSaveNotice(
+      failures.length > 0
+        ? `Bulk update finished: ${successCount} updated, ${failures.length} failed.`
+        : `Bulk update successful: ${successCount} items updated.`
+    );
+    if (failures.length === 0) {
+      closeBulkPriceModal();
+    }
+    setBulkInProgress(false);
   };
 
   const runQuery = async (label, queryBuilder) => {
@@ -205,6 +527,7 @@ function ItemsTab() {
         outwardItemRows,
         quotationItemRows,
         challanItemRows,
+        auditDbRows,
       ] = await Promise.all([
         runQuery(
           'item_stock',
@@ -245,6 +568,14 @@ function ItemsTab() {
             .from('delivery_challan_items')
             .select('id, delivery_challan_id, material_id, quantity, unit, rate, amount, created_at')
             .eq('material_id', itemId)
+            .order('created_at', { ascending: false })
+        ),
+        runQuery(
+          'item_audit_logs',
+          supabase
+            .from('item_audit_logs')
+            .select('*')
+            .eq('item_id', itemId)
             .order('created_at', { ascending: false })
         ),
       ]);
@@ -463,23 +794,59 @@ function ItemsTab() {
         (a, b) => new Date(b.doc_date || 0).getTime() - new Date(a.doc_date || 0).getTime()
       );
 
+      const normalizedPurchaseRows = inwardItemRows
+        .map((row) => {
+          const header = inwardMap[row.inward_id] || {};
+          const qty = parseFloat(row.quantity) || 0;
+          const rate = parseFloat(row.rate) || 0;
+          return {
+            id: `pur-${row.id}`,
+            vendor_name: header.vendor_name || '-',
+            invoice_no: header.invoice_no || '-',
+            purchase_date: header.inward_date || row.created_at,
+            qty,
+            unit: row.unit || '-',
+            rate,
+            amount: parseFloat(row.amount) || (qty * rate),
+          };
+        })
+        .sort((a, b) => new Date(b.purchase_date || 0).getTime() - new Date(a.purchase_date || 0).getTime());
+
+      const dbAuditRowsNormalized = auditDbRows.map((row) => ({
+        id: row.id || `db-${row.created_at || Date.now()}`,
+        action: row.action || row.action_type || row.event_type || 'UPDATED',
+        notes: row.notes || row.action_details || row.description || '-',
+        created_at: row.created_at || row.updated_at || row.timestamp || new Date().toISOString(),
+        changes: normalizeAuditChanges(row.changes || row.changed_fields || row.change_summary),
+      }));
+
+      const localAuditRowsNormalized = getLocalAuditTrail()
+        .filter((row) => row.item_id === itemId)
+        .map((row) => ({
+          id: row.id,
+          action: row.action || 'UPDATED',
+          notes: row.notes || '-',
+          created_at: row.created_at || new Date().toISOString(),
+          changes: normalizeAuditChanges(row.changes),
+        }));
+
+      const normalizedAuditRows = [...dbAuditRowsNormalized, ...localAuditRowsNormalized].sort(
+        (a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
+      );
+
       setItemTransactions({
         warehouseRows: normalizedWarehouseRows,
         adjustmentRows: normalizedAdjustments,
         quotationRows: normalizedQuotationRows,
         invoiceRows: normalizedInvoiceRows,
+        purchaseRows: normalizedPurchaseRows,
         challanRows: normalizedChallanRows,
+        auditRows: normalizedAuditRows,
       });
     } catch (err) {
       console.error('Item transaction load error:', err);
       setDetailError(err.message || 'Unable to load linked transactions');
-      setItemTransactions({
-        warehouseRows: [],
-        adjustmentRows: [],
-        quotationRows: [],
-        invoiceRows: [],
-        challanRows: [],
-      });
+      setItemTransactions(emptyItemTransactions());
     } finally {
       setDetailLoading(false);
     }
@@ -490,19 +857,14 @@ function ItemsTab() {
     const exists = materials.some((item) => item.id === selectedMaterialId);
     if (!exists) {
       setSelectedMaterialId(null);
-      setItemTransactions({
-        warehouseRows: [],
-        adjustmentRows: [],
-        quotationRows: [],
-        invoiceRows: [],
-        challanRows: [],
-      });
+      setItemTransactions(emptyItemTransactions());
     }
   }, [materials, selectedMaterialId]);
 
   useEffect(() => {
     if (!selectedMaterialId) return;
     loadItemTransactions(selectedMaterialId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedMaterialId]);
 
   const generateItemCode = () => {
@@ -543,9 +905,17 @@ function ItemsTab() {
     };
 
     try {
+      const isEditing = !!editingMaterial;
+      const originalMaterial = editingMaterial;
+      const nowIso = new Date().toISOString();
       let itemId;
-      if (editingMaterial) {
-        await supabase.from('materials').update({ ...materialData, updated_at: new Date().toISOString() }).eq('id', editingMaterial.id);
+
+      if (isEditing) {
+        const { error } = await supabase
+          .from('materials')
+          .update({ ...materialData, updated_at: nowIso })
+          .eq('id', editingMaterial.id);
+        if (error) throw error;
         itemId = editingMaterial.id;
       } else {
         const { data, error } = await supabase.from('materials').insert(materialData).select().single();
@@ -568,8 +938,39 @@ function ItemsTab() {
         }
       }
 
+      const changeLog = isEditing ? buildItemChangeLog(originalMaterial, materialData) : ['Item created'];
+      const auditEntry = {
+        id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        item_id: itemId,
+        action: isEditing ? 'UPDATED' : 'CREATED',
+        notes: isEditing ? `Item updated (${changeLog.length} changes)` : 'Item created',
+        changes: changeLog,
+        created_at: nowIso,
+      };
+      appendLocalAuditEntry(auditEntry);
+
+      if (isEditing) {
+        const dbAuditPayload = {
+          item_id: itemId,
+          action: 'UPDATED',
+          notes: auditEntry.notes,
+          changes: JSON.stringify(changeLog),
+          created_at: nowIso,
+        };
+        const { error: auditError } = await supabase.from('item_audit_logs').insert(dbAuditPayload);
+        if (auditError) {
+          console.log('item_audit_logs write warning:', auditError.message);
+        }
+      }
+
+      setSaveNotice(isEditing ? 'Item updated successfully.' : 'Item added successfully.');
+      setSelectedMaterialId(itemId);
+      setActiveDetailTab(isEditing ? 'audit' : 'overview');
+      await loadMaterials();
+      if (selectedMaterialId === itemId) {
+        await loadItemTransactions(itemId);
+      }
       resetForm();
-      loadMaterials();
     } catch (err) {
       alert('Error saving: ' + err.message);
     }
@@ -658,13 +1059,7 @@ function ItemsTab() {
         setMaterials((prev) => prev.filter((m) => m.id !== id));
         if (selectedMaterialId === id) {
           setSelectedMaterialId(null);
-          setItemTransactions({
-            warehouseRows: [],
-            adjustmentRows: [],
-            quotationRows: [],
-            invoiceRows: [],
-            challanRows: [],
-          });
+          setItemTransactions(emptyItemTransactions());
         }
       } else {
         const { error } = await supabase
@@ -734,7 +1129,9 @@ function ItemsTab() {
       itemTransactions.adjustmentRows.length +
       itemTransactions.quotationRows.length +
       itemTransactions.invoiceRows.length +
-      itemTransactions.challanRows.length,
+      itemTransactions.purchaseRows.length +
+      itemTransactions.challanRows.length +
+      itemTransactions.auditRows.length,
   };
 
   const categoryList = ['All', ...categories.map(c => c.category_name)];
@@ -744,11 +1141,39 @@ function ItemsTab() {
       <div className="page-header">
         <h1 className="page-title">Items</h1>
         <div style={{ display: 'flex', gap: '12px' }}>
+          <button className="btn btn-secondary" onClick={() => setShowColumnSettings((prev) => !prev)}>
+            Columns
+          </button>
+          <button className="btn btn-secondary" onClick={openBulkPriceModal}>
+            Bulk Price Update
+          </button>
           <button className="btn btn-primary" onClick={() => setShowForm(true)}>
             + Add Item
           </button>
         </div>
       </div>
+
+      {saveNotice && (
+        <div className="alert alert-success">{saveNotice}</div>
+      )}
+
+      {showColumnSettings && (
+        <div className="card" style={{ marginBottom: '16px' }}>
+          <h3 className="card-title">Select Visible Columns</h3>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '14px' }}>
+            {ITEM_TABLE_COLUMNS.map((column) => (
+              <label key={column.key} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={visibleColumns.includes(column.key)}
+                  onChange={() => toggleColumn(column.key)}
+                />
+                {column.label}
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="card" style={{ marginBottom: '16px' }}>
         <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -772,12 +1197,12 @@ function ItemsTab() {
             <table className="table items-reference-table">
               <thead>
                 <tr>
-                  <th>Name</th>
-                  <th>Code</th>
-                  <th>Category</th>
-                  <th>Unit</th>
-                  <th>Stock</th>
-                  <th>Status</th>
+                  {visibleColumns.includes('name') && <th>Name</th>}
+                  {visibleColumns.includes('code') && <th>Code</th>}
+                  {visibleColumns.includes('category') && <th>Category</th>}
+                  {visibleColumns.includes('unit') && <th>Unit</th>}
+                  {visibleColumns.includes('stock') && <th>Stock</th>}
+                  {visibleColumns.includes('status') && <th>Status</th>}
                   <th style={{ width: '190px' }}>Action</th>
                 </tr>
               </thead>
@@ -791,33 +1216,40 @@ function ItemsTab() {
                       key={m.id}
                       className={`item-click-row ${isSelected ? 'selected' : ''}`}
                       style={{ opacity: isActive ? 1 : 0.55 }}
-                      onClick={() => selectMaterialRow(m)}
                     >
-                      <td>
-                        <div className="item-main-cell">
-                          <div className="item-avatar">{(m.display_name || m.name || '?').slice(0, 1).toUpperCase()}</div>
-                          <div>
-                            <div className="item-main-name">{m.display_name || m.name}</div>
-                            <div className="item-main-sub">{m.material || m.size || 'Item'}</div>
+                      {visibleColumns.includes('name') && (
+                        <td>
+                          <div className="item-main-cell">
+                            <div className="item-avatar">{(m.display_name || m.name || '?').slice(0, 1).toUpperCase()}</div>
+                            <div>
+                              <button type="button" className="item-name-link" onClick={() => selectMaterialRow(m)}>
+                                {m.display_name || m.name}
+                              </button>
+                              <div className="item-main-sub">{m.material || m.size || 'Item'}</div>
+                            </div>
                           </div>
-                        </div>
-                      </td>
-                      <td>{m.item_code || '-'}</td>
-                      <td>{m.main_category || '-'}</td>
-                      <td>{m.unit || '-'}</td>
-                      <td style={{ color: stock < (m.low_stock_level || 0) ? '#b42318' : '#067647', fontWeight: 600 }}>
-                        {stock}
-                      </td>
-                      <td>
-                        <span className={`status-chip ${isActive ? 'active' : 'inactive'}`}>{isActive ? 'Active' : 'Inactive'}</span>
-                      </td>
+                        </td>
+                      )}
+                      {visibleColumns.includes('code') && <td>{m.item_code || '-'}</td>}
+                      {visibleColumns.includes('category') && <td>{m.main_category || '-'}</td>}
+                      {visibleColumns.includes('unit') && <td>{m.unit || '-'}</td>}
+                      {visibleColumns.includes('stock') && (
+                        <td style={{ color: stock < (m.low_stock_level || 0) ? '#b42318' : '#067647', fontWeight: 600 }}>
+                          {stock}
+                        </td>
+                      )}
+                      {visibleColumns.includes('status') && (
+                        <td>
+                          <span className={`status-chip ${isActive ? 'active' : 'inactive'}`}>{isActive ? 'Active' : 'Inactive'}</span>
+                        </td>
+                      )}
                       <td>
                         <div className="item-actions-cell">
-                          <button className="btn btn-sm btn-secondary" onClick={(e) => { e.stopPropagation(); editMaterial(m); }}>Edit</button>
-                          <button className="btn btn-sm btn-secondary" onClick={(e) => { e.stopPropagation(); toggleActive(m); }}>
+                          <button className="btn btn-sm btn-secondary" onClick={() => editMaterial(m)}>Edit</button>
+                          <button className="btn btn-sm btn-secondary" onClick={() => toggleActive(m)}>
                             {m.is_active ? 'Disable' : 'Enable'}
                           </button>
-                          <button className="btn btn-sm btn-secondary" onClick={(e) => { e.stopPropagation(); openDeleteModal(m); }}>Delete</button>
+                          <button className="btn btn-sm btn-secondary" onClick={() => openDeleteModal(m)}>Delete</button>
                         </div>
                       </td>
                     </tr>
@@ -1015,6 +1447,72 @@ function ItemsTab() {
               )
             )}
 
+            {!detailLoading && !detailError && activeDetailTab === 'purchase' && (
+              itemTransactions.purchaseRows.length === 0 ? (
+                <div className="empty-state"><h3>No purchase records for this item</h3></div>
+              ) : (
+                <div className="table-container" style={{ overflowX: 'auto' }}>
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>Vendor</th>
+                        <th>Invoice No</th>
+                        <th>Purchase Date</th>
+                        <th>Qty</th>
+                        <th>Rate</th>
+                        <th>Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {itemTransactions.purchaseRows.map((row) => (
+                        <tr key={row.id}>
+                          <td>{row.vendor_name}</td>
+                          <td>{row.invoice_no}</td>
+                          <td>{formatDate(row.purchase_date)}</td>
+                          <td>{row.qty.toFixed(2)} {row.unit}</td>
+                          <td>{formatCurrency(row.rate)}</td>
+                          <td>{formatCurrency(row.amount)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )
+            )}
+
+            {!detailLoading && !detailError && activeDetailTab === 'audit' && (
+              itemTransactions.auditRows.length === 0 ? (
+                <div className="empty-state"><h3>No audit entries found</h3></div>
+              ) : (
+                <div className="table-container" style={{ overflowX: 'auto' }}>
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>When</th>
+                        <th>Action</th>
+                        <th>Details</th>
+                        <th>Changes</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {itemTransactions.auditRows.map((row) => (
+                        <tr key={row.id}>
+                          <td>{formatDate(row.created_at)}</td>
+                          <td>{row.action}</td>
+                          <td>{row.notes}</td>
+                          <td>
+                            {row.changes?.length
+                              ? row.changes.join(' | ')
+                              : '-'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )
+            )}
+
             {!detailLoading && !detailError && activeDetailTab === 'challan' && (
               itemTransactions.challanRows.length === 0 ? (
                 <div className="empty-state"><h3>No delivery challan records</h3></div>
@@ -1051,6 +1549,91 @@ function ItemsTab() {
         </div>
       )}
 
+      {showBulkPriceModal && (
+        <div className="modal-overlay open" onClick={closeBulkPriceModal}>
+          <div
+            className="modal-content bulk-price-modal"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: '980px', width: '94vw', background: '#fff' }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <h3 style={{ margin: 0 }}>Bulk Price Update</h3>
+              <button onClick={closeBulkPriceModal} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}>×</button>
+            </div>
+
+            <div className="alert" style={{ background: '#f8fafc', color: '#344054', border: '1px solid #eaecf0' }}>
+              Paste from Excel using tab-separated columns:
+              <strong> Item Code/Name | Sale Price | Purchase Price(optional)</strong>.
+              Header row is supported.
+            </div>
+
+            <textarea
+              className="form-textarea"
+              value={bulkPriceText}
+              onChange={(e) => setBulkPriceText(e.target.value)}
+              placeholder={'item_code\tsale_price\tpurchase_price\nITEM-001\t125.50\t90\nITEM-002\t330\t'}
+              style={{ minHeight: '130px', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}
+            />
+
+            <div style={{ display: 'flex', gap: '10px', marginTop: '10px', marginBottom: '12px' }}>
+              <button className="btn btn-secondary" type="button" onClick={parseBulkPriceRows} disabled={bulkInProgress}>
+                Preview Changes
+              </button>
+              <button className="btn btn-primary" type="button" onClick={applyBulkPriceUpdates} disabled={bulkInProgress || bulkPreviewRows.length === 0}>
+                {bulkInProgress ? 'Applying...' : `Apply ${bulkPreviewRows.length} Updates`}
+              </button>
+            </div>
+
+            {bulkParseErrors.length > 0 && (
+              <div className="alert alert-error" style={{ marginTop: '8px' }}>
+                {bulkParseErrors.map((err, idx) => (
+                  <div key={`parse-${idx}`}>{err}</div>
+                ))}
+              </div>
+            )}
+
+            {bulkApplyErrors.length > 0 && (
+              <div className="alert alert-error" style={{ marginTop: '8px' }}>
+                {bulkApplyErrors.map((err, idx) => (
+                  <div key={`apply-${idx}`}>{err}</div>
+                ))}
+              </div>
+            )}
+
+            {bulkPreviewRows.length > 0 && (
+              <div className="table-container" style={{ overflowX: 'auto', marginTop: '12px' }}>
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Row</th>
+                      <th>Item</th>
+                      <th>Item Code</th>
+                      <th>Current Sale</th>
+                      <th>New Sale</th>
+                      <th>Current Purchase</th>
+                      <th>New Purchase</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {bulkPreviewRows.map((row) => (
+                      <tr key={`bulk-${row.rowNo}-${row.item.id}`}>
+                        <td>{row.rowNo}</td>
+                        <td>{row.item.display_name || row.item.name}</td>
+                        <td>{row.item.item_code || '-'}</td>
+                        <td>{formatCurrencyOrDash(row.item.sale_price)}</td>
+                        <td>{formatCurrency(row.nextSale)}</td>
+                        <td>{formatCurrencyOrDash(row.item.purchase_price)}</td>
+                        <td>{formatCurrencyOrDash(row.nextPurchase)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {deleteTarget && (
         <div className="modal-overlay open" onClick={closeDeleteModal}>
           <div className="modal-content item-delete-modal" onClick={(e) => e.stopPropagation()}>
@@ -1070,7 +1653,7 @@ function ItemsTab() {
       )}
       {showForm && (
         <div className="modal-overlay open" onClick={resetForm}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ width: '92vw', maxWidth: '1100px', maxHeight: '92vh', overflowY: 'auto' }}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ width: '92vw', maxWidth: '1100px', maxHeight: '92vh', overflowY: 'auto', background: '#fff' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <h2>{editingMaterial ? 'Edit Item' : 'Add Item'}</h2>
               <button onClick={resetForm} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}>×</button>
@@ -1270,7 +1853,7 @@ function ItemsTab() {
                 </div>
               )}
 
-              <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}>
+              <div className="item-form-footer">
                 <button type="submit" className="btn btn-primary">{editingMaterial ? 'Update Item' : 'Save Item'}</button>
                 <button type="button" className="btn btn-secondary" onClick={resetForm}>Cancel</button>
               </div>
