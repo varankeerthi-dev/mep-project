@@ -51,10 +51,17 @@ export default function CreateQuotation() {
 
   const [items, setItems] = useState([]);
   const itemsTableRef = useRef(null);
+  const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth <= 768 : false);
 
   useEffect(() => {
     loadInitialData();
   }, [editId]);
+
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   const loadInitialData = async () => {
     setLoading(true);
@@ -200,17 +207,6 @@ export default function CreateQuotation() {
 
   const handleRemoveFromPicker = (itemId) => {
     setPickerItems(pickerItems.filter(i => i.item_id !== itemId));
-  };
-
-  const handlePickerChange = (itemId, field, value) => {
-    setPickerItems(pickerItems.map(i => {
-      if (i.item_id !== itemId) return i;
-      const updated = { ...i, [field]: value };
-      if (field === 'variant_id') {
-        updated.rate = getRateForMaterialVariant(i.material, value || null);
-      }
-      return updated;
-    }));
   };
 
   const handleAddItemsToQuotation = () => {
@@ -435,6 +431,9 @@ export default function CreateQuotation() {
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(amount || 0);
   };
 
+  const compactLabelStyle = { fontWeight: 600, fontSize: '10px', marginBottom: '4px', lineHeight: 1.1 };
+  const compactFieldStyle = { minHeight: '34px', padding: '6px 8px', fontSize: '12px' };
+
   if (loading) {
     return <div style={{ padding: '40px', textAlign: 'center' }}>Loading...</div>;
   }
@@ -455,12 +454,13 @@ export default function CreateQuotation() {
         </div>
       </div>
 
-      <div style={{ background: '#f8f9fa', padding: '16px', borderRadius: '8px', marginBottom: '16px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
+      <div style={{ background: '#f8f9fa', padding: isMobile ? '10px' : '12px', borderRadius: '8px', marginBottom: '12px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))', gap: '10px' }}>
           <div className="form-group" style={{ margin: 0 }}>
-            <label className="form-label" style={{ fontWeight: 600, fontSize: '11px' }}>Client *</label>
+            <label className="form-label" style={compactLabelStyle}>Client *</label>
             <select
               className="form-select"
+              style={compactFieldStyle}
               value={formData.client_id}
               onChange={(e) => handleClientChange(e.target.value)}
             >
@@ -471,9 +471,10 @@ export default function CreateQuotation() {
             </select>
           </div>
           <div className="form-group" style={{ margin: 0 }}>
-            <label className="form-label" style={{ fontWeight: 600, fontSize: '11px' }}>Project</label>
+            <label className="form-label" style={compactLabelStyle}>Project</label>
             <select
               className="form-select"
+              style={compactFieldStyle}
               value={formData.project_id}
               onChange={(e) => setFormData({ ...formData, project_id: e.target.value })}
             >
@@ -484,25 +485,26 @@ export default function CreateQuotation() {
             </select>
           </div>
           <div className="form-group" style={{ margin: 0, gridColumn: '1 / -1' }}>
-            <label className="form-label" style={{ fontWeight: 600, fontSize: '11px' }}>Billing Address</label>
-            <div style={{ padding: '10px', background: '#fff', border: '1px solid #e5e7eb', borderRadius: '6px', minHeight: '40px', fontSize: '13px', whiteSpace: 'pre-wrap' }}>
+            <label className="form-label" style={compactLabelStyle}>Billing Address</label>
+            <div style={{ padding: '8px', background: '#fff', border: '1px solid #e5e7eb', borderRadius: '6px', minHeight: '34px', fontSize: '12px', whiteSpace: 'pre-wrap' }}>
               {formData.billing_address || '-'}
             </div>
           </div>
           <div className="form-group" style={{ margin: 0 }}>
-            <label className="form-label" style={{ fontWeight: 600, fontSize: '11px' }}>GSTIN</label>
+            <label className="form-label" style={compactLabelStyle}>GSTIN</label>
             <input
               type="text"
               className="form-input"
+              style={{ ...compactFieldStyle, background: '#f3f4f6' }}
               value={formData.gstin}
               readOnly
-              style={{ background: '#f3f4f6' }}
             />
           </div>
           <div className="form-group" style={{ margin: 0 }}>
-            <label className="form-label" style={{ fontWeight: 600, fontSize: '11px' }}>State</label>
+            <label className="form-label" style={compactLabelStyle}>State</label>
             <select
               className="form-select"
+              style={compactFieldStyle}
               value={formData.state}
               onChange={(e) => setFormData({ ...formData, state: e.target.value })}
             >
@@ -513,37 +515,41 @@ export default function CreateQuotation() {
             </select>
           </div>
           <div className="form-group" style={{ margin: 0 }}>
-            <label className="form-label" style={{ fontWeight: 600, fontSize: '11px' }}>Date</label>
+            <label className="form-label" style={compactLabelStyle}>Date</label>
             <input
               type="date"
               className="form-input"
+              style={compactFieldStyle}
               value={formData.date}
               onChange={(e) => setFormData({ ...formData, date: e.target.value })}
             />
           </div>
           <div className="form-group" style={{ margin: 0 }}>
-            <label className="form-label" style={{ fontWeight: 600, fontSize: '11px' }}>Valid Till</label>
+            <label className="form-label" style={compactLabelStyle}>Valid Till</label>
             <input
               type="date"
               className="form-input"
+              style={compactFieldStyle}
               value={formData.valid_till}
               onChange={(e) => setFormData({ ...formData, valid_till: e.target.value })}
             />
           </div>
           <div className="form-group" style={{ margin: 0 }}>
-            <label className="form-label" style={{ fontWeight: 600, fontSize: '11px' }}>Payment Terms</label>
+            <label className="form-label" style={compactLabelStyle}>Payment Terms</label>
             <input
               type="text"
               className="form-input"
+              style={compactFieldStyle}
               value={formData.payment_terms}
               onChange={(e) => setFormData({ ...formData, payment_terms: e.target.value })}
             />
           </div>
           <div className="form-group" style={{ margin: 0 }}>
-            <label className="form-label" style={{ fontWeight: 600, fontSize: '11px' }}>Reference</label>
+            <label className="form-label" style={compactLabelStyle}>Reference</label>
             <input
               type="text"
               className="form-input"
+              style={compactFieldStyle}
               value={formData.reference}
               onChange={(e) => setFormData({ ...formData, reference: e.target.value })}
             />
@@ -832,7 +838,7 @@ export default function CreateQuotation() {
               <h3 style={{ margin: 0 }}>Add Multiple Items</h3>
               <button onClick={() => setShowItemPicker(false)} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}>x</button>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', flex: 1, overflow: 'hidden' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', flex: 1, overflow: 'hidden' }}>
               <div style={{ borderRight: '1px solid #e5e7eb', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
                 <div style={{ padding: '12px', borderBottom: '1px solid #e5e7eb' }}>
                   <input
@@ -844,15 +850,15 @@ export default function CreateQuotation() {
                     autoFocus
                   />
                 </div>
-                <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '8px', scrollBehavior: 'smooth' }}>
+                <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '6px', scrollBehavior: 'smooth' }}>
                   {filteredMaterials.map((m) => (
                     <div
                       key={m.id}
                       style={{
-                        padding: '10px',
+                        padding: '8px',
                         border: '1px solid #e5e7eb',
                         borderRadius: '6px',
-                        marginBottom: '8px',
+                        marginBottom: '6px',
                         cursor: 'pointer',
                         display: 'flex',
                         justifyContent: 'space-between',
@@ -861,10 +867,10 @@ export default function CreateQuotation() {
                       onClick={() => handleAddItemToPicker(m)}
                     >
                       <div>
-                        <div style={{ fontWeight: 500 }}>{m.display_name || m.name}</div>
-                        <div style={{ fontSize: '12px', color: '#6b7280' }}>{m.item_code} | {m.unit} | Rs {m.sale_price || 0}</div>
+                        <div style={{ fontWeight: 500, fontSize: '12px', lineHeight: 1.2 }}>{m.display_name || m.name}</div>
+                        <div style={{ fontSize: '11px', color: '#6b7280' }}>{m.item_code} | {m.unit} | Rs {m.sale_price || 0}</div>
                       </div>
-                      <button style={{ background: '#2563eb', color: '#fff', border: 'none', borderRadius: '4px', padding: '4px 12px', cursor: 'pointer' }}>+</button>
+                      <button style={{ background: '#2563eb', color: '#fff', border: 'none', borderRadius: '4px', padding: '3px 10px', cursor: 'pointer', fontSize: '12px' }}>+</button>
                     </div>
                   ))}
                 </div>
@@ -883,59 +889,8 @@ export default function CreateQuotation() {
                     pickerItems.map((p) => (
                       <div key={`${p.item_id}-${p.variant_id || 'none'}`} style={{ padding: '10px', border: '1px solid #e5e7eb', borderRadius: '6px', marginBottom: '8px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                          <span style={{ fontWeight: 500 }}>{p.material?.display_name || p.material?.name}</span>
+                          <span style={{ fontWeight: 500, fontSize: '12px', lineHeight: 1.2 }}>{p.material?.display_name || p.material?.name}</span>
                           <button onClick={() => handleRemoveFromPicker(p.item_id)} style={{ background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer' }}>x</button>
-                        </div>
-
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
-                          <div>
-                            <label className='form-label' style={{ fontSize: '11px' }}>Variant</label>
-                            <select
-                              className='form-select'
-                              value={p.variant_id || ''}
-                              onChange={(e) => handlePickerChange(p.item_id, 'variant_id', e.target.value || null)}
-                            >
-                              <option value=''>No Variant</option>
-                              {variants.map((v) => (
-                                <option key={v.id} value={v.id}>{v.variant_name}</option>
-                              ))}
-                            </select>
-                          </div>
-                          <div>
-                            <label className='form-label' style={{ fontSize: '11px' }}>Rate</label>
-                            <input
-                              type='number'
-                              className='form-input'
-                              value={p.rate}
-                              onChange={(e) => handlePickerChange(p.item_id, 'rate', e.target.value)}
-                              min='0'
-                              step='0.01'
-                            />
-                          </div>
-                          <div>
-                            <label className='form-label' style={{ fontSize: '11px' }}>Discount %</label>
-                            <input
-                              type='number'
-                              className='form-input'
-                              value={p.discount_percent}
-                              onChange={(e) => handlePickerChange(p.item_id, 'discount_percent', e.target.value)}
-                              min='0'
-                              max='100'
-                              step='0.01'
-                            />
-                          </div>
-                          <div>
-                            <label className='form-label' style={{ fontSize: '11px' }}>Tax %</label>
-                            <input
-                              type='number'
-                              className='form-input'
-                              value={p.tax_percent}
-                              onChange={(e) => handlePickerChange(p.item_id, 'tax_percent', e.target.value)}
-                              min='0'
-                              max='100'
-                              step='0.01'
-                            />
-                          </div>
                         </div>
 
                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center', borderTop: '1px solid #f1f5f9', paddingTop: '8px' }}>
@@ -948,7 +903,7 @@ export default function CreateQuotation() {
                     ))
                   )}
                 </div>
-                <div style={{ padding: '12px', borderTop: '1px solid #e5e7eb', background: '#fafafa' }}>
+                <div style={{ padding: '12px', borderTop: '1px solid #e5e7eb', background: '#fafafa', position: 'sticky', bottom: 0 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', fontWeight: 600 }}>
                     <span>Selected Total</span>
                     <span>{formatCurrency(pickerItems.reduce((sum, p) => sum + ((parseFloat(p.qty) || 0) * (parseFloat(p.rate) || 0)), 0))}</span>
