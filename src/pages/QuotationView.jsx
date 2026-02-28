@@ -224,46 +224,54 @@ export default function QuotationView() {
   };
 
   const handlePrintAction = async (action, templateId = null) => {
-    let template = null;
-    
-    if (templateId) {
-      const { data } = await supabase
-        .from('document_templates')
-        .select('*')
-        .eq('id', templateId)
-        .single();
-      template = data;
-    } else if (quotation.template_id) {
-      const { data } = await supabase
-        .from('document_templates')
-        .select('*')
-        .eq('id', quotation.template_id)
-        .single();
-      template = data;
-    } else {
-      const { data } = await supabase
-        .from('document_templates')
-        .select('*')
-        .eq('document_type', 'Quotation')
-        .eq('is_default', true)
-        .single();
-      template = data;
-    }
+    try {
+      let template = null;
 
-    if (!template) {
-      alert('No template found. Please select a template from Template Settings.');
-      return;
-    }
+      if (templateId) {
+        const { data, error } = await supabase
+          .from('document_templates')
+          .select('*')
+          .eq('id', templateId)
+          .single();
+        if (error) throw error;
+        template = data;
+      } else if (quotation.template_id) {
+        const { data, error } = await supabase
+          .from('document_templates')
+          .select('*')
+          .eq('id', quotation.template_id)
+          .single();
+        if (error) throw error;
+        template = data;
+      } else {
+        const { data, error } = await supabase
+          .from('document_templates')
+          .select('*')
+          .eq('document_type', 'Quotation')
+          .eq('is_default', true)
+          .single();
+        if (error) throw error;
+        template = data;
+      }
 
-    if (action === 'preview') {
-      previewQuotation(template);
-    } else if (action === 'download') {
-      downloadPDF(template);
-    } else if (action === 'email') {
-      alert('Email feature coming soon!');
+      if (!template) {
+        alert('No template found. Please select a template from Template Settings.');
+        return;
+      }
+
+      if (action === 'preview') {
+        previewQuotation(template);
+      } else if (action === 'download') {
+        downloadPDF(template);
+      } else if (action === 'email') {
+        alert('Email feature coming soon!');
+      }
+
+      setShowPrintMenu(false);
+    } catch (err) {
+      console.error('Error preparing print action:', err);
+      alert('Unable to load print template. Please verify template settings.');
     }
-    
-    setShowPrintMenu(false);
   };
 
   const previewQuotation = (template) => {
@@ -275,6 +283,8 @@ export default function QuotationView() {
 
   const downloadPDF = (template) => {
     try {
+      if (!quotation) throw new Error('Quotation data is missing');
+
       const isLandscape = template.orientation === 'Landscape';
       const doc = new jsPDF({
         orientation: isLandscape ? 'landscape' : 'portrait',
@@ -433,7 +443,10 @@ export default function QuotationView() {
         doc.text('Authorized Signature', 140, signStart + 15);
       }
 
-      doc.save(`${quotation.quotation_no}.pdf`);
+      const safeFileName = String(quotation.quotation_no || 'quotation')
+        .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
+        .replace(/\s+/g, '_');
+      doc.save(`${safeFileName}.pdf`);
     } catch (err) {
       console.error('Error generating PDF:', err);
       alert('PDF export failed. Please check template settings and try again.');
