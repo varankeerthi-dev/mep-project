@@ -958,6 +958,48 @@ function ClientList() {
 
   const getTransactionsByType = (type) => filteredTransactions.filter((t) => t.type === type);
 
+  const txCounts = useMemo(() => {
+    const counts = {
+      quotation: 0,
+      client_po: 0,
+      project: 0,
+      site_visit: 0,
+      delivery_challan: 0,
+      meeting: 0
+    };
+    transactions.forEach((t) => {
+      if (counts[t.type] !== undefined) counts[t.type] += 1;
+    });
+    return counts;
+  }, [transactions]);
+
+  const openTransaction = (t) => {
+    if (!t) return;
+    if (t.type === 'quotation') {
+      pushPath(`/quotation/view?id=${t.ref_id}`);
+      return;
+    }
+    if (t.type === 'client_po') {
+      pushPath(`/client-po/details?id=${t.ref_id}`);
+      return;
+    }
+    if (t.type === 'project') {
+      pushPath('/projects');
+      return;
+    }
+    if (t.type === 'site_visit') {
+      pushPath(`/site-visits/edit?id=${t.ref_id}`);
+      return;
+    }
+    if (t.type === 'delivery_challan') {
+      pushPath(`/dc/edit/${t.ref_id}`);
+      return;
+    }
+    if (t.type === 'meeting') {
+      pushPath(`/meetings/edit?id=${t.ref_id}`);
+    }
+  };
+
   const ledgerTotals = useMemo(() => {
     let debit = 0;
     let credit = 0;
@@ -1018,12 +1060,12 @@ function ClientList() {
               <button className={`btn btn-sm ${activeTab === 'overview' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('overview')}>Overview</button>
               <button className={`btn btn-sm ${activeTab === 'ledger' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('ledger')}>Ledger Statement</button>
               <button className={`btn btn-sm ${activeTab === 'transactions' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('transactions')}>Transactions</button>
-              <button className={`btn btn-sm ${activeTab === 'tab-quotation' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('tab-quotation')}>Quotations</button>
-              <button className={`btn btn-sm ${activeTab === 'tab-client-po' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('tab-client-po')}>Client PO</button>
-              <button className={`btn btn-sm ${activeTab === 'tab-project' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('tab-project')}>Projects</button>
-              <button className={`btn btn-sm ${activeTab === 'tab-site-visit' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('tab-site-visit')}>Site Visits</button>
-              <button className={`btn btn-sm ${activeTab === 'tab-delivery-challan' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('tab-delivery-challan')}>Delivery Challans</button>
-              <button className={`btn btn-sm ${activeTab === 'tab-meeting' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('tab-meeting')}>Meetings</button>
+              <button className={`btn btn-sm ${activeTab === 'tab-quotation' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('tab-quotation')}>Quotations ({txCounts.quotation})</button>
+              <button className={`btn btn-sm ${activeTab === 'tab-client-po' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('tab-client-po')}>Client PO ({txCounts.client_po})</button>
+              <button className={`btn btn-sm ${activeTab === 'tab-project' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('tab-project')}>Projects ({txCounts.project})</button>
+              <button className={`btn btn-sm ${activeTab === 'tab-site-visit' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('tab-site-visit')}>Site Visits ({txCounts.site_visit})</button>
+              <button className={`btn btn-sm ${activeTab === 'tab-delivery-challan' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('tab-delivery-challan')}>Delivery Challans ({txCounts.delivery_challan})</button>
+              <button className={`btn btn-sm ${activeTab === 'tab-meeting' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('tab-meeting')}>Meetings ({txCounts.meeting})</button>
             </div>
 
             <div style={{ minHeight: 0, overflow: 'auto' }}>
@@ -1085,13 +1127,14 @@ function ClientList() {
                           <th style={{ padding: '6px 8px', fontSize: '12px' }}>Details</th>
                           <th style={{ padding: '6px 8px', fontSize: '12px', textAlign: 'right' }}>Amount</th>
                           <th style={{ padding: '6px 8px', fontSize: '12px' }}>Status</th>
+                          <th style={{ padding: '6px 8px', fontSize: '12px' }}>Action</th>
                         </tr>
                       </thead>
                       <tbody>
                         {loadingTx ? (
-                          <tr><td colSpan={6} style={{ padding: '8px' }}>Loading...</td></tr>
+                          <tr><td colSpan={7} style={{ padding: '8px' }}>Loading...</td></tr>
                         ) : filteredTransactions.length === 0 ? (
-                          <tr><td colSpan={6} style={{ padding: '8px' }}>No transactions</td></tr>
+                          <tr><td colSpan={7} style={{ padding: '8px' }}>No transactions</td></tr>
                         ) : filteredTransactions.map((t, idx) => (
                           <tr key={`${t.type}-${t.ref_id}-${idx}`}>
                             <td style={{ padding: '6px 8px', fontSize: '12px' }}>{t.label}</td>
@@ -1100,6 +1143,9 @@ function ClientList() {
                             <td style={{ padding: '6px 8px', fontSize: '12px' }}>{t.details || '-'}</td>
                             <td style={{ padding: '6px 8px', fontSize: '12px', textAlign: 'right' }}>Rs {(t.amount || 0).toFixed(2)}</td>
                             <td style={{ padding: '6px 8px', fontSize: '12px' }}>{t.status}</td>
+                            <td style={{ padding: '6px 8px', fontSize: '12px' }}>
+                              <button className="btn btn-sm btn-secondary" onClick={() => openTransaction(t)}>Open</button>
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -1131,6 +1177,7 @@ function ClientList() {
                           <th style={{ padding: '6px 8px', fontSize: '12px' }}>Details</th>
                           <th style={{ padding: '6px 8px', fontSize: '12px', textAlign: 'right' }}>Amount</th>
                           <th style={{ padding: '6px 8px', fontSize: '12px' }}>Status</th>
+                          <th style={{ padding: '6px 8px', fontSize: '12px' }}>Action</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1144,8 +1191,8 @@ function ClientList() {
                             'tab-meeting': 'meeting'
                           };
                           const scoped = getTransactionsByType(typeMap[activeTab]);
-                          if (loadingTx) return <tr><td colSpan={6} style={{ padding: '8px' }}>Loading...</td></tr>;
-                          if (scoped.length === 0) return <tr><td colSpan={6} style={{ padding: '8px' }}>No records</td></tr>;
+                          if (loadingTx) return <tr><td colSpan={7} style={{ padding: '8px' }}>Loading...</td></tr>;
+                          if (scoped.length === 0) return <tr><td colSpan={7} style={{ padding: '8px' }}>No records</td></tr>;
                           return scoped.map((t, idx) => (
                             <tr key={`${activeTab}-${t.ref_id}-${idx}`}>
                               <td style={{ padding: '6px 8px', fontSize: '12px' }}>{t.label}</td>
@@ -1154,6 +1201,9 @@ function ClientList() {
                               <td style={{ padding: '6px 8px', fontSize: '12px' }}>{t.details || '-'}</td>
                               <td style={{ padding: '6px 8px', fontSize: '12px', textAlign: 'right' }}>Rs {(t.amount || 0).toFixed(2)}</td>
                               <td style={{ padding: '6px 8px', fontSize: '12px' }}>{t.status}</td>
+                              <td style={{ padding: '6px 8px', fontSize: '12px' }}>
+                                <button className="btn btn-sm btn-secondary" onClick={() => openTransaction(t)}>Open</button>
+                              </td>
                             </tr>
                           ));
                         })()}
