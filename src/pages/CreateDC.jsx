@@ -48,7 +48,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
     ship_to_pincode: '',
     ship_to_gstin: '',
     ship_to_contact: '',
-    status: 'DRAFT'
+    status: 'active'
   });
 
   const [items, setItems] = useState([
