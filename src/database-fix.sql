@@ -11,17 +11,10 @@ DROP POLICY IF EXISTS "org_members_manage" ON org_members;
 
 -- Create policies (will work if tables exist)
 CREATE POLICY "_org_members_view" ON organisations
-  FOR SELECT USING (
-    id IN (SELECT organisation_id FROM org_members WHERE user_id = auth.uid())
-  );
+  FOR SELECT TO authenticated USING (true);
 
 CREATE POLICY "org_admins_manage" ON organisations
-  FOR ALL USING (
-    id IN (
-      SELECT organisation_id FROM org_members 
-      WHERE user_id = auth.uid() AND role = 'admin'
-    )
-  );
+  FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 CREATE POLICY "users_view_own_profile" ON user_profiles
   FOR SELECT USING (user_id = auth.uid());
@@ -33,19 +26,10 @@ CREATE POLICY "users_insert_own_profile" ON user_profiles
   FOR INSERT WITH CHECK (user_id = auth.uid());
 
 CREATE POLICY "org_members_view_members" ON org_members
-  FOR SELECT USING (
-    organisation_id IN (
-      SELECT organisation_id FROM org_members WHERE user_id = auth.uid()
-    )
-  );
+  FOR SELECT TO authenticated USING (true);
 
 CREATE POLICY "org_members_manage" ON org_members
-  FOR ALL USING (
-    organisation_id IN (
-      SELECT organisation_id FROM org_members 
-      WHERE user_id = auth.uid() AND role = 'admin'
-    )
-  );
+  FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
 -- Create or replace the function
 DROP FUNCTION IF EXISTS public.create_organisation_with_admin(VARCHAR, UUID);
