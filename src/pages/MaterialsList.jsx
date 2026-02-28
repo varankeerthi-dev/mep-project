@@ -24,13 +24,26 @@ const ITEM_DETAIL_TABS = [
 ];
 
 const ITEM_TABLE_COLUMNS = [
-  { key: 'name', label: 'Name', default: true },
-  { key: 'code', label: 'Code', default: true },
-  { key: 'category', label: 'Category', default: true },
-  { key: 'unit', label: 'Unit', default: true },
+  { key: 'name', label: 'Name', default: true, locked: true },
+  { key: 'code', label: 'Code', default: true, locked: true },
+  { key: 'category', label: 'Category', default: true, locked: true },
+  { key: 'sub_category', label: 'Sub Category', default: false },
+  { key: 'size', label: 'Size', default: false },
+  { key: 'pressure_class', label: 'Pressure Class', default: false },
+  { key: 'schedule_type', label: 'Type/Schedule', default: false },
+  { key: 'material', label: 'Material', default: false },
+  { key: 'end_connection', label: 'End Connection', default: false },
+  { key: 'unit', label: 'Unit', default: true, locked: true },
+  { key: 'sale_price', label: 'Sale Price', default: false },
+  { key: 'purchase_price', label: 'Purchase Price', default: false },
+  { key: 'hsn_code', label: 'HSN/SAC', default: false },
+  { key: 'gst_rate', label: 'GST Rate', default: false },
+  { key: 'uses_variant', label: 'Uses Variant', default: false },
   { key: 'stock', label: 'Stock', default: true },
   { key: 'status', label: 'Status', default: true },
 ];
+
+const MANDATORY_ITEM_COLUMNS = ['name', 'code', 'category', 'unit'];
 
 const emptyItemTransactions = () => ({
   warehouseRows: [],
@@ -150,6 +163,8 @@ function ItemsTab() {
   const [showForm, setShowForm] = useState(false);
   const [showColumnSettings, setShowColumnSettings] = useState(false);
   const [showBulkPriceModal, setShowBulkPriceModal] = useState(false);
+  const [showItemWorkspace, setShowItemWorkspace] = useState(false);
+  const [workspaceSearch, setWorkspaceSearch] = useState('');
   const [editingMaterial, setEditingMaterial] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
@@ -169,14 +184,17 @@ function ItemsTab() {
   const [itemTransactions, setItemTransactions] = useState(emptyItemTransactions);
   const [visibleColumns, setVisibleColumns] = useState(() => {
     const saved = localStorage.getItem('itemsTableColumns');
-    if (!saved) return ITEM_TABLE_COLUMNS.filter((col) => col.default).map((col) => col.key);
+    const defaultCols = ITEM_TABLE_COLUMNS.filter((col) => col.default).map((col) => col.key);
+    if (!saved) return defaultCols;
     try {
       const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return [...new Set([...MANDATORY_ITEM_COLUMNS, ...parsed])];
+      }
     } catch {
       // ignore parse errors and use defaults
     }
-    return ITEM_TABLE_COLUMNS.filter((col) => col.default).map((col) => col.key);
+    return defaultCols;
   });
 
   const [formData, setFormData] = useState({
@@ -309,12 +327,13 @@ function ItemsTab() {
   };
 
   const toggleColumn = (columnKey) => {
+    if (MANDATORY_ITEM_COLUMNS.includes(columnKey)) return;
     setVisibleColumns((prev) => {
       if (prev.includes(columnKey)) {
         const next = prev.filter((col) => col !== columnKey);
-        return next.length > 0 ? next : prev;
+        return next.length > 0 ? [...new Set([...MANDATORY_ITEM_COLUMNS, ...next])] : prev;
       }
-      return [...prev, columnKey];
+      return [...new Set([...prev, columnKey, ...MANDATORY_ITEM_COLUMNS])];
     });
   };
 
@@ -1118,6 +1137,52 @@ function ItemsTab() {
   const selectMaterialRow = (material) => {
     setSelectedMaterialId(material.id);
     setActiveDetailTab('overview');
+    setShowItemWorkspace(true);
+  };
+
+  const closeItemWorkspace = () => {
+    setShowItemWorkspace(false);
+  };
+
+  const workspaceMaterials = materials
+    .filter((item) => {
+      if (!workspaceSearch.trim()) return true;
+      const s = workspaceSearch.toLowerCase();
+      return (
+        item.display_name?.toLowerCase().includes(s) ||
+        item.name?.toLowerCase().includes(s) ||
+        item.item_code?.toLowerCase().includes(s)
+      );
+    })
+    .sort((a, b) => (a.display_name || a.name || '').localeCompare(b.display_name || b.name || ''));
+
+  const formatColumnValue = (material, key) => {
+    switch (key) {
+      case 'sub_category':
+        return material.sub_category || '-';
+      case 'size':
+        return material.size || '-';
+      case 'pressure_class':
+        return material.pressure_class || '-';
+      case 'schedule_type':
+        return material.schedule_type || '-';
+      case 'material':
+        return material.material || '-';
+      case 'end_connection':
+        return material.end_connection || '-';
+      case 'sale_price':
+        return formatCurrencyOrDash(material.sale_price);
+      case 'purchase_price':
+        return formatCurrencyOrDash(material.purchase_price);
+      case 'hsn_code':
+        return material.hsn_code || '-';
+      case 'gst_rate':
+        return material.gst_rate !== null && material.gst_rate !== undefined ? `${material.gst_rate}%` : '-';
+      case 'uses_variant':
+        return material.uses_variant ? 'Yes' : 'No';
+      default:
+        return '-';
+    }
   };
 
   const overviewStats = {
@@ -1166,13 +1231,14 @@ function ItemsTab() {
                 <input
                   type="checkbox"
                   checked={visibleColumns.includes(column.key)}
+                  disabled={column.locked}
                   onChange={() => toggleColumn(column.key)}
                 />
-                {column.label}
+                {column.label}{column.locked ? ' (Default)' : ''}
               </label>
             ))}
+            </div>
           </div>
-        </div>
       )}
 
       <div className="card" style={{ marginBottom: '16px' }}>
@@ -1200,7 +1266,18 @@ function ItemsTab() {
                   {visibleColumns.includes('name') && <th>Name</th>}
                   {visibleColumns.includes('code') && <th>Code</th>}
                   {visibleColumns.includes('category') && <th>Category</th>}
+                  {visibleColumns.includes('sub_category') && <th>Sub Category</th>}
+                  {visibleColumns.includes('size') && <th>Size</th>}
+                  {visibleColumns.includes('pressure_class') && <th>Pressure Class</th>}
+                  {visibleColumns.includes('schedule_type') && <th>Type/Schedule</th>}
+                  {visibleColumns.includes('material') && <th>Material</th>}
+                  {visibleColumns.includes('end_connection') && <th>End Connection</th>}
                   {visibleColumns.includes('unit') && <th>Unit</th>}
+                  {visibleColumns.includes('sale_price') && <th>Sale Price</th>}
+                  {visibleColumns.includes('purchase_price') && <th>Purchase Price</th>}
+                  {visibleColumns.includes('hsn_code') && <th>HSN/SAC</th>}
+                  {visibleColumns.includes('gst_rate') && <th>GST Rate</th>}
+                  {visibleColumns.includes('uses_variant') && <th>Variant</th>}
                   {visibleColumns.includes('stock') && <th>Stock</th>}
                   {visibleColumns.includes('status') && <th>Status</th>}
                   <th style={{ width: '190px' }}>Action</th>
@@ -1232,7 +1309,18 @@ function ItemsTab() {
                       )}
                       {visibleColumns.includes('code') && <td>{m.item_code || '-'}</td>}
                       {visibleColumns.includes('category') && <td>{m.main_category || '-'}</td>}
+                      {visibleColumns.includes('sub_category') && <td>{formatColumnValue(m, 'sub_category')}</td>}
+                      {visibleColumns.includes('size') && <td>{formatColumnValue(m, 'size')}</td>}
+                      {visibleColumns.includes('pressure_class') && <td>{formatColumnValue(m, 'pressure_class')}</td>}
+                      {visibleColumns.includes('schedule_type') && <td>{formatColumnValue(m, 'schedule_type')}</td>}
+                      {visibleColumns.includes('material') && <td>{formatColumnValue(m, 'material')}</td>}
+                      {visibleColumns.includes('end_connection') && <td>{formatColumnValue(m, 'end_connection')}</td>}
                       {visibleColumns.includes('unit') && <td>{m.unit || '-'}</td>}
+                      {visibleColumns.includes('sale_price') && <td>{formatColumnValue(m, 'sale_price')}</td>}
+                      {visibleColumns.includes('purchase_price') && <td>{formatColumnValue(m, 'purchase_price')}</td>}
+                      {visibleColumns.includes('hsn_code') && <td>{formatColumnValue(m, 'hsn_code')}</td>}
+                      {visibleColumns.includes('gst_rate') && <td>{formatColumnValue(m, 'gst_rate')}</td>}
+                      {visibleColumns.includes('uses_variant') && <td>{formatColumnValue(m, 'uses_variant')}</td>}
                       {visibleColumns.includes('stock') && (
                         <td style={{ color: stock < (m.low_stock_level || 0) ? '#b42318' : '#067647', fontWeight: 600 }}>
                           {stock}
@@ -1261,32 +1349,67 @@ function ItemsTab() {
         )}
       </div>
 
-      {selectedMaterial && (
-        <div className="card item-details-card" style={{ marginTop: '16px' }}>
-          <div className="item-details-head">
-            <div>
-              <h3 style={{ margin: 0 }}>{selectedMaterial.display_name || selectedMaterial.name}</h3>
-              <div className="item-details-meta">
-                Code: {selectedMaterial.item_code || '-'} | Category: {selectedMaterial.main_category || '-'} | Unit: {selectedMaterial.unit || '-'}
+      {showItemWorkspace && selectedMaterial && (
+        <div className="modal-overlay open" onClick={closeItemWorkspace}>
+          <div className="modal-content item-workspace-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="item-workspace-layout">
+              <div className="item-workspace-left">
+                <div className="item-workspace-left-head">
+                  <h3 style={{ margin: 0, fontSize: '14px' }}>All Materials</h3>
+                </div>
+                <div style={{ padding: '10px' }}>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="Search materials..."
+                    value={workspaceSearch}
+                    onChange={(e) => setWorkspaceSearch(e.target.value)}
+                  />
+                </div>
+                <div className="item-workspace-list">
+                  {workspaceMaterials.map((mat) => (
+                    <button
+                      key={mat.id}
+                      type="button"
+                      className={`item-workspace-list-row ${selectedMaterialId === mat.id ? 'active' : ''}`}
+                      onClick={() => {
+                        setSelectedMaterialId(mat.id);
+                        setActiveDetailTab('overview');
+                      }}
+                    >
+                      <span>{mat.display_name || mat.name}</span>
+                      <strong>{(stockData[mat.id] || 0).toFixed(2)}</strong>
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-          </div>
 
-          <div className="item-mini-tabs">
-            {ITEM_DETAIL_TABS.map((tab) => (
-              <button
-                key={tab.key}
-                className={`item-mini-tab ${activeDetailTab === tab.key ? 'active' : ''}`}
-                onClick={() => setActiveDetailTab(tab.key)}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
+              <div className="item-workspace-right">
+                <div className="item-details-head">
+                  <div>
+                    <h3 style={{ margin: 0 }}>{selectedMaterial.display_name || selectedMaterial.name}</h3>
+                    <div className="item-details-meta">
+                      Code: {selectedMaterial.item_code || '-'} | Category: {selectedMaterial.main_category || '-'} | Unit: {selectedMaterial.unit || '-'}
+                    </div>
+                  </div>
+                  <button className="btn btn-secondary" type="button" onClick={closeItemWorkspace}>Close</button>
+                </div>
 
-          <div className="item-detail-content">
-            {detailLoading && <div className="empty-state"><h3>Loading transactions...</h3></div>}
-            {!detailLoading && detailError && <div className="alert alert-error">{detailError}</div>}
+                <div className="item-mini-tabs">
+                  {ITEM_DETAIL_TABS.map((tab) => (
+                    <button
+                      key={tab.key}
+                      className={`item-mini-tab ${activeDetailTab === tab.key ? 'active' : ''}`}
+                      onClick={() => setActiveDetailTab(tab.key)}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="item-detail-content">
+                  {detailLoading && <div className="empty-state"><h3>Loading transactions...</h3></div>}
+                  {!detailLoading && detailError && <div className="alert alert-error">{detailError}</div>}
 
             {!detailLoading && !detailError && activeDetailTab === 'overview' && (
               <div>
@@ -1545,6 +1668,9 @@ function ItemsTab() {
                 </div>
               )
             )}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}

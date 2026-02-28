@@ -44,7 +44,7 @@ export default function CreateQuotation() {
     date: new Date().toISOString().split('T')[0],
     valid_till: '',
     payment_terms: DEFAULT_PAYMENT_TERMS,
-    contact_no: '',
+    client_contact: '',
     reference: '',
     extra_discount_percent: 0,
     extra_discount_amount: 0,
@@ -192,7 +192,7 @@ export default function CreateQuotation() {
         date: data.date || '',
         valid_till: data.valid_till || '',
         payment_terms: data.payment_terms || DEFAULT_PAYMENT_TERMS,
-        contact_no: data.contact_no || '',
+        client_contact: '',
         reference: data.remarks || data.reference || '',
         extra_discount_percent: data.extra_discount_percent || 0,
         extra_discount_amount: data.extra_discount_amount || 0,
@@ -211,9 +211,45 @@ export default function CreateQuotation() {
     }
   };
 
+  const buildClientContacts = (client) => {
+    if (!client) return [];
+    const raw = [
+      { name: client.contact_person, email: client.contact_person_email },
+      { name: client.contact_person_2, email: client.contact_person_2_email },
+      { name: client.purchase_person, email: client.purchase_email },
+      { name: client.contact, email: client.email },
+    ];
+
+    const seen = new Set();
+    const contacts = [];
+    raw.forEach((entry) => {
+      const name = (entry.name || '').trim();
+      const email = (entry.email || '').trim();
+      if (!name || !email) return;
+      const dedupeKey = `${name.toLowerCase()}|${email.toLowerCase()}`;
+      if (seen.has(dedupeKey)) return;
+      seen.add(dedupeKey);
+      contacts.push({
+        value: `${name} <${email}>`,
+        label: `${name} - ${email}`,
+      });
+    });
+    return contacts;
+  };
+
+  const selectedClient = useMemo(
+    () => clients.find((c) => c.id === formData.client_id) || null,
+    [clients, formData.client_id]
+  );
+
+  const clientContactOptions = useMemo(
+    () => buildClientContacts(selectedClient),
+    [selectedClient]
+  );
+
   const handleClientChange = async (clientId) => {
     if (!clientId) {
-      setFormData({ ...formData, client_id: '', billing_address: '', gstin: '', state: '', contact_no: '' });
+      setFormData({ ...formData, client_id: '', billing_address: '', gstin: '', state: '', client_contact: '' });
       return;
     }
 
@@ -223,13 +259,14 @@ export default function CreateQuotation() {
         .filter(Boolean)
         .join(', ');
       
+      const contacts = buildClientContacts(client);
       setFormData({
         ...formData,
         client_id: clientId,
         billing_address: billingAddress,
         gstin: client.gstin || '',
         state: client.state || '',
-        contact_no: client.mobile || client.phone || client.contact_no || client.contact_person_phone || ''
+        client_contact: contacts[0]?.value || ''
       });
     }
   };
@@ -480,7 +517,6 @@ export default function CreateQuotation() {
         date: formData.date,
         valid_till: formData.valid_till || null,
         payment_terms: formData.payment_terms,
-        contact_no: formData.contact_no || null,
         remarks: formData.reference || null,
         reference: formData.reference,
         subtotal: calculations.subtotal,
@@ -613,7 +649,7 @@ export default function CreateQuotation() {
           date: new Date().toISOString().split('T')[0],
           valid_till: '',
           payment_terms: DEFAULT_PAYMENT_TERMS,
-          contact_no: '',
+          client_contact: '',
           reference: '',
           extra_discount_percent: 0,
           extra_discount_amount: 0,
@@ -739,15 +775,21 @@ export default function CreateQuotation() {
             />
           </div>
           <div className="form-group" style={{ margin: 0 }}>
-            <label className="form-label" style={compactLabelStyle}>Contact No</label>
-            <input
-              type="text"
-              className="form-input"
+            <label className="form-label" style={compactLabelStyle}>Client Contact</label>
+            <select
+              className="form-select"
               style={compactFieldStyle}
-              value={formData.contact_no || ''}
-              onChange={(e) => setFormData({ ...formData, contact_no: e.target.value })}
-              placeholder="Client contact number"
-            />
+              value={formData.client_contact || ''}
+              onChange={(e) => setFormData({ ...formData, client_contact: e.target.value })}
+              disabled={!formData.client_id}
+            >
+              <option value="">
+                {formData.client_id ? 'Select Contact (Name + Email)' : 'Select Client First'}
+              </option>
+              {clientContactOptions.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
           </div>
         </div>
       </div>
