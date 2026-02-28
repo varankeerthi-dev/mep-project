@@ -13,6 +13,8 @@ CREATE TABLE IF NOT EXISTS quotation_header (
   date DATE NOT NULL DEFAULT CURRENT_DATE,
   valid_till DATE,
   payment_terms TEXT,
+  contact_no VARCHAR(30),
+  remarks TEXT,
   reference VARCHAR(255),
   subtotal DECIMAL(15,2) DEFAULT 0,
   total_item_discount DECIMAL(15,2) DEFAULT 0,
@@ -33,6 +35,10 @@ CREATE TABLE IF NOT EXISTS quotation_header (
 ALTER TABLE quotation_header ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Enable all access" ON quotation_header;
 CREATE POLICY "Enable all access" ON quotation_header FOR ALL USING (true) WITH CHECK (true);
+
+-- Backward-compatible columns for existing databases
+ALTER TABLE quotation_header ADD COLUMN IF NOT EXISTS contact_no VARCHAR(30);
+ALTER TABLE quotation_header ADD COLUMN IF NOT EXISTS remarks TEXT;
 
 -- Quotation Items Table
 CREATE TABLE IF NOT EXISTS quotation_items (

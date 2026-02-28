@@ -465,6 +465,8 @@ export async function duplicateQuotation(id) {
     date: new Date().toISOString().split('T')[0],
     valid_till: original.valid_till,
     payment_terms: original.payment_terms,
+    contact_no: original.contact_no || null,
+    remarks: original.remarks || original.reference || null,
     reference: original.reference,
     subtotal: original.subtotal,
     total_item_discount: original.total_item_discount,

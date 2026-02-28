@@ -10,6 +10,7 @@ export default function QuotationList() {
   const [loading, setLoading] = useState(true);
   const [processingKey, setProcessingKey] = useState('');
   const [openMenuId, setOpenMenuId] = useState(null);
+  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const [filters, setFilters] = useState({
     startDate: '',
     endDate: '',
@@ -38,6 +39,16 @@ export default function QuotationList() {
     };
     document.addEventListener('click', onDocClick);
     return () => document.removeEventListener('click', onDocClick);
+  }, []);
+
+  useEffect(() => {
+    const closeMenu = () => setOpenMenuId(null);
+    window.addEventListener('scroll', closeMenu, true);
+    window.addEventListener('resize', closeMenu);
+    return () => {
+      window.removeEventListener('scroll', closeMenu, true);
+      window.removeEventListener('resize', closeMenu);
+    };
   }, []);
 
   const loadData = async () => {
@@ -270,6 +281,16 @@ export default function QuotationList() {
     return new Date(date).toLocaleDateString('en-IN');
   };
 
+  const openRowMenu = (e, rowId) => {
+    e.stopPropagation();
+    const rect = e.currentTarget.getBoundingClientRect();
+    const menuWidth = 220;
+    const left = Math.max(8, rect.right - menuWidth);
+    const top = rect.bottom + 6;
+    setMenuPosition({ top, left });
+    setOpenMenuId(openMenuId === rowId ? null : rowId);
+  };
+
   return (
     <div>
       <div className="page-header">
@@ -410,19 +431,16 @@ export default function QuotationList() {
                       <div className="quotation-row-menu" style={{ position: 'relative' }}>
                         <button
                           className="btn btn-sm btn-secondary"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setOpenMenuId(openMenuId === q.id ? null : q.id);
-                          }}
+                          onClick={(e) => openRowMenu(e, q.id)}
                         >
                           ...
                         </button>
                         {openMenuId === q.id && (
                           <div
                             style={{
-                              position: 'absolute',
-                              right: 0,
-                              top: '100%',
+                              position: 'fixed',
+                              left: `${menuPosition.left}px`,
+                              top: `${menuPosition.top}px`,
                               zIndex: 20,
                               background: '#fff',
                               border: '1px solid #e5e7eb',

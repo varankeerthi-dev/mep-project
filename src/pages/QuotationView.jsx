@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 export default function QuotationView() {
   const navigate = useNavigate();
@@ -96,6 +96,8 @@ export default function QuotationView() {
         date: new Date().toISOString().split('T')[0],
         valid_till: quotation.valid_till,
         payment_terms: quotation.payment_terms,
+        contact_no: quotation.contact_no || null,
+        remarks: quotation.remarks || quotation.reference || null,
         reference: quotation.reference,
         subtotal: quotation.subtotal,
         total_item_discount: quotation.total_item_discount,
@@ -272,158 +274,170 @@ export default function QuotationView() {
   };
 
   const downloadPDF = (template) => {
-    const isLandscape = template.orientation === 'Landscape';
-    const doc = new jsPDF({
-      orientation: isLandscape ? 'landscape' : 'portrait',
-      unit: 'mm',
-      format: template.page_size === 'Letter' ? 'letter' : 'a4'
-    });
+    try {
+      const isLandscape = template.orientation === 'Landscape';
+      const doc = new jsPDF({
+        orientation: isLandscape ? 'landscape' : 'portrait',
+        unit: 'mm',
+        format: template.page_size === 'Letter' ? 'letter' : 'a4'
+      });
 
-    const colSettings = template.column_settings || {};
-    const optionalCols = colSettings.optional || {};
-    const mandatoryCols = colSettings.mandatory || ['sno', 'item', 'qty', 'uom'];
+      const colSettings = (template && typeof template.column_settings === 'object' && template.column_settings) || {};
+      const optionalCols = colSettings.optional || {};
+      const mandatoryCols = colSettings.mandatory || ['sno', 'item', 'qty', 'uom'];
 
-    const columnConfig = [];
-    if (mandatoryCols.includes('sno')) columnConfig.push({ header: '#', key: 'sno', width: 12 });
-    if (optionalCols.item_code) columnConfig.push({ header: 'Code', key: 'item_code', width: 25 });
-    if (mandatoryCols.includes('item')) columnConfig.push({ header: 'Item', key: 'item', width: 50 });
-    if (optionalCols.description) columnConfig.push({ header: 'Description', key: 'description', width: 40 });
-    if (optionalCols.hsn_code) columnConfig.push({ header: 'HSN', key: 'hsn_code', width: 20 });
-    if (mandatoryCols.includes('qty')) columnConfig.push({ header: 'Qty', key: 'qty', width: 15, align: 'right' });
-    if (mandatoryCols.includes('uom')) columnConfig.push({ header: 'UOM', key: 'uom', width: 15 });
-    if (optionalCols.rate) columnConfig.push({ header: 'Rate', key: 'rate', width: 25, align: 'right' });
-    if (optionalCols.discount_percent) columnConfig.push({ header: 'Disc %', key: 'discount_percent', width: 18, align: 'right' });
-    if (optionalCols.discount_amount) columnConfig.push({ header: 'Disc Amt', key: 'discount_amount', width: 22, align: 'right' });
-    if (optionalCols.tax_percent) columnConfig.push({ header: 'Tax %', key: 'tax_percent', width: 15, align: 'right' });
-    if (optionalCols.tax_amount) columnConfig.push({ header: 'Tax Amt', key: 'tax_amount', width: 22, align: 'right' });
-    if (optionalCols.line_total) columnConfig.push({ header: 'Total', key: 'line_total', width: 30, align: 'right' });
+      const columnConfig = [];
+      if (mandatoryCols.includes('sno')) columnConfig.push({ header: '#', key: 'sno', width: 12 });
+      if (optionalCols.item_code) columnConfig.push({ header: 'Code', key: 'item_code', width: 25 });
+      if (mandatoryCols.includes('item')) columnConfig.push({ header: 'Item', key: 'item', width: 50 });
+      if (optionalCols.description) columnConfig.push({ header: 'Description', key: 'description', width: 40 });
+      if (optionalCols.hsn_code) columnConfig.push({ header: 'HSN', key: 'hsn_code', width: 20 });
+      if (mandatoryCols.includes('qty')) columnConfig.push({ header: 'Qty', key: 'qty', width: 15, align: 'right' });
+      if (mandatoryCols.includes('uom')) columnConfig.push({ header: 'UOM', key: 'uom', width: 15 });
+      if (optionalCols.rate) columnConfig.push({ header: 'Rate', key: 'rate', width: 25, align: 'right' });
+      if (optionalCols.discount_percent) columnConfig.push({ header: 'Disc %', key: 'discount_percent', width: 18, align: 'right' });
+      if (optionalCols.discount_amount) columnConfig.push({ header: 'Disc Amt', key: 'discount_amount', width: 22, align: 'right' });
+      if (optionalCols.tax_percent) columnConfig.push({ header: 'Tax %', key: 'tax_percent', width: 15, align: 'right' });
+      if (optionalCols.tax_amount) columnConfig.push({ header: 'Tax Amt', key: 'tax_amount', width: 22, align: 'right' });
+      if (optionalCols.line_total) columnConfig.push({ header: 'Total', key: 'line_total', width: 30, align: 'right' });
 
-    let startY = 40;
-    
-    if (template.show_logo !== false) {
-      doc.setFontSize(20);
+      let startY = 40;
+
+      if (template.show_logo !== false) {
+        doc.setFontSize(20);
+        doc.setFont('helvetica', 'bold');
+        doc.text('QUOTATION', 105, 20, { align: 'center' });
+        startY = 35;
+      } else {
+        doc.setFontSize(20);
+        doc.setFont('helvetica', 'bold');
+        doc.text('QUOTATION', 105, 15, { align: 'center' });
+        startY = 25;
+      }
+
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`No: ${quotation.quotation_no}`, 14, startY);
+      doc.text(`Date: ${formatDate(quotation.date)}`, 14, startY + 6);
+      doc.text(`Valid Till: ${formatDate(quotation.valid_till)}`, 14, startY + 12);
+
+      doc.text('To:', 14, startY + 22);
       doc.setFont('helvetica', 'bold');
-      doc.text('QUOTATION', 105, 20, { align: 'center' });
-      startY = 35;
-    } else {
-      doc.setFontSize(20);
+      doc.text(quotation.client?.client_name || '', 14, startY + 28);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      if (quotation.billing_address) {
+        const addressLines = doc.splitTextToSize(quotation.billing_address, 70);
+        doc.text(addressLines, 14, startY + 34);
+      }
+      doc.text(`GSTIN: ${quotation.gstin || '-'}`, 14, startY + 48);
+      doc.text(`State: ${quotation.state || '-'}`, 14, startY + 54);
+
+      const rightCol = isLandscape ? 140 : 120;
+      if (quotation.project) {
+        doc.text(`Project: ${quotation.project.project_name || quotation.project.project_code || '-'}`, rightCol, startY + 22);
+      }
+
+      const tableData = (quotation.items || []).map((item, index) => {
+        const material = item.item || {};
+        const row = {};
+        if (mandatoryCols.includes('sno')) row.sno = index + 1;
+        if (optionalCols.item_code) row.item_code = material.item_code || '-';
+        if (mandatoryCols.includes('item')) row.item = item.description || '-';
+        if (optionalCols.description) row.description = item.description || '-';
+        if (optionalCols.hsn_code) row.hsn_code = material.hsn_code || '-';
+        if (mandatoryCols.includes('qty')) row.qty = item.qty;
+        if (mandatoryCols.includes('uom')) row.uom = item.uom;
+        if (optionalCols.rate) row.rate = formatCurrency(item.rate);
+        if (optionalCols.discount_percent) row.discount_percent = `${item.discount_percent}%`;
+        if (optionalCols.discount_amount) row.discount_amount = formatCurrency(item.discount_amount);
+        if (optionalCols.tax_percent) row.tax_percent = `${item.tax_percent}%`;
+        if (optionalCols.tax_amount) row.tax_amount = formatCurrency(item.tax_amount);
+        if (optionalCols.line_total) row.line_total = formatCurrency(item.line_total);
+        return row;
+      });
+
+      const tableStartY = startY + 60;
+
+      autoTable(doc, {
+        startY: tableStartY,
+        head: [columnConfig.map((col) => col.header)],
+        body: tableData.map((row) => columnConfig.map((col) => row[col.key])),
+        columns: columnConfig,
+        theme: 'grid',
+        headStyles: { fillColor: [66, 66, 66], fontSize: 8 },
+        styles: { fontSize: 8, cellPadding: 2 },
+        columnStyles: columnConfig.reduce((acc, col, idx) => {
+          if (col.align === 'right') acc[idx] = { halign: 'right' };
+          return acc;
+        }, {})
+      });
+
+      const finalY = (doc.lastAutoTable?.finalY || tableStartY + 10) + 10;
+      const summaryX = isLandscape ? 200 : 160;
+
+      doc.setFontSize(9);
+      doc.text('Subtotal:', summaryX, finalY);
+      doc.text(formatCurrency(quotation.subtotal), summaryX + 35, finalY, { align: 'right' });
+
+      doc.text('Item Discount:', summaryX, finalY + 6);
+      doc.text(`-${formatCurrency(quotation.total_item_discount)}`, summaryX + 35, finalY + 6, { align: 'right' });
+
+      doc.text('Extra Discount:', summaryX, finalY + 12);
+      doc.text(`-${formatCurrency(quotation.extra_discount_amount)}`, summaryX + 35, finalY + 12, { align: 'right' });
+
+      const isInterState = quotation.state !== 'Maharashtra';
+      if (isInterState) {
+        doc.text('IGST:', summaryX, finalY + 18);
+        doc.text(formatCurrency(quotation.total_tax), summaryX + 35, finalY + 18, { align: 'right' });
+      } else {
+        doc.text('CGST:', summaryX, finalY + 18);
+        doc.text(formatCurrency(quotation.total_tax / 2), summaryX + 35, finalY + 18, { align: 'right' });
+        doc.text('SGST:', summaryX, finalY + 24);
+        doc.text(formatCurrency(quotation.total_tax / 2), summaryX + 35, finalY + 24, { align: 'right' });
+      }
+
+      doc.text('Round Off:', summaryX, finalY + (isInterState ? 24 : 30));
+      doc.text(formatCurrency(quotation.round_off), summaryX + 35, finalY + (isInterState ? 24 : 30), { align: 'right' });
+
+      doc.setFontSize(11);
       doc.setFont('helvetica', 'bold');
-      doc.text('QUOTATION', 105, 15, { align: 'center' });
-      startY = 25;
+      doc.text('Grand Total:', summaryX, finalY + (isInterState ? 34 : 40));
+      doc.text(formatCurrency(quotation.grand_total), summaryX + 35, finalY + (isInterState ? 34 : 40), { align: 'right' });
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.text(`Payment Terms: ${quotation.payment_terms || '-'}`, 14, finalY + (isInterState ? 34 : 40));
+
+      if (quotation.contact_no) {
+        doc.text(`Contact No: ${quotation.contact_no}`, 14, finalY + (isInterState ? 42 : 48));
+      }
+
+      const remarksText = quotation.remarks || quotation.reference;
+      if (remarksText) {
+        doc.text(`Remarks: ${remarksText}`, 14, finalY + (isInterState ? 50 : 56));
+      }
+
+      if (template.show_terms !== false) {
+        doc.setFontSize(8);
+        const termsStart = finalY + (isInterState ? 58 : 64);
+        doc.text('Terms & Conditions:', 14, termsStart);
+        doc.text('1. Payment as per terms mentioned above.', 14, termsStart + 6);
+        doc.text('2. This is a system-generated document.', 14, termsStart + 12);
+      }
+
+      if (template.show_signature !== false) {
+        const signStart = finalY + (isInterState ? 58 : 64);
+        doc.text(`For, ${quotation.client?.client_name || 'Company Name'}`, 140, signStart);
+        doc.text('Authorized Signature', 140, signStart + 15);
+      }
+
+      doc.save(`${quotation.quotation_no}.pdf`);
+    } catch (err) {
+      console.error('Error generating PDF:', err);
+      alert('PDF export failed. Please check template settings and try again.');
     }
-
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`No: ${quotation.quotation_no}`, 14, startY);
-    doc.text(`Date: ${formatDate(quotation.date)}`, 14, startY + 6);
-    doc.text(`Valid Till: ${formatDate(quotation.valid_till)}`, 14, startY + 12);
-    
-    doc.text('To:', 14, startY + 22);
-    doc.setFont('helvetica', 'bold');
-    doc.text(quotation.client?.client_name || '', 14, startY + 28);
-    
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
-    if (quotation.billing_address) {
-      const addressLines = doc.splitTextToSize(quotation.billing_address, 70);
-      doc.text(addressLines, 14, startY + 34);
-    }
-    doc.text(`GSTIN: ${quotation.gstin || '-'}`, 14, startY + 48);
-    doc.text(`State: ${quotation.state || '-'}`, 14, startY + 54);
-
-    const rightCol = isLandscape ? 140 : 120;
-    if (quotation.project) {
-      doc.text(`Project: ${quotation.project.project_name || quotation.project.project_code || '-'}`, rightCol, startY + 22);
-    }
-
-    const tableData = quotation.items.map((item, index) => {
-      const material = item.item || {};
-      const row = {};
-      if (mandatoryCols.includes('sno')) row.sno = index + 1;
-      if (optionalCols.item_code) row.item_code = material.item_code || '-';
-      if (mandatoryCols.includes('item')) row.item = item.description || '-';
-      if (optionalCols.description) row.description = item.description || '-';
-      if (optionalCols.hsn_code) row.hsn_code = material.hsn_code || '-';
-      if (mandatoryCols.includes('qty')) row.qty = item.qty;
-      if (mandatoryCols.includes('uom')) row.uom = item.uom;
-      if (optionalCols.rate) row.rate = formatCurrency(item.rate);
-      if (optionalCols.discount_percent) row.discount_percent = `${item.discount_percent}%`;
-      if (optionalCols.discount_amount) row.discount_amount = formatCurrency(item.discount_amount);
-      if (optionalCols.tax_percent) row.tax_percent = `${item.tax_percent}%`;
-      if (optionalCols.tax_amount) row.tax_amount = formatCurrency(item.tax_amount);
-      if (optionalCols.line_total) row.line_total = formatCurrency(item.line_total);
-      return row;
-    });
-
-    const tableStartY = startY + 60;
-    
-    doc.autoTable({
-      startY: tableStartY,
-      head: [columnConfig.map(col => col.header)],
-      body: tableData.map(row => columnConfig.map(col => row[col.key])),
-      columns: columnConfig,
-      theme: 'grid',
-      headStyles: { fillColor: [66, 66, 66], fontSize: 8 },
-      styles: { fontSize: 8, cellPadding: 2 },
-      columnStyles: columnConfig.reduce((acc, col, idx) => {
-        if (col.align === 'right') acc[idx] = { halign: 'right' };
-        return acc;
-      }, {})
-    });
-
-    const finalY = doc.lastAutoTable.finalY + 10;
-    const summaryX = isLandscape ? 200 : 160;
-    
-    doc.setFontSize(9);
-    doc.text(`Subtotal:`, summaryX, finalY);
-    doc.text(formatCurrency(quotation.subtotal), summaryX + 35, finalY, { align: 'right' });
-    
-    doc.text(`Item Discount:`, summaryX, finalY + 6);
-    doc.text(`-${formatCurrency(quotation.total_item_discount)}`, summaryX + 35, finalY + 6, { align: 'right' });
-    
-    doc.text(`Extra Discount:`, summaryX, finalY + 12);
-    doc.text(`-${formatCurrency(quotation.extra_discount_amount)}`, summaryX + 35, finalY + 12, { align: 'right' });
-    
-    const isInterState = quotation.state !== 'Maharashtra';
-    if (isInterState) {
-      doc.text(`IGST:`, summaryX, finalY + 18);
-      doc.text(formatCurrency(quotation.total_tax), summaryX + 35, finalY + 18, { align: 'right' });
-    } else {
-      doc.text(`CGST:`, summaryX, finalY + 18);
-      doc.text(formatCurrency(quotation.total_tax / 2), summaryX + 35, finalY + 18, { align: 'right' });
-      doc.text(`SGST:`, summaryX, finalY + 24);
-      doc.text(formatCurrency(quotation.total_tax / 2), summaryX + 35, finalY + 24, { align: 'right' });
-    }
-    
-    doc.text(`Round Off:`, summaryX, finalY + (isInterState ? 24 : 30));
-    doc.text(formatCurrency(quotation.round_off), summaryX + 35, finalY + (isInterState ? 24 : 30), { align: 'right' });
-    
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'bold');
-    doc.text(`Grand Total:`, summaryX, finalY + (isInterState ? 34 : 40));
-    doc.text(formatCurrency(quotation.grand_total), summaryX + 35, finalY + (isInterState ? 34 : 40), { align: 'right' });
-    
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
-    doc.text(`Payment Terms: ${quotation.payment_terms || '-'}`, 14, finalY + (isInterState ? 34 : 40));
-    
-    if (quotation.reference) {
-      doc.text(`Reference: ${quotation.reference}`, 14, finalY + (isInterState ? 42 : 48));
-    }
-
-    if (template.show_terms !== false) {
-      doc.setFontSize(8);
-      doc.text('Terms & Conditions:', 14, finalY + (isInterState ? 50 : 56));
-      doc.text('1. Payment as per terms mentioned above.', 14, finalY + (isInterState ? 56 : 62));
-      doc.text('2. This is a system-generated document.', 14, finalY + (isInterState ? 62 : 68));
-    }
-
-    if (template.show_signature !== false) {
-      doc.text('For, ' + (quotation.client?.client_name || 'Company Name'), 140, finalY + (isInterState ? 50 : 56));
-      doc.text('Authorized Signature', 140, finalY + (isInterState ? 65 : 71));
-    }
-
-    doc.save(`${quotation.quotation_no}.pdf`);
   };
 
   const generateQuotationHTML = (template) => {
@@ -488,7 +502,9 @@ export default function QuotationView() {
             <strong>Valid Till:</strong> ${formatDate(quotation.valid_till)}<br>
             <strong>Client:</strong> ${quotation.client?.client_name || '-'}<br>
             <strong>GSTIN:</strong> ${quotation.gstin || '-'}<br>
-            <strong>State:</strong> ${quotation.state || '-'}
+            <strong>State:</strong> ${quotation.state || '-'}<br>
+            <strong>Contact No:</strong> ${quotation.contact_no || '-'}<br>
+            <strong>Remarks:</strong> ${quotation.remarks || quotation.reference || '-'}
           </div>
         </div>
         <table>
@@ -708,7 +724,8 @@ export default function QuotationView() {
               <div><strong>Date:</strong> {formatDate(quotation.date)}</div>
               <div><strong>Valid Till:</strong> {formatDate(quotation.valid_till)}</div>
               <div><strong>Payment Terms:</strong> {quotation.payment_terms || '-'}</div>
-              <div><strong>Reference:</strong> {quotation.reference || '-'}</div>
+              <div><strong>Contact No:</strong> {quotation.contact_no || '-'}</div>
+              <div><strong>Remarks:</strong> {quotation.remarks || quotation.reference || '-'}</div>
             </div>
           </div>
           <div>

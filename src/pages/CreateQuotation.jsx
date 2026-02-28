@@ -27,12 +27,15 @@ export default function CreateQuotation() {
   const [variants, setVariants] = useState([]);
   const [variantPricing, setVariantPricing] = useState({});
   const [companyState, setCompanyState] = useState('Maharashtra');
+  const [quoteNoPreview, setQuoteNoPreview] = useState('');
+  const [draggingItemId, setDraggingItemId] = useState(null);
   
   const [showItemPicker, setShowItemPicker] = useState(false);
   const [itemSearch, setItemSearch] = useState('');
   const [pickerItems, setPickerItems] = useState([]);
 
   const [formData, setFormData] = useState({
+    quotation_no: '',
     client_id: '',
     project_id: '',
     billing_address: '',
@@ -41,6 +44,7 @@ export default function CreateQuotation() {
     date: new Date().toISOString().split('T')[0],
     valid_till: '',
     payment_terms: DEFAULT_PAYMENT_TERMS,
+    contact_no: '',
     reference: '',
     extra_discount_percent: 0,
     extra_discount_amount: 0,
@@ -62,6 +66,74 @@ export default function CreateQuotation() {
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
+
+  const getFyPrefix = () => {
+    const now = new Date();
+    const month = now.getMonth() + 1;
+    const year = now.getFullYear();
+    const startYear = month >= 4 ? year : year - 1;
+    const endYear = (startYear + 1).toString().slice(-2);
+    return `${startYear}-${endYear}`;
+  };
+
+  const getQuoteSeriesNumber = (seriesRow) => {
+    const cfg = seriesRow?.configs?.quote;
+    if (cfg && cfg.enabled) {
+      return parseInt(cfg.start_number || 1, 10);
+    }
+    return parseInt(seriesRow?.current_number || 1, 10);
+  };
+
+  const buildQuoteNoFromSeries = (seriesRow) => {
+    if (!seriesRow) return '';
+    const cfg = seriesRow?.configs?.quote || {};
+    const rawPrefix = cfg.prefix || 'QT-';
+    const suffix = cfg.suffix || '';
+    const number = getQuoteSeriesNumber(seriesRow);
+    const padded = String(number).padStart(4, '0');
+    const fy = getFyPrefix();
+    const prefix = String(rawPrefix).replace('{FY}', fy);
+    return `${prefix}${padded}${suffix}`;
+  };
+
+  const loadQuoteNoPreview = async () => {
+    if (editId) return;
+    try {
+      const { data: defaultSeries } = await supabase
+        .from('document_series')
+        .select('*')
+        .eq('is_default', true)
+        .limit(1)
+        .maybeSingle();
+
+      if (defaultSeries) {
+        const seriesNo = buildQuoteNoFromSeries(defaultSeries);
+        setQuoteNoPreview(seriesNo);
+        setFormData((prev) => ({ ...prev, quotation_no: seriesNo }));
+        return;
+      }
+    } catch (err) {
+      console.warn('Unable to load default quote series:', err);
+    }
+
+    try {
+      const { data: existing } = await supabase
+        .from('quotation_header')
+        .select('quotation_no')
+        .order('created_at', { ascending: false })
+        .limit(1);
+      let fallbackNo = 'QT-0001';
+      if (existing && existing.length > 0) {
+        const lastNum = parseInt((existing[0].quotation_no || '').replace(/[^0-9]/g, ''), 10) || 0;
+        fallbackNo = `QT-${String(lastNum + 1).padStart(4, '0')}`;
+      }
+      setQuoteNoPreview(fallbackNo);
+      setFormData((prev) => ({ ...prev, quotation_no: fallbackNo }));
+    } catch (err) {
+      setQuoteNoPreview('QT-0001');
+      setFormData((prev) => ({ ...prev, quotation_no: 'QT-0001' }));
+    }
+  };
 
   const loadInitialData = async () => {
     setLoading(true);
@@ -87,6 +159,8 @@ export default function CreateQuotation() {
 
       if (editId) {
         await loadQuotation(editId);
+      } else {
+        await loadQuoteNoPreview();
       }
     } catch (err) {
       console.error('Error loading data:', err);
@@ -109,6 +183,7 @@ export default function CreateQuotation() {
 
     if (data) {
       setFormData({
+        quotation_no: data.quotation_no || '',
         client_id: data.client_id || '',
         project_id: data.project_id || '',
         billing_address: data.billing_address || '',
@@ -117,7 +192,8 @@ export default function CreateQuotation() {
         date: data.date || '',
         valid_till: data.valid_till || '',
         payment_terms: data.payment_terms || DEFAULT_PAYMENT_TERMS,
-        reference: data.reference || '',
+        contact_no: data.contact_no || '',
+        reference: data.remarks || data.reference || '',
         extra_discount_percent: data.extra_discount_percent || 0,
         extra_discount_amount: data.extra_discount_amount || 0,
         round_off: data.round_off || 0,
@@ -137,7 +213,7 @@ export default function CreateQuotation() {
 
   const handleClientChange = async (clientId) => {
     if (!clientId) {
-      setFormData({ ...formData, client_id: '', billing_address: '', gstin: '', state: '' });
+      setFormData({ ...formData, client_id: '', billing_address: '', gstin: '', state: '', contact_no: '' });
       return;
     }
 
@@ -152,7 +228,8 @@ export default function CreateQuotation() {
         client_id: clientId,
         billing_address: billingAddress,
         gstin: client.gstin || '',
-        state: client.state || ''
+        state: client.state || '',
+        contact_no: client.mobile || client.phone || client.contact_no || client.contact_person_phone || ''
       });
     }
   };
@@ -273,6 +350,60 @@ export default function CreateQuotation() {
     setItems(items.filter(i => i.id !== id));
   };
 
+  const addEmptyItemRow = () => {
+    const rowId = Date.now() + Math.random();
+    setItems((prev) => [
+      ...prev,
+      {
+        id: rowId,
+        item_id: '',
+        variant_id: null,
+        material: null,
+        hsn_code: '',
+        description: '',
+        qty: 1,
+        uom: 'Nos',
+        rate: 0,
+        discount_percent: 0,
+        discount_amount: 0,
+        tax_percent: 0,
+        tax_amount: 0,
+        line_total: 0,
+        override_flag: false,
+        original_discount_percent: 0
+      }
+    ]);
+  };
+
+  const handleDragStart = (e, itemId) => {
+    setDraggingItemId(itemId);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDropOnRow = (e, targetId) => {
+    e.preventDefault();
+    if (!draggingItemId || draggingItemId === targetId) return;
+    setItems((prev) => {
+      const fromIndex = prev.findIndex((r) => r.id === draggingItemId);
+      const toIndex = prev.findIndex((r) => r.id === targetId);
+      if (fromIndex < 0 || toIndex < 0) return prev;
+      const updated = [...prev];
+      const [moved] = updated.splice(fromIndex, 1);
+      updated.splice(toIndex, 0, moved);
+      return updated;
+    });
+    setDraggingItemId(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggingItemId(null);
+  };
+
   const calculations = useMemo(() => {
     let subtotal = 0;
     let totalItemDiscount = 0;
@@ -347,6 +478,8 @@ export default function CreateQuotation() {
         date: formData.date,
         valid_till: formData.valid_till || null,
         payment_terms: formData.payment_terms,
+        contact_no: formData.contact_no || null,
+        remarks: formData.reference || null,
         reference: formData.reference,
         subtotal: calculations.subtotal,
         total_item_discount: calculations.totalItemDiscount,
@@ -362,22 +495,34 @@ export default function CreateQuotation() {
       let quotationId = editId;
 
       if (editId) {
-        const { error: updateError } = await withTimeout(
-          supabase.from('quotation_header').update(quotationData).eq('id', editId),
+        const { data: updatedHeader, error: updateError } = await withTimeout(
+          supabase
+            .from('quotation_header')
+            .update(quotationData)
+            .eq('id', editId)
+            .select('id')
+            .single(),
           'updating quotation header'
         );
         if (updateError) throw updateError;
+        if (!updatedHeader?.id) {
+          throw new Error('Quotation header not found for update. Please refresh and try again.');
+        }
+        quotationId = updatedHeader.id;
       } else {
-        const { data: existing } = await supabase
-          .from('quotation_header')
-          .select('quotation_no')
-          .order('created_at', { ascending: false })
-          .limit(1);
-        
-        let quotationNo = 'QT-0001';
-        if (existing && existing.length > 0) {
-          const lastNum = parseInt(existing[0].quotation_no.replace(/[^0-9]/g, ''));
-          quotationNo = `QT-${String(lastNum + 1).padStart(4, '0')}`;
+        let quotationNo = formData.quotation_no || quoteNoPreview || '';
+        if (!quotationNo) {
+          const { data: existing } = await supabase
+            .from('quotation_header')
+            .select('quotation_no')
+            .order('created_at', { ascending: false })
+            .limit(1);
+
+          quotationNo = 'QT-0001';
+          if (existing && existing.length > 0) {
+            const lastNum = parseInt((existing[0].quotation_no || '').replace(/[^0-9]/g, ''), 10) || 0;
+            quotationNo = `QT-${String(lastNum + 1).padStart(4, '0')}`;
+          }
         }
 
         const { data, error } = await withTimeout(
@@ -391,6 +536,34 @@ export default function CreateQuotation() {
         
         if (error) throw error;
         quotationId = data.id;
+
+        const { data: defaultSeries } = await supabase
+          .from('document_series')
+          .select('*')
+          .eq('is_default', true)
+          .limit(1)
+          .maybeSingle();
+
+        if (defaultSeries) {
+          const nextNo = getQuoteSeriesNumber(defaultSeries) + 1;
+          const cfg = defaultSeries?.configs || {};
+          const quoteCfg = cfg.quote || {};
+          const updatedCfg = {
+            ...cfg,
+            quote: {
+              ...quoteCfg,
+              start_number: nextNo
+            }
+          };
+          await supabase
+            .from('document_series')
+            .update({ current_number: nextNo, configs: updatedCfg })
+            .eq('id', defaultSeries.id);
+        }
+      }
+
+      if (!quotationId) {
+        throw new Error('Quotation ID missing while saving items. Please retry.');
       }
 
       const { error: deleteError } = await withTimeout(
@@ -429,6 +602,7 @@ export default function CreateQuotation() {
       
       if (saveAndNew) {
         setFormData({
+          quotation_no: '',
           client_id: '',
           project_id: '',
           billing_address: '',
@@ -437,6 +611,7 @@ export default function CreateQuotation() {
           date: new Date().toISOString().split('T')[0],
           valid_till: '',
           payment_terms: DEFAULT_PAYMENT_TERMS,
+          contact_no: '',
           reference: '',
           extra_discount_percent: 0,
           extra_discount_amount: 0,
@@ -445,6 +620,7 @@ export default function CreateQuotation() {
           negotiation_mode: false
         });
         setItems([]);
+        await loadQuoteNoPreview();
       } else {
         navigate(`/quotation/view?id=${quotationId}`);
       }
@@ -487,7 +663,27 @@ export default function CreateQuotation() {
       </div>
 
       <div style={{ background: '#f8f9fa', padding: isMobile ? '10px' : '12px', borderRadius: '8px', marginBottom: '12px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, minmax(0, 1fr))', gap: '10px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1.1fr 1fr 1.3fr 1.2fr', gap: '8px', marginBottom: '8px' }}>
+          <div className="form-group" style={{ margin: 0 }}>
+            <label className="form-label" style={compactLabelStyle}>Quote No</label>
+            <input
+              type="text"
+              className="form-input"
+              style={{ ...compactFieldStyle, background: '#f3f4f6' }}
+              value={formData.quotation_no || quoteNoPreview || 'Auto'}
+              readOnly
+            />
+          </div>
+          <div className="form-group" style={{ margin: 0 }}>
+            <label className="form-label" style={compactLabelStyle}>Quote Date</label>
+            <input
+              type="date"
+              className="form-input"
+              style={compactFieldStyle}
+              value={formData.date}
+              onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+            />
+          </div>
           <div className="form-group" style={{ margin: 0 }}>
             <label className="form-label" style={compactLabelStyle}>Client *</label>
             <select
@@ -497,7 +693,7 @@ export default function CreateQuotation() {
               onChange={(e) => handleClientChange(e.target.value)}
             >
               <option value="">Select Client</option>
-              {clients.map(c => (
+              {clients.map((c) => (
                 <option key={c.id} value={c.id}>{c.client_name}</option>
               ))}
             </select>
@@ -511,59 +707,23 @@ export default function CreateQuotation() {
               onChange={(e) => setFormData({ ...formData, project_id: e.target.value })}
             >
               <option value="">Select Project</option>
-              {projects.filter(p => !formData.client_id || p.client_id === formData.client_id).map(p => (
+              {projects.filter((p) => !formData.client_id || p.client_id === formData.client_id).map((p) => (
                 <option key={p.id} value={p.id}>{p.project_name || p.project_code}</option>
               ))}
             </select>
           </div>
-          <div className="form-group" style={{ margin: 0, gridColumn: '1 / -1' }}>
-            <label className="form-label" style={compactLabelStyle}>Billing Address</label>
-            <div style={{ padding: '8px', background: '#fff', border: '1px solid #e5e7eb', borderRadius: '6px', minHeight: '34px', fontSize: '12px', whiteSpace: 'pre-wrap' }}>
-              {formData.billing_address || '-'}
-            </div>
-          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1.5fr 1fr 1fr', gap: '8px' }}>
           <div className="form-group" style={{ margin: 0 }}>
-            <label className="form-label" style={compactLabelStyle}>GSTIN</label>
+            <label className="form-label" style={compactLabelStyle}>Remarks</label>
             <input
               type="text"
               className="form-input"
-              style={{ ...compactFieldStyle, background: '#f3f4f6' }}
-              value={formData.gstin}
-              readOnly
-            />
-          </div>
-          <div className="form-group" style={{ margin: 0 }}>
-            <label className="form-label" style={compactLabelStyle}>State</label>
-            <select
-              className="form-select"
               style={compactFieldStyle}
-              value={formData.state}
-              onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-            >
-              <option value="">Select State</option>
-              {INDIAN_STATES.map(s => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
-          </div>
-          <div className="form-group" style={{ margin: 0 }}>
-            <label className="form-label" style={compactLabelStyle}>Date</label>
-            <input
-              type="date"
-              className="form-input"
-              style={compactFieldStyle}
-              value={formData.date}
-              onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-            />
-          </div>
-          <div className="form-group" style={{ margin: 0 }}>
-            <label className="form-label" style={compactLabelStyle}>Valid Till</label>
-            <input
-              type="date"
-              className="form-input"
-              style={compactFieldStyle}
-              value={formData.valid_till}
-              onChange={(e) => setFormData({ ...formData, valid_till: e.target.value })}
+              value={formData.reference}
+              onChange={(e) => setFormData({ ...formData, reference: e.target.value })}
+              placeholder="Remarks"
             />
           </div>
           <div className="form-group" style={{ margin: 0 }}>
@@ -577,13 +737,14 @@ export default function CreateQuotation() {
             />
           </div>
           <div className="form-group" style={{ margin: 0 }}>
-            <label className="form-label" style={compactLabelStyle}>Reference</label>
+            <label className="form-label" style={compactLabelStyle}>Contact No</label>
             <input
               type="text"
               className="form-input"
               style={compactFieldStyle}
-              value={formData.reference}
-              onChange={(e) => setFormData({ ...formData, reference: e.target.value })}
+              value={formData.contact_no || ''}
+              onChange={(e) => setFormData({ ...formData, contact_no: e.target.value })}
+              placeholder="Client contact number"
             />
           </div>
         </div>
@@ -592,18 +753,27 @@ export default function CreateQuotation() {
       <div className="card" style={{ marginBottom: '16px' }} ref={itemsTableRef}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
           <h3 style={{ margin: 0 }}>Items</h3>
-          <button 
-            className="btn btn-primary"
-            onClick={() => setShowItemPicker(true)}
-          >
-            + Add Multiple Items
-          </button>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              className="btn btn-secondary"
+              onClick={addEmptyItemRow}
+            >
+              + Add Row
+            </button>
+            <button
+              className="btn btn-primary"
+              onClick={() => setShowItemPicker(true)}
+            >
+              + Add Multiple Items
+            </button>
+          </div>
         </div>
 
         <div style={{ overflowX: 'auto' }}>
-          <table className="table" style={{ minWidth: '1120px' }}>
+          <table className="table" style={{ minWidth: '1160px' }}>
             <thead>
               <tr>
+                <th style={{ ...compactHeadCellStyle, width: '34px' }}></th>
                 <th style={{ ...compactHeadCellStyle, width: '60px' }}>S.No</th>
                 <th style={{ ...compactHeadCellStyle, width: '120px' }}>HSN/SAC</th>
                 <th style={compactHeadCellStyle}>Item</th>
@@ -620,13 +790,22 @@ export default function CreateQuotation() {
             <tbody>
               {items.length === 0 ? (
                 <tr>
-                  <td colSpan={11} style={{ padding: '28px', textAlign: 'center', color: '#6b7280' }}>
-                    No items added. Click "Add Multiple Items" to add items.
+                  <td colSpan={12} style={{ padding: '28px', textAlign: 'center', color: '#6b7280' }}>
+                    No items added. Click "Add Row" or "Add Multiple Items".
                   </td>
                 </tr>
               ) : (
                 items.map((item, index) => (
-                  <tr key={item.id}>
+                  <tr
+                    key={item.id}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, item.id)}
+                    onDragOver={handleDragOver}
+                    onDrop={(e) => handleDropOnRow(e, item.id)}
+                    onDragEnd={handleDragEnd}
+                    style={draggingItemId === item.id ? { opacity: 0.55 } : {}}
+                  >
+                    <td style={{ ...compactBodyCellStyle, cursor: 'grab', textAlign: 'center', color: '#64748b' }} title="Drag to reorder">::</td>
                     <td style={compactBodyCellStyle}>{index + 1}</td>
                     <td style={compactBodyCellStyle}>
                       <input

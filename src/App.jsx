@@ -42,11 +42,33 @@ function getCurrentQueryParams() {
   return new URLSearchParams(hashQuery || searchQuery || '');
 }
 
+function installLocationChangeListener() {
+  if (typeof window === 'undefined') return;
+  if (window.__mepLocationPatched) return;
+
+  const originalPushState = window.history.pushState;
+  const originalReplaceState = window.history.replaceState;
+
+  window.history.pushState = function patchedPushState(...args) {
+    const result = originalPushState.apply(this, args);
+    window.dispatchEvent(new Event('locationchange'));
+    return result;
+  };
+
+  window.history.replaceState = function patchedReplaceState(...args) {
+    const result = originalReplaceState.apply(this, args);
+    window.dispatchEvent(new Event('locationchange'));
+    return result;
+  };
+
+  window.__mepLocationPatched = true;
+}
+
 function pushPath(path) {
   const nextPath = path || '/';
   if (`${window.location.pathname}${window.location.search}` !== nextPath || window.location.hash) {
     window.history.pushState({}, '', nextPath);
-    window.dispatchEvent(new PopStateEvent('popstate'));
+    window.dispatchEvent(new Event('locationchange'));
   }
 }
 
@@ -171,6 +193,7 @@ export default function App() {
     if (`${window.location.pathname}${window.location.search}` !== nextPath || window.location.hash) {
       window.history.pushState({}, '', nextPath);
     }
+    window.dispatchEvent(new Event('locationchange'));
   };
 
   useEffect(() => {
@@ -178,12 +201,15 @@ export default function App() {
       setCurrentPath(getCurrentPathFromLocation());
     };
 
+    installLocationChangeListener();
     syncPathFromLocation();
     window.addEventListener('hashchange', syncPathFromLocation);
     window.addEventListener('popstate', syncPathFromLocation);
+    window.addEventListener('locationchange', syncPathFromLocation);
     return () => {
       window.removeEventListener('hashchange', syncPathFromLocation);
       window.removeEventListener('popstate', syncPathFromLocation);
+      window.removeEventListener('locationchange', syncPathFromLocation);
     };
   }, []);
 
