@@ -956,6 +956,8 @@ function ClientList() {
     return true;
   });
 
+  const getTransactionsByType = (type) => filteredTransactions.filter((t) => t.type === type);
+
   const ledgerTotals = useMemo(() => {
     let debit = 0;
     let credit = 0;
@@ -1012,10 +1014,16 @@ function ClientList() {
               <button className="btn btn-sm btn-secondary" style={{ marginLeft: 'auto' }} onClick={() => pushPath(`/clients/edit?id=${activeClient.id}`)}>Edit</button>
             </div>
 
-            <div style={{ display: 'flex', gap: '6px', borderBottom: '1px solid #e5e7eb', marginBottom: '8px' }}>
+            <div style={{ display: 'flex', gap: '6px', borderBottom: '1px solid #e5e7eb', marginBottom: '8px', flexWrap: 'wrap' }}>
               <button className={`btn btn-sm ${activeTab === 'overview' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('overview')}>Overview</button>
               <button className={`btn btn-sm ${activeTab === 'ledger' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('ledger')}>Ledger Statement</button>
               <button className={`btn btn-sm ${activeTab === 'transactions' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('transactions')}>Transactions</button>
+              <button className={`btn btn-sm ${activeTab === 'tab-quotation' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('tab-quotation')}>Quotations</button>
+              <button className={`btn btn-sm ${activeTab === 'tab-client-po' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('tab-client-po')}>Client PO</button>
+              <button className={`btn btn-sm ${activeTab === 'tab-project' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('tab-project')}>Projects</button>
+              <button className={`btn btn-sm ${activeTab === 'tab-site-visit' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('tab-site-visit')}>Site Visits</button>
+              <button className={`btn btn-sm ${activeTab === 'tab-delivery-challan' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('tab-delivery-challan')}>Delivery Challans</button>
+              <button className={`btn btn-sm ${activeTab === 'tab-meeting' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('tab-meeting')}>Meetings</button>
             </div>
 
             <div style={{ minHeight: 0, overflow: 'auto' }}>
@@ -1094,6 +1102,61 @@ function ClientList() {
                             <td style={{ padding: '6px 8px', fontSize: '12px' }}>{t.status}</td>
                           </tr>
                         ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {(activeTab === 'tab-quotation' ||
+                activeTab === 'tab-client-po' ||
+                activeTab === 'tab-project' ||
+                activeTab === 'tab-site-visit' ||
+                activeTab === 'tab-delivery-challan' ||
+                activeTab === 'tab-meeting') && (
+                <div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px 140px', gap: '6px', marginBottom: '8px' }}>
+                    <input className="form-input" value={txSearch} onChange={(e) => setTxSearch(e.target.value)} placeholder="Search no/type/details..." style={{ padding: '6px 8px', fontSize: '12px' }} />
+                    <input type="date" className="form-input" value={txDateFrom} onChange={(e) => setTxDateFrom(e.target.value)} style={{ padding: '6px 8px', fontSize: '12px' }} />
+                    <input type="date" className="form-input" value={txDateTo} onChange={(e) => setTxDateTo(e.target.value)} style={{ padding: '6px 8px', fontSize: '12px' }} />
+                  </div>
+
+                  <div style={{ overflow: 'auto', border: '1px solid #e5e7eb', borderRadius: '6px' }}>
+                    <table className="table" style={{ margin: 0 }}>
+                      <thead>
+                        <tr>
+                          <th style={{ padding: '6px 8px', fontSize: '12px' }}>Type</th>
+                          <th style={{ padding: '6px 8px', fontSize: '12px' }}>Number</th>
+                          <th style={{ padding: '6px 8px', fontSize: '12px' }}>Date</th>
+                          <th style={{ padding: '6px 8px', fontSize: '12px' }}>Details</th>
+                          <th style={{ padding: '6px 8px', fontSize: '12px', textAlign: 'right' }}>Amount</th>
+                          <th style={{ padding: '6px 8px', fontSize: '12px' }}>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(() => {
+                          const typeMap = {
+                            'tab-quotation': 'quotation',
+                            'tab-client-po': 'client_po',
+                            'tab-project': 'project',
+                            'tab-site-visit': 'site_visit',
+                            'tab-delivery-challan': 'delivery_challan',
+                            'tab-meeting': 'meeting'
+                          };
+                          const scoped = getTransactionsByType(typeMap[activeTab]);
+                          if (loadingTx) return <tr><td colSpan={6} style={{ padding: '8px' }}>Loading...</td></tr>;
+                          if (scoped.length === 0) return <tr><td colSpan={6} style={{ padding: '8px' }}>No records</td></tr>;
+                          return scoped.map((t, idx) => (
+                            <tr key={`${activeTab}-${t.ref_id}-${idx}`}>
+                              <td style={{ padding: '6px 8px', fontSize: '12px' }}>{t.label}</td>
+                              <td style={{ padding: '6px 8px', fontSize: '12px', fontWeight: 600 }}>{t.number}</td>
+                              <td style={{ padding: '6px 8px', fontSize: '12px' }}>{t.date ? new Date(t.date).toLocaleDateString() : '-'}</td>
+                              <td style={{ padding: '6px 8px', fontSize: '12px' }}>{t.details || '-'}</td>
+                              <td style={{ padding: '6px 8px', fontSize: '12px', textAlign: 'right' }}>Rs {(t.amount || 0).toFixed(2)}</td>
+                              <td style={{ padding: '6px 8px', fontSize: '12px' }}>{t.status}</td>
+                            </tr>
+                          ));
+                        })()}
                       </tbody>
                     </table>
                   </div>
