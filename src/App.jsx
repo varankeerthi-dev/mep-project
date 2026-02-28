@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, createContext, useContext } from 'react';
+import { useState, useEffect, useMemo, useRef, createContext, useContext } from 'react';
 import Sidebar from './components/Sidebar';
 import QuickAccessBar from './components/QuickAccessBar';
 import CreateDC from './pages/CreateDC';
@@ -827,15 +827,20 @@ function ClientList() {
   const [txDateFrom, setTxDateFrom] = useState('');
   const [txDateTo, setTxDateTo] = useState('');
   const [loadingTx, setLoadingTx] = useState(false);
+  const txCacheRef = useRef(new Map());
 
   const loadClients = async () => {
-    const { data } = await supabase.from('clients').select('*').order('client_name');
+    const { data } = await supabase
+      .from('clients')
+      .select('id, client_name, client_id, contact, email, gstin, state, city, category, address1, address2, pincode')
+      .order('client_name');
     const rows = data || [];
     setClients(rows);
     if (!activeClientId && rows.length > 0) setActiveClientId(rows[0].id);
   };
 
   useEffect(() => { loadClients(); }, []);
+  useEffect(() => { txCacheRef.current.clear(); }, [clients.length]);
 
   const activeClient = useMemo(
     () => clients.find(c => c.id === activeClientId) || null,
@@ -844,6 +849,12 @@ function ClientList() {
 
   const loadClientTransactions = async (client) => {
     if (!client) return;
+    const cached = txCacheRef.current.get(client.id);
+    if (cached) {
+      setTransactions(cached);
+      return;
+    }
+
     setLoadingTx(true);
     const merged = [];
 
@@ -852,7 +863,7 @@ function ClientList() {
     };
 
     try {
-      const [quo, po, prj, visit, dc, meet] = await Promise.all([
+      const [quo, po, prj, visit, dc, meet] = await Promise.allSettled([
         supabase.from('quotation_header').select('id, quotation_no, date, grand_total, status, created_at').eq('client_id', client.id),
         supabase.from('client_purchase_orders').select('id, po_number, po_date, po_total_value, status, created_at').eq('client_id', client.id),
         supabase.from('projects').select('id, project_code, project_name, status, created_at').eq('client_id', client.id),
@@ -861,63 +872,78 @@ function ClientList() {
         supabase.from('meetings').select('id, meeting_date, agenda, status, created_at').eq('client_id', client.id)
       ]);
 
-      safePush(quo.data, (r) => ({
+      const rowsFrom = (result) => {
+        if (result.status !== 'fulfilled') return [];
+        if (result.value?.error) {
+          console.log('Transaction source warning:', result.value.error.message);
+          return [];
+        }
+        return result.value?.data || [];
+      };
+
+      safePush(rowsFrom(quo), (r) => ({
         type: 'quotation',
         label: 'Quotation',
         number: r.quotation_no || '-',
         date: r.date || r.created_at,
+        date_ms: new Date(r.date || r.created_at || 0).getTime(),
         amount: parseFloat(r.grand_total) || 0,
         status: r.status || '-',
         ref_id: r.id
       }));
 
-      safePush(po.data, (r) => ({
+      safePush(rowsFrom(po), (r) => ({
         type: 'client_po',
         label: 'Client PO',
         number: r.po_number || '-',
         date: r.po_date || r.created_at,
+        date_ms: new Date(r.po_date || r.created_at || 0).getTime(),
         amount: parseFloat(r.po_total_value) || 0,
         status: r.status || '-',
         ref_id: r.id
       }));
 
-      safePush(prj.data, (r) => ({
+      safePush(rowsFrom(prj), (r) => ({
         type: 'project',
         label: 'Project',
         number: r.project_code || '-',
         date: r.created_at,
+        date_ms: new Date(r.created_at || 0).getTime(),
         amount: 0,
         status: r.status || '-',
         details: r.project_name || '-',
         ref_id: r.id
       }));
 
-      safePush(visit.data, (r) => ({
+      safePush(rowsFrom(visit), (r) => ({
         type: 'site_visit',
         label: 'Site Visit',
         number: `SV-${String(r.id).slice(0, 6)}`,
         date: r.visit_date || r.created_at,
+        date_ms: new Date(r.visit_date || r.created_at || 0).getTime(),
         amount: 0,
         status: r.status || '-',
         details: r.purpose || '-',
         ref_id: r.id
       }));
 
-      safePush(dc.data, (r) => ({
+      safePush(rowsFrom(dc), (r) => ({
         type: 'delivery_challan',
         label: 'Delivery Challan',
         number: r.dc_number || '-',
         date: r.dc_date || r.created_at,
+        date_ms: new Date(r.dc_date || r.created_at || 0).getTime(),
         amount: 0,
         status: r.status || '-',
         ref_id: r.id
       }));
 
-      safePush(meet.data, (r) => ({
+      safePush(rowsFrom(meet), (r) => ({
         type: 'meeting',
         label: 'Meeting',
         number: `MT-${String(r.id).slice(0, 6)}`,
         date: r.meeting_date || r.created_at,
+        date_ms: new Date(r.meeting_date || r.created_at || 0).getTime(),
         amount: 0,
         status: r.status || '-',
         details: r.agenda || '-',
@@ -926,7 +952,8 @@ function ClientList() {
     } catch (err) {
       console.log('Transaction load warning:', err.message);
     } finally {
-      merged.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+      merged.sort((a, b) => (b.date_ms || 0) - (a.date_ms || 0));
+      txCacheRef.current.set(client.id, merged);
       setTransactions(merged);
       setLoadingTx(false);
     }
@@ -934,27 +961,34 @@ function ClientList() {
 
   useEffect(() => {
     if (activeClient) loadClientTransactions(activeClient);
-  }, [activeClientId]);
+  }, [activeClientId, clients]);
 
-  const filteredClients = clients.filter(c =>
-    c.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.client_id?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredClients = useMemo(() => {
+    const q = searchTerm.toLowerCase();
+    return clients.filter((c) =>
+      c.client_name?.toLowerCase().includes(q) ||
+      c.client_id?.toLowerCase().includes(q)
+    );
+  }, [clients, searchTerm]);
 
-  const filteredTransactions = transactions.filter((t) => {
-    if (txFilter !== 'all' && t.type !== txFilter) return false;
-    if (txDateFrom && new Date(t.date) < new Date(txDateFrom)) return false;
-    if (txDateTo && new Date(t.date) > new Date(txDateTo)) return false;
-    if (txSearch) {
-      const q = txSearch.toLowerCase();
-      if (
-        !(t.number || '').toLowerCase().includes(q) &&
-        !(t.label || '').toLowerCase().includes(q) &&
-        !(t.details || '').toLowerCase().includes(q)
-      ) return false;
-    }
-    return true;
-  });
+  const filteredTransactions = useMemo(() => {
+    const fromMs = txDateFrom ? new Date(txDateFrom).getTime() : null;
+    const toMs = txDateTo ? new Date(txDateTo).getTime() : null;
+    const q = txSearch.toLowerCase();
+    return transactions.filter((t) => {
+      if (txFilter !== 'all' && t.type !== txFilter) return false;
+      if (fromMs && (t.date_ms || 0) < fromMs) return false;
+      if (toMs && (t.date_ms || 0) > toMs + (24 * 60 * 60 * 1000 - 1)) return false;
+      if (q) {
+        if (
+          !(t.number || '').toLowerCase().includes(q) &&
+          !(t.label || '').toLowerCase().includes(q) &&
+          !(t.details || '').toLowerCase().includes(q)
+        ) return false;
+      }
+      return true;
+    });
+  }, [transactions, txFilter, txDateFrom, txDateTo, txSearch]);
 
   const getTransactionsByType = (type) => filteredTransactions.filter((t) => t.type === type);
 

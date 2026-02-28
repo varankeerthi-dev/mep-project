@@ -279,8 +279,8 @@ function ItemsTab() {
       is_active: material.is_active !== false,
       uses_variant: material.uses_variant || false
     });
-    await loadVariantPricing(material.id);
     setShowForm(true);
+    loadVariantPricing(material.id);
   };
 
   const handleUsesVariantChange = async (checked) => {
@@ -309,9 +309,37 @@ function ItemsTab() {
   };
 
   const deleteMaterial = async (id) => {
-    if (confirm('Delete this item?')) {
-      await supabase.from('materials').delete().eq('id', id);
-      loadMaterials();
+    if (!confirm('Delete this item?')) return;
+
+    try {
+      const checks = await Promise.allSettled([
+        supabase.from('quotation_items').select('id').eq('item_id', id).limit(1),
+        supabase.from('delivery_challan_items').select('id').eq('material_id', id).limit(1),
+        supabase.from('material_inward_items').select('id').eq('material_id', id).limit(1),
+        supabase.from('quick_check_items').select('id').eq('item_id', id).limit(1),
+      ]);
+
+      const hasLinkedRecords = checks.some((r) => r.status === 'fulfilled' && (r.value.data?.length || 0) > 0);
+
+      if (!hasLinkedRecords) {
+        await supabase.from('item_variant_pricing').delete().eq('item_id', id);
+        await supabase.from('item_stock').delete().eq('item_id', id);
+
+        const { error } = await supabase.from('materials').delete().eq('id', id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('materials')
+          .update({ is_active: false, updated_at: new Date().toISOString() })
+          .eq('id', id);
+        if (error) throw error;
+        alert('Item is linked with transactions, so it was archived (disabled) instead of hard delete.');
+      }
+
+      setMaterials((prev) => prev.filter((m) => m.id !== id));
+    } catch (err) {
+      console.error('Delete item error:', err);
+      alert('Unable to delete item: ' + err.message);
     }
   };
 
@@ -406,7 +434,7 @@ function ItemsTab() {
               </thead>
               <tbody>
                 {filteredMaterials.map(m => (
-                  <tr key={m.id} style={{ opacity: m.is_active === false ? 0.5 : 1 }}>
+                  <tr key={m.id} style={{ opacity: m.is_active === false ? 0.5 : 1, cursor: 'pointer' }} onClick={() => editMaterial(m)}>
                     {visibleColumns.includes('display_name') && <td><strong>{m.display_name || m.name}</strong></td>}
                     {visibleColumns.includes('item_code') && <td>{m.item_code || '-'}</td>}
                     {visibleColumns.includes('main_category') && <td>{m.main_category || '-'}</td>}
@@ -443,9 +471,9 @@ function ItemsTab() {
                     )}
                     {visibleColumns.includes('is_active') && <td>{m.is_active ? '✓' : '✗'}</td>}
                     <td>
-                      <button className="btn btn-sm btn-secondary" onClick={() => editMaterial(m)}>Edit</button>
-                      <button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px' }} onClick={() => toggleActive(m)}>{m.is_active ? 'Disable' : 'Enable'}</button>
-                      <button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px' }} onClick={() => deleteMaterial(m.id)}>Delete</button>
+                      <button className="btn btn-sm btn-secondary" onClick={(e) => { e.stopPropagation(); editMaterial(m); }}>Edit</button>
+                      <button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px' }} onClick={(e) => { e.stopPropagation(); toggleActive(m); }}>{m.is_active ? 'Disable' : 'Enable'}</button>
+                      <button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px' }} onClick={(e) => { e.stopPropagation(); deleteMaterial(m.id); }}>Delete</button>
                     </td>
                   </tr>
                 ))}
