@@ -83,6 +83,26 @@ export const getUserOrganisations = async (userId) => {
     error = retry.error
   }
 
+  // If membership rows are present but embedded organisation is missing,
+  // fetch organisation records directly and hydrate the response.
+  if (!error && Array.isArray(data) && data.length > 0 && data.some((row) => !row.organisation && row.organisation_id)) {
+    const orgIds = [...new Set(data.map((row) => row.organisation_id).filter(Boolean))]
+    if (orgIds.length > 0) {
+      const orgRes = await supabase
+        .from('organisations')
+        .select('*')
+        .in('id', orgIds)
+
+      if (!orgRes.error && Array.isArray(orgRes.data)) {
+        const orgMap = Object.fromEntries(orgRes.data.map((org) => [org.id, org]))
+        data = data.map((row) => ({
+          ...row,
+          organisation: row.organisation || orgMap[row.organisation_id] || null
+        }))
+      }
+    }
+  }
+
   return { data, error }
 }
 
