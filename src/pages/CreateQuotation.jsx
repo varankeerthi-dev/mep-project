@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { supabase } from '../supabase';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
@@ -29,6 +29,10 @@ export default function CreateQuotation() {
   const [companyState, setCompanyState] = useState('Maharashtra');
   const [quoteNoPreview, setQuoteNoPreview] = useState('');
   const [draggingItemId, setDraggingItemId] = useState(null);
+  
+  // Phase-1: Dynamic Variant Discount Header System
+  const [headerDiscounts, setHeaderDiscounts] = useState({});
+  const [discountPopup, setDiscountPopup] = useState({ show: false, variantId: null, variantName: '', oldValue: 0, newValue: 0, affectedRows: 0, overriddenRows: 0 });
   
   const [showItemPicker, setShowItemPicker] = useState(false);
   const [itemSearch, setItemSearch] = useState('');
@@ -169,6 +173,98 @@ export default function CreateQuotation() {
     }
   };
 
+  // Phase-1: Load variant discounts from database
+  const loadVariantDiscounts = async (quotationId) => {
+    try {
+      const { data: discounts } = await supabase
+        .from('quotation_revision_variant_discount')
+        .select('*')
+        .eq('quotation_revision_id', quotationId);
+      
+      if (discounts && discounts.length > 0) {
+        const discountMap = {};
+        discounts.forEach(d => {
+          discountMap[d.variant_id] = parseFloat(d.header_discount_percent) || 0;
+        });
+        setHeaderDiscounts(discountMap);
+      }
+    } catch (err) {
+      console.warn('Unable to load variant discounts:', err);
+    }
+  };
+
+  // Phase-1: Handle header discount change with smart popup
+  const handleHeaderDiscountChange = useCallback((variantId, newValue) => {
+    const oldValue = headerDiscounts[variantId] || 0;
+    const numValue = parseFloat(newValue) || 0;
+    
+    if (numValue === oldValue) return;
+    
+    const affectedItems = items.filter(item => 
+      item.variant_id === variantId && !item.is_override
+    );
+    const overriddenItems = items.filter(item => 
+      item.variant_id === variantId && item.is_override
+    );
+    
+    const variant = variants.find(v => v.id === variantId);
+    const variantName = variant?.variant_name || 'Unknown Variant';
+    
+    if (affectedItems.length > 0 || overriddenItems.length > 0) {
+      setDiscountPopup({
+        show: true,
+        variantId,
+        variantName,
+        oldValue,
+        newValue: numValue,
+        affectedRows: affectedItems.length,
+        overriddenRows: overriddenItems.length
+      });
+    } else {
+      setHeaderDiscounts(prev => ({ ...prev, [variantId]: numValue }));
+    }
+  }, [headerDiscounts, items, variants]);
+
+  // Phase-1: Apply header discount changes
+  const applyDiscountChanges = useCallback(() => {
+    const { variantId, newValue } = discountPopup;
+    
+    setHeaderDiscounts(prev => ({ ...prev, [variantId]: newValue }));
+    
+    setItems(prevItems => 
+      prevItems.map(item => {
+        if (item.variant_id === variantId && !item.is_override) {
+          const appliedDiscount = newValue;
+          const baseRate = parseFloat(item.base_rate_snapshot) || parseFloat(item.rate) || 0;
+          const finalRate = baseRate - (baseRate * appliedDiscount / 100);
+          
+          return {
+            ...item,
+            applied_discount_percent: appliedDiscount,
+            final_rate_snapshot: finalRate,
+            discount_percent: appliedDiscount,
+            rate: finalRate
+          };
+        }
+        return item;
+      })
+    );
+    
+    setDiscountPopup({ show: false, variantId: null, variantName: '', oldValue: 0, newValue: 0, affectedRows: 0, overriddenRows: 0 });
+  }, [discountPopup]);
+
+  // Phase-1: Cancel discount changes
+  const cancelDiscountChanges = useCallback(() => {
+    setDiscountPopup({ show: false, variantId: null, variantName: '', oldValue: 0, newValue: 0, affectedRows: 0, overriddenRows: 0 });
+  }, []);
+
+  // Phase-1: Calculate rate from variant discount
+  const calculateVariantDiscountedRate = useCallback((baseRate, discountPercent) => {
+    const base = parseFloat(baseRate) || 0;
+    const discount = parseFloat(discountPercent) || 0;
+    return base - (base * discount / 100);
+  }, []);
+
   const loadQuotation = async (id) => {
     const { data, error } = await supabase
       .from('quotation_header')
@@ -205,9 +301,18 @@ export default function CreateQuotation() {
         setItems(data.items.map(item => ({
           ...item,
           hsn_code: item.hsn_code || item.item?.hsn_code || null,
-          id: item.id || Date.now() + Math.random()
+          id: item.id || Date.now() + Math.random(),
+          // Phase-1: Load snapshot fields
+          base_rate_snapshot: parseFloat(item.base_rate_snapshot) || parseFloat(item.rate) || 0,
+          applied_discount_percent: parseFloat(item.applied_discount_percent) || 0,
+          is_override: item.is_override || false,
+          final_rate_snapshot: parseFloat(item.final_rate_snapshot) || parseFloat(item.rate) || 0,
+          display_order: item.display_order || 0
         })));
       }
+      
+      // Phase-1: Load variant discounts
+      await loadVariantDiscounts(id);
     }
   };
 
@@ -325,24 +430,38 @@ export default function CreateQuotation() {
   };
 
   const handleAddItemsToQuotation = () => {
-    const newItems = pickerItems.map((p, idx) => ({
-      id: Date.now() + idx,
-      item_id: p.item_id,
-      variant_id: p.variant_id || null,
-      material: p.material,
-      hsn_code: p.material?.hsn_code || null,
-      description: p.description,
-      qty: p.qty,
-      uom: p.uom,
-      rate: p.rate,
-      discount_percent: p.discount_percent,
-      discount_amount: 0,
-      tax_percent: p.tax_percent,
-      tax_amount: 0,
-      line_total: 0,
-      override_flag: false,
-      original_discount_percent: p.discount_percent
-    }));
+    const currentItemsLength = items.length;
+    const newItems = pickerItems.map((p, idx) => {
+      const baseRate = p.rate;
+      const variantId = p.variant_id || null;
+      const headerDiscount = variantId ? (headerDiscounts[variantId] || 0) : 0;
+      const finalRate = calculateVariantDiscountedRate(baseRate, headerDiscount);
+      
+      return {
+        id: Date.now() + idx,
+        item_id: p.item_id,
+        variant_id: variantId,
+        material: p.material,
+        hsn_code: p.material?.hsn_code || null,
+        description: p.description,
+        qty: p.qty,
+        uom: p.uom,
+        rate: finalRate,
+        discount_percent: headerDiscount,
+        discount_amount: 0,
+        tax_percent: p.tax_percent,
+        tax_amount: 0,
+        line_total: 0,
+        override_flag: false,
+        original_discount_percent: p.discount_percent,
+        // Phase-1: New snapshot fields
+        base_rate_snapshot: baseRate,
+        applied_discount_percent: headerDiscount,
+        is_override: false,
+        final_rate_snapshot: finalRate,
+        display_order: currentItemsLength + idx
+      };
+    });
 
     setItems([...items, ...newItems]);
     setPickerItems([]);
@@ -372,12 +491,54 @@ export default function CreateQuotation() {
 
         const updates = { [field]: value };
 
+        // Phase-1: Handle variant discount changes and override detection
+        if (field === 'discount_percent') {
+          const headerDiscount = item.variant_id ? (headerDiscounts[item.variant_id] || 0) : 0;
+          const newDiscount = parseFloat(value) || 0;
+          
+          // Check if this is an override (different from header discount)
+          if (newDiscount !== headerDiscount) {
+            updates.is_override = true;
+          } else {
+            updates.is_override = false;
+          }
+          
+          // Update applied discount and recalculate final rate snapshot
+          updates.applied_discount_percent = newDiscount;
+          const baseRate = parseFloat(item.base_rate_snapshot) || parseFloat(item.rate) || 0;
+          updates.final_rate_snapshot = calculateVariantDiscountedRate(baseRate, newDiscount);
+        }
+
+        // Legacy negotiation mode handling (keep for backward compatibility)
         if (field === 'discount_percent' && formData.negotiation_mode) {
           const original = item.original_discount_percent || 0;
           updates.override_flag = value !== original;
         }
         if (field === 'rate' && formData.negotiation_mode) {
           updates.override_flag = true;
+        }
+
+        // Phase-1: Update snapshots when item or variant changes
+        if (field === 'item_id' || field === 'variant_id') {
+          const mat = field === 'item_id' 
+            ? materials.find(m => m.id === value) 
+            : materials.find(m => m.id === item.item_id);
+          
+          if (mat) {
+            const nextVariant = field === 'variant_id' ? value : item.variant_id;
+            const newRate = getRateForMaterialVariant(mat, nextVariant);
+            updates.base_rate_snapshot = newRate;
+            
+            const variantDiscount = nextVariant ? (headerDiscounts[nextVariant] || 0) : 0;
+            updates.applied_discount_percent = variantDiscount;
+            updates.final_rate_snapshot = calculateVariantDiscountedRate(newRate, variantDiscount);
+            updates.is_override = false;
+            
+            // Update rate as well
+            if (field === 'variant_id') {
+              updates.rate = updates.final_rate_snapshot;
+            }
+          }
         }
 
         return { ...item, ...updates };
@@ -409,7 +570,13 @@ export default function CreateQuotation() {
         tax_amount: 0,
         line_total: 0,
         override_flag: false,
-        original_discount_percent: 0
+        original_discount_percent: 0,
+        // Phase-1: New snapshot fields
+        base_rate_snapshot: 0,
+        applied_discount_percent: 0,
+        is_override: false,
+        final_rate_snapshot: 0,
+        display_order: prev.length
       }
     ]);
   };
@@ -627,7 +794,13 @@ export default function CreateQuotation() {
         tax_percent: parseFloat(item.tax_percent) || 0,
         tax_amount: item.tax_amount || 0,
         line_total: item.line_total || 0,
-        override_flag: item.override_flag || false
+        override_flag: item.override_flag || false,
+        // Phase-1: New snapshot fields
+        base_rate_snapshot: parseFloat(item.base_rate_snapshot) || parseFloat(item.rate) || 0,
+        applied_discount_percent: parseFloat(item.applied_discount_percent) || 0,
+        is_override: item.is_override || false,
+        final_rate_snapshot: parseFloat(item.final_rate_snapshot) || parseFloat(item.rate) || 0,
+        display_order: item.display_order || 0
       }));
 
       const { error: insertItemsError } = await withTimeout(
@@ -635,6 +808,28 @@ export default function CreateQuotation() {
         'saving quotation items'
       );
       if (insertItemsError) throw insertItemsError;
+
+      // Phase-1: Save variant discounts
+      const variantDiscountRecords = Object.entries(headerDiscounts).map(([variantId, discount]) => ({
+        quotation_revision_id: quotationId,
+        variant_id: variantId,
+        header_discount_percent: parseFloat(discount) || 0
+      })).filter(r => r.header_discount_percent > 0);
+
+      if (variantDiscountRecords.length > 0) {
+        // Delete existing and insert new
+        await supabase
+          .from('quotation_revision_variant_discount')
+          .delete()
+          .eq('quotation_revision_id', quotationId);
+          
+        const { error: discountError } = await supabase
+          .from('quotation_revision_variant_discount')
+          .insert(variantDiscountRecords);
+        if (discountError) {
+          console.warn('Failed to save variant discounts:', discountError);
+        }
+      }
 
       alert(editId ? 'Quotation updated!' : 'Quotation created!');
       
@@ -794,6 +989,71 @@ export default function CreateQuotation() {
         </div>
       </div>
 
+      {/* Phase-1: Dynamic Variant Discount Header Section */}
+      {variants.length > 0 && (
+        <div className="card" style={{ marginBottom: '16px', padding: isMobile ? '12px' : '16px' }} data-html2canvas-ignore>
+          <div style={{ marginBottom: '12px' }}>
+            <h3 style={{ margin: 0, fontSize: '16px' }}>Discount Control</h3>
+            <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#6b7280' }}>
+              Set default discount % per variant. Overridden rows will be highlighted.
+            </p>
+          </div>
+          
+          <div style={{ 
+            display: 'flex', 
+            flexWrap: 'wrap', 
+            gap: isMobile ? '12px' : '16px',
+            flexDirection: isMobile ? 'column' : 'row'
+          }}>
+            {variants.map(variant => (
+              <div 
+                key={variant.id} 
+                style={{ 
+                  flex: isMobile ? '1 1 auto' : '0 1 180px',
+                  minWidth: isMobile ? '100%' : '160px',
+                  padding: '12px',
+                  background: '#f8fafc',
+                  borderRadius: '8px',
+                  border: '1px solid #e2e8f0'
+                }}
+              >
+                <label style={{ 
+                  display: 'block', 
+                  fontSize: '12px', 
+                  fontWeight: 600, 
+                  marginBottom: '6px',
+                  color: '#475569'
+                }}>
+                  {variant.variant_name}
+                </label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <input
+                    type="number"
+                    className="form-input"
+                    style={{ 
+                      width: '80px', 
+                      textAlign: 'right',
+                      minHeight: '36px',
+                      fontSize: '14px'
+                    }}
+                    value={headerDiscounts[variant.id] || 0}
+                    onChange={(e) => {
+                      const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0));
+                      handleHeaderDiscountChange(variant.id, val);
+                    }}
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    placeholder="0"
+                  />
+                  <span style={{ fontSize: '14px', color: '#64748b' }}>%</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="card" style={{ marginBottom: '16px' }} ref={itemsTableRef}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
           <h3 style={{ margin: 0 }}>Items</h3>
@@ -814,27 +1074,30 @@ export default function CreateQuotation() {
         </div>
 
         <div style={{ overflowX: 'auto' }}>
-          <table className="table" style={{ minWidth: '1160px' }}>
+          <table className="table" style={{ minWidth: isMobile ? '1200px' : '1160px' }}>
             <thead>
               <tr>
-                <th style={{ ...compactHeadCellStyle, width: '34px' }}></th>
-                <th style={{ ...compactHeadCellStyle, width: '60px' }}>S.No</th>
-                <th style={{ ...compactHeadCellStyle, width: '120px' }}>HSN/SAC</th>
-                <th style={compactHeadCellStyle}>Item</th>
-                <th style={{ ...compactHeadCellStyle, width: '140px' }}>Variant</th>
+                <th style={{ ...compactHeadCellStyle, width: '40px', textAlign: 'center' }} title="Drag to reorder">
+                  <span style={{ fontSize: '14px' }}>☰</span>
+                </th>
+                <th style={{ ...compactHeadCellStyle, width: '50px' }}>S.No</th>
+                <th style={{ ...compactHeadCellStyle, width: '100px' }}>HSN/SAC</th>
+                <th style={{ ...compactHeadCellStyle, width: '120px' }}>Item</th>
+                <th style={{ ...compactHeadCellStyle, width: '120px' }}>Variant</th>
                 <th style={compactHeadCellStyle}>Description</th>
-                <th style={{ ...compactHeadCellStyle, width: '80px' }}>Qty</th>
-                <th style={{ ...compactHeadCellStyle, width: '90px' }}>Unit</th>
-                <th style={{ ...compactHeadCellStyle, width: '110px' }}>Rate</th>
-                <th style={{ ...compactHeadCellStyle, width: '90px' }}>Tax %</th>
-                <th style={{ ...compactHeadCellStyle, width: '130px' }}>Amount</th>
+                <th style={{ ...compactHeadCellStyle, width: '60px' }}>Qty</th>
+                <th style={{ ...compactHeadCellStyle, width: '70px' }}>Unit</th>
+                <th style={{ ...compactHeadCellStyle, width: '90px' }}>Rate</th>
+                <th style={{ ...compactHeadCellStyle, width: '70px' }}>Disc %</th>
+                <th style={{ ...compactHeadCellStyle, width: '80px' }}>Tax %</th>
+                <th style={{ ...compactHeadCellStyle, width: '110px' }}>Amount</th>
                 <th style={{ ...compactHeadCellStyle, width: '40px' }}></th>
               </tr>
             </thead>
             <tbody>
               {items.length === 0 ? (
                 <tr>
-                  <td colSpan={12} style={{ padding: '28px', textAlign: 'center', color: '#6b7280' }}>
+                  <td colSpan={13} style={{ padding: '28px', textAlign: 'center', color: '#6b7280' }}>
                     No items added. Click "Add Row" or "Add Multiple Items".
                   </td>
                 </tr>
@@ -847,9 +1110,14 @@ export default function CreateQuotation() {
                     onDragOver={handleDragOver}
                     onDrop={(e) => handleDropOnRow(e, item.id)}
                     onDragEnd={handleDragEnd}
-                    style={draggingItemId === item.id ? { opacity: 0.55 } : {}}
+                    style={{
+                      ...(draggingItemId === item.id ? { opacity: 0.55 } : {}),
+                      ...(item.is_override ? { background: '#eff6ff' } : {})
+                    }}
                   >
-                    <td style={{ ...compactBodyCellStyle, cursor: 'grab', textAlign: 'center', color: '#64748b' }} title="Drag to reorder">::</td>
+                    <td style={{ ...compactBodyCellStyle, cursor: 'grab', textAlign: 'center', color: '#94a3b8', minHeight: '44px' }} title="Drag to reorder">
+                      <span style={{ fontSize: '16px' }}>☰</span>
+                    </td>
                     <td style={compactBodyCellStyle}>{index + 1}</td>
                     <td style={compactBodyCellStyle}>
                       <input
@@ -863,7 +1131,7 @@ export default function CreateQuotation() {
                     <td style={compactBodyCellStyle}>
                       <select
                         className="form-select"
-                        style={{ ...compactCellInputStyle, minWidth: '150px' }}
+                        style={{ ...compactCellInputStyle, minWidth: '120px' }}
                         value={item.item_id}
                         onChange={(e) => {
                           const mat = materials.find(m => m.id === e.target.value);
@@ -872,7 +1140,11 @@ export default function CreateQuotation() {
                             updateItem(item.id, 'material', mat);
                             updateItem(item.id, 'hsn_code', mat.hsn_code || '');
                             updateItem(item.id, 'description', mat.display_name || mat.name);
-                            updateItem(item.id, 'rate', getRateForMaterialVariant(mat, item.variant_id || null));
+                            const newRate = getRateForMaterialVariant(mat, item.variant_id || null);
+                            updateItem(item.id, 'base_rate_snapshot', newRate);
+                            const finalRate = calculateVariantDiscountedRate(newRate, item.applied_discount_percent || 0);
+                            updateItem(item.id, 'final_rate_snapshot', finalRate);
+                            updateItem(item.id, 'rate', finalRate);
                             updateItem(item.id, 'uom', mat.unit || 'Nos');
                           }
                         }}
@@ -892,7 +1164,15 @@ export default function CreateQuotation() {
                           const nextVariant = e.target.value || null;
                           updateItem(item.id, 'variant_id', nextVariant);
                           const mat = materials.find(m => m.id === item.item_id);
-                          if (mat) updateItem(item.id, 'rate', getRateForMaterialVariant(mat, nextVariant));
+                          if (mat) {
+                            const newRate = getRateForMaterialVariant(mat, nextVariant);
+                            const variantDiscount = nextVariant ? (headerDiscounts[nextVariant] || 0) : 0;
+                            const finalRate = calculateVariantDiscountedRate(newRate, variantDiscount);
+                            updateItem(item.id, 'base_rate_snapshot', newRate);
+                            updateItem(item.id, 'applied_discount_percent', variantDiscount);
+                            updateItem(item.id, 'final_rate_snapshot', finalRate);
+                            updateItem(item.id, 'rate', finalRate);
+                          }
                         }}
                       >
                         <option value="">No Variant</option>
@@ -907,7 +1187,7 @@ export default function CreateQuotation() {
                         className="form-input"
                         value={item.description || ''}
                         onChange={(e) => updateItem(item.id, 'description', e.target.value)}
-                        style={{ ...compactCellInputStyle, minWidth: '150px' }}
+                        style={{ ...compactCellInputStyle, minWidth: '120px' }}
                       />
                     </td>
                     <td style={compactBodyCellStyle}>
@@ -934,12 +1214,35 @@ export default function CreateQuotation() {
                       <input
                         type="number"
                         className="form-input"
-                        style={{ ...compactCellInputStyle, ...(item.override_flag && formData.negotiation_mode ? { background: '#fef3c7' } : {}) }}
+                        style={{ 
+                          ...compactCellInputStyle, 
+                          ...(item.override_flag && formData.negotiation_mode ? { background: '#fef3c7' } : {}),
+                          ...(item.is_override ? { background: '#eff6ff', border: '1px solid #3b82f6' } : {})
+                        }}
                         value={item.rate}
                         onChange={(e) => updateItem(item.id, 'rate', e.target.value)}
                         min="0"
                         step="0.01"
                         disabled={!formData.negotiation_mode}
+                      />
+                    </td>
+                    {/* Phase-1: Discount % Column */}
+                    <td style={compactBodyCellStyle}>
+                      <input
+                        type="number"
+                        className="form-input"
+                        style={{ 
+                          ...compactCellInputStyle,
+                          ...(item.is_override ? { background: '#eff6ff', border: '1px solid #3b82f6', fontWeight: 600 } : {})
+                        }}
+                        value={item.discount_percent || 0}
+                        onChange={(e) => {
+                          const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0));
+                          updateItem(item.id, 'discount_percent', val);
+                        }}
+                        min="0"
+                        max="100"
+                        step="0.01"
                       />
                     </td>
                     <td style={compactBodyCellStyle}>
@@ -1066,6 +1369,75 @@ export default function CreateQuotation() {
           {saving ? 'Saving...' : editId ? 'Update' : 'Save'}
         </button>
       </div>
+
+      {/* Phase-1: Smart Discount Change Confirmation Popup */}
+      {discountPopup.show && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1100
+        }} onClick={cancelDiscountChanges}>
+          <div style={{
+            background: '#fff',
+            borderRadius: '12px',
+            width: isMobile ? '94%' : '480px',
+            padding: isMobile ? '20px' : '24px',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)'
+          }} onClick={e => e.stopPropagation()}>
+            <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', color: '#1e293b' }}>
+              Discount Changed
+            </h3>
+            
+            <div style={{ 
+              padding: '16px', 
+              background: '#f8fafc', 
+              borderRadius: '8px', 
+              marginBottom: '20px',
+              border: '1px solid #e2e8f0'
+            }}>
+              <p style={{ margin: '0 0 12px 0', fontSize: '14px', color: '#475569' }}>
+                Discount for <strong>{discountPopup.variantName}</strong> changed from <strong>{discountPopup.oldValue}%</strong> to <strong>{discountPopup.newValue}%</strong>.
+              </p>
+              
+              {discountPopup.affectedRows > 0 && (
+                <p style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#16a34a' }}>
+                  ✓ {discountPopup.affectedRows} row{discountPopup.affectedRows !== 1 ? 's' : ''} will update.
+                </p>
+              )}
+              
+              {discountPopup.overriddenRows > 0 && (
+                <p style={{ margin: 0, fontSize: '14px', color: '#dc2626' }}>
+                  ⚠ {discountPopup.overriddenRows} overridden row{discountPopup.overriddenRows !== 1 ? 's' : ''} will remain unchanged.
+                </p>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <button 
+                className="btn btn-secondary"
+                onClick={cancelDiscountChanges}
+                style={{ minWidth: '100px' }}
+              >
+                Cancel
+              </button>
+              <button 
+                className="btn btn-primary"
+                onClick={applyDiscountChanges}
+                style={{ minWidth: '140px' }}
+              >
+                Apply Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
             {showItemPicker && (
         <div style={{
