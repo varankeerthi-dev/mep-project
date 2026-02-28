@@ -446,7 +446,7 @@ export default function CreateQuotation() {
         });
         setItems([]);
       } else {
-        navigate('/quotation');
+        navigate(`/quotation/view?id=${quotationId}`);
       }
     } catch (err) {
       console.error('Error saving quotation:', err);
@@ -462,6 +462,9 @@ export default function CreateQuotation() {
 
   const compactLabelStyle = { fontWeight: 600, fontSize: '10px', marginBottom: '4px', lineHeight: 1.1 };
   const compactFieldStyle = { minHeight: '34px', padding: '6px 8px', fontSize: '12px' };
+  const compactHeadCellStyle = { padding: '6px 8px', fontSize: '11px', whiteSpace: 'nowrap' };
+  const compactBodyCellStyle = { padding: '5px 6px', fontSize: '12px', verticalAlign: 'middle' };
+  const compactCellInputStyle = { minHeight: '30px', padding: '4px 6px', fontSize: '12px' };
 
   if (loading) {
     return <div style={{ padding: '40px', textAlign: 'center' }}>Loading...</div>;
@@ -601,17 +604,17 @@ export default function CreateQuotation() {
           <table className="table" style={{ minWidth: '1120px' }}>
             <thead>
               <tr>
-                <th style={{ width: '60px' }}>S.No</th>
-                <th style={{ width: '120px' }}>HSN/SAC</th>
-                <th>Item</th>
-                <th style={{ width: '140px' }}>Variant</th>
-                <th>Description</th>
-                <th style={{ width: '80px' }}>Qty</th>
-                <th style={{ width: '90px' }}>Unit</th>
-                <th style={{ width: '110px' }}>Rate</th>
-                <th style={{ width: '90px' }}>Tax %</th>
-                <th style={{ width: '130px' }}>Amount</th>
-                <th style={{ width: '40px' }}></th>
+                <th style={{ ...compactHeadCellStyle, width: '60px' }}>S.No</th>
+                <th style={{ ...compactHeadCellStyle, width: '120px' }}>HSN/SAC</th>
+                <th style={compactHeadCellStyle}>Item</th>
+                <th style={{ ...compactHeadCellStyle, width: '140px' }}>Variant</th>
+                <th style={compactHeadCellStyle}>Description</th>
+                <th style={{ ...compactHeadCellStyle, width: '80px' }}>Qty</th>
+                <th style={{ ...compactHeadCellStyle, width: '90px' }}>Unit</th>
+                <th style={{ ...compactHeadCellStyle, width: '110px' }}>Rate</th>
+                <th style={{ ...compactHeadCellStyle, width: '90px' }}>Tax %</th>
+                <th style={{ ...compactHeadCellStyle, width: '130px' }}>Amount</th>
+                <th style={{ ...compactHeadCellStyle, width: '40px' }}></th>
               </tr>
             </thead>
             <tbody>
@@ -624,20 +627,20 @@ export default function CreateQuotation() {
               ) : (
                 items.map((item, index) => (
                   <tr key={item.id}>
-                    <td>{index + 1}</td>
-                    <td>
+                    <td style={compactBodyCellStyle}>{index + 1}</td>
+                    <td style={compactBodyCellStyle}>
                       <input
                         type="text"
                         className="form-input"
                         value={item.hsn_code || item.material?.hsn_code || materials.find(m => m.id === item.item_id)?.hsn_code || ''}
                         readOnly
-                        style={{ background: '#f8fafc' }}
+                        style={{ ...compactCellInputStyle, background: '#f8fafc' }}
                       />
                     </td>
-                    <td>
+                    <td style={compactBodyCellStyle}>
                       <select
                         className="form-select"
-                        style={{ minWidth: '150px' }}
+                        style={{ ...compactCellInputStyle, minWidth: '150px' }}
                         value={item.item_id}
                         onChange={(e) => {
                           const mat = materials.find(m => m.id === e.target.value);
@@ -657,9 +660,10 @@ export default function CreateQuotation() {
                         ))}
                       </select>
                     </td>
-                    <td>
+                    <td style={compactBodyCellStyle}>
                       <select
                         className="form-select"
+                        style={compactCellInputStyle}
                         value={item.variant_id || ''}
                         onChange={(e) => {
                           const nextVariant = e.target.value || null;
@@ -674,38 +678,40 @@ export default function CreateQuotation() {
                         ))}
                       </select>
                     </td>
-                    <td>
+                    <td style={compactBodyCellStyle}>
                       <input
                         type="text"
                         className="form-input"
                         value={item.description || ''}
                         onChange={(e) => updateItem(item.id, 'description', e.target.value)}
-                        style={{ minWidth: '150px' }}
+                        style={{ ...compactCellInputStyle, minWidth: '150px' }}
                       />
                     </td>
-                    <td>
+                    <td style={compactBodyCellStyle}>
                       <input
                         type="number"
                         className="form-input"
+                        style={compactCellInputStyle}
                         value={item.qty}
                         onChange={(e) => updateItem(item.id, 'qty', e.target.value)}
                         min="0"
                         step="0.01"
                       />
                     </td>
-                    <td>
+                    <td style={compactBodyCellStyle}>
                       <input
                         type="text"
                         className="form-input"
+                        style={compactCellInputStyle}
                         value={item.uom}
                         onChange={(e) => updateItem(item.id, 'uom', e.target.value)}
                       />
                     </td>
-                    <td>
+                    <td style={compactBodyCellStyle}>
                       <input
                         type="number"
                         className="form-input"
-                        style={item.override_flag && formData.negotiation_mode ? { background: '#fef3c7' } : {}}
+                        style={{ ...compactCellInputStyle, ...(item.override_flag && formData.negotiation_mode ? { background: '#fef3c7' } : {}) }}
                         value={item.rate}
                         onChange={(e) => updateItem(item.id, 'rate', e.target.value)}
                         min="0"
@@ -713,10 +719,11 @@ export default function CreateQuotation() {
                         disabled={!formData.negotiation_mode}
                       />
                     </td>
-                    <td>
+                    <td style={compactBodyCellStyle}>
                       <input
                         type="number"
                         className="form-input"
+                        style={compactCellInputStyle}
                         value={item.tax_percent}
                         onChange={(e) => updateItem(item.id, 'tax_percent', e.target.value)}
                         min="0"
@@ -724,16 +731,15 @@ export default function CreateQuotation() {
                         step="0.01"
                       />
                     </td>
-                    <td style={{ fontWeight: 600, textAlign: 'right' }}>
+                    <td style={{ ...compactBodyCellStyle, fontWeight: 600, textAlign: 'right' }}>
                       {formatCurrency((parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0) - (item.discount_amount || 0))}
                     </td>
-                    <td>
+                    <td style={compactBodyCellStyle}>
                       <button
                         className="btn btn-sm"
                         style={{ color: '#dc2626', padding: '4px 8px' }}
-                        onClick={() => removeItem(item.id)}
-                      >
-                        ×
+                        onClick={() => removeItem(item.id)}>
+                        x
                       </button>
                     </td>
                   </tr>
@@ -979,4 +985,6 @@ function numberToWords(num) {
   
   return result;
 }
+
+
 
