@@ -1037,9 +1037,14 @@ export default function CreateQuotation() {
                       fontSize: '14px'
                     }}
                     value={headerDiscounts[variant.id] || 0}
-                    onChange={(e) => {
+                    onBlur={(e) => {
                       const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0));
                       handleHeaderDiscountChange(variant.id, val);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.target.blur();
+                      }
                     }}
                     min="0"
                     max="100"
