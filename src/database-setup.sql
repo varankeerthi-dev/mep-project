@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS delivery_challans (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   dc_number VARCHAR(50) UNIQUE NOT NULL,
   project_id UUID REFERENCES projects(id),
+  variant_id UUID REFERENCES company_variants(id),
   dc_date DATE NOT NULL,
   client_name VARCHAR(255),
   site_address TEXT,

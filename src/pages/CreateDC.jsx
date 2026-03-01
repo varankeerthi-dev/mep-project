@@ -9,9 +9,16 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
   const [materials, setMaterials] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
   const [variants, setVariants] = useState([]);
+  const [units, setUnits] = useState([]);
   const [stock, setStock] = useState([]);
   const [pricing, setPricing] = useState({});
   const [clients, setClients] = useState([]);
+  
+  // Multiple Item Picker State
+  const [showItemPicker, setShowItemPicker] = useState(false);
+  const [itemSearch, setItemSearch] = useState('');
+  const [pickerItems, setPickerItems] = useState([]);
+  const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth <= 768 : false);
   
   // DC Settings - Allow insufficient stock
   const [allowInsufficientStock, setAllowInsufficientStock] = useState(() => {
@@ -35,6 +42,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
   const [formData, setFormData] = useState({
     project_id: '',
     dc_number: '',
+    variant_id: '',
     dc_date: new Date().toISOString().split('T')[0],
     client_name: '',
     source_type: 'WAREHOUSE',
@@ -80,6 +88,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
       setFormData({
         ...editDC,
         dc_number: editDC.dc_number || '',
+        variant_id: editDC.variant_id || '',
         eway_bill_date: editDC.eway_bill_date || '',
         eway_valid_till: editDC.eway_valid_till || ''
       });
@@ -89,19 +98,21 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
 
   const loadData = async () => {
     try {
-      const [projData, matData, whData, varData, stockData, clientData] = await Promise.all([
+      const [projData, matData, whData, varData, stockData, clientData, unitsData] = await Promise.all([
         supabase.from('projects').select('*').order('name'),
         supabase.from('materials').select('id, display_name, name, unit, uses_variant, sale_price').order('name'),
         supabase.from('warehouses').select('*'),
-        supabase.from('company_variants').select('*').order('variant_name'),
+        supabase.from('company_variants').select('*').eq('is_active', true).order('variant_name'),
         supabase.from('item_stock').select('*'),
-        supabase.from('clients').select('*').order('client_name')
+        supabase.from('clients').select('*').order('client_name'),
+        supabase.from('item_units').select('*').order('unit_name')
       ]);
       
       setProjects(projData.data || []);
       setMaterials(matData.data || []);
       setWarehouses(whData.data || []);
       setVariants(varData.data || []);
+      setUnits(unitsData.data || []);
       setStock(stockData.data || []);
       setClients(clientData.data || []);
       console.log('Clients loaded:', clientData.data?.length);
@@ -285,11 +296,115 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
     })));
   };
 
+  const handlePickerQtyChange = (itemId, delta) => {
+    setPickerItems(pickerItems.map(i => {
+      if (i.item_id === itemId) {
+        const newQty = Math.max(1, i.qty + delta);
+        return { ...i, qty: newQty };
+      }
+      return i;
+    }));
+  };
+
+  const handleRemoveFromPicker = (itemId) => {
+    setPickerItems(pickerItems.filter(i => i.item_id !== itemId));
+  };
+
+  const handleAddItemsToDC = () => {
+    const currentItems = items.filter(i => i.material_id); // keep only non-empty rows
+    const headerVariantId = formData.variant_id || '';
+
+    const newItems = pickerItems.map((p, idx) => {
+      const mat = p.material;
+      const variantId = p.variant_id || headerVariantId;
+      const rate = getRate(p.item_id, variantId);
+      const avail = formData.source_type === 'WAREHOUSE' ? getAvailableQty(p.item_id, variantId) : 0;
+      const qty = p.qty;
+      const amount = qty * rate;
+      
+      const usesVar = mat?.uses_variant || false;
+      const hasVariantMissing = usesVar && !variantId;
+      
+      let isValid = !!p.item_id && qty > 0 && !hasVariantMissing;
+      if (isValid && formData.source_type === 'WAREHOUSE' && qty > avail && !allowInsufficientStock) {
+        isValid = false;
+      }
+
+      return {
+        id: Date.now() + idx,
+        material_id: p.item_id,
+        variant_id: variantId,
+        material_name: mat?.display_name || mat?.name || '',
+        unit: mat?.unit || 'nos',
+        quantity: qty,
+        rate: rate,
+        amount: amount,
+        uses_variant: usesVar,
+        available_qty: avail,
+        valid: isValid,
+        stock_warning: (formData.source_type === 'WAREHOUSE' && qty > avail)
+      };
+    });
+
+    setItems([...currentItems, ...newItems]);
+    setPickerItems([]);
+    setShowItemPicker(false);
+    setItemSearch('');
+  };
+
+  const filteredMaterials = (materials || []).filter(m => {
+    if (!itemSearch) return true;
+    const s = itemSearch.toLowerCase();
+    return (m.display_name?.toLowerCase().includes(s) || m.name?.toLowerCase().includes(s) || m.item_code?.toLowerCase().includes(s));
+  });
+
+  const handleAddItemToPicker = (material) => {
+    const existing = pickerItems.find(i => i.item_id === material.id);
+    if (existing) {
+      handlePickerQtyChange(material.id, 1);
+    } else {
+      setPickerItems([...pickerItems, {
+        item_id: material.id,
+        material: material,
+        variant_id: formData.variant_id || '',
+        qty: 1,
+        rate: getRate(material.id, formData.variant_id || '')
+      }]);
+    }
+  };
+
+  const handleHeaderVariantChange = (newVariantId) => {
+    setFormData(prev => ({ ...prev, variant_id: newVariantId }));
+    
+    // Logic from Quotation: When header variant changes, ask to update existing rows
+    const itemsUsingVariants = items.filter(i => i.material_id && i.uses_variant);
+    if (itemsUsingVariants.length > 0) {
+      if (window.confirm(`Update all existing items to ${variants.find(v => v.id === newVariantId)?.variant_name || 'selected variant'}?`)) {
+        setItems(prevItems => prevItems.map(item => {
+          if (!item.material_id || !item.uses_variant) return item;
+          
+          const rate = getRate(item.material_id, newVariantId);
+          const avail = formData.source_type === 'WAREHOUSE' ? getAvailableQty(item.material_id, newVariantId) : 0;
+          const qty = parseFloat(item.quantity) || 0;
+          
+          return {
+            ...item,
+            variant_id: newVariantId,
+            rate: rate,
+            available_qty: avail,
+            amount: qty * rate,
+            valid: !!item.material_id && qty > 0 && (formData.source_type !== 'WAREHOUSE' || qty <= avail || allowInsufficientStock)
+          };
+        }));
+      }
+    }
+  };
+
   const addItem = () => {
     setItems([...items, { 
       id: items.length + 1, 
       material_id: '', 
-      variant_id: '', 
+      variant_id: formData.variant_id || '', 
       material_name: '', 
       unit: 'nos', 
       quantity: '', 
@@ -392,6 +507,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
       const dcData = {
         ...formData,
         warehouse_id: formData.source_type === 'WAREHOUSE' ? formData.warehouse_id : null,
+        variant_id: formData.variant_id || null,
         eway_bill_date: formData.eway_bill_date || null,
         eway_valid_till: formData.eway_valid_till || null,
         project_id: formData.project_id || null,
@@ -647,7 +763,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
       <form onSubmit={handleSubmit}>
         {/* Ultra Compact Top Row */}
         <div style={{ background: '#f8f9fa', padding: '12px', marginBottom: '12px', borderRadius: '6px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '10px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '10px' }}>
             <div className="form-group" style={{ margin: 0 }}>
               <label className="form-label" style={{ fontWeight: 600, fontSize: '11px', marginBottom: '2px' }}>DC No *</label>
               <input 
@@ -724,8 +840,24 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
                 ))}
               </select>
             </div>
-            <div className="form-group">
-              <label className="form-label">Source Type *</label>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label" style={{ fontWeight: 600, fontSize: '11px', marginBottom: '2px' }}>Variant</label>
+              <select 
+                name="variant_id" 
+                className="form-select"
+                style={{ padding: '6px 8px', fontSize: '13px' }}
+                value={formData.variant_id}
+                onChange={(e) => handleHeaderVariantChange(e.target.value)}
+                disabled={isLocked}
+              >
+                <option value="">Select Variant</option>
+                {activeVariants.map(v => (
+                  <option key={v.id} value={v.id}>{v.variant_name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label" style={{ fontWeight: 600, fontSize: '11px', marginBottom: '2px' }}>Source Type *</label>
               <select 
                 name="source_type" 
                 className="form-select"
@@ -997,14 +1129,13 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
                     disabled={isLocked}
                     style={{ width: '100%', padding: '6px' }}
                   >
-                    <option value="nos">Nos</option>
-                    <option value="kg">Kg</option>
-                    <option value="m">Mtr</option>
-                    <option value="sqft">Sqft</option>
-                    <option value="sqm">Sqm</option>
-                    <option value="ft">Ft</option>
-                    <option value="liters">Ltr</option>
-                    <option value="bags">Bags</option>
+                    <option value="">Unit</option>
+                    {units.map(u => (
+                      <option key={u.id} value={u.unit_code}>{u.unit_name || u.unit_code}</option>
+                    ))}
+                    {!units.some(u => u.unit_code === item.unit) && item.unit && (
+                      <option value={item.unit}>{item.unit}</option>
+                    )}
                   </select>
                 </span>
                 <span style={{ width: '80px' }}>
@@ -1031,9 +1162,14 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
           </div>
           
           {!isLocked && (
-            <button type="button" className="btn btn-secondary btn-sm" onClick={addItem} style={{ marginTop: '12px' }}>
-              + Add Item
-            </button>
+            <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={addItem}>
+                + Add Item
+              </button>
+              <button type="button" className="btn btn-primary btn-sm" onClick={() => setShowItemPicker(true)}>
+                + Add Multiple Items
+              </button>
+            </div>
           )}
         </div>
         
@@ -1057,6 +1193,120 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
           </button>
         </div>
       </form>
+
+      {/* Multiple Item Picker Modal */}
+      {showItemPicker && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }} onClick={() => setShowItemPicker(false)}>
+          <div style={{
+            background: '#fff',
+            borderRadius: '8px',
+            width: '94%',
+            maxWidth: '1200px',
+            height: '84vh',
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column'
+          }} onClick={e => e.stopPropagation()}>
+            <div style={{ padding: '16px', borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ margin: 0 }}>Add Multiple Items</h3>
+              <button onClick={() => setShowItemPicker(false)} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}>x</button>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', flex: 1, minHeight: 0, overflow: 'hidden' }}>
+              <div style={{ borderRight: '1px solid #e5e7eb', display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>
+                <div style={{ padding: '12px', borderBottom: '1px solid #e5e7eb' }}>
+                  <input
+                    type='text'
+                    className='form-input'
+                    placeholder='Search items...'
+                    value={itemSearch}
+                    onChange={(e) => setItemSearch(e.target.value)}
+                    autoFocus
+                  />
+                </div>
+                <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', padding: '6px', scrollBehavior: 'smooth' }}>
+                  {filteredMaterials.map((m) => (
+                    <div
+                      key={m.id}
+                      style={{
+                        padding: '8px',
+                        border: '1px solid #e5e7eb',
+                        borderRadius: '6px',
+                        marginBottom: '6px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
+                      }}
+                      onClick={() => handleAddItemToPicker(m)}
+                    >
+                      <div>
+                        <div style={{ fontWeight: 500, fontSize: '12px', lineHeight: 1.2 }}>{m.display_name || m.name}</div>
+                        <div style={{ fontSize: '11px', color: '#6b7280' }}>{m.item_code} | {m.unit} | Rs {m.sale_price || 0}</div>
+                      </div>
+                      <button style={{ background: '#2563eb', color: '#fff', border: 'none', borderRadius: '4px', padding: '3px 10px', cursor: 'pointer', fontSize: '12px' }}>+</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>
+                <div style={{ padding: '12px', borderBottom: '1px solid #e5e7eb', fontWeight: 600 }}>
+                  Selected Items ({pickerItems.length})
+                </div>
+                <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', padding: '12px', scrollBehavior: 'smooth' }}>
+                  {pickerItems.length === 0 ? (
+                    <div style={{ textAlign: 'center', color: '#6b7280', padding: '40px' }}>
+                      Click items from left panel to add here
+                    </div>
+                  ) : (
+                    pickerItems.map((p) => (
+                      <div key={p.item_id} style={{ padding: '10px', border: '1px solid #e5e7eb', borderRadius: '6px', marginBottom: '8px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                          <span style={{ fontWeight: 500, fontSize: '12px', lineHeight: 1.2 }}>{p.material?.display_name || p.material?.name}</span>
+                          <button onClick={() => handleRemoveFromPicker(p.item_id)} style={{ background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer' }}>x</button>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', borderTop: '1px solid #f1f5f9', paddingTop: '8px' }}>
+                          <button onClick={() => handlePickerQtyChange(p.item_id, -1)} style={{ width: '28px', height: '28px', border: '1px solid #e5e7eb', borderRadius: '4px', background: '#fff', cursor: 'pointer' }}>-</button>
+                          <span style={{ width: '30px', textAlign: 'center' }}>{p.qty}</span>
+                          <button onClick={() => handlePickerQtyChange(p.item_id, 1)} style={{ width: '28px', height: '28px', border: '1px solid #e5e7eb', borderRadius: '4px', background: '#fff', cursor: 'pointer' }}>+</button>
+                          <span style={{ marginLeft: 'auto', fontWeight: 500 }}>₹{((parseFloat(p.qty) || 0) * (parseFloat(p.rate) || 0)).toFixed(2)}</span>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+                <div style={{ padding: '12px', borderTop: '1px solid #e5e7eb', background: '#fafafa', position: 'sticky', bottom: 0 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', fontWeight: 600 }}>
+                    <span>Selected Total</span>
+                    <span>₹{pickerItems.reduce((sum, p) => sum + ((parseFloat(p.qty) || 0) * (parseFloat(p.rate) || 0)), 0).toFixed(2)}</span>
+                  </div>
+                  <button
+                    type="button"
+                    className='btn btn-primary'
+                    style={{ width: '100%' }}
+                    onClick={handleAddItemsToDC}
+                    disabled={pickerItems.length === 0}
+                  >
+                    Submit & Add {pickerItems.length} Item{pickerItems.length !== 1 ? 's' : ''} to Delivery Challan
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

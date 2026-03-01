@@ -522,6 +522,16 @@ export async function fetchDiscountProfiles() {
   return data;
 }
 
+export async function fetchDiscountProfileById(id) {
+  const { data, error } = await supabase
+    .from('discount_structures')
+    .select('*')
+    .eq('id', id)
+    .single();
+  if (error) throw error;
+  return data;
+}
+
 export async function fetchDiscountVariantSettings(profileId) {
   const { data, error } = await supabase
     .from('discount_variant_settings')

@@ -168,6 +168,24 @@ export default function App() {
     checkDatabase();
     initAuth();
     initStorageBuckets();
+
+    // Session Heartbeat: Refresh session when tab is focused
+    const handleFocus = async () => {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (!error && session) {
+        setUser(session.user);
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') handleFocus();
+    });
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('visibilitychange', handleFocus);
+    };
   }, []);
 
   const handleLogout = async () => {

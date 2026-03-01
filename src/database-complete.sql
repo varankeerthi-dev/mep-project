@@ -75,6 +75,7 @@ CREATE TABLE IF NOT EXISTS clients (
   vendor_no VARCHAR(100),
   shipping_address TEXT,
   remarks TEXT,
+  discount_profile_id UUID,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -98,6 +99,7 @@ CREATE TABLE IF NOT EXISTS delivery_challans (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   dc_number VARCHAR(50) UNIQUE NOT NULL,
   project_id UUID REFERENCES projects(id),
+  variant_id UUID REFERENCES company_variants(id),
   dc_date DATE NOT NULL,
   client_name VARCHAR(255),
   site_address TEXT,
@@ -288,5 +290,73 @@ INSERT INTO projects (name, client_name, description) VALUES
 ON CONFLICT DO NOTHING;
 
 -- ============================================
+-- 10. DISCOUNT SETTINGS MODULE
+-- ============================================
+
+-- 1. Discount Structure Names Table (4 profiles)
+CREATE TABLE IF NOT EXISTS discount_structures (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    structure_number INT NOT NULL UNIQUE CHECK (structure_number BETWEEN 1 AND 4),
+    structure_name VARCHAR(100) NOT NULL,
+    description TEXT,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 2. Variant-specific discount settings (per structure)
+CREATE TABLE IF NOT EXISTS discount_variant_settings (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    structure_id UUID REFERENCES discount_structures(id) ON DELETE CASCADE,
+    variant_id UUID REFERENCES company_variants(id) ON DELETE CASCADE,
+    default_discount_percent DECIMAL(5,2) DEFAULT 0,
+    min_discount_percent DECIMAL(5,2) DEFAULT 0,
+    max_discount_percent DECIMAL(5,2) DEFAULT 0,
+    updated_by_user_id UUID,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(structure_id, variant_id)
+);
+
+-- 3. Add foreign key to clients if not exists (handled in CREATE TABLE above)
+-- ALTER TABLE clients ADD COLUMN IF NOT EXISTS discount_profile_id UUID REFERENCES discount_structures(id);
+
+-- 4. Indexes
+CREATE INDEX IF NOT EXISTS idx_discount_variant_settings_structure ON discount_variant_settings(structure_id);
+CREATE INDEX IF NOT EXISTS idx_discount_variant_settings_variant ON discount_variant_settings(variant_id);
+CREATE INDEX IF NOT EXISTS idx_clients_discount_profile ON clients(discount_profile_id);
+
+-- 5. Insert default 4 structures
+INSERT INTO discount_structures (structure_number, structure_name, description) VALUES
+(1, 'Standard', 'Default standard discount structure'),
+(2, 'Premium', 'Premium discount structure for valued clients'),
+(3, 'Bulk', 'Bulk order discount structure'),
+(4, 'Special', 'Special discount structure for specific deals')
+ON CONFLICT (structure_number) DO NOTHING;
+
+-- 6. Function to auto-create variant settings when new variant is added
+CREATE OR REPLACE FUNCTION handle_new_variant_discount_settings()
+RETURNS TRIGGER AS $$
+DECLARE
+    structure RECORD;
+BEGIN
+    -- Create discount settings for each active structure
+    FOR structure IN SELECT id FROM discount_structures WHERE is_active = true LOOP
+        INSERT INTO discount_variant_settings (structure_id, variant_id, default_discount_percent, min_discount_percent, max_discount_percent)
+        VALUES (structure.id, NEW.id, 0, 0, 0)
+        ON CONFLICT (structure_id, variant_id) DO NOTHING;
+    END LOOP;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- 7. Trigger to auto-create settings for new variants
+DROP TRIGGER IF EXISTS trigger_new_variant_discount_settings ON company_variants;
+CREATE TRIGGER trigger_new_variant_discount_settings
+AFTER INSERT ON company_variants
+FOR EACH ROW
+EXECUTE FUNCTION handle_new_variant_discount_settings();
+
+-- ============================================
 -- DONE! All tables created successfully.
 -- ============================================
+
