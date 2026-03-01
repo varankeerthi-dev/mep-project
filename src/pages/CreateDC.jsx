@@ -373,9 +373,37 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
     }
   };
 
-  const handleHeaderVariantChange = (newVariantId) => {
-    setFormData(prev => ({ ...prev, variant_id: newVariantId }));
-    
+  const handleHeaderVariantChange = (variantId) => {
+    setFormData(prev => ({ ...prev, variant_id: variantId }));
+
+    // Update all existing items that support variants
+    setItems(items.map(item => {
+      if (item.is_service || !item.uses_variant) return item;
+
+      // Update variant_id and recalculate rate/stock
+      const mat = materials.find(m => m.id === item.material_id);
+      if (!mat) return item;
+
+      const newRate = getRate(item.material_id, variantId);
+      const newAvail = (formData.source_type === 'WAREHOUSE') ? getAvailableQty(item.material_id, variantId) : 0;
+      const qty = parseFloat(item.quantity) || 0;
+
+      let isValid = !!item.material_id && qty > 0 && !!variantId;
+      if (isValid && formData.source_type === 'WAREHOUSE' && qty > newAvail && !allowInsufficientStock) {
+        isValid = false;
+      }
+
+      return { 
+        ...item, 
+        variant_id: variantId, 
+        rate: newRate, 
+        amount: qty * newRate,
+        available_qty: newAvail,
+        valid: isValid,
+        stock_warning: (formData.source_type === 'WAREHOUSE' && qty > newAvail)
+      };
+    }));
+  };
     // Logic from Quotation: When header variant changes, ask to update existing rows
     const itemsUsingVariants = items.filter(i => i.material_id && i.uses_variant);
     if (itemsUsingVariants.length > 0) {
@@ -433,9 +461,13 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
         updates.unit = mat?.unit || 'nos';
         updates.is_service = mat?.item_type === 'service';
         updates.uses_variant = mat?.item_type === 'service' ? false : (mat?.uses_variant || false);
-        updates.rate = getRate(value, item.variant_id);
-        updates.variant_id = '';
-        updates.available_qty = (formData.source_type === 'WAREHOUSE' && mat?.item_type !== 'service') ? getAvailableQty(value, null) : 0;
+        
+        // Default to header variant if item supports variants
+        const defaultVarId = updates.uses_variant ? (formData.variant_id || '') : '';
+        updates.variant_id = defaultVarId;
+        updates.rate = getRate(value, defaultVarId);
+        
+        updates.available_qty = (formData.source_type === 'WAREHOUSE' && mat?.item_type !== 'service') ? getAvailableQty(value, defaultVarId) : 0;
       }
       
       if (field === 'variant_id' && item.material_id) {
