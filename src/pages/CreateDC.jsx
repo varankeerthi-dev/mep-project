@@ -276,18 +276,6 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
     setFormData(prev => ({ ...prev, ...shipData }));
   };
 
-  const handleSourceTypeChange = (value) => {
-    setFormData(prev => ({ ...prev, source_type: value }));
-    if (value === 'DIRECT_SUPPLY') {
-      setItems(items.map(item => ({ ...item, available_qty: 0 })));
-    } else {
-      setItems(items.map(item => ({
-        ...item,
-        available_qty: getAvailableQty(item.material_id, item.variant_id)
-      })));
-    }
-  };
-
   const handleWarehouseChange = (warehouseId) => {
     setFormData(prev => ({ ...prev, warehouse_id: warehouseId }));
     setItems(items.map(item => ({
