@@ -246,7 +246,7 @@ function ItemsTab() {
 
   const loadMaterials = async () => {
     try {
-      const { data } = await supabase.from('materials').select('*').order('name');
+      const { data } = await supabase.from('materials').select('*').eq('item_type', 'product').order('name');
       setMaterials(data || []);
       
       // Load stock from item_stock table
@@ -921,6 +921,7 @@ function ItemsTab() {
       gst_rate: formData.gst_rate || null,
       is_active: formData.is_active,
       uses_variant: formData.uses_variant,
+      item_type: 'product'
     };
 
     try {
@@ -2005,7 +2006,7 @@ function ServiceTab() {
   useEffect(() => { loadServices(); }, []);
 
   const loadServices = async () => {
-    const { data } = await supabase.from('services').select('*').order('service_name');
+    const { data } = await supabase.from('materials').select('*').eq('item_type', 'service').order('name');
     setServices(data || []);
   };
 
@@ -2014,22 +2015,25 @@ function ServiceTab() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const data = {
-      service_code: formData.service_code || generateServiceCode(),
-      service_name: formData.service_name,
+      item_code: formData.service_code || generateServiceCode(),
+      name: formData.service_name,
+      display_name: formData.service_name,
       description: formData.description || null,
       unit: formData.unit,
       sale_price: formData.sale_price ? parseFloat(formData.sale_price) : null,
       purchase_price: formData.purchase_price ? parseFloat(formData.purchase_price) : null,
       hsn_code: formData.hsn_code || null,
-      tax_rate: formData.tax_rate ? parseFloat(formData.tax_rate) : null,
+      gst_rate: formData.tax_rate ? parseFloat(formData.tax_rate) : null,
       is_active: formData.is_active,
+      item_type: 'service',
+      uses_variant: false
     };
     try {
       if (editingService) {
-        const { error } = await supabase.from('services').update({ ...data, updated_at: new Date().toISOString() }).eq('id', editingService.id);
+        const { error } = await supabase.from('materials').update({ ...data, updated_at: new Date().toISOString() }).eq('id', editingService.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from('services').insert(data);
+        const { error } = await supabase.from('materials').insert(data);
         if (error) throw error;
       }
       resetForm();
@@ -2048,14 +2052,14 @@ function ServiceTab() {
   const editService = (service) => {
     setEditingService(service);
     setFormData({
-      service_code: service.service_code || '',
-      service_name: service.service_name || '',
+      service_code: service.item_code || '',
+      service_name: service.name || '',
       description: service.description || '',
       unit: service.unit || 'nos',
       sale_price: service.sale_price || '',
       purchase_price: service.purchase_price || '',
       hsn_code: service.hsn_code || '',
-      tax_rate: service.tax_rate || 18,
+      tax_rate: service.gst_rate || 18,
       is_active: service.is_active !== false
     });
     setShowForm(true);
@@ -2063,12 +2067,12 @@ function ServiceTab() {
 
   const deleteService = async (id) => {
     if (confirm('Delete this service?')) {
-      await supabase.from('services').delete().eq('id', id);
+      await supabase.from('materials').delete().eq('id', id);
       loadServices();
     }
   };
 
-  const filteredServices = services.filter(s => s.service_name?.toLowerCase().includes(searchTerm.toLowerCase()));
+  const filteredServices = services.filter(s => s.name?.toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
     <div>
@@ -2088,7 +2092,7 @@ function ServiceTab() {
             <tbody>
               {filteredServices.map(s => (
                 <tr key={s.id} style={{ opacity: s.is_active === false ? 0.5 : 1 }}>
-                  <td>{s.service_code}</td><td><strong>{s.service_name}</strong></td><td>{s.unit}</td><td>â‚¹{s.sale_price || '-'}</td><td>{s.hsn_code || '-'}</td><td>{s.is_active ? '✓' : '✗'}</td>
+                  <td>{s.item_code}</td><td><strong>{s.name}</strong></td><td>{s.unit}</td><td>â‚¹{s.sale_price || '-'}</td><td>{s.hsn_code || '-'}</td><td>{s.is_active ? '✓' : '✗'}</td>
                   <td><button className="btn btn-sm btn-secondary" onClick={() => editService(s)}>Edit</button><button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px' }} onClick={() => deleteService(s.id)}>Delete</button></td>
                 </tr>
               ))}

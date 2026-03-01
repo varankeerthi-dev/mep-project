@@ -24,7 +24,7 @@ export default function MaterialInward({ onCancel }) {
     project_id: ''
   });
   const [items, setItems] = useState([
-    { id: 1, item_id: '', variant_id: '', quantity: '', rate: '', amount: 0, uses_variant: false, supply_type: 'WAREHOUSE', project_id: '', valid: false }
+    { id: 1, item_id: '', variant_id: '', quantity: '', rate: '', amount: 0, uses_variant: false, supply_type: 'WAREHOUSE', project_id: '', valid: false, is_service: false }
   ]);
   const [nextId, setNextId] = useState(2);
   
@@ -32,7 +32,7 @@ export default function MaterialInward({ onCancel }) {
   
   const loadData = async () => {
     const [mat, wh, varData, priceData, projData] = await Promise.all([
-      supabase.from('materials').select('id, item_code, display_name, name, unit, uses_variant, sale_price').order('name'),
+      supabase.from('materials').select('id, item_code, display_name, name, unit, uses_variant, sale_price, item_type').order('name'),
       supabase.from('warehouses').select('*'),
       supabase.from('company_variants').select('*').order('variant_name'),
       supabase.from('item_variant_pricing').select('item_id, company_variant_id, sale_price'),
@@ -78,7 +78,8 @@ export default function MaterialInward({ onCancel }) {
       
       if (field === 'item_id' && value) {
         const mat = getMaterial(value);
-        updates.uses_variant = mat?.uses_variant || false;
+        updates.is_service = mat?.item_type === 'service';
+        updates.uses_variant = mat?.item_type === 'service' ? false : (mat?.uses_variant || false);
         const effectiveVariantId = updates.uses_variant ? (formData.default_variant_id || '') : '';
         updates.variant_id = effectiveVariantId;
         updates.rate = getRate(value, effectiveVariantId || null);
@@ -222,7 +223,7 @@ export default function MaterialInward({ onCancel }) {
         const { error: itemError } = await supabase.from('material_inward_items').insert(insertData);
         if (itemError) throw itemError;
 
-        if (itemSupplyType === 'WAREHOUSE' && itemWarehouseId) {
+        if (!item.is_service && itemSupplyType === 'WAREHOUSE' && itemWarehouseId) {
           const { data: existing } = await supabase.from('item_stock')
             .select('*')
             .eq('item_id', item.item_id)

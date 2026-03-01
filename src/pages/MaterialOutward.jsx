@@ -10,7 +10,7 @@ export default function MaterialOutward({ onSuccess, onCancel }) {
   
   const loadData = async () => {
     const [mat, wh, varData] = await Promise.all([
-      supabase.from('materials').select('id, display_name, name').eq('is_active', true).order('name'),
+      supabase.from('materials').select('id, display_name, name, item_type').eq('is_active', true).order('name'),
       supabase.from('warehouses').select('*'),
       supabase.from('company_variants').select('*').eq('is_active', true).order('variant_name')
     ]);
@@ -32,6 +32,8 @@ export default function MaterialOutward({ onSuccess, onCancel }) {
     const { data: outward } = await supabase.from('material_outward').insert(formData).select().single();
     
     for (const item of items.filter(i => i.item_id)) {
+      const mat = materials.find(m => m.id === item.item_id);
+      const isService = mat?.item_type === 'service';
       const qty = parseFloat(item.quantity) || 0;
       
       await supabase.from('material_outward_items').insert({
@@ -42,11 +44,13 @@ export default function MaterialOutward({ onSuccess, onCancel }) {
         quantity: qty
       });
       
-      const { data: existing } = await supabase.from('item_stock').select('*').eq('item_id', item.item_id).eq('company_variant_id', formData.variant_id).eq('warehouse_id', formData.warehouse_id).single();
-      
-      if (existing) {
-        const newStock = Math.max(0, (existing.current_stock || 0) - qty);
-        await supabase.from('item_stock').update({ current_stock: newStock, updated_at: new Date().toISOString() }).eq('id', existing.id);
+      if (!isService) {
+        const { data: existing } = await supabase.from('item_stock').select('*').eq('item_id', item.item_id).eq('company_variant_id', formData.variant_id).eq('warehouse_id', formData.warehouse_id).single();
+        
+        if (existing) {
+          const newStock = Math.max(0, (existing.current_stock || 0) - qty);
+          await supabase.from('item_stock').update({ current_stock: newStock, updated_at: new Date().toISOString() }).eq('id', existing.id);
+        }
       }
     }
     onSuccess();

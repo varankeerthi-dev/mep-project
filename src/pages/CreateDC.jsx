@@ -66,7 +66,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
   });
 
   const [items, setItems] = useState([
-    { id: 1, material_id: '', variant_id: '', material_name: '', unit: 'nos', quantity: '', rate: '', amount: 0, uses_variant: false, available_qty: 0, valid: false }
+    { id: 1, material_id: '', variant_id: '', material_name: '', unit: 'nos', quantity: '', rate: '', amount: 0, uses_variant: false, available_qty: 0, valid: false, is_service: false }
   ]);
   const [dcSettings, setDcSettings] = useState({ prefix: 'DC', suffix: '', padding: '5' });
 
@@ -100,7 +100,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
     try {
       const [projData, matData, whData, varData, stockData, clientData, unitsData] = await Promise.all([
         supabase.from('projects').select('*').order('name'),
-        supabase.from('materials').select('id, display_name, name, unit, uses_variant, sale_price').order('name'),
+        supabase.from('materials').select('id, display_name, name, unit, uses_variant, sale_price, item_type').order('name'),
         supabase.from('warehouses').select('*'),
         supabase.from('company_variants').select('*').eq('is_active', true).order('variant_name'),
         supabase.from('item_stock').select('*'),
@@ -431,15 +431,16 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
         const mat = getMaterial(value);
         updates.material_name = mat?.display_name || mat?.name || '';
         updates.unit = mat?.unit || 'nos';
-        updates.uses_variant = mat?.uses_variant || false;
+        updates.is_service = mat?.item_type === 'service';
+        updates.uses_variant = mat?.item_type === 'service' ? false : (mat?.uses_variant || false);
         updates.rate = getRate(value, item.variant_id);
         updates.variant_id = '';
-        updates.available_qty = formData.source_type === 'WAREHOUSE' ? getAvailableQty(value, null) : 0;
+        updates.available_qty = (formData.source_type === 'WAREHOUSE' && mat?.item_type !== 'service') ? getAvailableQty(value, null) : 0;
       }
       
       if (field === 'variant_id' && item.material_id) {
         updates.rate = getRate(item.material_id, value);
-        updates.available_qty = formData.source_type === 'WAREHOUSE' ? getAvailableQty(item.material_id, value) : 0;
+        updates.available_qty = (formData.source_type === 'WAREHOUSE' && !item.is_service) ? getAvailableQty(item.material_id, value) : 0;
       }
       
       if (field === 'quantity' || field === 'rate') {
@@ -451,17 +452,18 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
       const qty = parseFloat(updates.quantity !== undefined ? updates.quantity : item.quantity) || 0;
       const avail = updates.available_qty !== undefined ? updates.available_qty : item.available_qty;
       const usesVar = updates.uses_variant !== undefined ? updates.uses_variant : item.uses_variant;
+      const isServ = updates.is_service !== undefined ? updates.is_service : item.is_service;
       const hasVariantMissing = usesVar && !item.variant_id && !updates.variant_id;
       
       let isValid = !!(item.material_id || updates.material_id) && qty > 0 && !hasVariantMissing;
       
-      // If allow insufficient stock is enabled, mark as valid even with low stock
-      if (isValid && formData.source_type === 'WAREHOUSE' && qty > avail && !allowInsufficientStock) {
+      // If allow insufficient stock is enabled, mark as valid even with low stock. Skip for services.
+      if (isValid && !isServ && formData.source_type === 'WAREHOUSE' && qty > avail && !allowInsufficientStock) {
         isValid = false;
       }
       
       updates.valid = isValid;
-      updates.stock_warning = (formData.source_type === 'WAREHOUSE' && qty > avail);
+      updates.stock_warning = (!isServ && formData.source_type === 'WAREHOUSE' && qty > avail);
       
       return { ...item, ...updates };
     }));
@@ -486,7 +488,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
         alert(`Invalid quantity for: ${item.material_name}`);
         return false;
       }
-      if (formData.source_type === 'WAREHOUSE' && parseFloat(item.quantity) > item.available_qty && !allowInsufficientStock) {
+      if (!item.is_service && formData.source_type === 'WAREHOUSE' && parseFloat(item.quantity) > item.available_qty && !allowInsufficientStock) {
         alert(`Insufficient stock for: ${item.material_name}`);
         return false;
       }
@@ -553,6 +555,8 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
       
       if (formData.source_type === 'WAREHOUSE' && formData.warehouse_id) {
         for (const item of validItems) {
+          if (item.is_service) continue; // Skip stock movement for services
+          
           const { data: existing } = await supabase.from('item_stock')
             .select('*')
             .eq('item_id', item.material_id)
@@ -1095,21 +1099,25 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
                   </select>
                 </span>
                 <span style={{ width: '120px' }}>
-                  <select 
-                    value={item.variant_id || ''} 
-                    onChange={(e) => handleItemChange(item.id, 'variant_id', e.target.value)}
-                    disabled={!item.uses_variant || isLocked}
-                    style={{ width: '100%', padding: '6px', background: item.uses_variant ? '#fff' : '#f5f5f5' }}
-                  >
-                    <option value="">{item.uses_variant ? 'Select' : 'N/A'}</option>
-                    {activeVariants.map(v => (
-                      <option key={v.id} value={v.id}>{v.variant_name}</option>
-                    ))}
-                  </select>
+                  {!item.is_service ? (
+                    <select 
+                      value={item.variant_id || ''} 
+                      onChange={(e) => handleItemChange(item.id, 'variant_id', e.target.value)}
+                      disabled={!item.uses_variant || isLocked}
+                      style={{ width: '100%', padding: '6px', background: item.uses_variant ? '#fff' : '#f5f5f5' }}
+                    >
+                      <option value="">{item.uses_variant ? 'Select' : 'N/A'}</option>
+                      {activeVariants.map(v => (
+                        <option key={v.id} value={v.id}>{v.variant_name}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span style={{ fontSize: '12px', color: '#6b7280', padding: '6px', display: 'block' }}>N/A</span>
+                  )}
                 </span>
                 {formData.source_type === 'WAREHOUSE' && (
                   <span style={{ width: '80px', textAlign: 'right', color: (item.quantity > item.available_qty && !allowInsufficientStock) ? '#dc3545' : (item.quantity > item.available_qty ? '#f59e0b' : '#28a745') }}>
-                    {item.available_qty.toFixed(2)}
+                    {!item.is_service ? item.available_qty.toFixed(2) : '-'}
                   </span>
                 )}
                 <span style={{ width: '60px' }}>

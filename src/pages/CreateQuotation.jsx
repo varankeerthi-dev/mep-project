@@ -170,9 +170,14 @@ export default function CreateQuotation() {
 
       setClients(clientsData.data || []);
       setProjects(projectsData.data || []);
-      setMaterials(materialsData.data || []);
-      setVariants(variantsData.data || []);
-      const pricingMap = {};
+
+      const mappedItems = (materialsData.data || []).map(item => ({
+        ...item,
+        isService: item.item_type === 'service'
+      }));
+      setMaterials(mappedItems);
+
+      setVariants(variantsData.data || []);      const pricingMap = {};
       (pricingData.data || []).forEach((row) => {
         if (!pricingMap[row.item_id]) pricingMap[row.item_id] = {};
         pricingMap[row.item_id][row.company_variant_id] = parseFloat(row.sale_price) || 0;
