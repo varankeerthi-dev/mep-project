@@ -34,7 +34,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
 
   const [formData, setFormData] = useState({
     project_id: '',
-    dc_no: '',
+    dc_number: '',
     dc_date: new Date().toISOString().split('T')[0],
     client_name: '',
     source_type: 'WAREHOUSE',
@@ -79,7 +79,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
     if (editDC) {
       setFormData({
         ...editDC,
-        dc_no: editDC.dc_number || '',
+        dc_number: editDC.dc_number || '',
         eway_bill_date: editDC.eway_bill_date || '',
         eway_valid_till: editDC.eway_valid_till || ''
       });
@@ -120,8 +120,8 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
       
       // Generate DC No if new record
       if (!editDC) {
-        const dcNo = await generateDCNo();
-        setFormData(prev => ({ ...prev, dc_no: dcNo }));
+        const dcNumber = await generateDCNo();
+        setFormData(prev => ({ ...prev, dc_number: dcNumber }));
       }
       
       const priceMap = {};
@@ -407,10 +407,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
         dcId = editDC.id;
         await supabase.from('delivery_challan_items').delete().eq('delivery_challan_id', dcId);
       } else {
-        const { data, error } = await supabase.from('delivery_challans').insert({
-          ...dcData,
-          dc_number: formData.dc_no
-        }).select().single();
+        const { data, error } = await supabase.from('delivery_challans').insert(dcData).select().single();
         
         if (error) {
           console.error('Error creating DC:', error);
@@ -655,10 +652,10 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
               <label className="form-label" style={{ fontWeight: 600, fontSize: '11px', marginBottom: '2px' }}>DC No *</label>
               <input 
                 type="text" 
-                name="dc_no"
+                name="dc_number"
                 className="form-input"
                 style={{ padding: '6px 8px', fontSize: '13px' }}
-                value={formData.dc_no}
+                value={formData.dc_number}
                 onChange={handleInputChange}
                 placeholder="Auto"
                 disabled={isLocked}
