@@ -416,7 +416,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }) {
           </form>
         ) : (
           <div>
-            <ClientPricingControl formData={formData} setFormData={setFormData} isAdmin={isAdmin} />
+            <ClientDiscountPortfolio formData={formData} setFormData={setFormData} isAdmin={isAdmin} />
             <div style={{ display: 'flex', gap: '12px', marginTop: '24px', paddingTop: '20px', borderTop: '1px solid #e2e8f0' }}>
               <button type="button" className="btn btn-primary" onClick={handleSubmit}>{editMode ? 'Update Pricing Profile' : 'Submit'}</button>
               <button type="button" className="btn btn-secondary" onClick={onCancel}>Cancel</button>
