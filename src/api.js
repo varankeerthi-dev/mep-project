@@ -125,7 +125,7 @@ export async function fetchDeliveryChallans(filters = {}) {
   if (filters.endDate) {
     query = query.lte('dc_date', filters.endDate);
   }
-  if (filters.status) {
+  if (filters.status && filters.status !== 'all') {
     query = query.eq('status', filters.status);
   }
 

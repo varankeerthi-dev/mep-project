@@ -13,7 +13,7 @@ export default function DCList() {
     projectId: '',
     startDate: '',
     endDate: '',
-    status: 'active'
+    status: 'all'
   });
   const [showFilters, setShowFilters] = useState(false);
 
@@ -122,6 +122,7 @@ export default function DCList() {
             value={filters.status}
             onChange={handleFilterChange}
           >
+            <option value="all">All</option>
             <option value="active">Active</option>
             <option value="cancelled">Cancelled</option>
           </select>
