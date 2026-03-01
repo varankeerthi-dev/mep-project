@@ -1,6 +1,153 @@
 import { useState, useEffect, useMemo } from 'react';
 import { supabase, getCurrentUser } from '../supabase';
 
+function StandardTab() {
+  const [pricelists, setPricelists] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [newPricelist, setNewPricelist] = useState({ name: '', discount: '' });
+  const [message, setMessage] = useState({ type: '', text: '' });
+
+  useEffect(() => { loadPricelists(); }, []);
+
+  const loadPricelists = async () => {
+    setLoading(true);
+    const { data } = await supabase.from('standard_discount_pricelists').select('*').order('created_at');
+    setPricelists(data || []);
+    setLoading(false);
+  };
+
+  const handleAdd = async (e) => {
+    e.preventDefault();
+    if (!newPricelist.name) return;
+    setSaving(true);
+    try {
+      const { error } = await supabase.from('standard_discount_pricelists').insert({
+        pricelist_name: newPricelist.name,
+        discount_percent: parseFloat(newPricelist.discount) || 0
+      });
+      if (error) throw error;
+      setNewPricelist({ name: '', discount: '' });
+      loadPricelists();
+      setMessage({ type: 'success', text: 'Price list added successfully' });
+    } catch (err) {
+      setMessage({ type: 'error', text: err.message });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleUpdate = async (id, field, value) => {
+    const { error } = await supabase.from('standard_discount_pricelists').update({ [field]: value }).eq('id', id);
+    if (!error) loadPricelists();
+  };
+
+  const handleDelete = async (id) => {
+    if (!confirm('Delete this price list?')) return;
+    const { error } = await supabase.from('standard_discount_pricelists').delete().eq('id', id);
+    if (!error) loadPricelists();
+  };
+
+  if (loading) return <div style={{ padding: '20px', textAlign: 'center' }}>Loading...</div>;
+
+  return (
+    <div>
+      <div className="card" style={{ marginBottom: '20px' }}>
+        <h3 style={{ marginBottom: '16px' }}>Add New Standard Price List</h3>
+        <form onSubmit={handleAdd} style={{ display: 'flex', gap: '12px', alignItems: 'flex-end' }}>
+          <div className="form-group" style={{ margin: 0, flex: 2 }}>
+            <label className="form-label">Price List Name</label>
+            <input type="text" className="form-input" value={newPricelist.name} onChange={e => setNewPricelist({...newPricelist, name: e.target.value})} placeholder="e.g. Standard 2024" required />
+          </div>
+          <div className="form-group" style={{ margin: 0, flex: 1 }}>
+            <label className="form-label">Discount %</label>
+            <input type="number" className="form-input" value={newPricelist.discount} onChange={e => setNewPricelist({...newPricelist, discount: e.target.value})} placeholder="0.00" step="0.01" />
+          </div>
+          <button type="submit" className="btn btn-primary" disabled={saving}>Add</button>
+        </form>
+      </div>
+
+      <div className="card">
+        <h3>Standard Price Lists</h3>
+        <table className="table">
+          <thead>
+            <tr>
+              <th>Price List Name</th>
+              <th style={{ width: '150px' }}>Discount %</th>
+              <th style={{ width: '120px' }}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {pricelists.map(p => (
+              <tr key={p.id}>
+                <td>
+                  <input type="text" className="form-input" value={p.pricelist_name} onBlur={e => handleUpdate(p.id, 'pricelist_name', e.target.value)} />
+                </td>
+                <td>
+                  <input type="number" className="form-input" value={p.discount_percent} onBlur={e => handleUpdate(p.id, 'discount_percent', parseFloat(e.target.value) || 0)} step="0.01" />
+                </td>
+                <td>
+                  <button className="btn btn-sm btn-secondary" onClick={() => handleDelete(p.id)}>Delete</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function VariantGrid({ structure, variants, settings, setSettings, updateSetting, handleSave, saving, errors }) {
+  return (
+    <div className="card">
+      <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h3 style={{ margin: 0, fontSize: '16px' }}>{structure?.structure_name} Settings</h3>
+          <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#6b7280' }}>{structure?.description}</p>
+        </div>
+        <button className="btn btn-primary" onClick={handleSave} disabled={saving}>{saving ? 'Saving...' : 'Save Changes'}</button>
+      </div>
+
+      <div style={{ overflowX: 'auto' }}>
+        <table className="table">
+          <thead>
+            <tr>
+              <th>Variant</th>
+              <th style={{ width: '120px', textAlign: 'right' }}>Default %</th>
+              <th style={{ width: '120px', textAlign: 'right' }}>Min %</th>
+              <th style={{ width: '120px', textAlign: 'right' }}>Max %</th>
+            </tr>
+          </thead>
+          <tbody>
+            {variants.map(variant => {
+              const setting = settings[structure?.id]?.[variant.id] || {};
+              const variantErrors = errors[variant.id] || {};
+              return (
+                <tr key={variant.id}>
+                  <td style={{ fontWeight: 600 }}>{variant.variant_name}</td>
+                  <td>
+                    <input type="number" className="form-input" style={{ textAlign: 'right' }} value={setting.default_discount_percent || 0} onChange={e => updateSetting(variant.id, 'default_discount_percent', e.target.value)} step="0.01" />
+                    {variantErrors.default && <div style={{ color: '#dc2626', fontSize: '10px' }}>{variantErrors.default}</div>}
+                  </td>
+                  <td>
+                    <input type="number" className="form-input" style={{ textAlign: 'right' }} value={setting.min_discount_percent || 0} onChange={e => updateSetting(variant.id, 'min_discount_percent', e.target.value)} step="0.01" />
+                    {variantErrors.min && <div style={{ color: '#dc2626', fontSize: '10px' }}>{variantErrors.min}</div>}
+                  </td>
+                  <td>
+                    <input type="number" className="form-input" style={{ textAlign: 'right' }} value={setting.max_discount_percent || 0} onChange={e => updateSetting(variant.id, 'max_discount_percent', e.target.value)} step="0.01" />
+                    {variantErrors.max && <div style={{ color: '#dc2626', fontSize: '10px' }}>{variantErrors.max}</div>}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 export default function DiscountSettings() {
   const [structures, setStructures] = useState([]);
   const [variants, setVariants] = useState([]);
@@ -9,38 +156,15 @@ export default function DiscountSettings() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
   const [activeTab, setActiveTab] = useState(1);
-  const [userRole, setUserRole] = useState(null);
   const [errors, setErrors] = useState({});
   const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth <= 768 : false);
 
   useEffect(() => {
-    checkUserRole();
     loadData();
     const onResize = () => setIsMobile(window.innerWidth <= 768);
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
-
-  const checkUserRole = async () => {
-    try {
-      const { data: { user } } = await getCurrentUser();
-      if (user) {
-        // Check users table for role
-        const { data: userData } = await supabase
-          .from('users')
-          .select('role')
-          .eq('id', user.id)
-          .single();
-        
-        const role = userData?.role || 'Member';
-        setUserRole(role);
-        console.log('User role:', role);
-      }
-    } catch (err) {
-      console.warn('Could not check user role:', err);
-      setUserRole('Member');
-    }
-  };
 
   const loadData = async () => {
     setLoading(true);
@@ -56,114 +180,36 @@ export default function DiscountSettings() {
 
       const settingsMap = {};
       (settingsData.data || []).forEach(s => {
-        if (!settingsMap[s.structure_id]) {
-          settingsMap[s.structure_id] = {};
-        }
+        if (!settingsMap[s.structure_id]) settingsMap[s.structure_id] = {};
         settingsMap[s.structure_id][s.variant_id] = s;
       });
       setSettings(settingsMap);
-    } catch (err) {
-      console.error('Error loading data:', err);
-    } finally {
-      setLoading(false);
-    }
+    } catch (err) { console.error('Error loading data:', err); } finally { setLoading(false); }
   };
 
   const getCurrentStructure = () => structures.find(s => s.structure_number === activeTab);
 
-  const validateRow = (variantId, values) => {
-    const rowErrors = {};
-    const min = parseFloat(values.min) || 0;
-    const def = parseFloat(values.default) || 0;
-    const max = parseFloat(values.max) || 0;
-
-    if (min < 0 || def < 0 || max < 0) {
-      rowErrors.general = 'Values cannot be negative';
-    }
-    if (min > 100 || def > 100 || max > 100) {
-      rowErrors.general = 'Values cannot exceed 100%';
-    }
-    if (min > def) {
-      rowErrors.min = 'Min cannot exceed Default';
-    }
-    if (def > max) {
-      rowErrors.default = 'Default cannot exceed Max';
-    }
-
-    return rowErrors;
-  };
-
   const updateSetting = (variantId, field, value) => {
     const structure = getCurrentStructure();
     if (!structure) return;
-
     setSettings(prev => ({
       ...prev,
       [structure.id]: {
         ...prev[structure.id],
-        [variantId]: {
-          ...prev[structure.id]?.[variantId],
-          variant_id: variantId,
-          [field]: value
-        }
+        [variantId]: { ...prev[structure.id]?.[variantId], variant_id: variantId, [field]: value }
       }
     }));
-
-    // Clear error when user edits
-    const current = settings[structure.id]?.[variantId] || {};
-    const newValues = { ...current, [field]: value };
-    const rowErrors = validateRow(variantId, {
-      min: newValues.min_discount_percent,
-      default: newValues.default_discount_percent,
-      max: newValues.max_discount_percent
-    });
-    setErrors(prev => {
-      const newErrors = { ...prev };
-      delete newErrors[`${variantId}-min`];
-      delete newErrors[`${variantId}-default`];
-      delete newErrors[`${variantId}-max`];
-      delete newErrors[variantId];
-      return newErrors;
-    });
   };
 
   const handleSave = async () => {
     const structure = getCurrentStructure();
     if (!structure) return;
-
-    // Validate all rows first
-    const allErrors = {};
-    let hasErrors = false;
-
-    variants.forEach(variant => {
-      const setting = settings[structure.id]?.[variant.id] || {};
-      const rowErrors = validateRow(variant.id, {
-        min: setting.min_discount_percent,
-        default: setting.default_discount_percent,
-        max: setting.max_discount_percent
-      });
-      if (Object.keys(rowErrors).length > 0) {
-        allErrors[variant.id] = rowErrors;
-        hasErrors = true;
-      }
-    });
-
-    if (hasErrors) {
-      setErrors(allErrors);
-      setMessage({ type: 'error', text: 'Please fix validation errors before saving' });
-      return;
-    }
-
     setSaving(true);
-    setMessage({ type: '', text: '' });
-
     try {
-      const { data: { user } } = await getCurrentUser();
-
+      const { user } = await getCurrentUser();
       for (const variant of variants) {
         const setting = settings[structure.id]?.[variant.id];
         if (!setting) continue;
-
         const data = {
           structure_id: structure.id,
           variant_id: variant.id,
@@ -173,268 +219,43 @@ export default function DiscountSettings() {
           updated_by_user_id: user?.id,
           updated_at: new Date().toISOString()
         };
-
-        if (setting.id) {
-          const { error } = await supabase
-            .from('discount_variant_settings')
-            .update(data)
-            .eq('id', setting.id);
-          if (error) throw error;
-        } else {
-          const { error } = await supabase
-            .from('discount_variant_settings')
-            .insert(data);
-          if (error) throw error;
-        }
+        if (setting.id) await supabase.from('discount_variant_settings').update(data).eq('id', setting.id);
+        else await supabase.from('discount_variant_settings').insert(data);
       }
-
-      setMessage({ type: 'success', text: 'Discount settings saved successfully!' });
+      setMessage({ type: 'success', text: 'Settings saved successfully!' });
       await loadData();
-    } catch (err) {
-      console.error('Error saving:', err);
-      setMessage({ type: 'error', text: 'Error saving: ' + err.message });
-    } finally {
-      setSaving(false);
-    }
+    } catch (err) { setMessage({ type: 'error', text: 'Error: ' + err.message }); } finally { setSaving(false); }
   };
 
-  if (loading) {
-    return <div style={{ padding: '40px', textAlign: 'center' }}>Loading...</div>;
-  }
-
-  const currentStructure = getCurrentStructure();
+  if (loading) return <div style={{ padding: '40px', textAlign: 'center' }}>Loading...</div>;
 
   return (
     <div>
       <div className="page-header">
         <h1 className="page-title">Discount Settings</h1>
-        <p style={{ color: '#64748b', marginTop: '4px' }}>
-          Configure default, minimum, and maximum discount percentages per variant
-        </p>
+        <p style={{ color: '#64748b', marginTop: '4px' }}>Configure discount pricelists and variant-specific discount structures.</p>
       </div>
 
       {message.text && (
-        <div style={{
-          padding: '12px',
-          marginBottom: '16px',
-          borderRadius: '6px',
-          background: message.type === 'success' ? '#dcfce7' : '#fee2e2',
-          color: message.type === 'success' ? '#166534' : '#dc2626'
-        }}>
+        <div style={{ padding: '12px', marginBottom: '16px', borderRadius: '6px', background: message.type === 'success' ? '#dcfce7' : '#fee2e2', color: message.type === 'success' ? '#166534' : '#dc2626' }}>
           {message.text}
         </div>
       )}
 
-      {/* Structure Tabs */}
-      <div style={{ 
-        display: 'flex', 
-        gap: '8px', 
-        marginBottom: '16px',
-        borderBottom: '2px solid #e5e7eb',
-        paddingBottom: '12px',
-        overflowX: 'auto'
-      }}>
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', borderBottom: '2px solid #e5e7eb', paddingBottom: '12px', overflowX: 'auto' }}>
         {structures.map(structure => (
-          <button
-            key={structure.id}
-            onClick={() => setActiveTab(structure.structure_number)}
-            style={{
-              padding: isMobile ? '10px 16px' : '10px 24px',
-              borderRadius: '8px',
-              border: 'none',
-              cursor: 'pointer',
-              fontWeight: 600,
-              fontSize: '14px',
-              background: activeTab === structure.structure_number ? '#3b82f6' : '#f3f4f6',
-              color: activeTab === structure.structure_number ? '#fff' : '#374151',
-              whiteSpace: 'nowrap'
-            }}
-          >
+          <button key={structure.id} onClick={() => setActiveTab(structure.structure_number)} style={{ padding: '10px 24px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '14px', background: activeTab === structure.structure_number ? '#3b82f6' : '#f3f4f6', color: activeTab === structure.structure_number ? '#fff' : '#374151', whiteSpace: 'nowrap' }}>
             {structure.structure_number}. {structure.structure_name}
           </button>
         ))}
       </div>
 
       <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
-        <div className="card">
-          <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <h3 style={{ margin: 0, fontSize: '16px' }}>
-                Structure {currentStructure?.structure_number}: {currentStructure?.structure_name}
-              </h3>
-              <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#6b7280' }}>
-                {currentStructure?.description || 'Configure discount limits for this structure'}
-              </p>
-            </div>
-            <button 
-              className="btn btn-primary" 
-              onClick={handleSave} 
-              disabled={saving}
-            >
-              {saving ? 'Saving...' : 'Save Changes'}
-            </button>
-          </div>
-
-          {isMobile ? (
-            // Mobile: Card layout
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {variants.map(variant => {
-                const setting = settings[currentStructure?.id]?.[variant.id] || {};
-                const variantErrors = errors[variant.id] || {};
-                
-                return (
-                  <div 
-                    key={variant.id} 
-                    style={{ 
-                      padding: '16px', 
-                      background: '#f9fafb', 
-                      borderRadius: '8px',
-                      border: '1px solid #e5e7eb'
-                    }}
-                  >
-                    <div style={{ fontWeight: 600, marginBottom: '12px', fontSize: '14px' }}>
-                      {variant.variant_name}
-                    </div>
-                    
-                    {variantErrors.general && (
-                      <div style={{ color: '#dc2626', fontSize: '12px', marginBottom: '8px' }}>
-                        {variantErrors.general}
-                      </div>
-                    )}
-
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
-                      <div>
-                        <label style={{ fontSize: '11px', color: '#6b7280', display: 'block', marginBottom: '4px' }}>Default %</label>
-                        <input
-                          type="number"
-                          className="form-input"
-                          style={{ width: '100%', minHeight: '44px', textAlign: 'right' }}
-                          value={setting.default_discount_percent || 0}
-                          onChange={(e) => updateSetting(variant.id, 'default_discount_percent', e.target.value)}
-                          min="0"
-                          max="100"
-                          step="0.01"
-                        />
-                        {variantErrors.default && (
-                          <div style={{ color: '#dc2626', fontSize: '10px', marginTop: '2px' }}>{variantErrors.default}</div>
-                        )}
-                      </div>
-                      <div>
-                        <label style={{ fontSize: '11px', color: '#6b7280', display: 'block', marginBottom: '4px' }}>Min %</label>
-                        <input
-                          type="number"
-                          className="form-input"
-                          style={{ width: '100%', minHeight: '44px', textAlign: 'right' }}
-                          value={setting.min_discount_percent || 0}
-                          onChange={(e) => updateSetting(variant.id, 'min_discount_percent', e.target.value)}
-                          min="0"
-                          max="100"
-                          step="0.01"
-                        />
-                        {variantErrors.min && (
-                          <div style={{ color: '#dc2626', fontSize: '10px', marginTop: '2px' }}>{variantErrors.min}</div>
-                        )}
-                      </div>
-                      <div>
-                        <label style={{ fontSize: '11px', color: '#6b7280', display: 'block', marginBottom: '4px' }}>Max %</label>
-                        <input
-                          type="number"
-                          className="form-input"
-                          style={{ width: '100%', minHeight: '44px', textAlign: 'right' }}
-                          value={setting.max_discount_percent || 0}
-                          onChange={(e) => updateSetting(variant.id, 'max_discount_percent', e.target.value)}
-                          min="0"
-                          max="100"
-                          step="0.01"
-                        />
-                        {variantErrors.max && (
-                          <div style={{ color: '#dc2626', fontSize: '10px', marginTop: '2px' }}>{variantErrors.max}</div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            // Desktop: Table layout
-            <div style={{ overflowX: 'auto' }}>
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th style={{ minWidth: '150px' }}>Variant</th>
-                    <th style={{ width: '120px', textAlign: 'right' }}>Default %</th>
-                    <th style={{ width: '120px', textAlign: 'right' }}>Min %</th>
-                    <th style={{ width: '120px', textAlign: 'right' }}>Max %</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {variants.map(variant => {
-                    const setting = settings[currentStructure?.id]?.[variant.id] || {};
-                    const variantErrors = errors[variant.id] || {};
-                    
-                    return (
-                      <tr key={variant.id}>
-                        <td style={{ fontWeight: 600 }}>{variant.variant_name}</td>
-                        <td>
-                          <input
-                            type="number"
-                            className="form-input"
-                            style={{ width: '100%', textAlign: 'right', minHeight: '44px' }}
-                            value={setting.default_discount_percent || 0}
-                            onChange={(e) => updateSetting(variant.id, 'default_discount_percent', e.target.value)}
-                            min="0"
-                            max="100"
-                            step="0.01"
-                          />
-                          {variantErrors.default && (
-                            <div style={{ color: '#dc2626', fontSize: '10px', marginTop: '2px' }}>{variantErrors.default}</div>
-                          )}
-                        </td>
-                        <td>
-                          <input
-                            type="number"
-                            className="form-input"
-                            style={{ width: '100%', textAlign: 'right', minHeight: '44px' }}
-                            value={setting.min_discount_percent || 0}
-                            onChange={(e) => updateSetting(variant.id, 'min_discount_percent', e.target.value)}
-                            min="0"
-                            max="100"
-                            step="0.01"
-                          />
-                          {variantErrors.min && (
-                            <div style={{ color: '#dc2626', fontSize: '10px', marginTop: '2px' }}>{variantErrors.min}</div>
-                          )}
-                        </td>
-                        <td>
-                          <input
-                            type="number"
-                            className="form-input"
-                            style={{ width: '100%', textAlign: 'right', minHeight: '44px' }}
-                            value={setting.max_discount_percent || 0}
-                            onChange={(e) => updateSetting(variant.id, 'max_discount_percent', e.target.value)}
-                            min="0"
-                            max="100"
-                            step="0.01"
-                          />
-                          {variantErrors.max && (
-                            <div style={{ color: '#dc2626', fontSize: '10px', marginTop: '2px' }}>{variantErrors.max}</div>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {variants.length === 0 && (
-            <div style={{ padding: '40px', textAlign: 'center', color: '#6b7280' }}>
-              No active variants found. Please create variants first.
-            </div>
-          )}
-        </div>
+        {activeTab === 1 ? (
+          <StandardTab />
+        ) : (
+          <VariantGrid structure={getCurrentStructure()} variants={variants} settings={settings} setSettings={setSettings} updateSetting={updateSetting} handleSave={handleSave} saving={saving} errors={errors} />
+        )}
       </div>
     </div>
   );

@@ -31,86 +31,96 @@ export function CreateClientEdit({ onSuccess, onCancel }) {
   return <CreateClient editMode={true} clientData={clientData} onSuccess={onSuccess} onCancel={onCancel} />;
 }
 
-function ClientPricingControl({ formData, setFormData, isAdmin }) {
-  const [profiles, setProfiles] = useState([]);
-  const [variantSettings, setVariantSettings] = useState([]);
+function ClientDiscountPortfolio({ formData, setFormData, isAdmin }) {
+  const [pricelists, setPricelists] = useState([]);
+  const [structures, setStructures] = useState([]);
+  const [previewSettings, setPreviewSettings] = useState([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const fetchProfiles = async () => {
-      const { data } = await supabase.from('discount_structures').select('*').eq('is_active', true).order('structure_number');
-      setProfiles(data || []);
+    const fetchData = async () => {
+      const [plData, stData] = await Promise.all([
+        supabase.from('standard_discount_pricelists').select('*').eq('is_active', true),
+        supabase.from('discount_structures').select('*').eq('is_active', true).neq('structure_name', 'Standard')
+      ]);
+      setPricelists(plData.data || []);
+      setStructures(stData.data || []);
     };
-    fetchProfiles();
+    fetchData();
   }, []);
 
   useEffect(() => {
-    const fetchVariantSettings = async () => {
-      if (!formData.discount_profile_id) {
-        setVariantSettings([]);
+    const fetchPreview = async () => {
+      if (formData.discount_type === 'Standard' || !formData.discount_type) {
+        setPreviewSettings([]);
         return;
       }
       setLoading(true);
-      const { data } = await supabase
-        .from('discount_variant_settings')
-        .select('*, variant:company_variants(variant_name)')
-        .eq('structure_id', formData.discount_profile_id);
-      setVariantSettings(data || []);
+      const struct = structures.find(s => s.structure_name === formData.discount_type);
+      if (struct) {
+        const { data } = await supabase.from('discount_variant_settings').select('*, variant:company_variants(variant_name)').eq('structure_id', struct.id);
+        setPreviewSettings(data || []);
+      }
       setLoading(false);
     };
-    fetchVariantSettings();
-  }, [formData.discount_profile_id]);
+    fetchPreview();
+  }, [formData.discount_type, structures]);
 
   return (
     <div className="pricing-control">
-      <div className="form-group" style={{ maxWidth: '400px' }}>
-        <label className="form-label">Assigned Discount Profile</label>
-        <select 
-          className="form-select" 
-          value={formData.discount_profile_id || ''} 
-          onChange={e => setFormData({...formData, discount_profile_id: e.target.value || null})}
-          disabled={!isAdmin}
-        >
-          <option value="">No Discount Profile assigned</option>
-          {profiles.map(p => (
-            <option key={p.id} value={p.id}>{p.structure_name}</option>
-          ))}
-        </select>
-        {!isAdmin && <p style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>Only administrators can change the discount profile.</p>}
+      <div className="card" style={{ maxWidth: '600px', marginBottom: '24px' }}>
+        <h3 style={{ fontSize: '18px', marginBottom: '16px' }}>Discount Portfolio</h3>
+        <div className="form-group">
+          <label className="form-label">Discount Type *</label>
+          <select 
+            className="form-select" 
+            value={formData.discount_type || 'Special'} 
+            onChange={e => setFormData({...formData, discount_type: e.target.value, standard_pricelist_id: e.target.value === 'Standard' ? formData.standard_pricelist_id : null})}
+            disabled={!isAdmin}
+          >
+            <option value="Standard">Standard (Price List Based)</option>
+            <option value="Premium">Premium (Variant Based)</option>
+            <option value="Bulk">Bulk (Variant Based)</option>
+            <option value="Special">Special (Variant Based)</option>
+          </select>
+        </div>
+
+        {formData.discount_type === 'Standard' && (
+          <div className="form-group" style={{ marginTop: '16px' }}>
+            <label className="form-label">Select Standard Price List *</label>
+            <select 
+              className="form-select" 
+              value={formData.standard_pricelist_id || ''} 
+              onChange={e => setFormData({...formData, standard_pricelist_id: e.target.value})}
+              required
+              disabled={!isAdmin}
+            >
+              <option value="">-- Select Price List --</option>
+              {pricelists.map(pl => (
+                <option key={pl.id} value={pl.id}>{pl.pricelist_name} ({pl.discount_percent}%)</option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
-      <div style={{ marginTop: '24px' }}>
-        <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '12px', color: '#1e293b' }}>Profile Preview</h3>
-        {!formData.discount_profile_id ? (
-          <div style={{ padding: '32px', textAlign: 'center', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #e2e8f0' }}>
-            <p style={{ color: '#64748b' }}>No Discount Profile assigned.</p>
+      <div className="card">
+        <h3 style={{ fontSize: '16px', marginBottom: '12px' }}>Portfolio Preview</h3>
+        {formData.discount_type === 'Standard' ? (
+          <div style={{ padding: '20px', background: '#f8fafc', borderRadius: '8px' }}>
+            <p><strong>Standard Discount:</strong> {pricelists.find(pl => pl.id === formData.standard_pricelist_id)?.discount_percent || 0}% flat on all items.</p>
           </div>
         ) : (
-          <div className="table-container" style={{ border: '1px solid #e2e8f0', borderRadius: '8px' }}>
+          <div className="table-container">
             <table className="table">
-              <thead>
-                <tr>
-                  <th>Variant</th>
-                  <th>Default %</th>
-                  <th>Min %</th>
-                  <th>Max %</th>
-                </tr>
-              </thead>
+              <thead><tr><th>Variant</th><th>Default %</th><th>Min %</th><th>Max %</th></tr></thead>
               <tbody>
-                {loading ? (
-                  <tr><td colSpan="4" style={{ textAlign: 'center', padding: '24px' }}>Loading settings...</td></tr>
-                ) : variantSettings.length === 0 ? (
-                  <tr><td colSpan="4" style={{ textAlign: 'center', padding: '24px' }}>No variant settings found for this profile.</td></tr>
-                ) : (
-                  variantSettings.map(s => (
-                    <tr key={s.id}>
-                      <td style={{ fontWeight: '500' }}>{s.variant?.variant_name || 'Unknown'}</td>
-                      <td>{s.default_discount_percent}%</td>
-                      <td>{s.min_discount_percent}%</td>
-                      <td>{s.max_discount_percent}%</td>
-                    </tr>
-                  ))
-                )}
+                {loading ? <tr><td colSpan="4" textAlign="center">Loading...</td></tr> : 
+                 previewSettings.length === 0 ? <tr><td colSpan="4" textAlign="center">No settings found.</td></tr> :
+                 previewSettings.map(s => (
+                   <tr key={s.id}><td>{s.variant?.variant_name}</td><td>{s.default_discount_percent}%</td><td>{s.min_discount_percent}%</td><td>{s.max_discount_percent}%</td></tr>
+                 ))
+                }
               </tbody>
             </table>
           </div>
@@ -131,7 +141,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }) {
     contact_person: '', contact_designation: '', contact_person_email: '',
     contact_person_2: '', contact_designation_2: '', contact_person_2_contact: '', contact_person_2_email: '',
     purchase_person: '', purchase_designation: '', purchase_contact: '', purchase_email: '',
-    about_client: '', discount_profile_id: null
+    about_client: '', discount_type: 'Special', standard_pricelist_id: null
   });
   const [gstError, setGstError] = useState('');
   const [shippingAddresses, setShippingAddresses] = useState([]);

@@ -564,6 +564,7 @@ export default function CreateQuotation() {
   const handleClientChange = async (clientId) => {
     if (!clientId) {
       setFormData({ ...formData, client_id: '', billing_address: '', gstin: '', state: '', client_contact: '' });
+      setHeaderDiscounts({});
       return;
     }
 
@@ -572,7 +573,7 @@ export default function CreateQuotation() {
       const billingAddress = [client.address1, client.address2, client.city, client.state, client.pincode]
         .filter(Boolean)
         .join(', ');
-      
+
       const contacts = buildClientContacts(client);
       setFormData({
         ...formData,
@@ -582,9 +583,46 @@ export default function CreateQuotation() {
         state: client.state || '',
         client_contact: contacts[0]?.value || ''
       });
+
+      // --- Apply Client Discount Portfolio Logic ---
+      try {
+        let discounts = {};
+        if (client.discount_type === 'Standard' && client.standard_pricelist_id) {
+          // Flat discount from price list
+          const { data: pl } = await supabase.from('standard_discount_pricelists').select('discount_percent').eq('id', client.standard_pricelist_id).single();
+          if (pl) {
+            // Apply this flat discount to all variants for this client context
+            variants.forEach(v => {
+              discounts[v.id] = parseFloat(pl.discount_percent) || 0;
+            });
+          }
+        } else {
+          // Variant based discount from structures
+          const structName = client.discount_type || 'Special';
+          const { data: struct } = await supabase.from('discount_structures').select('id').eq('structure_name', structName).maybeSingle();
+          if (struct) {
+            const { data: varSettings } = await supabase.from('discount_variant_settings').select('variant_id, default_discount_percent').eq('structure_id', struct.id);
+            varSettings?.forEach(s => {
+              discounts[s.variant_id] = parseFloat(s.default_discount_percent) || 0;
+            });
+          }
+        }
+        setHeaderDiscounts(discounts);
+
+        // Optionally update existing items if any
+        if (items.length > 0 && window.confirm('Apply client discount portfolio to existing items?')) {
+          setItems(items.map(item => {
+            const disc = discounts[item.variant_id] || 0;
+            const rate = item.rate || 0;
+            const amount = item.qty * rate * (1 - disc / 100);
+            return { ...item, discount_percent: disc, amount };
+          }));
+        }
+      } catch (err) {
+        console.error('Error applying client portfolio:', err);
+      }
     }
   };
-
   const filteredMaterials = useMemo(() => {
     if (!itemSearch) return materials;
     const search = itemSearch.toLowerCase();
