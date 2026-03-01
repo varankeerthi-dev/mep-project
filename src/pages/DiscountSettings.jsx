@@ -10,7 +10,6 @@ export default function DiscountSettings() {
   const [message, setMessage] = useState({ type: '', text: '' });
   const [activeTab, setActiveTab] = useState(1);
   const [userRole, setUserRole] = useState(null);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [errors, setErrors] = useState({});
   const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth <= 768 : false);
 
@@ -35,8 +34,7 @@ export default function DiscountSettings() {
         
         const role = userData?.role || 'Member';
         setUserRole(role);
-        setIsAdmin(role === 'Admin');
-        console.log('User role:', role, 'isAdmin:', role === 'Admin');
+        console.log('User role:', role);
       }
     } catch (err) {
       console.warn('Could not check user role:', err);
@@ -215,20 +213,6 @@ export default function DiscountSettings() {
         </p>
       </div>
 
-      {!isAdmin && (
-        <div style={{
-          padding: '12px 16px',
-          background: '#fef3c7',
-          border: '1px solid #fcd34d',
-          borderRadius: '8px',
-          marginBottom: '16px',
-          color: '#92400e',
-          fontSize: '14px'
-        }}>
-          🔒 Read Only Mode - Only Admin role can edit settings
-        </div>
-      )}
-
       {message.text && (
         <div style={{
           padding: '12px',
@@ -258,15 +242,13 @@ export default function DiscountSettings() {
               padding: isMobile ? '10px 16px' : '10px 24px',
               borderRadius: '8px',
               border: 'none',
-              cursor: isAdmin ? 'pointer' : 'not-allowed',
+              cursor: 'pointer',
               fontWeight: 600,
               fontSize: '14px',
               background: activeTab === structure.structure_number ? '#3b82f6' : '#f3f4f6',
               color: activeTab === structure.structure_number ? '#fff' : '#374151',
-              whiteSpace: 'nowrap',
-              opacity: isAdmin ? 1 : 0.7
+              whiteSpace: 'nowrap'
             }}
-            disabled={!isAdmin}
           >
             {structure.structure_number}. {structure.structure_name}
           </button>
@@ -287,8 +269,7 @@ export default function DiscountSettings() {
             <button 
               className="btn btn-primary" 
               onClick={handleSave} 
-              disabled={saving || !isAdmin}
-              style={{ opacity: isAdmin ? 1 : 0.5 }}
+              disabled={saving}
             >
               {saving ? 'Saving...' : 'Save Changes'}
             </button>
@@ -330,7 +311,6 @@ export default function DiscountSettings() {
                           style={{ width: '100%', minHeight: '44px', textAlign: 'right' }}
                           value={setting.default_discount_percent || 0}
                           onChange={(e) => updateSetting(variant.id, 'default_discount_percent', e.target.value)}
-                          disabled={!isAdmin}
                           min="0"
                           max="100"
                           step="0.01"
@@ -347,7 +327,6 @@ export default function DiscountSettings() {
                           style={{ width: '100%', minHeight: '44px', textAlign: 'right' }}
                           value={setting.min_discount_percent || 0}
                           onChange={(e) => updateSetting(variant.id, 'min_discount_percent', e.target.value)}
-                          disabled={!isAdmin}
                           min="0"
                           max="100"
                           step="0.01"
@@ -364,7 +343,6 @@ export default function DiscountSettings() {
                           style={{ width: '100%', minHeight: '44px', textAlign: 'right' }}
                           value={setting.max_discount_percent || 0}
                           onChange={(e) => updateSetting(variant.id, 'max_discount_percent', e.target.value)}
-                          disabled={!isAdmin}
                           min="0"
                           max="100"
                           step="0.01"
@@ -405,7 +383,6 @@ export default function DiscountSettings() {
                             style={{ width: '100%', textAlign: 'right', minHeight: '44px' }}
                             value={setting.default_discount_percent || 0}
                             onChange={(e) => updateSetting(variant.id, 'default_discount_percent', e.target.value)}
-                            disabled={!isAdmin}
                             min="0"
                             max="100"
                             step="0.01"
@@ -421,7 +398,6 @@ export default function DiscountSettings() {
                             style={{ width: '100%', textAlign: 'right', minHeight: '44px' }}
                             value={setting.min_discount_percent || 0}
                             onChange={(e) => updateSetting(variant.id, 'min_discount_percent', e.target.value)}
-                            disabled={!isAdmin}
                             min="0"
                             max="100"
                             step="0.01"
@@ -437,7 +413,6 @@ export default function DiscountSettings() {
                             style={{ width: '100%', textAlign: 'right', minHeight: '44px' }}
                             value={setting.max_discount_percent || 0}
                             onChange={(e) => updateSetting(variant.id, 'max_discount_percent', e.target.value)}
-                            disabled={!isAdmin}
                             min="0"
                             max="100"
                             step="0.01"

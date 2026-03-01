@@ -404,28 +404,26 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
       };
     }));
   };
-    // Logic from Quotation: When header variant changes, ask to update existing rows
-    const itemsUsingVariants = items.filter(i => i.material_id && i.uses_variant);
-    if (itemsUsingVariants.length > 0) {
-      if (window.confirm(`Update all existing items to ${variants.find(v => v.id === newVariantId)?.variant_name || 'selected variant'}?`)) {
-        setItems(prevItems => prevItems.map(item => {
-          if (!item.material_id || !item.uses_variant) return item;
-          
-          const rate = getRate(item.material_id, newVariantId);
-          const avail = formData.source_type === 'WAREHOUSE' ? getAvailableQty(item.material_id, newVariantId) : 0;
-          const qty = parseFloat(item.quantity) || 0;
-          
-          return {
-            ...item,
-            variant_id: newVariantId,
-            rate: rate,
-            available_qty: avail,
-            amount: qty * rate,
-            valid: !!item.material_id && qty > 0 && (formData.source_type !== 'WAREHOUSE' || qty <= avail || allowInsufficientStock)
-          };
-        }));
-      }
-    }
+
+  const handleSourceTypeChange = (sourceType) => {
+    setFormData(prev => ({ 
+      ...prev, 
+      source_type: sourceType,
+      warehouse_id: sourceType === 'DIRECT_SUPPLY' ? '' : prev.warehouse_id
+    }));
+    
+    // Refresh stock for all items
+    setItems(items.map(item => {
+      if (item.is_service) return item;
+      const avail = (sourceType === 'WAREHOUSE' && item.material_id) ? getAvailableQty(item.material_id, item.variant_id) : 0;
+      const qty = parseFloat(item.quantity) || 0;
+      return { 
+        ...item, 
+        available_qty: avail,
+        valid: !!item.material_id && qty > 0 && (sourceType !== 'WAREHOUSE' || qty <= avail || allowInsufficientStock),
+        stock_warning: (sourceType === 'WAREHOUSE' && qty > avail)
+      };
+    }));
   };
 
   const addItem = () => {
