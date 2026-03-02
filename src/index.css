@@ -1259,8 +1259,10 @@ body {
   width: 100%;
   overflow-x: auto;
   margin-bottom: 20px;
-  border: 1px solid #d1d5db;
-  border-radius: 4px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  background: white;
 }
 
 .grid-table {
@@ -1272,62 +1274,200 @@ body {
 
 .grid-table th {
   background: #f8fafc;
-  color: #1e293b;
-  font-weight: 700;
-  font-size: 11px;
+  color: #374151;
+  font-weight: 600;
+  font-size: 13px;
   text-transform: uppercase;
-  padding: 8px 4px;
-  border: 1px solid #d1d5db;
+  padding: 14px 12px;
+  border-bottom: 1px solid #e5e7eb;
+  text-align: center;
+  letter-spacing: 0.02em;
+}
+
+.grid-table th:first-child {
+  width: 50px;
+  min-width: 50px;
+}
+
+.grid-table th.col-item {
+  min-width: 300px;
+  text-align: left;
+}
+
+.grid-table th.col-variant {
+  width: 140px;
+  min-width: 140px;
+}
+
+.grid-table th.col-avail {
+  width: 100px;
+  min-width: 100px;
+  text-align: right;
+  color: #059669;
+}
+
+.grid-table th.col-qty {
+  width: 100px;
+  min-width: 100px;
   text-align: center;
 }
 
+.grid-table th.col-unit {
+  width: 90px;
+  min-width: 90px;
+  text-align: center;
+}
+
+.grid-table th.col-rate {
+  width: 120px;
+  min-width: 120px;
+  text-align: right;
+}
+
+.grid-table th.col-amount {
+  width: 140px;
+  min-width: 140px;
+  text-align: right;
+}
+
+.grid-table th.col-disc {
+  width: 80px;
+  min-width: 80px;
+  text-align: right;
+}
+
+.grid-table th.col-gst {
+  width: 80px;
+  min-width: 80px;
+  text-align: right;
+}
+
+.grid-table th.col-hsn {
+  width: 90px;
+  min-width: 90px;
+}
+
 .grid-table td {
-  border: 1px solid #d1d5db;
+  border-bottom: 1px solid #e5e7eb;
   padding: 0;
   vertical-align: middle;
+}
+
+.grid-table tbody tr {
+  height: 48px;
+  transition: background-color 0.15s ease;
+}
+
+.grid-table tbody tr:hover {
+  background: #f9fafb;
+}
+
+.grid-table tbody tr:last-child td {
+  border-bottom: none;
 }
 
 .grid-table .cell-input, 
 .grid-table .cell-select {
   width: 100%;
   height: 36px;
-  border: none;
-  padding: 0 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 0 10px;
   font-size: 13px;
-  color: #1e293b;
-  background: transparent;
+  color: #1f2937;
+  background: white;
   outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .grid-table .cell-input:focus, 
 .grid-table .cell-select:focus {
-  background: #eff6ff;
-  box-shadow: inset 0 0 0 2px #3b82f6;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
 }
 
 .grid-table .cell-input[disabled], 
 .grid-table .cell-select[disabled] {
-  background: #f3f4f6;
+  background: #f8fafc;
   color: #6b7280;
+  border-color: #e5e7eb;
+}
+
+.grid-table .cell-input.text-right,
+.grid-table .cell-select.text-right {
+  text-align: right;
+  padding-right: 12px;
+}
+
+.grid-table .cell-input.text-center,
+.grid-table .cell-select.text-center {
+  text-align: center;
 }
 
 .grid-table .cell-static {
-  padding: 0 8px;
+  padding: 0 12px;
   font-size: 13px;
-  color: #1e293b;
+  color: #1f2937;
+}
+
+.grid-table .cell-static.text-right {
+  text-align: right;
+  padding-right: 14px;
+}
+
+.grid-table .cell-static.text-center {
+  text-align: center;
+}
+
+.grid-table .cell-static.amount-value {
+  font-weight: 600;
+  color: #111827;
+  font-size: 13px;
+}
+
+.grid-table .amount-value::before {
+  content: '₹ ';
+  margin-right: 2px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.grid-table .avail-value {
+  color: #059669;
+  font-weight: 500;
+  text-align: right;
 }
 
 .grid-table .total-row {
-  background: #f8fafc;
+  background: #f1f5f9;
   font-weight: 700;
+}
+
+.grid-table .total-row td {
+  padding: 14px 12px;
 }
 
 .grid-table .total-label {
   text-align: right;
-  padding-right: 12px;
+  padding-right: 14px;
   text-transform: uppercase;
-  font-size: 11px;
-  color: #64748b;
+  font-size: 12px;
+  color: #475569;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.grid-table .total-value {
+  text-align: right;
+  padding-right: 14px;
+  font-size: 15px;
+  color: #111827;
+}
+
+.grid-table .total-value::before {
+  content: '₹ ';
+  margin-right: 2px;
+  color: #374151;
 }
 
 .grid-table .col-shrink {
@@ -1336,35 +1476,52 @@ body {
 }
 
 .grid-table .delete-cell {
-  width: 30px;
+  width: 50px;
   text-align: center;
+  padding: 0;
 }
 
 .grid-table .btn-delete {
   background: none;
   border: none;
-  color: #94a3b8;
+  color: #9ca3af;
   cursor: pointer;
-  font-size: 18px;
+  font-size: 20px;
   line-height: 1;
-  padding: 4px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  transition: all 0.15s ease;
 }
 
 .grid-table .btn-delete:hover {
   color: #ef4444;
+  background: #fef2f2;
 }
 
 .grid-table .col-item {
   width: auto;
-  min-width: 180px;
-  max-width: 220px;
+  min-width: 200px;
 }
 
-.grid-table th.col-variant { width: 100px; }
-.grid-table th.col-qty { width: 70px; }
-.grid-table th.col-unit { width: 70px; }
-.grid-table th.col-rate { width: 90px; }
-.grid-table th.col-amount { width: 100px; }
-.grid-table th.col-gst { width: 80px; }
-.grid-table th.col-disc { width: 80px; }
+.grid-table .row-drag-handle {
+  cursor: grab;
+  color: #9ca3af;
+  padding: 0 8px;
+}
+
+.grid-table .row-drag-handle:active {
+  cursor: grabbing;
+}
+
+.grid-table .row-dragging {
+  opacity: 0.55;
+}
+
+.grid-table .override-indicator {
+  background: #eff6ff;
+}
+
+.grid-table .invalid-row {
+  background: #fff3cd;
+}
 

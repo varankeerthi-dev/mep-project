@@ -1567,13 +1567,31 @@ export default function CreateQuotation() {
         </div>
       )}
 
-      <div className="card" style={{ marginBottom: '16px' }} ref={itemsTableRef}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-          <h3 style={{ margin: 0 }}>Items</h3>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <button className="btn btn-secondary btn-sm" onClick={addEmptyItemRow}>+ Add Row</button>
-            <button className="btn btn-primary btn-sm" onClick={() => setShowItemPicker(true)}>+ Add Multiple Items</button>
-            <button className="btn btn-secondary btn-sm" onClick={() => setShowCustomLabelEditor(true)}>⚙ Custom Columns</button>
+      <div className="card" style={{ marginBottom: '16px', padding: '24px', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }} ref={itemsTableRef}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+          <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: '#1f2937' }}>Items</h3>
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <button 
+              className="btn btn-secondary" 
+              onClick={addEmptyItemRow}
+              style={{ borderRadius: '8px', fontWeight: 500 }}
+            >
+              + Add Row
+            </button>
+            <button 
+              className="btn btn-primary" 
+              onClick={() => setShowItemPicker(true)}
+              style={{ borderRadius: '8px', fontWeight: 500 }}
+            >
+              + Add Multiple Items
+            </button>
+            <button 
+              className="btn btn-secondary" 
+              onClick={() => setShowCustomLabelEditor(true)}
+              style={{ borderRadius: '8px', fontWeight: 500 }}
+            >
+              ⚙ Custom Columns
+            </button>
           </div>
         </div>
 
@@ -1604,7 +1622,7 @@ export default function CreateQuotation() {
             <tbody>
               {items.length === 0 ? (
                 <tr>
-                  <td colSpan={20} className="cell-static text-center" style={{ padding: '40px', color: '#94a3b8' }}>
+                  <td colSpan={20} className="cell-static text-center" style={{ padding: '48px', color: '#94a3b8', fontSize: '14px' }}>
                     No items added. Click "Add Row" or "Add Multiple Items".
                   </td>
                 </tr>
@@ -1617,12 +1635,9 @@ export default function CreateQuotation() {
                     onDragOver={handleDragOver}
                     onDrop={(e) => handleDropOnRow(e, item.id)}
                     onDragEnd={handleDragEnd}
-                    style={{ 
-                      ...(draggingItemId === item.id ? { opacity: 0.55 } : {}),
-                      ...(item.is_override ? { background: '#eff6ff' } : {}) 
-                    }}
+                    className={draggingItemId === item.id ? 'row-dragging' : item.is_override ? 'override-indicator' : ''}
                   >
-                    <td className="text-center cell-static col-shrink" style={{ cursor: 'grab' }} title="Drag to reorder">
+                    <td className="text-center cell-static col-shrink row-drag-handle" title="Drag to reorder">
                       {index + 1}
                     </td>
                     <td className="col-shrink">
@@ -1757,7 +1772,7 @@ export default function CreateQuotation() {
                         />
                       </td>
                     )}
-                    <td className="col-shrink cell-static text-right" style={{ fontWeight: '600', paddingRight: '12px' }}>
+                    <td className="col-shrink cell-static text-right amount-value">
                       {formatCurrency((parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0))}
                     </td>
                     <td className="delete-cell col-shrink">
@@ -1769,11 +1784,11 @@ export default function CreateQuotation() {
               
               <tr className="total-row">
                 <td colSpan={4} className="total-label">TOTAL</td>
-                <td className="text-right cell-static" style={{ fontWeight: 'bold' }}>
+                <td className="text-right cell-static" style={{ fontWeight: 'bold', textAlign: 'right', paddingRight: '14px' }}>
                   {items.reduce((sum, i) => sum + (parseFloat(i.qty) || 0), 0).toFixed(2)}
                 </td>
                 <td colSpan={templateSettings?.column_settings?.optional?.custom1 && templateSettings?.column_settings?.optional?.custom2 ? 7 : templateSettings?.column_settings?.optional?.custom1 || templateSettings?.column_settings?.optional?.custom2 ? 6 : 5}></td>
-                <td className="text-right cell-static" style={{ fontWeight: 'bold', paddingRight: '12px' }}>
+                <td className="total-value">
                   {formatCurrency(items.reduce((sum, i) => sum + ((parseFloat(i.qty) || 0) * (parseFloat(i.rate) || 0)), 0))}
                 </td>
                 <td></td>

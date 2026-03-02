@@ -1179,7 +1179,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
                   <th className="col-shrink">#</th>
                   <th className="col-item">ITEM</th>
                   <th className="col-variant">VARIANT</th>
-                  {formData.source_type === 'WAREHOUSE' && <th className="col-qty">AVAIL</th>}
+                  {formData.source_type === 'WAREHOUSE' && <th className="col-avail">AVAIL</th>}
                   <th className="col-qty">QTY</th>
                   <th className="col-unit">UNIT</th>
                   <th className="col-rate">RATE</th>
@@ -1191,17 +1191,14 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
                 {items.map((item, index) => (
                   <tr 
                     key={item.id} 
-                    style={{ 
-                      background: !item.valid && item.material_id ? '#fff3cd' : 'transparent',
-                      opacity: draggingItemId === item.id ? 0.5 : 1
-                    }}
+                    className={!item.valid && item.material_id ? 'invalid-row' : draggingItemId === item.id ? 'row-dragging' : ''}
                     draggable={!isLocked}
                     onDragStart={(e) => handleDragStart(e, item.id)}
                     onDragOver={handleDragOver}
                     onDrop={(e) => handleDropOnRow(e, item.id)}
                     onDragEnd={handleDragEnd}
                   >
-                    <td className="text-center cell-static col-shrink" style={{ cursor: 'grab' }} title="Drag to reorder">
+                    <td className="text-center cell-static col-shrink row-drag-handle" title="Drag to reorder">
                       {index + 1}
                     </td>
                     <td className="col-item">
@@ -1235,7 +1232,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
                       )}
                     </td>
                     {formData.source_type === 'WAREHOUSE' && (
-                      <td className="col-shrink text-right cell-static" style={{ color: (item.quantity > item.available_qty && !allowInsufficientStock) ? '#dc3545' : (item.quantity > item.available_qty ? '#f59e0b' : '#28a745') }}>
+                      <td className="col-shrink text-right cell-static avail-value">
                         {!item.is_service ? item.available_qty.toFixed(2) : '-'}
                       </td>
                     )}
@@ -1276,8 +1273,8 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
                         step="0.01"
                       />
                     </td>
-                    <td className="col-shrink text-right cell-static" style={{ fontWeight: '600', paddingRight: '12px' }}>
-                      ₹{item.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    <td className="col-shrink cell-static text-right amount-value">
+                      {item.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                     </td>
                     <td className="delete-cell col-shrink">
                       {!isLocked && items.length > 1 && (
@@ -1290,11 +1287,11 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
                 {/* Total Row mirroring Vyapar Screenshot */}
                 <tr className="total-row">
                   <td colSpan={formData.source_type === 'WAREHOUSE' ? 4 : 3} className="total-label">TOTAL</td>
-                  <td className="text-right cell-static" style={{ fontWeight: 'bold' }}>{totalQty.toFixed(2)}</td>
+                  <td className="text-right cell-static" style={{ fontWeight: 'bold', textAlign: 'right', paddingRight: '14px' }}>{totalQty.toFixed(2)}</td>
                   <td></td>
                   <td></td>
-                  <td className="text-right cell-static" style={{ fontWeight: 'bold', paddingRight: '12px' }}>
-                    ₹{totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  <td className="total-value">
+                    {totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </td>
                   <td></td>
                 </tr>
@@ -1303,11 +1300,11 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
           </div>
           
           {!isLocked && (
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button type="button" className="btn btn-secondary btn-sm" onClick={addItem}>
+            <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}>
+              <button type="button" className="btn btn-secondary" onClick={addItem} style={{ borderRadius: '8px', fontWeight: 500 }}>
                 + Add Item
               </button>
-              <button type="button" className="btn btn-primary btn-sm" onClick={() => setShowItemPicker(true)}>
+              <button type="button" className="btn btn-primary" onClick={() => setShowItemPicker(true)} style={{ borderRadius: '8px', fontWeight: 500 }}>
                 + Add Multiple Items
               </button>
             </div>
