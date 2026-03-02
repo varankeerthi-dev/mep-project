@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { useNavigate } from 'react-router-dom';
+import { formatDate } from '../utils/formatters';
 
 export default function QuickStockCheckList() {
   const navigate = useNavigate();
@@ -52,11 +53,6 @@ export default function QuickStockCheckList() {
     } catch (err) {
       alert('Error: ' + err.message);
     }
-  };
-
-  const formatDate = (date) => {
-    if (!date) return '-';
-    return new Date(date).toLocaleDateString('en-IN');
   };
 
   const getVariantBadge = (filter) => {

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
+import { formatDate, formatCurrency } from '../utils/formatters';
 
 export default function ProjectList() {
   const [projects, setProjects] = useState([]);
@@ -144,16 +145,6 @@ export default function ProjectList() {
       'Received': { bg: '#dbeafe', color: '#1d4ed8' }
     };
     return colors[status] || colors['Pending'];
-  };
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(amount || 0);
-  };
-
-  const formatDate = (dateStr) => {
-    if (!dateStr) return '-';
-    const d = new Date(dateStr);
-    return isNaN(d.getTime()) ? '-' : d.toLocaleDateString();
   };
 
   if (loading) {

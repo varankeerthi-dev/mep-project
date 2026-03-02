@@ -1,5 +1,6 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
+import { formatDate, formatCurrency } from '../utils/formatters';
 
 const MAIN_CATEGORIES = ['VALVE', 'PIPE', 'FITTING', 'FLANGE', 'ELECTRICAL', 'PLUMBING', 'HVAC', 'FIRE PROTECTION', 'BUILDING MATERIALS', 'TOOLS', 'SAFETY', 'OFFICE', 'OTHER'];
 
@@ -206,24 +207,8 @@ function ItemsTab() {
 
   const [variantPricing, setVariantPricing] = useState({});
 
-  const formatDate = (value) => {
-    if (!value) return '-';
-    const parsed = new Date(value);
-    if (Number.isNaN(parsed.getTime())) return '-';
-    return parsed.toLocaleDateString();
-  };
-
-  const formatCurrency = (value) => {
-    const amount = Number(value || 0);
-    return amount.toLocaleString('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      maximumFractionDigits: 2,
-    });
-  };
-
   const formatCurrencyOrDash = (value) => {
-    if (value === null || value === undefined || value === '') return '-';
+    if (value === null || value === undefined || value === '' || value === 0) return '-';
     return formatCurrency(value);
   };
 

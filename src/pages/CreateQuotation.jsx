@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { supabase } from '../supabase';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { formatCurrency } from '../utils/formatters';
 
 const INDIAN_STATES = [
   'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
@@ -1224,10 +1225,6 @@ export default function CreateQuotation() {
     } finally {
       setSaving(false);
     }
-  };
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(amount || 0);
   };
 
   const compactLabelStyle = { fontWeight: 600, fontSize: '10px', marginBottom: '4px', lineHeight: 1.1 };

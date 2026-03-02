@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { useNavigate } from 'react-router-dom';
+import { formatDate, formatCurrency } from '../utils/formatters';
 
 export default function POList() {
   const navigate = useNavigate();
@@ -67,15 +68,6 @@ export default function POList() {
         {status}
       </span>
     );
-  };
-
-  const formatCurrency = (value) => {
-    return (value || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  };
-
-  const formatDate = (dateStr) => {
-    if (!dateStr) return '-';
-    return new Date(dateStr).toLocaleDateString('en-IN');
   };
 
   const deletePO = async (id) => {

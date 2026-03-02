@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { useNavigate } from 'react-router-dom';
+import { formatDate, formatCurrency } from '../utils/formatters';
 
 const QUOTATION_STATUSES = ['Draft', 'Sent', 'Under Negotiation', 'Approved', 'Rejected', 'Converted', 'Cancelled', 'Expired'];
 
@@ -270,15 +271,6 @@ export default function QuotationList() {
         {status}
       </span>
     );
-  };
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(amount || 0);
-  };
-
-  const formatDate = (date) => {
-    if (!date) return '-';
-    return new Date(date).toLocaleDateString('en-IN');
   };
 
   const openRowMenu = (e, rowId) => {

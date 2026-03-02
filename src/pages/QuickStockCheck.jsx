@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import html2canvas from 'html2canvas';
+import { formatDate } from '../utils/formatters';
 
 const VARIANT_FILTERS = ['All', 'Green', 'Blue', 'Non-Variant'];
 
@@ -308,11 +309,6 @@ export default function QuickStockCheck() {
     alert(`Email would be sent to: ${emailTo}\n\n(PDF attachment feature coming soon)`);
     setShowEmailModal(false);
     setEmailTo('');
-  };
-
-  const formatDate = (date) => {
-    if (!date) return '-';
-    return new Date(date).toLocaleDateString('en-IN');
   };
 
   const formatCurrency = (num) => {

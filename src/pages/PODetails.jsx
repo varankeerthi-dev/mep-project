@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../supabase';
+import { formatDate, formatCurrency } from '../utils/formatters';
 
 export default function PODetails() {
   const navigate = useNavigate();
@@ -58,15 +59,6 @@ export default function PODetails() {
         {status}
       </span>
     );
-  };
-
-  const formatCurrency = (value) => {
-    return (value || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  };
-
-  const formatDate = (dateStr) => {
-    if (!dateStr) return '-';
-    return new Date(dateStr).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
   };
 
   if (loading) {

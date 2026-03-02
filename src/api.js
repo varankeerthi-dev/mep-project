@@ -39,6 +39,7 @@ export async function initializeDatabase() {
           site_address TEXT,
           vehicle_number VARCHAR(50),
           driver_name VARCHAR(100),
+          dc_type VARCHAR(20) DEFAULT 'billable',
           remarks TEXT,
           status VARCHAR(20) DEFAULT 'active',
           created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -136,9 +137,14 @@ export async function fetchDeliveryChallans(filters = {}) {
   if (filters.status && filters.status !== 'all') {
     query = query.eq('status', filters.status);
   }
+  if (filters.dc_type) {
+    query = query.eq('dc_type', filters.dc_type);
+  }
+  /*
   if (filters.organisation_id) {
     query = query.eq('organisation_id', filters.organisation_id);
   }
+  */
 
   const { data, error } = await query;
   if (error) {
@@ -174,21 +180,28 @@ export async function fetchDeliveryChallanById(id) {
 }
 
 export async function createDeliveryChallan(challan) {
+  const dcType = challan.dc_type || 'billable';
+  const prefix = dcType === 'billable' ? 'DC-' : 'NBDC-';
+
   const { data: existingDCs } = await supabase
     .from('delivery_challans')
     .select('dc_number')
+    .eq('dc_type', dcType)
     .order('dc_number', { ascending: false })
     .limit(1);
   
-  let newDcNumber = 'DC-0001';
+  let newDcNumber = `${prefix}0001`;
   if (existingDCs && existingDCs.length > 0) {
-    const lastNum = parseInt(existingDCs[0].dc_number.replace('DC-', ''));
-    newDcNumber = `DC-${String(lastNum + 1).padStart(4, '0')}`;
+    const lastNumStr = existingDCs[0].dc_number.replace(prefix, '');
+    const lastNum = parseInt(lastNumStr);
+    if (!isNaN(lastNum)) {
+      newDcNumber = `${prefix}${String(lastNum + 1).padStart(4, '0')}`;
+    }
   }
 
   const { data: challanData, error: challanError } = await supabase
     .from('delivery_challans')
-    .insert({ ...challan, dc_number: newDcNumber })
+    .insert({ ...challan, dc_number: newDcNumber, dc_type: dcType })
     .select()
     .single();
   

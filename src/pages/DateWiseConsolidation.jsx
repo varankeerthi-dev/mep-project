@@ -10,7 +10,8 @@ export default function DateWiseConsolidation() {
   const [filters, setFilters] = useState({
     projectId: '',
     startDate: '',
-    endDate: ''
+    endDate: '',
+    dc_type: 'billable'
   });
   const [summary, setSummary] = useState({ totalDCs: 0, totalAmount: 0, totalItems: 0 });
 

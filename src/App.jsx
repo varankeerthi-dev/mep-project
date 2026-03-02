@@ -5,7 +5,9 @@ import { supabase, getCurrentUser, onAuthStateChange, getUserOrganisations, crea
 
 // Lazy load all pages
 const CreateDC = lazy(() => import('./pages/CreateDC'));
+const CreateNonBillableDC = lazy(() => import('./pages/CreateNonBillableDC'));
 const DCList = lazy(() => import('./pages/DCList'));
+const NonBillableDCList = lazy(() => import('./pages/NonBillableDCList'));
 const DateWiseConsolidation = lazy(() => import('./pages/DateWiseConsolidation'));
 const MaterialWiseConsolidation = lazy(() => import('./pages/MaterialWiseConsolidation'));
 const MaterialsList = lazy(() => import('./pages/MaterialsList'));
@@ -74,6 +76,7 @@ const IssueList = lazy(() => ProjectManagementInternal.then(m => ({ default: m.I
 const ClientComm = lazy(() => ProjectManagementInternal.then(m => ({ default: m.ClientComm })));
 const Documents = lazy(() => ProjectManagementInternal.then(m => ({ default: m.Documents })));
 const DCEdit = lazy(() => import('./pages/DCEdit'));
+const NonBillableDCEdit = lazy(() => import('./pages/NonBillableDCEdit'));
 const SettingsPage = lazy(() => import('./pages/Settings'));
 const PrintSettings = lazy(() => import('./pages/PrintSettings'));
 const DatabaseSetup = lazy(() => import('./pages/DatabaseSetup'));
@@ -305,15 +308,11 @@ export default function App() {
       case '/store/stock': return <StockBalance />;
       case '/tools': return <ToolsList />;
       case '/dc/create': return <CreateDC onSuccess={() => navigate('/dc/list')} onCancel={() => navigate('/dc/list')} />;
-      case '/dc/edit':
-        if (currentPath.startsWith('/dc/edit/')) {
-          const dcId = currentPath.split('/dc/edit/')[1];
-          return <DCEdit dcId={dcId} onCancel={() => navigate('/dc/list')} />;
-        }
-        return <DCList />;
       case '/dc/list': return <DCList />;
       case '/dc/consolidation/date': return <DateWiseConsolidation />;
       case '/dc/consolidation/material': return <MaterialWiseConsolidation />;
+      case '/nb-dc/create': return <CreateNonBillableDC onSuccess={() => navigate('/nb-dc/list')} onCancel={() => navigate('/nb-dc/list')} />;
+      case '/nb-dc/list': return <NonBillableDCList />;
       case '/reports/stock': return <StockReport />;
       case '/reports/purchase': return <PurchaseReport />;
       case '/reports/sales': return <SalesReport />;
@@ -329,7 +328,17 @@ export default function App() {
       case '/client-po': return <POList />;
       case '/client-po/create': return <CreatePO />;
       case '/client-po/details': return <PODetails />;
-      default: return <Dashboard onNavigate={navigate} />;
+      default:
+        // Handle dynamic routes
+        if (pathKey.startsWith('/dc/edit/')) {
+          const dcId = pathKey.split('/dc/edit/')[1];
+          return <DCEdit dcId={dcId} onCancel={() => navigate('/dc/list')} />;
+        }
+        if (pathKey.startsWith('/nb-dc/edit/')) {
+          const dcId = pathKey.split('/nb-dc/edit/')[1];
+          return <NonBillableDCEdit dcId={dcId} onCancel={() => navigate('/nb-dc/list')} />;
+        }
+        return <Dashboard onNavigate={navigate} />;
     }
   };
 

@@ -525,7 +525,12 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
     setLoading(true);
     
     try {
-      const validItems = items.filter(i => i.valid);
+      const validItems = items.filter(i => i.valid && i.material_id);
+      if (validItems.length === 0) {
+        alert('Please add at least one valid item to the Delivery Challan.');
+        setLoading(false);
+        return;
+      }
       
       const dcData = {
         ...formData,
@@ -535,7 +540,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
         eway_valid_till: formData.eway_valid_till || null,
         project_id: formData.project_id || null,
         status: 'active',
-        organisation_id: formData.organisation_id || organisation?.id || null
+        // organisation_id: formData.organisation_id || organisation?.id || null
       };
       
       let dcId;
@@ -571,7 +576,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
         quantity: parseFloat(item.quantity),
         rate: parseFloat(item.rate) || 0,
         amount: item.amount,
-        organisation_id: dcData.organisation_id
+        // organisation_id: dcData.organisation_id
       }));
       
       await supabase.from('delivery_challan_items').insert(itemsToSave);

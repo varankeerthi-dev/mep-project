@@ -133,6 +133,14 @@ const menuData = [
           { id: 'dc-date-wise', label: 'Date-wise Consolidation', path: '/dc/consolidation/date' },
           { id: 'dc-material-wise', label: 'Material-wise Consolidation', path: '/dc/consolidation/material' }
         ]
+      },
+      {
+        id: 'non-billable-dc',
+        label: 'Non-Billable DC',
+        submenu: [
+          { id: 'nb-dc-create', label: 'Create NB-DC', path: '/nb-dc/create' },
+          { id: 'nb-dc-list', label: 'NB-DC List', path: '/nb-dc/list' }
+        ]
       }
     ]
   },
@@ -210,6 +218,7 @@ function getIcon(id) {
     'store': icons.material,
     'tools': icons.tools,
     'dc': icons.dc,
+    'non-billable-dc': icons.dc,
     'reports': icons.reports,
     'settings': icons.settings
   };
