@@ -5,6 +5,7 @@
 CREATE TABLE IF NOT EXISTS document_templates (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   template_name VARCHAR(255) NOT NULL,
+  template_code VARCHAR(100) UNIQUE,
   document_type VARCHAR(50) NOT NULL,
   is_default BOOLEAN DEFAULT false,
   page_size VARCHAR(20) DEFAULT 'A4',

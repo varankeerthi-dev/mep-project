@@ -5,6 +5,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { formatDate, formatCurrency } from '../utils/formatters';
 import { useAuth } from '../App';
+import { generateQuotationTally } from './QuotationTallyTemplate';
 
 export default function QuotationView() {
   const navigate = useNavigate();
@@ -278,6 +279,13 @@ export default function QuotationView() {
   };
 
   const previewQuotation = (template) => {
+    if (template.template_code === 'QTN_TALLY') {
+      const doc = generateQuotationTally(quotation, organisation);
+      const pdfBlob = doc.output('blob');
+      const url = URL.createObjectURL(pdfBlob);
+      window.open(url, '_blank');
+      return;
+    }
     const printWindow = window.open('', '_blank');
     const html = generateQuotationHTML(template);
     printWindow.document.write(html);
@@ -287,6 +295,16 @@ export default function QuotationView() {
   const downloadPDF = (template) => {
     try {
       if (!quotation) throw new Error('Quotation data is missing');
+
+      // Special handling for Tally Template
+      if (template.template_code === 'QTN_TALLY') {
+        const tallyDoc = generateQuotationTally(quotation, organisation);
+        const safeFileName = String(quotation.quotation_no || 'quotation')
+          .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
+          .replace(/\s+/g, '_');
+        tallyDoc.save(`${safeFileName}.pdf`);
+        return;
+      }
 
       const isLandscape = template.orientation === 'Landscape';
       const doc = new jsPDF({
