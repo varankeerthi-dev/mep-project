@@ -80,11 +80,9 @@ export default function CreateQuotation() {
   const itemsTableRef = useRef(null);
   const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth <= 768 : false);
   const [isDirty, setIsDirty] = useState(false);
-  const [draggingItemId, setDraggingItemId] = useState(null);
 
-  const handleDragStart = (e, id) => {
-    setDraggingItemId(id);
-    e.dataTransfer.setData('text/plain', id);
+  const handleDragStart = (e, itemId) => {
+    setDraggingItemId(itemId);
     e.dataTransfer.effectAllowed = 'move';
   };
 
@@ -95,18 +93,17 @@ export default function CreateQuotation() {
 
   const handleDropOnRow = (e, targetId) => {
     e.preventDefault();
-    const draggedId = e.dataTransfer.getData('text/plain');
-    if (draggedId == targetId) return;
-
-    const newItems = [...items];
-    const draggedIdx = newItems.findIndex(i => i.id == draggedId);
-    const targetIdx = newItems.findIndex(i => i.id == targetId);
-
-    if (draggedIdx !== -1 && targetIdx !== -1) {
-      const [draggedItem] = newItems.splice(draggedIdx, 1);
-      newItems.splice(targetIdx, 0, draggedItem);
-      setItems(newItems);
-    }
+    if (!draggingItemId || draggingItemId === targetId) return;
+    setItems((prev) => {
+      const fromIndex = prev.findIndex((r) => r.id === draggingItemId);
+      const toIndex = prev.findIndex((r) => r.id === targetId);
+      if (fromIndex < 0 || toIndex < 0) return prev;
+      const updated = [...prev];
+      const [moved] = updated.splice(fromIndex, 1);
+      updated.splice(toIndex, 0, moved);
+      return updated;
+    });
+    setDraggingItemId(null);
   };
 
   const handleDragEnd = () => {
@@ -998,35 +995,6 @@ export default function CreateQuotation() {
         custom2: ''
       }
     ]);
-  };
-
-  const handleDragStart = (e, itemId) => {
-    setDraggingItemId(itemId);
-    e.dataTransfer.effectAllowed = 'move';
-  };
-
-  const handleDragOver = (e) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-  };
-
-  const handleDropOnRow = (e, targetId) => {
-    e.preventDefault();
-    if (!draggingItemId || draggingItemId === targetId) return;
-    setItems((prev) => {
-      const fromIndex = prev.findIndex((r) => r.id === draggingItemId);
-      const toIndex = prev.findIndex((r) => r.id === targetId);
-      if (fromIndex < 0 || toIndex < 0) return prev;
-      const updated = [...prev];
-      const [moved] = updated.splice(fromIndex, 1);
-      updated.splice(toIndex, 0, moved);
-      return updated;
-    });
-    setDraggingItemId(null);
-  };
-
-  const handleDragEnd = () => {
-    setDraggingItemId(null);
   };
 
   const calculations = useMemo(() => {
