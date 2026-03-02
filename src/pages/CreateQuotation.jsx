@@ -915,8 +915,12 @@ export default function CreateQuotation() {
           
           // Update applied discount and recalculate final rate snapshot
           updates.applied_discount_percent = newDiscount;
-          const baseRate = parseFloat(item.base_rate_snapshot) || parseFloat(item.rate) || 0;
-          updates.final_rate_snapshot = calculateVariantDiscountedRate(baseRate, newDiscount);
+          const baseRate = parseFloat(item.base_rate_snapshot) || 0;
+          const finalRate = calculateVariantDiscountedRate(baseRate, newDiscount);
+          updates.final_rate_snapshot = finalRate;
+          
+          // Update the Rate After Discount field automatically
+          updates.rate = finalRate;
         }
 
         // Legacy negotiation mode handling (keep for backward compatibility)
@@ -941,13 +945,12 @@ export default function CreateQuotation() {
             
             const variantDiscount = nextVariant ? (headerDiscounts[nextVariant] || 0) : 0;
             updates.applied_discount_percent = variantDiscount;
-            updates.final_rate_snapshot = calculateVariantDiscountedRate(newRate, variantDiscount);
+            const finalRate = calculateVariantDiscountedRate(newRate, variantDiscount);
+            updates.final_rate_snapshot = finalRate;
             updates.is_override = false;
             
-            // Update rate as well
-            if (field === 'variant_id') {
-              updates.rate = updates.final_rate_snapshot;
-            }
+            // Update rate as well when variant changes
+            updates.rate = finalRate;
           }
         }
 
@@ -1732,7 +1735,25 @@ export default function CreateQuotation() {
                           const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0));
                           updateItem(item.id, 'discount_percent', val);
                         }}
+                        style={item.is_override ? { 
+                          background: '#fef3c7',
+                          border: '1px solid #f59e0b'
+                        } : item.discount_percent > (discountSettings[item.variant_id]?.max || 100) ? {
+                          background: '#fee2e2',
+                          border: '1px solid #dc2626'
+                        } : {}}
+                        title={item.is_override ? `Overridden from ${headerDiscounts[item.variant_id] || 0}%` : ''}
                       />
+                      {item.is_override && (
+                        <div style={{ fontSize: '9px', color: '#b45309', marginTop: '2px' }}>
+                          Override
+                        </div>
+                      )}
+                      {item.variant_id && discountSettings[item.variant_id] && item.discount_percent > discountSettings[item.variant_id].max && !item.is_override && (
+                        <div style={{ fontSize: '9px', color: '#dc2626', marginTop: '2px' }}>
+                          Exceeds max {discountSettings[item.variant_id].max}%
+                        </div>
+                      )}
                     </td>
                     <td className="col-shrink">
                       <input
