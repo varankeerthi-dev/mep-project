@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../App';
-import { fetchDeliveryChallans, deleteDeliveryChallan, fetchProjects } from '../api';
+import { fetchDeliveryChallans, deleteDeliveryChallan, fetchProjects, fetchQuotationById, fetchDeliveryChallanById } from '../api';
+import { supabase } from '../supabase';
 import { format } from 'date-fns';
 import { exportDCToPDF } from '../utils/pdfExport';
 
@@ -11,6 +12,7 @@ export default function DCList() {
   const [loading, setLoading] = useState(true);
   const [challans, setChallans] = useState([]);
   const [projects, setProjects] = useState([]);
+  const [showConvertMenu, setShowConvertMenu] = useState({});
   const [filters, setFilters] = useState({
     projectId: '',
     startDate: '',
@@ -67,8 +69,91 @@ export default function DCList() {
     }
   };
 
-  const handleExport = (challan) => {
-    exportDCToPDF(challan);
+  const handleExport = async (challan) => {
+    await exportDCToPDF(challan);
+  };
+
+  const handleConvertToQuotation = async (challan) => {
+    try {
+      const { data: existing } = await supabase
+        .from('quotation_header')
+        .select('quotation_no')
+        .order('created_at', { ascending: false })
+        .limit(1);
+      
+      let quotationNo = 'QT-0001';
+      if (existing && existing.length > 0) {
+        const lastNum = parseInt(existing[0].quotation_no.replace(/[^0-9]/g, ''));
+        quotationNo = `QT-${String(lastNum + 1).padStart(4, '0')}`;
+      }
+
+      const { data: dcWithItems } = await supabase
+        .from('delivery_challans')
+        .select('*, items:delivery_challan_items(*)')
+        .eq('id', challan.id)
+        .single();
+
+      const quotationData = {
+        quotation_no: quotationNo,
+        client_id: dcWithItems.client_id,
+        project_id: dcWithItems.project_id,
+        billing_address: dcWithItems.site_address || dcWithItems.client_address,
+        gstin: dcWithItems.client_gstin,
+        state: dcWithItems.client_state,
+        date: new Date().toISOString().split('T')[0],
+        valid_till: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        payment_terms: 'Net 30 Days',
+        reference: `From DC: ${dcWithItems.dc_number}`,
+        remarks: dcWithItems.remarks,
+        status: 'Draft',
+        negotiation_mode: false
+      };
+
+      const { data: quotation, error } = await supabase
+        .from('quotation_header')
+        .insert(quotationData)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      if (dcWithItems.items && dcWithItems.items.length > 0) {
+        const itemsToInsert = dcWithItems.items.map(item => ({
+          quotation_id: quotation.id,
+          item_id: item.material_id,
+          variant_id: item.variant_id,
+          description: item.material_name,
+          qty: item.quantity,
+          uom: item.unit,
+          rate: item.rate,
+          discount_percent: 0,
+          discount_amount: 0,
+          tax_percent: 0,
+          tax_amount: 0,
+          line_total: item.amount,
+          override_flag: false
+        }));
+
+        await supabase.from('quotation_items').insert(itemsToInsert);
+      }
+
+      alert('DC converted to Quotation successfully!');
+      navigate(`/quotation/edit?id=${quotation.id}`);
+    } catch (error) {
+      console.error('Error converting to quotation:', error);
+      alert('Error converting to quotation: ' + error.message);
+    }
+    setShowConvertMenu({});
+  };
+
+  const handleConvertToProforma = async (challan) => {
+    try {
+      alert('Proforma Invoice feature coming soon!');
+    } catch (error) {
+      console.error('Error converting to proforma:', error);
+      alert('Error converting to proforma: ' + error.message);
+    }
+    setShowConvertMenu({});
   };
 
   const calculateTotal = (items) => {
@@ -133,6 +218,8 @@ export default function DCList() {
           >
             <option value="all">All</option>
             <option value="active">Active</option>
+            <option value="Not sent">Not sent</option>
+            <option value="Quoted">Quoted</option>
             <option value="cancelled">Cancelled</option>
           </select>
         </div>
@@ -179,15 +266,20 @@ export default function DCList() {
                     <td className="table-number">{challan.items?.length || 0}</td>
                     <td className="table-number">₹{calculateTotal(challan.items).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
                     <td>
-                      <span className={`badge ${challan.status === 'active' ? 'badge-success' : 'badge-neutral'}`}>
-                        {challan.status}
+                      <span className={`badge ${
+                        challan.status === 'active' ? 'badge-success' : 
+                        challan.status === 'Quoted' ? 'badge-success' :
+                        challan.status === 'Not sent' ? 'badge-warning' :
+                        'badge-neutral'
+                      }`}>
+                        {challan.status === 'active' ? 'Active' : challan.status}
                       </span>
                     </td>
                     <td>
                       <div className="actions">
                         <button 
                           className="action-btn" 
-                          title="View PDF"
+                          title="Export PDF"
                           onClick={() => handleExport(challan)}
                         >
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
@@ -197,6 +289,47 @@ export default function DCList() {
                             <line x1="16" y1="17" x2="8" y2="17"/>
                           </svg>
                         </button>
+                        <div style={{ position: 'relative', display: 'inline-flex' }}>
+                          <button 
+                            className="action-btn" 
+                            title="Convert"
+                            onClick={() => setShowConvertMenu(prev => ({ ...prev, [challan.id]: !prev[challan.id] }))}
+                          >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+                              <polyline points="17 1 21 5 17 9"/>
+                              <path d="M3 11V9a4 4 0 0 1 4-4h14"/>
+                              <polyline points="7 23 3 19 7 15"/>
+                              <path d="M21 13v2a4 4 0 0 1-4 4H3"/>
+                            </svg>
+                          </button>
+                          {showConvertMenu[challan.id] && (
+                            <div style={{
+                              position: 'absolute',
+                              top: '100%',
+                              right: 0,
+                              background: 'white',
+                              border: '1px solid #e5e7eb',
+                              borderRadius: '6px',
+                              boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                              zIndex: 100,
+                              minWidth: '160px',
+                              marginTop: '4px'
+                            }}>
+                              <button 
+                                style={{ display: 'block', width: '100%', padding: '10px 14px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '13px' }}
+                                onClick={() => handleConvertToQuotation(challan)}
+                              >
+                                Convert to Quotation
+                              </button>
+                              <button 
+                                style={{ display: 'block', width: '100%', padding: '10px 14px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '13px' }}
+                                onClick={() => handleConvertToProforma(challan)}
+                              >
+                                Convert to Proforma
+                              </button>
+                            </div>
+                          )}
+                        </div>
                         <button 
                           className="action-btn" 
                           title="Edit"

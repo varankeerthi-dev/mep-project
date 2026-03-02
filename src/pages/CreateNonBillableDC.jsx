@@ -364,7 +364,7 @@ export default function CreateNonBillableDC({ onSuccess, onCancel, editDC }) {
         material_id: p.item_id,
         variant_id: variantId,
         material_name: mat?.display_name || mat?.name || '',
-        unit: mat?.unit || 'nos',
+        unit: mat?.unit || 'Nos',
         quantity: qty,
         rate: rate,
         amount: amount,
@@ -461,7 +461,7 @@ export default function CreateNonBillableDC({ onSuccess, onCancel, editDC }) {
       material_id: '', 
       variant_id: formData.variant_id || '', 
       material_name: '', 
-      unit: 'nos', 
+      unit: 'Nos', 
       quantity: '', 
       rate: '', 
       amount: 0, 
@@ -485,7 +485,7 @@ export default function CreateNonBillableDC({ onSuccess, onCancel, editDC }) {
       if (field === 'material_id' && value) {
         const mat = getMaterial(value);
         updates.material_name = mat?.display_name || mat?.name || '';
-        updates.unit = mat?.unit || 'nos';
+        updates.unit = mat?.unit || 'Nos';
         updates.is_service = mat?.item_type === 'service';
         updates.uses_variant = mat?.item_type === 'service' ? false : (mat?.uses_variant || false);
         

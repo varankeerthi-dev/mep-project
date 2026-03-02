@@ -1,11 +1,22 @@
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { format } from 'date-fns';
+import { supabase } from '../supabase';
 
-export function exportDCToPDF(challan) {
+export async function exportDCToPDF(challan) {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.width;
   const pageHeight = doc.internal.pageSize.height;
+
+  // Load items if not already loaded
+  let items = challan.items;
+  if (!items || items.length === 0) {
+    const { data: loadedItems } = await supabase
+      .from('delivery_challan_items')
+      .select('*')
+      .eq('delivery_challan_id', challan.id);
+    items = loadedItems || [];
+  }
 
   // --- PAGE BORDER ---
   doc.setDrawColor(0);
@@ -40,7 +51,7 @@ export function exportDCToPDF(challan) {
   
   yPos += 15;
   
-  const tableData = (challan.items || []).map((item, index) => [
+  const tableData = (items || []).map((item, index) => [
     index + 1,
     item.material_name,
     item.unit,
@@ -61,7 +72,7 @@ export function exportDCToPDF(challan) {
   
   const finalY = doc.lastAutoTable.finalY + 10;
   
-  const totalAmount = (challan.items || []).reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+  const totalAmount = (items || []).reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
   
   doc.setFont('helvetica', 'bold');
   doc.text('Total Amount:', 140, finalY);
