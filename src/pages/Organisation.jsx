@@ -11,6 +11,211 @@ const INDIAN_STATES = [
   'Delhi', 'Jammu and Kashmir', 'Ladakh', 'Puducherry'
 ];
 
+function DocumentNumberingSettings() {
+  const [settings, setSettings] = useState({
+    dc_prefix: 'DC',
+    dc_suffix: '',
+    dc_padding: '5',
+    quotation_prefix: 'QT',
+    quotation_suffix: '',
+    quotation_padding: '5',
+    invoice_prefix: 'INV',
+    invoice_suffix: '',
+    invoice_padding: '5'
+  });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    loadSettings();
+  }, []);
+
+  const loadSettings = async () => {
+    setLoading(true);
+    try {
+      const { data } = await supabase.from('settings').select('key, value');
+      if (data) {
+        const settingsMap = {};
+        data.forEach(s => { settingsMap[s.key] = s.value; });
+        setSettings(prev => ({
+          ...prev,
+          dc_prefix: settingsMap.dc_prefix || 'DC',
+          dc_suffix: settingsMap.dc_suffix || '',
+          dc_padding: settingsMap.dc_padding || '5',
+          quotation_prefix: settingsMap.quotation_prefix || 'QT',
+          quotation_suffix: settingsMap.quotation_suffix || '',
+          quotation_padding: settingsMap.quotation_padding || '5',
+          invoice_prefix: settingsMap.invoice_prefix || 'INV',
+          invoice_suffix: settingsMap.invoice_suffix || '',
+          invoice_padding: settingsMap.invoice_padding || '5'
+        }));
+      }
+    } catch (error) {
+      console.error('Error loading settings:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const settingsToSave = [
+        { key: 'dc_prefix', value: settings.dc_prefix },
+        { key: 'dc_suffix', value: settings.dc_suffix },
+        { key: 'dc_padding', value: settings.dc_padding },
+        { key: 'quotation_prefix', value: settings.quotation_prefix },
+        { key: 'quotation_suffix', value: settings.quotation_suffix },
+        { key: 'quotation_padding', value: settings.quotation_padding },
+        { key: 'invoice_prefix', value: settings.invoice_prefix },
+        { key: 'invoice_suffix', value: settings.invoice_suffix },
+        { key: 'invoice_padding', value: settings.invoice_padding }
+      ];
+
+      for (const setting of settingsToSave) {
+        await supabase.from('settings').upsert({ key: setting.key, value: setting.value }, { onConflict: 'key' });
+      }
+      
+      alert('Document numbering settings saved!');
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      alert('Error saving settings: ' + error.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return <div style={{ padding: '20px', textAlign: 'center' }}>Loading settings...</div>;
+  }
+
+  return (
+    <div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px' }}>
+        {/* DC Settings */}
+        <div style={{ background: '#f8f9fa', padding: '16px', borderRadius: '8px' }}>
+          <h4 style={{ marginTop: 0, marginBottom: '12px', color: '#374151' }}>Delivery Challan</h4>
+          <div className="form-group" style={{ marginBottom: '12px' }}>
+            <label className="form-label">Prefix</label>
+            <input
+              type="text"
+              className="form-input"
+              value={settings.dc_prefix}
+              onChange={(e) => setSettings({ ...settings, dc_prefix: e.target.value })}
+              placeholder="DC"
+            />
+          </div>
+          <div className="form-group" style={{ marginBottom: '12px' }}>
+            <label className="form-label">Suffix</label>
+            <input
+              type="text"
+              className="form-input"
+              value={settings.dc_suffix}
+              onChange={(e) => setSettings({ ...settings, dc_suffix: e.target.value })}
+              placeholder=""
+            />
+          </div>
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="form-label">Number Padding</label>
+            <select
+              className="form-select"
+              value={settings.dc_padding}
+              onChange={(e) => setSettings({ ...settings, dc_padding: e.target.value })}
+            >
+              <option value="3">3 digits (001)</option>
+              <option value="4">4 digits (0001)</option>
+              <option value="5">5 digits (00001)</option>
+              <option value="6">6 digits (000001)</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Quotation Settings */}
+        <div style={{ background: '#f8f9fa', padding: '16px', borderRadius: '8px' }}>
+          <h4 style={{ marginTop: 0, marginBottom: '12px', color: '#374151' }}>Quotation</h4>
+          <div className="form-group" style={{ marginBottom: '12px' }}>
+            <label className="form-label">Prefix</label>
+            <input
+              type="text"
+              className="form-input"
+              value={settings.quotation_prefix}
+              onChange={(e) => setSettings({ ...settings, quotation_prefix: e.target.value })}
+              placeholder="QT"
+            />
+          </div>
+          <div className="form-group" style={{ marginBottom: '12px' }}>
+            <label className="form-label">Suffix</label>
+            <input
+              type="text"
+              className="form-input"
+              value={settings.quotation_suffix}
+              onChange={(e) => setSettings({ ...settings, quotation_suffix: e.target.value })}
+              placeholder=""
+            />
+          </div>
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="form-label">Number Padding</label>
+            <select
+              className="form-select"
+              value={settings.quotation_padding}
+              onChange={(e) => setSettings({ ...settings, quotation_padding: e.target.value })}
+            >
+              <option value="3">3 digits (001)</option>
+              <option value="4">4 digits (0001)</option>
+              <option value="5">5 digits (00001)</option>
+              <option value="6">6 digits (000001)</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Invoice Settings */}
+        <div style={{ background: '#f8f9fa', padding: '16px', borderRadius: '8px' }}>
+          <h4 style={{ marginTop: 0, marginBottom: '12px', color: '#374151' }}>Invoice</h4>
+          <div className="form-group" style={{ marginBottom: '12px' }}>
+            <label className="form-label">Prefix</label>
+            <input
+              type="text"
+              className="form-input"
+              value={settings.invoice_prefix}
+              onChange={(e) => setSettings({ ...settings, invoice_prefix: e.target.value })}
+              placeholder="INV"
+            />
+          </div>
+          <div className="form-group" style={{ marginBottom: '12px' }}>
+            <label className="form-label">Suffix</label>
+            <input
+              type="text"
+              className="form-input"
+              value={settings.invoice_suffix}
+              onChange={(e) => setSettings({ ...settings, invoice_suffix: e.target.value })}
+              placeholder=""
+            />
+          </div>
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="form-label">Number Padding</label>
+            <select
+              className="form-select"
+              value={settings.invoice_padding}
+              onChange={(e) => setSettings({ ...settings, invoice_padding: e.target.value })}
+            >
+              <option value="3">3 digits (001)</option>
+              <option value="4">4 digits (0001)</option>
+              <option value="5">5 digits (00001)</option>
+              <option value="6">6 digits (000001)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ marginTop: '16px' }}>
+        <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+          {saving ? 'Saving...' : 'Save Numbering Settings'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function OrganisationSettings({ organisation, userId }) {
   const [members, setMembers] = useState([])
   const [loading, setLoading] = useState(true)
@@ -46,7 +251,30 @@ export function OrganisationSettings({ organisation, userId }) {
         .from('organisation-assets')
         .upload(filePath, file)
 
-      if (uploadError) throw uploadError
+      if (uploadError) {
+        console.error('Upload error:', uploadError)
+        // Try creating the bucket first
+        const { error: bucketError } = await supabase.storage.createBucket('organisation-assets', {
+          public: true,
+          fileSizeLimit: 5242880,
+          allowedMimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml']
+        })
+        
+        if (!bucketError || bucketError.message.includes('already exists')) {
+          // Retry upload
+          const { error: retryError } = await supabase.storage
+            .from('organisation-assets')
+            .upload(filePath, file)
+          
+          if (retryError) {
+            alert('Error uploading image: ' + retryError.message)
+            return null
+          }
+        } else {
+          alert('Error creating storage bucket: ' + bucketError.message)
+          return null
+        }
+      }
 
       const { data: { publicUrl } } = supabase.storage
         .from('organisation-assets')
@@ -54,6 +282,7 @@ export function OrganisationSettings({ organisation, userId }) {
 
       return publicUrl
     } catch (error) {
+      console.error('Error uploading image:', error)
       alert('Error uploading image: ' + error.message)
       return null
     } finally {
@@ -121,13 +350,36 @@ export function OrganisationSettings({ organisation, userId }) {
   }
 
   const handleUpdateOrg = async () => {
-    const { error } = await supabase
-      .from('organisations')
-      .update(orgDetails)
-      .eq('id', organisation.id)
-    
-    if (!error) {
-      alert('Organisation updated successfully!')
+    try {
+      console.log('Updating organisation with:', orgDetails);
+      const { error } = await supabase
+        .from('organisations')
+        .update({
+          name: orgDetails.name,
+          address: orgDetails.address,
+          phone: orgDetails.phone,
+          email: orgDetails.email,
+          gstin: orgDetails.gstin,
+          pan: orgDetails.pan,
+          tan: orgDetails.tan,
+          msme_no: orgDetails.msme_no,
+          website: orgDetails.website,
+          state: orgDetails.state,
+          logo_url: orgDetails.logo_url,
+          signatures: orgDetails.signatures,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', organisation.id)
+      
+      if (error) {
+        console.error('Update error:', error);
+        alert('Error updating organisation: ' + error.message)
+      } else {
+        alert('Organisation updated successfully!')
+      }
+    } catch (err) {
+      console.error('Error:', err);
+      alert('Error: ' + err.message)
     }
   }
 
@@ -291,6 +543,14 @@ export function OrganisationSettings({ organisation, userId }) {
             Save Changes
           </button>
         )}
+      </div>
+
+      {/* Document Numbering Settings */}
+      <div className="card" style={{ marginTop: '24px' }}>
+        <h3 className="card-title">Document Numbering</h3>
+        <p style={{ color: '#666', marginBottom: '16px' }}>Configure how document numbers are generated automatically.</p>
+        
+        <DocumentNumberingSettings />
       </div>
 
       <div className="card" style={{ marginTop: '24px' }}>

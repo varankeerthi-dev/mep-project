@@ -15,11 +15,13 @@ export default function DCList() {
   const [convertDC, setConvertDC] = useState(null);
   const [showPrintMenu, setShowPrintMenu] = useState({});
   const [templates, setTemplates] = useState([]);
+  const [previewDC, setPreviewDC] = useState(null);
+  const [previewHtml, setPreviewHtml] = useState('');
+  const [showPreview, setShowPreview] = useState(false);
   const [filters, setFilters] = useState({
     projectId: '',
     startDate: '',
     endDate: '',
-    status: 'all',
     status: 'all',
     organisation_id: organisation?.id
   });
@@ -102,7 +104,8 @@ export default function DCList() {
       
       const isLandscape = template.orientation === 'Landscape';
       const { default: jsPDF } = await import('jspdf');
-      await import('jspdf-autotable');
+      const autoTableModule = await import('jspdf-autotable');
+      const autoTable = autoTableModule.default;
       
       const doc = new jsPDF({
         orientation: isLandscape ? 'landscape' : 'portrait',
@@ -170,7 +173,7 @@ export default function DCList() {
 
       yPos += 10;
 
-      doc.autoTable({
+      autoTable(doc, {
         startY: yPos,
         head: [columnConfig.map(col => col.header)],
         body: tableData.map(row => columnConfig.map(col => {
@@ -213,6 +216,113 @@ export default function DCList() {
     } catch (error) {
       console.error('Error generating PDF:', error);
       alert('Error generating PDF: ' + error.message);
+    }
+  };
+
+  const handlePreview = async (challan) => {
+    try {
+      const dcWithItems = await loadDCWithItems(challan.id);
+      
+      const totalAmount = (dcWithItems.items || []).reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+      
+      const itemsHtml = (dcWithItems.items || []).map((item, index) => `
+        <tr>
+          <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${index + 1}</td>
+          <td style="border: 1px solid #ddd; padding: 8px;">${item.material_name || '-'}</td>
+          <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${item.unit || '-'}</td>
+          <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${item.quantity || '-'}</td>
+          <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">₹${parseFloat(item.rate || 0).toFixed(2)}</td>
+          <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">₹${parseFloat(item.amount || 0).toFixed(2)}</td>
+        </tr>
+      `).join('');
+
+      const html = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Delivery Challan - ${challan.dc_number}</title>
+          <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
+            .preview-container { max-width: 800px; margin: 0 auto; background: white; padding: 40px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+            .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 20px; }
+            .header h1 { font-size: 24px; margin-bottom: 10px; }
+            .header .dc-no { font-size: 14px; color: #666; }
+            .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 30px; }
+            .info-box { background: #f9f9f9; padding: 15px; border-radius: 4px; }
+            .info-box h3 { font-size: 14px; margin-bottom: 10px; color: #333; }
+            .info-box p { font-size: 12px; margin-bottom: 5px; color: #555; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+            th { background: #333; color: white; padding: 10px; text-align: center; font-size: 12px; }
+            td { font-size: 12px; }
+            .totals { text-align: right; margin-bottom: 30px; }
+            .totals .total-row { font-size: 16px; font-weight: bold; }
+            .footer { display: flex; justify-content: space-between; margin-top: 40px; }
+            .footer .sign-box { text-align: right; }
+            .footer .sign-line { border-top: 1px solid #333; margin-top: 40px; width: 200px; }
+            @media print { body { background: white; } .preview-container { box-shadow: none; } }
+          </style>
+        </head>
+        <body>
+          <div class="preview-container">
+            <div class="header">
+              <h1>DELIVERY CHALLAN</h1>
+              <div class="dc-no">DC No: ${challan.dc_number} | Date: ${challan.dc_date ? format(new Date(challan.dc_date), 'dd/MM/yyyy') : '-'}</div>
+            </div>
+            
+            <div class="info-grid">
+              <div class="info-box">
+                <h3>Client Details</h3>
+                <p><strong>Client:</strong> ${challan.client_name || '-'}</p>
+                <p><strong>Site Address:</strong> ${challan.site_address || '-'}</p>
+              </div>
+              <div class="info-box">
+                <h3>Vehicle Details</h3>
+                <p><strong>Vehicle No:</strong> ${challan.vehicle_number || '-'}</p>
+                <p><strong>Driver:</strong> ${challan.driver_name || '-'}</p>
+              </div>
+            </div>
+
+            <table>
+              <thead>
+                <tr>
+                  <th style="width: 50px;">#</th>
+                  <th>Item</th>
+                  <th style="width: 60px;">Unit</th>
+                  <th style="width: 60px;">Qty</th>
+                  <th style="width: 80px;">Rate</th>
+                  <th style="width: 90px;">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${itemsHtml}
+              </tbody>
+            </table>
+
+            <div class="totals">
+              <div class="total-row">Total: ₹${totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
+            </div>
+
+            ${challan.remarks ? `<div style="margin-bottom: 30px;"><strong>Remarks:</strong> ${challan.remarks}</div>` : ''}
+
+            <div class="footer">
+              <div></div>
+              <div class="sign-box">
+                <div class="sign-line"></div>
+                <p>Authorized Signature</p>
+              </div>
+            </div>
+          </div>
+        </body>
+        </html>
+      `;
+
+      setPreviewDC(challan);
+      setPreviewHtml(html);
+      setShowPreview(true);
+    } catch (error) {
+      console.error('Error generating preview:', error);
+      alert('Error generating preview: ' + error.message);
     }
   };
 
@@ -432,6 +542,16 @@ export default function DCList() {
                     </td>
                     <td>
                       <div className="actions">
+                        <button 
+                          className="action-btn" 
+                          title="View"
+                          onClick={() => handlePreview(challan)}
+                        >
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                            <circle cx="12" cy="12" r="3"/>
+                          </svg>
+                        </button>
                         <div style={{ position: 'relative', display: 'inline-flex' }}>
                           <button 
                             className="action-btn" 
@@ -582,6 +702,85 @@ export default function DCList() {
             >
               Cancel
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Preview Modal */}
+      {showPreview && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.7)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }} onClick={() => setShowPreview(false)}>
+          <div style={{
+            background: 'white',
+            borderRadius: '12px',
+            width: '95%',
+            maxWidth: '900px',
+            maxHeight: '90vh',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden'
+          }} onClick={e => e.stopPropagation()}>
+            <div style={{
+              padding: '16px 24px',
+              borderBottom: '1px solid #e5e7eb',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <h3 style={{ margin: 0, fontSize: '18px', color: '#1e293b' }}>
+                Preview: {previewDC?.dc_number}
+              </h3>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button 
+                  className="btn btn-primary"
+                  onClick={() => {
+                    const printWindow = window.open('', '_blank');
+                    printWindow.document.write(previewHtml);
+                    printWindow.document.close();
+                    printWindow.print();
+                  }}
+                >
+                  Print
+                </button>
+                <button 
+                  onClick={() => setShowPreview(false)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    fontSize: '24px',
+                    cursor: 'pointer',
+                    color: '#666',
+                    lineHeight: 1
+                  }}
+                >
+                  &times;
+                </button>
+              </div>
+            </div>
+            <div style={{ flex: 1, overflow: 'auto', background: '#f3f4f6', padding: '20px' }}>
+              <iframe 
+                srcDoc={previewHtml}
+                title="Delivery Challan Preview"
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  minHeight: '600px',
+                  border: 'none',
+                  background: 'white',
+                  borderRadius: '8px'
+                }}
+              />
+            </div>
           </div>
         </div>
       )}

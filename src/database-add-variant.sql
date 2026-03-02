@@ -141,5 +141,11 @@ CREATE POLICY "settings_all_access" ON settings FOR ALL USING (true) WITH CHECK 
 INSERT INTO settings (key, value) VALUES 
   ('dc_prefix', 'DC'),
   ('dc_suffix', ''),
-  ('dc_padding', '5')
+  ('dc_padding', '5'),
+  ('quotation_prefix', 'QT'),
+  ('quotation_suffix', ''),
+  ('quotation_padding', '5'),
+  ('invoice_prefix', 'INV'),
+  ('invoice_suffix', ''),
+  ('invoice_padding', '5')
 ON CONFLICT (key) DO NOTHING;

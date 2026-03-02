@@ -28,6 +28,13 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
     return saved === 'true';
   });
   
+  // DC Number Settings
+  const [dcSettings, setDcSettings] = useState({
+    prefix: 'DC',
+    suffix: '',
+    padding: '5'
+  });
+  
   // Shipping address state
   const [shippingAddresses, setShippingAddresses] = useState([]);
   const [selectedShippingIndex, setSelectedShippingIndex] = useState(-1);
