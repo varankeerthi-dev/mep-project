@@ -18,14 +18,17 @@ const OPTIONAL_COLUMNS = [
   { key: 'variant', label: 'Variant' },
   { key: 'description', label: 'Description' },
   { key: 'hsn_code', label: 'HSN Code' },
-  { key: 'rate', label: 'Rate' },
+  { key: 'rate', label: 'Rate (Before Discount)' },
   { key: 'discount_percent', label: 'Discount %' },
   { key: 'discount_amount', label: 'Discount Amount' },
+  { key: 'rate_after_discount', label: 'Rate/Unit (After Discount)' },
   { key: 'tax_percent', label: 'Tax %' },
   { key: 'tax_amount', label: 'Tax Amount' },
   { key: 'line_total', label: 'Line Total' },
   { key: 'category', label: 'Category' },
-  { key: 'brand', label: 'Brand' }
+  { key: 'brand', label: 'Brand' },
+  { key: 'custom1', label: 'Custom 1' },
+  { key: 'custom2', label: 'Custom 2' }
 ];
 
 export default function TemplateSettings() {
@@ -57,11 +60,19 @@ export default function TemplateSettings() {
         rate: true,
         discount_percent: true,
         discount_amount: false,
+        rate_after_discount: true,
         tax_percent: true,
         tax_amount: false,
         line_total: true,
         category: false,
-        brand: false
+        brand: false,
+        custom1: false,
+        custom2: false
+      },
+      labels: {
+        custom1: 'Custom 1',
+        custom2: 'Custom 2',
+        rate_after_discount: 'Rate/Unit'
       }
     }
   });
@@ -100,9 +111,9 @@ export default function TemplateSettings() {
       show_bank_details: template.show_bank_details !== false,
       show_terms: template.show_terms !== false,
       show_signature: template.show_signature !== false,
-      column_settings: template.column_settings || {
-        mandatory: ['sno', 'item', 'qty', 'uom'],
-        optional: {
+      column_settings: {
+        mandatory: template.column_settings?.mandatory || ['sno', 'item', 'qty', 'uom'],
+        optional: template.column_settings?.optional || {
           item_code: true,
           variant: false,
           description: true,
@@ -110,11 +121,19 @@ export default function TemplateSettings() {
           rate: true,
           discount_percent: true,
           discount_amount: false,
+          rate_after_discount: true,
           tax_percent: true,
           tax_amount: false,
           line_total: true,
           category: false,
-          brand: false
+          brand: false,
+          custom1: false,
+          custom2: false
+        },
+        labels: template.column_settings?.labels || {
+          custom1: 'Custom 1',
+          custom2: 'Custom 2',
+          rate_after_discount: 'Rate/Unit'
         }
       }
     });
@@ -143,11 +162,19 @@ export default function TemplateSettings() {
           rate: true,
           discount_percent: true,
           discount_amount: false,
+          rate_after_discount: true,
           tax_percent: true,
           tax_amount: false,
           line_total: true,
           category: false,
-          brand: false
+          brand: false,
+          custom1: false,
+          custom2: false
+        },
+        labels: {
+          custom1: 'Custom 1',
+          custom2: 'Custom 2',
+          rate_after_discount: 'Rate/Unit'
         }
       }
     });
@@ -165,6 +192,113 @@ export default function TemplateSettings() {
         }
       }
     });
+  };
+
+  const handleLabelChange = (columnKey, label) => {
+    setFormData({
+      ...formData,
+      column_settings: {
+        ...formData.column_settings,
+        labels: {
+          ...formData.column_settings.labels,
+          [columnKey]: label
+        }
+      }
+    });
+  };
+
+  const [showPreview, setShowPreview] = useState(false);
+
+  const generatePreviewHTML = () => {
+    const colSettings = formData.column_settings || {};
+    const optionalCols = colSettings.optional || {};
+    const mandatoryCols = colSettings.mandatory || ['sno', 'item', 'qty', 'uom'];
+    const labels = colSettings.labels || {};
+
+    let columnsHTML = '';
+    if (mandatoryCols.includes('sno')) columnsHTML += '<th>#</th>';
+    if (optionalCols.hsn_code) columnsHTML += '<th>HSN/SAC</th>';
+    if (mandatoryCols.includes('item')) columnsHTML += '<th>Item Description</th>';
+    if (optionalCols.variant) columnsHTML += '<th>Variant</th>';
+    if (optionalCols.description) columnsHTML += '<th>Description</th>';
+    if (mandatoryCols.includes('qty')) columnsHTML += '<th>Qty</th>';
+    if (mandatoryCols.includes('uom')) columnsHTML += '<th>Unit</th>';
+    if (optionalCols.rate) columnsHTML += '<th>Rate</th>';
+    if (optionalCols.discount_percent) columnsHTML += '<th>Disc %</th>';
+    if (optionalCols.rate_after_discount) columnsHTML += `<th>${labels.rate_after_discount || 'Rate/Unit'}</th>`;
+    if (optionalCols.tax_percent) columnsHTML += '<th>Tax %</th>';
+    if (optionalCols.custom1) columnsHTML += `<th>${labels.custom1 || 'Custom 1'}</th>`;
+    if (optionalCols.custom2) columnsHTML += `<th>${labels.custom2 || 'Custom 2'}</th>`;
+    columnsHTML += '<th>Total</th>';
+
+    const dummyItems = [
+      { sno: 1, item: 'Steel Pipe 2 Inch', variant: 'Standard', description: 'Galvanized steel pipe', qty: 10, unit: 'Mtrs', rate: 500, discount: 10, rate_after: 450, tax: 18, c1: 'MAKE-A', c2: 'IN-STOCK', total: 5310 },
+      { sno: 2, item: 'PVC Connector', variant: 'Premium', description: 'High pressure connector', qty: 5, unit: 'Nos', rate: 200, discount: 0, rate_after: 200, tax: 12, c1: 'MAKE-B', c2: '7 DAYS', total: 1120 }
+    ];
+
+    let rowsHTML = '';
+    dummyItems.forEach((item) => {
+      let rowHTML = '<tr>';
+      if (mandatoryCols.includes('sno')) rowHTML += `<td>${item.sno}</td>`;
+      if (optionalCols.hsn_code) rowHTML += `<td>7306</td>`;
+      if (mandatoryCols.includes('item')) rowHTML += `<td>${item.item}</td>`;
+      if (optionalCols.variant) rowHTML += `<td>${item.variant}</td>`;
+      if (optionalCols.description) rowHTML += `<td>${item.description}</td>`;
+      if (mandatoryCols.includes('qty')) rowHTML += `<td style="text-align:right">${item.qty}</td>`;
+      if (mandatoryCols.includes('uom')) rowHTML += `<td>${item.unit}</td>`;
+      if (optionalCols.rate) rowHTML += `<td style="text-align:right">₹${item.rate.toFixed(2)}</td>`;
+      if (optionalCols.discount_percent) rowHTML += `<td style="text-align:right">${item.discount}%</td>`;
+      if (optionalCols.rate_after_discount) rowHTML += `<td style="text-align:right">₹${item.rate_after.toFixed(2)}</td>`;
+      if (optionalCols.tax_percent) rowHTML += `<td style="text-align:right">${item.tax}%</td>`;
+      if (optionalCols.custom1) rowHTML += `<td>${item.c1}</td>`;
+      if (optionalCols.custom2) rowHTML += `<td>${item.c2}</td>`;
+      rowHTML += `<td style="text-align:right;font-weight:bold">₹${item.total.toFixed(2)}</td>`;
+      rowHTML += '</tr>';
+      rowsHTML += rowHTML;
+    });
+
+    return `
+      <div style="font-family: Arial, sans-serif; padding: 20px; color: #333; max-width: 800px; margin: auto; border: 1px solid #eee; background: white;">
+        <h2 style="text-align: center; color: #000; border-bottom: 2px solid #eee; padding-bottom: 10px;">${formData.document_type.toUpperCase()} PREVIEW</h2>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-bottom: 30px; margin-top: 20px;">
+          <div style="line-height: 1.6;">
+            <strong>To:</strong><br>
+            Sample Client Name<br>
+            123 Business Avenue, Tech Park<br>
+            GSTIN: 27AAAAA0000A1Z5<br>
+            State: Maharashtra
+          </div>
+          <div style="line-height: 1.6; text-align: right;">
+            <strong>${formData.document_type} No:</strong> SAMPLE-001<br>
+            <strong>Date:</strong> ${new Date().toLocaleDateString('en-IN')}<br>
+            <strong>Valid Till:</strong> ${new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('en-IN')}<br>
+            <strong>Project:</strong> Residential MEP Project
+          </div>
+        </div>
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
+          <thead>
+            <tr style="background-color: #f3f4f6; color: #374151;">
+              ${columnsHTML.replace(/<th>/g, '<th style="border: 1px solid #ddd; padding: 10px; text-align: left; font-size: 13px;">')}
+            </tr>
+          </thead>
+          <tbody style="font-size: 13px;">
+            ${rowsHTML.replace(/<td>/g, '<td style="border: 1px solid #ddd; padding: 10px;">')}
+          </tbody>
+        </table>
+        <div style="float: right; width: 250px;">
+          <div style="display: flex; justify-content: space-between; padding: 5px 0;"><span>Subtotal</span><span>₹6,000.00</span></div>
+          <div style="display: flex; justify-content: space-between; padding: 5px 0;"><span>Discount</span><span>-₹500.00</span></div>
+          <div style="display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #eee;"><span>Tax (GST)</span><span>₹930.00</span></div>
+          <div style="display: flex; justify-content: space-between; padding: 10px 0; font-weight: bold; font-size: 1.1em; border-top: 2px solid #374151;">
+            <span>Grand Total</span><span>₹6,430.00</span>
+          </div>
+        </div>
+        <div style="clear: both; margin-top: 40px; font-size: 12px; color: #666;">
+          ${formData.show_terms ? '<p><strong>Terms:</strong> Standard payment terms apply. This is a computer generated document.</p>' : ''}
+          ${formData.show_signature ? '<div style="margin-top: 40px; text-align: right;"><strong>For Sample Organization</strong><br><br><br>Authorized Signatory</div>' : ''}
+        </div>
+      </div>
+    `;
   };
 
   const handleSave = async () => {
@@ -425,45 +559,58 @@ export default function TemplateSettings() {
             <div style={{ fontWeight: 600, color: '#6b7280', marginBottom: '8px' }}>Optional Columns</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
               {OPTIONAL_COLUMNS.map(col => (
-                <label key={col.key} style={{ 
+                <div key={col.key} style={{ 
                   padding: '8px 12px', 
                   background: formData.column_settings?.optional?.[col.key] ? '#dbeafe' : '#f9fafb',
                   border: `1px solid ${formData.column_settings?.optional?.[col.key] ? '#93c5fd' : '#e5e7eb'}`,
                   borderRadius: '6px',
                   display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  cursor: 'pointer'
+                  flexDirection: 'column',
+                  gap: '8px'
                 }}>
-                  <span style={{ fontSize: '13px' }}>{col.label}</span>
-                  <div style={{ position: 'relative', width: '36px', height: '20px' }}>
-                    <input 
-                      type="checkbox" 
-                      checked={formData.column_settings?.optional?.[col.key] || false}
-                      onChange={(e) => handleColumnToggle(col.key, e.target.checked)}
-                      style={{ opacity: 0, width: '100%', height: '100%', cursor: 'pointer', position: 'absolute' }}
-                    />
-                    <div style={{
-                      width: '36px',
-                      height: '20px',
-                      background: formData.column_settings?.optional?.[col.key] ? '#2563eb' : '#d1d5db',
-                      borderRadius: '10px',
-                      position: 'relative',
-                      transition: 'background 0.2s'
-                    }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }} onClick={() => handleColumnToggle(col.key, !formData.column_settings?.optional?.[col.key])}>
+                    <span style={{ fontSize: '13px', fontWeight: 500 }}>{col.label}</span>
+                    <div style={{ position: 'relative', width: '36px', height: '20px' }}>
+                      <input 
+                        type="checkbox" 
+                        checked={formData.column_settings?.optional?.[col.key] || false}
+                        onChange={(e) => handleColumnToggle(col.key, e.target.checked)}
+                        style={{ opacity: 0, width: '100%', height: '100%', cursor: 'pointer', position: 'absolute' }}
+                        onClick={(e) => e.stopPropagation()}
+                      />
                       <div style={{
-                        width: '16px',
-                        height: '16px',
-                        background: '#fff',
-                        borderRadius: '50%',
-                        position: 'absolute',
-                        top: '2px',
-                        left: formData.column_settings?.optional?.[col.key] ? '18px' : '2px',
-                        transition: 'left 0.2s'
-                      }} />
+                        width: '36px',
+                        height: '20px',
+                        background: formData.column_settings?.optional?.[col.key] ? '#2563eb' : '#d1d5db',
+                        borderRadius: '10px',
+                        position: 'relative',
+                        transition: 'background 0.2s'
+                      }}>
+                        <div style={{
+                          width: '16px',
+                          height: '16px',
+                          background: '#fff',
+                          borderRadius: '50%',
+                          position: 'absolute',
+                          top: '2px',
+                          left: formData.column_settings?.optional?.[col.key] ? '18px' : '2px',
+                          transition: 'left 0.2s'
+                        }} />
+                      </div>
                     </div>
                   </div>
-                </label>
+                  {(col.key === 'custom1' || col.key === 'custom2' || col.key === 'rate_after_discount') && (
+                    <input 
+                      type="text"
+                      className="form-input"
+                      style={{ padding: '4px 8px', fontSize: '11px', height: '24px' }}
+                      placeholder="Rename column..."
+                      value={formData.column_settings?.labels?.[col.key] || ''}
+                      onChange={(e) => handleLabelChange(col.key, e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  )}
+                </div>
               ))}
             </div>
           </div>
@@ -473,10 +620,30 @@ export default function TemplateSettings() {
           <button className="btn btn-secondary" onClick={() => setShowForm(false)}>
             Cancel
           </button>
+          <button className="btn btn-secondary" onClick={() => setShowPreview(true)}>
+            Preview Format
+          </button>
           <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
             {saving ? 'Saving...' : 'Save Template'}
           </button>
         </div>
+
+        {showPreview && (
+          <div className="modal-overlay open" onClick={() => setShowPreview(false)}>
+            <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '900px', width: '95%', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
+              <div className="modal-header">
+                <h2 className="modal-title">Template Preview</h2>
+                <button onClick={() => setShowPreview(false)} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', color: '#666' }}>&times;</button>
+              </div>
+              <div className="modal-body" style={{ overflowY: 'auto', background: '#f3f4f6', padding: '40px 20px' }}>
+                <div dangerouslySetInnerHTML={{ __html: generatePreviewHTML() }} />
+              </div>
+              <div className="modal-footer">
+                <button className="btn btn-primary" onClick={() => setShowPreview(false)}>Close Preview</button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }

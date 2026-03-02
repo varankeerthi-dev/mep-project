@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../App';
 import { fetchDeliveryChallans, deleteDeliveryChallan, fetchProjects } from '../api';
 import { format } from 'date-fns';
 import { exportDCToPDF } from '../utils/pdfExport';
 
 export default function DCList() {
   const navigate = useNavigate();
+  const { organisation } = useAuth();
   const [loading, setLoading] = useState(true);
   const [challans, setChallans] = useState([]);
   const [projects, setProjects] = useState([]);
@@ -13,13 +15,20 @@ export default function DCList() {
     projectId: '',
     startDate: '',
     endDate: '',
-    status: 'all'
+    status: 'all',
+    organisation_id: organisation?.id
   });
   const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
+    if (organisation?.id) {
+      setFilters(prev => ({ ...prev, organisation_id: organisation.id }));
+    }
+  }, [organisation]);
+
+  useEffect(() => {
     loadData();
-  }, []);
+  }, [filters.organisation_id]);
 
   const loadData = async () => {
     setLoading(true);
@@ -165,7 +174,7 @@ export default function DCList() {
                   <tr key={challan.id}>
                     <td className="table-number">{challan.dc_number}</td>
                     <td>{challan.dc_date ? format(new Date(challan.dc_date), 'dd/MM/yyyy') : '-'}</td>
-                    <td>{challan.project?.name || '-'}</td>
+                    <td>{challan.project?.project_name || challan.project?.name || '-'}</td>
                     <td>{challan.client_name || '-'}</td>
                     <td className="table-number">{challan.items?.length || 0}</td>
                     <td className="table-number">₹{calculateTotal(challan.items).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>

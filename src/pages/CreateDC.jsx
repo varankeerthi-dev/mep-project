@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabase';
+import { useAuth } from '../App';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
 export default function CreateDC({ onSuccess, onCancel, editDC }) {
+  const { organisation } = useAuth();
   const [loading, setLoading] = useState(false);
   const [projects, setProjects] = useState([]);
   const [materials, setMaterials] = useState([]);
@@ -62,7 +64,8 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
     ship_to_pincode: '',
     ship_to_gstin: '',
     ship_to_contact: '',
-    status: 'active'
+    status: 'active',
+    organisation_id: organisation?.id || null
   });
 
   const [items, setItems] = useState([
@@ -99,7 +102,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
   const loadData = async () => {
     try {
       const [projData, matData, whData, varData, stockData, clientData, unitsData] = await Promise.all([
-        supabase.from('projects').select('*').order('name'),
+        supabase.from('projects').select('*').order('project_name'),
         supabase.from('materials').select('id, display_name, name, unit, uses_variant, sale_price, item_type').order('name'),
         supabase.from('warehouses').select('*'),
         supabase.from('company_variants').select('*').eq('is_active', true).order('variant_name'),
@@ -531,7 +534,8 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
         eway_bill_date: formData.eway_bill_date || null,
         eway_valid_till: formData.eway_valid_till || null,
         project_id: formData.project_id || null,
-        status: 'active'
+        status: 'active',
+        organisation_id: formData.organisation_id || organisation?.id || null
       };
       
       let dcId;
@@ -566,7 +570,8 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
         unit: item.unit,
         quantity: parseFloat(item.quantity),
         rate: parseFloat(item.rate) || 0,
-        amount: item.amount
+        amount: item.amount,
+        organisation_id: dcData.organisation_id
       }));
       
       await supabase.from('delivery_challan_items').insert(itemsToSave);
@@ -858,7 +863,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
               >
                 <option value="">Select</option>
                 {projects.map(p => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
+                  <option key={p.id} value={p.id}>{p.project_name || p.name}</option>
                 ))}
               </select>
             </div>

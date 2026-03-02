@@ -1155,7 +1155,7 @@ body {
   }
   
   .sidebar .sidebar-section-title,
-  .sidebar .sidebar-item span {
+  .sidebar .sidebar-item-label {
     display: none;
   }
   
@@ -1192,13 +1192,23 @@ body {
   .sidebar {
     transform: translateX(-100%);
     width: 260px;
-    z-index: 900;
+    z-index: 1001; /* Above overlay */
     top: 60px;
     height: calc(100vh - 60px);
   }
   
   .sidebar.mobile-open {
     transform: translateX(0);
+  }
+
+  /* Reset visibility for mobile-open state */
+  .sidebar.mobile-open .sidebar-section-title,
+  .sidebar.mobile-open .sidebar-item-label {
+    display: block;
+  }
+
+  .sidebar.mobile-open .sidebar-item {
+    justify-content: flex-start;
   }
   
   .main-content {

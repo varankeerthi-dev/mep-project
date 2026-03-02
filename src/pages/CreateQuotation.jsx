@@ -43,12 +43,8 @@ export default function CreateQuotation() {
   const [activeTab, setActiveTab] = useState('items');
   const [showApprovalModal, setShowApprovalModal] = useState(false);
   
-  // Phase-1: Custom Column Labels (stored in localStorage)
-  const [customColumnLabels, setCustomColumnLabels] = useState(() => {
-    const saved = localStorage.getItem('quotationCustomColumns');
-    return saved ? JSON.parse(saved) : { custom1: 'Custom 1', custom2: 'Custom 2' };
-  });
-  const [showCustomLabelEditor, setShowCustomLabelEditor] = useState(false);
+  // Phase-1: Custom Column Labels (managed via Template Settings)
+  const [templateSettings, setTemplateSettings] = useState(null);
   
   const [showItemPicker, setShowItemPicker] = useState(false);
   const [itemSearch, setItemSearch] = useState('');
@@ -159,13 +155,14 @@ export default function CreateQuotation() {
   const loadInitialData = async () => {
     setLoading(true);
     try {
-      const [clientsData, projectsData, materialsData, variantsData, pricingData, settingsData] = await Promise.all([
+      const [clientsData, projectsData, materialsData, variantsData, pricingData, settingsData, templateData] = await Promise.all([
         supabase.from('clients').select('*').order('client_name'),
         supabase.from('projects').select('id, project_name, project_code, client_id').order('project_name'),
         supabase.from('materials').select('*').order('name'),
         supabase.from('company_variants').select('id, variant_name').eq('is_active', true).order('variant_name'),
         supabase.from('item_variant_pricing').select('item_id, company_variant_id, sale_price'),
-        supabase.from('discount_settings').select('*').eq('is_active', true)
+        supabase.from('discount_settings').select('*').eq('is_active', true),
+        supabase.from('document_templates').select('*').eq('document_type', 'Quotation').eq('is_default', true).maybeSingle()
       ]);
 
       setClients(clientsData.data || []);
@@ -177,7 +174,8 @@ export default function CreateQuotation() {
       }));
       setMaterials(mappedItems);
 
-      setVariants(variantsData.data || []);      const pricingMap = {};
+      setVariants(variantsData.data || []);
+      const pricingMap = {};
       (pricingData.data || []).forEach((row) => {
         if (!pricingMap[row.item_id]) pricingMap[row.item_id] = {};
         pricingMap[row.item_id][row.company_variant_id] = parseFloat(row.sale_price) || 0;
@@ -194,6 +192,36 @@ export default function CreateQuotation() {
         };
       });
       setDiscountSettings(settingsMap);
+
+      // Load Template Settings
+      if (templateData.data) {
+        setTemplateSettings(templateData.data);
+      } else {
+        // Fallback default settings
+        setTemplateSettings({
+          column_settings: {
+            mandatory: ['sno', 'item', 'qty', 'uom'],
+            optional: {
+              item_code: true,
+              variant: true,
+              description: true,
+              hsn_code: true,
+              rate: true,
+              discount_percent: true,
+              rate_after_discount: true,
+              tax_percent: true,
+              line_total: true,
+              custom1: false,
+              custom2: false
+            },
+            labels: {
+              custom1: 'Custom 1',
+              custom2: 'Custom 2',
+              rate_after_discount: 'Rate/Unit'
+            }
+          }
+        });
+      }
 
       if (editId) {
         await loadQuotation(editId);
@@ -401,6 +429,80 @@ export default function CreateQuotation() {
     return base - (base * discount / 100);
   }, []);
 
+  // Phase-2: Load client-specific discount portfolio (defaults and limits)
+  const loadClientDiscountPortfolio = useCallback(async (clientId) => {
+    if (!clientId) return { discounts: {}, settings: {} };
+    
+    const client = clients.find(c => c.id === clientId);
+    if (!client) return { discounts: {}, settings: {} };
+
+    let discounts = {};
+    let settings = {};
+
+    try {
+      if (client.discount_type === 'Standard' && client.standard_pricelist_id) {
+        const { data: pl } = await supabase
+          .from('standard_discount_pricelists')
+          .select('discount_percent')
+          .eq('id', client.standard_pricelist_id)
+          .single();
+        
+        if (pl) {
+          const flatDisc = parseFloat(pl.discount_percent) || 0;
+          variants.forEach(v => {
+            discounts[v.id] = flatDisc;
+            // For standard price lists, we might not have specific min/max limits
+            // but we can default them to the flat discount or use global defaults
+            settings[v.id] = {
+              default: flatDisc,
+              min: 0,
+              max: flatDisc // Assuming max is the flat discount for standard
+            };
+          });
+        }
+      } else {
+        // Use discount_profile_id or fallback to discount_type
+        let struct;
+        if (client.discount_profile_id) {
+          const { data } = await supabase
+            .from('discount_structures')
+            .select('id')
+            .eq('id', client.discount_profile_id)
+            .maybeSingle();
+          struct = data;
+        } else {
+          const structName = client.discount_type || 'Special';
+          const { data } = await supabase
+            .from('discount_structures')
+            .select('id')
+            .eq('structure_name', structName)
+            .maybeSingle();
+          struct = data;
+        }
+
+        if (struct) {
+          const { data: varSettings } = await supabase
+            .from('discount_variant_settings')
+            .select('variant_id, default_discount_percent, min_discount_percent, max_discount_percent')
+            .eq('structure_id', struct.id);
+          
+          varSettings?.forEach(s => {
+            discounts[s.variant_id] = parseFloat(s.default_discount_percent) || 0;
+            settings[s.variant_id] = {
+              default: parseFloat(s.default_discount_percent) || 0,
+              min: parseFloat(s.min_discount_percent) || 0,
+              max: parseFloat(s.max_discount_percent) || 0
+            };
+          });
+        }
+      }
+    } catch (err) {
+      console.error('Error loading client portfolio:', err);
+    }
+
+    return { discounts, settings };
+  }, [clients, variants]);
+
   const loadQuotation = async (id) => {
     const { data, error } = await supabase
       .from('quotation_header')
@@ -453,6 +555,12 @@ export default function CreateQuotation() {
       
       // Phase-1: Load variant discounts
       await loadVariantDiscounts(id);
+      
+      // Phase-2: Load client portfolio limits (important for editing too)
+      const portfolio = await loadClientDiscountPortfolio(data.client_id);
+      if (portfolio.settings && Object.keys(portfolio.settings).length > 0) {
+        setDiscountSettings(prev => ({ ...prev, ...portfolio.settings }));
+      }
       
       // Phase-2: Load approval status and history
       await loadApprovalData(id);
@@ -585,41 +693,32 @@ export default function CreateQuotation() {
       });
 
       // --- Apply Client Discount Portfolio Logic ---
-      try {
-        let discounts = {};
-        if (client.discount_type === 'Standard' && client.standard_pricelist_id) {
-          // Flat discount from price list
-          const { data: pl } = await supabase.from('standard_discount_pricelists').select('discount_percent').eq('id', client.standard_pricelist_id).single();
-          if (pl) {
-            // Apply this flat discount to all variants for this client context
-            variants.forEach(v => {
-              discounts[v.id] = parseFloat(pl.discount_percent) || 0;
-            });
-          }
-        } else {
-          // Variant based discount from structures
-          const structName = client.discount_type || 'Special';
-          const { data: struct } = await supabase.from('discount_structures').select('id').eq('structure_name', structName).maybeSingle();
-          if (struct) {
-            const { data: varSettings } = await supabase.from('discount_variant_settings').select('variant_id, default_discount_percent').eq('structure_id', struct.id);
-            varSettings?.forEach(s => {
-              discounts[s.variant_id] = parseFloat(s.default_discount_percent) || 0;
-            });
-          }
-        }
-        setHeaderDiscounts(discounts);
+      const portfolio = await loadClientDiscountPortfolio(clientId);
+      
+      // Update limits
+      if (portfolio.settings && Object.keys(portfolio.settings).length > 0) {
+        setDiscountSettings(prev => ({ ...prev, ...portfolio.settings }));
+      }
+      
+      // Update default discounts
+      setHeaderDiscounts(portfolio.discounts);
 
-        // Optionally update existing items if any
-        if (items.length > 0 && window.confirm('Apply client discount portfolio to existing items?')) {
-          setItems(items.map(item => {
-            const disc = discounts[item.variant_id] || 0;
-            const rate = item.rate || 0;
-            const amount = item.qty * rate * (1 - disc / 100);
-            return { ...item, discount_percent: disc, amount };
-          }));
-        }
-      } catch (err) {
-        console.error('Error applying client portfolio:', err);
+      // Optionally update existing items if any
+      if (items.length > 0 && window.confirm('Apply client discount portfolio to existing items?')) {
+        setItems(items.map(item => {
+          const disc = portfolio.discounts[item.variant_id] || 0;
+          const baseRate = parseFloat(item.base_rate_snapshot) || parseFloat(item.rate) || 0;
+          const finalRate = calculateVariantDiscountedRate(baseRate, disc);
+          
+          return { 
+            ...item, 
+            discount_percent: disc, 
+            applied_discount_percent: disc,
+            final_rate_snapshot: finalRate,
+            rate: finalRate,
+            is_override: false
+          };
+        }));
       }
     }
   };
@@ -1455,20 +1554,29 @@ export default function CreateQuotation() {
                   <span style={{ fontSize: '14px' }}>☰</span>
                 </th>
                 <th style={{ ...compactHeadCellStyle, width: '50px' }}>S.No</th>
-                <th style={{ ...compactHeadCellStyle, width: '100px' }}>HSN/SAC</th>
+                {templateSettings?.column_settings?.optional?.hsn_code && <th style={{ ...compactHeadCellStyle, width: '100px' }}>HSN/SAC</th>}
                 <th style={{ ...compactHeadCellStyle, width: '120px' }}>Item</th>
-                <th style={{ ...compactHeadCellStyle, width: '120px' }}>Variant</th>
-                <th style={compactHeadCellStyle}>Description</th>
+                {templateSettings?.column_settings?.optional?.variant && <th style={{ ...compactHeadCellStyle, width: '120px' }}>Variant</th>}
+                {templateSettings?.column_settings?.optional?.description && <th style={compactHeadCellStyle}>Description</th>}
                 <th style={{ ...compactHeadCellStyle, width: '60px' }}>Qty</th>
                 <th style={{ ...compactHeadCellStyle, width: '70px' }}>Unit</th>
-                <th style={{ ...compactHeadCellStyle, width: '90px' }}>Rate</th>
-                <th style={{ ...compactHeadCellStyle, width: '70px' }}>Disc %</th>
-                <th style={{ ...compactHeadCellStyle, width: '80px' }}>Tax %</th>
-                {(customColumnLabels.custom1 || customColumnLabels.custom2) && (
-                  <>
-                    {customColumnLabels.custom1 && <th style={{ ...compactHeadCellStyle, width: '100px' }}>{customColumnLabels.custom1}</th>}
-                    {customColumnLabels.custom2 && <th style={{ ...compactHeadCellStyle, width: '100px' }}>{customColumnLabels.custom2}</th>}
-                  </>
+                {templateSettings?.column_settings?.optional?.rate && <th style={{ ...compactHeadCellStyle, width: '90px' }}>Rate</th>}
+                {templateSettings?.column_settings?.optional?.discount_percent && <th style={{ ...compactHeadCellStyle, width: '70px' }}>Disc %</th>}
+                {templateSettings?.column_settings?.optional?.rate_after_discount && (
+                  <th style={{ ...compactHeadCellStyle, width: '90px' }}>
+                    {templateSettings.column_settings.labels?.rate_after_discount || 'Rate/Unit'}
+                  </th>
+                )}
+                {templateSettings?.column_settings?.optional?.tax_percent && <th style={{ ...compactHeadCellStyle, width: '80px' }}>Tax %</th>}
+                {templateSettings?.column_settings?.optional?.custom1 && (
+                  <th style={{ ...compactHeadCellStyle, width: '100px' }}>
+                    {templateSettings.column_settings.labels?.custom1 || 'Custom 1'}
+                  </th>
+                )}
+                {templateSettings?.column_settings?.optional?.custom2 && (
+                  <th style={{ ...compactHeadCellStyle, width: '100px' }}>
+                    {templateSettings.column_settings.labels?.custom2 || 'Custom 2'}
+                  </th>
                 )}
                 <th style={{ ...compactHeadCellStyle, width: '110px' }}>Amount</th>
                 <th style={{ ...compactHeadCellStyle, width: '40px' }}></th>
@@ -1477,7 +1585,7 @@ export default function CreateQuotation() {
             <tbody>
               {items.length === 0 ? (
                 <tr>
-                  <td colSpan={15} style={{ padding: '28px', textAlign: 'center', color: '#6b7280' }}>
+                  <td colSpan={20} style={{ padding: '28px', textAlign: 'center', color: '#6b7280' }}>
                     No items added. Click "Add Row" or "Add Multiple Items".
                   </td>
                 </tr>
@@ -1499,15 +1607,17 @@ export default function CreateQuotation() {
                       <span style={{ fontSize: '16px' }}>☰</span>
                     </td>
                     <td style={compactBodyCellStyle}>{index + 1}</td>
-                    <td style={compactBodyCellStyle}>
-                      <input
-                        type="text"
-                        className="form-input"
-                        value={item.hsn_code || item.material?.hsn_code || materials.find(m => m.id === item.item_id)?.hsn_code || ''}
-                        readOnly
-                        style={{ ...compactCellInputStyle, background: '#f8fafc' }}
-                      />
-                    </td>
+                    {templateSettings?.column_settings?.optional?.hsn_code && (
+                      <td style={compactBodyCellStyle}>
+                        <input
+                          type="text"
+                          className="form-input"
+                          value={item.hsn_code || item.material?.hsn_code || materials.find(m => m.id === item.item_id)?.hsn_code || ''}
+                          readOnly
+                          style={{ ...compactCellInputStyle, background: '#f8fafc' }}
+                        />
+                      </td>
+                    )}
                     <td style={compactBodyCellStyle}>
                       <select
                         className="form-select"
@@ -1535,41 +1645,45 @@ export default function CreateQuotation() {
                         ))}
                       </select>
                     </td>
-                    <td style={compactBodyCellStyle}>
-                      <select
-                        className="form-select"
-                        style={compactCellInputStyle}
-                        value={item.variant_id || ''}
-                        onChange={(e) => {
-                          const nextVariant = e.target.value || null;
-                          updateItem(item.id, 'variant_id', nextVariant);
-                          const mat = materials.find(m => m.id === item.item_id);
-                          if (mat) {
-                            const newRate = getRateForMaterialVariant(mat, nextVariant);
-                            const variantDiscount = nextVariant ? (headerDiscounts[nextVariant] || 0) : 0;
-                            const finalRate = calculateVariantDiscountedRate(newRate, variantDiscount);
-                            updateItem(item.id, 'base_rate_snapshot', newRate);
-                            updateItem(item.id, 'applied_discount_percent', variantDiscount);
-                            updateItem(item.id, 'final_rate_snapshot', finalRate);
-                            updateItem(item.id, 'rate', finalRate);
-                          }
-                        }}
-                      >
-                        <option value="">No Variant</option>
-                        {variants.map(v => (
-                          <option key={v.id} value={v.id}>{v.variant_name}</option>
-                        ))}
-                      </select>
-                    </td>
-                    <td style={compactBodyCellStyle}>
-                      <input
-                        type="text"
-                        className="form-input"
-                        value={item.description || ''}
-                        onChange={(e) => updateItem(item.id, 'description', e.target.value)}
-                        style={{ ...compactCellInputStyle, minWidth: '120px' }}
-                      />
-                    </td>
+                    {templateSettings?.column_settings?.optional?.variant && (
+                      <td style={compactBodyCellStyle}>
+                        <select
+                          className="form-select"
+                          style={compactCellInputStyle}
+                          value={item.variant_id || ''}
+                          onChange={(e) => {
+                            const nextVariant = e.target.value || null;
+                            updateItem(item.id, 'variant_id', nextVariant);
+                            const mat = materials.find(m => m.id === item.item_id);
+                            if (mat) {
+                              const newRate = getRateForMaterialVariant(mat, nextVariant);
+                              const variantDiscount = nextVariant ? (headerDiscounts[nextVariant] || 0) : 0;
+                              const finalRate = calculateVariantDiscountedRate(newRate, variantDiscount);
+                              updateItem(item.id, 'base_rate_snapshot', newRate);
+                              updateItem(item.id, 'applied_discount_percent', variantDiscount);
+                              updateItem(item.id, 'final_rate_snapshot', finalRate);
+                              updateItem(item.id, 'rate', finalRate);
+                            }
+                          }}
+                        >
+                          <option value="">No Variant</option>
+                          {variants.map(v => (
+                            <option key={v.id} value={v.id}>{v.variant_name}</option>
+                          ))}
+                        </select>
+                      </td>
+                    )}
+                    {templateSettings?.column_settings?.optional?.description && (
+                      <td style={compactBodyCellStyle}>
+                        <input
+                          type="text"
+                          className="form-input"
+                          value={item.description || ''}
+                          onChange={(e) => updateItem(item.id, 'description', e.target.value)}
+                          style={{ ...compactCellInputStyle, minWidth: '120px' }}
+                        />
+                      </td>
+                    )}
                     <td style={compactBodyCellStyle}>
                       <input
                         type="number"
@@ -1590,83 +1704,101 @@ export default function CreateQuotation() {
                         onChange={(e) => updateItem(item.id, 'uom', e.target.value)}
                       />
                     </td>
-                    <td style={compactBodyCellStyle}>
-                      <input
-                        type="number"
-                        className="form-input"
-                        style={{ 
-                          ...compactCellInputStyle, 
-                          ...(item.override_flag && formData.negotiation_mode ? { background: '#fef3c7' } : {}),
-                          ...(item.is_override ? { background: '#eff6ff', border: '1px solid #3b82f6' } : {})
-                        }}
-                        value={item.rate}
-                        onChange={(e) => updateItem(item.id, 'rate', e.target.value)}
-                        min="0"
-                        step="0.01"
-                        disabled={!formData.negotiation_mode}
-                      />
-                    </td>
+                    {templateSettings?.column_settings?.optional?.rate && (
+                      <td style={compactBodyCellStyle}>
+                        <input
+                          type="number"
+                          className="form-input"
+                          style={{ 
+                            ...compactCellInputStyle,
+                            background: '#f8fafc'
+                          }}
+                          value={item.base_rate_snapshot || 0}
+                          readOnly
+                          min="0"
+                          step="0.01"
+                        />
+                      </td>
+                    )}
                     {/* Phase-1: Discount % Column */}
-                    <td style={compactBodyCellStyle}>
-                      <input
-                        type="number"
-                        className="form-input"
-                        style={{ 
-                          ...compactCellInputStyle,
-                          ...(item.is_override ? { background: '#eff6ff', border: '1px solid #3b82f6', fontWeight: 600 } : {})
-                        }}
-                        value={item.discount_percent || 0}
-                        onChange={(e) => {
-                          const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0));
-                          updateItem(item.id, 'discount_percent', val);
-                        }}
-                        min="0"
-                        max="100"
-                        step="0.01"
-                      />
-                    </td>
-                    <td style={compactBodyCellStyle}>
-                      <input
-                        type="number"
-                        className="form-input"
-                        style={compactCellInputStyle}
-                        value={item.tax_percent}
-                        onChange={(e) => updateItem(item.id, 'tax_percent', e.target.value)}
-                        min="0"
-                        max="100"
-                        step="0.01"
-                      />
-                    </td>
-                    {(customColumnLabels.custom1 || customColumnLabels.custom2) && (
-                      <>
-                        {customColumnLabels.custom1 && (
-                          <td style={compactBodyCellStyle}>
-                            <input
-                              type="text"
-                              className="form-input"
-                              style={compactCellInputStyle}
-                              value={item.custom1 || ''}
-                              onChange={(e) => updateItem(item.id, 'custom1', e.target.value)}
-                              placeholder={customColumnLabels.custom1}
-                            />
-                          </td>
-                        )}
-                        {customColumnLabels.custom2 && (
-                          <td style={compactBodyCellStyle}>
-                            <input
-                              type="text"
-                              className="form-input"
-                              style={compactCellInputStyle}
-                              value={item.custom2 || ''}
-                              onChange={(e) => updateItem(item.id, 'custom2', e.target.value)}
-                              placeholder={customColumnLabels.custom2}
-                            />
-                          </td>
-                        )}
-                      </>
+                    {templateSettings?.column_settings?.optional?.discount_percent && (
+                      <td style={compactBodyCellStyle}>
+                        <input
+                          type="number"
+                          className="form-input"
+                          style={{ 
+                            ...compactCellInputStyle,
+                            ...(item.is_override ? { background: '#eff6ff', border: '1px solid #3b82f6', fontWeight: 600 } : {})
+                          }}
+                          value={item.discount_percent || 0}
+                          onChange={(e) => {
+                            const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0));
+                            updateItem(item.id, 'discount_percent', val);
+                          }}
+                          min="0"
+                          max="100"
+                          step="0.01"
+                        />
+                      </td>
+                    )}
+                    {templateSettings?.column_settings?.optional?.rate_after_discount && (
+                      <td style={compactBodyCellStyle}>
+                        <input
+                          type="number"
+                          className="form-input"
+                          style={{ 
+                            ...compactCellInputStyle, 
+                            ...(item.override_flag && formData.negotiation_mode ? { background: '#fef3c7' } : {}),
+                            ...(item.is_override ? { background: '#eff6ff', border: '1px solid #3b82f6' } : {})
+                          }}
+                          value={item.rate}
+                          onChange={(e) => updateItem(item.id, 'rate', e.target.value)}
+                          min="0"
+                          step="0.01"
+                          disabled={!formData.negotiation_mode}
+                        />
+                      </td>
+                    )}
+                    {templateSettings?.column_settings?.optional?.tax_percent && (
+                      <td style={compactBodyCellStyle}>
+                        <input
+                          type="number"
+                          className="form-input"
+                          style={compactCellInputStyle}
+                          value={item.tax_percent}
+                          onChange={(e) => updateItem(item.id, 'tax_percent', e.target.value)}
+                          min="0"
+                          max="100"
+                          step="0.01"
+                        />
+                      </td>
+                    )}
+                    {templateSettings?.column_settings?.optional?.custom1 && (
+                      <td style={compactBodyCellStyle}>
+                        <input
+                          type="text"
+                          className="form-input"
+                          style={compactCellInputStyle}
+                          value={item.custom1 || ''}
+                          onChange={(e) => updateItem(item.id, 'custom1', e.target.value)}
+                          placeholder={templateSettings.column_settings.labels?.custom1 || 'Custom 1'}
+                        />
+                      </td>
+                    )}
+                    {templateSettings?.column_settings?.optional?.custom2 && (
+                      <td style={compactBodyCellStyle}>
+                        <input
+                          type="text"
+                          className="form-input"
+                          style={compactCellInputStyle}
+                          value={item.custom2 || ''}
+                          onChange={(e) => updateItem(item.id, 'custom2', e.target.value)}
+                          placeholder={templateSettings.column_settings.labels?.custom2 || 'Custom 2'}
+                        />
+                      </td>
                     )}
                     <td style={{ ...compactBodyCellStyle, fontWeight: 600, textAlign: 'right' }}>
-                      {formatCurrency((parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0) - (item.discount_amount || 0))}
+                      {formatCurrency((parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0))}
                     </td>
                     <td style={compactBodyCellStyle}>
                       <button
@@ -1847,86 +1979,7 @@ export default function CreateQuotation() {
         </div>
       )}
 
-      {/* Phase-1: Custom Column Labels Editor */}
-      {showCustomLabelEditor && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0,0,0,0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1100
-        }} onClick={() => setShowCustomLabelEditor(false)}>
-          <div style={{
-            background: '#fff',
-            borderRadius: '12px',
-            width: isMobile ? '94%' : '400px',
-            padding: isMobile ? '20px' : '24px',
-            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)'
-          }} onClick={e => e.stopPropagation()}>
-            <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', color: '#1e293b' }}>
-              Custom Column Labels
-            </h3>
-            <p style={{ margin: '0 0 16px 0', fontSize: '13px', color: '#64748b' }}>
-              These labels will appear as columns in your quotation. Leave empty to hide.
-            </p>
-            
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: '#374151' }}>
-                Column 1 Label
-              </label>
-              <input
-                type="text"
-                className="form-input"
-                style={{ width: '100%', padding: '10px' }}
-                value={customColumnLabels.custom1}
-                onChange={(e) => setCustomColumnLabels({ ...customColumnLabels, custom1: e.target.value })}
-                placeholder="e.g., HSN Code, Make, Model, etc."
-              />
-            </div>
-
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '6px', color: '#374151' }}>
-                Column 2 Label
-              </label>
-              <input
-                type="text"
-                className="form-input"
-                style={{ width: '100%', padding: '10px' }}
-                value={customColumnLabels.custom2}
-                onChange={(e) => setCustomColumnLabels({ ...customColumnLabels, custom2: e.target.value })}
-                placeholder="e.g., Warranty, Delivery, Notes, etc."
-              />
-            </div>
-
-            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-              <button 
-                className="btn btn-secondary"
-                onClick={() => setShowCustomLabelEditor(false)}
-                style={{ minWidth: '100px' }}
-              >
-                Cancel
-              </button>
-              <button 
-                className="btn btn-primary"
-                onClick={() => {
-                  localStorage.setItem('quotationCustomColumns', JSON.stringify(customColumnLabels));
-                  setShowCustomLabelEditor(false);
-                }}
-                style={{ minWidth: '100px' }}
-              >
-                Save
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-            {showItemPicker && (
+      {showItemPicker && (
         <div style={{
           position: 'fixed',
           top: 0,

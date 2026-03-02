@@ -1045,7 +1045,7 @@ function ItemsTab() {
         return;
       }
     }
-    setFormData({ ...formData, uses_variant: checked });
+    setFormData({ ...formData, uses_variant: checked, sale_price: checked ? '0' : formData.sale_price });
   };
 
   const handleVariantPricingChange = (variantId, field, value) => {
@@ -1879,7 +1879,14 @@ function ItemsTab() {
                   </div>
                   <div className="form-group">
                     <label className="form-label">Sale Price</label>
-                    <input type="number" className="form-input" value={formData.sale_price} onChange={e => setFormData({...formData, sale_price: e.target.value})} step="0.01" />
+                    <input 
+                      type="number" 
+                      className="form-input" 
+                      value={formData.uses_variant ? '0' : formData.sale_price} 
+                      onChange={e => setFormData({...formData, sale_price: e.target.value})} 
+                      step="0.01" 
+                      disabled={formData.uses_variant}
+                    />
                   </div>
                 </div>
                 <div className="form-row">
@@ -1924,7 +1931,18 @@ function ItemsTab() {
                   <input 
                     type="checkbox" 
                     checked={formData.uses_variant} 
-                    onChange={e => editingMaterial ? handleUsesVariantChange(e.target.checked) : setFormData({...formData, uses_variant: e.target.checked})}
+                    onChange={e => {
+                      const checked = e.target.checked;
+                      if (editingMaterial) {
+                        handleUsesVariantChange(checked);
+                      } else {
+                        setFormData({
+                          ...formData, 
+                          uses_variant: checked,
+                          sale_price: checked ? '0' : formData.sale_price
+                        });
+                      }
+                    }}
                   />
                   This item uses Variant
                 </label>
@@ -1943,7 +1961,6 @@ function ItemsTab() {
                       <tr>
                         <th>Variant</th>
                         <th>Sale Price</th>
-                        <th>Purchase Price</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1956,16 +1973,6 @@ function ItemsTab() {
                               className="form-input"
                               value={variantPricing[variant.id]?.sale_price || ''}
                               onChange={e => handleVariantPricingChange(variant.id, 'sale_price', e.target.value)}
-                              placeholder="0.00"
-                              step="0.01"
-                            />
-                          </td>
-                          <td>
-                            <input 
-                              type="number" 
-                              className="form-input"
-                              value={variantPricing[variant.id]?.purchase_price || ''}
-                              onChange={e => handleVariantPricingChange(variant.id, 'purchase_price', e.target.value)}
                               placeholder="0.00"
                               step="0.01"
                             />

@@ -72,8 +72,16 @@ export async function fetchProjects() {
   const { data, error } = await supabase
     .from('projects')
     .select('*')
-    .order('created_at', { ascending: false });
-  if (error) throw error;
+    .order('project_name', { ascending: true });
+  if (error) {
+    // Fallback to 'name' if project_name fetch fails
+    const { data: fallback, error: err2 } = await supabase
+      .from('projects')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (err2) throw err2;
+    return fallback;
+  }
   return data;
 }
 
@@ -111,7 +119,7 @@ export async function fetchDeliveryChallans(filters = {}) {
     .from('delivery_challans')
     .select(`
       *,
-      project:projects(name),
+      project:projects(project_name),
       items:delivery_challan_items(*)
     `)
     .order('dc_date', { ascending: false });
@@ -128,9 +136,26 @@ export async function fetchDeliveryChallans(filters = {}) {
   if (filters.status && filters.status !== 'all') {
     query = query.eq('status', filters.status);
   }
+  if (filters.organisation_id) {
+    query = query.eq('organisation_id', filters.organisation_id);
+  }
 
   const { data, error } = await query;
-  if (error) throw error;
+  if (error) {
+    // If project_name fetch fails, try fallback to 'name'
+    const retryQuery = supabase
+      .from('delivery_challans')
+      .select(`
+        *,
+        project:projects(name),
+        items:delivery_challan_items(*)
+      `)
+      .order('dc_date', { ascending: false });
+    
+    const { data: retryData, error: retryError } = await retryQuery;
+    if (retryError) throw retryError;
+    return retryData;
+  }
   return data;
 }
 

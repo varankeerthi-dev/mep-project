@@ -295,34 +295,48 @@ export default function QuotationView() {
       const colSettings = (template && typeof template.column_settings === 'object' && template.column_settings) || {};
       const optionalCols = colSettings.optional || {};
       const mandatoryCols = colSettings.mandatory || ['sno', 'item', 'qty', 'uom'];
-      
-      // Get custom column labels from localStorage
-      const customColumnLabels = (() => {
-        try {
-          const saved = localStorage.getItem('quotationCustomColumns');
-          return saved ? JSON.parse(saved) : { custom1: '', custom2: '' };
-        } catch {
-          return { custom1: '', custom2: '' };
-        }
-      })();
+      const labels = colSettings.labels || {};
 
       const columnConfig = [];
-      if (mandatoryCols.includes('sno')) columnConfig.push({ header: '#', key: 'sno', width: 12 });
-      if (optionalCols.item_code) columnConfig.push({ header: 'Code', key: 'item_code', width: 25 });
-      if (mandatoryCols.includes('item')) columnConfig.push({ header: 'Item', key: 'item', width: 50 });
+      if (mandatoryCols.includes('sno')) columnConfig.push({ header: '#', key: 'sno', width: 10 });
+      if (optionalCols.hsn_code) columnConfig.push({ header: 'HSN/SAC', key: 'hsn_code', width: 20 });
+      if (mandatoryCols.includes('item')) columnConfig.push({ header: 'Item', key: 'item', width: 45 });
+      if (optionalCols.variant) columnConfig.push({ header: 'Variant', key: 'variant', width: 25 });
       if (optionalCols.description) columnConfig.push({ header: 'Description', key: 'description', width: 40 });
-      if (optionalCols.hsn_code) columnConfig.push({ header: 'HSN', key: 'hsn_code', width: 20 });
-      if (mandatoryCols.includes('qty')) columnConfig.push({ header: 'Qty', key: 'qty', width: 15, align: 'right' });
-      if (mandatoryCols.includes('uom')) columnConfig.push({ header: 'UOM', key: 'uom', width: 15 });
-      if (optionalCols.rate) columnConfig.push({ header: 'Rate', key: 'rate', width: 25, align: 'right' });
-      if (optionalCols.discount_percent) columnConfig.push({ header: 'Disc %', key: 'discount_percent', width: 18, align: 'right' });
-      if (optionalCols.discount_amount) columnConfig.push({ header: 'Disc Amt', key: 'discount_amount', width: 22, align: 'right' });
+      if (mandatoryCols.includes('qty')) columnConfig.push({ header: 'Qty', key: 'qty', width: 12, align: 'right' });
+      if (mandatoryCols.includes('uom')) columnConfig.push({ header: 'Unit', key: 'uom', width: 15 });
+      
+      // Rate (Before Discount)
+      if (optionalCols.rate) {
+        columnConfig.push({ header: 'Rate', key: 'base_rate', width: 22, align: 'right' });
+      }
+      
+      // Discount %
+      if (optionalCols.discount_percent) {
+        columnConfig.push({ header: 'Disc %', key: 'discount_percent', width: 15, align: 'right' });
+      }
+      
+      // Rate/Unit (After Discount)
+      if (optionalCols.rate_after_discount) {
+        columnConfig.push({ 
+          header: labels.rate_after_discount || 'Rate/Unit', 
+          key: 'rate_after_discount', 
+          width: 22, 
+          align: 'right' 
+        });
+      }
+
       if (optionalCols.tax_percent) columnConfig.push({ header: 'Tax %', key: 'tax_percent', width: 15, align: 'right' });
-      if (optionalCols.tax_amount) columnConfig.push({ header: 'Tax Amt', key: 'tax_amount', width: 22, align: 'right' });
-      if (optionalCols.line_total) columnConfig.push({ header: 'Total', key: 'line_total', width: 30, align: 'right' });
+      
       // Custom columns
-      if (customColumnLabels.custom1) columnConfig.push({ header: customColumnLabels.custom1, key: 'custom1', width: 25 });
-      if (customColumnLabels.custom2) columnConfig.push({ header: customColumnLabels.custom2, key: 'custom2', width: 25 });
+      if (optionalCols.custom1) {
+        columnConfig.push({ header: labels.custom1 || 'Custom 1', key: 'custom1', width: 22 });
+      }
+      if (optionalCols.custom2) {
+        columnConfig.push({ header: labels.custom2 || 'Custom 2', key: 'custom2', width: 22 });
+      }
+      
+      columnConfig.push({ header: 'Amount', key: 'line_total', width: 28, align: 'right' });
 
       let startY = 40;
 
@@ -366,21 +380,22 @@ export default function QuotationView() {
         const material = item.item || {};
         const row = {};
         if (mandatoryCols.includes('sno')) row.sno = index + 1;
-        if (optionalCols.item_code) row.item_code = material.item_code || '-';
-        if (mandatoryCols.includes('item')) row.item = item.description || '-';
-        if (optionalCols.description) row.description = item.description || '-';
         if (optionalCols.hsn_code) row.hsn_code = material.hsn_code || '-';
+        if (mandatoryCols.includes('item')) row.item = item.description || '-';
+        if (optionalCols.variant) row.variant = item.variant?.variant_name || '-';
+        if (optionalCols.description) row.description = item.description || '-';
         if (mandatoryCols.includes('qty')) row.qty = item.qty;
         if (mandatoryCols.includes('uom')) row.uom = item.uom;
-        if (optionalCols.rate) row.rate = formatCurrency(item.rate);
+        
+        if (optionalCols.rate) row.base_rate = formatCurrencyNoSymbol(item.base_rate_snapshot || item.rate);
         if (optionalCols.discount_percent) row.discount_percent = `${item.discount_percent}%`;
-        if (optionalCols.discount_amount) row.discount_amount = formatCurrency(item.discount_amount);
+        if (optionalCols.rate_after_discount) row.rate_after_discount = formatCurrencyNoSymbol(item.rate);
         if (optionalCols.tax_percent) row.tax_percent = `${item.tax_percent}%`;
-        if (optionalCols.tax_amount) row.tax_amount = formatCurrency(item.tax_amount);
-        if (optionalCols.line_total) row.line_total = formatCurrency(item.line_total);
-        // Custom columns
-        if (customColumnLabels.custom1) row.custom1 = item.custom1 || '-';
-        if (customColumnLabels.custom2) row.custom2 = item.custom2 || '-';
+        
+        if (optionalCols.custom1) row.custom1 = item.custom1 || '-';
+        if (optionalCols.custom2) row.custom2 = item.custom2 || '-';
+        
+        row.line_total = formatCurrencyNoSymbol(item.line_total);
         return row;
       });
 
@@ -390,7 +405,6 @@ export default function QuotationView() {
         startY: tableStartY,
         head: [columnConfig.map((col) => col.header)],
         body: tableData.map((row) => columnConfig.map((col) => row[col.key])),
-        columns: columnConfig,
         theme: 'grid',
         headStyles: { fillColor: [66, 66, 66], fontSize: 8 },
         styles: { fontSize: 8, cellPadding: 2 },
@@ -473,51 +487,42 @@ export default function QuotationView() {
     const colSettings = template.column_settings || {};
     const optionalCols = colSettings.optional || {};
     const mandatoryCols = colSettings.mandatory || ['sno', 'item', 'qty', 'uom'];
-    
-    // Get custom column labels from localStorage
-    const customColumnLabels = (() => {
-      try {
-        const saved = localStorage.getItem('quotationCustomColumns');
-        return saved ? JSON.parse(saved) : { custom1: '', custom2: '' };
-      } catch {
-        return { custom1: '', custom2: '' };
-      }
-    })();
+    const labels = colSettings.labels || {};
 
     let columnsHTML = '';
     if (mandatoryCols.includes('sno')) columnsHTML += '<th>#</th>';
-    if (optionalCols.item_code) columnsHTML += '<th>Code</th>';
+    if (optionalCols.hsn_code) columnsHTML += '<th>HSN/SAC</th>';
     if (mandatoryCols.includes('item')) columnsHTML += '<th>Item</th>';
+    if (optionalCols.variant) columnsHTML += '<th>Variant</th>';
     if (optionalCols.description) columnsHTML += '<th>Description</th>';
-    if (optionalCols.hsn_code) columnsHTML += '<th>HSN</th>';
     if (mandatoryCols.includes('qty')) columnsHTML += '<th>Qty</th>';
-    if (mandatoryCols.includes('uom')) columnsHTML += '<th>UOM</th>';
+    if (mandatoryCols.includes('uom')) columnsHTML += '<th>Unit</th>';
     if (optionalCols.rate) columnsHTML += '<th>Rate</th>';
     if (optionalCols.discount_percent) columnsHTML += '<th>Disc %</th>';
+    if (optionalCols.rate_after_discount) columnsHTML += `<th>${labels.rate_after_discount || 'Rate/Unit'}</th>`;
     if (optionalCols.tax_percent) columnsHTML += '<th>Tax %</th>';
-    if (optionalCols.line_total) columnsHTML += '<th>Total</th>';
-    // Custom columns
-    if (customColumnLabels.custom1) columnsHTML += `<th>${customColumnLabels.custom1}</th>`;
-    if (customColumnLabels.custom2) columnsHTML += `<th>${customColumnLabels.custom2}</th>`;
+    if (optionalCols.custom1) columnsHTML += `<th>${labels.custom1 || 'Custom 1'}</th>`;
+    if (optionalCols.custom2) columnsHTML += `<th>${labels.custom2 || 'Custom 2'}</th>`;
+    columnsHTML += '<th>Total</th>';
 
     let rowsHTML = '';
     quotation.items.forEach((item, index) => {
       const material = item.item || {};
       let rowHTML = '<tr>';
       if (mandatoryCols.includes('sno')) rowHTML += `<td>${index + 1}</td>`;
-      if (optionalCols.item_code) rowHTML += `<td>${material.item_code || '-'}</td>`;
-      if (mandatoryCols.includes('item')) rowHTML += `<td>${item.description || '-'}</td>`;
-      if (optionalCols.description) rowHTML += `<td>${item.description || '-'}</td>`;
       if (optionalCols.hsn_code) rowHTML += `<td>${material.hsn_code || '-'}</td>`;
+      if (mandatoryCols.includes('item')) rowHTML += `<td>${item.description || '-'}</td>`;
+      if (optionalCols.variant) rowHTML += `<td>${item.variant?.variant_name || '-'}</td>`;
+      if (optionalCols.description) rowHTML += `<td>${item.description || '-'}</td>`;
       if (mandatoryCols.includes('qty')) rowHTML += `<td style="text-align:right">${item.qty}</td>`;
       if (mandatoryCols.includes('uom')) rowHTML += `<td>${item.uom}</td>`;
-      if (optionalCols.rate) rowHTML += `<td style="text-align:right">${formatCurrency(item.rate)}</td>`;
+      if (optionalCols.rate) rowHTML += `<td style="text-align:right">${formatCurrency(item.base_rate_snapshot || item.rate)}</td>`;
       if (optionalCols.discount_percent) rowHTML += `<td style="text-align:right">${item.discount_percent}%</td>`;
+      if (optionalCols.rate_after_discount) rowHTML += `<td style="text-align:right">${formatCurrency(item.rate)}</td>`;
       if (optionalCols.tax_percent) rowHTML += `<td style="text-align:right">${item.tax_percent}%</td>`;
-      if (optionalCols.line_total) rowHTML += `<td style="text-align:right;font-weight:bold">${formatCurrency(item.line_total)}</td>`;
-      // Custom columns
-      if (customColumnLabels.custom1) rowHTML += `<td>${item.custom1 || '-'}</td>`;
-      if (customColumnLabels.custom2) rowHTML += `<td>${item.custom2 || '-'}</td>`;
+      if (optionalCols.custom1) rowHTML += `<td>${item.custom1 || '-'}</td>`;
+      if (optionalCols.custom2) rowHTML += `<td>${item.custom2 || '-'}</td>`;
+      rowHTML += `<td style="text-align:right;font-weight:bold">${formatCurrency(item.line_total)}</td>`;
       rowHTML += '</tr>';
       rowsHTML += rowHTML;
     });
@@ -528,28 +533,34 @@ export default function QuotationView() {
       <head>
         <title>Quotation - ${quotation.quotation_no}</title>
         <style>
-          body { font-family: Arial, sans-serif; padding: 20px; }
-          h1 { text-align: center; }
-          .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
-          table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-          th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-          th { background-color: #444; color: white; }
-          .summary { text-align: right; }
-          .total { font-weight: bold; font-size: 1.2em; }
+          body { font-family: Arial, sans-serif; padding: 20px; color: #333; }
+          h1 { text-align: center; color: #000; }
+          .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-bottom: 30px; }
+          .info-box { line-height: 1.6; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+          th, td { border: 1px solid #ddd; padding: 10px; text-align: left; font-size: 13px; }
+          th { background-color: #f3f4f6; color: #374151; font-weight: 600; }
+          .summary { float: right; width: 300px; }
+          .summary-row { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #f3f4f6; }
+          .total { font-weight: bold; font-size: 1.2em; border-top: 2px solid #374151; margin-top: 10px; padding-top: 10px; }
+          .footer { margin-top: 50px; clear: both; }
         </style>
       </head>
       <body>
         <h1>QUOTATION</h1>
         <div class="info-grid">
-          <div>
+          <div class="info-box">
+            <strong>To:</strong><br>
+            ${quotation.client?.client_name || '-'}<br>
+            ${quotation.billing_address || '-'}<br>
+            GSTIN: ${quotation.gstin || '-'}<br>
+            State: ${quotation.state || '-'}
+          </div>
+          <div class="info-box" style="text-align: right;">
             <strong>Quotation No:</strong> ${quotation.quotation_no}<br>
             <strong>Date:</strong> ${formatDate(quotation.date)}<br>
             <strong>Valid Till:</strong> ${formatDate(quotation.valid_till)}<br>
-            <strong>Client:</strong> ${quotation.client?.client_name || '-'}<br>
-            <strong>GSTIN:</strong> ${quotation.gstin || '-'}<br>
-            <strong>State:</strong> ${quotation.state || '-'}<br>
-            <strong>Contact No:</strong> ${quotation.contact_no || '-'}<br>
-            <strong>Remarks:</strong> ${quotation.remarks || quotation.reference || '-'}
+            <strong>Project:</strong> ${quotation.project?.project_name || quotation.project?.project_code || '-'}
           </div>
         </div>
         <table>
@@ -557,11 +568,14 @@ export default function QuotationView() {
           <tbody>${rowsHTML}</tbody>
         </table>
         <div class="summary">
-          <p>Subtotal: ${formatCurrency(quotation.subtotal)}</p>
-          <p>Item Discount: -${formatCurrency(quotation.total_item_discount)}</p>
-          <p>Extra Discount: -${formatCurrency(quotation.extra_discount_amount)}</p>
-          <p>Tax: ${formatCurrency(quotation.total_tax)}</p>
-          <p class="total">Grand Total: ${formatCurrency(quotation.grand_total)}</p>
+          <div class="summary-row"><span>Subtotal</span><span>${formatCurrency(quotation.subtotal)}</span></div>
+          <div class="summary-row"><span>Discount</span><span>-${formatCurrency(quotation.total_item_discount + quotation.extra_discount_amount)}</span></div>
+          <div class="summary-row"><span>Tax</span><span>${formatCurrency(quotation.total_tax)}</span></div>
+          <div class="summary-row total"><span>Grand Total</span><span>${formatCurrency(quotation.grand_total)}</span></div>
+        </div>
+        <div class="footer">
+          <p><strong>Payment Terms:</strong> ${quotation.payment_terms || '-'}</p>
+          <p><strong>Remarks:</strong> ${quotation.remarks || quotation.reference || '-'}</p>
         </div>
       </body>
       </html>
@@ -572,9 +586,8 @@ export default function QuotationView() {
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(amount || 0);
   };
 
-  const formatDate = (date) => {
-    if (!date) return '-';
-    return new Date(date).toLocaleDateString('en-IN');
+  const formatCurrencyNoSymbol = (amount) => {
+    return new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount || 0);
   };
 
   const getStatusBadge = (status) => {
@@ -798,33 +811,56 @@ export default function QuotationView() {
             <thead>
               <tr>
                 <th>#</th>
+                {quotation.items?.[0]?.item?.hsn_code && templates.find(t => t.id === selectedTemplateId)?.column_settings?.optional?.hsn_code !== false && <th>HSN/SAC</th>}
                 <th>Description</th>
+                {templates.find(t => t.id === selectedTemplateId)?.column_settings?.optional?.variant && <th>Variant</th>}
                 <th style={{ textAlign: 'right' }}>Qty</th>
-                <th>UOM</th>
-                <th style={{ textAlign: 'right' }}>Rate</th>
-                <th style={{ textAlign: 'right' }}>Disc %</th>
-                <th style={{ textAlign: 'right' }}>Tax %</th>
+                <th>Unit</th>
+                {templates.find(t => t.id === selectedTemplateId)?.column_settings?.optional?.rate !== false && <th style={{ textAlign: 'right' }}>Rate</th>}
+                {templates.find(t => t.id === selectedTemplateId)?.column_settings?.optional?.discount_percent !== false && <th style={{ textAlign: 'right' }}>Disc %</th>}
+                {templates.find(t => t.id === selectedTemplateId)?.column_settings?.optional?.rate_after_discount && (
+                  <th style={{ textAlign: 'right' }}>
+                    {templates.find(t => t.id === selectedTemplateId)?.column_settings?.labels?.rate_after_discount || 'Rate/Unit'}
+                  </th>
+                )}
+                {templates.find(t => t.id === selectedTemplateId)?.column_settings?.optional?.tax_percent !== false && <th style={{ textAlign: 'right' }}>Tax %</th>}
+                {templates.find(t => t.id === selectedTemplateId)?.column_settings?.optional?.custom1 && (
+                  <th>{templates.find(t => t.id === selectedTemplateId)?.column_settings?.labels?.custom1 || 'Custom 1'}</th>
+                )}
+                {templates.find(t => t.id === selectedTemplateId)?.column_settings?.optional?.custom2 && (
+                  <th>{templates.find(t => t.id === selectedTemplateId)?.column_settings?.labels?.custom2 || 'Custom 2'}</th>
+                )}
                 <th style={{ textAlign: 'right' }}>Total</th>
               </tr>
             </thead>
             <tbody>
-              {quotation.items?.map((item, index) => (
-                <tr key={item.id}>
-                  <td>{index + 1}</td>
-                  <td>
-                    {item.description}
-                    {item.override_flag && (
-                      <span style={{ marginLeft: '8px', background: '#fef3c7', padding: '2px 6px', borderRadius: '4px', fontSize: '11px' }}>Edited</span>
-                    )}
-                  </td>
-                  <td style={{ textAlign: 'right' }}>{item.qty}</td>
-                  <td>{item.uom}</td>
-                  <td style={{ textAlign: 'right' }}>{formatCurrency(item.rate)}</td>
-                  <td style={{ textAlign: 'right' }}>{item.discount_percent}%</td>
-                  <td style={{ textAlign: 'right' }}>{item.tax_percent}%</td>
-                  <td style={{ textAlign: 'right', fontWeight: 600 }}>{formatCurrency(item.line_total)}</td>
-                </tr>
-              ))}
+              {quotation.items?.map((item, index) => {
+                const template = templates.find(t => t.id === selectedTemplateId);
+                const optCols = template?.column_settings?.optional || {};
+                
+                return (
+                  <tr key={item.id}>
+                    <td>{index + 1}</td>
+                    {item.item?.hsn_code && optCols.hsn_code !== false && <td>{item.item.hsn_code}</td>}
+                    <td>
+                      {item.description}
+                      {item.override_flag && (
+                        <span style={{ marginLeft: '8px', background: '#fef3c7', padding: '2px 6px', borderRadius: '4px', fontSize: '11px' }}>Edited</span>
+                      )}
+                    </td>
+                    {optCols.variant && <td>{item.variant?.variant_name || '-'}</td>}
+                    <td style={{ textAlign: 'right' }}>{item.qty}</td>
+                    <td>{item.uom}</td>
+                    {optCols.rate !== false && <td style={{ textAlign: 'right' }}>{formatCurrency(item.base_rate_snapshot || item.rate)}</td>}
+                    {optCols.discount_percent !== false && <td style={{ textAlign: 'right' }}>{item.discount_percent}%</td>}
+                    {optCols.rate_after_discount && <td style={{ textAlign: 'right' }}>{formatCurrency(item.rate)}</td>}
+                    {optCols.tax_percent !== false && <td style={{ textAlign: 'right' }}>{item.tax_percent}%</td>}
+                    {optCols.custom1 && <td>{item.custom1 || '-'}</td>}
+                    {optCols.custom2 && <td>{item.custom2 || '-'}</td>}
+                    <td style={{ textAlign: 'right', fontWeight: 600 }}>{formatCurrency(item.line_total)}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
