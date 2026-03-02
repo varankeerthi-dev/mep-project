@@ -129,8 +129,7 @@ export const generateQuotationTally = (data, organisation) => {
   autoTable(doc, {
     startY: currentY,
     margin: { left: margin, right: margin },
-    head: [['Sl
-No.', 'Description of Goods', 'HSN/SAC', 'Quantity', 'Rate', 'per', 'Disc %', 'Amount']],
+    head: [['Sl\nNo.', 'Description of Goods', 'HSN/SAC', 'Quantity', 'Rate', 'per', 'Disc %', 'Amount']],
     body: (items || []).map((item, index) => [
       index + 1,
       item.description || '-',
