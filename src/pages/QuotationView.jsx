@@ -6,6 +6,7 @@ import autoTable from 'jspdf-autotable';
 import { formatDate, formatCurrency } from '../utils/formatters';
 import { useAuth } from '../App';
 import { generateQuotationTally } from './QuotationTallyTemplate';
+import { generateProfessionalTemplate } from './ProfessionalTemplate';
 
 export default function QuotationView() {
   const navigate = useNavigate();
@@ -286,6 +287,13 @@ export default function QuotationView() {
       window.open(url, '_blank');
       return;
     }
+    if (template.template_code === 'QTN_PROFESSIONAL') {
+      const doc = generateProfessionalTemplate(quotation, organisation);
+      const pdfBlob = doc.output('blob');
+      const url = URL.createObjectURL(pdfBlob);
+      window.open(url, '_blank');
+      return;
+    }
     const printWindow = window.open('', '_blank');
     const html = generateQuotationHTML(template);
     printWindow.document.write(html);
@@ -303,6 +311,16 @@ export default function QuotationView() {
           .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
           .replace(/\s+/g, '_');
         tallyDoc.save(`${safeFileName}.pdf`);
+        return;
+      }
+
+      // Special handling for Professional Template
+      if (template.template_code === 'QTN_PROFESSIONAL') {
+        const profDoc = generateProfessionalTemplate(quotation, organisation);
+        const safeFileName = String(quotation.quotation_no || 'quotation')
+          .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
+          .replace(/\s+/g, '_');
+        profDoc.save(`${safeFileName}.pdf`);
         return;
       }
 
