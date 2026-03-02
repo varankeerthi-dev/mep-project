@@ -31,7 +31,9 @@ const OPTIONAL_COLUMNS = [
   { key: 'subtotal', label: 'Sub-Total' },
   { key: 'total_tax', label: 'Total Tax' },
   { key: 'round_off', label: 'Round Off' },
-  { key: 'grand_total', label: 'Grand Total' }
+  { key: 'grand_total', label: 'Grand Total' },
+  { key: 'po_no', label: 'PO No' },
+  { key: 'eway_bill', label: 'E-Way Bill' }
 ];
 
 export default function TemplateSettings() {
@@ -79,7 +81,9 @@ export default function TemplateSettings() {
         subtotal: true,
         total_tax: true,
         round_off: true,
-        grand_total: true
+        grand_total: true,
+        po_no: false,
+        eway_bill: false
       },
       labels: {
         custom1: 'Custom 1',
@@ -149,7 +153,9 @@ export default function TemplateSettings() {
           subtotal: true,
           total_tax: true,
           round_off: true,
-          grand_total: true
+          grand_total: true,
+          po_no: false,
+          eway_bill: false
         },
         labels: template.column_settings?.labels || {
           custom1: 'Custom 1',

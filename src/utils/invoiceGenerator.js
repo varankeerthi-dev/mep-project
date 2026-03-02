@@ -23,6 +23,7 @@ export async function getInvoiceTemplate(templateCode) {
     return data;
   }
 
+  // Try finding by template_code field first
   const { data, error } = await supabase
     .from('document_templates')
     .select('*')
@@ -30,8 +31,18 @@ export async function getInvoiceTemplate(templateCode) {
     .single();
 
   if (error) {
-    console.warn('Template not found by code, falling back to default:', templateCode);
-    return null;
+    // Fallback: try finding by ID
+    const { data: byId, error: idError } = await supabase
+      .from('document_templates')
+      .select('*')
+      .eq('id', templateCode)
+      .single();
+    
+    if (idError) {
+      console.warn('Template not found by code or ID, falling back to default:', templateCode);
+      return null;
+    }
+    return byId;
   }
 
   return data;
@@ -64,6 +75,10 @@ export async function generateInvoicePDF(invoiceData, organisation, templateCode
     template = await getInvoiceTemplate(null);
   }
 
+  // Determine which generator to use based on template_code
+  const templateKey = template?.template_code || template?.id;
+  const generator = TEMPLATE_GENERATORS[templateKey] || generateInvoiceClassicGstV2;
+  
   const templateSettings = {
     show_logo: template?.show_logo ?? true,
     show_bank_details: template?.show_bank_details ?? true,
@@ -73,8 +88,6 @@ export async function generateInvoicePDF(invoiceData, organisation, templateCode
     show_eway_bill: template?.column_settings?.optional?.eway_bill ?? true,
     column_settings: template?.column_settings
   };
-
-  const generator = TEMPLATE_GENERATORS[templateCode] || generateInvoiceClassicGstV2;
   
   return generator(invoiceData, organisation, templateSettings);
 }
