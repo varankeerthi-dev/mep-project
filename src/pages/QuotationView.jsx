@@ -7,6 +7,8 @@ import { formatDate, formatCurrency } from '../utils/formatters';
 import { useAuth } from '../App';
 import { generateQuotationTally } from './QuotationTallyTemplate';
 import { generateProfessionalTemplate } from './ProfessionalTemplate';
+import { generateZohoTemplate } from './ZohoTemplate';
+import { generateAurumGridTemplate } from './AurumGridTemplate';
 
 export default function QuotationView() {
   const navigate = useNavigate();
@@ -281,14 +283,28 @@ export default function QuotationView() {
 
   const previewQuotation = (template) => {
     if (template.template_code === 'QTN_TALLY') {
-      const doc = generateQuotationTally(quotation, organisation);
+      const doc = generateQuotationTally(quotation, organisation, template);
       const pdfBlob = doc.output('blob');
       const url = URL.createObjectURL(pdfBlob);
       window.open(url, '_blank');
       return;
     }
     if (template.template_code === 'QTN_PROFESSIONAL') {
-      const doc = generateProfessionalTemplate(quotation, organisation);
+      const doc = generateProfessionalTemplate(quotation, organisation, template);
+      const pdfBlob = doc.output('blob');
+      const url = URL.createObjectURL(pdfBlob);
+      window.open(url, '_blank');
+      return;
+    }
+    if (template.template_code === 'QTN_ZOHO') {
+      const doc = generateZohoTemplate(quotation, organisation, template);
+      const pdfBlob = doc.output('blob');
+      const url = URL.createObjectURL(pdfBlob);
+      window.open(url, '_blank');
+      return;
+    }
+    if (template.template_code === 'DOC_AURUM_QUO_V1') {
+      const doc = generateAurumGridTemplate(quotation, organisation, template);
       const pdfBlob = doc.output('blob');
       const url = URL.createObjectURL(pdfBlob);
       window.open(url, '_blank');
@@ -306,7 +322,7 @@ export default function QuotationView() {
 
       // Special handling for Tally Template
       if (template.template_code === 'QTN_TALLY') {
-        const tallyDoc = generateQuotationTally(quotation, organisation);
+        const tallyDoc = generateQuotationTally(quotation, organisation, template);
         const safeFileName = String(quotation.quotation_no || 'quotation')
           .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
           .replace(/\s+/g, '_');
@@ -316,11 +332,31 @@ export default function QuotationView() {
 
       // Special handling for Professional Template
       if (template.template_code === 'QTN_PROFESSIONAL') {
-        const profDoc = generateProfessionalTemplate(quotation, organisation);
+        const profDoc = generateProfessionalTemplate(quotation, organisation, template);
         const safeFileName = String(quotation.quotation_no || 'quotation')
           .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
           .replace(/\s+/g, '_');
         profDoc.save(`${safeFileName}.pdf`);
+        return;
+      }
+
+      // Special handling for Zoho Template
+      if (template.template_code === 'QTN_ZOHO') {
+        const zohoDoc = generateZohoTemplate(quotation, organisation, template);
+        const safeFileName = String(quotation.quotation_no || 'quotation')
+          .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
+          .replace(/\s+/g, '_');
+        zohoDoc.save(`${safeFileName}.pdf`);
+        return;
+      }
+
+      // Special handling for AURUM GRID Template
+      if (template.template_code === 'DOC_AURUM_QUO_V1') {
+        const aurumDoc = generateAurumGridTemplate(quotation, organisation, template);
+        const safeFileName = String(quotation.quotation_no || 'quotation')
+          .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
+          .replace(/\s+/g, '_');
+        aurumDoc.save(`${safeFileName}.pdf`);
         return;
       }
 

@@ -993,9 +993,33 @@ export default function CreateQuotation() {
         is_override: false,
         final_rate_snapshot: 0,
         display_order: prev.length,
+        is_header: false,
         // Phase-1: Custom columns
         custom1: '',
         custom2: ''
+      }
+    ]);
+  };
+
+  const addSectionHeader = () => {
+    const rowId = Date.now() + Math.random();
+    setItems((prev) => [
+      ...prev,
+      {
+        id: rowId,
+        item_id: null,
+        variant_id: null,
+        description: '',
+        qty: 0,
+        uom: '',
+        rate: 0,
+        discount_percent: 0,
+        discount_amount: 0,
+        tax_percent: 0,
+        tax_amount: 0,
+        line_total: 0,
+        is_header: true,
+        display_order: prev.length
       }
     ]);
   };
@@ -1582,6 +1606,13 @@ export default function CreateQuotation() {
               + Add Row
             </button>
             <button 
+              className="btn btn-secondary" 
+              onClick={addSectionHeader}
+              style={{ borderRadius: '8px', fontWeight: 500, background: '#f8fafc', color: '#1e293b', border: '1px solid #e2e8f0' }}
+            >
+              + Add Section Header
+            </button>
+            <button 
               className="btn btn-primary" 
               onClick={() => setShowItemPicker(true)}
               style={{ borderRadius: '8px', fontWeight: 500 }}
@@ -1630,177 +1661,210 @@ export default function CreateQuotation() {
                   </td>
                 </tr>
               ) : (
-                items.map((item, index) => (
-                  <tr 
-                    key={item.id} 
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, item.id)}
-                    onDragOver={handleDragOver}
-                    onDrop={(e) => handleDropOnRow(e, item.id)}
-                    onDragEnd={handleDragEnd}
-                    className={draggingItemId === item.id ? 'row-dragging' : item.is_override ? 'override-indicator' : ''}
-                  >
-                    <td className="text-center cell-static col-shrink row-drag-handle" title="Drag to reorder">
-                      {index + 1}
-                    </td>
-                    <td className="col-shrink">
-                      <input
-                        type="text"
-                        className="cell-input text-center"
-                        value={item.hsn_code || item.material?.hsn_code || materials.find(m => m.id === item.item_id)?.hsn_code || ''}
-                        readOnly
+                items.map((item, index) => {
+                  if (item.is_header) {
+                    return (
+                      <tr 
+                        key={item.id} 
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, item.id)}
+                        onDragOver={handleDragOver}
+                        onDrop={(e) => handleDropOnRow(e, item.id)}
+                        onDragEnd={handleDragEnd}
                         style={{ background: '#f8fafc' }}
-                      />
-                    </td>
-                    <td className="col-item">
-                      <select
-                        className="cell-select"
-                        value={item.item_id}
-                        onChange={(e) => {
-                          const mat = materials.find(m => m.id === e.target.value);
-                          updateItem(item.id, 'item_id', e.target.value);
-                          if (mat) {
-                            updateItem(item.id, 'material', mat);
-                            updateItem(item.id, 'hsn_code', mat.hsn_code || '');
-                            updateItem(item.id, 'description', mat.display_name || mat.name);
-                            const newRate = getRateForMaterialVariant(mat, item.variant_id || null);
-                            updateItem(item.id, 'base_rate_snapshot', newRate);
-                            const finalRate = calculateVariantDiscountedRate(newRate, item.applied_discount_percent || 0);
-                            updateItem(item.id, 'rate', finalRate);
-                            updateItem(item.id, 'uom', mat.unit || 'Nos');
-                          }
-                        }}
                       >
-                        <option value="">Select Item</option>
-                        {materials.map(m => (
-                          <option key={m.id} value={m.id}>{m.display_name || m.name}</option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className="col-shrink">
-                      <select
-                        className="cell-select"
-                        value={item.variant_id || ''}
-                        onChange={(e) => {
-                          const nextVariant = e.target.value || null;
-                          updateItem(item.id, 'variant_id', nextVariant);
-                          const mat = materials.find(m => m.id === item.item_id);
-                          if (mat) {
-                            const newRate = getRateForMaterialVariant(mat, nextVariant);
-                            const variantDiscount = nextVariant ? (headerDiscounts[nextVariant] || 0) : 0;
-                            const finalRate = calculateVariantDiscountedRate(newRate, variantDiscount);
-                            updateItem(item.id, 'base_rate_snapshot', newRate);
-                            updateItem(item.id, 'rate', finalRate);
-                          }
-                        }}
-                      >
-                        <option value="">No Variant</option>
-                        {variants.map(v => (
-                          <option key={v.id} value={v.id}>{v.variant_name}</option>
-                        ))}
-                      </select>
-                    </td>
-                    <td className="col-shrink">
-                      <input
-                        type="number"
-                        className="cell-input text-right"
-                        value={item.qty}
-                        onChange={(e) => updateItem(item.id, 'qty', e.target.value)}
-                        min="0"
-                      />
-                    </td>
-                    <td className="col-shrink">
-                      <input
-                        type="text"
-                        className="cell-input text-center"
-                        value={item.uom}
-                        onChange={(e) => updateItem(item.id, 'uom', e.target.value)}
-                      />
-                    </td>
-                    <td className="col-shrink">
-                      <input
-                        type="number"
-                        className="cell-input text-right"
-                        value={item.base_rate_snapshot || 0}
-                        readOnly
-                        style={{ background: '#f8fafc' }}
-                      />
-                    </td>
-                    <td className="col-shrink">
-                      <input
-                        type="number"
-                        className="cell-input text-right"
-                        value={item.discount_percent || 0}
-                        onChange={(e) => {
-                          const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0));
-                          updateItem(item.id, 'discount_percent', val);
-                        }}
-                        style={item.is_override ? { 
-                          background: '#fef3c7',
-                          border: '1px solid #f59e0b'
-                        } : item.discount_percent > (discountSettings[item.variant_id]?.max || 100) ? {
-                          background: '#fee2e2',
-                          border: '1px solid #dc2626'
-                        } : {}}
-                        title={item.is_override ? `Overridden from ${headerDiscounts[item.variant_id] || 0}%` : ''}
-                      />
-                      {item.is_override && (
-                        <div style={{ fontSize: '9px', color: '#b45309', marginTop: '2px' }}>
-                          Override
-                        </div>
-                      )}
-                      {item.variant_id && discountSettings[item.variant_id] && item.discount_percent > discountSettings[item.variant_id].max && !item.is_override && (
-                        <div style={{ fontSize: '9px', color: '#dc2626', marginTop: '2px' }}>
-                          Exceeds max {discountSettings[item.variant_id].max}%
-                        </div>
-                      )}
-                    </td>
-                    <td className="col-shrink">
-                      <input
-                        type="number"
-                        className="cell-input text-right"
-                        value={item.rate}
-                        onChange={(e) => updateItem(item.id, 'rate', e.target.value)}
-                        disabled={!formData.negotiation_mode}
-                        style={!formData.negotiation_mode ? { background: '#f8fafc' } : {}}
-                      />
-                    </td>
-                    <td className="col-shrink">
-                      <input
-                        type="number"
-                        className="cell-input text-right"
-                        value={item.tax_percent}
-                        onChange={(e) => updateItem(item.id, 'tax_percent', e.target.value)}
-                      />
-                    </td>
-                    {templateSettings?.column_settings?.optional?.custom1 && (
+                        <td className="text-center cell-static col-shrink row-drag-handle" title="Drag to reorder">
+                          :::
+                        </td>
+                        <td colSpan={11} style={{ padding: '4px 12px' }}>
+                          <input
+                            type="text"
+                            className="cell-input"
+                            style={{ fontWeight: 'bold', color: '#1e293b', background: 'transparent', border: 'none', borderBottom: '1px dashed #cbd5e1' }}
+                            placeholder="Enter Section Header (e.g. First Floor Piping)..."
+                            value={item.description}
+                            onChange={(e) => updateItem(item.id, 'description', e.target.value)}
+                          />
+                        </td>
+                        <td className="delete-cell col-shrink">
+                          <button type="button" className="btn-delete" onClick={() => removeItem(item.id)}>×</button>
+                        </td>
+                      </tr>
+                    );
+                  }
+
+                  return (
+                    <tr 
+                      key={item.id} 
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, item.id)}
+                      onDragOver={handleDragOver}
+                      onDrop={(e) => handleDropOnRow(e, item.id)}
+                      onDragEnd={handleDragEnd}
+                      className={draggingItemId === item.id ? 'row-dragging' : item.is_override ? 'override-indicator' : ''}
+                    >
+                      <td className="text-center cell-static col-shrink row-drag-handle" title="Drag to reorder">
+                        {index + 1}
+                      </td>
                       <td className="col-shrink">
                         <input
                           type="text"
-                          className="cell-input"
-                          value={item.custom1 || ''}
-                          onChange={(e) => updateItem(item.id, 'custom1', e.target.value)}
+                          className="cell-input text-center"
+                          value={item.hsn_code || item.material?.hsn_code || materials.find(m => m.id === item.item_id)?.hsn_code || ''}
+                          readOnly
+                          style={{ background: '#f8fafc' }}
                         />
                       </td>
-                    )}
-                    {templateSettings?.column_settings?.optional?.custom2 && (
+                      <td className="col-item">
+                        <select
+                          className="cell-select"
+                          value={item.item_id}
+                          onChange={(e) => {
+                            const mat = materials.find(m => m.id === e.target.value);
+                            updateItem(item.id, 'item_id', e.target.value);
+                            if (mat) {
+                              updateItem(item.id, 'material', mat);
+                              updateItem(item.id, 'hsn_code', mat.hsn_code || '');
+                              updateItem(item.id, 'description', mat.display_name || mat.name);
+                              const newRate = getRateForMaterialVariant(mat, item.variant_id || null);
+                              updateItem(item.id, 'base_rate_snapshot', newRate);
+                              const finalRate = calculateVariantDiscountedRate(newRate, item.applied_discount_percent || 0);
+                              updateItem(item.id, 'rate', finalRate);
+                              updateItem(item.id, 'uom', mat.unit || 'Nos');
+                            }
+                          }}
+                        >
+                          <option value="">Select Item</option>
+                          {materials.map(m => (
+                            <option key={m.id} value={m.id}>{m.display_name || m.name}</option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="col-shrink">
+                        <select
+                          className="cell-select"
+                          value={item.variant_id || ''}
+                          onChange={(e) => {
+                            const nextVariant = e.target.value || null;
+                            updateItem(item.id, 'variant_id', nextVariant);
+                            const mat = materials.find(m => m.id === item.item_id);
+                            if (mat) {
+                              const newRate = getRateForMaterialVariant(mat, nextVariant);
+                              const variantDiscount = nextVariant ? (headerDiscounts[nextVariant] || 0) : 0;
+                              const finalRate = calculateVariantDiscountedRate(newRate, variantDiscount);
+                              updateItem(item.id, 'base_rate_snapshot', newRate);
+                              updateItem(item.id, 'rate', finalRate);
+                            }
+                          }}
+                        >
+                          <option value="">No Variant</option>
+                          {variants.map(v => (
+                            <option key={v.id} value={v.id}>{v.variant_name}</option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="col-shrink">
+                        <input
+                          type="number"
+                          className="cell-input text-right"
+                          value={item.qty}
+                          onChange={(e) => updateItem(item.id, 'qty', e.target.value)}
+                          min="0"
+                        />
+                      </td>
                       <td className="col-shrink">
                         <input
                           type="text"
-                          className="cell-input"
-                          value={item.custom2 || ''}
-                          onChange={(e) => updateItem(item.id, 'custom2', e.target.value)}
+                          className="cell-input text-center"
+                          value={item.uom}
+                          onChange={(e) => updateItem(item.id, 'uom', e.target.value)}
                         />
                       </td>
-                    )}
-                    <td className="col-shrink cell-static text-right amount-value">
-                      {formatCurrency((parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0))}
-                    </td>
-                    <td className="delete-cell col-shrink">
-                      <button type="button" className="btn-delete" onClick={() => removeItem(item.id)}>×</button>
-                    </td>
-                  </tr>
-                ))
+                      <td className="col-shrink">
+                        <input
+                          type="number"
+                          className="cell-input text-right"
+                          value={item.base_rate_snapshot || 0}
+                          readOnly
+                          style={{ background: '#f8fafc' }}
+                        />
+                      </td>
+                      <td className="col-shrink">
+                        <input
+                          type="number"
+                          className="cell-input text-right"
+                          value={item.discount_percent || 0}
+                          onChange={(e) => {
+                            const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0));
+                            updateItem(item.id, 'discount_percent', val);
+                          }}
+                          style={item.is_override ? { 
+                            background: '#fef3c7',
+                            border: '1px solid #f59e0b'
+                          } : item.discount_percent > (discountSettings[item.variant_id]?.max || 100) ? {
+                            background: '#fee2e2',
+                            border: '1px solid #dc2626'
+                          } : {}}
+                          title={item.is_override ? `Overridden from ${headerDiscounts[item.variant_id] || 0}%` : ''}
+                        />
+                        {item.is_override && (
+                          <div style={{ fontSize: '9px', color: '#b45309', marginTop: '2px' }}>
+                            Override
+                          </div>
+                        )}
+                        {item.variant_id && discountSettings[item.variant_id] && item.discount_percent > discountSettings[item.variant_id].max && !item.is_override && (
+                          <div style={{ fontSize: '9px', color: '#dc2626', marginTop: '2px' }}>
+                            Exceeds max {discountSettings[item.variant_id].max}%
+                          </div>
+                        )}
+                      </td>
+                      <td className="col-shrink">
+                        <input
+                          type="number"
+                          className="cell-input text-right"
+                          value={item.rate}
+                          onChange={(e) => updateItem(item.id, 'rate', e.target.value)}
+                          disabled={!formData.negotiation_mode}
+                          style={!formData.negotiation_mode ? { background: '#f8fafc' } : {}}
+                        />
+                      </td>
+                      <td className="col-shrink">
+                        <input
+                          type="number"
+                          className="cell-input text-right"
+                          value={item.tax_percent}
+                          onChange={(e) => updateItem(item.id, 'tax_percent', e.target.value)}
+                        />
+                      </td>
+                      {templateSettings?.column_settings?.optional?.custom1 && (
+                        <td className="col-shrink">
+                          <input
+                            type="text"
+                            className="cell-input"
+                            value={item.custom1 || ''}
+                            onChange={(e) => updateItem(item.id, 'custom1', e.target.value)}
+                          />
+                        </td>
+                      )}
+                      {templateSettings?.column_settings?.optional?.custom2 && (
+                        <td className="col-shrink">
+                          <input
+                            type="text"
+                            className="cell-input"
+                            value={item.custom2 || ''}
+                            onChange={(e) => updateItem(item.id, 'custom2', e.target.value)}
+                          />
+                        </td>
+                      )}
+                      <td className="col-shrink cell-static text-right amount-value">
+                        {formatCurrency((parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0))}
+                      </td>
+                      <td className="delete-cell col-shrink">
+                        <button type="button" className="btn-delete" onClick={() => removeItem(item.id)}>×</button>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
               
               <tr className="total-row">

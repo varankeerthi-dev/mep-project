@@ -4,6 +4,8 @@ import { useAuth } from '../App';
 import { fetchDeliveryChallans, deleteDeliveryChallan, fetchProjects } from '../api';
 import { supabase } from '../supabase';
 import { format } from 'date-fns';
+import { generateZohoTemplate } from './ZohoTemplate';
+import { generateAurumGridTemplate } from './AurumGridTemplate';
 
 export default function DCList() {
   const navigate = useNavigate();
@@ -101,6 +103,28 @@ export default function DCList() {
       }
 
       const dcWithItems = await loadDCWithItems(challan.id);
+
+      // Special handling for Zoho Template
+      if (template.template_code === 'DC_ZOHO') {
+        const zohoDoc = generateZohoTemplate(dcWithItems, organisation, template);
+        const safeFileName = String(dcWithItems.dc_number || 'dc')
+          .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
+          .replace(/\s+/g, '_');
+        zohoDoc.save(`${safeFileName}.pdf`);
+        setShowPrintMenu({});
+        return;
+      }
+
+      // Special handling for AURUM GRID Template
+      if (template.template_code === 'DOC_AURUM_DC_V1') {
+        const aurumDoc = generateAurumGridTemplate(dcWithItems, organisation, template);
+        const safeFileName = String(dcWithItems.dc_number || 'dc')
+          .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
+          .replace(/\s+/g, '_');
+        aurumDoc.save(`${safeFileName}.pdf`);
+        setShowPrintMenu({});
+        return;
+      }
       
       const isLandscape = template.orientation === 'Landscape';
       const { default: jsPDF } = await import('jspdf');

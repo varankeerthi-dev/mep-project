@@ -5,7 +5,7 @@ import autoTable from 'jspdf-autotable';
  * Generates a standard A4 document PDF (Quotation/Invoice/etc.) in a consistent grid/tabular format.
  * This is the generic implementation of the "A4" template.
  */
-export const generateDocumentA4 = (data, organisation, documentTitle = 'DOCUMENT') => {
+export const generateDocumentA4 = (data, organisation, templateSettings = null) => {
   const {
     document_no,
     document_date,
@@ -32,6 +32,18 @@ export const generateDocumentA4 = (data, organisation, documentTitle = 'DOCUMENT
   const pageHeight = doc.internal.pageSize.height;
   const margin = 10;
   const colWidth = (pageWidth - 2 * margin) / 2;
+
+  const documentTitle = data.document_no?.startsWith('QT') ? 'QUOTATION' : 'INVOICE';
+  
+  // Dynamic header labels from settings
+  const headerLabels = templateSettings?.column_settings?.header_labels || {
+    document_no: documentTitle === 'QUOTATION' ? 'Quotation No' : 'Invoice No',
+    document_date: 'Date',
+    po_no: 'Ref/PO No',
+    po_date: 'Ref/PO Date',
+    remarks: 'Remarks',
+    eway_bill: 'E-Way Bill'
+  };
 
   // --- PAGE BORDER ---
   doc.setDrawColor(0);
@@ -60,7 +72,7 @@ export const generateDocumentA4 = (data, organisation, documentTitle = 'DOCUMENT
   doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(0);
-  doc.text(documentTitle.toUpperCase(), pageWidth / 2, margin + 10, { align: 'center' });
+  doc.text(documentTitle, pageWidth / 2, margin + 10, { align: 'center' });
 
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
@@ -118,12 +130,11 @@ export const generateDocumentA4 = (data, organisation, documentTitle = 'DOCUMENT
   doc.setDrawColor(0);
   doc.rect(invDetailsX - 2, currentY + 2, 50, 25);
   doc.setFontSize(8);
-  const numLabel = documentTitle.includes('Quotation') ? 'Quotation No' : 'Invoice No';
-  doc.text(`${numLabel}: ${document_no}`, invDetailsX, currentY + 7);
-  doc.text(`Date: ${document_date}`, invDetailsX, currentY + 11);
-  doc.text(`Ref/PO No: ${reference_no || '-'}`, invDetailsX, currentY + 15);
-  doc.text(`Ref/PO Date: ${reference_date || '-'}`, invDetailsX, currentY + 19);
-  doc.text(`Due/Expiry: ${due_date || '-'}`, invDetailsX, currentY + 23);
+  doc.text(`${headerLabels.document_no}: ${document_no}`, invDetailsX, currentY + 7);
+  doc.text(`${headerLabels.document_date}: ${document_date}`, invDetailsX, currentY + 11);
+  doc.text(`${headerLabels.po_no}: ${reference_no || '-'}`, invDetailsX, currentY + 15);
+  doc.text(`${headerLabels.po_date}: ${reference_date || '-'}`, invDetailsX, currentY + 19);
+  doc.text(`${headerLabels.eway_bill}: ${data.eway_bill || '-'}`, invDetailsX, currentY + 23);
 
   currentY += detailsHeight;
   hLine(currentY);
@@ -132,18 +143,24 @@ export const generateDocumentA4 = (data, organisation, documentTitle = 'DOCUMENT
   autoTable(doc, {
     startY: currentY,
     head: [['SI', 'HSN/SAC', 'Description of Goods', 'Quantity', 'Unit', 'Rate', 'Per', 'Disc %', 'GST %', 'Amount']],
-    body: (items || []).map((item, index) => [
-      index + 1,
-      item.hsn_sac || '-',
-      item.description || '-',
-      item.qty || 0,
-      item.unit || '-',
-      item.rate || 0,
-      item.per || '-',
-      item.disc_percent || 0,
-      item.gst_percent || 0,
-      item.amount || 0
-    ]),
+    body: (items || []).map((item, index) => {
+      // Handle Section Header
+      if (item.is_header) {
+        return [{ content: item.description, colSpan: 10, styles: { fontStyle: 'bold', fillColor: [245, 245, 245] } }];
+      }
+      return [
+        index + 1,
+        item.hsn_sac || '-',
+        item.description || '-',
+        item.qty || 0,
+        item.unit || '-',
+        item.rate || 0,
+        item.per || '-',
+        item.disc_percent || 0,
+        item.gst_percent || 0,
+        item.amount || 0
+      ];
+    }),
     theme: 'grid',
     headStyles: { fillColor: [240, 240, 240], textColor: 0, fontStyle: 'bold', fontSize: 8 },
     styles: { fontSize: 8, cellPadding: 2 },

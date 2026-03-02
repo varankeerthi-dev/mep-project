@@ -244,6 +244,19 @@ export default function TemplateSettings() {
     });
   };
 
+  const handleHeaderLabelChange = (fieldKey, label) => {
+    setFormData({
+      ...formData,
+      column_settings: {
+        ...formData.column_settings,
+        header_labels: {
+          ...(formData.column_settings?.header_labels || {}),
+          [fieldKey]: label
+        }
+      }
+    });
+  };
+
   const [showPreview, setShowPreview] = useState(false);
 
   const generatePreviewHTML = () => {
@@ -599,6 +612,32 @@ export default function TemplateSettings() {
           </div>
 
           <h4 style={{ marginBottom: '12px' }}>Column & Field Settings</h4>
+
+          <div style={{ marginBottom: '20px' }}>
+            <div style={{ fontWeight: 600, color: '#6b7280', marginBottom: '12px' }}>Edit Document Header Labels (e.g., rename "PO No" to "Order No")</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', background: '#f8fafc', padding: '16px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+              {[
+                { key: 'document_no', label: 'Document No Label' },
+                { key: 'document_date', label: 'Date Label' },
+                { key: 'po_no', label: 'PO No / Ref No Label' },
+                { key: 'po_date', label: 'PO Date / Ref Date Label' },
+                { key: 'remarks', label: 'Remarks Label' },
+                { key: 'eway_bill', label: 'E-Way Bill Label' }
+              ].map(field => (
+                <div key={field.key} className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ fontSize: '11px' }}>{field.label}</label>
+                  <input 
+                    type="text"
+                    className="form-input"
+                    style={{ padding: '6px 10px', fontSize: '12px' }}
+                    value={formData.column_settings?.header_labels?.[field.key] || ''}
+                    onChange={(e) => handleHeaderLabelChange(field.key, e.target.value)}
+                    placeholder="Leave blank for default"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
 
           <div>
             <div style={{ fontWeight: 600, color: '#6b7280', marginBottom: '8px' }}>Select fields to show on document</div>

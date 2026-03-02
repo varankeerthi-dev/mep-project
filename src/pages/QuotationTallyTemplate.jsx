@@ -10,9 +10,10 @@ import autoTable from 'jspdf-autotable';
  * - Amount in words placement
  * - Clear Declaration and Bank Details
  */
-export const generateQuotationTally = (data, organisation) => {
+export const generateQuotationTally = (data, organisation, templateSettings = null) => {
   const {
     quotation_no,
+    invoice_no,
     date,
     valid_till,
     payment_terms,
@@ -44,6 +45,18 @@ export const generateQuotationTally = (data, organisation) => {
   const pageHeight = doc.internal.pageSize.height;
   const margin = 10;
   
+  // Dynamic header labels from settings
+  const headerLabels = templateSettings?.column_settings?.header_labels || {
+    document_no: 'Quotation No.',
+    document_date: 'Dated',
+    po_no: 'PO No.',
+    po_date: 'PO Date',
+    remarks: 'Remarks',
+    eway_bill: 'E-Way Bill'
+  };
+
+  const docNo = quotation_no || invoice_no || '-';
+
   // Set default font
   doc.setFont('helvetica', 'normal');
 
@@ -57,7 +70,8 @@ export const generateQuotationTally = (data, organisation) => {
   // --- HEADER: DOCUMENT TITLE ---
   doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
-  doc.text('QUOTATION', pageWidth / 2, currentY + 5, { align: 'center' });
+  const docTitle = invoice_no ? 'TAX INVOICE' : 'QUOTATION';
+  doc.text(docTitle, pageWidth / 2, currentY + 5, { align: 'center' });
   currentY += 8;
   doc.line(margin, currentY, pageWidth - margin, currentY);
 
@@ -84,12 +98,12 @@ export const generateQuotationTally = (data, organisation) => {
 
   // Right: Document Details
   doc.setFontSize(9);
-  doc.text(`Quotation No.`, (pageWidth / 2) + 2, currentY + 5);
+  doc.text(headerLabels.document_no, (pageWidth / 2) + 2, currentY + 5);
   doc.setFont('helvetica', 'bold');
-  doc.text(`: ${quotation_no}`, (pageWidth / 2) + 30, currentY + 5);
+  doc.text(`: ${docNo}`, (pageWidth / 2) + 30, currentY + 5);
   
   doc.setFont('helvetica', 'normal');
-  doc.text(`Dated`, (pageWidth / 2) + 2, currentY + 10);
+  doc.text(headerLabels.document_date, (pageWidth / 2) + 2, currentY + 10);
   doc.text(`: ${date}`, (pageWidth / 2) + 30, currentY + 10);
 
   doc.text(`Valid Till`, (pageWidth / 2) + 2, currentY + 20);
@@ -130,16 +144,22 @@ export const generateQuotationTally = (data, organisation) => {
     startY: currentY,
     margin: { left: margin, right: margin },
     head: [['Sl\nNo.', 'Description of Goods', 'HSN/SAC', 'Quantity', 'Rate', 'per', 'Disc %', 'Amount']],
-    body: (items || []).map((item, index) => [
-      index + 1,
-      item.description || '-',
-      item.item?.hsn_code || '-',
-      `${item.qty} ${item.uom}`,
-      new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2 }).format(item.base_rate_snapshot || item.rate),
-      item.uom,
-      item.discount_percent > 0 ? `${item.discount_percent}%` : '',
-      new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2 }).format(item.line_total)
-    ]),
+    body: (items || []).map((item, index) => {
+      // Handle Section Header
+      if (item.is_header) {
+        return [{ content: item.description, colSpan: 8, styles: { fontStyle: 'bold', fillColor: [245, 245, 245] } }];
+      }
+      return [
+        index + 1,
+        item.description || '-',
+        item.item?.hsn_code || '-',
+        `${item.qty} ${item.uom}`,
+        new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2 }).format(item.base_rate_snapshot || item.rate),
+        item.uom,
+        item.discount_percent > 0 ? `${item.discount_percent}%` : '',
+        new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2 }).format(item.line_total)
+      ];
+    }),
     theme: 'grid',
     headStyles: { 
       fillColor: [255, 255, 255], 

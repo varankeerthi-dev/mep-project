@@ -10,7 +10,7 @@ import autoTable from 'jspdf-autotable';
  * - Comprehensive tax calculation display (CGST/SGST or IGST)
  * - Bank details and Authorised Signatory section
  */
-export const generateProfessionalTemplate = (data, organisation, type = 'Quotation') => {
+export const generateProfessionalTemplate = (data, organisation, templateSettings = null) => {
   const {
     quotation_no,
     invoice_no,
@@ -50,7 +50,18 @@ export const generateProfessionalTemplate = (data, organisation, type = 'Quotati
   
   const docNo = quotation_no || invoice_no || '-';
   const docDate = date || '-';
-  const documentTitle = type === 'Invoice' ? 'TAX INVOICE' : 'QUOTATION';
+  
+  // Dynamic header labels from settings
+  const headerLabels = templateSettings?.column_settings?.header_labels || {
+    document_no: 'invoice no:',
+    document_date: 'invoice date:',
+    po_no: 'PO No:',
+    po_date: 'PO Data:',
+    remarks: 'Remarks:',
+    eway_bill: 'E-Way bill:'
+  };
+
+  const documentTitle = data.invoice_no ? 'TAX INVOICE' : 'QUOTATION';
   const themeColor = organisation.theme_color || '#2563eb';
 
   // Helper for drawing boxes/lines
@@ -115,18 +126,18 @@ export const generateProfessionalTemplate = (data, organisation, type = 'Quotati
   doc.setFont('helvetica', 'normal');
   
   const fields = [
-    { label: 'invoice no:', value: docNo },
-    { label: 'invoice date:', value: docDate },
-    { label: 'PO No:', value: po_no || '-' },
-    { label: 'PO Data:', value: po_date || '-' },
-    { label: 'Remarks:', value: remarks || reference || '-' },
-    { label: 'E-Way bill:', value: eway_bill || '-' }
+    { label: headerLabels.document_no, value: docNo },
+    { label: headerLabels.document_date, value: docDate },
+    { label: headerLabels.po_no, value: po_no || '-' },
+    { label: headerLabels.po_date, value: po_date || '-' },
+    { label: headerLabels.remarks, value: remarks || reference || '-' },
+    { label: headerLabels.eway_bill, value: eway_bill || '-' }
   ];
 
   fields.forEach((f, i) => {
     doc.text(f.label, rightX + 2, fieldYStart + (i * fieldGap));
     doc.setFont('helvetica', 'bold');
-    doc.text(String(f.value), rightX + 22, fieldYStart + (i * fieldGap));
+    doc.text(String(f.value), rightX + 25, fieldYStart + (i * fieldGap));
     doc.setFont('helvetica', 'normal');
     if (i < fields.length - 1) {
        drawLine(rightX, fieldYStart + (i * fieldGap) + 1.5, pageWidth - margin, fieldYStart + (i * fieldGap) + 1.5);
@@ -145,16 +156,14 @@ export const generateProfessionalTemplate = (data, organisation, type = 'Quotati
   doc.setFont('helvetica', 'bold');
   doc.text('Bill To:', margin + 2, currentY + 5);
   doc.setFont('helvetica', 'normal');
-  const billAddressLines = doc.splitTextToSize(`${client?.client_name || ''}
-${billing_address || ''}`, (contentWidth / 2) - 4);
+  const billAddressLines = doc.splitTextToSize(`${client?.client_name || ''}\n${billing_address || ''}`, (contentWidth / 2) - 4);
   doc.text(billAddressLines, margin + 2, currentY + 10);
 
   // Ship To
   doc.setFont('helvetica', 'bold');
   doc.text('Ship To:', (pageWidth / 2) + 2, currentY + 5);
   doc.setFont('helvetica', 'normal');
-  const shipAddressLines = doc.splitTextToSize(`${client?.client_name || ''}
-${data.shipping_address || billing_address || ''}`, (contentWidth / 2) - 4);
+  const shipAddressLines = doc.splitTextToSize(`${client?.client_name || ''}\n${data.shipping_address || billing_address || ''}`, (contentWidth / 2) - 4);
   doc.text(shipAddressLines, (pageWidth / 2) + 2, currentY + 10);
 
   currentY += partyHeight;
@@ -177,16 +186,22 @@ ${data.shipping_address || billing_address || ''}`, (contentWidth / 2) - 4);
     startY: currentY,
     margin: { left: margin, right: margin },
     head: [['S.No', 'HSN/SAC', 'item', 'Qty', 'Unit', 'Rate/Unit', 'GST %', 'Amount']],
-    body: (items || []).map((item, index) => [
-      index + 1,
-      item.item?.hsn_code || '-',
-      item.description || item.item?.name || '-',
-      item.qty || 0,
-      item.uom || '-',
-      new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2 }).format(item.rate || 0),
-      `${item.tax_percent || 0}%`,
-      new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2 }).format(item.line_total || 0)
-    ]),
+    body: (items || []).map((item, index) => {
+      // Handle Section Header
+      if (item.is_header) {
+        return [{ content: item.description, colSpan: 8, styles: { fontStyle: 'bold', fillColor: [245, 245, 245] } }];
+      }
+      return [
+        index + 1,
+        item.item?.hsn_code || '-',
+        item.description || item.item?.name || '-',
+        item.qty || 0,
+        item.uom || '-',
+        new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2 }).format(item.rate || 0),
+        `${item.tax_percent || 0}%`,
+        new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2 }).format(item.line_total || 0)
+      ];
+    }),
     theme: 'grid',
     headStyles: { 
       fillColor: [255, 255, 255], 
