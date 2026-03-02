@@ -1357,3 +1357,8 @@ body {
 .grid-table .btn-delete:hover {
   color: #ef4444;
 }
+
+.grid-table .col-item {
+  width: auto;
+  min-width: 200px;
+}

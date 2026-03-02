@@ -74,6 +74,38 @@ export default function CreateNonBillableDC({ onSuccess, onCancel, editDC }) {
     { id: 1, material_id: '', variant_id: '', material_name: '', unit: 'nos', quantity: '', rate: '', amount: 0, uses_variant: false, available_qty: 0, valid: false, is_service: false }
   ]);
   const [isDirty, setIsDirty] = useState(false);
+  const [draggingItemId, setDraggingItemId] = useState(null);
+
+  const handleDragStart = (e, id) => {
+    setDraggingItemId(id);
+    e.dataTransfer.setData('text/plain', id);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDropOnRow = (e, targetId) => {
+    e.preventDefault();
+    const draggedId = e.dataTransfer.getData('text/plain');
+    if (draggedId == targetId) return;
+
+    const newItems = [...items];
+    const draggedIdx = newItems.findIndex(i => i.id == draggedId);
+    const targetIdx = newItems.findIndex(i => i.id == targetId);
+
+    if (draggedIdx !== -1 && targetIdx !== -1) {
+      const [draggedItem] = newItems.splice(draggedIdx, 1);
+      newItems.splice(targetIdx, 0, draggedItem);
+      setItems(newItems);
+    }
+  };
+
+  const handleDragEnd = () => {
+    setDraggingItemId(null);
+  };
 
   useEffect(() => {
     if (!loading) setIsDirty(true);
@@ -756,8 +788,21 @@ export default function CreateNonBillableDC({ onSuccess, onCancel, editDC }) {
               </thead>
               <tbody>
                 {items.map((item, index) => (
-                  <tr key={item.id} style={{ background: !item.valid && item.material_id ? '#fff3cd' : 'transparent' }}>
-                    <td className="text-center cell-static col-shrink">{index + 1}</td>
+                  <tr 
+                    key={item.id} 
+                    style={{ 
+                      background: !item.valid && item.material_id ? '#fff3cd' : 'transparent',
+                      opacity: draggingItemId === item.id ? 0.5 : 1
+                    }}
+                    draggable={!isLocked}
+                    onDragStart={(e) => handleDragStart(e, item.id)}
+                    onDragOver={handleDragOver}
+                    onDrop={(e) => handleDropOnRow(e, item.id)}
+                    onDragEnd={handleDragEnd}
+                  >
+                    <td className="text-center cell-static col-shrink" style={{ cursor: 'grab' }} title="Drag to reorder">
+                      {index + 1}
+                    </td>
                     <td className="col-item">
                       <select 
                         className="cell-select"

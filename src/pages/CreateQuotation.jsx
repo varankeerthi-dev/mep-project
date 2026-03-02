@@ -1570,97 +1570,72 @@ export default function CreateQuotation() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
           <h3 style={{ margin: 0 }}>Items</h3>
           <div style={{ display: 'flex', gap: '8px' }}>
-            <button
-              className="btn btn-secondary"
-              onClick={addEmptyItemRow}
-            >
-              + Add Row
-            </button>
-            <button
-              className="btn btn-primary"
-              onClick={() => setShowItemPicker(true)}
-            >
-              + Add Multiple Items
-            </button>
-            <button
-              className="btn btn-secondary"
-              style={{ fontSize: '12px', padding: '6px 12px' }}
-              onClick={() => setShowCustomLabelEditor(true)}
-            >
-              ⚙ Custom Columns
-            </button>
+            <button className="btn btn-secondary btn-sm" onClick={addEmptyItemRow}>+ Add Row</button>
+            <button className="btn btn-primary btn-sm" onClick={() => setShowItemPicker(true)}>+ Add Multiple Items</button>
+            <button className="btn btn-secondary btn-sm" onClick={() => setShowCustomLabelEditor(true)}>⚙ Custom Columns</button>
           </div>
         </div>
 
-        <div style={{ overflowX: 'auto' }}>
-          <table className="table" style={{ minWidth: isMobile ? '1200px' : '1160px' }}>
+        <div className="grid-table-container">
+          <table className="grid-table">
             <thead>
               <tr>
-                <th style={{ ...compactHeadCellStyle, width: '40px', textAlign: 'center' }} title="Drag to reorder">
-                  <span style={{ fontSize: '14px' }}>☰</span>
-                </th>
-                <th style={{ ...compactHeadCellStyle, width: '50px' }}>S.No</th>
-                <th style={{ ...compactHeadCellStyle, width: '100px' }}>HSN</th>
-                <th style={{ ...compactHeadCellStyle, width: '120px' }}>Item</th>
-                <th style={{ ...compactHeadCellStyle, width: '120px' }}>Variant</th>
-                <th style={{ ...compactHeadCellStyle, width: '60px' }}>Qty</th>
-                <th style={{ ...compactHeadCellStyle, width: '70px' }}>Unit</th>
-                <th style={{ ...compactHeadCellStyle, width: '90px' }}>Rate</th>
-                <th style={{ ...compactHeadCellStyle, width: '70px' }}>Disc %</th>
-                <th style={{ ...compactHeadCellStyle, width: '90px' }}>Rate after discount</th>
-                <th style={{ ...compactHeadCellStyle, width: '80px' }}>GST %</th>
+                <th className="col-shrink">#</th>
+                <th className="col-shrink">HSN</th>
+                <th className="col-item">ITEM</th>
+                <th className="col-shrink">VARIANT</th>
+                <th className="col-shrink">QTY</th>
+                <th className="col-shrink">UNIT</th>
+                <th className="col-shrink">RATE</th>
+                <th className="col-shrink">DISC %</th>
+                <th className="col-shrink">RATE AFTER DISC</th>
+                <th className="col-shrink">GST %</th>
                 {templateSettings?.column_settings?.optional?.custom1 && (
-                  <th style={{ ...compactHeadCellStyle, width: '100px' }}>
-                    {templateSettings.column_settings.labels?.custom1 || 'Custom 1'}
-                  </th>
+                  <th className="col-shrink">{templateSettings.column_settings.labels?.custom1 || 'Custom 1'}</th>
                 )}
                 {templateSettings?.column_settings?.optional?.custom2 && (
-                  <th style={{ ...compactHeadCellStyle, width: '100px' }}>
-                    {templateSettings.column_settings.labels?.custom2 || 'Custom 2'}
-                  </th>
+                  <th className="col-shrink">{templateSettings.column_settings.labels?.custom2 || 'Custom 2'}</th>
                 )}
-                <th style={{ ...compactHeadCellStyle, width: '110px' }}>Amount</th>
-                <th style={{ ...compactHeadCellStyle, width: '40px' }}></th>
+                <th className="col-shrink">AMOUNT</th>
+                <th className="col-shrink"></th>
               </tr>
             </thead>
             <tbody>
               {items.length === 0 ? (
                 <tr>
-                  <td colSpan={20} style={{ padding: '28px', textAlign: 'center', color: '#6b7280' }}>
+                  <td colSpan={20} className="cell-static text-center" style={{ padding: '40px', color: '#94a3b8' }}>
                     No items added. Click "Add Row" or "Add Multiple Items".
                   </td>
                 </tr>
               ) : (
                 items.map((item, index) => (
-                  <tr
-                    key={item.id}
+                  <tr 
+                    key={item.id} 
                     draggable
                     onDragStart={(e) => handleDragStart(e, item.id)}
                     onDragOver={handleDragOver}
                     onDrop={(e) => handleDropOnRow(e, item.id)}
                     onDragEnd={handleDragEnd}
-                    style={{
+                    style={{ 
                       ...(draggingItemId === item.id ? { opacity: 0.55 } : {}),
-                      ...(item.is_override ? { background: '#eff6ff' } : {})
+                      ...(item.is_override ? { background: '#eff6ff' } : {}) 
                     }}
                   >
-                    <td style={{ ...compactBodyCellStyle, cursor: 'grab', textAlign: 'center', color: '#94a3b8', minHeight: '44px' }} title="Drag to reorder">
-                      <span style={{ fontSize: '16px' }}>☰</span>
+                    <td className="text-center cell-static col-shrink" style={{ cursor: 'grab' }} title="Drag to reorder">
+                      {index + 1}
                     </td>
-                    <td style={compactBodyCellStyle}>{index + 1}</td>
-                    <td style={compactBodyCellStyle}>
+                    <td className="col-shrink">
                       <input
                         type="text"
-                        className="form-input"
+                        className="cell-input text-center"
                         value={item.hsn_code || item.material?.hsn_code || materials.find(m => m.id === item.item_id)?.hsn_code || ''}
                         readOnly
-                        style={{ ...compactCellInputStyle, background: '#f8fafc' }}
+                        style={{ background: '#f8fafc' }}
                       />
                     </td>
-                    <td style={compactBodyCellStyle}>
+                    <td className="col-item">
                       <select
-                        className="form-select"
-                        style={{ ...compactCellInputStyle, minWidth: '120px' }}
+                        className="cell-select"
                         value={item.item_id}
                         onChange={(e) => {
                           const mat = materials.find(m => m.id === e.target.value);
@@ -1672,7 +1647,6 @@ export default function CreateQuotation() {
                             const newRate = getRateForMaterialVariant(mat, item.variant_id || null);
                             updateItem(item.id, 'base_rate_snapshot', newRate);
                             const finalRate = calculateVariantDiscountedRate(newRate, item.applied_discount_percent || 0);
-                            updateItem(item.id, 'final_rate_snapshot', finalRate);
                             updateItem(item.id, 'rate', finalRate);
                             updateItem(item.id, 'uom', mat.unit || 'Nos');
                           }
@@ -1684,10 +1658,9 @@ export default function CreateQuotation() {
                         ))}
                       </select>
                     </td>
-                    <td style={compactBodyCellStyle}>
+                    <td className="col-shrink">
                       <select
-                        className="form-select"
-                        style={compactCellInputStyle}
+                        className="cell-select"
                         value={item.variant_id || ''}
                         onChange={(e) => {
                           const nextVariant = e.target.value || null;
@@ -1698,8 +1671,6 @@ export default function CreateQuotation() {
                             const variantDiscount = nextVariant ? (headerDiscounts[nextVariant] || 0) : 0;
                             const finalRate = calculateVariantDiscountedRate(newRate, variantDiscount);
                             updateItem(item.id, 'base_rate_snapshot', newRate);
-                            updateItem(item.id, 'applied_discount_percent', variantDiscount);
-                            updateItem(item.id, 'final_rate_snapshot', finalRate);
                             updateItem(item.id, 'rate', finalRate);
                           }
                         }}
@@ -1710,124 +1681,102 @@ export default function CreateQuotation() {
                         ))}
                       </select>
                     </td>
-                    <td style={compactBodyCellStyle}>
+                    <td className="col-shrink">
                       <input
                         type="number"
-                        className="form-input"
-                        style={compactCellInputStyle}
+                        className="cell-input text-right"
                         value={item.qty}
                         onChange={(e) => updateItem(item.id, 'qty', e.target.value)}
                         min="0"
-                        step="0.01"
                       />
                     </td>
-                    <td style={compactBodyCellStyle}>
+                    <td className="col-shrink">
                       <input
                         type="text"
-                        className="form-input"
-                        style={compactCellInputStyle}
+                        className="cell-input text-center"
                         value={item.uom}
                         onChange={(e) => updateItem(item.id, 'uom', e.target.value)}
                       />
                     </td>
-                    <td style={compactBodyCellStyle}>
+                    <td className="col-shrink">
                       <input
                         type="number"
-                        className="form-input"
-                        style={{ 
-                          ...compactCellInputStyle,
-                          background: '#f8fafc'
-                        }}
+                        className="cell-input text-right"
                         value={item.base_rate_snapshot || 0}
                         readOnly
-                        min="0"
-                        step="0.01"
+                        style={{ background: '#f8fafc' }}
                       />
                     </td>
-                    <td style={compactBodyCellStyle}>
+                    <td className="col-shrink">
                       <input
                         type="number"
-                        className="form-input"
-                        style={{ 
-                          ...compactCellInputStyle,
-                          ...(item.is_override ? { background: '#eff6ff', border: '1px solid #3b82f6', fontWeight: 600 } : {})
-                        }}
+                        className="cell-input text-right"
                         value={item.discount_percent || 0}
                         onChange={(e) => {
                           const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0));
                           updateItem(item.id, 'discount_percent', val);
                         }}
-                        min="0"
-                        max="100"
-                        step="0.01"
                       />
                     </td>
-                    <td style={compactBodyCellStyle}>
+                    <td className="col-shrink">
                       <input
                         type="number"
-                        className="form-input"
-                        style={{ 
-                          ...compactCellInputStyle, 
-                          ...(item.override_flag && formData.negotiation_mode ? { background: '#fef3c7' } : {}),
-                          ...(item.is_override ? { background: '#eff6ff', border: '1px solid #3b82f6' } : {})
-                        }}
+                        className="cell-input text-right"
                         value={item.rate}
                         onChange={(e) => updateItem(item.id, 'rate', e.target.value)}
-                        min="0"
-                        step="0.01"
                         disabled={!formData.negotiation_mode}
+                        style={!formData.negotiation_mode ? { background: '#f8fafc' } : {}}
                       />
                     </td>
-                    <td style={compactBodyCellStyle}>
+                    <td className="col-shrink">
                       <input
                         type="number"
-                        className="form-input"
-                        style={compactCellInputStyle}
+                        className="cell-input text-right"
                         value={item.tax_percent}
                         onChange={(e) => updateItem(item.id, 'tax_percent', e.target.value)}
-                        min="0"
-                        max="100"
-                        step="0.01"
                       />
                     </td>
                     {templateSettings?.column_settings?.optional?.custom1 && (
-                      <td style={compactBodyCellStyle}>
+                      <td className="col-shrink">
                         <input
                           type="text"
-                          className="form-input"
-                          style={compactCellInputStyle}
+                          className="cell-input"
                           value={item.custom1 || ''}
                           onChange={(e) => updateItem(item.id, 'custom1', e.target.value)}
-                          placeholder={templateSettings.column_settings.labels?.custom1 || 'Custom 1'}
                         />
                       </td>
                     )}
                     {templateSettings?.column_settings?.optional?.custom2 && (
-                      <td style={compactBodyCellStyle}>
+                      <td className="col-shrink">
                         <input
                           type="text"
-                          className="form-input"
-                          style={compactCellInputStyle}
+                          className="cell-input"
                           value={item.custom2 || ''}
                           onChange={(e) => updateItem(item.id, 'custom2', e.target.value)}
-                          placeholder={templateSettings.column_settings.labels?.custom2 || 'Custom 2'}
                         />
                       </td>
                     )}
-                    <td style={{ ...compactBodyCellStyle, fontWeight: 600, textAlign: 'right' }}>
+                    <td className="col-shrink cell-static text-right" style={{ fontWeight: '600', paddingRight: '12px' }}>
                       {formatCurrency((parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0))}
                     </td>
-                    <td style={compactBodyCellStyle}>
-                      <button
-                        className="btn btn-sm"
-                        style={{ color: '#dc2626', padding: '4px 8px' }}
-                        onClick={() => removeItem(item.id)}>
-                        x
-                      </button>
+                    <td className="delete-cell col-shrink">
+                      <button type="button" className="btn-delete" onClick={() => removeItem(item.id)}>×</button>
                     </td>
                   </tr>
                 ))
               )}
+              
+              <tr className="total-row">
+                <td colSpan={4} className="total-label">TOTAL</td>
+                <td className="text-right cell-static" style={{ fontWeight: 'bold' }}>
+                  {items.reduce((sum, i) => sum + (parseFloat(i.qty) || 0), 0).toFixed(2)}
+                </td>
+                <td colSpan={templateSettings?.column_settings?.optional?.custom1 && templateSettings?.column_settings?.optional?.custom2 ? 7 : templateSettings?.column_settings?.optional?.custom1 || templateSettings?.column_settings?.optional?.custom2 ? 6 : 5}></td>
+                <td className="text-right cell-static" style={{ fontWeight: 'bold', paddingRight: '12px' }}>
+                  {formatCurrency(items.reduce((sum, i) => sum + ((parseFloat(i.qty) || 0) * (parseFloat(i.rate) || 0)), 0))}
+                </td>
+                <td></td>
+              </tr>
             </tbody>
           </table>
         </div>
@@ -1874,7 +1823,7 @@ export default function CreateQuotation() {
               <span>Extra Discount</span>
               <span>- {formatCurrency(calculations.extraDiscountAmount)}</span>
             </div>
-            {(formData.state && formData.state !== companyState) ? (
+            {calculations.isInterState ? (
               <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6b7280' }}>
                 <span>IGST</span>
                 <span>{formatCurrency(calculations.igst)}</span>
@@ -1906,8 +1855,8 @@ export default function CreateQuotation() {
               <span>Grand Total</span>
               <span>{formatCurrency(calculations.grandTotal)}</span>
             </div>
-            <div style={{ color: '#6b7280', fontSize: '12px', fontStyle: 'italic' }}>
-              {calculations.amountInWords}
+            <div style={{ color: '#1e293b', fontSize: '12px', fontStyle: 'italic', fontWeight: 600 }}>
+              INR {calculations.amountInWords}
             </div>
           </div>
         </div>
