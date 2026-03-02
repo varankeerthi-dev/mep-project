@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS company_variants (
 
 ALTER TABLE company_variants ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Enable all access" ON company_variants;
+DROP POLICY IF EXISTS "company_variants_all_access" ON company_variants;
 CREATE POLICY "company_variants_all_access" ON company_variants FOR ALL USING (true) WITH CHECK (true);
 
 -- Insert default variants if table is empty
@@ -52,6 +53,7 @@ CREATE TABLE IF NOT EXISTS item_variant_pricing (
 
 ALTER TABLE item_variant_pricing ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Enable all access" ON item_variant_pricing;
+DROP POLICY IF EXISTS "item_variant_pricing_all_access" ON item_variant_pricing;
 CREATE POLICY "item_variant_pricing_all_access" ON item_variant_pricing FOR ALL USING (true) WITH CHECK (true);
 
 -- ============================================
@@ -90,6 +92,7 @@ CREATE TABLE IF NOT EXISTS item_stock (
 
 ALTER TABLE item_stock ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Enable all access" ON item_stock;
+DROP POLICY IF EXISTS "item_stock_all_access" ON item_stock;
 CREATE POLICY "item_stock_all_access" ON item_stock FOR ALL USING (true) WITH CHECK (true);
 
 CREATE INDEX IF NOT EXISTS idx_item_stock_item ON item_stock(item_id);
@@ -108,6 +111,7 @@ CREATE TABLE IF NOT EXISTS item_categories (
 
 ALTER TABLE item_categories ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Enable all access" ON item_categories;
+DROP POLICY IF EXISTS "item_categories_all_access" ON item_categories;
 CREATE POLICY "item_categories_all_access" ON item_categories FOR ALL USING (true) WITH CHECK (true);
 
 INSERT INTO item_categories (category_name) VALUES 
@@ -128,6 +132,7 @@ CREATE TABLE IF NOT EXISTS item_units (
 
 ALTER TABLE item_units ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Enable all access" ON item_units;
+DROP POLICY IF EXISTS "item_units_all_access" ON item_units;
 CREATE POLICY "item_units_all_access" ON item_units FOR ALL USING (true) WITH CHECK (true);
 
 INSERT INTO item_units (unit_name, unit_code) VALUES 
@@ -151,6 +156,7 @@ CREATE TABLE IF NOT EXISTS warehouses (
 
 ALTER TABLE warehouses ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Enable all access" ON warehouses;
+DROP POLICY IF EXISTS "warehouses_all_access" ON warehouses;
 CREATE POLICY "warehouses_all_access" ON warehouses FOR ALL USING (true) WITH CHECK (true);
 
 -- ============================================
@@ -174,6 +180,7 @@ CREATE TABLE IF NOT EXISTS services (
 
 ALTER TABLE services ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Enable all access" ON services;
+DROP POLICY IF EXISTS "services_all_access" ON services;
 CREATE POLICY "services_all_access" ON services FOR ALL USING (true) WITH CHECK (true);
 
 -- ============================================
@@ -198,6 +205,7 @@ CREATE TABLE IF NOT EXISTS organisations (
 
 ALTER TABLE organisations ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Enable all access" ON organisations;
+DROP POLICY IF EXISTS "organisations_all_access" ON organisations;
 CREATE POLICY "organisations_all_access" ON organisations FOR ALL USING (true) WITH CHECK (true);
 
 -- ============================================
@@ -214,6 +222,7 @@ CREATE TABLE IF NOT EXISTS org_members (
 
 ALTER TABLE org_members ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Enable all access" ON org_members;
+DROP POLICY IF EXISTS "org_members_all_access" ON org_members;
 CREATE POLICY "org_members_all_access" ON org_members FOR ALL USING (true) WITH CHECK (true);
 
 -- ============================================
