@@ -4,11 +4,13 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { formatDate, formatCurrency } from '../utils/formatters';
+import { useAuth } from '../App';
 
 export default function QuotationView() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const quotationId = searchParams.get('id');
+  const { organisation } = useAuth();
   
   const [loading, setLoading] = useState(true);
   const [quotation, setQuotation] = useState(null);
@@ -428,7 +430,8 @@ export default function QuotationView() {
       doc.text('Extra Discount:', summaryX, finalY + 12);
       doc.text(`-${formatCurrency(quotation.extra_discount_amount)}`, summaryX + 35, finalY + 12, { align: 'right' });
 
-      const isInterState = quotation.state !== 'Maharashtra';
+      const isInterState = quotation.state && organisation?.state && 
+                          quotation.state.trim().toLowerCase() !== organisation.state.trim().toLowerCase();
       if (isInterState) {
         doc.text('IGST:', summaryX, finalY + 18);
         doc.text(formatCurrency(quotation.total_tax), summaryX + 35, finalY + 18, { align: 'right' });
@@ -439,17 +442,19 @@ export default function QuotationView() {
         doc.text(formatCurrency(quotation.total_tax / 2), summaryX + 35, finalY + 24, { align: 'right' });
       }
 
-      doc.text('Round Off:', summaryX, finalY + (isInterState ? 24 : 30));
-      doc.text(formatCurrency(quotation.round_off), summaryX + 35, finalY + (isInterState ? 24 : 30), { align: 'right' });
+      const offset = isInterState ? 24 : 30;
+      doc.text('Round Off:', summaryX, finalY + offset);
+      doc.text(formatCurrency(quotation.round_off), summaryX + 35, finalY + offset, { align: 'right' });
 
       doc.setFontSize(11);
       doc.setFont('helvetica', 'bold');
-      doc.text('Grand Total:', summaryX, finalY + (isInterState ? 34 : 40));
-      doc.text(formatCurrency(quotation.grand_total), summaryX + 35, finalY + (isInterState ? 34 : 40), { align: 'right' });
+      const grandTotalOffset = isInterState ? 34 : 40;
+      doc.text('Grand Total:', summaryX, finalY + grandTotalOffset);
+      doc.text(formatCurrency(quotation.grand_total), summaryX + 35, finalY + grandTotalOffset, { align: 'right' });
 
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(9);
-      doc.text(`Payment Terms: ${quotation.payment_terms || '-'}`, 14, finalY + (isInterState ? 34 : 40));
+      doc.text(`Payment Terms: ${quotation.payment_terms || '-'}`, 14, finalY + grandTotalOffset);
 
       if (quotation.contact_no) {
         doc.text(`Contact No: ${quotation.contact_no}`, 14, finalY + (isInterState ? 42 : 48));
@@ -470,8 +475,20 @@ export default function QuotationView() {
 
       if (template.show_signature !== false) {
         const signStart = finalY + (isInterState ? 58 : 64);
-        doc.text(`For, ${quotation.client?.client_name || 'Company Name'}`, 140, signStart);
-        doc.text('Authorized Signature', 140, signStart + 15);
+        doc.text(`For, ${organisation?.name || 'Company Name'}`, 140, signStart);
+        
+        // Find selected signature
+        const selectedSignatory = (organisation?.signatures || []).find(s => s.id == quotation.authorized_signatory_id);
+        if (selectedSignatory?.url) {
+          try {
+            // Need to convert to base64 or ensure CORS for addImage
+            doc.addImage(selectedSignatory.url, 'PNG', 140, signStart + 2, 30, 15);
+          } catch (e) {
+            console.warn('Sign image error:', e);
+          }
+        }
+        
+        doc.text(selectedSignatory?.name || 'Authorized Signature', 140, signStart + 20);
       }
 
       const safeFileName = String(quotation.quotation_no || 'quotation')

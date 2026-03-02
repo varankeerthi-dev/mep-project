@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { supabase } from '../supabase';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { formatCurrency } from '../utils/formatters';
+import { useAuth } from '../App';
 
 const INDIAN_STATES = [
   'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
@@ -22,6 +23,8 @@ export default function CreateQuotation() {
   const [searchParams] = useSearchParams();
   const editId = searchParams.get('id');
   
+  const { organisation } = useAuth();
+  
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [clients, setClients] = useState([]);
@@ -29,7 +32,7 @@ export default function CreateQuotation() {
   const [materials, setMaterials] = useState([]);
   const [variants, setVariants] = useState([]);
   const [variantPricing, setVariantPricing] = useState({});
-  const [companyState, setCompanyState] = useState('Maharashtra');
+  const [companyState, setCompanyState] = useState(organisation?.state || 'Maharashtra');
   const [quoteNoPreview, setQuoteNoPreview] = useState('');
   const [draggingItemId, setDraggingItemId] = useState(null);
   
@@ -68,7 +71,8 @@ export default function CreateQuotation() {
     extra_discount_amount: 0,
     round_off: 0,
     status: 'Draft',
-    negotiation_mode: false
+    negotiation_mode: false,
+    authorized_signatory_id: ''
   });
 
   const [items, setItems] = useState([]);
@@ -997,10 +1001,13 @@ export default function CreateQuotation() {
     const afterExtraDiscount = afterItemDiscount - extraDiscountAmount;
     const extraDiscountManual = parseFloat(formData.extra_discount_amount) || 0;
     
-    const isInterState = formData.state && formData.state !== companyState;
-    const taxRate = isInterState ? totalTax : totalTax / 2;
-    const cgst = isInterState ? 0 : taxRate;
-    const sgst = isInterState ? 0 : taxRate;
+    // Dynamic GST Logic: Compare Buyer State with Organisation State
+    const isInterState = formData.state && companyState && 
+                        formData.state.trim().toLowerCase() !== companyState.trim().toLowerCase();
+    
+    // Tax splitting logic: Intra-state gets CGST/SGST (50/50), Inter-state gets full IGST
+    const cgst = isInterState ? 0 : totalTax / 2;
+    const sgst = isInterState ? 0 : totalTax / 2;
     const igst = isInterState ? totalTax : 0;
 
     const subtotalAfterDiscounts = afterItemDiscount - extraDiscountAmount - extraDiscountManual;
@@ -1013,6 +1020,7 @@ export default function CreateQuotation() {
       cgst,
       sgst,
       igst,
+      isInterState,
       totalTax,
       grandTotal,
       amountInWords: numberToWords(grandTotal)
@@ -1355,6 +1363,20 @@ export default function CreateQuotation() {
               </option>
               {clientContactOptions.map((opt) => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
+          <div className="form-group" style={{ margin: 0 }}>
+            <label className="form-label" style={compactLabelStyle}>Authorized Signatory</label>
+            <select
+              className="form-select"
+              style={compactFieldStyle}
+              value={formData.authorized_signatory_id || ''}
+              onChange={(e) => setFormData({ ...formData, authorized_signatory_id: e.target.value })}
+            >
+              <option value="">Select Signatory</option>
+              {(organisation?.signatures || []).map((sig) => (
+                <option key={sig.id} value={sig.id}>{sig.name}</option>
               ))}
             </select>
           </div>

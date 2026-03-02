@@ -2,18 +2,17 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { useNavigate } from 'react-router-dom';
 
+import { PortraitTemplate } from '../templates/PortraitTemplate';
+
 const DOCUMENT_TYPES = ['Quotation', 'Sales Order', 'Proforma Invoice', 'Delivery Challan', 'Invoice'];
 const PAGE_SIZES = ['A4', 'Letter'];
 const ORIENTATIONS = ['Portrait', 'Landscape'];
 
-const MANDATORY_COLUMNS = [
+const OPTIONAL_COLUMNS = [
   { key: 'sno', label: 'S.No' },
   { key: 'item', label: 'Item Name' },
   { key: 'qty', label: 'Quantity' },
-  { key: 'uom', label: 'Unit (UOM)' }
-];
-
-const OPTIONAL_COLUMNS = [
+  { key: 'uom', label: 'Unit (UOM)' },
   { key: 'item_code', label: 'Item Code' },
   { key: 'variant', label: 'Variant' },
   { key: 'description', label: 'Description' },
@@ -28,7 +27,11 @@ const OPTIONAL_COLUMNS = [
   { key: 'category', label: 'Category' },
   { key: 'brand', label: 'Brand' },
   { key: 'custom1', label: 'Custom 1' },
-  { key: 'custom2', label: 'Custom 2' }
+  { key: 'custom2', label: 'Custom 2' },
+  { key: 'subtotal', label: 'Sub-Total' },
+  { key: 'total_tax', label: 'Total Tax' },
+  { key: 'round_off', label: 'Round Off' },
+  { key: 'grand_total', label: 'Grand Total' }
 ];
 
 export default function TemplateSettings() {
@@ -51,8 +54,12 @@ export default function TemplateSettings() {
     show_terms: true,
     show_signature: true,
     column_settings: {
-      mandatory: ['sno', 'item', 'qty', 'uom'],
+      mandatory: [],
       optional: {
+        sno: true,
+        item: true,
+        qty: true,
+        uom: true,
         item_code: true,
         variant: false,
         description: true,
@@ -67,7 +74,11 @@ export default function TemplateSettings() {
         category: false,
         brand: false,
         custom1: false,
-        custom2: false
+        custom2: false,
+        subtotal: true,
+        total_tax: true,
+        round_off: true,
+        grand_total: true
       },
       labels: {
         custom1: 'Custom 1',
@@ -112,8 +123,12 @@ export default function TemplateSettings() {
       show_terms: template.show_terms !== false,
       show_signature: template.show_signature !== false,
       column_settings: {
-        mandatory: template.column_settings?.mandatory || ['sno', 'item', 'qty', 'uom'],
+        mandatory: [],
         optional: template.column_settings?.optional || {
+          sno: true,
+          item: true,
+          qty: true,
+          uom: true,
           item_code: true,
           variant: false,
           description: true,
@@ -128,7 +143,11 @@ export default function TemplateSettings() {
           category: false,
           brand: false,
           custom1: false,
-          custom2: false
+          custom2: false,
+          subtotal: true,
+          total_tax: true,
+          round_off: true,
+          grand_total: true
         },
         labels: template.column_settings?.labels || {
           custom1: 'Custom 1',
@@ -140,10 +159,10 @@ export default function TemplateSettings() {
     setShowForm(true);
   };
 
-  const handleNew = () => {
+  const handleNew = (preset = null) => {
     setSelectedTemplate(null);
-    setFormData({
-      template_name: '',
+    const defaultData = {
+      template_name: preset === 'Portrait' ? 'Professional Portrait' : '',
       document_type: 'Quotation',
       is_default: false,
       page_size: 'A4',
@@ -153,12 +172,16 @@ export default function TemplateSettings() {
       show_terms: true,
       show_signature: true,
       column_settings: {
-        mandatory: ['sno', 'item', 'qty', 'uom'],
+        mandatory: [],
         optional: {
+          sno: true,
+          item: true,
+          qty: true,
+          uom: true,
           item_code: true,
           variant: false,
           description: true,
-          hsn_code: false,
+          hsn_code: true,
           rate: true,
           discount_percent: true,
           discount_amount: false,
@@ -169,7 +192,11 @@ export default function TemplateSettings() {
           category: false,
           brand: false,
           custom1: false,
-          custom2: false
+          custom2: false,
+          subtotal: true,
+          total_tax: true,
+          round_off: true,
+          grand_total: true
         },
         labels: {
           custom1: 'Custom 1',
@@ -177,7 +204,8 @@ export default function TemplateSettings() {
           rate_after_discount: 'Rate/Unit'
         }
       }
-    });
+    };
+    setFormData(defaultData);
     setShowForm(true);
   };
 
@@ -212,24 +240,28 @@ export default function TemplateSettings() {
   const generatePreviewHTML = () => {
     const colSettings = formData.column_settings || {};
     const optionalCols = colSettings.optional || {};
-    const mandatoryCols = colSettings.mandatory || ['sno', 'item', 'qty', 'uom'];
     const labels = colSettings.labels || {};
 
     let columnsHTML = '';
-    if (mandatoryCols.includes('sno')) columnsHTML += '<th>#</th>';
+    if (optionalCols.sno) columnsHTML += '<th>#</th>';
+    if (optionalCols.item_code) columnsHTML += '<th>Item Code</th>';
     if (optionalCols.hsn_code) columnsHTML += '<th>HSN/SAC</th>';
-    if (mandatoryCols.includes('item')) columnsHTML += '<th>Item Description</th>';
+    if (optionalCols.item) columnsHTML += '<th>Item Description</th>';
     if (optionalCols.variant) columnsHTML += '<th>Variant</th>';
     if (optionalCols.description) columnsHTML += '<th>Description</th>';
-    if (mandatoryCols.includes('qty')) columnsHTML += '<th>Qty</th>';
-    if (mandatoryCols.includes('uom')) columnsHTML += '<th>Unit</th>';
+    if (optionalCols.qty) columnsHTML += '<th>Qty</th>';
+    if (optionalCols.uom) columnsHTML += '<th>Unit</th>';
     if (optionalCols.rate) columnsHTML += '<th>Rate</th>';
     if (optionalCols.discount_percent) columnsHTML += '<th>Disc %</th>';
+    if (optionalCols.discount_amount) columnsHTML += '<th>Disc Amt</th>';
     if (optionalCols.rate_after_discount) columnsHTML += `<th>${labels.rate_after_discount || 'Rate/Unit'}</th>`;
     if (optionalCols.tax_percent) columnsHTML += '<th>Tax %</th>';
+    if (optionalCols.tax_amount) columnsHTML += '<th>Tax Amt</th>';
+    if (optionalCols.category) columnsHTML += '<th>Category</th>';
+    if (optionalCols.brand) columnsHTML += '<th>Brand</th>';
     if (optionalCols.custom1) columnsHTML += `<th>${labels.custom1 || 'Custom 1'}</th>`;
     if (optionalCols.custom2) columnsHTML += `<th>${labels.custom2 || 'Custom 2'}</th>`;
-    columnsHTML += '<th>Total</th>';
+    if (optionalCols.line_total) columnsHTML += '<th>Total</th>';
 
     const dummyItems = [
       { sno: 1, item: 'Steel Pipe 2 Inch', variant: 'Standard', description: 'Galvanized steel pipe', qty: 10, unit: 'Mtrs', rate: 500, discount: 10, rate_after: 450, tax: 18, c1: 'MAKE-A', c2: 'IN-STOCK', total: 5310 },
@@ -239,20 +271,25 @@ export default function TemplateSettings() {
     let rowsHTML = '';
     dummyItems.forEach((item) => {
       let rowHTML = '<tr>';
-      if (mandatoryCols.includes('sno')) rowHTML += `<td>${item.sno}</td>`;
+      if (optionalCols.sno) rowHTML += `<td>${item.sno}</td>`;
+      if (optionalCols.item_code) rowHTML += `<td>P-101</td>`;
       if (optionalCols.hsn_code) rowHTML += `<td>7306</td>`;
-      if (mandatoryCols.includes('item')) rowHTML += `<td>${item.item}</td>`;
+      if (optionalCols.item) rowHTML += `<td>${item.item}</td>`;
       if (optionalCols.variant) rowHTML += `<td>${item.variant}</td>`;
       if (optionalCols.description) rowHTML += `<td>${item.description}</td>`;
-      if (mandatoryCols.includes('qty')) rowHTML += `<td style="text-align:right">${item.qty}</td>`;
-      if (mandatoryCols.includes('uom')) rowHTML += `<td>${item.unit}</td>`;
+      if (optionalCols.qty) rowHTML += `<td style="text-align:right">${item.qty}</td>`;
+      if (optionalCols.uom) rowHTML += `<td>${item.unit}</td>`;
       if (optionalCols.rate) rowHTML += `<td style="text-align:right">₹${item.rate.toFixed(2)}</td>`;
       if (optionalCols.discount_percent) rowHTML += `<td style="text-align:right">${item.discount}%</td>`;
+      if (optionalCols.discount_amount) rowHTML += `<td style="text-align:right">₹${(item.rate * item.qty * item.discount / 100).toFixed(2)}</td>`;
       if (optionalCols.rate_after_discount) rowHTML += `<td style="text-align:right">₹${item.rate_after.toFixed(2)}</td>`;
       if (optionalCols.tax_percent) rowHTML += `<td style="text-align:right">${item.tax}%</td>`;
+      if (optionalCols.tax_amount) rowHTML += `<td style="text-align:right">₹${(item.total - (item.rate_after * item.qty)).toFixed(2)}</td>`;
+      if (optionalCols.category) rowHTML += `<td>Fittings</td>`;
+      if (optionalCols.brand) rowHTML += `<td>BrandX</td>`;
       if (optionalCols.custom1) rowHTML += `<td>${item.c1}</td>`;
       if (optionalCols.custom2) rowHTML += `<td>${item.c2}</td>`;
-      rowHTML += `<td style="text-align:right;font-weight:bold">₹${item.total.toFixed(2)}</td>`;
+      if (optionalCols.line_total) rowHTML += `<td style="text-align:right;font-weight:bold">₹${item.total.toFixed(2)}</td>`;
       rowHTML += '</tr>';
       rowsHTML += rowHTML;
     });
@@ -286,12 +323,14 @@ export default function TemplateSettings() {
           </tbody>
         </table>
         <div style="float: right; width: 250px;">
-          <div style="display: flex; justify-content: space-between; padding: 5px 0;"><span>Subtotal</span><span>₹6,000.00</span></div>
+          ${optionalCols.subtotal ? '<div style="display: flex; justify-content: space-between; padding: 5px 0;"><span>Subtotal</span><span>₹6,000.00</span></div>' : ''}
           <div style="display: flex; justify-content: space-between; padding: 5px 0;"><span>Discount</span><span>-₹500.00</span></div>
-          <div style="display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #eee;"><span>Tax (GST)</span><span>₹930.00</span></div>
+          ${optionalCols.total_tax ? '<div style="display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #eee;"><span>Tax (GST)</span><span>₹930.00</span></div>' : ''}
+          ${optionalCols.round_off ? '<div style="display: flex; justify-content: space-between; padding: 5px 0;"><span>Round Off</span><span>₹0.00</span></div>' : ''}
+          ${optionalCols.grand_total ? `
           <div style="display: flex; justify-content: space-between; padding: 10px 0; font-weight: bold; font-size: 1.1em; border-top: 2px solid #374151;">
             <span>Grand Total</span><span>₹6,430.00</span>
-          </div>
+          </div>` : ''}
         </div>
         <div style="clear: both; margin-top: 40px; font-size: 12px; color: #666;">
           ${formData.show_terms ? '<p><strong>Terms:</strong> Standard payment terms apply. This is a computer generated document.</p>' : ''}

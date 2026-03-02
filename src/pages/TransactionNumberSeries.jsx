@@ -62,15 +62,15 @@ export default function TransactionNumberSeries() {
     s.series_name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const generatePreview = (prefix, startNumber, suffix) => {
-    const num = String(startNumber || 1).padStart(4, '0');
+  const generatePreview = (prefix, startNumber, suffix, padding = 4) => {
+    const num = String(startNumber || 1).padStart(parseInt(padding) || 4, '0');
     return `${prefix || ''}${num}${suffix || ''}`;
   };
 
   const getPreviewForDocType = (seriesData, docType) => {
     const config = seriesData?.configs?.[docType];
     if (!config || !config.enabled) return '—';
-    return generatePreview(config.prefix, config.start_number, config.suffix);
+    return generatePreview(config.prefix, config.start_number, config.suffix, config.padding);
   };
 
   const handleCloseModal = () => {
@@ -208,7 +208,8 @@ function SeriesModal({ series, onClose, onSave, generatePreview }) {
           enabled: false,
           prefix: '',
           start_number: 1,
-          suffix: ''
+          suffix: '',
+          padding: 4
         };
       });
       setFormData(prev => ({ ...prev, configs: initialConfigs }));
@@ -368,7 +369,7 @@ function SeriesModal({ series, onClose, onSave, generatePreview }) {
                   </div>
                   
                   {formData.configs[docType.id]?.enabled && (
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
                       <div className="form-group" style={{ margin: 0 }}>
                         <label className="form-label" style={{ fontSize: '11px' }}>Prefix</label>
                         <input
@@ -402,6 +403,22 @@ function SeriesModal({ series, onClose, onSave, generatePreview }) {
                           placeholder="Suffix"
                         />
                       </div>
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label className="form-label" style={{ fontSize: '11px' }}>Digits (Padding)</label>
+                        <select
+                          className="form-select"
+                          style={{ padding: '6px 8px', fontSize: '12px' }}
+                          value={formData.configs[docType.id]?.padding || 4}
+                          onChange={(e) => updateConfig(docType.id, 'padding', parseInt(e.target.value) || 4)}
+                        >
+                          <option value="1">1 (1)</option>
+                          <option value="2">2 (01)</option>
+                          <option value="3">3 (001)</option>
+                          <option value="4">4 (0001)</option>
+                          <option value="5">5 (00001)</option>
+                          <option value="6">6 (000001)</option>
+                        </select>
+                      </div>
                     </div>
                   )}
                   
@@ -412,7 +429,8 @@ function SeriesModal({ series, onClose, onSave, generatePreview }) {
                         {generatePreview(
                           formData.configs[docType.id]?.prefix?.replace('{FY}', getFyPrefix()) || getFyPrefix() + '/',
                           formData.configs[docType.id]?.start_number || 1,
-                          formData.configs[docType.id]?.suffix || ''
+                          formData.configs[docType.id]?.suffix || '',
+                          formData.configs[docType.id]?.padding || 4
                         )}
                       </span>
                     </div>

@@ -67,7 +67,7 @@ export default function CreateNonBillableDC({ onSuccess, onCancel, editDC }) {
     ship_to_contact: '',
     status: 'active',
     dc_type: 'non-billable',
-    organisation_id: organisation?.id || null
+    // organisation_id: organisation?.id || null
   });
 
   const [items, setItems] = useState([
@@ -595,13 +595,17 @@ export default function CreateNonBillableDC({ onSuccess, onCancel, editDC }) {
       .order('dc_number', { ascending: false })
       .limit(1);
     
+    // Get padding from series config if possible, else default 4
+    const { data: series } = await supabase.from('document_series').select('*').eq('is_default', true).single();
+    const padding = parseInt(series?.configs?.dc?.padding) || 4;
+
     let num = 1;
     if (existingDCs && existingDCs.length > 0) {
       const lastNumStr = existingDCs[0].dc_number.replace('NBDC-', '');
       const lastNum = parseInt(lastNumStr);
       if (!isNaN(lastNum)) num = lastNum + 1;
     }
-    const paddedNum = String(num).padStart(4, '0');
+    const paddedNum = String(num).padStart(padding, '0');
     return `NBDC-${paddedNum}`;
   };
 

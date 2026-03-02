@@ -19,6 +19,12 @@ CREATE TABLE IF NOT EXISTS organisations (
   phone VARCHAR(50),
   email VARCHAR(255),
   gstin VARCHAR(50),
+  pan VARCHAR(50),
+  tan VARCHAR(50),
+  msme_no VARCHAR(100),
+  website VARCHAR(255),
+  state VARCHAR(100) DEFAULT 'Maharashtra',
+  signatures JSONB DEFAULT '[]'::jsonb,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

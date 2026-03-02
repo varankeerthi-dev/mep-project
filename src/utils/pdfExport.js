@@ -4,7 +4,15 @@ import { format } from 'date-fns';
 
 export function exportDCToPDF(challan) {
   const doc = new jsPDF();
-  
+  const pageWidth = doc.internal.pageSize.width;
+  const pageHeight = doc.internal.pageSize.height;
+
+  // --- PAGE BORDER ---
+  doc.setDrawColor(0);
+  doc.setLineWidth(0.5);
+  doc.rect(5, 5, pageWidth - 10, pageHeight - 10);
+  doc.rect(6, 6, pageWidth - 12, pageHeight - 12);
+
   doc.setFontSize(18);
   doc.setFont('helvetica', 'bold');
   doc.text('DELIVERY CHALLAN', 105, 20, { align: 'center' });

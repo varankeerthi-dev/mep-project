@@ -1,6 +1,16 @@
 import { useState, useEffect } from 'react'
 import { supabase, getOrganisationMembers, updateUserRole, removeMember, createOrganisation } from '../supabase'
 
+const INDIAN_STATES = [
+  'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
+  'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand',
+  'Karnataka', 'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur',
+  'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha', 'Punjab',
+  'Rajasthan', 'Sikkim', 'Tamil Nadu', 'Telangana', 'Tripura',
+  'Uttar Pradesh', 'Uttarakhand', 'West Bengal',
+  'Delhi', 'Jammu and Kashmir', 'Ladakh', 'Puducherry'
+];
+
 export function OrganisationSettings({ organisation, userId }) {
   const [members, setMembers] = useState([])
   const [loading, setLoading] = useState(true)
@@ -12,36 +22,85 @@ export function OrganisationSettings({ organisation, userId }) {
     address: organisation.address || '',
     phone: organisation.phone || '',
     email: organisation.email || '',
-    gstin: organisation.gstin || ''
+    gstin: organisation.gstin || '',
+    pan: organisation.pan || '',
+    tan: organisation.tan || '',
+    msme_no: organisation.msme_no || '',
+    website: organisation.website || '',
+    state: organisation.state || 'Maharashtra',
+    logo_url: organisation.logo_url || '',
+    signatures: organisation.signatures || []
   })
+  
+  const [newSignature, setNewSignature] = useState({ name: '', url: '' })
+  const [uploading, setUploading] = useState(false)
+
+  const uploadImage = async (file, path) => {
+    try {
+      setUploading(true)
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${Math.random()}.${fileExt}`
+      const filePath = `${organisation.id}/${path}/${fileName}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('organisation-assets')
+        .upload(filePath, file)
+
+      if (uploadError) throw uploadError
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('organisation-assets')
+        .getPublicUrl(filePath)
+
+      return publicUrl
+    } catch (error) {
+      alert('Error uploading image: ' + error.message)
+      return null
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const handleLogoUpload = async (e) => {
+    const file = e.target.files[0]
+    if (file) {
+      const url = await uploadImage(file, 'logos')
+      if (url) {
+        setOrgDetails(prev => ({ ...prev, logo_url: url }))
+      }
+    }
+  }
+
+  const handleSignatureUpload = async (e) => {
+    const file = e.target.files[0]
+    if (file) {
+      const url = await uploadImage(file, 'signatures')
+      if (url) {
+        setNewSignature(prev => ({ ...prev, url }))
+      }
+    }
+  }
+
+  const addSignature = () => {
+    if (!newSignature.name || !newSignature.url) {
+      alert('Please provide a name and upload a signature image')
+      return
+    }
+    const updatedSignatures = [...orgDetails.signatures, { ...newSignature, id: Date.now() }]
+    setOrgDetails(prev => ({ ...prev, signatures: updatedSignatures }))
+    setNewSignature({ name: '', url: '' })
+  }
+
+  const removeSignature = (id) => {
+    const updatedSignatures = orgDetails.signatures.filter(s => s.id !== id)
+    setOrgDetails(prev => ({ ...prev, signatures: updatedSignatures }))
+  }
   const [isAdmin, setIsAdmin] = useState(false)
-  const [dcSettings, setDcSettings] = useState({ prefix: 'DC', suffix: '', padding: '5' })
 
   useEffect(() => {
     loadMembers()
     checkAdmin()
-    loadDcSettings()
   }, [organisation.id, userId])
-
-  const loadDcSettings = async () => {
-    const { data } = await supabase.from('settings').select('key, value')
-    if (data) {
-      const settings = {}
-      data.forEach(s => { settings[s.key] = s.value })
-      setDcSettings({
-        prefix: settings.dc_prefix || 'DC',
-        suffix: settings.dc_suffix || '',
-        padding: settings.dc_padding || '5'
-      })
-    }
-  }
-
-  const saveDcSettings = async () => {
-    await supabase.from('settings').upsert({ key: 'dc_prefix', value: dcSettings.prefix }, { onConflict: 'key' })
-    await supabase.from('settings').upsert({ key: 'dc_suffix', value: dcSettings.suffix }, { onConflict: 'key' })
-    await supabase.from('settings').upsert({ key: 'dc_padding', value: dcSettings.padding }, { onConflict: 'key' })
-    alert('DC Settings saved!')
-  }
 
   const checkAdmin = async () => {
     const { data } = await supabase
@@ -93,6 +152,36 @@ export function OrganisationSettings({ organisation, userId }) {
       <div className="card" style={{ marginBottom: '20px' }}>
         <h3 className="card-title">Organisation Details</h3>
         
+        <div style={{ display: 'flex', gap: '24px', marginBottom: '20px', alignItems: 'center' }}>
+          <div style={{ position: 'relative', width: '100px', height: '100px', border: '1px dashed #ccc', borderRadius: '8px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8f9fa' }}>
+            {orgDetails.logo_url ? (
+              <img src={orgDetails.logo_url} alt="Logo" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+            ) : (
+              <span style={{ fontSize: '12px', color: '#666' }}>No Logo</span>
+            )}
+            <input 
+              type="file" 
+              accept="image/*" 
+              onChange={handleLogoUpload} 
+              style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }} 
+              disabled={uploading}
+            />
+          </div>
+          <div>
+            <button className="btn btn-secondary btn-sm" style={{ position: 'relative' }}>
+              {uploading ? 'Uploading...' : 'Upload Logo'}
+              <input 
+                type="file" 
+                accept="image/*" 
+                onChange={handleLogoUpload} 
+                style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }} 
+                disabled={uploading}
+              />
+            </button>
+            <p style={{ fontSize: '11px', color: '#666', marginTop: '4px' }}>Recommended: PNG/JPG, Square or Horizontal</p>
+          </div>
+        </div>
+
         <div className="form-row">
           <div className="form-group">
             <label className="form-label">Organisation Name</label>
@@ -134,6 +223,58 @@ export function OrganisationSettings({ organisation, userId }) {
               onChange={(e) => setOrgDetails({...orgDetails, gstin: e.target.value})}
             />
           </div>
+          <div className="form-group">
+            <label className="form-label">Organisation State</label>
+            <select
+              className="form-select"
+              value={orgDetails.state}
+              onChange={(e) => setOrgDetails({...orgDetails, state: e.target.value})}
+              disabled={!isAdmin}
+            >
+              {INDIAN_STATES.map(s => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="form-row">
+          <div className="form-group">
+            <label className="form-label">PAN</label>
+            <input
+              type="text"
+              className="form-input"
+              value={orgDetails.pan}
+              onChange={(e) => setOrgDetails({...orgDetails, pan: e.target.value})}
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label">TAN</label>
+            <input
+              type="text"
+              className="form-input"
+              value={orgDetails.tan}
+              onChange={(e) => setOrgDetails({...orgDetails, tan: e.target.value})}
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label">MSME/Udyam No</label>
+            <input
+              type="text"
+              className="form-input"
+              value={orgDetails.msme_no}
+              onChange={(e) => setOrgDetails({...orgDetails, msme_no: e.target.value})}
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Website</label>
+            <input
+              type="text"
+              className="form-input"
+              value={orgDetails.website}
+              onChange={(e) => setOrgDetails({...orgDetails, website: e.target.value})}
+            />
+          </div>
         </div>
         
         <div className="form-group">
@@ -153,55 +294,60 @@ export function OrganisationSettings({ organisation, userId }) {
       </div>
 
       <div className="card" style={{ marginTop: '24px' }}>
-        <h3 className="card-title">DC Number Settings</h3>
-        <p style={{ color: '#666', marginBottom: '16px' }}>Configure how DC numbers are auto-generated</p>
+        <h3 className="card-title">Authorized Signatories</h3>
+        <p style={{ color: '#666', marginBottom: '16px' }}>Add multiple signatures (e.g., CEO, Finance Manager) to choose from when creating documents.</p>
         
-        <div className="form-row">
-          <div className="form-group">
-            <label className="form-label">Prefix</label>
-            <input
-              type="text"
-              className="form-input"
-              value={dcSettings.prefix}
-              onChange={(e) => setDcSettings({...dcSettings, prefix: e.target.value})}
-              placeholder="DC"
-            />
-          </div>
-          <div className="form-group">
-            <label className="form-label">Padding (digits)</label>
-            <select
-              className="form-select"
-              value={dcSettings.padding}
-              onChange={(e) => setDcSettings({...dcSettings, padding: e.target.value})}
-            >
-              <option value="3">3 (001)</option>
-              <option value="4">4 (0001)</option>
-              <option value="5">5 (00001)</option>
-              <option value="6">6 (000001)</option>
-            </select>
-          </div>
-          <div className="form-group">
-            <label className="form-label">Suffix</label>
-            <input
-              type="text"
-              className="form-input"
-              value={dcSettings.suffix}
-              onChange={(e) => setDcSettings({...dcSettings, suffix: e.target.value})}
-              placeholder=""
-            />
+        <div style={{ background: '#f8f9fa', padding: '16px', borderRadius: '8px', marginBottom: '20px' }}>
+          <div className="form-row">
+            <div className="form-group">
+              <label className="form-label">Signatory Name / Designation</label>
+              <input 
+                type="text" 
+                className="form-input" 
+                value={newSignature.name} 
+                onChange={(e) => setNewSignature({...newSignature, name: e.target.value})}
+                placeholder="e.g. CEO or Sales Engineer"
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Signature Image</label>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <button className="btn btn-secondary btn-sm" style={{ position: 'relative' }}>
+                  {newSignature.url ? 'Change Image' : 'Select Image'}
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    onChange={handleSignatureUpload} 
+                    style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }}
+                  />
+                </button>
+                {newSignature.url && <span style={{ color: '#10b981', fontSize: '12px' }}>✓ Uploaded</span>}
+              </div>
+            </div>
+            <div className="form-group" style={{ alignSelf: 'flex-end' }}>
+              <button className="btn btn-primary btn-sm" onClick={addSignature}>Add to List</button>
+            </div>
           </div>
         </div>
-        
-        <div style={{ marginTop: '12px' }}>
-          <strong>Preview: </strong>
-          {dcSettings.prefix}{'0'.repeat(parseInt(dcSettings.padding) || 5)}1{dcSettings.suffix}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {orgDetails.signatures.map((sig) => (
+            <div key={sig.id} style={{ border: '1px solid #e5e7eb', borderRadius: '8px', padding: '12px', background: 'white' }}>
+              <div style={{ height: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '8px', borderBottom: '1px solid #f3f4f6', pb: '8px' }}>
+                <img src={sig.url} alt={sig.name} style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain' }} />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontWeight: 600, fontSize: '13px' }}>{sig.name}</span>
+                <button className="btn btn-sm" style={{ color: '#dc2626', padding: '2px 4px' }} onClick={() => removeSignature(sig.id)}>Remove</button>
+              </div>
+            </div>
+          ))}
+          {orgDetails.signatures.length === 0 && (
+            <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '20px', color: '#999', border: '1px dashed #ccc', borderRadius: '8px' }}>
+              No signatures added yet.
+            </div>
+          )}
         </div>
-        
-        {isAdmin && (
-          <button onClick={saveDcSettings} className="btn btn-primary" style={{ marginTop: '16px' }}>
-            Save DC Settings
-          </button>
-        )}
       </div>
 
       <div className="card">

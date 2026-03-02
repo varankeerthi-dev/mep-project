@@ -33,14 +33,29 @@ export const generateDocumentA4 = (data, organisation, documentTitle = 'DOCUMENT
   const margin = 10;
   const colWidth = (pageWidth - 2 * margin) / 2;
 
+  // --- PAGE BORDER ---
+  doc.setDrawColor(0);
+  doc.setLineWidth(0.5);
+  doc.rect(5, 5, pageWidth - 10, pageHeight - 10); // Main outer border
+  doc.rect(6, 6, pageWidth - 12, pageHeight - 12); // Elegant double-line effect
+
   // Helpers
-  const hLine = (y) => { doc.setDrawColor(200); doc.line(margin, y, pageWidth - margin, y); };
+  const hLine = (y) => { doc.setDrawColor(200); doc.setLineWidth(0.1); doc.line(margin, y, pageWidth - margin, y); };
   const vLine = (x, y1, y2) => { doc.setDrawColor(200); doc.line(x, y1, x, y2); };
 
   // --- HEADER ---
+  // Add Logo if exists
+  if (organisation.logo_url) {
+    try {
+      doc.addImage(organisation.logo_url, 'PNG', margin, margin, 25, 25);
+    } catch (e) {
+      console.warn('Could not add logo to PDF:', e);
+    }
+  }
+
   doc.setFontSize(8);
   doc.setTextColor(100);
-  doc.text(`GSTIN: ${organisation.gstin || '-'}`, margin, margin + 5);
+  doc.text(`GSTIN: ${organisation.gstin || '-'}`, pageWidth - margin - 40, margin + 5);
 
   doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
@@ -152,11 +167,15 @@ export const generateDocumentA4 = (data, organisation, documentTitle = 'DOCUMENT
   doc.text('Taxable Value:', totalLabelX, currentY + 10);
   doc.text(String(totals.taxable_value || 0), totalValueX, currentY + 10, { align: 'right' });
 
-  doc.text('CGST:', totalLabelX, currentY + 15);
-  doc.text(String(totals.cgst || 0), totalValueX, currentY + 15, { align: 'right' });
-
-  doc.text('SGST/IGST:', totalLabelX, currentY + 20);
-  doc.text(String(totals.sgst_igst || 0), totalValueX, currentY + 20, { align: 'right' });
+  if (totals.igst > 0) {
+    doc.text('IGST:', totalLabelX, currentY + 15);
+    doc.text(String(totals.igst || 0), totalValueX, currentY + 15, { align: 'right' });
+  } else {
+    doc.text('CGST:', totalLabelX, currentY + 15);
+    doc.text(String(totals.cgst || 0), totalValueX, currentY + 15, { align: 'right' });
+    doc.text('SGST:', totalLabelX, currentY + 20);
+    doc.text(String(totals.sgst || 0), totalValueX, currentY + 20, { align: 'right' });
+  }
 
   doc.text('Round Off:', totalLabelX, currentY + 25);
   doc.text(String(totals.round_off || 0), totalValueX, currentY + 25, { align: 'right' });
@@ -183,8 +202,18 @@ export const generateDocumentA4 = (data, organisation, documentTitle = 'DOCUMENT
 
   const signX = pageWidth - margin - 40;
   doc.setFontSize(9);
-  doc.text(`For ${organisation.name}`, signX, currentY + 15);
-  doc.text('Authorised Signatory', signX, currentY + 30);
+  doc.text(`For ${organisation.name}`, signX, currentY + 10);
+  
+  // Add Signature Image if selected
+  if (data.authorized_signatory?.url) {
+    try {
+      doc.addImage(data.authorized_signatory.url, 'PNG', signX, currentY + 12, 30, 15);
+    } catch (e) {
+      console.warn('Could not add signature to PDF:', e);
+    }
+  }
+
+  doc.text(data.authorized_signatory?.name || 'Authorised Signatory', signX, currentY + 30);
 
   doc.setFontSize(7);
   doc.text('This is a Computer Generated Document', pageWidth / 2, pageHeight - 10, { align: 'center' });

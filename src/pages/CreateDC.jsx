@@ -65,7 +65,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
     ship_to_gstin: '',
     ship_to_contact: '',
     status: 'active',
-    organisation_id: organisation?.id || null
+    // organisation_id: organisation?.id || null
   });
 
   const [items, setItems] = useState([
@@ -625,7 +625,8 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
     if (seriesData?.configs?.dc?.enabled) {
       const config = seriesData.configs.dc;
       const currentNum = (seriesData.current_number || config.start_number || 1);
-      const paddedNum = String(currentNum).padStart(4, '0');
+      const padding = parseInt(config.padding) || 4;
+      const paddedNum = String(currentNum).padStart(padding, '0');
       
       // Update current number for next time
       await supabase.from('document_series').update({ 
