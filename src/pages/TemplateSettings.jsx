@@ -45,6 +45,7 @@ export default function TemplateSettings() {
 
   const [formData, setFormData] = useState({
     template_name: '',
+    template_code: '',
     document_type: 'Quotation',
     is_default: false,
     page_size: 'A4',
@@ -114,6 +115,7 @@ export default function TemplateSettings() {
     setSelectedTemplate(template);
     setFormData({
       template_name: template.template_name,
+      template_code: template.template_code || '',
       document_type: template.document_type,
       is_default: template.is_default,
       page_size: template.page_size || 'A4',
@@ -163,6 +165,7 @@ export default function TemplateSettings() {
     setSelectedTemplate(null);
     const defaultData = {
       template_name: preset === 'Portrait' ? 'Professional Portrait' : '',
+      template_code: '',
       document_type: 'Quotation',
       is_default: false,
       page_size: 'A4',
@@ -346,6 +349,11 @@ export default function TemplateSettings() {
       return;
     }
 
+    if (formData.template_code && !/^[A-Z0-9_]+$/.test(formData.template_code)) {
+      alert('Template code must contain only uppercase letters, numbers, and underscores');
+      return;
+    }
+
     setSaving(true);
     try {
       if (selectedTemplate) {
@@ -353,6 +361,7 @@ export default function TemplateSettings() {
           .from('document_templates')
           .update({
             template_name: formData.template_name,
+            template_code: formData.template_code || null,
             document_type: formData.document_type,
             is_default: formData.is_default,
             page_size: formData.page_size,
@@ -379,6 +388,7 @@ export default function TemplateSettings() {
           .from('document_templates')
           .insert({
             template_name: formData.template_name,
+            template_code: formData.template_code || null,
             document_type: formData.document_type,
             is_default: formData.is_default,
             page_size: formData.page_size,
@@ -483,6 +493,16 @@ export default function TemplateSettings() {
                 value={formData.template_name}
                 onChange={(e) => setFormData({ ...formData, template_name: e.target.value })}
                 placeholder="e.g., My Company Quotation"
+              />
+            </div>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label" style={{ fontWeight: 600, fontSize: '11px' }}>Template Code</label>
+              <input
+                type="text"
+                className="form-input"
+                value={formData.template_code}
+                onChange={(e) => setFormData({ ...formData, template_code: e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, '') })}
+                placeholder="e.g., INV_CLASSIC_V2"
               />
             </div>
             <div className="form-group" style={{ margin: 0 }}>
@@ -723,6 +743,7 @@ export default function TemplateSettings() {
                             )}
                           </div>
                           <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '4px' }}>
+                            {template.template_code && <span style={{ marginRight: '8px', fontFamily: 'monospace', background: '#e5e7eb', padding: '1px 4px', borderRadius: '2px' }}>{template.template_code}</span>}
                             {template.page_size} | {template.orientation} | 
                             {template.show_logo && ' Logo'}{template.show_bank_details && ' | Bank'}{template.show_terms && ' | Terms'}{template.show_signature && ' | Signature'}
                           </div>
