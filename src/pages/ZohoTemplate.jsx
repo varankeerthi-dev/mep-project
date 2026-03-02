@@ -196,8 +196,7 @@ export const generateZohoTemplate = (data, organisation, templateSettings = null
       if (colSettings.sno) row.push(index + 1);
       if (colSettings.item) row.push(`${item.description || item.item?.name || '-'}`);
       if (colSettings.hsn_code) row.push(item.item?.hsn_code || '-');
-      if (colSettings.qty) row.push(`${item.qty}
-${item.uom}`);
+      if (colSettings.qty) row.push(`${item.qty}\n${item.uom}`);
       if (colSettings.rate) row.push(new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2 }).format(item.rate || 0));
       if (colSettings.line_total) row.push(new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2 }).format(item.line_total || 0));
       return row;
@@ -276,9 +275,7 @@ ${item.uom}`);
   doc.setTextColor(80);
   doc.text('Terms & Conditions', margin, currentY);
   doc.setFont('helvetica', 'normal');
-  const terms = terms_conditions || "Payment - Purchase Order & 100% Advance
-Delivery - 3-4 days
-Freight - Client scope";
+  const terms = terms_conditions || "Payment - Purchase Order & 100% Advance\nDelivery - 3-4 days\nFreight - Client scope";
   const termLines = doc.splitTextToSize(terms, 100);
   doc.text(termLines, margin, currentY + 4);
 
