@@ -166,8 +166,11 @@ const menuData = [
         label: 'Settings', 
         submenu: [
           { id: 'settings-general', label: 'General', path: '/settings' },
+          { id: 'settings-print', label: 'Print Settings', path: '/settings/print' },
           { id: 'settings-document', label: 'Document Settings', path: '/settings/document-series' },
-          { id: 'settings-template', label: 'Template Settings', path: '/settings/template' }
+          { id: 'settings-template', label: 'Template Settings', path: '/settings/template' },
+          { id: 'settings-organisation', label: 'Organisation Settings', path: '/settings/organisation' },
+          { id: 'settings-discounts', label: 'Discount Settings', path: '/settings/discounts' }
         ]
       }
     ]

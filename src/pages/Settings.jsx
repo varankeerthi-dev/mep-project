@@ -45,27 +45,6 @@ export default function SettingsPage() {
         </div>
         <button onClick={handleLogout} className="btn btn-secondary">Sign Out</button>
       </div>
-      
-      <div className="card" style={{ marginBottom: '20px' }}>
-        <h3 className="card-title">General Settings</h3>
-        <p>Configure general preferences and print settings</p>
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <button className="btn btn-primary" onClick={() => pushPath('/settings/print')}>Print Settings</button>
-          <button className="btn btn-primary" onClick={() => pushPath('/settings/template')}>Template Designer</button>
-        </div>
-      </div>
-      
-      <div className="card" style={{ marginBottom: '20px' }}>
-        <h3 className="card-title">Organisation Settings</h3>
-        <p>Manage your organisation details and members</p>
-        <button className="btn btn-primary" onClick={() => pushPath('/settings/organisation')}>Manage Organisation</button>
-      </div>
-
-      <div className="card" style={{ marginBottom: '20px' }}>
-        <h3 className="card-title">Discount Settings</h3>
-        <p>Configure discount limits per variant for different structures</p>
-        <button className="btn btn-primary" onClick={() => pushPath('/settings/discounts')}>Manage Discounts</button>
-      </div>
 
       <div className="card">
         <div className="page-header" style={{ marginBottom: '16px' }}>
