@@ -572,33 +572,12 @@ export default function TemplateSettings() {
             </label>
           </div>
 
-          <h4 style={{ marginBottom: '12px' }}>Column Settings</h4>
-          
-          <div style={{ marginBottom: '16px' }}>
-            <div style={{ fontWeight: 600, color: '#6b7280', marginBottom: '8px' }}>Mandatory Columns (Always On)</div>
-            <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-              {MANDATORY_COLUMNS.map(col => (
-                <div key={col.key} style={{ 
-                  padding: '8px 12px', 
-                  background: '#f3f4f6', 
-                  borderRadius: '6px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  opacity: 0.7
-                }}>
-                  <span style={{ color: '#6b7280', fontSize: '12px' }}>{col.label}</span>
-                  <input type="checkbox" checked disabled />
-                </div>
-              ))}
-            </div>
-          </div>
+          <h4 style={{ marginBottom: '12px' }}>Column & Field Settings</h4>
 
           <div>
-            <div style={{ fontWeight: 600, color: '#6b7280', marginBottom: '8px' }}>Optional Columns</div>
+            <div style={{ fontWeight: 600, color: '#6b7280', marginBottom: '8px' }}>Select fields to show on document</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
-              {OPTIONAL_COLUMNS.map(col => (
-                <div key={col.key} style={{ 
+              {OPTIONAL_COLUMNS.map(col => (                <div key={col.key} style={{ 
                   padding: '8px 12px', 
                   background: formData.column_settings?.optional?.[col.key] ? '#dbeafe' : '#f9fafb',
                   border: `1px solid ${formData.column_settings?.optional?.[col.key] ? '#93c5fd' : '#e5e7eb'}`,

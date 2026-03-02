@@ -135,7 +135,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }) {
   const isAdmin = organisations?.find(o => o.organisation.id === organisation?.id)?.role?.toLowerCase() === 'admin';
   const [activeTab, setActiveTab] = useState('general');
 
-  const [formData, setFormData] = useState(clientData || { 
+  const [formData, setFormData] = useState({ 
     client_name: '', address1: '', address2: '', state: '', city: '', pincode: '',
     gstin: '', contact: '', email: '', vendor_no: '', remarks: '', category: 'Active',
     contact_person: '', contact_designation: '', contact_person_email: '',
@@ -143,6 +143,36 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }) {
     purchase_person: '', purchase_designation: '', purchase_contact: '', purchase_email: '',
     about_client: '', discount_type: 'Special', standard_pricelist_id: null
   });
+  const [isDirty, setIsDirty] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (clientData) {
+      setFormData(clientData);
+      // Wait a bit to set isDirty to false after initial load
+      setTimeout(() => setIsDirty(false), 100);
+    }
+  }, [clientData]);
+
+  useEffect(() => {
+    if (formData.client_name) { // only track after some data is entered
+      setIsDirty(true);
+    }
+  }, [formData]);
+
+  // Prevent browser close/refresh
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (isDirty && !saving) {
+        e.preventDefault();
+        e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+        return e.returnValue;
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isDirty, saving]);
+
   const [gstError, setGstError] = useState('');
   const [shippingAddresses, setShippingAddresses] = useState([]);
   const [showShippingForm, setShowShippingForm] = useState(false);
@@ -232,30 +262,32 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }) {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     
     if (formData.gstin && formData.gstin.length !== 15) {
       alert('GSTIN must be exactly 15 characters');
       return;
     }
     
-    if (editMode && clientData?.id) {
-      const { error } = await supabase.from('clients').update(formData).eq('id', clientData.id);
-      if (error) {
-        alert('Error: ' + error.message);
-        return;
+    setSaving(true);
+    try {
+      if (editMode && clientData?.id) {
+        const { error } = await supabase.from('clients').update(formData).eq('id', clientData.id);
+        if (error) throw error;
+        alert('Client updated successfully!');
+      } else {
+        const clientId = 'CLT-' + Date.now().toString().slice(-6);
+        const { error } = await supabase.from('clients').insert({ ...formData, client_id: clientId });
+        if (error) throw error;
+        alert('Client saved successfully!');
       }
-      alert('Client updated successfully!');
-    } else {
-      const clientId = 'CLT-' + Date.now().toString().slice(-6);
-      const { error } = await supabase.from('clients').insert({ ...formData, client_id: clientId });
-      if (error) {
-        alert('Error: ' + error.message);
-        return;
-      }
-      alert('Client saved successfully!');
+      setIsDirty(false);
+      onSuccess();
+    } catch (error) {
+      alert('Error: ' + error.message);
+    } finally {
+      setSaving(false);
     }
-    onSuccess();
   };
 
   return (

@@ -71,7 +71,24 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
   const [items, setItems] = useState([
     { id: 1, material_id: '', variant_id: '', material_name: '', unit: 'nos', quantity: '', rate: '', amount: 0, uses_variant: false, available_qty: 0, valid: false, is_service: false }
   ]);
-  const [dcSettings, setDcSettings] = useState({ prefix: 'DC', suffix: '', padding: '5' });
+  const [isDirty, setIsDirty] = useState(false);
+
+  useEffect(() => {
+    if (!loading) setIsDirty(true);
+  }, [formData, items]);
+
+  // Prevent browser close/refresh
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (isDirty && !loading) {
+        e.preventDefault();
+        e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+        return e.returnValue;
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isDirty, loading]);
 
   useEffect(() => { loadData(); }, []);
   
@@ -604,6 +621,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
       }
       
       alert(isEditing ? 'DC Updated!' : 'DC Created!');
+      setIsDirty(false);
       if (onSuccess) onSuccess();
       
     } catch (error) {
@@ -1096,110 +1114,126 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
           </div>
         )}
         
-        <div className="form-group">
-          <label className="form-label">Items</label>
-          <div className="item-list">
-            <div className="item-row header">
-              <span style={{ width: '40px' }}>#</span>
-              <span style={{ flex: 2 }}>Item</span>
-              <span style={{ width: '120px' }}>Variant</span>
-              {formData.source_type === 'WAREHOUSE' && <span style={{ width: '80px' }}>Avail</span>}
-              <span style={{ width: '60px' }}>Qty</span>
-              <span style={{ width: '60px' }}>Unit</span>
-              <span style={{ width: '80px' }}>Rate</span>
-              <span style={{ width: '90px' }}>Amount</span>
-              <span style={{ width: '30px' }}></span>
-            </div>
-            
-            {items.map((item, index) => (
-              <div className="item-row" key={item.id} style={{ background: !item.valid && item.material_id ? '#fff3cd' : 'transparent' }}>
-                <span style={{ width: '40px', textAlign: 'center' }}>{index + 1}</span>
-                <span style={{ flex: 2 }}>
-                  <select 
-                    value={item.material_id} 
-                    onChange={(e) => handleItemChange(item.id, 'material_id', e.target.value)}
-                    disabled={isLocked}
-                    style={{ width: '100%', padding: '6px' }}
-                  >
-                    <option value="">Select</option>
-                    {materials.map(m => (
-                      <option key={m.id} value={m.id}>{m.display_name || m.name}</option>
-                    ))}
-                  </select>
-                </span>
-                <span style={{ width: '120px' }}>
-                  {!item.is_service ? (
-                    <select 
-                      value={item.variant_id || ''} 
-                      onChange={(e) => handleItemChange(item.id, 'variant_id', e.target.value)}
-                      disabled={!item.uses_variant || isLocked}
-                      style={{ width: '100%', padding: '6px', background: item.uses_variant ? '#fff' : '#f5f5f5' }}
-                    >
-                      <option value="">{item.uses_variant ? 'Select' : 'N/A'}</option>
-                      {activeVariants.map(v => (
-                        <option key={v.id} value={v.id}>{v.variant_name}</option>
-                      ))}
-                    </select>
-                  ) : (
-                    <span style={{ fontSize: '12px', color: '#6b7280', padding: '6px', display: 'block' }}>N/A</span>
-                  )}
-                </span>
-                {formData.source_type === 'WAREHOUSE' && (
-                  <span style={{ width: '80px', textAlign: 'right', color: (item.quantity > item.available_qty && !allowInsufficientStock) ? '#dc3545' : (item.quantity > item.available_qty ? '#f59e0b' : '#28a745') }}>
-                    {!item.is_service ? item.available_qty.toFixed(2) : '-'}
-                  </span>
-                )}
-                <span style={{ width: '60px' }}>
-                  <input 
-                    type="number"
-                    value={item.quantity}
-                    onChange={(e) => handleItemChange(item.id, 'quantity', e.target.value)}
-                    disabled={isLocked}
-                    placeholder="0"
-                    style={{ width: '100%', padding: '6px', textAlign: 'right' }}
-                  />
-                </span>
-                <span style={{ width: '60px' }}>
-                  <select 
-                    value={item.unit}
-                    onChange={(e) => handleItemChange(item.id, 'unit', e.target.value)}
-                    disabled={isLocked}
-                    style={{ width: '100%', padding: '6px' }}
-                  >
-                    <option value="">Unit</option>
-                    {units.map(u => (
-                      <option key={u.id} value={u.unit_code}>{u.unit_name || u.unit_code}</option>
-                    ))}
-                    {!units.some(u => u.unit_code === item.unit) && item.unit && (
-                      <option value={item.unit}>{item.unit}</option>
+        <div className="form-group" style={{ marginTop: '20px' }}>
+          <div className="grid-table-container">
+            <table className="grid-table">
+              <thead>
+                <tr>
+                  <th className="col-shrink">#</th>
+                  <th className="col-item">ITEM</th>
+                  <th className="col-shrink">VARIANT</th>
+                  {formData.source_type === 'WAREHOUSE' && <th className="col-shrink">AVAIL</th>}
+                  <th className="col-shrink">QTY</th>
+                  <th className="col-shrink">UNIT</th>
+                  <th className="col-shrink">RATE</th>
+                  <th className="col-shrink">AMOUNT</th>
+                  <th className="col-shrink"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((item, index) => (
+                  <tr key={item.id} style={{ background: !item.valid && item.material_id ? '#fff3cd' : 'transparent' }}>
+                    <td className="text-center cell-static col-shrink">{index + 1}</td>
+                    <td className="col-item">
+                      <select 
+                        className="cell-select"
+                        value={item.material_id} 
+                        onChange={(e) => handleItemChange(item.id, 'material_id', e.target.value)}
+                        disabled={isLocked}
+                      >
+                        <option value="">Select Item</option>
+                        {materials.map(m => (
+                          <option key={m.id} value={m.id}>{m.display_name || m.name}</option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="col-shrink">
+                      {!item.is_service ? (
+                        <select 
+                          className="cell-select"
+                          value={item.variant_id || ''} 
+                          onChange={(e) => handleItemChange(item.id, 'variant_id', e.target.value)}
+                          disabled={!item.uses_variant || isLocked}
+                        >
+                          <option value="">{item.uses_variant ? 'Select' : 'N/A'}</option>
+                          {activeVariants.map(v => (
+                            <option key={v.id} value={v.id}>{v.variant_name}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <span className="cell-static text-center" style={{ color: '#94a3b8' }}>N/A</span>
+                      )}
+                    </td>
+                    {formData.source_type === 'WAREHOUSE' && (
+                      <td className="col-shrink text-right cell-static" style={{ color: (item.quantity > item.available_qty && !allowInsufficientStock) ? '#dc3545' : (item.quantity > item.available_qty ? '#f59e0b' : '#28a745') }}>
+                        {!item.is_service ? item.available_qty.toFixed(2) : '-'}
+                      </td>
                     )}
-                  </select>
-                </span>
-                <span style={{ width: '80px' }}>
-                  <input 
-                    type="number"
-                    value={item.rate}
-                    onChange={(e) => handleItemChange(item.id, 'rate', e.target.value)}
-                    disabled={isLocked}
-                    placeholder="0"
-                    step="0.01"
-                    style={{ width: '100%', padding: '6px', textAlign: 'right' }}
-                  />
-                </span>
-                <span style={{ width: '90px', textAlign: 'right', fontWeight: '600' }}>
-                  ₹{item.amount.toFixed(2)}
-                </span>
-                <span style={{ width: '30px' }}>
-                  {!isLocked && items.length > 1 && (
-                    <span className="delete-btn" onClick={() => removeItem(item.id)}>×</span>
-                  )}
-                </span>
-              </div>
-            ))}
+                    <td className="col-shrink">
+                      <input 
+                        type="number"
+                        className="cell-input text-right"
+                        value={item.quantity}
+                        onChange={(e) => handleItemChange(item.id, 'quantity', e.target.value)}
+                        disabled={isLocked}
+                        placeholder="0"
+                      />
+                    </td>
+                    <td className="col-shrink">
+                      <select 
+                        className="cell-select text-center"
+                        value={item.unit}
+                        onChange={(e) => handleItemChange(item.id, 'unit', e.target.value)}
+                        disabled={isLocked}
+                      >
+                        <option value="">Unit</option>
+                        {units.map(u => (
+                          <option key={u.id} value={u.unit_code}>{u.unit_name || u.unit_code}</option>
+                        ))}
+                        {!units.some(u => u.unit_code === item.unit) && item.unit && (
+                          <option value={item.unit}>{item.unit}</option>
+                        )}
+                      </select>
+                    </td>
+                    <td className="col-shrink">
+                      <input 
+                        type="number"
+                        className="cell-input text-right"
+                        value={item.rate}
+                        onChange={(e) => handleItemChange(item.id, 'rate', e.target.value)}
+                        disabled={isLocked}
+                        placeholder="0"
+                        step="0.01"
+                      />
+                    </td>
+                    <td className="col-shrink text-right cell-static" style={{ fontWeight: '600', paddingRight: '12px' }}>
+                      ₹{item.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </td>
+                    <td className="delete-cell col-shrink">
+                      {!isLocked && items.length > 1 && (
+                        <button type="button" className="btn-delete" onClick={() => removeItem(item.id)}>×</button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+                
+                {/* Total Row mirroring Vyapar Screenshot */}
+                <tr className="total-row">
+                  <td colSpan={formData.source_type === 'WAREHOUSE' ? 4 : 3} className="total-label">TOTAL</td>
+                  <td className="text-right cell-static" style={{ fontWeight: 'bold' }}>{totalQty.toFixed(2)}</td>
+                  <td></td>
+                  <td></td>
+                  <td className="text-right cell-static" style={{ fontWeight: 'bold', paddingRight: '12px' }}>
+                    ₹{totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </td>
+                  <td></td>
+                </tr>
+              </tbody>
+            </table>
           </div>
           
           {!isLocked && (
-            <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
+            <div style={{ display: 'flex', gap: '10px' }}>
               <button type="button" className="btn btn-secondary btn-sm" onClick={addItem}>
                 + Add Item
               </button>

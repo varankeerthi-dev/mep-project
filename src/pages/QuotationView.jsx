@@ -297,17 +297,16 @@ export default function QuotationView() {
 
       const colSettings = (template && typeof template.column_settings === 'object' && template.column_settings) || {};
       const optionalCols = colSettings.optional || {};
-      const mandatoryCols = colSettings.mandatory || ['sno', 'item', 'qty', 'uom'];
       const labels = colSettings.labels || {};
 
       const columnConfig = [];
-      if (mandatoryCols.includes('sno')) columnConfig.push({ header: '#', key: 'sno', width: 10 });
+      if (optionalCols.sno !== false) columnConfig.push({ header: '#', key: 'sno', width: 10 });
       if (optionalCols.hsn_code) columnConfig.push({ header: 'HSN/SAC', key: 'hsn_code', width: 20 });
-      if (mandatoryCols.includes('item')) columnConfig.push({ header: 'Item', key: 'item', width: 45 });
+      if (optionalCols.item !== false) columnConfig.push({ header: 'Item', key: 'item', width: 45 });
       if (optionalCols.variant) columnConfig.push({ header: 'Variant', key: 'variant', width: 25 });
       if (optionalCols.description) columnConfig.push({ header: 'Description', key: 'description', width: 40 });
-      if (mandatoryCols.includes('qty')) columnConfig.push({ header: 'Qty', key: 'qty', width: 12, align: 'right' });
-      if (mandatoryCols.includes('uom')) columnConfig.push({ header: 'Unit', key: 'uom', width: 15 });
+      if (optionalCols.qty !== false) columnConfig.push({ header: 'Qty', key: 'qty', width: 12, align: 'right' });
+      if (optionalCols.uom !== false) columnConfig.push({ header: 'Unit', key: 'uom', width: 15 });
       
       // Rate (Before Discount)
       if (optionalCols.rate) {
@@ -382,13 +381,13 @@ export default function QuotationView() {
       const tableData = (quotation.items || []).map((item, index) => {
         const material = item.item || {};
         const row = {};
-        if (mandatoryCols.includes('sno')) row.sno = index + 1;
+        if (optionalCols.sno !== false) row.sno = index + 1;
         if (optionalCols.hsn_code) row.hsn_code = material.hsn_code || '-';
-        if (mandatoryCols.includes('item')) row.item = item.description || '-';
+        if (optionalCols.item !== false) row.item = item.description || '-';
         if (optionalCols.variant) row.variant = item.variant?.variant_name || '-';
         if (optionalCols.description) row.description = item.description || '-';
-        if (mandatoryCols.includes('qty')) row.qty = item.qty;
-        if (mandatoryCols.includes('uom')) row.uom = item.uom;
+        if (optionalCols.qty !== false) row.qty = item.qty;
+        if (optionalCols.uom !== false) row.uom = item.uom;
         
         if (optionalCols.rate) row.base_rate = formatCurrencyNoSymbol(item.base_rate_snapshot || item.rate);
         if (optionalCols.discount_percent) row.discount_percent = `${item.discount_percent}%`;
@@ -504,17 +503,16 @@ export default function QuotationView() {
   const generateQuotationHTML = (template) => {
     const colSettings = template.column_settings || {};
     const optionalCols = colSettings.optional || {};
-    const mandatoryCols = colSettings.mandatory || ['sno', 'item', 'qty', 'uom'];
     const labels = colSettings.labels || {};
 
     let columnsHTML = '';
-    if (mandatoryCols.includes('sno')) columnsHTML += '<th>#</th>';
+    if (optionalCols.sno !== false) columnsHTML += '<th>#</th>';
     if (optionalCols.hsn_code) columnsHTML += '<th>HSN/SAC</th>';
-    if (mandatoryCols.includes('item')) columnsHTML += '<th>Item</th>';
+    if (optionalCols.item !== false) columnsHTML += '<th>Item</th>';
     if (optionalCols.variant) columnsHTML += '<th>Variant</th>';
     if (optionalCols.description) columnsHTML += '<th>Description</th>';
-    if (mandatoryCols.includes('qty')) columnsHTML += '<th>Qty</th>';
-    if (mandatoryCols.includes('uom')) columnsHTML += '<th>Unit</th>';
+    if (optionalCols.qty !== false) columnsHTML += '<th>Qty</th>';
+    if (optionalCols.uom !== false) columnsHTML += '<th>Unit</th>';
     if (optionalCols.rate) columnsHTML += '<th>Rate</th>';
     if (optionalCols.discount_percent) columnsHTML += '<th>Disc %</th>';
     if (optionalCols.rate_after_discount) columnsHTML += `<th>${labels.rate_after_discount || 'Rate/Unit'}</th>`;
@@ -527,13 +525,13 @@ export default function QuotationView() {
     quotation.items.forEach((item, index) => {
       const material = item.item || {};
       let rowHTML = '<tr>';
-      if (mandatoryCols.includes('sno')) rowHTML += `<td>${index + 1}</td>`;
+      if (optionalCols.sno !== false) rowHTML += `<td>${index + 1}</td>`;
       if (optionalCols.hsn_code) rowHTML += `<td>${material.hsn_code || '-'}</td>`;
-      if (mandatoryCols.includes('item')) rowHTML += `<td>${item.description || '-'}</td>`;
+      if (optionalCols.item !== false) rowHTML += `<td>${item.description || '-'}</td>`;
       if (optionalCols.variant) rowHTML += `<td>${item.variant?.variant_name || '-'}</td>`;
       if (optionalCols.description) rowHTML += `<td>${item.description || '-'}</td>`;
-      if (mandatoryCols.includes('qty')) rowHTML += `<td style="text-align:right">${item.qty}</td>`;
-      if (mandatoryCols.includes('uom')) rowHTML += `<td>${item.uom}</td>`;
+      if (optionalCols.qty !== false) rowHTML += `<td style="text-align:right">${item.qty}</td>`;
+      if (optionalCols.uom !== false) rowHTML += `<td>${item.uom}</td>`;
       if (optionalCols.rate) rowHTML += `<td style="text-align:right">${formatCurrency(item.base_rate_snapshot || item.rate)}</td>`;
       if (optionalCols.discount_percent) rowHTML += `<td style="text-align:right">${item.discount_percent}%</td>`;
       if (optionalCols.rate_after_discount) rowHTML += `<td style="text-align:right">${formatCurrency(item.rate)}</td>`;
@@ -828,12 +826,12 @@ export default function QuotationView() {
           <table className="table">
             <thead>
               <tr>
-                <th>#</th>
+                {templates.find(t => t.id === selectedTemplateId)?.column_settings?.optional?.sno !== false && <th>#</th>}
                 {quotation.items?.[0]?.item?.hsn_code && templates.find(t => t.id === selectedTemplateId)?.column_settings?.optional?.hsn_code !== false && <th>HSN/SAC</th>}
-                <th>Description</th>
+                {templates.find(t => t.id === selectedTemplateId)?.column_settings?.optional?.item !== false && <th>Description</th>}
                 {templates.find(t => t.id === selectedTemplateId)?.column_settings?.optional?.variant && <th>Variant</th>}
-                <th style={{ textAlign: 'right' }}>Qty</th>
-                <th>Unit</th>
+                {templates.find(t => t.id === selectedTemplateId)?.column_settings?.optional?.qty !== false && <th style={{ textAlign: 'right' }}>Qty</th>}
+                {templates.find(t => t.id === selectedTemplateId)?.column_settings?.optional?.uom !== false && <th>Unit</th>}
                 {templates.find(t => t.id === selectedTemplateId)?.column_settings?.optional?.rate !== false && <th style={{ textAlign: 'right' }}>Rate</th>}
                 {templates.find(t => t.id === selectedTemplateId)?.column_settings?.optional?.discount_percent !== false && <th style={{ textAlign: 'right' }}>Disc %</th>}
                 {templates.find(t => t.id === selectedTemplateId)?.column_settings?.optional?.rate_after_discount && (
@@ -858,17 +856,19 @@ export default function QuotationView() {
                 
                 return (
                   <tr key={item.id}>
-                    <td>{index + 1}</td>
+                    {optCols.sno !== false && <td>{index + 1}</td>}
                     {item.item?.hsn_code && optCols.hsn_code !== false && <td>{item.item.hsn_code}</td>}
-                    <td>
-                      {item.description}
-                      {item.override_flag && (
-                        <span style={{ marginLeft: '8px', background: '#fef3c7', padding: '2px 6px', borderRadius: '4px', fontSize: '11px' }}>Edited</span>
-                      )}
-                    </td>
+                    {optCols.item !== false && (
+                      <td>
+                        {item.description}
+                        {item.override_flag && (
+                          <span style={{ marginLeft: '8px', background: '#fef3c7', padding: '2px 6px', borderRadius: '4px', fontSize: '11px' }}>Edited</span>
+                        )}
+                      </td>
+                    )}
                     {optCols.variant && <td>{item.variant?.variant_name || '-'}</td>}
-                    <td style={{ textAlign: 'right' }}>{item.qty}</td>
-                    <td>{item.uom}</td>
+                    {optCols.qty !== false && <td style={{ textAlign: 'right' }}>{item.qty}</td>}
+                    {optCols.uom !== false && <td>{item.uom}</td>}
                     {optCols.rate !== false && <td style={{ textAlign: 'right' }}>{formatCurrency(item.base_rate_snapshot || item.rate)}</td>}
                     {optCols.discount_percent !== false && <td style={{ textAlign: 'right' }}>{item.discount_percent}%</td>}
                     {optCols.rate_after_discount && <td style={{ textAlign: 'right' }}>{formatCurrency(item.rate)}</td>}
@@ -888,10 +888,12 @@ export default function QuotationView() {
         <div></div>
         <div className="card">
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span>Subtotal</span>
-              <span>{formatCurrency(quotation.subtotal)}</span>
-            </div>
+            {templates.find(t => t.id === selectedTemplateId)?.column_settings?.optional?.subtotal !== false && (
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>Subtotal</span>
+                <span>{formatCurrency(quotation.subtotal)}</span>
+              </div>
+            )}
             <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6b7280' }}>
               <span>Total Item Discount</span>
               <span>- {formatCurrency(quotation.total_item_discount)}</span>
@@ -900,31 +902,39 @@ export default function QuotationView() {
               <span>Extra Discount ({quotation.extra_discount_percent}%)</span>
               <span>- {formatCurrency(quotation.extra_discount_amount)}</span>
             </div>
-            {quotation.state !== 'Maharashtra' ? (
-              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6b7280' }}>
-                <span>IGST</span>
-                <span>{formatCurrency(quotation.total_tax)}</span>
-              </div>
-            ) : (
+            {templates.find(t => t.id === selectedTemplateId)?.column_settings?.optional?.total_tax !== false && (
               <>
-                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6b7280' }}>
-                  <span>CGST</span>
-                  <span>{formatCurrency(quotation.total_tax / 2)}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6b7280' }}>
-                  <span>SGST</span>
-                  <span>{formatCurrency(quotation.total_tax / 2)}</span>
-                </div>
+                {quotation.state !== (organisation?.state || 'Maharashtra') ? (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6b7280' }}>
+                    <span>IGST</span>
+                    <span>{formatCurrency(quotation.total_tax)}</span>
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6b7280' }}>
+                      <span>CGST</span>
+                      <span>{formatCurrency(quotation.total_tax / 2)}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6b7280' }}>
+                      <span>SGST</span>
+                      <span>{formatCurrency(quotation.total_tax / 2)}</span>
+                    </div>
+                  </>
+                )}
               </>
             )}
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span>Round Off</span>
-              <span>{formatCurrency(quotation.round_off)}</span>
-            </div>
-            <div style={{ borderTop: '2px solid #e5e7eb', paddingTop: '8px', display: 'flex', justifyContent: 'space-between', fontSize: '18px', fontWeight: 700 }}>
-              <span>Grand Total</span>
-              <span>{formatCurrency(quotation.grand_total)}</span>
-            </div>
+            {templates.find(t => t.id === selectedTemplateId)?.column_settings?.optional?.round_off !== false && (
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>Round Off</span>
+                <span>{formatCurrency(quotation.round_off)}</span>
+              </div>
+            )}
+            {templates.find(t => t.id === selectedTemplateId)?.column_settings?.optional?.grand_total !== false && (
+              <div style={{ borderTop: '2px solid #e5e7eb', paddingTop: '8px', display: 'flex', justifyContent: 'space-between', fontSize: '18px', fontWeight: 700 }}>
+                <span>Grand Total</span>
+                <span>{formatCurrency(quotation.grand_total)}</span>
+              </div>
+            )}
           </div>
         </div>
       </div>

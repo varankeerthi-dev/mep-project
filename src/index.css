@@ -1253,3 +1253,107 @@ body {
     max-height: 36vh;
   }
 }
+
+/* Grid Table Styles for Vyapar-like UI */
+.grid-table-container {
+  width: 100%;
+  overflow-x: auto;
+  margin-bottom: 20px;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+}
+
+.grid-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: auto;
+  background: white;
+}
+
+.grid-table th {
+  background: #f8fafc;
+  color: #1e293b;
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+  padding: 8px 4px;
+  border: 1px solid #d1d5db;
+  text-align: center;
+}
+
+.grid-table td {
+  border: 1px solid #d1d5db;
+  padding: 0;
+  vertical-align: middle;
+}
+
+.grid-table .cell-input, 
+.grid-table .cell-select {
+  width: 100%;
+  height: 36px;
+  border: none;
+  padding: 0 8px;
+  font-size: 13px;
+  color: #1e293b;
+  background: transparent;
+  outline: none;
+}
+
+.grid-table .cell-input:focus, 
+.grid-table .cell-select:focus {
+  background: #eff6ff;
+  box-shadow: inset 0 0 0 2px #3b82f6;
+}
+
+.grid-table .cell-input[disabled], 
+.grid-table .cell-select[disabled] {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.grid-table .cell-static {
+  padding: 0 8px;
+  font-size: 13px;
+  color: #1e293b;
+}
+
+.grid-table .total-row {
+  background: #f8fafc;
+  font-weight: 700;
+}
+
+.grid-table .total-label {
+  text-align: right;
+  padding-right: 12px;
+  text-transform: uppercase;
+  font-size: 11px;
+  color: #64748b;
+}
+
+.grid-table .col-shrink {
+  width: 1%;
+  white-space: nowrap;
+}
+
+.grid-table .col-item {
+  min-width: 250px;
+}
+
+.grid-table .delete-cell {
+  width: 30px;
+  text-align: center;
+}
+
+.grid-table .btn-delete {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  padding: 4px;
+}
+
+.grid-table .btn-delete:hover {
+  color: #ef4444;
+}

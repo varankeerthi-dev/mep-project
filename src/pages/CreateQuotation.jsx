@@ -34,6 +34,7 @@ export default function CreateQuotation() {
   const [variantPricing, setVariantPricing] = useState({});
   const [companyState, setCompanyState] = useState(organisation?.state || 'Maharashtra');
   const [quoteNoPreview, setQuoteNoPreview] = useState('');
+  const [defaultTemplate, setDefaultTemplate] = useState(null);
   const [draggingItemId, setDraggingItemId] = useState(null);
   
   // Phase-1: Dynamic Variant Discount Header System
@@ -78,16 +79,42 @@ export default function CreateQuotation() {
   const [items, setItems] = useState([]);
   const itemsTableRef = useRef(null);
   const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth <= 768 : false);
+  const [isDirty, setIsDirty] = useState(false);
 
   useEffect(() => {
     loadInitialData();
   }, [editId]);
 
+  // Track changes to form or items
   useEffect(() => {
-    const onResize = () => setIsMobile(window.innerWidth <= 768);
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, []);
+    if (!loading) {
+      setIsDirty(true);
+    }
+  }, [formData, items]);
+
+  // Prevent browser close/refresh
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (isDirty && !saving) {
+        e.preventDefault();
+        e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+        return e.returnValue;
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isDirty, saving]);
+
+  // Navigation guard
+  const safeNavigate = (path) => {
+    if (isDirty && !saving) {
+      if (window.confirm('You have unsaved changes. Do you want to save them before leaving?')) {
+        handleSave(false);
+        return;
+      }
+    }
+    navigate(path);
+  };
 
   const getFyPrefix = () => {
     const now = new Date();
@@ -1573,20 +1600,15 @@ export default function CreateQuotation() {
                   <span style={{ fontSize: '14px' }}>☰</span>
                 </th>
                 <th style={{ ...compactHeadCellStyle, width: '50px' }}>S.No</th>
-                {templateSettings?.column_settings?.optional?.hsn_code && <th style={{ ...compactHeadCellStyle, width: '100px' }}>HSN/SAC</th>}
+                <th style={{ ...compactHeadCellStyle, width: '100px' }}>HSN</th>
                 <th style={{ ...compactHeadCellStyle, width: '120px' }}>Item</th>
-                {templateSettings?.column_settings?.optional?.variant && <th style={{ ...compactHeadCellStyle, width: '120px' }}>Variant</th>}
-                {templateSettings?.column_settings?.optional?.description && <th style={compactHeadCellStyle}>Description</th>}
+                <th style={{ ...compactHeadCellStyle, width: '120px' }}>Variant</th>
                 <th style={{ ...compactHeadCellStyle, width: '60px' }}>Qty</th>
                 <th style={{ ...compactHeadCellStyle, width: '70px' }}>Unit</th>
-                {templateSettings?.column_settings?.optional?.rate && <th style={{ ...compactHeadCellStyle, width: '90px' }}>Rate</th>}
-                {templateSettings?.column_settings?.optional?.discount_percent && <th style={{ ...compactHeadCellStyle, width: '70px' }}>Disc %</th>}
-                {templateSettings?.column_settings?.optional?.rate_after_discount && (
-                  <th style={{ ...compactHeadCellStyle, width: '90px' }}>
-                    {templateSettings.column_settings.labels?.rate_after_discount || 'Rate/Unit'}
-                  </th>
-                )}
-                {templateSettings?.column_settings?.optional?.tax_percent && <th style={{ ...compactHeadCellStyle, width: '80px' }}>Tax %</th>}
+                <th style={{ ...compactHeadCellStyle, width: '90px' }}>Rate</th>
+                <th style={{ ...compactHeadCellStyle, width: '70px' }}>Disc %</th>
+                <th style={{ ...compactHeadCellStyle, width: '90px' }}>Rate after discount</th>
+                <th style={{ ...compactHeadCellStyle, width: '80px' }}>GST %</th>
                 {templateSettings?.column_settings?.optional?.custom1 && (
                   <th style={{ ...compactHeadCellStyle, width: '100px' }}>
                     {templateSettings.column_settings.labels?.custom1 || 'Custom 1'}
@@ -1626,17 +1648,15 @@ export default function CreateQuotation() {
                       <span style={{ fontSize: '16px' }}>☰</span>
                     </td>
                     <td style={compactBodyCellStyle}>{index + 1}</td>
-                    {templateSettings?.column_settings?.optional?.hsn_code && (
-                      <td style={compactBodyCellStyle}>
-                        <input
-                          type="text"
-                          className="form-input"
-                          value={item.hsn_code || item.material?.hsn_code || materials.find(m => m.id === item.item_id)?.hsn_code || ''}
-                          readOnly
-                          style={{ ...compactCellInputStyle, background: '#f8fafc' }}
-                        />
-                      </td>
-                    )}
+                    <td style={compactBodyCellStyle}>
+                      <input
+                        type="text"
+                        className="form-input"
+                        value={item.hsn_code || item.material?.hsn_code || materials.find(m => m.id === item.item_id)?.hsn_code || ''}
+                        readOnly
+                        style={{ ...compactCellInputStyle, background: '#f8fafc' }}
+                      />
+                    </td>
                     <td style={compactBodyCellStyle}>
                       <select
                         className="form-select"
@@ -1664,45 +1684,32 @@ export default function CreateQuotation() {
                         ))}
                       </select>
                     </td>
-                    {templateSettings?.column_settings?.optional?.variant && (
-                      <td style={compactBodyCellStyle}>
-                        <select
-                          className="form-select"
-                          style={compactCellInputStyle}
-                          value={item.variant_id || ''}
-                          onChange={(e) => {
-                            const nextVariant = e.target.value || null;
-                            updateItem(item.id, 'variant_id', nextVariant);
-                            const mat = materials.find(m => m.id === item.item_id);
-                            if (mat) {
-                              const newRate = getRateForMaterialVariant(mat, nextVariant);
-                              const variantDiscount = nextVariant ? (headerDiscounts[nextVariant] || 0) : 0;
-                              const finalRate = calculateVariantDiscountedRate(newRate, variantDiscount);
-                              updateItem(item.id, 'base_rate_snapshot', newRate);
-                              updateItem(item.id, 'applied_discount_percent', variantDiscount);
-                              updateItem(item.id, 'final_rate_snapshot', finalRate);
-                              updateItem(item.id, 'rate', finalRate);
-                            }
-                          }}
-                        >
-                          <option value="">No Variant</option>
-                          {variants.map(v => (
-                            <option key={v.id} value={v.id}>{v.variant_name}</option>
-                          ))}
-                        </select>
-                      </td>
-                    )}
-                    {templateSettings?.column_settings?.optional?.description && (
-                      <td style={compactBodyCellStyle}>
-                        <input
-                          type="text"
-                          className="form-input"
-                          value={item.description || ''}
-                          onChange={(e) => updateItem(item.id, 'description', e.target.value)}
-                          style={{ ...compactCellInputStyle, minWidth: '120px' }}
-                        />
-                      </td>
-                    )}
+                    <td style={compactBodyCellStyle}>
+                      <select
+                        className="form-select"
+                        style={compactCellInputStyle}
+                        value={item.variant_id || ''}
+                        onChange={(e) => {
+                          const nextVariant = e.target.value || null;
+                          updateItem(item.id, 'variant_id', nextVariant);
+                          const mat = materials.find(m => m.id === item.item_id);
+                          if (mat) {
+                            const newRate = getRateForMaterialVariant(mat, nextVariant);
+                            const variantDiscount = nextVariant ? (headerDiscounts[nextVariant] || 0) : 0;
+                            const finalRate = calculateVariantDiscountedRate(newRate, variantDiscount);
+                            updateItem(item.id, 'base_rate_snapshot', newRate);
+                            updateItem(item.id, 'applied_discount_percent', variantDiscount);
+                            updateItem(item.id, 'final_rate_snapshot', finalRate);
+                            updateItem(item.id, 'rate', finalRate);
+                          }
+                        }}
+                      >
+                        <option value="">No Variant</option>
+                        {variants.map(v => (
+                          <option key={v.id} value={v.id}>{v.variant_name}</option>
+                        ))}
+                      </select>
+                    </td>
                     <td style={compactBodyCellStyle}>
                       <input
                         type="number"
@@ -1723,75 +1730,66 @@ export default function CreateQuotation() {
                         onChange={(e) => updateItem(item.id, 'uom', e.target.value)}
                       />
                     </td>
-                    {templateSettings?.column_settings?.optional?.rate && (
-                      <td style={compactBodyCellStyle}>
-                        <input
-                          type="number"
-                          className="form-input"
-                          style={{ 
-                            ...compactCellInputStyle,
-                            background: '#f8fafc'
-                          }}
-                          value={item.base_rate_snapshot || 0}
-                          readOnly
-                          min="0"
-                          step="0.01"
-                        />
-                      </td>
-                    )}
-                    {/* Phase-1: Discount % Column */}
-                    {templateSettings?.column_settings?.optional?.discount_percent && (
-                      <td style={compactBodyCellStyle}>
-                        <input
-                          type="number"
-                          className="form-input"
-                          style={{ 
-                            ...compactCellInputStyle,
-                            ...(item.is_override ? { background: '#eff6ff', border: '1px solid #3b82f6', fontWeight: 600 } : {})
-                          }}
-                          value={item.discount_percent || 0}
-                          onChange={(e) => {
-                            const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0));
-                            updateItem(item.id, 'discount_percent', val);
-                          }}
-                          min="0"
-                          max="100"
-                          step="0.01"
-                        />
-                      </td>
-                    )}
-                    {templateSettings?.column_settings?.optional?.rate_after_discount && (
-                      <td style={compactBodyCellStyle}>
-                        <input
-                          type="number"
-                          className="form-input"
-                          style={{ 
-                            ...compactCellInputStyle, 
-                            ...(item.override_flag && formData.negotiation_mode ? { background: '#fef3c7' } : {}),
-                            ...(item.is_override ? { background: '#eff6ff', border: '1px solid #3b82f6' } : {})
-                          }}
-                          value={item.rate}
-                          onChange={(e) => updateItem(item.id, 'rate', e.target.value)}
-                          min="0"
-                          step="0.01"
-                          disabled={!formData.negotiation_mode}
-                        />
-                      </td>
-                    )}
-                    {templateSettings?.column_settings?.optional?.tax_percent && (
-                      <td style={compactBodyCellStyle}>
-                        <input
-                          type="number"
-                          className="form-input"
-                          style={compactCellInputStyle}
-                          value={item.tax_percent}
-                          onChange={(e) => updateItem(item.id, 'tax_percent', e.target.value)}
-                          min="0"
-                          max="100"
-                          step="0.01"
-                        />
-                      </td>
-                    )}
+                    <td style={compactBodyCellStyle}>
+                      <input
+                        type="number"
+                        className="form-input"
+                        style={{ 
+                          ...compactCellInputStyle,
+                          background: '#f8fafc'
+                        }}
+                        value={item.base_rate_snapshot || 0}
+                        readOnly
+                        min="0"
+                        step="0.01"
+                      />
+                    </td>
+                    <td style={compactBodyCellStyle}>
+                      <input
+                        type="number"
+                        className="form-input"
+                        style={{ 
+                          ...compactCellInputStyle,
+                          ...(item.is_override ? { background: '#eff6ff', border: '1px solid #3b82f6', fontWeight: 600 } : {})
+                        }}
+                        value={item.discount_percent || 0}
+                        onChange={(e) => {
+                          const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0));
+                          updateItem(item.id, 'discount_percent', val);
+                        }}
+                        min="0"
+                        max="100"
+                        step="0.01"
+                      />
+                    </td>
+                    <td style={compactBodyCellStyle}>
+                      <input
+                        type="number"
+                        className="form-input"
+                        style={{ 
+                          ...compactCellInputStyle, 
+                          ...(item.override_flag && formData.negotiation_mode ? { background: '#fef3c7' } : {}),
+                          ...(item.is_override ? { background: '#eff6ff', border: '1px solid #3b82f6' } : {})
+                        }}
+                        value={item.rate}
+                        onChange={(e) => updateItem(item.id, 'rate', e.target.value)}
+                        min="0"
+                        step="0.01"
+                        disabled={!formData.negotiation_mode}
+                      />
+                    </td>
+                    <td style={compactBodyCellStyle}>
+                      <input
+                        type="number"
+                        className="form-input"
+                        style={compactCellInputStyle}
+                        value={item.tax_percent}
+                        onChange={(e) => updateItem(item.id, 'tax_percent', e.target.value)}
+                        min="0"
+                        max="100"
+                        step="0.01"
+                      />
+                    </td>
                     {templateSettings?.column_settings?.optional?.custom1 && (
                       <td style={compactBodyCellStyle}>
                         <input
