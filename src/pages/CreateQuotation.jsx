@@ -80,6 +80,38 @@ export default function CreateQuotation() {
   const itemsTableRef = useRef(null);
   const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth <= 768 : false);
   const [isDirty, setIsDirty] = useState(false);
+  const [draggingItemId, setDraggingItemId] = useState(null);
+
+  const handleDragStart = (e, id) => {
+    setDraggingItemId(id);
+    e.dataTransfer.setData('text/plain', id);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDropOnRow = (e, targetId) => {
+    e.preventDefault();
+    const draggedId = e.dataTransfer.getData('text/plain');
+    if (draggedId == targetId) return;
+
+    const newItems = [...items];
+    const draggedIdx = newItems.findIndex(i => i.id == draggedId);
+    const targetIdx = newItems.findIndex(i => i.id == targetId);
+
+    if (draggedIdx !== -1 && targetIdx !== -1) {
+      const [draggedItem] = newItems.splice(draggedIdx, 1);
+      newItems.splice(targetIdx, 0, draggedItem);
+      setItems(newItems);
+    }
+  };
+
+  const handleDragEnd = () => {
+    setDraggingItemId(null);
+  };
 
   useEffect(() => {
     loadInitialData();
@@ -1086,7 +1118,8 @@ export default function CreateQuotation() {
         round_off: parseFloat(formData.round_off) || 0,
         grand_total: calculations.grandTotal,
         status: formData.status,
-        negotiation_mode: formData.negotiation_mode
+        negotiation_mode: formData.negotiation_mode,
+        authorized_signatory_id: formData.authorized_signatory_id || null
       };
 
       let quotationId = editId;
@@ -1581,22 +1614,22 @@ export default function CreateQuotation() {
             <thead>
               <tr>
                 <th className="col-shrink">#</th>
-                <th className="col-shrink">HSN</th>
+                <th className="col-hsn">HSN</th>
                 <th className="col-item">ITEM</th>
-                <th className="col-shrink">VARIANT</th>
-                <th className="col-shrink">QTY</th>
-                <th className="col-shrink">UNIT</th>
-                <th className="col-shrink">RATE</th>
-                <th className="col-shrink">DISC %</th>
-                <th className="col-shrink">RATE AFTER DISC</th>
-                <th className="col-shrink">GST %</th>
+                <th className="col-variant">VARIANT</th>
+                <th className="col-qty">QTY</th>
+                <th className="col-unit">UNIT</th>
+                <th className="col-rate">RATE</th>
+                <th className="col-disc">DISC %</th>
+                <th className="col-rate">RATE AFTER DISC</th>
+                <th className="col-gst">GST %</th>
                 {templateSettings?.column_settings?.optional?.custom1 && (
                   <th className="col-shrink">{templateSettings.column_settings.labels?.custom1 || 'Custom 1'}</th>
                 )}
                 {templateSettings?.column_settings?.optional?.custom2 && (
                   <th className="col-shrink">{templateSettings.column_settings.labels?.custom2 || 'Custom 2'}</th>
                 )}
-                <th className="col-shrink">AMOUNT</th>
+                <th className="col-amount">AMOUNT</th>
                 <th className="col-shrink"></th>
               </tr>
             </thead>

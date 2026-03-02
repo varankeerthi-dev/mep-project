@@ -65,11 +65,12 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
     ship_to_gstin: '',
     ship_to_contact: '',
     status: 'active',
+    authorized_signatory_id: '',
     // organisation_id: organisation?.id || null
   });
 
   const [items, setItems] = useState([
-    { id: 1, material_id: '', variant_id: '', material_name: '', unit: 'nos', quantity: '', rate: '', amount: 0, uses_variant: false, available_qty: 0, valid: false, is_service: false }
+    { id: 1, material_id: '', variant_id: '', material_name: '', unit: '', quantity: '', rate: '', amount: 0, uses_variant: false, available_qty: 0, valid: false, is_service: false }
   ]);
   const [isDirty, setIsDirty] = useState(false);
   const [draggingItemId, setDraggingItemId] = useState(null);
@@ -472,13 +473,14 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
       material_id: '', 
       variant_id: formData.variant_id || '', 
       material_name: '', 
-      unit: 'nos', 
+      unit: '', 
       quantity: '', 
       rate: '', 
       amount: 0, 
       uses_variant: false, 
       available_qty: 0, 
-      valid: false 
+      valid: false,
+      is_service: false
     }]);
   };
 
@@ -511,6 +513,11 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
       if (field === 'variant_id' && item.material_id) {
         updates.rate = getRate(item.material_id, value);
         updates.available_qty = (formData.source_type === 'WAREHOUSE' && !item.is_service) ? getAvailableQty(item.material_id, value) : 0;
+      }
+      
+      if (field === 'unit' && item.material_id) {
+        const mat = getMaterial(item.material_id);
+        updates.rate = mat?.sale_price || item.rate || 0;
       }
       
       if (field === 'quantity' || field === 'rate') {
@@ -587,8 +594,10 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
         variant_id: formData.variant_id || null,
         eway_bill_date: formData.eway_bill_date || null,
         eway_valid_till: formData.eway_valid_till || null,
+        po_date: formData.po_date || null,
         project_id: formData.project_id || null,
         status: 'active',
+        authorized_signatory_id: formData.authorized_signatory_id || null,
         // organisation_id: formData.organisation_id || organisation?.id || null
       };
       
@@ -999,6 +1008,22 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
               <label className="form-label" style={{ fontWeight: 600, fontSize: '11px', marginBottom: '2px' }}>Remarks</label>
               <input type="text" name="remarks" className="form-input" style={{ padding: '6px 8px', fontSize: '13px' }} value={formData.remarks || ''} onChange={handleInputChange} disabled={isLocked} placeholder="Add remarks..." />
             </div>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label" style={{ fontWeight: 600, fontSize: '11px', marginBottom: '2px' }}>Authorized Signatory</label>
+              <select 
+                name="authorized_signatory_id"
+                className="form-select" 
+                style={{ padding: '6px 8px', fontSize: '13px' }} 
+                value={formData.authorized_signatory_id || ''} 
+                onChange={handleInputChange} 
+                disabled={isLocked}
+              >
+                <option value="">Select Signatory</option>
+                {(organisation?.signatures || []).map(sig => (
+                  <option key={sig.id} value={sig.id}>{sig.name}</option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
         
@@ -1153,12 +1178,12 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
                 <tr>
                   <th className="col-shrink">#</th>
                   <th className="col-item">ITEM</th>
-                  <th className="col-shrink">VARIANT</th>
-                  {formData.source_type === 'WAREHOUSE' && <th className="col-shrink">AVAIL</th>}
-                  <th className="col-shrink">QTY</th>
-                  <th className="col-shrink">UNIT</th>
-                  <th className="col-shrink">RATE</th>
-                  <th className="col-shrink">AMOUNT</th>
+                  <th className="col-variant">VARIANT</th>
+                  {formData.source_type === 'WAREHOUSE' && <th className="col-qty">AVAIL</th>}
+                  <th className="col-qty">QTY</th>
+                  <th className="col-unit">UNIT</th>
+                  <th className="col-rate">RATE</th>
+                  <th className="col-amount">AMOUNT</th>
                   <th className="col-shrink"></th>
                 </tr>
               </thead>

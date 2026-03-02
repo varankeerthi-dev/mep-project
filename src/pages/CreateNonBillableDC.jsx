@@ -67,6 +67,7 @@ export default function CreateNonBillableDC({ onSuccess, onCancel, editDC }) {
     ship_to_contact: '',
     status: 'active',
     dc_type: 'non-billable',
+    authorized_signatory_id: '',
     // organisation_id: organisation?.id || null
   });
 
@@ -575,6 +576,7 @@ export default function CreateNonBillableDC({ onSuccess, onCancel, editDC }) {
         variant_id: formData.variant_id || null,
         eway_bill_date: formData.eway_bill_date || null,
         eway_valid_till: formData.eway_valid_till || null,
+        po_date: formData.po_date || null,
         project_id: formData.project_id || null,
         status: 'active',
         dc_type: 'non-billable'
@@ -767,6 +769,22 @@ export default function CreateNonBillableDC({ onSuccess, onCancel, editDC }) {
               <label className="form-label" style={{ fontWeight: 600, fontSize: '11px', marginBottom: '2px' }}>Remarks</label>
               <input type="text" name="remarks" className="form-input" style={{ padding: '6px 8px', fontSize: '13px' }} value={formData.remarks || ''} onChange={handleInputChange} disabled={isLocked} placeholder="Add remarks..." />
             </div>
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label" style={{ fontWeight: 600, fontSize: '11px', marginBottom: '2px' }}>Authorized Signatory</label>
+              <select 
+                name="authorized_signatory_id"
+                className="form-select" 
+                style={{ padding: '6px 8px', fontSize: '13px' }} 
+                value={formData.authorized_signatory_id || ''} 
+                onChange={handleInputChange} 
+                disabled={isLocked}
+              >
+                <option value="">Select Signatory</option>
+                {(organisation?.signatures || []).map(sig => (
+                  <option key={sig.id} value={sig.id}>{sig.name}</option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
         
@@ -777,12 +795,12 @@ export default function CreateNonBillableDC({ onSuccess, onCancel, editDC }) {
                 <tr>
                   <th className="col-shrink">#</th>
                   <th className="col-item">ITEM</th>
-                  <th className="col-shrink">VARIANT</th>
-                  {formData.source_type === 'WAREHOUSE' && <th className="col-shrink">AVAIL</th>}
-                  <th className="col-shrink">QTY</th>
-                  <th className="col-shrink">UNIT</th>
-                  <th className="col-shrink">RATE</th>
-                  <th className="col-shrink">AMOUNT</th>
+                  <th className="col-variant">VARIANT</th>
+                  {formData.source_type === 'WAREHOUSE' && <th className="col-qty">AVAIL</th>}
+                  <th className="col-qty">QTY</th>
+                  <th className="col-unit">UNIT</th>
+                  <th className="col-rate">RATE</th>
+                  <th className="col-amount">AMOUNT</th>
                   <th className="col-shrink"></th>
                 </tr>
               </thead>
