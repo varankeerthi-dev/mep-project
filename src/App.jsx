@@ -75,6 +75,7 @@ const ClientComm = lazy(() => ProjectManagementInternal.then(m => ({ default: m.
 const Documents = lazy(() => ProjectManagementInternal.then(m => ({ default: m.Documents })));
 const DCEdit = lazy(() => import('./pages/DCEdit'));
 const SettingsPage = lazy(() => import('./pages/Settings'));
+const PrintSettings = lazy(() => import('./pages/PrintSettings'));
 const DatabaseSetup = lazy(() => import('./pages/DatabaseSetup'));
 
 const AuthContext = createContext(null);
@@ -317,6 +318,7 @@ export default function App() {
       case '/reports/purchase': return <PurchaseReport />;
       case '/reports/sales': return <SalesReport />;
       case '/settings': return <SettingsPage />;
+      case '/settings/print': return <PrintSettings />;
       case '/settings/organisation': return <OrganisationSettings organisation={authOrg} userId={authUser?.id} />;
       case '/settings/document-series': return <TransactionNumberSeries />;
       case '/settings/template': return <TemplateSettings />;
