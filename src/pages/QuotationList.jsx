@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { useNavigate } from 'react-router-dom';
 import { formatDate, formatCurrency } from '../utils/formatters';
+import { useAuth } from '../App';
 
 const QUOTATION_STATUSES = ['Draft', 'Sent', 'Under Negotiation', 'Approved', 'Rejected', 'Converted', 'Cancelled', 'Expired'];
 
 export default function QuotationList() {
   const navigate = useNavigate();
+  const { organisation } = useAuth();
   const [quotations, setQuotations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [processingKey, setProcessingKey] = useState('');
@@ -21,6 +23,8 @@ export default function QuotationList() {
   });
   const [clients, setClients] = useState([]);
   const [projects, setProjects] = useState([]);
+  const [selectedQuotation, setSelectedQuotation] = useState(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -64,6 +68,72 @@ export default function QuotationList() {
   const loadProjects = async () => {
     const { data } = await supabase.from('projects').select('id, project_name, project_code').order('project_name');
     setProjects(data || []);
+  };
+
+  const loadQuotationDetails = async (quotationId) => {
+    setPreviewLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('quotation_header')
+        .select(`
+          *,
+          client:clients(*),
+          project:projects(id, project_name, project_code),
+          items:quotation_items(
+            *,
+            item:materials(id, item_code, display_name, name, hsn_code)
+          )
+        `)
+        .eq('id', quotationId)
+        .single();
+
+      if (error) throw error;
+      setSelectedQuotation(data);
+    } catch (err) {
+      console.error('Error loading quotation details:', err);
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const handleSelectQuotation = (quotation) => {
+    loadQuotationDetails(quotation.id);
+  };
+
+  const handleEditFromPreview = () => {
+    if (selectedQuotation) {
+      navigate(`/quotation/edit?id=${selectedQuotation.id}`);
+    }
+  };
+
+  const handleConvertFromPreview = async () => {
+    if (!selectedQuotation) return;
+    if (selectedQuotation.status === 'Converted') {
+      alert('Quotation is already converted.');
+      return;
+    }
+    if (selectedQuotation.status === 'Cancelled') {
+      alert('Cancelled quotation cannot be converted.');
+      return;
+    }
+
+    if (!confirm('Convert this quotation to Invoice?')) return;
+
+    setProcessingKey(`convert-invoice-${selectedQuotation.id}`);
+    try {
+      await supabase
+        .from('quotation_header')
+        .update({ status: 'Converted', updated_at: new Date().toISOString() })
+        .eq('id', selectedQuotation.id);
+      
+      alert('Quotation marked as Converted to Invoice.');
+      await loadQuotations();
+      await loadQuotationDetails(selectedQuotation.id);
+    } catch (err) {
+      alert('Error converting to Invoice: ' + err.message);
+    } finally {
+      setProcessingKey('');
+    }
   };
 
   const loadQuotations = async () => {
@@ -245,6 +315,16 @@ export default function QuotationList() {
     }
   };
 
+  const openRowMenu = (e, rowId) => {
+    e.stopPropagation();
+    const rect = e.currentTarget.getBoundingClientRect();
+    const menuWidth = 220;
+    const left = Math.max(8, rect.right - menuWidth);
+    const top = rect.bottom + 6;
+    setMenuPosition({ top, left });
+    setOpenMenuId(openMenuId === rowId ? null : rowId);
+  };
+
   const getStatusBadge = (status) => {
     const colors = {
       Draft: { bg: '#f3f4f6', color: '#6b7280' },
@@ -273,18 +353,187 @@ export default function QuotationList() {
     );
   };
 
-  const openRowMenu = (e, rowId) => {
-    e.stopPropagation();
-    const rect = e.currentTarget.getBoundingClientRect();
-    const menuWidth = 220;
-    const left = Math.max(8, rect.right - menuWidth);
-    const top = rect.bottom + 6;
-    setMenuPosition({ top, left });
-    setOpenMenuId(openMenuId === rowId ? null : rowId);
+  const renderQuotationPreview = () => {
+    if (previewLoading) {
+      return (
+        <div style={{ padding: '40px', textAlign: 'center' }}>
+          Loading preview...
+        </div>
+      );
+    }
+
+    if (!selectedQuotation) {
+      return (
+        <div style={{ 
+          padding: '60px 40px', 
+          textAlign: 'center', 
+          color: '#9ca3af',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: '100%'
+        }}>
+          <div style={{ fontSize: '48px', marginBottom: '16px' }}>📋</div>
+          <div style={{ fontSize: '16px', fontWeight: 500 }}>Select a quotation to preview</div>
+          <div style={{ fontSize: '13px', marginTop: '8px' }}>Click on any quotation number to view details</div>
+        </div>
+      );
+    }
+
+    const q = selectedQuotation;
+    const isInterState = q.state && organisation?.state && 
+                        q.state.trim().toLowerCase() !== organisation.state.trim().toLowerCase();
+
+    return (
+      <div style={{ padding: '20px', height: '100%', overflow: 'auto' }}>
+        <div className="page-header" style={{ marginBottom: '16px', paddingBottom: '12px', borderBottom: '1px solid #e5e7eb' }}>
+          <h1 className="page-title" style={{ fontSize: '20px', margin: 0 }}>Quotation Details</h1>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            {getStatusBadge(q.status)}
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+          <button 
+            className="btn btn-primary" 
+            onClick={handleEditFromPreview}
+            disabled={q.status === 'Converted' || q.status === 'Cancelled'}
+          >
+            Edit
+          </button>
+          <button 
+            className="btn btn-primary" 
+            onClick={handleConvertFromPreview}
+            disabled={processingKey === `convert-invoice-${q.id}` || q.status === 'Converted' || q.status === 'Cancelled'}
+            style={{ background: '#059669' }}
+          >
+            {processingKey === `convert-invoice-${q.id}` ? 'Converting...' : 'Convert to Invoice'}
+          </button>
+        </div>
+
+        <div className="card" style={{ marginBottom: '12px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
+            <div>
+              <h4 style={{ margin: '0 0 8px 0', color: '#374151', fontSize: '14px' }}>Quotation Information</h4>
+              <div style={{ display: 'grid', gap: '6px', fontSize: '13px' }}>
+                <div><strong>No:</strong> {q.quotation_no}</div>
+                <div><strong>Date:</strong> {formatDate(q.date)}</div>
+                <div><strong>Valid Till:</strong> {formatDate(q.valid_till)}</div>
+                <div><strong>Payment Terms:</strong> {q.payment_terms || '-'}</div>
+              </div>
+            </div>
+            <div>
+              <h4 style={{ margin: '0 0 8px 0', color: '#374151', fontSize: '14px' }}>Client Information</h4>
+              <div style={{ display: 'grid', gap: '6px', fontSize: '13px' }}>
+                <div><strong>Client:</strong> {q.client?.client_name || '-'}</div>
+                <div><strong>GSTIN:</strong> {q.gstin || '-'}</div>
+                <div><strong>State:</strong> {q.state || '-'}</div>
+                <div><strong>Project:</strong> {q.project?.project_name || q.project?.project_code || '-'}</div>
+              </div>
+            </div>
+          </div>
+          {q.billing_address && (
+            <div style={{ marginTop: '12px', fontSize: '13px' }}>
+              <strong>Address:</strong> {q.billing_address}
+            </div>
+          )}
+        </div>
+
+        <div className="card" style={{ marginBottom: '12px' }}>
+          <h4 style={{ margin: '0 0 8px 0', color: '#374151', fontSize: '14px' }}>Items</h4>
+          <div style={{ overflowX: 'auto' }}>
+            <table className="table" style={{ fontSize: '12px' }}>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Description</th>
+                  <th style={{ textAlign: 'right' }}>Qty</th>
+                  <th>Unit</th>
+                  <th style={{ textAlign: 'right' }}>Rate</th>
+                  <th style={{ textAlign: 'right' }}>Disc %</th>
+                  <th style={{ textAlign: 'right' }}>Tax %</th>
+                  <th style={{ textAlign: 'right' }}>Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {q.items?.map((item, index) => (
+                  <tr key={item.id}>
+                    <td>{index + 1}</td>
+                    <td>
+                      {item.description}
+                      {item.override_flag && (
+                        <span style={{ marginLeft: '6px', background: '#fef3c7', padding: '1px 4px', borderRadius: '3px', fontSize: '10px' }}>Edited</span>
+                      )}
+                    </td>
+                    <td style={{ textAlign: 'right' }}>{item.qty}</td>
+                    <td>{item.uom}</td>
+                    <td style={{ textAlign: 'right' }}>{formatCurrency(item.rate)}</td>
+                    <td style={{ textAlign: 'right' }}>{item.discount_percent}%</td>
+                    <td style={{ textAlign: 'right' }}>{item.tax_percent}%</td>
+                    <td style={{ textAlign: 'right', fontWeight: 600 }}>{formatCurrency(item.line_total)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <div className="card" style={{ width: '280px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>Subtotal</span>
+                <span>{formatCurrency(q.subtotal)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6b7280' }}>
+                <span>Item Discount</span>
+                <span>- {formatCurrency(q.total_item_discount)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6b7280' }}>
+                <span>Extra Discount ({q.extra_discount_percent}%)</span>
+                <span>- {formatCurrency(q.extra_discount_amount)}</span>
+              </div>
+              {isInterState ? (
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6b7280' }}>
+                  <span>IGST</span>
+                  <span>{formatCurrency(q.total_tax)}</span>
+                </div>
+              ) : (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6b7280' }}>
+                    <span>CGST</span>
+                    <span>{formatCurrency(q.total_tax / 2)}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6b7280' }}>
+                    <span>SGST</span>
+                    <span>{formatCurrency(q.total_tax / 2)}</span>
+                  </div>
+                </>
+              )}
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>Round Off</span>
+                <span>{formatCurrency(q.round_off)}</span>
+              </div>
+              <div style={{ borderTop: '2px solid #e5e7eb', paddingTop: '6px', display: 'flex', justifyContent: 'space-between', fontSize: '15px', fontWeight: 700 }}>
+                <span>Grand Total</span>
+                <span>{formatCurrency(q.grand_total)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {(q.remarks || q.reference) && (
+          <div style={{ marginTop: '12px', fontSize: '13px' }}>
+            <strong>Remarks:</strong> {q.remarks || q.reference}
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
-    <div>
+    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 120px)' }}>
       <div className="page-header">
         <h1 className="page-title">Quotation List</h1>
         <button className="btn btn-primary" onClick={() => navigate('/quotation/create')}>
@@ -292,7 +541,7 @@ export default function QuotationList() {
         </button>
       </div>
 
-      <div className="card" style={{ marginBottom: '16px' }}>
+      <div className="card" style={{ marginBottom: '12px' }}>
         <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
           <div className="form-group" style={{ margin: 0, minWidth: '150px' }}>
             <label className="form-label" style={{ fontSize: '11px', fontWeight: 600 }}>From Date</label>
@@ -360,130 +609,145 @@ export default function QuotationList() {
         </div>
       </div>
 
-      <div className="card">
-        {loading ? (
-          <div style={{ padding: '40px', textAlign: 'center' }}>Loading...</div>
-        ) : quotations.length === 0 ? (
-          <div className="empty-state">
-            <h3>No Quotations Found</h3>
-            <p>Create your first quotation to get started</p>
-          </div>
-        ) : (
-          <div className="table-container">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Quotation No</th>
-                  <th>Date</th>
-                  <th>Client</th>
-                  <th>Project</th>
-                  <th>Grand Total</th>
-                  <th>Status</th>
-                  <th>Quick Check Stock</th>
-                  <th>Actions</th>
-                  <th>Menu</th>
-                </tr>
-              </thead>
-              <tbody>
-                {quotations.map((q) => (
-                  <tr key={q.id}>
-                    <td>
-                      <a
-                        href={`#${q.id}`}
-                        onClick={(e) => { e.preventDefault(); navigate(`/quotation/view?id=${q.id}`); }}
-                        style={{ color: '#2563eb', fontWeight: 500 }}
-                      >
-                        {q.quotation_no}
-                      </a>
-                    </td>
-                    <td>{formatDate(q.date)}</td>
-                    <td>{q.client?.client_name || '-'}</td>
-                    <td>{q.project?.project_name || '-'}</td>
-                    <td style={{ fontWeight: 600 }}>{formatCurrency(q.grand_total)}</td>
-                    <td>{getStatusBadge(q.status)}</td>
-                    <td>
-                      <button
-                        className="btn btn-sm btn-secondary"
-                        disabled={processingKey === `quick-${q.id}`}
-                        onClick={() => handleQuickCheckStock(q.id)}
-                      >
-                        {processingKey === `quick-${q.id}` ? 'Checking...' : 'Quick Check'}
-                      </button>
-                    </td>
-                    <td>
-                      <button
-                        className="btn btn-sm btn-secondary"
-                        onClick={() => navigate(`/quotation/view?id=${q.id}`)}
-                        title="View"
-                      >
-                        View
-                      </button>
-                    </td>
-                    <td>
-                      <div className="quotation-row-menu" style={{ position: 'relative' }}>
+      <div style={{ display: 'flex', gap: '16px', flex: 1, overflow: 'hidden' }}>
+        <div className="card" style={{ flex: '0 0 55%', overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
+          {loading ? (
+            <div style={{ padding: '40px', textAlign: 'center' }}>Loading...</div>
+          ) : quotations.length === 0 ? (
+            <div className="empty-state">
+              <h3>No Quotations Found</h3>
+              <p>Create your first quotation to get started</p>
+            </div>
+          ) : (
+            <div className="table-container" style={{ flex: 1 }}>
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Quotation No</th>
+                    <th>Date</th>
+                    <th>Client</th>
+                    <th>Project</th>
+                    <th>Grand Total</th>
+                    <th>Status</th>
+                    <th>Quick Check</th>
+                    <th>Actions</th>
+                    <th>Menu</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {quotations.map((q) => (
+                    <tr 
+                      key={q.id} 
+                      onClick={() => handleSelectQuotation(q)}
+                      style={{ 
+                        cursor: 'pointer',
+                        background: selectedQuotation?.id === q.id ? '#eff6ff' : undefined
+                      }}
+                    >
+                      <td>
+                        <a
+                          href={`#${q.id}`}
+                          onClick={(e) => { e.preventDefault(); handleSelectQuotation(q); }}
+                          style={{ color: '#2563eb', fontWeight: 500 }}
+                        >
+                          {q.quotation_no}
+                        </a>
+                      </td>
+                      <td>{formatDate(q.date)}</td>
+                      <td>{q.client?.client_name || '-'}</td>
+                      <td>{q.project?.project_name || '-'}</td>
+                      <td style={{ fontWeight: 600 }}>{formatCurrency(q.grand_total)}</td>
+                      <td>{getStatusBadge(q.status)}</td>
+                      <td>
                         <button
                           className="btn btn-sm btn-secondary"
-                          onClick={(e) => openRowMenu(e, q.id)}
+                          disabled={processingKey === `quick-${q.id}`}
+                          onClick={(e) => { e.stopPropagation(); handleQuickCheckStock(q.id); }}
                         >
-                          ...
+                          {processingKey === `quick-${q.id}` ? 'Checking...' : 'Quick Check'}
                         </button>
-                        {openMenuId === q.id && (
-                          <div
-                            style={{
-                              position: 'fixed',
-                              left: `${menuPosition.left}px`,
-                              top: `${menuPosition.top}px`,
-                              zIndex: 20,
-                              background: '#fff',
-                              border: '1px solid #e5e7eb',
-                              borderRadius: '8px',
-                              boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
-                              minWidth: '220px',
-                              padding: '6px'
-                            }}
+                      </td>
+                      <td>
+                        <button
+                          className="btn btn-sm btn-secondary"
+                          onClick={(e) => { e.stopPropagation(); navigate(`/quotation/view?id=${q.id}`); }}
+                          title="View"
+                        >
+                          View
+                        </button>
+                      </td>
+                      <td>
+                        <div className="quotation-row-menu" style={{ position: 'relative' }}>
+                          <button
+                            className="btn btn-sm btn-secondary"
+                            onClick={(e) => openRowMenu(e, q.id)}
                           >
-                            <button
-                              className="btn btn-sm btn-secondary"
-                              style={{ width: '100%', justifyContent: 'flex-start', marginBottom: '4px' }}
-                              disabled={q.status === 'Converted' || q.status === 'Cancelled'}
-                              onClick={() => navigate(`/quotation/edit?id=${q.id}`)}
+                            ...
+                          </button>
+                          {openMenuId === q.id && (
+                            <div
+                              style={{
+                                position: 'fixed',
+                                left: `${menuPosition.left}px`,
+                                top: `${menuPosition.top}px`,
+                                zIndex: 20,
+                                background: '#fff',
+                                border: '1px solid #e5e7eb',
+                                borderRadius: '8px',
+                                boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+                                minWidth: '220px',
+                                padding: '6px'
+                              }}
                             >
-                              Edit
-                            </button>
-                            <button
-                              className="btn btn-sm btn-secondary"
-                              style={{ width: '100%', justifyContent: 'flex-start', marginBottom: '4px' }}
-                              disabled={processingKey === `convert-invoice-${q.id}` || q.status === 'Converted' || q.status === 'Cancelled'}
-                              onClick={() => handleConvertFromList(q, 'invoice')}
-                            >
-                              Convert to Invoice
-                            </button>
-                            <button
-                              className="btn btn-sm btn-secondary"
-                              style={{ width: '100%', justifyContent: 'flex-start', marginBottom: '4px' }}
-                              disabled={processingKey === `convert-proforma-${q.id}` || q.status === 'Converted' || q.status === 'Cancelled'}
-                              onClick={() => handleConvertFromList(q, 'proforma')}
-                            >
-                              Convert to Proforma
-                            </button>
-                            <button
-                              className="btn btn-sm btn-secondary"
-                              style={{ width: '100%', justifyContent: 'flex-start', color: '#dc2626' }}
-                              disabled={processingKey === `delete-${q.id}` || q.status !== 'Draft'}
-                              onClick={() => handleDelete(q.id, q.status)}
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                              <button
+                                className="btn btn-sm btn-secondary"
+                                style={{ width: '100%', justifyContent: 'flex-start', marginBottom: '4px' }}
+                                disabled={q.status === 'Converted' || q.status === 'Cancelled'}
+                                onClick={() => navigate(`/quotation/edit?id=${q.id}`)}
+                              >
+                                Edit
+                              </button>
+                              <button
+                                className="btn btn-sm btn-secondary"
+                                style={{ width: '100%', justifyContent: 'flex-start', marginBottom: '4px' }}
+                                disabled={processingKey === `convert-invoice-${q.id}` || q.status === 'Converted' || q.status === 'Cancelled'}
+                                onClick={() => handleConvertFromList(q, 'invoice')}
+                              >
+                                Convert to Invoice
+                              </button>
+                              <button
+                                className="btn btn-sm btn-secondary"
+                                style={{ width: '100%', justifyContent: 'flex-start', marginBottom: '4px' }}
+                                disabled={processingKey === `convert-proforma-${q.id}` || q.status === 'Converted' || q.status === 'Cancelled'}
+                                onClick={() => handleConvertFromList(q, 'proforma')}
+                              >
+                                Convert to Proforma
+                              </button>
+                              <button
+                                className="btn btn-sm btn-secondary"
+                                style={{ width: '100%', justifyContent: 'flex-start', color: '#dc2626' }}
+                                disabled={processingKey === `delete-${q.id}` || q.status !== 'Draft'}
+                                onClick={() => handleDelete(q.id, q.status)}
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        <div className="card" style={{ flex: '1', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ flex: 1, overflow: 'hidden' }}>
+            {renderQuotationPreview()}
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

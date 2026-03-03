@@ -1342,11 +1342,22 @@ export default function CreateQuotation() {
     }
   };
 
-  const compactLabelStyle = { fontWeight: 600, fontSize: '10px', marginBottom: '4px', lineHeight: 1.1 };
-  const compactFieldStyle = { minHeight: '34px', padding: '6px 8px', fontSize: '12px' };
+  const compactLabelStyle = { fontWeight: 600, fontSize: '10px', marginBottom: '2px', lineHeight: 1.2 };
+  const compactFieldStyle = { minHeight: '32px', padding: '4px 8px', fontSize: '12px' };
   const compactHeadCellStyle = { padding: '6px 8px', fontSize: '11px', whiteSpace: 'nowrap' };
   const compactBodyCellStyle = { padding: '5px 6px', fontSize: '12px', verticalAlign: 'middle' };
   const compactCellInputStyle = { minHeight: '30px', padding: '4px 6px', fontSize: '12px' };
+
+  const headerFieldStyle = { display: 'flex', alignItems: 'center', gap: '8px' };
+  const labelColStyle = { minWidth: '90px', maxWidth: '90px', fontWeight: 600, fontSize: '11px', color: '#374151' };
+  const fieldColStyle = { flex: 1 };
+
+  const renderHeaderField = (label, field, isLast = false) => (
+    <div style={{ ...headerFieldStyle, marginBottom: isLast ? 0 : '6px' }}>
+      <span style={labelColStyle}>{label}</span>
+      <div style={fieldColStyle}>{field}</div>
+    </div>
+  );
 
   if (loading) {
     return <div style={{ padding: '40px', textAlign: 'center' }}>Loading...</div>;
@@ -1368,125 +1379,77 @@ export default function CreateQuotation() {
         </div>
       </div>
 
-      <div style={{ background: '#f8f9fa', padding: isMobile ? '10px' : '12px', borderRadius: '8px', marginBottom: '12px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1.1fr 1fr 1.3fr 1.2fr', gap: '8px', marginBottom: '8px' }}>
-          <div className="form-group" style={{ margin: 0 }}>
-            <label className="form-label" style={compactLabelStyle}>Quote No</label>
-            <input
-              type="text"
-              className="form-input"
-              style={{ ...compactFieldStyle, background: '#f3f4f6' }}
-              value={formData.quotation_no || quoteNoPreview || 'Auto'}
-              readOnly
-            />
-          </div>
-          <div className="form-group" style={{ margin: 0 }}>
-            <label className="form-label" style={compactLabelStyle}>Quote Date</label>
-            <input
-              type="date"
-              className="form-input"
-              style={compactFieldStyle}
-              value={formData.date}
-              onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-            />
-          </div>
-          <div className="form-group" style={{ margin: 0 }}>
-            <label className="form-label" style={compactLabelStyle}>Client *</label>
-            <select
-              className="form-select"
-              style={compactFieldStyle}
-              value={formData.client_id}
-              onChange={(e) => handleClientChange(e.target.value)}
-            >
-              <option value="">Select Client</option>
-              {clients.map((c) => (
-                <option key={c.id} value={c.id}>{c.client_name}</option>
-              ))}
+      <div style={{ background: '#f8f9fa', padding: '10px', borderRadius: '6px', marginBottom: '10px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr 1fr', gap: '10px 16px' }}>
+          {/* Row 1 */}
+          {renderHeaderField('Quote No:', (
+            <input type="text" className="form-input" style={{ ...compactFieldStyle, background: '#f3f4f6' }} value={formData.quotation_no || quoteNoPreview || 'Auto'} readOnly />
+          ))}
+          {renderHeaderField('Date:', (
+            <input type="date" className="form-input" style={compactFieldStyle} value={formData.date} onChange={(e) => setFormData({ ...formData, date: e.target.value })} />
+          ))}
+          {renderHeaderField('Client *:', (
+            <select className="form-select" style={compactFieldStyle} value={formData.client_id} onChange={(e) => handleClientChange(e.target.value)}>
+              <option value="">Select</option>
+              {clients.map((c) => (<option key={c.id} value={c.id}>{c.client_name}</option>))}
             </select>
-          </div>
-          <div className="form-group" style={{ margin: 0 }}>
-            <label className="form-label" style={compactLabelStyle}>Project</label>
-            <select
-              className="form-select"
-              style={compactFieldStyle}
-              value={formData.project_id}
-              onChange={(e) => setFormData({ ...formData, project_id: e.target.value })}
-            >
-              <option value="">Select Project</option>
-              {projects.filter((p) => !formData.client_id || p.client_id === formData.client_id).map((p) => (
-                <option key={p.id} value={p.id}>{p.project_name || p.project_code}</option>
-              ))}
+          ))}
+          {renderHeaderField('Project:', (
+            <select className="form-select" style={compactFieldStyle} value={formData.project_id} onChange={(e) => setFormData({ ...formData, project_id: e.target.value })}>
+              <option value="">Select</option>
+              {projects.filter((p) => !formData.client_id || p.client_id === formData.client_id).map((p) => (<option key={p.id} value={p.id}>{p.project_name || p.project_code}</option>))}
             </select>
-          </div>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr 1fr', gap: '8px' }}>
-          <div className="form-group" style={{ margin: 0 }}>
-            <label className="form-label" style={compactLabelStyle}>Variant</label>
-            <select
-              className="form-select"
-              style={compactFieldStyle}
-              value={formData.variant_id || ''}
-              onChange={(e) => setFormData({ ...formData, variant_id: e.target.value })}
-            >
-              <option value="">Select Variant</option>
-              {variants.map((v) => (
-                <option key={v.id} value={v.id}>{v.variant_name}</option>
-              ))}
+          ))}
+          
+          {/* Row 2 */}
+          {renderHeaderField('Variant:', (
+            <select className="form-select" style={compactFieldStyle} value={formData.variant_id || ''} onChange={(e) => setFormData({ ...formData, variant_id: e.target.value })}>
+              <option value="">Select</option>
+              {variants.map((v) => (<option key={v.id} value={v.id}>{v.variant_name}</option>))}
             </select>
-          </div>
-          <div className="form-group" style={{ margin: 0 }}>
-            <label className="form-label" style={compactLabelStyle}>Remarks</label>
-            <input
-              type="text"
-              className="form-input"
-              style={compactFieldStyle}
-              value={formData.reference}
-              onChange={(e) => setFormData({ ...formData, reference: e.target.value })}
-              placeholder="Remarks"
-            />
-          </div>
-          <div className="form-group" style={{ margin: 0 }}>
-            <label className="form-label" style={compactLabelStyle}>Payment Terms</label>
-            <input
-              type="text"
-              className="form-input"
-              style={compactFieldStyle}
-              value={formData.payment_terms}
-              onChange={(e) => setFormData({ ...formData, payment_terms: e.target.value })}
-            />
-          </div>
-          <div className="form-group" style={{ margin: 0 }}>
-            <label className="form-label" style={compactLabelStyle}>Client Contact</label>
-            <select
-              className="form-select"
-              style={compactFieldStyle}
-              value={formData.client_contact || ''}
-              onChange={(e) => setFormData({ ...formData, client_contact: e.target.value })}
-              disabled={!formData.client_id}
-            >
-              <option value="">
-                {formData.client_id ? 'Select Contact' : 'Select Client First'}
-              </option>
-              {clientContactOptions.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
+          ))}
+          {renderHeaderField('Valid Till:', (
+            <input type="date" className="form-input" style={compactFieldStyle} value={formData.valid_till} onChange={(e) => setFormData({ ...formData, valid_till: e.target.value })} />
+          ))}
+          {renderHeaderField('Payment Terms:', (
+            <input type="text" className="form-input" style={compactFieldStyle} value={formData.payment_terms} onChange={(e) => setFormData({ ...formData, payment_terms: e.target.value })} />
+          ))}
+          {renderHeaderField('Contact:', (
+            <select className="form-select" style={compactFieldStyle} value={formData.client_contact || ''} onChange={(e) => setFormData({ ...formData, client_contact: e.target.value })} disabled={!formData.client_id}>
+              <option value="">{formData.client_id ? 'Select' : 'Select Client First'}</option>
+              {clientContactOptions.map((opt) => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}
             </select>
-          </div>
-          <div className="form-group" style={{ margin: 0 }}>
-            <label className="form-label" style={compactLabelStyle}>Authorized Signatory</label>
-            <select
-              className="form-select"
-              style={compactFieldStyle}
-              value={formData.authorized_signatory_id || ''}
-              onChange={(e) => setFormData({ ...formData, authorized_signatory_id: e.target.value })}
-            >
-              <option value="">Select Signatory</option>
-              {(organisation?.signatures || []).map((sig) => (
-                <option key={sig.id} value={sig.id}>{sig.name}</option>
-              ))}
+          ))}
+          
+          {/* Row 3 */}
+          {renderHeaderField('State:', (
+            <select className="form-select" style={compactFieldStyle} value={formData.state || ''} onChange={(e) => setFormData({ ...formData, state: e.target.value })}>
+              <option value="">Select</option>
+              {INDIAN_STATES.map((s) => (<option key={s} value={s}>{s}</option>))}
             </select>
-          </div>
+          ))}
+          {renderHeaderField('GSTIN:', (
+            <input type="text" className="form-input" style={compactFieldStyle} value={formData.gstin || ''} onChange={(e) => setFormData({ ...formData, gstin: e.target.value })} placeholder="GSTIN" />
+          ))}
+          {renderHeaderField('Signatory:', (
+            <select className="form-select" style={compactFieldStyle} value={formData.authorized_signatory_id || ''} onChange={(e) => setFormData({ ...formData, authorized_signatory_id: e.target.value })}>
+              <option value="">Select</option>
+              {(organisation?.signatures || []).map((sig) => (<option key={sig.id} value={sig.id}>{sig.name}</option>))}
+            </select>
+          ))}
+          {renderHeaderField('Remarks:', (
+            <input type="text" className="form-input" style={compactFieldStyle} value={formData.reference} onChange={(e) => setFormData({ ...formData, reference: e.target.value })} placeholder="Remarks" />
+          ))}
+          
+          {/* Row 4 - Billing Address */}
+          {renderHeaderField('Address:', (
+            <input type="text" className="form-input" style={compactFieldStyle} value={formData.billing_address || ''} onChange={(e) => setFormData({ ...formData, billing_address: e.target.value })} placeholder="Billing Address" />
+          ))}
+          {renderHeaderField('Extra Disc %:', (
+            <input type="number" className="form-input" style={compactFieldStyle} value={formData.extra_discount_percent} onChange={(e) => setFormData({ ...formData, extra_discount_percent: parseFloat(e.target.value) || 0 })} min="0" max="100" step="0.1" />
+          ))}
+          {renderHeaderField('', <></>)}
+          {renderHeaderField('', <></>)}
         </div>
       </div>
 

@@ -16,27 +16,38 @@ export default function ProjectList() {
   const [projectPayments, setProjectPayments] = useState([]);
 
   const loadData = async () => {
-    setLoading(true);
-    try {
-      const [projectsRes, clientsRes] = await Promise.all([
-        supabase
-          .from('projects')
-          .select('*, client:clients(client_name)')
-          .order('created_at', { ascending: false }),
-        supabase
-          .from('clients')
-          .select('id, client_name')
-          .order('client_name')
-      ]);
-      
-      setProjects(projectsRes.data || []);
-      setClients(clientsRes.data || []);
-    } catch (err) {
-      console.error('Error loading data:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  setLoading(true);
+
+  try {
+    const [projectsRes, clientsRes] = await Promise.all([
+      supabase
+        .from('projects')
+        .select('*, client:clients(client_name)')
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('clients')
+        .select('id, client_name')
+        .order('client_name')
+    ]);
+
+    if (projectsRes.error) throw projectsRes.error;
+    if (clientsRes.error) throw clientsRes.error;
+
+    setProjects(projectsRes.data || []);
+    setClients(clientsRes.data || []);
+
+  } catch (err) {
+    console.error('Error loading data:', err);
+
+    // IMPORTANT: retry once after short delay (fixes post-refresh race)
+    setTimeout(() => {
+      loadData();
+    }, 800);
+
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     loadData();
@@ -54,6 +65,10 @@ export default function ProjectList() {
         supabase.from('project_expenses').select('*').eq('project_id', project.id).order('expense_date', { ascending: false }),
         supabase.from('project_payments').select('*').eq('project_id', project.id).order('payment_date', { ascending: false })
       ]);
+      if (posResult.error) throw posResult.error;
+if (invoicesResult.error) throw invoicesResult.error;
+if (expensesResult.error) throw expensesResult.error;
+if (paymentsResult.error) throw paymentsResult.error;
 
       setProjectPOs(posResult.data || []);
       setProjectInvoices(invoicesResult.data || []);
