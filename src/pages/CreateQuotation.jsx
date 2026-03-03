@@ -53,6 +53,7 @@ export default function CreateQuotation() {
   const [templateSettings, setTemplateSettings] = useState(null);
   
   const [showItemPicker, setShowItemPicker] = useState(false);
+  const [showCustomLabelEditor, setShowCustomLabelEditor] = useState(false);
   const [itemSearch, setItemSearch] = useState('');
   const [pickerItems, setPickerItems] = useState([]);
 

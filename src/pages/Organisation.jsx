@@ -236,6 +236,23 @@ export function OrganisationSettings({ organisation, userId }) {
     logo_url: organisation.logo_url || '',
     signatures: organisation.signatures || []
   })
+
+  useEffect(() => {
+    setOrgDetails({
+      name: organisation.name || '',
+      address: organisation.address || '',
+      phone: organisation.phone || '',
+      email: organisation.email || '',
+      gstin: organisation.gstin || '',
+      pan: organisation.pan || '',
+      tan: organisation.tan || '',
+      msme_no: organisation.msme_no || '',
+      website: organisation.website || '',
+      state: organisation.state || 'Maharashtra',
+      logo_url: organisation.logo_url || '',
+      signatures: organisation.signatures || []
+    })
+  }, [organisation])
   
   const [newSignature, setNewSignature] = useState({ name: '', url: '' })
   const [uploading, setUploading] = useState(false)
@@ -352,7 +369,7 @@ export function OrganisationSettings({ organisation, userId }) {
   const handleUpdateOrg = async () => {
     try {
       console.log('Updating organisation with:', orgDetails);
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('organisations')
         .update({
           name: orgDetails.name,
@@ -370,12 +387,18 @@ export function OrganisationSettings({ organisation, userId }) {
           updated_at: new Date().toISOString()
         })
         .eq('id', organisation.id)
+        .select()
       
+      console.log('Update response:', { data, error });
+       
       if (error) {
         console.error('Update error:', error);
         alert('Error updating organisation: ' + error.message)
       } else {
         alert('Organisation updated successfully!')
+        if (data && data[0]) {
+          setOrgDetails(data[0])
+        }
       }
     } catch (err) {
       console.error('Error:', err);
