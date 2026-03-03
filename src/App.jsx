@@ -191,38 +191,41 @@ export default function App() {
   };
 
   init();
-}, []);
 
-    // Session Heartbeat: Optimized to prevent excessive state triggers
-    let lastCheck = 0;
-    const handleFocus = async () => {
-      const now = Date.now();
-      if (now - lastCheck < 300000) return; // Only check every 5 minutes max
-      
-      try {
-        const { data: { session }, error } = await supabase.auth.getSession();
-        if (!error && session?.user) {
-          // Only update state if identity actually changed or token was refreshed
-          if (session.user.id !== user?.id) {
-            setUser(session.user);
-          }
+  let lastCheck = 0;
+
+  const handleFocus = async () => {
+    const now = Date.now();
+    if (now - lastCheck < 300000) return;
+
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (!error && session?.user) {
+        if (session.user.id !== user?.id) {
+          setUser(session.user);
         }
-      } catch (e) {
-        console.warn('Heartbeat check failed', e);
       }
-      lastCheck = now;
-    };
+    } catch (e) {
+      console.warn('Heartbeat check failed', e);
+    }
 
-    window.addEventListener('focus', handleFocus);
-    window.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') handleFocus();
-    });
+    lastCheck = now;
+  };
 
-    return () => {
-      window.removeEventListener('focus', handleFocus);
-      window.removeEventListener('visibilitychange', handleFocus);
-    };
-  }, [user?.id]);
+  const handleVisibility = () => {
+    if (document.visibilityState === 'visible') {
+      handleFocus();
+    }
+  };
+
+  window.addEventListener('focus', handleFocus);
+  window.addEventListener('visibilitychange', handleVisibility);
+
+  return () => {
+    window.removeEventListener('focus', handleFocus);
+    window.removeEventListener('visibilitychange', handleVisibility);
+  };
+}, [user?.id]);
 
   const handleLogout = async () => {
     await signOut();
