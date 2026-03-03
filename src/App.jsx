@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef, createContext, useContext, lazy, Suspense } from 'react';
 import Sidebar from './components/Sidebar';
 import QuickAccessBar from './components/QuickAccessBar';
-import { supabase, getCurrentUser, onAuthStateChange, getUserOrganisations, createOrganisation, signOut, initStorageBuckets } from './supabase';
+import { supabase, onAuthStateChange, getUserOrganisations, createOrganisation, signOut, initStorageBuckets } from './supabase';
 
 // Lazy load all pages
 const CreateDC = lazy(() => import('./pages/CreateDC'));
@@ -137,36 +137,51 @@ export default function App() {
   };
 
   const initAuth = async () => {
-    const { user: currentUser } = await getCurrentUser();
-    
-    if (currentUser) {
-      setUser(currentUser);
-      const { data: orgs } = await getUserOrganisations(currentUser.id);
-      setOrganisations(orgs || []);
-      
+  try {
+    // IMPORTANT: wait for session restoration
+    const { data: { session } } = await supabase.auth.getSession()
+
+    if (session?.user) {
+      setUser(session.user)
+
+      const { data: orgs } = await getUserOrganisations(session.user.id)
+      setOrganisations(orgs || [])
+
       if (orgs && orgs.length > 0) {
-        setOrganisation(orgs[0].organisation);
+        setOrganisation(orgs[0].organisation)
       }
     }
-    
-    setLoading(false);
+  } catch (error) {
+    console.error("Auth init error:", error)
+  }
 
-    onAuthStateChange(async (event, session) => {
+  setLoading(false)
+
+  const { data: listener } = supabase.auth.onAuthStateChange(
+    async (event, session) => {
       if (event === 'SIGNED_IN' && session?.user) {
-        setUser(session.user);
-        const { data: orgs } = await getUserOrganisations(session.user.id);
-        setOrganisations(orgs || []);
-        
+        setUser(session.user)
+
+        const { data: orgs } = await getUserOrganisations(session.user.id)
+        setOrganisations(orgs || [])
+
         if (orgs && orgs.length > 0) {
-          setOrganisation(orgs[0].organisation);
+          setOrganisation(orgs[0].organisation)
         }
-      } else if (event === 'SIGNED_OUT') {
-        setUser(null);
-        setOrganisation(null);
-        setOrganisations([]);
       }
-    });
-  };
+
+      if (event === 'SIGNED_OUT') {
+        setUser(null)
+        setOrganisation(null)
+        setOrganisations([])
+      }
+    }
+  )
+
+  return () => {
+    listener?.subscription?.unsubscribe()
+  }
+}
 
   useEffect(() => {
     checkDatabase();
