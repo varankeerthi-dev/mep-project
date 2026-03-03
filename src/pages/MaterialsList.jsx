@@ -241,9 +241,13 @@ function ItemsTab() {
 
   const loadMaterials = async () => {
     try {
-      const { data, error } = await supabase.from('materials').select('*')
+      const { data, error } = await supabase
+        .from('materials')
+        .select('*')
+        .eq('item_type', 'product')
+        .order('name');
 
-if (error) throw error.eq('item_type', 'product').order('name');
+      if (error) throw error;
       setMaterials(data || []);
       
       // Load stock from item_stock table
@@ -297,14 +301,10 @@ if (error) throw error.eq('item_type', 'product').order('name');
     if (!itemId) return;
     try {
       const { data } = await supabase.from('item_variant_pricing').select('*').eq('item_id', itemId);
-      const pricingMap = {};
-      data?.forEach(p => {
-        pricingMap[p.company_variant_id] = { sale_price: p.sale_price, purchase_price: p.purchase_price };
-      });
-      setVariantPricing(pricingMap);
+      setVariantPricing(data || []);
     } catch (error) {
       console.log('item_variant_pricing error', error);
-      setVariantPricing({});
+      setVariantPricing([]);
     }
   };
 

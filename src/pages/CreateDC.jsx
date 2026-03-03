@@ -1172,13 +1172,16 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
                   <tr 
                     key={item.id} 
                     className={!item.valid && item.material_id ? 'invalid-row' : draggingItemId === item.id ? 'row-dragging' : ''}
-                    draggable={!isLocked}
-                    onDragStart={(e) => handleDragStart(e, item.id)}
                     onDragOver={handleDragOver}
                     onDrop={(e) => handleDropOnRow(e, item.id)}
-                    onDragEnd={handleDragEnd}
                   >
-                    <td className="text-center cell-static col-shrink row-drag-handle" title="Drag to reorder">
+                    <td 
+                      className="text-center cell-static col-shrink row-drag-handle" 
+                      title="Drag to reorder"
+                      draggable={!isLocked}
+                      onDragStart={(e) => handleDragStart(e, item.id)}
+                      onDragEnd={handleDragEnd}
+                    >
                       {index + 1}
                     </td>
                     <td className="col-item">
@@ -1248,7 +1251,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
                         )}
                       </select>
                     </td>
-                    <td className="col-shrink">
+                    <td className="col-rate">
                       <input 
                         type="number"
                         className="cell-input text-right"
@@ -1259,7 +1262,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
                         step="0.01"
                       />
                     </td>
-                    <td className="col-shrink cell-static text-right amount-value">
+                    <td className="col-amount cell-static text-right amount-value">
                       {item.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                     </td>
                     <td className="delete-cell col-shrink">
@@ -1297,14 +1300,14 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
           )}
         </div>
         
-        <div style={{ background: '#f0f7ff', padding: '12px 20px', marginTop: '16px', borderRadius: '8px', display: 'flex', justifyContent: 'flex-end', gap: '40px' }}>
+        <div style={{ background: '#f0f7ff', padding: '6px 16px', marginTop: '12px', borderRadius: '6px', display: 'flex', justifyContent: 'flex-end', gap: '30px', fontSize: '11px' }}>
           <div>
             <span style={{ color: '#666' }}>Total Qty:</span>
-            <strong style={{ marginLeft: '8px' }}>{totalQty.toFixed(2)}</strong>
+            <strong style={{ marginLeft: '6px' }}>{totalQty.toFixed(2)}</strong>
           </div>
           <div>
             <span style={{ color: '#666' }}>Total Amount:</span>
-            <strong style={{ marginLeft: '8px' }}>₹{totalAmount.toFixed(2)}</strong>
+            <strong style={{ marginLeft: '6px' }}>₹{totalAmount.toFixed(2)}</strong>
           </div>
         </div>
         

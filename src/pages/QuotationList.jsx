@@ -6,6 +6,27 @@ import { useAuth } from '../App';
 
 const QUOTATION_STATUSES = ['All', 'Draft', 'Sent', 'Under Negotiation', 'Approved', 'Rejected', 'Converted', 'Cancelled', 'Expired'];
 
+// Helper to convert number to words for INR
+function numberToWords(num) {
+  const a = ['', 'One ', 'Two ', 'Three ', 'Four ', 'Five ', 'Six ', 'Seven ', 'Eight ', 'Nine ', 'Ten ', 'Eleven ', 'Twelve ', 'Thirteen ', 'Fourteen ', 'Fifteen ', 'Sixteen ', 'Seventeen ', 'Eighteen ', 'Nineteen '];
+  const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+
+  const inWords = (n) => {
+    if ((n = n.toString()).length > 9) return 'overflow';
+    let nArr = ('000000000' + n).substr(-9).match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
+    if (!nArr) return '';
+    let str = '';
+    str += nArr[1] != 0 ? (a[Number(nArr[1])] || b[nArr[1][0]] + ' ' + a[nArr[1][1]]) + 'Crore ' : '';
+    str += nArr[2] != 0 ? (a[Number(nArr[2])] || b[nArr[2][0]] + ' ' + a[nArr[2][1]]) + 'Lakh ' : '';
+    str += nArr[3] != 0 ? (a[Number(nArr[3])] || b[nArr[3][0]] + ' ' + a[nArr[3][1]]) + 'Thousand ' : '';
+    str += nArr[4] != 0 ? (a[Number(nArr[4])] || b[nArr[4][0]] + ' ' + a[nArr[4][1]]) + 'Hundred ' : '';
+    str += nArr[5] != 0 ? ((str != '') ? 'and ' : '') + (a[Number(nArr[5])] || b[nArr[5][0]] + ' ' + a[nArr[5][1]]) : '';
+    return str.trim() + ' Only';
+  };
+  
+  return inWords(Math.round(num));
+}
+
 export default function QuotationList() {
   const navigate = useNavigate();
   const { organisation } = useAuth();
@@ -278,113 +299,189 @@ export default function QuotationList() {
               {previewLoading ? (
                 <div style={{ padding: '40px' }}>Loading...</div>
               ) : (
-                <div className="pdf-container" style={{ 
-                  width: '100%', 
-                  maxWidth: '800px', 
+                <div className="pdf-container shadow-lg" style={{ 
+                  width: '210mm', 
+                  minHeight: '297mm', 
                   background: '#fff', 
-                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-                  minHeight: '1000px',
-                  padding: '40px',
+                  padding: '15mm',
                   position: 'relative',
-                  border: '1px solid #e5e7eb'
+                  border: '1px solid #000',
+                  margin: '0 auto',
+                  fontFamily: "'Inter', sans-serif"
                 }}>
+                  {/* Double line border effect matching template */}
+                  <div style={{
+                    position: 'absolute',
+                    top: '1mm',
+                    left: '1mm',
+                    right: '1mm',
+                    bottom: '1mm',
+                    border: '0.2mm solid #000',
+                    pointerEvents: 'none'
+                  }}></div>
+
                   {/* Watermark/Status Stamp */}
                   <div style={{ 
                     position: 'absolute', 
-                    top: '40px', 
-                    left: '20px', 
+                    top: '60mm', 
+                    left: '20mm', 
                     transform: 'rotate(-45deg)',
-                    border: `2px solid ${getStatusColor(selectedQuotation.status === 'Converted' ? 'INVOICED' : selectedQuotation.status).color}`,
+                    border: `3px solid ${getStatusColor(selectedQuotation.status === 'Converted' ? 'INVOICED' : selectedQuotation.status).color}`,
                     color: getStatusColor(selectedQuotation.status === 'Converted' ? 'INVOICED' : selectedQuotation.status).color,
-                    padding: '4px 12px',
-                    fontSize: '14px',
-                    fontWeight: 800,
-                    borderRadius: '4px',
-                    opacity: 0.8
+                    padding: '8px 20px',
+                    fontSize: '24px',
+                    fontWeight: 900,
+                    borderRadius: '8px',
+                    opacity: 0.15,
+                    zIndex: 10
                   }}>
                     {selectedQuotation.status === 'Converted' ? 'INVOICED' : selectedQuotation.status.toUpperCase()}
                   </div>
 
                   {/* PDF Content Header */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #3b82f6', paddingBottom: '20px', marginBottom: '20px' }}>
-                    <div style={{ width: '60%' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-                        <div style={{ width: '40px', height: '40px', background: '#3b82f6', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800 }}>A</div>
-                        <h1 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#1e3a8a' }}>{organisation?.name || 'ARUN PIPES & FITTINGS'}</h1>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: `2px solid #3b82f6`, paddingBottom: '20px', marginBottom: '20px' }}>
+                    <div style={{ width: '65%' }}>
+                      {organisation?.logo_url && (
+                        <img src={organisation.logo_url} alt="Logo" style={{ height: '50px', marginBottom: '12px', objectFit: 'contain' }} />
+                      )}
+                      <h1 style={{ margin: 0, fontSize: '20px', fontWeight: 800, color: '#1e3a8a', textTransform: 'uppercase' }}>{organisation?.name || 'ARUN PIPES & FITTINGS'}</h1>
+                      <p style={{ fontSize: '11px', color: '#4b5563', margin: '4px 0', whiteSpace: 'pre-line', lineHeight: '1.4' }}>{organisation?.address || '69, Babu Naidu garden, Perumalagaram, Thiruverkadu, Chennai, Tamil Nadu-600077, India'}</p>
+                      <p style={{ fontSize: '12px', fontWeight: 700, marginTop: '8px', textTransform: 'uppercase' }}>GSTIN: {organisation?.gstin || '33AGZPA3632P1ZY'}</p>
+                    </div>
+                    <div style={{ textAlign: 'right', width: '35%' }}>
+                      <h2 style={{ fontSize: '28px', fontWeight: 900, color: '#d1d5db', margin: '0 0 15px 0', textTransform: 'uppercase', letterSpacing: '-0.05em' }}>Quotation</h2>
+                      <div style={{ fontSize: '12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <p><span style={{ fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', fontSize: '10px' }}>Quote No:</span> <span style={{ fontWeight: 700 }}>{selectedQuotation.quotation_no}</span></p>
+                        <p><span style={{ fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', fontSize: '10px' }}>Quote Date:</span> <span style={{ fontWeight: 700 }}>{formatDate(selectedQuotation.date)}</span></p>
+                        {selectedQuotation.valid_till && (
+                          <p><span style={{ fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', fontSize: '10px' }}>Valid Till:</span> <span style={{ fontWeight: 700 }}>{formatDate(selectedQuotation.valid_till)}</span></p>
+                        )}
                       </div>
-                      <p style={{ fontSize: '10px', color: '#4b5563', margin: '0 0 4px 0', whiteSpace: 'pre-line' }}>{organisation?.address || '69, Babu Naidu garden, Perumalagaram, Thiruverkadu, Chennai, Tamil Nadu-600077, India'}</p>
-                      <p style={{ fontSize: '10px', fontWeight: 700 }}>GSTIN: {organisation?.gstin || '33AGZPA3632P1ZY'}</p>
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <h2 style={{ fontSize: '24px', fontWeight: 900, color: '#9ca3af', margin: 0 }}>Quotation</h2>
                     </div>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', border: '1px solid #e5e7eb', marginBottom: '20px' }}>
-                    <div style={{ padding: '8px', borderRight: '1px solid #e5e7eb', borderBottom: '1px solid #e5e7eb', fontSize: '11px' }}>
-                      <strong>Quote No:</strong> {selectedQuotation.quotation_no}
+                  {/* Remarks area if any */}
+                  {selectedQuotation.remarks && (
+                    <div style={{ marginBottom: '20px', padding: '10px 15px', background: '#f9fafb', borderLeft: '4px solid #3b82f6', fontSize: '12px' }}>
+                      <span style={{ fontWeight: 700, fontSize: '10px', color: '#6b7280', textTransform: 'uppercase', display: 'block', marginBottom: '2px' }}>Remarks / Reference:</span>
+                      {selectedQuotation.remarks}
                     </div>
-                    <div style={{ padding: '8px', borderBottom: '1px solid #e5e7eb', fontSize: '11px' }}>
-                      <strong>Quote Date:</strong> {formatDate(selectedQuotation.date)}
+                  )}
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '25px' }}>
+                    <div style={{ padding: '12px', border: '1px solid #e5e7eb', borderRadius: '8px' }}>
+                      <h3 style={{ fontSize: '10px', fontWeight: 700, color: '#3b82f6', textTransform: 'uppercase', marginBottom: '8px', borderBottom: '1px solid #eee', paddingBottom: '4px' }}>Bill To (Buyer)</h3>
+                      <div style={{ fontSize: '12px', lineHeight: '1.5' }}>
+                        <p style={{ fontWeight: 800, fontSize: '14px', marginBottom: '4px' }}>{selectedQuotation.client?.client_name}</p>
+                        <p style={{ color: '#4b5563', whiteSpace: 'pre-line' }}>{selectedQuotation.billing_address}</p>
+                        <p style={{ fontWeight: 700, marginTop: '8px' }}>GSTIN: <span style={{ textTransform: 'uppercase' }}>{selectedQuotation.gstin || '-'}</span></p>
+                      </div>
                     </div>
-                    <div style={{ padding: '8px', borderRight: '1px solid #e5e7eb', fontSize: '11px' }}>
-                      <div style={{ fontWeight: 700, borderBottom: '1px solid #eee', marginBottom: '4px', paddingBottom: '2px' }}>Bill To</div>
-                      <div style={{ color: '#2563eb', fontWeight: 700 }}>{selectedQuotation.client?.client_name}</div>
-                      <div style={{ color: '#4b5563', marginTop: '4px' }}>{selectedQuotation.billing_address}</div>
-                      <div style={{ marginTop: '4px' }}>GSTIN: {selectedQuotation.gstin}</div>
-                    </div>
-                    <div style={{ padding: '8px', fontSize: '11px' }}>
-                      <div style={{ fontWeight: 700, borderBottom: '1px solid #eee', marginBottom: '4px', paddingBottom: '2px' }}>Ship To</div>
-                      <div style={{ fontWeight: 700 }}>{selectedQuotation.client?.client_name}</div>
-                      <div style={{ color: '#4b5563', marginTop: '4px' }}>{selectedQuotation.billing_address}</div>
-                      <div style={{ marginTop: '4px' }}>GSTIN: {selectedQuotation.gstin}</div>
+                    <div style={{ padding: '12px', border: '1px solid #e5e7eb', borderRadius: '8px' }}>
+                      <h3 style={{ fontSize: '10px', fontWeight: 700, color: '#3b82f6', textTransform: 'uppercase', marginBottom: '8px', borderBottom: '1px solid #eee', paddingBottom: '4px' }}>Ship To (Receiver)</h3>
+                      <div style={{ fontSize: '12px', lineHeight: '1.5' }}>
+                        <p style={{ fontWeight: 800, fontSize: '14px', marginBottom: '4px' }}>{selectedQuotation.client?.client_name}</p>
+                        <p style={{ color: '#4b5563', whiteSpace: 'pre-line' }}>{selectedQuotation.billing_address}</p>
+                        <p style={{ fontWeight: 700, marginTop: '8px' }}>Contact: {selectedQuotation.client?.contact || '-'}</p>
+                      </div>
                     </div>
                   </div>
 
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10px' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '25px' }}>
                     <thead>
-                      <tr style={{ background: '#f9fafb', borderTop: '1px solid #e5e7eb', borderBottom: '1px solid #e5e7eb' }}>
-                        <th style={{ padding: '8px', textAlign: 'left', width: '40px' }}>S.No</th>
-                        <th style={{ padding: '8px', textAlign: 'left' }}>Item & Description</th>
-                        <th style={{ padding: '8px', textAlign: 'left', width: '60px' }}>HSN</th>
-                        <th style={{ padding: '8px', textAlign: 'right', width: '60px' }}>Qty</th>
-                        <th style={{ padding: '8px', textAlign: 'right', width: '80px' }}>Rate</th>
-                        <th style={{ padding: '8px', textAlign: 'right', width: '100px' }}>Amount</th>
+                      <tr style={{ background: '#3b82f6', color: '#fff' }}>
+                        <th style={{ padding: '10px 8px', textAlign: 'center', width: '40px', fontSize: '11px', border: '1px solid #3b82f6' }}>S.No</th>
+                        <th style={{ padding: '10px 8px', textAlign: 'left', fontSize: '11px', border: '1px solid #3b82f6' }}>Item & Description</th>
+                        <th style={{ padding: '10px 8px', textAlign: 'center', width: '70px', fontSize: '11px', border: '1px solid #3b82f6' }}>HSN</th>
+                        <th style={{ padding: '10px 8px', textAlign: 'center', width: '60px', fontSize: '11px', border: '1px solid #3b82f6' }}>Qty</th>
+                        <th style={{ padding: '10px 8px', textAlign: 'right', width: '90px', fontSize: '11px', border: '1px solid #3b82f6' }}>Rate/Unit</th>
+                        <th style={{ padding: '10px 8px', textAlign: 'center', width: '60px', fontSize: '11px', border: '1px solid #3b82f6' }}>GST%</th>
+                        <th style={{ padding: '10px 8px', textAlign: 'right', width: '110px', fontSize: '11px', border: '1px solid #3b82f6' }}>Amount</th>
                       </tr>
                     </thead>
                     <tbody>
                       {selectedQuotation.items?.map((item, idx) => (
-                        <tr key={item.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                          <td style={{ padding: '8px' }}>{idx + 1}</td>
-                          <td style={{ padding: '8px' }}>
-                            <div style={{ fontWeight: 600 }}>{item.description}</div>
+                        <tr key={item.id}>
+                          <td style={{ padding: '8px', textAlign: 'center', fontSize: '11px', border: '1px solid #e5e7eb' }}>{idx + 1}</td>
+                          <td style={{ padding: '8px', border: '1px solid #e5e7eb' }}>
+                            <div style={{ fontWeight: 600, fontSize: '12px', marginBottom: '2px' }}>{item.description}</div>
+                            {item.make && <div style={{ fontSize: '10px', color: '#6b7280' }}>Make: {item.make}</div>}
                           </td>
-                          <td style={{ padding: '8px' }}>{item.hsn_code || '3917'}</td>
-                          <td style={{ padding: '8px', textAlign: 'right' }}>{item.qty}<br/><span style={{ fontSize: '8px', color: '#6b7280' }}>{item.uom}</span></td>
-                          <td style={{ padding: '8px', textAlign: 'right' }}>{item.rate.toFixed(2)}</td>
-                          <td style={{ padding: '8px', textAlign: 'right', fontWeight: 600 }}>{item.line_total.toFixed(2)}</td>
+                          <td style={{ padding: '8px', textAlign: 'center', fontSize: '11px', border: '1px solid #e5e7eb' }}>{item.hsn_code || '3917'}</td>
+                          <td style={{ padding: '8px', textAlign: 'center', fontSize: '11px', border: '1px solid #e5e7eb' }}>
+                            <div style={{ fontWeight: 600 }}>{item.qty}</div>
+                            <div style={{ fontSize: '9px', color: '#6b7280' }}>{item.uom}</div>
+                          </td>
+                          <td style={{ padding: '8px', textAlign: 'right', fontSize: '11px', border: '1px solid #e5e7eb' }}>₹{item.rate.toFixed(2)}</td>
+                          <td style={{ padding: '8px', textAlign: 'center', fontSize: '11px', border: '1px solid #e5e7eb' }}>{item.tax_percent}%</td>
+                          <td style={{ padding: '8px', textAlign: 'right', fontSize: '12px', fontWeight: 700, border: '1px solid #e5e7eb' }}>₹{item.line_total.toFixed(2)}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
 
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '20px' }}>
-                    <div style={{ width: '250px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: '11px' }}>
-                        <span>Sub Total</span>
-                        <span>{selectedQuotation.subtotal.toFixed(2)}</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div style={{ width: '55%' }}>
+                      <p style={{ fontSize: '10px', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', marginBottom: '4px' }}>Amount in Words:</p>
+                      <p style={{ fontSize: '12px', fontWeight: 600, fontStyle: 'italic', textDecoration: 'underline', textDecorationColor: 'rgba(59, 130, 246, 0.3)' }}>{numberToWords(selectedQuotation.grand_total)} Only</p>
+                      
+                      <div style={{ marginTop: '30px', padding: '12px', background: '#f9fafb', borderRadius: '8px', border: '1px dashed #d1d5db' }}>
+                        <h4 style={{ fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', color: '#3b82f6', marginBottom: '8px' }}>Bank Account Details</h4>
+                        <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr', gap: '4px', fontSize: '11px' }}>
+                          <span style={{ color: '#6b7280', textTransform: 'uppercase' }}>Bank:</span> <span style={{ fontWeight: 700 }}>{organisation?.bank_name || '-'}</span>
+                          <span style={{ color: '#6b7280', textTransform: 'uppercase' }}>A/c No:</span> <span style={{ fontWeight: 700, fontSize: '12px' }}>{organisation?.bank_account_no || '-'}</span>
+                          <span style={{ color: '#6b7280', textTransform: 'uppercase' }}>IFSC:</span> <span style={{ fontWeight: 700, color: '#1d4ed8', textTransform: 'uppercase' }}>{organisation?.bank_ifsc || '-'}</span>
+                          <span style={{ color: '#6b7280', textTransform: 'uppercase' }}>Branch:</span> <span>{organisation?.bank_branch || '-'}</span>
+                        </div>
                       </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: '11px', color: '#6b7280' }}>
-                        <span>Total Item Discount</span>
-                        <span>- {selectedQuotation.total_item_discount.toFixed(2)}</span>
+                    </div>
+                    
+                    <div style={{ width: '40%' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ color: '#6b7280' }}>Basic Amount:</span>
+                          <span style={{ fontWeight: 600 }}>₹{selectedQuotation.subtotal.toFixed(2)}</span>
+                        </div>
+                        {selectedQuotation.total_item_discount > 0 && (
+                          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6b7280' }}>
+                            <span>Total Discount:</span>
+                            <span>- ₹{selectedQuotation.total_item_discount.toFixed(2)}</span>
+                          </div>
+                        )}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6b7280' }}>
+                          <span style={{ textTransform: 'uppercase' }}>Total Tax (GST):</span>
+                          <span>₹{selectedQuotation.total_tax.toFixed(2)}</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6b7280' }}>
+                          <span>Round off:</span>
+                          <span>₹{selectedQuotation.round_off.toFixed(2)}</span>
+                        </div>
+                        <div style={{ 
+                          display: 'flex', 
+                          justifyContent: 'space-between', 
+                          paddingTop: '10px', 
+                          marginTop: '5px', 
+                          borderTop: `2px solid #3b82f6`, 
+                          fontSize: '18px', 
+                          fontWeight: 800, 
+                          color: '#3b82f6' 
+                        }}>
+                          <span>Net Value:</span>
+                          <span>{formatCurrency(selectedQuotation.grand_total)}</span>
+                        </div>
                       </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: '11px' }}>
-                        <span>Tax</span>
-                        <span>{selectedQuotation.total_tax.toFixed(2)}</span>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderTop: '1px solid #e5e7eb', fontSize: '13px', fontWeight: 700 }}>
-                        <span>Total</span>
-                        <span>{formatCurrency(selectedQuotation.grand_total)}</span>
+                    </div>
+                  </div>
+
+                  {/* FOOTER / CLOSING */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '60px' }}>
+                    <div style={{ fontSize: '10px', color: '#9ca3af' }}>
+                      <p>This is a computer generated quotation.</p>
+                    </div>
+                    <div style={{ width: '240px', textAlign: 'center' }}>
+                      <p style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '50px', color: '#4b5563' }}>For {organisation?.name || 'ARUN PIPES & FITTINGS'}</p>
+                      <div style={{ borderTop: '1px solid #9ca3af', paddingTop: '8px' }}>
+                        <p style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase' }}>Authorized Signatory</p>
                       </div>
                     </div>
                   </div>

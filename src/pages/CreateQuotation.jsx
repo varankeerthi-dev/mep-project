@@ -911,7 +911,7 @@ export default function CreateQuotation() {
     }, 50);
   };
 
-  const withTimeout = async (promise, label, timeoutMs = 20000) => {
+  const withTimeout = async (promise, label, timeoutMs = 40000) => {
     let timeoutId;
     const timeoutPromise = new Promise((_, reject) => {
       timeoutId = setTimeout(() => reject(new Error(`Timeout while ${label}. Please retry.`)), timeoutMs);
@@ -1144,8 +1144,18 @@ export default function CreateQuotation() {
         }
         quotationId = updatedHeader[0].id;
       } else {
-        let quotationNo = formData.quotation_no || quoteNoPreview || '';
-        if (!quotationNo) {
+        // GENERATE FRESH QUOTATION NUMBER IMMEDIATELY BEFORE INSERT
+        let quotationNo = '';
+        const { data: defaultSeries } = await supabase
+          .from('document_series')
+          .select('*')
+          .eq('is_default', true)
+          .limit(1)
+          .maybeSingle();
+
+        if (defaultSeries) {
+          quotationNo = buildQuoteNoFromSeries(defaultSeries);
+        } else {
           const { data: existing } = await supabase
             .from('quotation_header')
             .select('quotation_no')
@@ -1167,19 +1177,19 @@ export default function CreateQuotation() {
           'creating quotation header'
         );
         
-        if (error) throw error;
+        if (error) {
+          if (error.code === '23505') {
+            throw new Error(`Quotation number ${quotationNo} already exists. Please try saving again.`);
+          }
+          throw error;
+        }
+        
         if (!data || data.length === 0) {
           throw new Error('Failed to create quotation header. No data returned.');
         }
         quotationId = data[0].id;
 
-        const { data: defaultSeries } = await supabase
-          .from('document_series')
-          .select('*')
-          .eq('is_default', true)
-          .limit(1)
-          .maybeSingle();
-
+        // Update series after successful insert
         if (defaultSeries) {
           const nextNo = getQuoteSeriesNumber(defaultSeries) + 1;
           const cfg = defaultSeries?.configs || {};
@@ -1767,10 +1777,10 @@ export default function CreateQuotation() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 350px', gap: '16px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '16px' }}>
         <div></div>
-        <div className="card">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div className="card" style={{ padding: '12px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '11px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span>Subtotal</span>
               <span style={{ fontWeight: 600 }}>{formatCurrency(calculations.subtotal)}</span>
@@ -1781,11 +1791,11 @@ export default function CreateQuotation() {
             </div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span>Extra Discount %</span>
-              <input type="number" className="form-input" style={{ width: '80px', textAlign: 'right' }} value={formData.extra_discount_percent} onChange={(e) => setFormData({ ...formData, extra_discount_percent: e.target.value })} min="0" max="100" step="0.01" />
+              <input type="number" className="form-input" style={{ width: '60px', textAlign: 'right', height: '24px', padding: '2px 4px', fontSize: '11px' }} value={formData.extra_discount_percent} onChange={(e) => setFormData({ ...formData, extra_discount_percent: e.target.value })} min="0" max="100" step="0.01" />
             </div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span>Extra Discount Amt</span>
-              <input type="number" className="form-input" style={{ width: '120px', textAlign: 'right' }} value={formData.extra_discount_amount} onChange={(e) => setFormData({ ...formData, extra_discount_amount: e.target.value })} min="0" step="0.01" />
+              <input type="number" className="form-input" style={{ width: '100px', textAlign: 'right', height: '24px', padding: '2px 4px', fontSize: '11px' }} value={formData.extra_discount_amount} onChange={(e) => setFormData({ ...formData, extra_discount_amount: e.target.value })} min="0" step="0.01" />
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6b7280' }}>
               <span>Extra Discount</span>
@@ -1810,13 +1820,13 @@ export default function CreateQuotation() {
             )}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span>Round Off</span>
-              <input type="number" className="form-input" style={{ width: '120px', textAlign: 'right' }} value={formData.round_off} onChange={(e) => setFormData({ ...formData, round_off: e.target.value })} step="0.01" />
+              <input type="number" className="form-input" style={{ width: '100px', textAlign: 'right', height: '24px', padding: '2px 4px', fontSize: '11px' }} value={formData.round_off} onChange={(e) => setFormData({ ...formData, round_off: e.target.value })} step="0.01" />
             </div>
-            <div style={{ borderTop: '2px solid #e5e7eb', paddingTop: '12px', display: 'flex', justifyContent: 'space-between', fontSize: '18px', fontWeight: 700 }}>
+            <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: '8px', marginTop: '4px', display: 'flex', justifyContent: 'space-between', fontSize: '15px', fontWeight: 700 }}>
               <span>Grand Total</span>
               <span>{formatCurrency(calculations.grandTotal)}</span>
             </div>
-            <div style={{ color: '#1e293b', fontSize: '12px', fontStyle: 'italic', fontWeight: 600 }}>
+            <div style={{ color: '#1e293b', fontSize: '10px', fontStyle: 'italic', fontWeight: 600, textAlign: 'right', marginTop: '2px' }}>
               INR {calculations.amountInWords}
             </div>
           </div>
