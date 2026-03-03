@@ -66,7 +66,7 @@ export const generateInvoiceA4 = (data, organisation) => {
   doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(0);
-  doc.text('TAX INVOICE', pageWidth / 2, margin + 10, { align: 'center' });
+  doc.text('Tax Invoice', pageWidth / 2, margin + 10, { align: 'center' });
 
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');

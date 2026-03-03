@@ -61,7 +61,7 @@ export const generateProfessionalTemplate = (data, organisation, templateSetting
     eway_bill: 'E-Way bill:'
   };
 
-  const documentTitle = data.invoice_no ? 'TAX INVOICE' : 'QUOTATION';
+  const documentTitle = data.invoice_no ? 'Tax Invoice' : 'Quotation';
   const themeColor = organisation.theme_color || '#2563eb';
 
   // Helper for drawing boxes/lines

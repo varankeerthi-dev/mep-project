@@ -418,12 +418,12 @@ export default function QuotationView() {
       if (template.show_logo !== false) {
         doc.setFontSize(20);
         doc.setFont('helvetica', 'bold');
-        doc.text('QUOTATION', 105, 20, { align: 'center' });
+        doc.text('Quotation', 105, 20, { align: 'center' });
         startY = 35;
       } else {
         doc.setFontSize(20);
         doc.setFont('helvetica', 'bold');
-        doc.text('QUOTATION', 105, 15, { align: 'center' });
+        doc.text('Quotation', 105, 15, { align: 'center' });
         startY = 25;
       }
 

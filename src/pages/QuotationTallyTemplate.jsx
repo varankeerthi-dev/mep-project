@@ -70,7 +70,7 @@ export const generateQuotationTally = (data, organisation, templateSettings = nu
   // --- HEADER: DOCUMENT TITLE ---
   doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
-  const docTitle = invoice_no ? 'TAX INVOICE' : 'QUOTATION';
+  const docTitle = invoice_no ? 'Tax Invoice' : 'Quotation';
   doc.text(docTitle, pageWidth / 2, currentY + 5, { align: 'center' });
   currentY += 8;
   doc.line(margin, currentY, pageWidth - margin, currentY);

@@ -410,12 +410,12 @@ export default function QuickStockCheck() {
         </div>
       </div>
 
-      <div className="card" style={{ marginBottom: '16px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-          <h3 style={{ margin: 0 }}>Items</h3>
+      <div className="card" style={{ marginBottom: '8px', padding: '12px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+          <h3 style={{ margin: 0, fontSize: '14px' }}>Items</h3>
           {!isReadOnly && (
-            <button className="btn btn-primary" onClick={handleAddItem}>
-              + Add Item
+            <button className="btn btn-primary btn-sm" onClick={handleAddItem}>
+              + Add
             </button>
           )}
         </div>
@@ -425,61 +425,61 @@ export default function QuickStockCheck() {
             No items added. Click "Add Item" to add items for stock check.
           </div>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table className="table" style={{ minWidth: '800px' }}>
+          <div style={{ overflowX: 'auto', maxWidth: '100%' }}>
+            <table className="table" style={{ fontSize: '11px', minWidth: '100%', width: '100%' }}>
               <thead>
                 <tr>
-                  <th style={{ width: '40px' }}>#</th>
-                  <th>Item</th>
-                  {formData.variant_filter !== 'Non-Variant' && <th>Variant</th>}
-                  <th style={{ width: '100px' }}>Qty Required</th>
+                  <th style={{ width: '35px', padding: '4px', textAlign: 'center' }}>#</th>
+                  <th style={{ minWidth: '120px', padding: '4px' }}>Item</th>
+                  {formData.variant_filter !== 'Non-Variant' && <th style={{ width: '80px', padding: '4px' }}>Variant</th>}
+                  <th style={{ width: '70px', padding: '4px', textAlign: 'right' }}>Req Qty</th>
                   {warehouses.map(wh => (
-                    <th key={wh.id} style={{ width: '80px', textAlign: 'right' }}>{wh.warehouse_name}</th>
+                    <th key={wh.id} style={{ width: '60px', padding: '4px', textAlign: 'right' }}>{wh.warehouse_name.substring(0, 8)}</th>
                   ))}
-                  <th style={{ width: '100px', textAlign: 'right' }}>Total Available</th>
-                  <th style={{ width: '100px', textAlign: 'right' }}>Pending</th>
-                  {!isReadOnly && <th style={{ width: '40px' }}></th>}
+                  <th style={{ width: '70px', padding: '4px', textAlign: 'right' }}>Avail</th>
+                  <th style={{ width: '70px', padding: '4px', textAlign: 'right' }}>Pending</th>
+                  {!isReadOnly && <th style={{ width: '30px', padding: '4px' }}></th>}
                 </tr>
               </thead>
               <tbody>
                 {items.map((item, index) => (
                   <tr key={item.id} style={item.pending_qty > 0 ? { background: '#fef2f2' } : {}}>
-                    <td>{index + 1}</td>
-                    <td>
+                    <td style={{ padding: '2px 4px', textAlign: 'center', fontSize: '10px' }}>{index + 1}</td>
+                    <td style={{ padding: '2px' }}>
                       <select
                         className="form-select"
-                        style={{ minWidth: '150px' }}
+                        style={{ width: '100%', minWidth: 'unset', padding: '2px 4px', fontSize: '10px', height: '24px' }}
                         value={item.item_id}
                         onChange={(e) => handleItemChange(index, 'item_id', e.target.value)}
                         disabled={isReadOnly}
                       >
-                        <option value="">Select Item</option>
+                        <option value="">Select</option>
                         {materials.map(m => (
                           <option key={m.id} value={m.id}>{m.display_name || m.name}</option>
                         ))}
                       </select>
                     </td>
                     {formData.variant_filter !== 'Non-Variant' && (
-                      <td>
+                      <td style={{ padding: '2px' }}>
                         <select
                           className="form-select"
-                          style={{ minWidth: '120px' }}
+                          style={{ width: '100%', minWidth: 'unset', padding: '2px 4px', fontSize: '10px', height: '24px' }}
                           value={item.company_variant_id || ''}
                           onChange={(e) => handleItemChange(index, 'company_variant_id', e.target.value || null)}
                           disabled={isReadOnly}
                         >
-                          <option value="">Select Variant</option>
+                          <option value="">-</option>
                           {variants.map(v => (
                             <option key={v.id} value={v.id}>{v.variant_name}</option>
                           ))}
                         </select>
                       </td>
                     )}
-                    <td>
+                    <td style={{ padding: '2px' }}>
                       <input
                         type="number"
                         className="form-input"
-                        style={{ textAlign: 'right' }}
+                        style={{ width: '100%', textAlign: 'right', padding: '2px 4px', fontSize: '10px', height: '24px' }}
                         value={item.qty_required}
                         onChange={(e) => handleItemChange(index, 'qty_required', e.target.value)}
                         min="0"
@@ -490,22 +490,22 @@ export default function QuickStockCheck() {
                     {warehouses.map(wh => {
                       const snapshot = item.warehouse_snapshot || {};
                       return (
-                        <td key={wh.id} style={{ textAlign: 'right' }}>
+                        <td key={wh.id} style={{ padding: '2px 4px', textAlign: 'right', fontSize: '10px' }}>
                           {formatCurrency(snapshot[wh.id] || 0)}
                         </td>
                       );
                     })}
-                    <td style={{ textAlign: 'right', fontWeight: 600 }}>
+                    <td style={{ padding: '2px 4px', textAlign: 'right', fontWeight: 600, fontSize: '10px' }}>
                       {formatCurrency(item.total_available || 0)}
                     </td>
-                    <td style={{ textAlign: 'right', fontWeight: 600, color: (item.pending_qty || 0) > 0 ? '#dc2626' : '#047857' }}>
+                    <td style={{ padding: '2px 4px', textAlign: 'right', fontWeight: 600, fontSize: '10px', color: (item.pending_qty || 0) > 0 ? '#dc2626' : '#047857' }}>
                       {formatCurrency(item.pending_qty || 0)}
                     </td>
                     {!isReadOnly && (
-                      <td>
+                      <td style={{ padding: '2px' }}>
                         <button
                           className="btn btn-sm"
-                          style={{ color: '#dc2626', padding: '4px 8px' }}
+                          style={{ color: '#dc2626', padding: '2px 6px', fontSize: '12px', lineHeight: 1 }}
                           onClick={() => handleRemoveItem(index)}
                         >
                           ×
@@ -566,17 +566,17 @@ export default function QuickStockCheck() {
                 <div><strong>Client:</strong> {formData.client_name}</div>
                 <div><strong>Variant Filter:</strong> {formData.variant_filter}</div>
               </div>
-              <table className="table" style={{ width: '100%' }}>
+              <table className="table" style={{ width: '100%', fontSize: '10px' }}>
                 <thead>
                   <tr>
-                    <th>#</th>
-                    <th>Item</th>
-                    <th style={{ textAlign: 'right' }}>Qty Required</th>
+                    <th style={{ padding: '4px', width: '30px' }}>#</th>
+                    <th style={{ padding: '4px' }}>Item</th>
+                    <th style={{ padding: '4px', textAlign: 'right' }}>Req</th>
                     {warehouses.map(wh => (
-                      <th key={wh.id} style={{ textAlign: 'right' }}>{wh.warehouse_name}</th>
+                      <th key={wh.id} style={{ padding: '4px', textAlign: 'right' }}>{wh.warehouse_name.substring(0, 8)}</th>
                     ))}
-                    <th style={{ textAlign: 'right' }}>Total Available</th>
-                    <th style={{ textAlign: 'right' }}>Pending</th>
+                    <th style={{ padding: '4px', textAlign: 'right' }}>Avail</th>
+                    <th style={{ padding: '4px', textAlign: 'right' }}>Pending</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -584,19 +584,19 @@ export default function QuickStockCheck() {
                     const material = getSelectedMaterial(item.item_id);
                     return (
                       <tr key={item.id} style={item.pending_qty > 0 ? { background: '#fef2f2' } : {}}>
-                        <td>{index + 1}</td>
-                        <td>{material?.display_name || material?.name || '-'}</td>
-                        <td style={{ textAlign: 'right' }}>{item.qty_required || 0}</td>
+                        <td style={{ padding: '2px 4px', textAlign: 'center' }}>{index + 1}</td>
+                        <td style={{ padding: '2px 4px' }}>{material?.display_name || material?.name || '-'}</td>
+                        <td style={{ padding: '2px 4px', textAlign: 'right' }}>{item.qty_required || 0}</td>
                         {warehouses.map(wh => {
                           const snapshot = item.warehouse_snapshot || {};
                           return (
-                            <td key={wh.id} style={{ textAlign: 'right' }}>
+                            <td key={wh.id} style={{ padding: '2px 4px', textAlign: 'right' }}>
                               {formatCurrency(snapshot[wh.id] || 0)}
                             </td>
                           );
                         })}
-                        <td style={{ textAlign: 'right', fontWeight: 600 }}>{formatCurrency(item.total_available || 0)}</td>
-                        <td style={{ textAlign: 'right', fontWeight: 600, color: (item.pending_qty || 0) > 0 ? '#dc2626' : '#047857' }}>
+                        <td style={{ padding: '2px 4px', textAlign: 'right', fontWeight: 600 }}>{formatCurrency(item.total_available || 0)}</td>
+                        <td style={{ padding: '2px 4px', textAlign: 'right', fontWeight: 600, color: (item.pending_qty || 0) > 0 ? '#dc2626' : '#047857' }}>
                           {formatCurrency(item.pending_qty || 0)}
                         </td>
                       </tr>

@@ -529,6 +529,7 @@ export default function CreateQuotation() {
 
     let discounts = {};
     let settings = {};
+    const customDiscounts = client.custom_discounts || {};
 
     try {
       if (client.discount_type === 'Standard' && client.standard_pricelist_id) {
@@ -542,12 +543,10 @@ export default function CreateQuotation() {
           const flatDisc = parseFloat(pl.discount_percent) || 0;
           variants.forEach(v => {
             discounts[v.id] = flatDisc;
-            // For standard price lists, we might not have specific min/max limits
-            // but we can default them to the flat discount or use global defaults
             settings[v.id] = {
               default: flatDisc,
               min: 0,
-              max: flatDisc // Assuming max is the flat discount for standard
+              max: flatDisc
             };
           });
         }
@@ -578,8 +577,10 @@ export default function CreateQuotation() {
             .eq('structure_id', struct.id);
           
           varSettings?.forEach(s => {
-            discounts[s.variant_id] = parseFloat(s.default_discount_percent) || 0;
-            settings[s.variant_id] = {
+            const variantId = s.variant_id;
+            const customDisc = customDiscounts[variantId] !== undefined ? customDiscounts[variantId] : parseFloat(s.default_discount_percent) || 0;
+            discounts[variantId] = customDisc;
+            settings[variantId] = {
               default: parseFloat(s.default_discount_percent) || 0,
               min: parseFloat(s.min_discount_percent) || 0,
               max: parseFloat(s.max_discount_percent) || 0

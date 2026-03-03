@@ -34,20 +34,34 @@ export function CreateClientEdit({ onSuccess, onCancel }) {
 function ClientDiscountPortfolio({ formData, setFormData, isAdmin }) {
   const [pricelists, setPricelists] = useState([]);
   const [structures, setStructures] = useState([]);
+  const [variants, setVariants] = useState([]);
   const [previewSettings, setPreviewSettings] = useState([]);
+  const [customDiscounts, setCustomDiscounts] = useState({});
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState({ type: '', text: '' });
 
   useEffect(() => {
     const fetchData = async () => {
-      const [plData, stData] = await Promise.all([
+      const [plData, stData, varData] = await Promise.all([
         supabase.from('standard_discount_pricelists').select('*').eq('is_active', true),
-        supabase.from('discount_structures').select('*').eq('is_active', true).neq('structure_name', 'Standard')
+        supabase.from('discount_structures').select('*').eq('is_active', true).neq('structure_name', 'Standard'),
+        supabase.from('company_variants').select('*').eq('is_active', true).order('variant_name')
       ]);
       setPricelists(plData.data || []);
       setStructures(stData.data || []);
+      setVariants(varData.data || []);
     };
     fetchData();
   }, []);
+
+  useEffect(() => {
+    if (formData.custom_discounts && typeof formData.custom_discounts === 'object') {
+      setCustomDiscounts(formData.custom_discounts);
+    } else {
+      setCustomDiscounts({});
+    }
+  }, [formData.custom_discounts]);
 
   useEffect(() => {
     const fetchPreview = async () => {
@@ -66,10 +80,41 @@ function ClientDiscountPortfolio({ formData, setFormData, isAdmin }) {
     fetchPreview();
   }, [formData.discount_type, structures]);
 
+  const handleCustomDiscountChange = (variantId, value) => {
+    setCustomDiscounts(prev => ({
+      ...prev,
+      [variantId]: parseFloat(value) || 0
+    }));
+  };
+
+  const handleSaveCustomDiscounts = async () => {
+    if (!formData.id) {
+      setSaveMessage({ type: 'error', text: 'Please save the client first before saving discounts.' });
+      return;
+    }
+    setSaving(true);
+    setSaveMessage({ type: '', text: '' });
+    try {
+      const { error } = await supabase
+        .from('clients')
+        .update({ custom_discounts: customDiscounts, updated_at: new Date().toISOString() })
+        .eq('id', formData.id);
+      
+      if (error) throw error;
+      
+      setFormData(prev => ({ ...prev, custom_discounts: customDiscounts }));
+      setSaveMessage({ type: 'success', text: 'Discounts saved successfully!' });
+    } catch (err) {
+      setSaveMessage({ type: 'error', text: 'Error saving discounts: ' + err.message });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="pricing-control">
-      <div className="card" style={{ maxWidth: '600px', marginBottom: '24px' }}>
-        <h3 style={{ fontSize: '18px', marginBottom: '16px' }}>Discount Portfolio</h3>
+      <div className="card" style={{ maxWidth: '600px', marginBottom: '16px' }}>
+        <h3 style={{ fontSize: '16px', marginBottom: '12px' }}>Discount Portfolio</h3>
         <div className="form-group">
           <label className="form-label">Discount Type *</label>
           <select 
@@ -86,7 +131,7 @@ function ClientDiscountPortfolio({ formData, setFormData, isAdmin }) {
         </div>
 
         {formData.discount_type === 'Standard' && (
-          <div className="form-group" style={{ marginTop: '16px' }}>
+          <div className="form-group" style={{ marginTop: '12px' }}>
             <label className="form-label">Select Standard Price List *</label>
             <select 
               className="form-select" 
@@ -104,22 +149,91 @@ function ClientDiscountPortfolio({ formData, setFormData, isAdmin }) {
         )}
       </div>
 
+      {/* Custom Discounts Section */}
+      <div className="card" style={{ marginBottom: '16px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+          <h3 style={{ fontSize: '14px', margin: 0 }}>Custom Discounts (Per Variant)</h3>
+          <button 
+            className="btn btn-primary btn-sm" 
+            onClick={handleSaveCustomDiscounts}
+            disabled={saving || !formData.id}
+            style={{ padding: '4px 12px', fontSize: '12px' }}
+          >
+            {saving ? 'Saving...' : 'Save Discounts'}
+          </button>
+        </div>
+        
+        {saveMessage.text && (
+          <div style={{ 
+            padding: '8px 12px', 
+            marginBottom: '12px', 
+            borderRadius: '4px', 
+            fontSize: '12px',
+            background: saveMessage.type === 'success' ? '#dcfce7' : '#fee2e2',
+            color: saveMessage.type === 'success' ? '#166534' : '#dc2626'
+          }}>
+            {saveMessage.text}
+          </div>
+        )}
+
+        <div className="table-container" style={{ maxHeight: '200px', overflow: 'auto' }}>
+          <table className="table" style={{ fontSize: '12px' }}>
+            <thead>
+              <tr>
+                <th style={{ width: '60%' }}>Variant</th>
+                <th style={{ width: '40%' }}>Discount %</th>
+              </tr>
+            </thead>
+            <tbody>
+              {variants.length === 0 ? (
+                <tr><td colSpan="2" style={{ textAlign: 'center' }}>No variants found</td></tr>
+              ) : (
+                variants.map(v => (
+                  <tr key={v.id}>
+                    <td>{v.variant_name}</td>
+                    <td>
+                      <input 
+                        type="number" 
+                        className="form-input" 
+                        style={{ width: '80px', textAlign: 'right', padding: '4px 8px', fontSize: '12px' }}
+                        value={customDiscounts[v.id] || 0}
+                        onChange={(e) => handleCustomDiscountChange(v.id, e.target.value)}
+                        min="0"
+                        max="100"
+                        step="0.01"
+                      />
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <div className="card">
-        <h3 style={{ fontSize: '16px', marginBottom: '12px' }}>Portfolio Preview</h3>
+        <h3 style={{ fontSize: '14px', marginBottom: '10px' }}>Portfolio Preview</h3>
         {formData.discount_type === 'Standard' ? (
-          <div style={{ padding: '20px', background: '#f8fafc', borderRadius: '8px' }}>
-            <p><strong>Standard Discount:</strong> {pricelists.find(pl => pl.id === formData.standard_pricelist_id)?.discount_percent || 0}% flat on all items.</p>
+          <div style={{ padding: '12px', background: '#f8fafc', borderRadius: '6px' }}>
+            <p style={{ fontSize: '13px', margin: 0 }}>
+              <strong>Standard Discount:</strong> {pricelists.find(pl => pl.id === formData.standard_pricelist_id)?.discount_percent || 0}% flat on all items.
+            </p>
           </div>
         ) : (
           <div className="table-container">
-            <table className="table">
-              <thead><tr><th>Variant</th><th>Default %</th><th>Min %</th><th>Max %</th></tr></thead>
+            <table className="table" style={{ fontSize: '12px' }}>
+              <thead><tr><th style={{ width: '40%' }}>Variant</th><th style={{ width: '20%' }}>Default %</th><th style={{ width: '20%' }}>Min %</th><th style={{ width: '20%' }}>Max %</th></tr></thead>
               <tbody>
-                {loading ? <tr><td colSpan="4" textAlign="center">Loading...</td></tr> : 
-                 previewSettings.length === 0 ? <tr><td colSpan="4" textAlign="center">No settings found.</td></tr> :
+                {loading ? <tr><td colSpan="4" style={{ textAlign: 'center' }}>Loading...</td></tr> : 
+                 previewSettings.length === 0 ? <tr><td colSpan="4" style={{ textAlign: 'center' }}>No settings found.</td></tr> :
                  previewSettings.map(s => (
-                   <tr key={s.id}><td>{s.variant?.variant_name}</td><td>{s.default_discount_percent}%</td><td>{s.min_discount_percent}%</td><td>{s.max_discount_percent}%</td></tr>
-                 ))
+                  <tr key={s.id}>
+                    <td>{s.variant?.variant_name}</td>
+                    <td>{s.default_discount_percent}%</td>
+                    <td>{s.min_discount_percent}%</td>
+                    <td>{s.max_discount_percent}%</td>
+                  </tr>
+                ))
                 }
               </tbody>
             </table>

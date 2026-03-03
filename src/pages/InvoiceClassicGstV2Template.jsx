@@ -115,7 +115,7 @@ export const generateInvoiceClassicGstV2 = (data, organisation, templateSettings
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(0);
-  doc.text('TAX INVOICE', pageWidth - margin - 5, currentY + 5, { align: 'right' });
+  doc.text('Tax Invoice', pageWidth - margin - 5, currentY + 5, { align: 'right' });
 
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
