@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { supabase } from '../supabase';
 import { useNavigate } from 'react-router-dom';
 import { formatDate, formatCurrency } from '../utils/formatters';
@@ -136,162 +136,6 @@ export default function QuotationList() {
     q.quotation_no?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     q.client?.client_name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
-  return (
-    <div style={{ display: 'flex', height: 'calc(100vh - 60px)', margin: '-24px', background: '#fff' }}>
-      {/* Left Sidebar - List */}
-      <div style={{ width: '350px', borderRight: '1px solid #e5e7eb', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ padding: '16px', borderBottom: '1px solid #e5e7eb' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-            <div style={{ position: 'relative' }}>
-              <button 
-                onClick={() => setOpenMenu(!openMenu)}
-                style={{ background: 'none', border: 'none', fontSize: '16px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}
-              >
-                All Quotes <span style={{ fontSize: '10px' }}>▼</span>
-              </button>
-            </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button 
-                className="btn btn-primary" 
-                style={{ padding: '4px 10px', borderRadius: '4px' }}
-                onClick={() => navigate('/quotation/create')}
-              >
-                +
-              </button>
-              <button style={{ background: 'none', border: '1px solid #e5e7eb', padding: '4px 8px', borderRadius: '4px' }}>...</button>
-            </div>
-          </div>
-          <input 
-            type="text" 
-            placeholder="Search quotes..." 
-            className="form-input"
-            style={{ height: '32px', fontSize: '13px' }}
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-
-        <div style={{ flex: 1, overflowY: 'auto' }}>
-          {loading ? (
-            <div style={{ padding: '20px', textAlign: 'center' }}>Loading...</div>
-          ) : filteredQuotations.map(q => (
-            <div 
-              key={q.id}
-              onClick={() => handleSelectQuotation(q)}
-              style={{ 
-                padding: '12px 16px', 
-                borderBottom: '1px solid #f3f4f6', 
-                cursor: 'pointer',
-                background: selectedQuotation?.id === q.id ? '#f0f7ff' : '#fff',
-                borderLeft: selectedQuotation?.id === q.id ? '3px solid #2563eb' : '3px solid transparent'
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                <span style={{ fontWeight: 600, color: '#111827', fontSize: '13px' }}>{q.client?.client_name}</span>
-                <span style={{ fontWeight: 600, color: '#111827', fontSize: '13px' }}>{formatCurrency(q.grand_total)}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ color: '#6b7280', fontSize: '11px' }}>
-                  {q.quotation_no} • {formatDate(q.date)}
-                </div>
-                <span style={{ 
-                  fontSize: '9px', 
-                  fontWeight: 700, 
-                  color: getStatusColor(q.status === 'Converted' ? 'INVOICED' : q.status).color,
-                  textTransform: 'uppercase'
-                }}>
-                  {q.status === 'Converted' ? 'INVOICED' : q.status}
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Right Area - Preview */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#f9fafb' }}>
-        {selectedQuotation ? (
-          <>
-            {/* Header Toolbar */}
-            <div style={{ padding: '12px 24px', background: '#fff', borderBottom: '1px solid #e5e7eb' }}>
-              <div style={{ fontSize: '11px', color: '#6b7280', marginBottom: '4px' }}>Branch: Head Office</div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 700 }}>{selectedQuotation.quotation_no}</h2>
-                <div style={{ display: 'flex', gap: '12px' }}>
-                  <button style={{ background: 'none', border: 'none', cursor: 'pointer' }}>📎</button>
-                  <button style={{ background: 'none', border: 'none', cursor: 'pointer' }}>📄</button>
-                  <button style={{ background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => setSelectedQuotation(null)}>×</button>
-                </div>
-              </div>
-              
-              <div style={{ display: 'flex', gap: '16px', marginTop: '12px', alignItems: 'center' }}>
-                <button 
-                  className="btn-toolbar" 
-                  onClick={() => navigate(`/quotation/edit?id=${selectedQuotation.id}`)}
-                  style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', background: 'none', border: 'none', cursor: 'pointer', color: '#4b5563' }}
-                >
-                  ✎ Edit
-                </button>
-                <div style={{ height: '16px', width: '1px', background: '#e5e7eb' }}></div>
-                <button 
-                  className="btn-toolbar" 
-                  onClick={() => navigate(`/quotation/create?duplicateId=${selectedQuotation.id}`)}
-                  style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', background: 'none', border: 'none', cursor: 'pointer', color: '#4b5563' }}
-                >
-                  📋 Duplicate
-                </button>
-                <div style={{ height: '16px', width: '1px', background: '#e5e7eb' }}></div>
-                <button style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', background: 'none', border: 'none', cursor: 'pointer', color: '#4b5563' }}>✉ Mails ▼</button>
-                <button style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', background: 'none', border: 'none', cursor: 'pointer', color: '#4b5563' }}>🔗 Share</button>
-                <button style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', background: 'none', border: 'none', cursor: 'pointer', color: '#4b5563' }}>🖨 PDF/Print ▼</button>
-                <button style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', background: 'none', border: 'none', cursor: 'pointer', color: '#4b5563' }}>🔄 Convert to Invoice</button>
-                <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#4b5563' }}>...</button>
-              </div>
-            </div>
-
-            {/* Approval Bar */}
-            <div style={{ padding: '8px 24px', background: '#fff', borderBottom: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#6b7280' }}>
-              <span>Approved by:</span>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#111827', fontWeight: 500 }}>
-                <div style={{ width: '20px', height: '20px', background: '#d1fae5', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', color: '#047857' }}>K</div>
-                Karthik
-              </span>
-              <span style={{ color: '#2563eb', cursor: 'pointer', marginLeft: '8px' }}>View Approval Details</span>
-            </div>
-
-            {/* Tabs */}
-            <div style={{ padding: '0 24px', background: '#fff', display: 'flex', gap: '24px', borderBottom: '1px solid #e5e7eb' }}>
-              <button 
-                onClick={() => setActiveTab('details')}
-                style={{ 
-                  padding: '12px 0', 
-                  borderBottom: activeTab === 'details' ? '2px solid #2563eb' : '2px solid transparent',
-                  background: 'none',
-                  borderTop: 'none',
-                  borderLeft: 'none',
-                  borderRight: 'none',
-                  fontSize: '13px',
-                  fontWeight: activeTab === 'details' ? 600 : 500,
-                  color: activeTab === 'details' ? '#2563eb' : '#6b7280',
-                  cursor: 'pointer'
-                }}
-              >
-                Quote Details
-              </button>
-              <button 
-                onClick={() => setActiveTab('invoices')}
-                style={{ padding: '12px 0', border: 'none', background: 'none', fontSize: '13px', color: '#6b7280', cursor: 'pointer' }}
-              >
-                Invoices
-              </button>
-              <button 
-                onClick={() => setActiveTab('activity')}
-                style={{ padding: '12px 0', border: 'none', background: 'none', fontSize: '13px', color: '#6b7280', cursor: 'pointer' }}
-              >
-                Activity Logs
-              </button>
-            </div>
 
   const quotationPreview = useMemo(() => {
     if (!selectedQuotation) return null;
@@ -486,7 +330,163 @@ export default function QuotationList() {
       </div>
     );
   }, [selectedQuotation, printSettings, organisation]);
-...
+
+  return (
+    <div style={{ display: 'flex', height: 'calc(100vh - 60px)', margin: '-24px', background: '#fff' }}>
+      {/* Left Sidebar - List */}
+      <div style={{ width: '350px', borderRight: '1px solid #e5e7eb', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ padding: '16px', borderBottom: '1px solid #e5e7eb' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+            <div style={{ position: 'relative' }}>
+              <button 
+                onClick={() => setOpenMenu(!openMenu)}
+                style={{ background: 'none', border: 'none', fontSize: '16px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}
+              >
+                All Quotes <span style={{ fontSize: '10px' }}>▼</span>
+              </button>
+            </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button 
+                className="btn btn-primary" 
+                style={{ padding: '4px 10px', borderRadius: '4px' }}
+                onClick={() => navigate('/quotation/create')}
+              >
+                +
+              </button>
+              <button style={{ background: 'none', border: '1px solid #e5e7eb', padding: '4px 8px', borderRadius: '4px' }}>...</button>
+            </div>
+          </div>
+          <input 
+            type="text" 
+            placeholder="Search quotes..." 
+            className="form-input"
+            style={{ height: '32px', fontSize: '13px' }}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+
+        <div style={{ flex: 1, overflowY: 'auto' }}>
+          {loading ? (
+            <div style={{ padding: '20px', textAlign: 'center' }}>Loading...</div>
+          ) : filteredQuotations.map(q => (
+            <div 
+              key={q.id}
+              onClick={() => handleSelectQuotation(q)}
+              style={{ 
+                padding: '12px 16px', 
+                borderBottom: '1px solid #f3f4f6', 
+                cursor: 'pointer',
+                background: selectedQuotation?.id === q.id ? '#f0f7ff' : '#fff',
+                borderLeft: selectedQuotation?.id === q.id ? '3px solid #2563eb' : '3px solid transparent'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                <span style={{ fontWeight: 600, color: '#111827', fontSize: '13px' }}>{q.client?.client_name}</span>
+                <span style={{ fontWeight: 600, color: '#111827', fontSize: '13px' }}>{formatCurrency(q.grand_total)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ color: '#6b7280', fontSize: '11px' }}>
+                  {q.quotation_no} • {formatDate(q.date)}
+                </div>
+                <span style={{ 
+                  fontSize: '9px', 
+                  fontWeight: 700, 
+                  color: getStatusColor(q.status === 'Converted' ? 'INVOICED' : q.status).color,
+                  textTransform: 'uppercase'
+                }}>
+                  {q.status === 'Converted' ? 'INVOICED' : q.status}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Right Area - Preview */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#f9fafb' }}>
+        {selectedQuotation ? (
+          <>
+            {/* Header Toolbar */}
+            <div style={{ padding: '12px 24px', background: '#fff', borderBottom: '1px solid #e5e7eb' }}>
+              <div style={{ fontSize: '11px', color: '#6b7280', marginBottom: '4px' }}>Branch: Head Office</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 700 }}>{selectedQuotation.quotation_no}</h2>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <button style={{ background: 'none', border: 'none', cursor: 'pointer' }}>📎</button>
+                  <button style={{ background: 'none', border: 'none', cursor: 'pointer' }}>📄</button>
+                  <button style={{ background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => setSelectedQuotation(null)}>×</button>
+                </div>
+              </div>
+              
+              <div style={{ display: 'flex', gap: '16px', marginTop: '12px', alignItems: 'center' }}>
+                <button 
+                  className="btn-toolbar" 
+                  onClick={() => navigate(`/quotation/edit?id=${selectedQuotation.id}`)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', background: 'none', border: 'none', cursor: 'pointer', color: '#4b5563' }}
+                >
+                  ✎ Edit
+                </button>
+                <div style={{ height: '16px', width: '1px', background: '#e5e7eb' }}></div>
+                <button 
+                  className="btn-toolbar" 
+                  onClick={() => navigate(`/quotation/create?duplicateId=${selectedQuotation.id}`)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', background: 'none', border: 'none', cursor: 'pointer', color: '#4b5563' }}
+                >
+                  📋 Duplicate
+                </button>
+                <div style={{ height: '16px', width: '1px', background: '#e5e7eb' }}></div>
+                <button style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', background: 'none', border: 'none', cursor: 'pointer', color: '#4b5563' }}>✉ Mails ▼</button>
+                <button style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', background: 'none', border: 'none', cursor: 'pointer', color: '#4b5563' }}>🔗 Share</button>
+                <button style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', background: 'none', border: 'none', cursor: 'pointer', color: '#4b5563' }}>🖨 PDF/Print ▼</button>
+                <button style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', background: 'none', border: 'none', cursor: 'pointer', color: '#4b5563' }}>🔄 Convert to Invoice</button>
+                <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#4b5563' }}>...</button>
+              </div>
+            </div>
+
+            {/* Approval Bar */}
+            <div style={{ padding: '8px 24px', background: '#fff', borderBottom: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#6b7280' }}>
+              <span>Approved by:</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#111827', fontWeight: 500 }}>
+                <div style={{ width: '20px', height: '20px', background: '#d1fae5', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', color: '#047857' }}>K</div>
+                Karthik
+              </span>
+              <span style={{ color: '#2563eb', cursor: 'pointer', marginLeft: '8px' }}>View Approval Details</span>
+            </div>
+
+            {/* Tabs */}
+            <div style={{ padding: '0 24px', background: '#fff', display: 'flex', gap: '24px', borderBottom: '1px solid #e5e7eb' }}>
+              <button 
+                onClick={() => setActiveTab('details')}
+                style={{ 
+                  padding: '12px 0', 
+                  borderBottom: activeTab === 'details' ? '2px solid #2563eb' : '2px solid transparent',
+                  background: 'none',
+                  borderTop: 'none',
+                  borderLeft: 'none',
+                  borderRight: 'none',
+                  fontSize: '13px',
+                  fontWeight: activeTab === 'details' ? 600 : 500,
+                  color: activeTab === 'details' ? '#2563eb' : '#6b7280',
+                  cursor: 'pointer'
+                }}
+              >
+                Quote Details
+              </button>
+              <button 
+                onClick={() => setActiveTab('invoices')}
+                style={{ padding: '12px 0', border: 'none', background: 'none', fontSize: '13px', color: '#6b7280', cursor: 'pointer' }}
+              >
+                Invoices
+              </button>
+              <button 
+                onClick={() => setActiveTab('activity')}
+                style={{ padding: '12px 0', border: 'none', background: 'none', fontSize: '13px', color: '#6b7280', cursor: 'pointer' }}
+              >
+                Activity Logs
+              </button>
+            </div>
+
             {/* Preview Frame */}
             <div style={{ flex: 1, padding: '24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               <div style={{ width: '100%', maxWidth: '850px', display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
