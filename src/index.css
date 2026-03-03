@@ -1318,7 +1318,7 @@ body {
 .grid-table {
   width: 100%;
   border-collapse: collapse;
-  table-layout: auto;
+  table-layout: fixed;
   background: white;
 }
 
@@ -1326,83 +1326,72 @@ body {
   background: #f8fafc;
   color: #374151;
   font-weight: 600;
-  font-size: 13px;
+  font-size: 11px;
   text-transform: uppercase;
-  padding: 14px 12px;
+  padding: 10px 8px;
   border-bottom: 1px solid #e5e7eb;
   text-align: center;
   letter-spacing: 0.02em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .grid-table th:first-child {
-  width: 50px;
-  min-width: 50px;
+  width: 40px;
 }
 
 .grid-table th.col-item {
-  min-width: 200px;
+  width: 250px;
   text-align: left;
 }
 
 .grid-table th.col-variant {
-  width: 100px;
-  min-width: 100px;
+  width: 110px;
 }
 
 .grid-table th.col-avail {
   width: 80px;
-  min-width: 80px;
   text-align: right;
   color: #059669;
 }
 
 .grid-table th.col-qty {
-  width: 60px;
-  min-width: 60px;
-  max-width: 60px;
+  width: 70px;
   text-align: center;
 }
 
 .grid-table th.col-unit {
   width: 60px;
-  min-width: 60px;
   text-align: center;
 }
 
 .grid-table th.col-rate {
-  width: 80px;
-  min-width: 80px;
-  max-width: 80px;
+  width: 100px;
   text-align: right;
 }
 
 .grid-table th.col-amount {
-  width: 100px;
-  min-width: 100px;
-  max-width: 100px;
+  width: 120px;
   text-align: right;
 }
 
 .grid-table th.col-disc {
-  width: 60px;
-  min-width: 60px;
+  width: 70px;
   text-align: right;
 }
 
 .grid-table th.col-gst {
   width: 60px;
-  min-width: 60px;
   text-align: right;
 }
 
 .grid-table th.col-hsn {
-  width: 70px;
-  min-width: 70px;
+  width: 80px;
 }
 
 .grid-table th.col-make {
-  width: 120px;
-  min-width: 120px;
+  width: 130px;
 }
 
 .grid-table td {

@@ -14,6 +14,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
   const [units, setUnits] = useState([]);
   const [stock, setStock] = useState([]);
   const [pricing, setPricing] = useState({});
+  const [variantPricingMap, setVariantPricingMap] = useState({});
   const [clients, setClients] = useState([]);
   
   // Multiple Item Picker State
@@ -162,14 +163,15 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
 
   const loadData = async () => {
     try {
-      const [projData, matData, whData, varData, stockData, clientData, unitsData] = await Promise.all([
+      const [projData, matData, whData, varData, stockData, clientData, unitsData, variantPricingData] = await Promise.all([
         supabase.from('projects').select('*').order('project_name'),
         supabase.from('materials').select('id, display_name, name, unit, uses_variant, sale_price, item_type').order('name'),
         supabase.from('warehouses').select('*'),
         supabase.from('company_variants').select('*').eq('is_active', true).order('variant_name'),
         supabase.from('item_stock').select('*'),
         supabase.from('clients').select('*').order('client_name'),
-        supabase.from('item_units').select('*').order('unit_name')
+        supabase.from('item_units').select('*').order('unit_name'),
+        supabase.from('item_variant_pricing').select('item_id, company_variant_id')
       ]);
       
       setProjects(projData.data || []);
@@ -179,6 +181,14 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
       setUnits(unitsData.data || []);
       setStock(stockData.data || []);
       setClients(clientData.data || []);
+      
+      const vpm = {};
+      variantPricingData.data?.forEach(row => {
+        if (!vpm[row.item_id]) vpm[row.item_id] = {};
+        vpm[row.item_id][row.company_variant_id] = true;
+      });
+      setVariantPricingMap(vpm);
+      
       console.log('Clients loaded:', clientData.data?.length);
       
       // Load DC settings
@@ -1193,9 +1203,15 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
                           disabled={!item.uses_variant || isLocked}
                         >
                           <option value="">{item.uses_variant ? 'Select' : 'N/A'}</option>
-                          {activeVariants.map(v => (
-                            <option key={v.id} value={v.id}>{v.variant_name}</option>
-                          ))}
+                          {activeVariants
+                            .filter(v => {
+                              if (!item.material_id) return true; // Show all if no item selected
+                              return variantPricingMap[item.material_id]?.[v.id];
+                            })
+                            .map(v => (
+                              <option key={v.id} value={v.id}>{v.variant_name}</option>
+                            ))
+                          }
                         </select>
                       ) : (
                         <span className="cell-static text-center" style={{ color: '#94a3b8' }}>N/A</span>

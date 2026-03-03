@@ -25,6 +25,7 @@ export default function QuickStockCheck() {
   const [showPreview, setShowPreview] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [emailTo, setEmailTo] = useState('');
+  const [visibleExportColumns, setVisibleExportColumns] = useState({});
   const previewRef = useRef();
 
   const [formData, setFormData] = useState({
@@ -38,6 +39,22 @@ export default function QuickStockCheck() {
   useEffect(() => {
     loadInitialData();
   }, [editId, viewId]);
+
+  useEffect(() => {
+    if (warehouses.length > 0) {
+      const initialCols = {
+        sno: true,
+        item: true,
+        qty_required: true,
+        total_available: true,
+        pending_qty: true
+      };
+      warehouses.forEach(wh => {
+        initialCols[`wh_${wh.id}`] = true;
+      });
+      setVisibleExportColumns(initialCols);
+    }
+  }, [warehouses]);
 
   const loadInitialData = async () => {
     setLoading(true);
@@ -54,6 +71,8 @@ export default function QuickStockCheck() {
 
       if (editId) {
         await loadQuickCheck(editId);
+      } else if (viewId) {
+        await loadQuickCheck(viewId);
       }
     } catch (err) {
       console.error('Error loading data:', err);
@@ -78,13 +97,15 @@ export default function QuickStockCheck() {
       setFormData({
         client_name: data.client_name || '',
         check_date: data.check_date || '',
-        variant_filter: data.variant_filter || 'All'
+        variant_filter: data.variant_filter || 'All',
+        check_no: data.check_no
       });
 
       if (data.items) {
         setItems(data.items.map(item => ({
           ...item,
-          id: item.id || Date.now() + Math.random()
+          id: item.id || Date.now() + Math.random(),
+          warehouse_snapshot: typeof item.warehouse_snapshot === 'string' ? JSON.parse(item.warehouse_snapshot) : item.warehouse_snapshot
         })));
       }
     }
@@ -168,9 +189,9 @@ export default function QuickStockCheck() {
 
     setSaving(true);
     try {
-      let checkNo = 'QC-0001';
+      let checkNo = formData.check_no;
       
-      if (!editId) {
+      if (!editId && !checkNo) {
         const { data: existing } = await supabase
           .from('quick_checks')
           .select('check_no')
@@ -180,6 +201,8 @@ export default function QuickStockCheck() {
         if (existing && existing.length > 0) {
           const lastNum = parseInt(existing[0].check_no.replace(/[^0-9]/g, ''));
           checkNo = `QC-${String(lastNum + 1).padStart(4, '0')}`;
+        } else {
+          checkNo = 'QC-0001';
         }
       }
 
@@ -233,47 +256,78 @@ export default function QuickStockCheck() {
   };
 
   const handleExportPDF = () => {
-    const doc = new jsPDF();
+    const doc = new jsPDF({
+      orientation: 'landscape',
+      unit: 'mm',
+      format: 'a4'
+    });
     const checkNo = formData.check_no || 'QC-XXXX';
     
-    doc.setFontSize(18);
-    doc.text('QUICK STOCK AVAILABILITY CHECK', 105, 20, { align: 'center' });
+    doc.setFontSize(14);
+    doc.text('QUICK STOCK AVAILABILITY CHECK', 148.5, 15, { align: 'center' });
     
-    doc.setFontSize(11);
-    doc.text(`Check No: ${checkNo}`, 14, 35);
-    doc.text(`Date: ${formatDate(formData.check_date)}`, 14, 42);
-    doc.text(`Client: ${formData.client_name}`, 14, 49);
-    doc.text(`Variant Filter: ${formData.variant_filter}`, 14, 56);
+    doc.setFontSize(9);
+    doc.text(`Check No: ${checkNo}`, 14, 25);
+    doc.text(`Date: ${formatDate(formData.check_date)}`, 14, 30);
+    doc.text(`Client: ${formData.client_name}`, 14, 35);
+    doc.text(`Variant Filter: ${formData.variant_filter}`, 14, 40);
 
-    const tableHeaders = ['#', 'Item', 'Qty Required', ...warehouses.map(w => w.warehouse_name), 'Total Available', 'Pending'];
+    const tableHeaders = [];
+    if (visibleExportColumns.sno) tableHeaders.push('#');
+    if (visibleExportColumns.item) tableHeaders.push('Item');
+    if (visibleExportColumns.qty_required) tableHeaders.push('Qty Required');
+    
+    warehouses.forEach(wh => {
+      if (visibleExportColumns[`wh_${wh.id}`]) {
+        tableHeaders.push(wh.warehouse_name);
+      }
+    });
+    
+    if (visibleExportColumns.total_available) tableHeaders.push('Total Available');
+    if (visibleExportColumns.pending_qty) tableHeaders.push('Pending');
+
     const tableData = items.map((item, index) => {
       const material = materials.find(m => m.id === item.item_id);
-      const row = [
-        index + 1,
-        material?.display_name || material?.name || '-',
-        item.qty_required || 0
-      ];
+      const row = [];
+      
+      if (visibleExportColumns.sno) row.push(index + 1);
+      if (visibleExportColumns.item) row.push(material?.display_name || material?.name || '-');
+      if (visibleExportColumns.qty_required) row.push(item.qty_required || 0);
       
       warehouses.forEach(wh => {
-        const snapshot = item.warehouse_snapshot || {};
-        row.push(snapshot[wh.id] || 0);
+        if (visibleExportColumns[`wh_${wh.id}`]) {
+          const snapshot = item.warehouse_snapshot || {};
+          row.push(snapshot[wh.id] || 0);
+        }
       });
       
-      row.push(item.total_available || 0);
-      row.push(item.pending_qty || 0);
+      if (visibleExportColumns.total_available) row.push(item.total_available || 0);
+      if (visibleExportColumns.pending_qty) row.push(item.pending_qty || 0);
       
       return row;
     });
 
     doc.autoTable({
-      startY: 65,
+      startY: 45,
       head: [tableHeaders],
       body: tableData,
       theme: 'grid',
-      headStyles: { fillColor: [66, 66, 66] },
-      styles: { fontSize: 8 },
-      columnStyles: tableHeaders.reduce((acc, _, idx) => {
-        if (idx >= 2) acc[idx] = { halign: 'right' };
+      headStyles: { 
+        fillColor: [241, 245, 249], 
+        textColor: [51, 65, 85],
+        lineColor: [203, 213, 225],
+        lineWidth: 0.1,
+        fontSize: 8,
+        fontStyle: 'bold'
+      },
+      styles: { 
+        fontSize: 7,
+        cellPadding: 2,
+        lineColor: [203, 213, 225],
+        lineWidth: 0.1
+      },
+      columnStyles: tableHeaders.reduce((acc, header, idx) => {
+        if (header !== '#' && header !== 'Item') acc[idx] = { halign: 'right' };
         return acc;
       }, {})
     });
@@ -287,7 +341,9 @@ export default function QuickStockCheck() {
     try {
       const canvas = await html2canvas(previewRef.current, {
         scale: 2,
-        backgroundColor: '#ffffff'
+        backgroundColor: '#ffffff',
+        logging: false,
+        useCORS: true
       });
       
       const link = document.createElement('a');
@@ -311,6 +367,13 @@ export default function QuickStockCheck() {
     setEmailTo('');
   };
 
+  const toggleExportColumn = (key) => {
+    setVisibleExportColumns(prev => ({
+      ...prev,
+      [key]: !prev[key]
+    }));
+  };
+
   const formatCurrency = (num) => {
     return new Intl.NumberFormat('en-IN').format(num || 0);
   };
@@ -329,32 +392,51 @@ export default function QuickStockCheck() {
 
   const isReadOnly = isViewMode;
 
+  const excelTableStyle = {
+    fontSize: '10px',
+    borderCollapse: 'collapse',
+    width: '100%',
+    border: '1px solid #cbd5e1'
+  };
+
+  const excelHeaderStyle = {
+    background: '#f1f5f9',
+    border: '1px solid #cbd5e1',
+    padding: '4px 8px',
+    fontWeight: 'bold',
+    color: '#334155',
+    textAlign: 'left'
+  };
+
+  const excelCellStyle = {
+    border: '1px solid #cbd5e1',
+    padding: '2px 8px',
+    height: '24px'
+  };
+
   return (
     <div>
-      <div className="page-header">
-        <h1 className="page-title">
+      <div className="page-header" style={{ marginBottom: '8px' }}>
+        <h1 className="page-title" style={{ fontSize: '18px' }}>
           {editId ? 'Edit Stock Check' : isViewMode ? 'Stock Check Details' : 'New Stock Check'}
         </h1>
         <div style={{ display: 'flex', gap: '8px' }}>
           {!isReadOnly && (
             <>
-              <button className="btn btn-secondary" onClick={() => setShowPreview(true)}>
+              <button className="btn btn-secondary" onClick={() => setShowPreview(true)} style={{ fontSize: '12px', padding: '6px 12px' }}>
                 Generate Preview
               </button>
-              <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+              <button className="btn btn-primary" onClick={handleSave} disabled={saving} style={{ fontSize: '12px', padding: '6px 12px' }}>
                 {saving ? 'Saving...' : 'Save'}
               </button>
             </>
           )}
           {isViewMode && (
             <>
-              <button className="btn btn-secondary" onClick={handleExportPDF}>
-                Export PDF
+              <button className="btn btn-secondary" onClick={() => setShowPreview(true)} style={{ fontSize: '12px', padding: '6px 12px' }}>
+                Export / Print
               </button>
-              <button className="btn btn-secondary" onClick={handleExportImage}>
-                Export Image
-              </button>
-              <button className="btn btn-secondary" onClick={() => setShowEmailModal(true)}>
+              <button className="btn btn-secondary" onClick={() => setShowEmailModal(true)} style={{ fontSize: '12px', padding: '6px 12px' }}>
                 Send Email
               </button>
             </>
@@ -362,13 +444,14 @@ export default function QuickStockCheck() {
         </div>
       </div>
 
-      <div style={{ background: '#f8f9fa', padding: '16px', borderRadius: '8px', marginBottom: '16px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+      <div style={{ background: '#f8f9fa', padding: '12px', borderRadius: '4px', border: '1px solid #e2e8f0', marginBottom: '12px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
           <div className="form-group" style={{ margin: 0 }}>
-            <label className="form-label" style={{ fontWeight: 600, fontSize: '11px' }}>Client Name *</label>
+            <label className="form-label" style={{ fontWeight: 600, fontSize: '10px', marginBottom: '2px' }}>Client Name *</label>
             <input
               type="text"
               className="form-input"
+              style={{ height: '28px', fontSize: '11px', padding: '4px 8px' }}
               value={formData.client_name}
               onChange={(e) => setFormData({ ...formData, client_name: e.target.value })}
               disabled={isReadOnly}
@@ -376,19 +459,21 @@ export default function QuickStockCheck() {
             />
           </div>
           <div className="form-group" style={{ margin: 0 }}>
-            <label className="form-label" style={{ fontWeight: 600, fontSize: '11px' }}>Date</label>
+            <label className="form-label" style={{ fontWeight: 600, fontSize: '10px', marginBottom: '2px' }}>Date</label>
             <input
               type="date"
               className="form-input"
+              style={{ height: '28px', fontSize: '11px', padding: '4px 8px' }}
               value={formData.check_date}
               onChange={(e) => setFormData({ ...formData, check_date: e.target.value })}
               disabled={isReadOnly}
             />
           </div>
           <div className="form-group" style={{ margin: 0 }}>
-            <label className="form-label" style={{ fontWeight: 600, fontSize: '11px' }}>Variant Filter</label>
+            <label className="form-label" style={{ fontWeight: 600, fontSize: '10px', marginBottom: '2px' }}>Variant Filter</label>
             <select
               className="form-select"
+              style={{ height: '28px', fontSize: '11px', padding: '2px 8px' }}
               value={formData.variant_filter}
               onChange={(e) => setFormData({ ...formData, variant_filter: e.target.value })}
               disabled={isReadOnly}
@@ -399,10 +484,11 @@ export default function QuickStockCheck() {
             </select>
           </div>
           <div className="form-group" style={{ margin: 0 }}>
-            <label className="form-label" style={{ fontWeight: 600, fontSize: '11px' }}>Check No</label>
+            <label className="form-label" style={{ fontWeight: 600, fontSize: '10px', marginBottom: '2px' }}>Check No</label>
             <input
               type="text"
               className="form-input"
+              style={{ height: '28px', fontSize: '11px', padding: '4px 8px', background: '#f1f5f9' }}
               value={formData.check_no || 'Auto-generated'}
               disabled
             />
@@ -410,76 +496,76 @@ export default function QuickStockCheck() {
         </div>
       </div>
 
-      <div className="card" style={{ marginBottom: '8px', padding: '12px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-          <h3 style={{ margin: 0, fontSize: '14px' }}>Items</h3>
+      <div className="card" style={{ marginBottom: '8px', padding: '0', overflow: 'hidden', border: 'none' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: '#fff' }}>
+          <h3 style={{ margin: 0, fontSize: '13px', fontWeight: 600 }}>Items</h3>
           {!isReadOnly && (
-            <button className="btn btn-primary btn-sm" onClick={handleAddItem}>
-              + Add
+            <button className="btn btn-primary btn-sm" onClick={handleAddItem} style={{ fontSize: '11px', padding: '2px 8px' }}>
+              + Add Item
             </button>
           )}
         </div>
 
         {items.length === 0 ? (
-          <div style={{ padding: '40px', textAlign: 'center', color: '#6b7280' }}>
-            No items added. Click "Add Item" to add items for stock check.
+          <div style={{ padding: '40px', textAlign: 'center', color: '#6b7280', fontSize: '12px', border: '1px solid #e2e8f0', borderRadius: '4px' }}>
+            No items added. Click "+ Add Item" to start.
           </div>
         ) : (
           <div style={{ overflowX: 'auto', maxWidth: '100%' }}>
-            <table className="table" style={{ fontSize: '11px', minWidth: '100%', width: '100%' }}>
+            <table style={excelTableStyle}>
               <thead>
                 <tr>
-                  <th style={{ width: '35px', padding: '4px', textAlign: 'center' }}>#</th>
-                  <th style={{ minWidth: '120px', padding: '4px' }}>Item</th>
-                  {formData.variant_filter !== 'Non-Variant' && <th style={{ width: '80px', padding: '4px' }}>Variant</th>}
-                  <th style={{ width: '70px', padding: '4px', textAlign: 'right' }}>Req Qty</th>
+                  <th style={{ ...excelHeaderStyle, width: '40px', textAlign: 'center' }}>#</th>
+                  <th style={{ ...excelHeaderStyle, minWidth: '200px' }}>Item Name / Description</th>
+                  {formData.variant_filter !== 'Non-Variant' && <th style={{ ...excelHeaderStyle, width: '120px' }}>Variant</th>}
+                  <th style={{ ...excelHeaderStyle, width: '100px', textAlign: 'right' }}>Req Qty</th>
                   {warehouses.map(wh => (
-                    <th key={wh.id} style={{ width: '60px', padding: '4px', textAlign: 'right' }}>{wh.warehouse_name.substring(0, 8)}</th>
+                    <th key={wh.id} style={{ ...excelHeaderStyle, width: '90px', textAlign: 'right' }}>{wh.warehouse_name}</th>
                   ))}
-                  <th style={{ width: '70px', padding: '4px', textAlign: 'right' }}>Avail</th>
-                  <th style={{ width: '70px', padding: '4px', textAlign: 'right' }}>Pending</th>
-                  {!isReadOnly && <th style={{ width: '30px', padding: '4px' }}></th>}
+                  <th style={{ ...excelHeaderStyle, width: '110px', textAlign: 'right' }}>Total Avail</th>
+                  <th style={{ ...excelHeaderStyle, width: '100px', textAlign: 'right' }}>Pending</th>
+                  {!isReadOnly && <th style={{ ...excelHeaderStyle, width: '40px', textAlign: 'center' }}></th>}
                 </tr>
               </thead>
               <tbody>
                 {items.map((item, index) => (
-                  <tr key={item.id} style={item.pending_qty > 0 ? { background: '#fef2f2' } : {}}>
-                    <td style={{ padding: '2px 4px', textAlign: 'center', fontSize: '10px' }}>{index + 1}</td>
-                    <td style={{ padding: '2px' }}>
+                  <tr key={item.id} style={{ background: item.pending_qty > 0 ? '#fff1f2' : '#fff' }}>
+                    <td style={{ ...excelCellStyle, textAlign: 'center', color: '#64748b' }}>{index + 1}</td>
+                    <td style={{ ...excelCellStyle, padding: '0' }}>
                       <select
-                        className="form-select"
-                        style={{ width: '100%', minWidth: 'unset', padding: '2px 4px', fontSize: '10px', height: '24px' }}
+                        className="excel-select"
+                        style={{ width: '100%', border: 'none', padding: '0 8px', height: '100%', fontSize: '11px', background: 'transparent', outline: 'none' }}
                         value={item.item_id}
                         onChange={(e) => handleItemChange(index, 'item_id', e.target.value)}
                         disabled={isReadOnly}
                       >
-                        <option value="">Select</option>
+                        <option value="">Search or Select Item...</option>
                         {materials.map(m => (
                           <option key={m.id} value={m.id}>{m.display_name || m.name}</option>
                         ))}
                       </select>
                     </td>
                     {formData.variant_filter !== 'Non-Variant' && (
-                      <td style={{ padding: '2px' }}>
+                      <td style={{ ...excelCellStyle, padding: '0' }}>
                         <select
-                          className="form-select"
-                          style={{ width: '100%', minWidth: 'unset', padding: '2px 4px', fontSize: '10px', height: '24px' }}
+                          className="excel-select"
+                          style={{ width: '100%', border: 'none', padding: '0 8px', height: '100%', fontSize: '11px', background: 'transparent', outline: 'none' }}
                           value={item.company_variant_id || ''}
                           onChange={(e) => handleItemChange(index, 'company_variant_id', e.target.value || null)}
                           disabled={isReadOnly}
                         >
-                          <option value="">-</option>
+                          <option value="">Default</option>
                           {variants.map(v => (
                             <option key={v.id} value={v.id}>{v.variant_name}</option>
                           ))}
                         </select>
                       </td>
                     )}
-                    <td style={{ padding: '2px' }}>
+                    <td style={{ ...excelCellStyle, padding: '0' }}>
                       <input
                         type="number"
-                        className="form-input"
-                        style={{ width: '100%', textAlign: 'right', padding: '2px 4px', fontSize: '10px', height: '24px' }}
+                        className="excel-input"
+                        style={{ width: '100%', border: 'none', padding: '0 8px', height: '100%', fontSize: '11px', textAlign: 'right', background: 'transparent', outline: 'none' }}
                         value={item.qty_required}
                         onChange={(e) => handleItemChange(index, 'qty_required', e.target.value)}
                         min="0"
@@ -490,22 +576,21 @@ export default function QuickStockCheck() {
                     {warehouses.map(wh => {
                       const snapshot = item.warehouse_snapshot || {};
                       return (
-                        <td key={wh.id} style={{ padding: '2px 4px', textAlign: 'right', fontSize: '10px' }}>
+                        <td key={wh.id} style={{ ...excelCellStyle, textAlign: 'right', color: '#475569' }}>
                           {formatCurrency(snapshot[wh.id] || 0)}
                         </td>
                       );
                     })}
-                    <td style={{ padding: '2px 4px', textAlign: 'right', fontWeight: 600, fontSize: '10px' }}>
+                    <td style={{ ...excelCellStyle, textAlign: 'right', fontWeight: 'bold', color: '#0f172a' }}>
                       {formatCurrency(item.total_available || 0)}
                     </td>
-                    <td style={{ padding: '2px 4px', textAlign: 'right', fontWeight: 600, fontSize: '10px', color: (item.pending_qty || 0) > 0 ? '#dc2626' : '#047857' }}>
+                    <td style={{ ...excelCellStyle, textAlign: 'right', fontWeight: 'bold', color: (item.pending_qty || 0) > 0 ? '#be123c' : '#15803d' }}>
                       {formatCurrency(item.pending_qty || 0)}
                     </td>
                     {!isReadOnly && (
-                      <td style={{ padding: '2px' }}>
+                      <td style={{ ...excelCellStyle, textAlign: 'center' }}>
                         <button
-                          className="btn btn-sm"
-                          style={{ color: '#dc2626', padding: '2px 6px', fontSize: '12px', lineHeight: 1 }}
+                          style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '16px' }}
                           onClick={() => handleRemoveItem(index)}
                         >
                           ×
@@ -521,89 +606,131 @@ export default function QuickStockCheck() {
       </div>
 
       <div style={{ marginTop: '16px' }}>
-        <button className="btn btn-secondary" onClick={() => navigate('/quick-stock-check')}>
+        <button className="btn btn-secondary" onClick={() => navigate('/quick-stock-check')} style={{ fontSize: '12px' }}>
           Back to List
         </button>
       </div>
 
       {showPreview && (
         <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0,0,0,0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
         }} onClick={() => setShowPreview(false)}>
           <div style={{
-            background: '#fff',
-            borderRadius: '8px',
-            width: '95%',
-            maxWidth: '1200px',
-            maxHeight: '90vh',
-            overflow: 'auto'
+            background: '#fff', borderRadius: '8px', width: '98%', maxWidth: '1400px', maxHeight: '95vh',
+            display: 'flex', flexDirection: 'column'
           }} onClick={e => e.stopPropagation()}>
-            <div style={{ padding: '16px', borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 style={{ margin: 0 }}>Preview</h3>
+            <div style={{ padding: '12px 20px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc', borderTopLeftRadius: '8px', borderTopRightRadius: '8px' }}>
+              <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 600 }}>Export Preview & Settings</h3>
               <div style={{ display: 'flex', gap: '8px' }}>
-                <button className="btn btn-primary" onClick={handleExportPDF}>Export PDF</button>
-                <button className="btn btn-secondary" onClick={handleExportImage}>Export Image</button>
-                <button className="btn btn-secondary" onClick={() => setShowEmailModal(true)}>Send Email</button>
-                <button onClick={() => setShowPreview(false)} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}>×</button>
+                <button className="btn btn-primary" onClick={handleExportPDF} style={{ fontSize: '12px' }}>Export PDF</button>
+                <button className="btn btn-secondary" onClick={handleExportImage} style={{ fontSize: '12px' }}>Export Image</button>
+                <button onClick={() => setShowPreview(false)} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', color: '#64748b', marginLeft: '12px' }}>×</button>
               </div>
             </div>
-            <div ref={previewRef} style={{ padding: '24px' }}>
-              <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-                <h2 style={{ margin: 0 }}>QUICK STOCK AVAILABILITY CHECK</h2>
+            
+            <div style={{ display: 'flex', overflow: 'hidden', flex: 1 }}>
+              {/* Column Selection Sidebar */}
+              <div style={{ width: '240px', borderRight: '1px solid #e2e8f0', padding: '16px', background: '#f8fafc', overflowY: 'auto' }}>
+                <h4 style={{ margin: '0 0 12px 0', fontSize: '12px', fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Visible Columns</h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={visibleExportColumns.sno} onChange={() => toggleExportColumn('sno')} /> # (S.No)
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={visibleExportColumns.item} onChange={() => toggleExportColumn('item')} /> Item Name
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={visibleExportColumns.qty_required} onChange={() => toggleExportColumn('qty_required')} /> Required Qty
+                  </label>
+                  
+                  <div style={{ margin: '8px 0', borderTop: '1px solid #e2e8f0', paddingTop: '8px' }}>
+                    <span style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8' }}>WAREHOUSES</span>
+                  </div>
+                  
+                  {warehouses.map(wh => (
+                    <label key={wh.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', cursor: 'pointer' }}>
+                      <input type="checkbox" checked={visibleExportColumns[`wh_${wh.id}`]} onChange={() => toggleExportColumn(`wh_${wh.id}`)} /> {wh.warehouse_name}
+                    </label>
+                  ))}
+                  
+                  <div style={{ margin: '8px 0', borderTop: '1px solid #e2e8f0', paddingTop: '8px' }}>
+                    <span style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8' }}>SUMMARY</span>
+                  </div>
+                  
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={visibleExportColumns.total_available} onChange={() => toggleExportColumn('total_available')} /> Total Available
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={visibleExportColumns.pending_qty} onChange={() => toggleExportColumn('pending_qty')} /> Pending Qty
+                  </label>
+                </div>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
-                <div><strong>Check No:</strong> {formData.check_no || 'Auto-generated'}</div>
-                <div><strong>Date:</strong> {formatDate(formData.check_date)}</div>
-                <div><strong>Client:</strong> {formData.client_name}</div>
-                <div><strong>Variant Filter:</strong> {formData.variant_filter}</div>
-              </div>
-              <table className="table" style={{ width: '100%', fontSize: '10px' }}>
-                <thead>
-                  <tr>
-                    <th style={{ padding: '4px', width: '30px' }}>#</th>
-                    <th style={{ padding: '4px' }}>Item</th>
-                    <th style={{ padding: '4px', textAlign: 'right' }}>Req</th>
-                    {warehouses.map(wh => (
-                      <th key={wh.id} style={{ padding: '4px', textAlign: 'right' }}>{wh.warehouse_name.substring(0, 8)}</th>
-                    ))}
-                    <th style={{ padding: '4px', textAlign: 'right' }}>Avail</th>
-                    <th style={{ padding: '4px', textAlign: 'right' }}>Pending</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((item, index) => {
-                    const material = getSelectedMaterial(item.item_id);
-                    return (
-                      <tr key={item.id} style={item.pending_qty > 0 ? { background: '#fef2f2' } : {}}>
-                        <td style={{ padding: '2px 4px', textAlign: 'center' }}>{index + 1}</td>
-                        <td style={{ padding: '2px 4px' }}>{material?.display_name || material?.name || '-'}</td>
-                        <td style={{ padding: '2px 4px', textAlign: 'right' }}>{item.qty_required || 0}</td>
-                        {warehouses.map(wh => {
-                          const snapshot = item.warehouse_snapshot || {};
-                          return (
-                            <td key={wh.id} style={{ padding: '2px 4px', textAlign: 'right' }}>
-                              {formatCurrency(snapshot[wh.id] || 0)}
-                            </td>
-                          );
-                        })}
-                        <td style={{ padding: '2px 4px', textAlign: 'right', fontWeight: 600 }}>{formatCurrency(item.total_available || 0)}</td>
-                        <td style={{ padding: '2px 4px', textAlign: 'right', fontWeight: 600, color: (item.pending_qty || 0) > 0 ? '#dc2626' : '#047857' }}>
-                          {formatCurrency(item.pending_qty || 0)}
-                        </td>
+
+              {/* Preview Area */}
+              <div style={{ flex: 1, padding: '30px', overflowY: 'auto', background: '#f1f5f9' }}>
+                <div ref={previewRef} style={{ background: '#fff', padding: '40px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', minHeight: '100%', width: 'fit-content', margin: '0 auto' }}>
+                  <div style={{ textAlign: 'center', marginBottom: '30px' }}>
+                    <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 700, color: '#1e293b' }}>QUICK STOCK AVAILABILITY CHECK</h2>
+                    <div style={{ height: '2px', width: '60px', background: '#3b82f6', margin: '8px auto' }}></div>
+                  </div>
+                  
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '40px', marginBottom: '30px', fontSize: '12px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <div style={{ display: 'flex', gap: '8px' }}><span style={{ color: '#64748b', minWidth: '80px' }}>Client:</span> <span style={{ fontWeight: 600 }}>{formData.client_name || '-'}</span></div>
+                      <div style={{ display: 'flex', gap: '8px' }}><span style={{ color: '#64748b', minWidth: '80px' }}>Date:</span> <span style={{ fontWeight: 600 }}>{formatDate(formData.check_date)}</span></div>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <div style={{ display: 'flex', gap: '8px' }}><span style={{ color: '#64748b', minWidth: '80px' }}>Check No:</span> <span style={{ fontWeight: 600 }}>{formData.check_no || 'QC-XXXX'}</span></div>
+                      <div style={{ display: 'flex', gap: '8px' }}><span style={{ color: '#64748b', minWidth: '80px' }}>Variant:</span> <span style={{ fontWeight: 600 }}>{formData.variant_filter}</span></div>
+                    </div>
+                  </div>
+
+                  <table style={{ ...excelTableStyle, fontSize: '11px' }}>
+                    <thead>
+                      <tr>
+                        {visibleExportColumns.sno && <th style={{ ...excelHeaderStyle, textAlign: 'center' }}>#</th>}
+                        {visibleExportColumns.item && <th style={excelHeaderStyle}>Item</th>}
+                        {visibleExportColumns.qty_required && <th style={{ ...excelHeaderStyle, textAlign: 'right' }}>Req Qty</th>}
+                        {warehouses.map(wh => (
+                          visibleExportColumns[`wh_${wh.id}`] && (
+                            <th key={wh.id} style={{ ...excelHeaderStyle, textAlign: 'right' }}>{wh.warehouse_name}</th>
+                          )
+                        ))}
+                        {visibleExportColumns.total_available && <th style={{ ...excelHeaderStyle, textAlign: 'right' }}>Total Avail</th>}
+                        {visibleExportColumns.pending_qty && <th style={{ ...excelHeaderStyle, textAlign: 'right' }}>Pending</th>}
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                    </thead>
+                    <tbody>
+                      {items.map((item, index) => {
+                        const material = getSelectedMaterial(item.item_id);
+                        return (
+                          <tr key={item.id} style={{ background: item.pending_qty > 0 ? '#fff1f2' : '#fff' }}>
+                            {visibleExportColumns.sno && <td style={{ ...excelCellStyle, textAlign: 'center' }}>{index + 1}</td>}
+                            {visibleExportColumns.item && <td style={excelCellStyle}>{material?.display_name || material?.name || '-'}</td>}
+                            {visibleExportColumns.qty_required && <td style={{ ...excelCellStyle, textAlign: 'right' }}>{item.qty_required || 0}</td>}
+                            {warehouses.map(wh => (
+                              visibleExportColumns[`wh_${wh.id}`] && (
+                                <td key={wh.id} style={{ ...excelCellStyle, textAlign: 'right' }}>
+                                  {formatCurrency(item.warehouse_snapshot?.[wh.id] || 0)}
+                                </td>
+                              )
+                            ))}
+                            {visibleExportColumns.total_available && <td style={{ ...excelCellStyle, textAlign: 'right', fontWeight: 'bold' }}>{formatCurrency(item.total_available || 0)}</td>}
+                            {visibleExportColumns.pending_qty && <td style={{ ...excelCellStyle, textAlign: 'right', fontWeight: 'bold', color: (item.pending_qty || 0) > 0 ? '#be123c' : '#15803d' }}>
+                              {formatCurrency(item.pending_qty || 0)}
+                            </td>}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                  
+                  <div style={{ marginTop: '40px', borderTop: '1px solid #e2e8f0', paddingTop: '10px', fontSize: '10px', color: '#94a3b8', textAlign: 'center' }}>
+                    This is a computer generated stock availability report.
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

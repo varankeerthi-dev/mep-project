@@ -18,6 +18,27 @@ const DEFAULT_PAYMENT_TERMS = 'Net 30 Days';
 const APPROVAL_ROLES = ['SalesManager', 'Finance', 'Admin'];
 const APPROVAL_EXPIRY_DAYS = 7;
 
+// Helper to convert number to words for INR
+function numberToWords(num) {
+  const a = ['', 'One ', 'Two ', 'Three ', 'Four ', 'Five ', 'Six ', 'Seven ', 'Eight ', 'Nine ', 'Ten ', 'Eleven ', 'Twelve ', 'Thirteen ', 'Fourteen ', 'Fifteen ', 'Sixteen ', 'Seventeen ', 'Eighteen ', 'Nineteen '];
+  const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+
+  const inWords = (n) => {
+    if ((n = n.toString()).length > 9) return 'overflow';
+    let nArr = ('000000000' + n).substr(-9).match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
+    if (!nArr) return '';
+    let str = '';
+    str += nArr[1] != 0 ? (a[Number(nArr[1])] || b[nArr[1][0]] + ' ' + a[nArr[1][1]]) + 'Crore ' : '';
+    str += nArr[2] != 0 ? (a[Number(nArr[2])] || b[nArr[2][0]] + ' ' + a[nArr[2][1]]) + 'Lakh ' : '';
+    str += nArr[3] != 0 ? (a[Number(nArr[3])] || b[nArr[3][0]] + ' ' + a[nArr[3][1]]) + 'Thousand ' : '';
+    str += nArr[4] != 0 ? (a[Number(nArr[4])] || b[nArr[4][0]] + ' ' + a[nArr[4][1]]) + 'Hundred ' : '';
+    str += nArr[5] != 0 ? ((str != '') ? 'and ' : '') + (a[Number(nArr[5])] || b[nArr[5][0]] + ' ' + a[nArr[5][1]]) : '';
+    return str.trim() + ' Only';
+  };
+  
+  return inWords(Math.round(num));
+}
+
 export default function CreateQuotation() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -38,20 +59,16 @@ export default function CreateQuotation() {
   const [defaultTemplate, setDefaultTemplate] = useState(null);
   const [draggingItemId, setDraggingItemId] = useState(null);
   
-  // Phase-1: Dynamic Variant Discount Header System
   const [headerDiscounts, setHeaderDiscounts] = useState({});
   const [discountPopup, setDiscountPopup] = useState({ show: false, variantId: null, variantName: '', oldValue: 0, newValue: 0, affectedRows: 0, overriddenRows: 0 });
   
-  // Phase-2: Discount Approval System
   const [discountSettings, setDiscountSettings] = useState({});
   const [approvalStatus, setApprovalStatus] = useState({});
   const [approvalHistory, setApprovalHistory] = useState([]);
   const [activeTab, setActiveTab] = useState('items');
   const [showApprovalModal, setShowApprovalModal] = useState(false);
   
-  // Phase-1: Custom Column Labels (managed via Template Settings)
   const [templateSettings, setTemplateSettings] = useState(null);
-  
   const [showItemPicker, setShowItemPicker] = useState(false);
   const [showCustomLabelEditor, setShowCustomLabelEditor] = useState(false);
   const [itemSearch, setItemSearch] = useState('');
@@ -116,14 +133,12 @@ export default function CreateQuotation() {
     loadInitialData();
   }, [editId]);
 
-  // Track changes to form or items
   useEffect(() => {
     if (!loading) {
       setIsDirty(true);
     }
   }, [formData, items]);
 
-  // Prevent browser close/refresh
   useEffect(() => {
     const handleBeforeUnload = (e) => {
       if (isDirty && !saving) {
@@ -136,7 +151,6 @@ export default function CreateQuotation() {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [isDirty, saving]);
 
-  // Navigation guard
   const safeNavigate = (path) => {
     if (isDirty && !saving) {
       if (window.confirm('You have unsaved changes. Do you want to save them before leaving?')) {
@@ -256,7 +270,6 @@ export default function CreateQuotation() {
         }
       });
       
-      // Also add base make from materials if it exists
       (materialsData.data || []).forEach(m => {
         if (m.make) {
           if (!makesMap[m.id]) makesMap[m.id] = new Set();
@@ -264,7 +277,6 @@ export default function CreateQuotation() {
         }
       });
 
-      // Convert Sets to Arrays
       const finalMakesMap = {};
       for (const id in makesMap) {
         finalMakesMap[id] = Array.from(makesMap[id]).sort();
@@ -273,7 +285,6 @@ export default function CreateQuotation() {
       setVariantPricing(pricingMap);
       setItemMakes(finalMakesMap);
 
-      // Phase-2: Load discount settings
       const settingsMap = {};
       (settingsData.data || []).forEach((row) => {
         settingsMap[row.variant_id] = {
@@ -284,11 +295,9 @@ export default function CreateQuotation() {
       });
       setDiscountSettings(settingsMap);
 
-      // Load Template Settings
       if (templateData.data) {
         setTemplateSettings(templateData.data);
       } else {
-        // Fallback default settings
         setTemplateSettings({
           column_settings: {
             mandatory: ['sno', 'item', 'qty', 'uom'],
@@ -326,7 +335,6 @@ export default function CreateQuotation() {
     }
   };
 
-  // Phase-1: Load variant discounts from database
   const loadVariantDiscounts = async (quotationId) => {
     try {
       const { data: discounts } = await supabase
@@ -346,7 +354,6 @@ export default function CreateQuotation() {
     }
   };
 
-  // Phase-1: Handle header discount change with smart popup
   const handleHeaderDiscountChange = useCallback((variantId, newValue) => {
     const oldValue = headerDiscounts[variantId] || 0;
     const numValue = parseFloat(newValue) || 0;
@@ -378,7 +385,6 @@ export default function CreateQuotation() {
     }
   }, [headerDiscounts, items, variants]);
 
-  // Phase-2: Request approval for discount above limit
   const requestApproval = async (variantId, discountValue) => {
     if (!editId) {
       alert('Please save the quotation first before requesting approval.');
@@ -392,18 +398,15 @@ export default function CreateQuotation() {
     
     const variant = variants.find(v => v.id === variantId);
     const variantName = variant?.variant_name || 'Unknown Variant';
-    
     const roles = APPROVAL_ROLES;
     
     try {
-      // Delete existing approvals for this variant
       await supabase
         .from('discount_approval')
         .delete()
         .eq('quotation_revision_id', editId)
         .eq('variant_id', variantId);
       
-      // Create new approval records
       const approvalRecords = roles.map(role => ({
         quotation_revision_id: editId,
         variant_id: variantId,
@@ -418,7 +421,6 @@ export default function CreateQuotation() {
       
       if (insertError) throw insertError;
       
-      // Log the approval request
       await supabase.from('discount_approval_log').insert({
         quotation_revision_id: editId,
         variant_id: variantId,
@@ -428,9 +430,7 @@ export default function CreateQuotation() {
         remark: `Approval requested for ${variantName}: ${discountValue}% (max: ${settings.max}%)`
       });
       
-      // Reload approval data
       await loadApprovalData(editId);
-      
       return true;
     } catch (err) {
       console.error('Error requesting approval:', err);
@@ -439,7 +439,6 @@ export default function CreateQuotation() {
     }
   };
 
-  // Phase-2: Check if any approval is pending or rejected
   const hasPendingApproval = () => {
     return Object.keys(approvalStatus).some(variantId => {
       const variantApprovals = approvalStatus[variantId];
@@ -452,7 +451,6 @@ export default function CreateQuotation() {
     });
   };
 
-  // Phase-2: Check if all approvals are approved and not expired
   const isApprovalComplete = (variantId) => {
     const variantApprovals = approvalStatus[variantId];
     if (!variantApprovals) return true;
@@ -462,16 +460,14 @@ export default function CreateQuotation() {
     
     if (!allApproved) return false;
     
-    // Check expiry
     const validUntil = variantApprovals['Admin']?.valid_until;
     if (validUntil && new Date(validUntil) < new Date()) {
-      return false; // Expired
+      return false;
     }
     
     return true;
   };
 
-  // Phase-1: Apply header discount changes
   const applyDiscountChanges = useCallback(async () => {
     const { variantId, newValue } = discountPopup;
     const settings = discountSettings[variantId];
@@ -497,7 +493,6 @@ export default function CreateQuotation() {
       })
     );
     
-    // Phase-2: Only request approval if discount exceeds max AND items exist for this variant
     if (settings && newValue > settings.max) {
       const hasVariantItems = items.some(item => item.variant_id === variantId);
       if (hasVariantItems && editId) {
@@ -508,19 +503,16 @@ export default function CreateQuotation() {
     setDiscountPopup({ show: false, variantId: null, variantName: '', oldValue: 0, newValue: 0, affectedRows: 0, overriddenRows: 0 });
   }, [discountPopup, discountSettings, items, editId]);
 
-  // Phase-1: Cancel discount changes
   const cancelDiscountChanges = useCallback(() => {
     setDiscountPopup({ show: false, variantId: null, variantName: '', oldValue: 0, newValue: 0, affectedRows: 0, overriddenRows: 0 });
   }, []);
 
-  // Phase-1: Calculate rate from variant discount
   const calculateVariantDiscountedRate = useCallback((baseRate, discountPercent) => {
     const base = parseFloat(baseRate) || 0;
     const discount = parseFloat(discountPercent) || 0;
     return base - (base * discount / 100);
   }, []);
 
-  // Phase-2: Load client-specific discount portfolio (defaults and limits)
   const loadClientDiscountPortfolio = useCallback(async (clientId) => {
     if (!clientId) return { discounts: {}, settings: {} };
     
@@ -551,7 +543,6 @@ export default function CreateQuotation() {
           });
         }
       } else {
-        // Use discount_profile_id or fallback to discount_type
         let struct;
         if (client.discount_profile_id) {
           const { data } = await supabase
@@ -625,7 +616,8 @@ export default function CreateQuotation() {
         extra_discount_amount: data.extra_discount_amount || 0,
         round_off: data.round_off || 0,
         status: data.status || 'Draft',
-        negotiation_mode: data.negotiation_mode || false
+        negotiation_mode: data.negotiation_mode || false,
+        authorized_signatory_id: data.authorized_signatory_id || ''
       });
 
       if (data.items) {
@@ -633,49 +625,40 @@ export default function CreateQuotation() {
           ...item,
           hsn_code: item.hsn_code || item.item?.hsn_code || null,
           id: item.id || Date.now() + Math.random(),
-          // Phase-1: Load snapshot fields
           base_rate_snapshot: parseFloat(item.base_rate_snapshot) || parseFloat(item.rate) || 0,
           applied_discount_percent: parseFloat(item.applied_discount_percent) || 0,
           is_override: item.is_override || false,
           final_rate_snapshot: parseFloat(item.final_rate_snapshot) || parseFloat(item.rate) || 0,
           display_order: item.display_order || 0,
-          // Phase-1: Custom columns
           custom1: item.custom1 || '',
           custom2: item.custom2 || ''
         })));
       }
       
-      // Phase-1: Load variant discounts
       await loadVariantDiscounts(id);
       
-      // Phase-2: Load client portfolio limits (important for editing too)
       const portfolio = await loadClientDiscountPortfolio(data.client_id);
       if (portfolio.settings && Object.keys(portfolio.settings).length > 0) {
         setDiscountSettings(prev => ({ ...prev, ...portfolio.settings }));
       }
       
-      // Phase-2: Load approval status and history
       await loadApprovalData(id);
     }
   };
   
-  // Phase-2: Load approval data for quotation
   const loadApprovalData = async (quotationId) => {
     try {
-      // Load approval records
       const { data: approvals } = await supabase
         .from('discount_approval')
         .select('*')
         .eq('quotation_revision_id', quotationId);
       
-      // Load approval history log
       const { data: history } = await supabase
         .from('discount_approval_log')
         .select('*')
         .eq('quotation_revision_id', quotationId)
         .order('timestamp', { ascending: false });
       
-      // Build approval status map
       const statusMap = {};
       if (approvals && approvals.length > 0) {
         approvals.forEach(approval => {
@@ -698,14 +681,12 @@ export default function CreateQuotation() {
     }
   };
 
-  // Phase-2: Check if discount exceeds max and needs approval
   const checkApprovalNeeded = (variantId, discountValue) => {
     const settings = discountSettings[variantId];
     if (!settings) return false;
     return discountValue > settings.max;
   };
 
-  // Phase-2: Get approval status for display
   const getApprovalDisplayStatus = (variantId) => {
     const variantApprovals = approvalStatus[variantId];
     if (!variantApprovals) return 'none';
@@ -784,18 +765,12 @@ export default function CreateQuotation() {
         client_contact: contacts[0]?.value || ''
       });
 
-      // --- Apply Client Discount Portfolio Logic ---
       const portfolio = await loadClientDiscountPortfolio(clientId);
-      
-      // Update limits
       if (portfolio.settings && Object.keys(portfolio.settings).length > 0) {
         setDiscountSettings(prev => ({ ...prev, ...portfolio.settings }));
       }
-      
-      // Update default discounts
       setHeaderDiscounts(portfolio.discounts);
 
-      // Optionally update existing items if any
       if (items.length > 0 && window.confirm('Apply client discount portfolio to existing items?')) {
         setItems(items.map(item => {
           const disc = portfolio.discounts[item.variant_id] || 0;
@@ -814,6 +789,7 @@ export default function CreateQuotation() {
       }
     }
   };
+
   const filteredMaterials = useMemo(() => {
     if (!itemSearch) return materials;
     const search = itemSearch.toLowerCase();
@@ -829,12 +805,10 @@ export default function CreateQuotation() {
     const vId = variantId || 'no_variant';
     const mName = make || '';
     
-    // 1. Try: Name + Variant + Make
     if (variantPricing[material.id]?.[vId]?.[mName] !== undefined) {
       return variantPricing[material.id][vId][mName];
     }
     
-    // 2. Try: Name + Make (ignore Variant)
     if (mName) {
       const itemPricing = variantPricing[material.id] || {};
       for (const v in itemPricing) {
@@ -844,12 +818,10 @@ export default function CreateQuotation() {
       }
     }
     
-    // 3. Try: Name + Variant (no make)
     if (variantPricing[material.id]?.[vId]?.[''] !== undefined) {
       return variantPricing[material.id][vId][''];
     }
 
-    // 4. Fallback: Name only
     return parseFloat(material.sale_price) || 0;
   };
 
@@ -913,13 +885,11 @@ export default function CreateQuotation() {
         line_total: 0,
         override_flag: false,
         original_discount_percent: p.discount_percent,
-        // Phase-1: New snapshot fields
         base_rate_snapshot: baseRate,
         applied_discount_percent: headerDiscount,
         is_override: false,
         final_rate_snapshot: finalRate,
         display_order: currentItemsLength + idx,
-        // Phase-1: Custom columns
         custom1: '',
         custom2: ''
       };
@@ -950,32 +920,19 @@ export default function CreateQuotation() {
     setItems((prevItems) =>
       prevItems.map((item) => {
         if (item.id !== id) return item;
-
         const updates = { [field]: value };
 
-        // Phase-1: Handle variant discount changes and override detection
         if (field === 'discount_percent') {
           const headerDiscount = item.variant_id ? (headerDiscounts[item.variant_id] || 0) : 0;
           const newDiscount = parseFloat(value) || 0;
-          
-          // Check if this is an override (different from header discount)
-          if (newDiscount !== headerDiscount) {
-            updates.is_override = true;
-          } else {
-            updates.is_override = false;
-          }
-          
-          // Update applied discount and recalculate final rate snapshot
+          updates.is_override = newDiscount !== headerDiscount;
           updates.applied_discount_percent = newDiscount;
           const baseRate = parseFloat(item.base_rate_snapshot) || 0;
           const finalRate = calculateVariantDiscountedRate(baseRate, newDiscount);
           updates.final_rate_snapshot = finalRate;
-          
-          // Update the Rate After Discount field automatically
           updates.rate = finalRate;
         }
 
-        // Legacy negotiation mode handling (keep for backward compatibility)
         if (field === 'discount_percent' && formData.negotiation_mode) {
           const original = item.original_discount_percent || 0;
           updates.override_flag = value !== original;
@@ -984,7 +941,6 @@ export default function CreateQuotation() {
           updates.override_flag = true;
         }
 
-        // Phase-1: Update snapshots when item or variant changes
         if (field === 'item_id' || field === 'variant_id') {
           const mat = field === 'item_id' 
             ? materials.find(m => m.id === value) 
@@ -992,7 +948,8 @@ export default function CreateQuotation() {
           
           if (mat) {
             const nextVariant = field === 'variant_id' ? value : item.variant_id;
-            const newRate = getRateForMaterialVariant(mat, nextVariant);
+            const nextMake = item.make || '';
+            const newRate = getRateForMaterialVariant(mat, nextVariant, nextMake);
             updates.base_rate_snapshot = newRate;
             
             const variantDiscount = nextVariant ? (headerDiscounts[nextVariant] || 0) : 0;
@@ -1000,8 +957,6 @@ export default function CreateQuotation() {
             const finalRate = calculateVariantDiscountedRate(newRate, variantDiscount);
             updates.final_rate_snapshot = finalRate;
             updates.is_override = false;
-            
-            // Update rate as well when variant changes
             updates.rate = finalRate;
           }
         }
@@ -1039,14 +994,12 @@ export default function CreateQuotation() {
         line_total: 0,
         override_flag: false,
         original_discount_percent: headerVariantDiscount,
-        // Phase-1: New snapshot fields
         base_rate_snapshot: 0,
         applied_discount_percent: headerVariantDiscount,
         is_override: false,
         final_rate_snapshot: 0,
         display_order: prev.length,
         is_header: false,
-        // Phase-1: Custom columns
         custom1: '',
         custom2: ''
       }
@@ -1104,14 +1057,11 @@ export default function CreateQuotation() {
     const afterItemDiscount = subtotal - totalItemDiscount;
     const extraDiscountPercent = parseFloat(formData.extra_discount_percent) || 0;
     const extraDiscountAmount = (afterItemDiscount * extraDiscountPercent) / 100;
-    const afterExtraDiscount = afterItemDiscount - extraDiscountAmount;
     const extraDiscountManual = parseFloat(formData.extra_discount_amount) || 0;
     
-    // Dynamic GST Logic: Compare Buyer State with Organisation State
     const isInterState = formData.state && companyState && 
                         formData.state.trim().toLowerCase() !== companyState.trim().toLowerCase();
     
-    // Tax splitting logic: Intra-state gets CGST/SGST (50/50), Inter-state gets full IGST
     const cgst = isInterState ? 0 : totalTax / 2;
     const sgst = isInterState ? 0 : totalTax / 2;
     const igst = isInterState ? totalTax : 0;
@@ -1177,15 +1127,14 @@ export default function CreateQuotation() {
             .from('quotation_header')
             .update(quotationData)
             .eq('id', editId)
-            .select('id')
-            .single(),
+            .select('id'),
           'updating quotation header'
         );
         if (updateError) throw updateError;
-        if (!updatedHeader?.id) {
-          throw new Error('Quotation header not found for update. Please refresh and try again.');
+        if (!updatedHeader || updatedHeader.length === 0) {
+          throw new Error('Quotation header not found for update or permission denied.');
         }
-        quotationId = updatedHeader.id;
+        quotationId = updatedHeader[0].id;
       } else {
         let quotationNo = formData.quotation_no || quoteNoPreview || '';
         if (!quotationNo) {
@@ -1206,13 +1155,15 @@ export default function CreateQuotation() {
           supabase
             .from('quotation_header')
             .insert({ ...quotationData, quotation_no: quotationNo })
-            .select()
-            .single(),
+            .select(),
           'creating quotation header'
         );
         
         if (error) throw error;
-        quotationId = data.id;
+        if (!data || data.length === 0) {
+          throw new Error('Failed to create quotation header. No data returned.');
+        }
+        quotationId = data[0].id;
 
         const { data: defaultSeries } = await supabase
           .from('document_series')
@@ -1237,10 +1188,6 @@ export default function CreateQuotation() {
             .update({ current_number: nextNo, configs: updatedCfg })
             .eq('id', defaultSeries.id);
         }
-      }
-
-      if (!quotationId) {
-        throw new Error('Quotation ID missing while saving items. Please retry.');
       }
 
       const { error: deleteError } = await withTimeout(
@@ -1268,13 +1215,11 @@ export default function CreateQuotation() {
         tax_amount: item.tax_amount || 0,
         line_total: item.line_total || 0,
         override_flag: item.override_flag || false,
-        // Phase-1: New snapshot fields
         base_rate_snapshot: parseFloat(item.base_rate_snapshot) || parseFloat(item.rate) || 0,
         applied_discount_percent: parseFloat(item.applied_discount_percent) || 0,
         is_override: item.is_override || false,
         final_rate_snapshot: parseFloat(item.final_rate_snapshot) || parseFloat(item.rate) || 0,
         display_order: item.display_order || 0,
-        // Phase-1: Custom columns
         custom1: item.custom1 || '',
         custom2: item.custom2 || ''
       }));
@@ -1285,7 +1230,6 @@ export default function CreateQuotation() {
       );
       if (insertItemsError) throw insertItemsError;
 
-      // Phase-1: Save variant discounts
       const variantDiscountRecords = Object.entries(headerDiscounts).map(([variantId, discount]) => ({
         quotation_revision_id: quotationId,
         variant_id: variantId,
@@ -1293,18 +1237,14 @@ export default function CreateQuotation() {
       })).filter(r => r.header_discount_percent > 0);
 
       if (variantDiscountRecords.length > 0) {
-        // Delete existing and insert new
         await supabase
           .from('quotation_revision_variant_discount')
           .delete()
           .eq('quotation_revision_id', quotationId);
           
-        const { error: discountError } = await supabase
+        await supabase
           .from('quotation_revision_variant_discount')
           .insert(variantDiscountRecords);
-        if (discountError) {
-          console.warn('Failed to save variant discounts:', discountError);
-        }
       }
 
       alert(editId ? 'Quotation updated!' : 'Quotation created!');
@@ -1327,7 +1267,8 @@ export default function CreateQuotation() {
           extra_discount_amount: 0,
           round_off: 0,
           status: 'Draft',
-          negotiation_mode: false
+          negotiation_mode: false,
+          authorized_signatory_id: ''
         });
         setItems([]);
         setHeaderDiscounts({});
@@ -1343,12 +1284,7 @@ export default function CreateQuotation() {
     }
   };
 
-  const compactLabelStyle = { fontWeight: 600, fontSize: '9px', marginBottom: '1px', lineHeight: 1.2 };
   const compactFieldStyle = { minHeight: '26px', padding: '2px 6px', fontSize: '11px' };
-  const compactHeadCellStyle = { padding: '3px 4px', fontSize: '10px', whiteSpace: 'nowrap' };
-  const compactBodyCellStyle = { padding: '2px 4px', fontSize: '10px', verticalAlign: 'middle' };
-  const compactCellInputStyle = { minHeight: '24px', padding: '2px 4px', fontSize: '10px' };
-
   const headerFieldStyle = { display: 'flex', alignItems: 'center', gap: '6px' };
   const labelColStyle = { minWidth: '70px', maxWidth: '70px', fontWeight: 600, fontSize: '10px', color: '#374151' };
   const fieldColStyle = { flex: 1 };
@@ -1382,7 +1318,6 @@ export default function CreateQuotation() {
 
       <div style={{ background: '#f8f9fa', padding: '8px', borderRadius: '4px', marginBottom: '4px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr 1fr', gap: '6px 12px' }}>
-          {/* Row 1 */}
           {renderHeaderField('Quote No:', (
             <input type="text" className="form-input" style={{ ...compactFieldStyle, background: '#f3f4f6' }} value={formData.quotation_no || quoteNoPreview || 'Auto'} readOnly />
           ))}
@@ -1401,8 +1336,6 @@ export default function CreateQuotation() {
               {projects.filter((p) => !formData.client_id || p.client_id === formData.client_id).map((p) => (<option key={p.id} value={p.id}>{p.project_name || p.project_code}</option>))}
             </select>
           ))}
-          
-          {/* Row 2 */}
           {renderHeaderField('Variant:', (
             <select className="form-select" style={compactFieldStyle} value={formData.variant_id || ''} onChange={(e) => setFormData({ ...formData, variant_id: e.target.value })}>
               <option value="">Select</option>
@@ -1421,8 +1354,6 @@ export default function CreateQuotation() {
               {clientContactOptions.map((opt) => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}
             </select>
           ))}
-          
-          {/* Row 3 - Address merged, State, GSTIN */}
           {renderHeaderField('Address:', (
             <input type="text" className="form-input" style={{ ...compactFieldStyle, minHeight: '50px', height: '50px' }} value={formData.billing_address || ''} onChange={(e) => setFormData({ ...formData, billing_address: e.target.value })} placeholder="Billing Address" />
           ))}
@@ -1441,7 +1372,6 @@ export default function CreateQuotation() {
         </div>
       </div>
 
-      {/* Phase-1: Dynamic Variant Discount Header Section */}
       {variants.length > 0 && (
         <div className="card" style={{ marginBottom: '8px', padding: '6px', background: '#fef9e7', border: '1px solid #fcd34d' }} data-html2canvas-ignore>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
@@ -1530,7 +1460,6 @@ export default function CreateQuotation() {
           </div>
           )}
           
-          {/* Phase-2: Approval History Tab */}
           {activeTab === 'approval' && (
             <div style={{ marginTop: '12px' }}>
               {approvalHistory.length === 0 ? (
@@ -1573,34 +1502,10 @@ export default function CreateQuotation() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
           <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: '#1f2937' }}>Items</h3>
           <div style={{ display: 'flex', gap: '12px' }}>
-            <button 
-              className="btn btn-secondary" 
-              onClick={addEmptyItemRow}
-              style={{ borderRadius: '8px', fontWeight: 500 }}
-            >
-              + Add Row
-            </button>
-            <button 
-              className="btn btn-secondary" 
-              onClick={addSectionHeader}
-              style={{ borderRadius: '8px', fontWeight: 500, background: '#f8fafc', color: '#1e293b', border: '1px solid #e2e8f0' }}
-            >
-              + Add Section Header
-            </button>
-            <button 
-              className="btn btn-primary" 
-              onClick={() => setShowItemPicker(true)}
-              style={{ borderRadius: '8px', fontWeight: 500 }}
-            >
-              + Add Multiple Items
-            </button>
-            <button 
-              className="btn btn-secondary" 
-              onClick={() => setShowCustomLabelEditor(true)}
-              style={{ borderRadius: '8px', fontWeight: 500 }}
-            >
-              ⚙ Custom Columns
-            </button>
+            <button className="btn btn-secondary" onClick={addEmptyItemRow} style={{ borderRadius: '8px', fontWeight: 500 }}>+ Add Row</button>
+            <button className="btn btn-secondary" onClick={addSectionHeader} style={{ borderRadius: '8px', fontWeight: 500, background: '#f8fafc', color: '#1e293b', border: '1px solid #e2e8f0' }}>+ Add Section Header</button>
+            <button className="btn btn-primary" onClick={() => setShowItemPicker(true)} style={{ borderRadius: '8px', fontWeight: 500 }}>+ Add Multiple Items</button>
+            <button className="btn btn-secondary" onClick={() => setShowCustomLabelEditor(true)} style={{ borderRadius: '8px', fontWeight: 500 }}>⚙ Custom Columns</button>
           </div>
         </div>
 
@@ -1632,29 +1537,28 @@ export default function CreateQuotation() {
             <tbody>
               {items.length === 0 ? (
                 <tr>
-                  <td colSpan={20} className="cell-static text-center" style={{ padding: '48px', color: '#94a3b8', fontSize: '14px' }}>
-                    No items added. Click "Add Row" or "Add Multiple Items".
-                  </td>
+                  <td colSpan={20} className="cell-static text-center" style={{ padding: '48px', color: '#94a3b8', fontSize: '14px' }}>No items added. Click "Add Row" or "Add Multiple Items".</td>
                 </tr>
               ) : (
                 items.map((item, index) => {
                   const itemCountBefore = items.slice(0, index).filter(i => !i.is_header).length;
-                  const headerDesc = item.is_header ? item.description : '';
-                  const isNewHeader = item.is_header && !headerDesc;
-                  
                   if (item.is_header) {
                     return (
                       <tr 
                         key={item.id} 
-                        draggable
-                        onDragStart={(e) => handleDragStart(e, item.id)}
                         onDragOver={handleDragOver}
                         onDrop={(e) => handleDropOnRow(e, item.id)}
-                        onDragEnd={handleDragEnd}
+                        className={draggingItemId === item.id ? 'row-dragging' : ''}
                         style={{ background: '#f8fafc' }}
                       >
-                        <td className="text-center cell-static col-shrink row-drag-handle" title="Drag to reorder">
-                          {isNewHeader ? ':::' : itemCountBefore + 1}
+                        <td 
+                          className="text-center cell-static col-shrink row-drag-handle" 
+                          title="Drag to reorder"
+                          draggable
+                          onDragStart={(e) => handleDragStart(e, item.id)}
+                          onDragEnd={handleDragEnd}
+                        >
+                          {item.description ? itemCountBefore + 1 : ':::'}
                         </td>
                         <td colSpan={11} style={{ padding: '4px 8px' }}>
                           <input
@@ -1676,21 +1580,25 @@ export default function CreateQuotation() {
                   return (
                     <tr 
                       key={item.id} 
-                      draggable
-                      onDragStart={(e) => handleDragStart(e, item.id)}
                       onDragOver={handleDragOver}
                       onDrop={(e) => handleDropOnRow(e, item.id)}
-                      onDragEnd={handleDragEnd}
                       className={draggingItemId === item.id ? 'row-dragging' : item.is_override ? 'override-indicator' : ''}
                     >
-                      <td className="text-center cell-static col-shrink row-drag-handle" title="Drag to reorder" style={{ fontSize: '11px' }}>
+                      <td 
+                        className="text-center cell-static col-shrink row-drag-handle" 
+                        title="Drag to reorder" 
+                        style={{ fontSize: '11px' }}
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, item.id)}
+                        onDragEnd={handleDragEnd}
+                      >
                         {itemCountBefore + 1}
                       </td>
                       <td className="col-shrink">
                         <input
                           type="text"
                           className="cell-input text-center"
-                          value={item.hsn_code || item.material?.hsn_code || materials.find(m => m.id === item.item_id)?.hsn_code || ''}
+                          value={item.hsn_code || item.material?.hsn_code || ''}
                           readOnly
                           style={{ background: '#f8fafc' }}
                         />
@@ -1706,7 +1614,6 @@ export default function CreateQuotation() {
                               updateItem(item.id, 'material', mat);
                               updateItem(item.id, 'hsn_code', mat.hsn_code || '');
                               updateItem(item.id, 'description', mat.display_name || mat.name);
-                              // Default to first available make if exists
                               const firstMake = itemMakes[mat.id]?.[0] || '';
                               updateItem(item.id, 'make', firstMake);
                               const newRate = getRateForMaterialVariant(mat, item.variant_id || null, firstMake);
@@ -1714,6 +1621,7 @@ export default function CreateQuotation() {
                               const finalRate = calculateVariantDiscountedRate(newRate, item.applied_discount_percent || 0);
                               updateItem(item.id, 'rate', finalRate);
                               updateItem(item.id, 'uom', mat.unit || 'Nos');
+                              updateItem(item.id, 'tax_percent', mat.gst_rate || 18);
                             }
                           }}
                         >
@@ -1764,36 +1672,26 @@ export default function CreateQuotation() {
                           }}
                         >
                           <option value="">No Variant</option>
-                          {variants.map(v => (
-                            <option key={v.id} value={v.id}>{v.variant_name}</option>
-                          ))}
+                          {variants
+                            .filter(v => {
+                              if (!item.item_id) return true; // Show all if no item selected yet
+                              const itemVariants = variantPricing[item.item_id];
+                              return itemVariants && itemVariants[v.id];
+                            })
+                            .map(v => (
+                              <option key={v.id} value={v.id}>{v.variant_name}</option>
+                            ))
+                          }
                         </select>
                       </td>
                       <td className="col-shrink">
-                        <input
-                          type="number"
-                          className="cell-input text-right"
-                          value={item.qty}
-                          onChange={(e) => updateItem(item.id, 'qty', e.target.value)}
-                          min="0"
-                        />
+                        <input type="number" className="cell-input text-right" value={item.qty} onChange={(e) => updateItem(item.id, 'qty', e.target.value)} min="0" />
                       </td>
                       <td className="col-shrink">
-                        <input
-                          type="text"
-                          className="cell-input text-center"
-                          value={item.uom}
-                          onChange={(e) => updateItem(item.id, 'uom', e.target.value)}
-                        />
+                        <input type="text" className="cell-input text-center" value={item.uom} onChange={(e) => updateItem(item.id, 'uom', e.target.value)} />
                       </td>
                       <td className="col-shrink">
-                        <input
-                          type="number"
-                          className="cell-input text-right"
-                          value={item.base_rate_snapshot || 0}
-                          readOnly
-                          style={{ background: '#f8fafc' }}
-                        />
+                        <input type="number" className="cell-input text-right" value={item.base_rate_snapshot || 0} readOnly style={{ background: '#f8fafc' }} />
                       </td>
                       <td className="col-shrink">
                         <input
@@ -1804,25 +1702,8 @@ export default function CreateQuotation() {
                             const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0));
                             updateItem(item.id, 'discount_percent', val);
                           }}
-                          style={item.is_override ? { 
-                            background: '#fef3c7',
-                            border: '1px solid #f59e0b'
-                          } : item.discount_percent > (discountSettings[item.variant_id]?.max || 100) ? {
-                            background: '#fee2e2',
-                            border: '1px solid #dc2626'
-                          } : {}}
-                          title={item.is_override ? `Overridden from ${headerDiscounts[item.variant_id] || 0}%` : ''}
+                          style={item.is_override ? { background: '#fef3c7', border: '1px solid #f59e0b' } : {}}
                         />
-                        {item.is_override && (
-                          <div style={{ fontSize: '9px', color: '#b45309', marginTop: '2px' }}>
-                            Override
-                          </div>
-                        )}
-                        {item.variant_id && discountSettings[item.variant_id] && item.discount_percent > discountSettings[item.variant_id].max && !item.is_override && (
-                          <div style={{ fontSize: '9px', color: '#dc2626', marginTop: '2px' }}>
-                            Exceeds max {discountSettings[item.variant_id].max}%
-                          </div>
-                        )}
                       </td>
                       <td className="col-shrink">
                         <input
@@ -1835,31 +1716,16 @@ export default function CreateQuotation() {
                         />
                       </td>
                       <td className="col-shrink">
-                        <input
-                          type="number"
-                          className="cell-input text-right"
-                          value={item.tax_percent}
-                          onChange={(e) => updateItem(item.id, 'tax_percent', e.target.value)}
-                        />
+                        <input type="number" className="cell-input text-right" value={item.tax_percent} onChange={(e) => updateItem(item.id, 'tax_percent', e.target.value)} />
                       </td>
                       {templateSettings?.column_settings?.optional?.custom1 && (
                         <td className="col-shrink">
-                          <input
-                            type="text"
-                            className="cell-input"
-                            value={item.custom1 || ''}
-                            onChange={(e) => updateItem(item.id, 'custom1', e.target.value)}
-                          />
+                          <input type="text" className="cell-input" value={item.custom1 || ''} onChange={(e) => updateItem(item.id, 'custom1', e.target.value)} />
                         </td>
                       )}
                       {templateSettings?.column_settings?.optional?.custom2 && (
                         <td className="col-shrink">
-                          <input
-                            type="text"
-                            className="cell-input"
-                            value={item.custom2 || ''}
-                            onChange={(e) => updateItem(item.id, 'custom2', e.target.value)}
-                          />
+                          <input type="text" className="cell-input" value={item.custom2 || ''} onChange={(e) => updateItem(item.id, 'custom2', e.target.value)} />
                         </td>
                       )}
                       <td className="col-shrink cell-static text-right amount-value">
@@ -1903,28 +1769,11 @@ export default function CreateQuotation() {
             </div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span>Extra Discount %</span>
-              <input
-                type="number"
-                className="form-input"
-                style={{ width: '80px', textAlign: 'right' }}
-                value={formData.extra_discount_percent}
-                onChange={(e) => setFormData({ ...formData, extra_discount_percent: e.target.value })}
-                min="0"
-                max="100"
-                step="0.01"
-              />
+              <input type="number" className="form-input" style={{ width: '80px', textAlign: 'right' }} value={formData.extra_discount_percent} onChange={(e) => setFormData({ ...formData, extra_discount_percent: e.target.value })} min="0" max="100" step="0.01" />
             </div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span>Extra Discount Amt</span>
-              <input
-                type="number"
-                className="form-input"
-                style={{ width: '120px', textAlign: 'right' }}
-                value={formData.extra_discount_amount}
-                onChange={(e) => setFormData({ ...formData, extra_discount_amount: e.target.value })}
-                min="0"
-                step="0.01"
-              />
+              <input type="number" className="form-input" style={{ width: '120px', textAlign: 'right' }} value={formData.extra_discount_amount} onChange={(e) => setFormData({ ...formData, extra_discount_amount: e.target.value })} min="0" step="0.01" />
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6b7280' }}>
               <span>Extra Discount</span>
@@ -1949,14 +1798,7 @@ export default function CreateQuotation() {
             )}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span>Round Off</span>
-              <input
-                type="number"
-                className="form-input"
-                style={{ width: '120px', textAlign: 'right' }}
-                value={formData.round_off}
-                onChange={(e) => setFormData({ ...formData, round_off: e.target.value })}
-                step="0.01"
-              />
+              <input type="number" className="form-input" style={{ width: '120px', textAlign: 'right' }} value={formData.round_off} onChange={(e) => setFormData({ ...formData, round_off: e.target.value })} step="0.01" />
             </div>
             <div style={{ borderTop: '2px solid #e5e7eb', paddingTop: '12px', display: 'flex', justifyContent: 'space-between', fontSize: '18px', fontWeight: 700 }}>
               <span>Grand Total</span>
@@ -1984,211 +1826,88 @@ export default function CreateQuotation() {
             ))}
           </select>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontWeight: 600, fontSize: '11px', color: '#374151' }}>Extra Disc %:</span>
-          <input 
-            type="number" 
-            className="form-input" 
-            style={{ minHeight: '28px', padding: '2px 8px', fontSize: '11px', width: '80px' }}
-            value={formData.extra_discount_percent} 
-            onChange={(e) => setFormData({ ...formData, extra_discount_percent: parseFloat(e.target.value) || 0 })} 
-            min="0" 
-            max="100" 
-            step="0.1" 
-          />
-        </div>
       </div>
-
-      <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '8px' }}>
-        <button className="btn btn-secondary" onClick={() => navigate('/quotation')}>
-          Cancel
-        </button>
-        {!editId && (
-          <button className="btn btn-secondary" onClick={() => handleSave(true)} disabled={saving}>
-            {saving ? 'Saving...' : 'Save & New'}
-          </button>
-        )}
-        <button className="btn btn-primary" onClick={() => handleSave(false)} disabled={saving}>
-          {saving ? 'Saving...' : editId ? 'Update' : 'Save'}
-        </button>
-      </div>
-
-      {/* Phase-1: Smart Discount Change Confirmation Popup */}
-      {discountPopup.show && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0,0,0,0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1100
-        }} onClick={cancelDiscountChanges}>
-          <div style={{
-            background: '#fff',
-            borderRadius: '12px',
-            width: isMobile ? '94%' : '480px',
-            padding: isMobile ? '20px' : '24px',
-            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)'
-          }} onClick={e => e.stopPropagation()}>
-            <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', color: '#1e293b' }}>
-              Discount Changed
-            </h3>
-            
-            <div style={{ 
-              padding: '16px', 
-              background: '#f8fafc', 
-              borderRadius: '8px', 
-              marginBottom: '20px',
-              border: '1px solid #e2e8f0'
-            }}>
-              <p style={{ margin: '0 0 12px 0', fontSize: '14px', color: '#475569' }}>
-                Discount for <strong>{discountPopup.variantName}</strong> changed from <strong>{discountPopup.oldValue}%</strong> to <strong>{discountPopup.newValue}%</strong>.
-              </p>
-              
-              {discountPopup.affectedRows > 0 && (
-                <p style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#16a34a' }}>
-                  ✓ {discountPopup.affectedRows} row{discountPopup.affectedRows !== 1 ? 's' : ''} will update.
-                </p>
-              )}
-              
-              {discountPopup.overriddenRows > 0 && (
-                <p style={{ margin: 0, fontSize: '14px', color: '#dc2626' }}>
-                  ⚠ {discountPopup.overriddenRows} overridden row{discountPopup.overriddenRows !== 1 ? 's' : ''} will remain unchanged.
-                </p>
-              )}
+      
+      {showItemPicker && (
+        <div className="modal-overlay open" onClick={() => setShowItemPicker(false)}>
+          <div className="modal-content" style={{ maxWidth: '800px' }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title">Select Items</h3>
+              <button className="btn-close" onClick={() => setShowItemPicker(false)}>×</button>
             </div>
-
-            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-              <button 
-                className="btn btn-secondary"
-                onClick={cancelDiscountChanges}
-                style={{ minWidth: '100px' }}
-              >
-                Cancel
-              </button>
-              <button 
-                className="btn btn-primary"
-                onClick={applyDiscountChanges}
-                style={{ minWidth: '140px' }}
-              >
-                Apply Changes
-              </button>
+            <div className="modal-body">
+              <input 
+                type="text" 
+                className="form-input" 
+                placeholder="Search items..." 
+                value={itemSearch}
+                onChange={(e) => setItemSearch(e.target.value)}
+                style={{ marginBottom: '16px' }}
+              />
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '16px', height: '400px' }}>
+                <div style={{ overflowY: 'auto', border: '1px solid #eee' }}>
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>Item</th>
+                        <th>Rate</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredMaterials.map(m => (
+                        <tr key={m.id}>
+                          <td>{m.display_name || m.name}</td>
+                          <td>{formatCurrency(m.sale_price)}</td>
+                          <td>
+                            <button className="btn btn-sm btn-primary" onClick={() => handleAddItemToPicker(m)}>+</button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div style={{ overflowY: 'auto', border: '1px solid #eee', padding: '8px' }}>
+                  <h4 style={{ fontSize: '14px', marginBottom: '8px' }}>Selected Items</h4>
+                  {pickerItems.map(p => (
+                    <div key={p.item_id} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontSize: '12px' }}>
+                      <span>{p.material.name} x {p.qty}</span>
+                      <div style={{ display: 'flex', gap: '4px' }}>
+                        <button className="btn btn-sm" onClick={() => handlePickerQtyChange(p.item_id, -1)}>-</button>
+                        <button className="btn btn-sm" onClick={() => handlePickerQtyChange(p.item_id, 1)}>+</button>
+                        <button className="btn btn-sm btn-danger" onClick={() => handleRemoveFromPicker(p.item_id)}>x</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setShowItemPicker(false)}>Cancel</button>
+              <button className="btn btn-primary" onClick={handleAddItemsToQuotation} disabled={pickerItems.length === 0}>Add to Quotation</button>
             </div>
           </div>
         </div>
       )}
 
-      {showItemPicker && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0,0,0,0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
-        }} onClick={() => setShowItemPicker(false)}>
-          <div style={{
-            background: '#fff',
-            borderRadius: '8px',
-            width: '94%',
-            maxWidth: '1200px',
-            height: '84vh',
-            overflow: 'hidden',
-            display: 'flex',
-            flexDirection: 'column'
-          }} onClick={e => e.stopPropagation()}>
-            <div style={{ padding: '16px', borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 style={{ margin: 0 }}>Add Multiple Items</h3>
-              <button onClick={() => setShowItemPicker(false)} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}>x</button>
+      {discountPopup.show && (
+        <div className="modal-overlay open">
+          <div className="modal-content" style={{ maxWidth: '400px' }}>
+            <div className="modal-header">
+              <h3 className="modal-title">Bulk Discount Update</h3>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', flex: 1, minHeight: 0, overflow: 'hidden' }}>
-              <div style={{ borderRight: '1px solid #e5e7eb', display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>
-                <div style={{ padding: '12px', borderBottom: '1px solid #e5e7eb' }}>
-                  <input
-                    type='text'
-                    className='form-input'
-                    placeholder='Search items...'
-                    value={itemSearch}
-                    onChange={(e) => setItemSearch(e.target.value)}
-                    autoFocus
-                  />
-                </div>
-                <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', padding: '6px', scrollBehavior: 'smooth' }}>
-                  {filteredMaterials.map((m) => (
-                    <div
-                      key={m.id}
-                      style={{
-                        padding: '8px',
-                        border: '1px solid #e5e7eb',
-                        borderRadius: '6px',
-                        marginBottom: '6px',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center'
-                      }}
-                      onClick={() => handleAddItemToPicker(m)}
-                    >
-                      <div>
-                        <div style={{ fontWeight: 500, fontSize: '12px', lineHeight: 1.2 }}>{m.display_name || m.name}</div>
-                        <div style={{ fontSize: '11px', color: '#6b7280' }}>{m.item_code} | {m.unit} | Rs {m.sale_price || 0}</div>
-                      </div>
-                      <button style={{ background: '#2563eb', color: '#fff', border: 'none', borderRadius: '4px', padding: '3px 10px', cursor: 'pointer', fontSize: '12px' }}>+</button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>
-                <div style={{ padding: '12px', borderBottom: '1px solid #e5e7eb', fontWeight: 600 }}>
-                  Selected Items ({pickerItems.length})
-                </div>
-                <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', padding: '12px', scrollBehavior: 'smooth' }}>
-                  {pickerItems.length === 0 ? (
-                    <div style={{ textAlign: 'center', color: '#6b7280', padding: '40px' }}>
-                      Click items from left panel to add here
-                    </div>
-                  ) : (
-                    pickerItems.map((p) => (
-                      <div key={`${p.item_id}-${p.variant_id || 'none'}`} style={{ padding: '10px', border: '1px solid #e5e7eb', borderRadius: '6px', marginBottom: '8px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                          <span style={{ fontWeight: 500, fontSize: '12px', lineHeight: 1.2 }}>{p.material?.display_name || p.material?.name}</span>
-                          <button onClick={() => handleRemoveFromPicker(p.item_id)} style={{ background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer' }}>x</button>
-                        </div>
-
-                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', borderTop: '1px solid #f1f5f9', paddingTop: '8px' }}>
-                          <button onClick={() => handlePickerQtyChange(p.item_id, -1)} style={{ width: '28px', height: '28px', border: '1px solid #e5e7eb', borderRadius: '4px', background: '#fff', cursor: 'pointer' }}>-</button>
-                          <span style={{ width: '30px', textAlign: 'center' }}>{p.qty}</span>
-                          <button onClick={() => handlePickerQtyChange(p.item_id, 1)} style={{ width: '28px', height: '28px', border: '1px solid #e5e7eb', borderRadius: '4px', background: '#fff', cursor: 'pointer' }}>+</button>
-                          <span style={{ marginLeft: 'auto', fontWeight: 500 }}>{formatCurrency((parseFloat(p.qty) || 0) * (parseFloat(p.rate) || 0))}</span>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-                <div style={{ padding: '12px', borderTop: '1px solid #e5e7eb', background: '#fafafa', position: 'sticky', bottom: 0 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', fontWeight: 600 }}>
-                    <span>Selected Total</span>
-                    <span>{formatCurrency(pickerItems.reduce((sum, p) => sum + ((parseFloat(p.qty) || 0) * (parseFloat(p.rate) || 0)), 0))}</span>
-                  </div>
-                  <button
-                    className='btn btn-primary'
-                    style={{ width: '100%' }}
-                    onClick={handleAddItemsToQuotation}
-                    disabled={pickerItems.length === 0}
-                  >
-                    Submit & Add {pickerItems.length} Item{pickerItems.length !== 1 ? 's' : ''} to Quotation
-                  </button>
-                </div>
-              </div>
+            <div className="modal-body">
+              <p style={{ fontSize: '14px' }}>
+                You are changing <strong>{discountPopup.variantName}</strong> discount from {discountPopup.oldValue}% to {discountPopup.newValue}%.
+              </p>
+              <p style={{ fontSize: '13px', marginTop: '8px', color: '#666' }}>
+                - Affected rows: {discountPopup.affectedRows}<br />
+                - Overridden rows (skipped): {discountPopup.overriddenRows}
+              </p>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={cancelDiscountChanges}>Cancel</button>
+              <button className="btn btn-primary" onClick={applyDiscountChanges}>Apply to All Rows</button>
             </div>
           </div>
         </div>
@@ -2196,33 +1915,3 @@ export default function CreateQuotation() {
     </div>
   );
 }
-
-function numberToWords(num) {
-  if (num === 0) return 'Zero Only';
-  
-  const a = ['', 'One ', 'Two ', 'Three ', 'Four ', 'Five ', 'Six ', 'Seven ', 'Eight ', 'Nine ', 'Ten ', 'Eleven ', 'Twelve ', 'Thirteen ', 'Fourteen ', 'Fifteen ', 'Sixteen ', 'Seventeen ', 'Eighteen ', 'Nineteen '];
-  const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
-
-  const numToWords = (n) => {
-    if (n < 20) return a[n];
-    if (n < 100) return b[Math.floor(n / 10)] + (n % 10 ? ' ' + a[n % 10] : '');
-    if (n < 1000) return a[Math.floor(n / 100)] + 'Hundred ' + (n % 100 ? numToWords(n % 100) : '');
-    if (n < 100000) return numToWords(Math.floor(n / 1000)) + 'Thousand ' + (n % 1000 ? numToWords(n % 1000) : '');
-    if (n < 10000000) return numToWords(Math.floor(n / 100000)) + 'Lakh ' + (n % 100000 ? numToWords(n % 100000) : '');
-    return numToWords(Math.floor(n / 10000000)) + 'Crore ' + (n % 10000000 ? numToWords(n % 10000000) : '');
-  };
-
-  const rupees = Math.floor(num);
-  const paise = Math.round((num - rupees) * 100);
-  
-  let result = numToWords(rupees) + 'Rupees';
-  if (paise > 0) {
-    result += ' and ' + numToWords(paise) + 'Paise';
-  }
-  result += ' Only';
-  
-  return result;
-}
-
-
-

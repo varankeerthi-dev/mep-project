@@ -97,7 +97,7 @@ function ClientDiscountPortfolio({ formData, setFormData, isAdmin }) {
     try {
       const { error } = await supabase
         .from('clients')
-        .update({ custom_discounts: customDiscounts, updated_at: new Date().toISOString() })
+        .update({ custom_discounts: customDiscounts })
         .eq('id', formData.id);
       
       if (error) throw error;
@@ -263,18 +263,16 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }) {
   useEffect(() => {
     if (clientData) {
       setFormData(clientData);
-      // Wait a bit to set isDirty to false after initial load
       setTimeout(() => setIsDirty(false), 100);
     }
   }, [clientData]);
 
   useEffect(() => {
-    if (formData.client_name) { // only track after some data is entered
+    if (formData.client_name) {
       setIsDirty(true);
     }
   }, [formData]);
 
-  // Prevent browser close/refresh
   useEffect(() => {
     const handleBeforeUnload = (e) => {
       if (isDirty && !saving) {
@@ -375,14 +373,30 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }) {
     loadShippingAddresses(clientData.id);
   };
 
+  const deleteClient = async () => {
+    if (!editMode || !clientData?.id) return;
+    if (!confirm(`Are you sure you want to delete client "${formData.client_name}"? This action cannot be undone.`)) return;
+    
+    setSaving(true);
+    try {
+      const { error } = await supabase.from('clients').delete().eq('id', clientData.id);
+      if (error) throw error;
+      alert('Client deleted successfully!');
+      setIsDirty(false);
+      onCancel();
+    } catch (err) {
+      alert('Error deleting client: ' + err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     if (e) e.preventDefault();
-    
     if (formData.gstin && formData.gstin.length !== 15) {
       alert('GSTIN must be exactly 15 characters');
       return;
     }
-    
     setSaving(true);
     try {
       if (editMode && clientData?.id) {
@@ -433,7 +447,6 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }) {
               <div className="form-group"><label className="form-label">Category</label><select className="form-select" value={formData.category || 'Active'} onChange={e => setFormData({...formData, category: e.target.value})}><option value="Active">Active</option><option value="Inactive">Inactive</option><option value="Prospect">Prospect</option></select></div>
             </div>
             
-            {/* Contact Persons Section */}
             <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', marginBottom: '16px' }}>
               <div style={{ fontWeight: '600', marginBottom: '8px', color: '#475569' }}>Contact Person 1</div>
               <div className="form-row" style={{ marginBottom: '8px' }}>
@@ -472,9 +485,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }) {
               <div className="form-group"><label className="form-label">Vendor No</label><input type="text" className="form-input" value={formData.vendor_no} onChange={e => setFormData({...formData, vendor_no: e.target.value})} /></div>
             </div>
             
-            {/* Billing & Shipping Address - Split Screen */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
-              {/* Billing Address */}
               <div style={{ background: '#f0fdf4', padding: '12px', borderRadius: '8px', border: '1px solid #bbf7d0' }}>
                 <div style={{ fontWeight: '600', marginBottom: '8px', color: '#166534' }}>Billing Address</div>
                 <div className="form-row">
@@ -494,7 +505,6 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }) {
                 </div>
               </div>
               
-              {/* Shipping Addresses */}
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                   <div style={{ fontWeight: '600', color: '#475569' }}>Shipping Addresses</div>
@@ -555,9 +565,14 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }) {
             
             <div className="form-group"><label className="form-label">Remarks</label><textarea className="form-textarea" value={formData.remarks} onChange={e => setFormData({...formData, remarks: e.target.value})} /></div>
             <div className="form-group"><label className="form-label">About Client</label><textarea className="form-textarea" value={formData.about_client || ''} onChange={e => setFormData({...formData, about_client: e.target.value})} placeholder="Additional information about the client..." /></div>
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button type="submit" className="btn btn-primary">{editMode ? 'Update Client' : 'Submit'}</button>
-              <button type="button" className="btn btn-secondary" onClick={onCancel}>Cancel</button>
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+              <button type="submit" className="btn btn-primary" disabled={saving}>{editMode ? 'Update Client' : 'Submit'}</button>
+              {editMode && (
+                <button type="button" className="btn btn-danger" onClick={deleteClient} disabled={saving} style={{ background: '#fee2e2', color: '#dc2626', border: '1px solid #fecaca' }}>
+                  Delete Client
+                </button>
+              )}
+              <button type="button" className="btn btn-secondary" onClick={onCancel} disabled={saving}>Cancel</button>
             </div>
           </form>
         ) : (
