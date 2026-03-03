@@ -184,9 +184,14 @@ export default function App() {
 }
 
   useEffect(() => {
-    checkDatabase();
-    initAuth();
-    initStorageBuckets();
+  const init = async () => {
+    await initAuth();
+    await checkDatabase();
+    await initStorageBuckets();
+  };
+
+  init();
+}, []);
 
     // Session Heartbeat: Optimized to prevent excessive state triggers
     let lastCheck = 0;

@@ -213,11 +213,21 @@ function ItemsTab() {
   };
 
   useEffect(() => {
-    loadMaterials();
-    loadCategories();
-    loadUnits();
-    loadVariants();
-  }, []);
+  const safeLoad = async () => {
+    try {
+      await Promise.all([
+        loadMaterials(),
+        loadCategories(),
+        loadUnits(),
+        loadVariants()
+      ]);
+    } catch (err) {
+      console.error("Initial load error:", err);
+    }
+  };
+
+  safeLoad();
+}, []);
 
   useEffect(() => {
     localStorage.setItem('itemsTableColumns', JSON.stringify(visibleColumns));
@@ -231,7 +241,9 @@ function ItemsTab() {
 
   const loadMaterials = async () => {
     try {
-      const { data } = await supabase.from('materials').select('*').eq('item_type', 'product').order('name');
+      const { data, error } = await supabase.from('materials').select('*')
+
+if (error) throw error.eq('item_type', 'product').order('name');
       setMaterials(data || []);
       
       // Load stock from item_stock table
