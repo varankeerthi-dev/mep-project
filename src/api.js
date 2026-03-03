@@ -550,6 +550,32 @@ export async function duplicateQuotation(id) {
   return data;
 }
 
+/**
+ * Creates a Lot-Based Quotation by consolidating multiple Delivery Challans
+ * @param {Array<string>} dcIds - Array of DC UUIDs
+ * @param {string} userId - UUID of the performing user
+ */
+export async function createQuotationFromDC(dcIds, userId) {
+  try {
+    // We use Supabase RPC to call the stored procedure defined in the database
+    // This ensures the entire operation is wrapped in a single DB transaction
+    const { data, error } = await supabase.rpc('create_quotation_from_dc', {
+      p_dc_ids: dcIds,
+      p_user_id: userId
+    });
+
+    if (error) {
+      // Handle Postgres exceptions raised via RAISE EXCEPTION
+      throw new Error(error.message);
+    }
+
+    return data;
+  } catch (err) {
+    console.error('ERP API Error [QuotationFromDC]:', err.message);
+    throw err;
+  }
+}
+
 export async function fetchDiscountProfiles() {
   const { data, error } = await supabase
     .from('discount_structures')
