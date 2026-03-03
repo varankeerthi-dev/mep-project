@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabase';
 import { formatDate, formatCurrency } from '../utils/formatters';
 
@@ -157,6 +157,7 @@ function TabButton({ active, onClick, children }) {
 
 function ItemsTab() {
   const [materials, setMaterials] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [stockData, setStockData] = useState({});
   const [categories, setCategories] = useState([]);
   const [units, setUnits] = useState([]);
@@ -213,21 +214,24 @@ function ItemsTab() {
   };
 
   useEffect(() => {
-  const safeLoad = async () => {
-    try {
-      await Promise.all([
-        loadMaterials(),
-        loadCategories(),
-        loadUnits(),
-        loadVariants()
-      ]);
-    } catch (err) {
-      console.error("Initial load error:", err);
-    }
-  };
+    const safeLoad = async () => {
+      setLoading(true);
+      try {
+        await Promise.all([
+          loadMaterials(),
+          loadCategories(),
+          loadUnits(),
+          loadVariants()
+        ]);
+      } catch (err) {
+        console.error("Initial load error:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  safeLoad();
-}, []);
+    safeLoad();
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('itemsTableColumns', JSON.stringify(visibleColumns));
@@ -444,6 +448,7 @@ function ItemsTab() {
   };
 
   const applyBulkPriceUpdates = async () => {
+    if (bulkInProgress) return;
     if (bulkPreviewRows.length === 0) {
       setBulkApplyErrors(['No valid rows to update. Click "Preview Changes" first.']);
       return;
@@ -890,7 +895,7 @@ function ItemsTab() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (formData.uses_variant && Object.keys(variantPricing).length === 0) {
+    if (formData.uses_variant && variantPricing.length === 0) {
       alert('Please add at least one variant pricing before saving.');
       return;
     }
@@ -1008,7 +1013,7 @@ function ItemsTab() {
       unit: 'nos', sale_price: '', purchase_price: '', hsn_code: '', gst_rate: 18, is_active: true,
       uses_variant: false
     });
-    setVariantPricing({});
+    setVariantPricing([]);
   };
 
   const editMaterial = async (material) => {
@@ -1234,131 +1239,140 @@ function ItemsTab() {
         <div className="alert alert-success">{saveNotice}</div>
       )}
 
-      {showColumnSettings && (
-        <div className="card" style={{ marginBottom: '16px' }}>
-          <h3 className="card-title">Select Visible Columns</h3>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '14px' }}>
-            {ITEM_TABLE_COLUMNS.map((column) => (
-              <label key={column.key} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  checked={visibleColumns.includes(column.key)}
-                  disabled={column.locked}
-                  onChange={() => toggleColumn(column.key)}
-                />
-                {column.label}{column.locked ? ' (Default)' : ''}
+      {loading ? (
+        <div style={{ padding: '100px', textAlign: 'center' }}>
+          <div className="loading-spinner"></div>
+          <p style={{ marginTop: '10px', color: '#666' }}>Loading items...</p>
+        </div>
+      ) : (
+        <>
+          {showColumnSettings && (
+            <div className="card" style={{ marginBottom: '16px' }}>
+              <h3 className="card-title">Select Visible Columns</h3>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '14px' }}>
+                {ITEM_TABLE_COLUMNS.map((column) => (
+                  <label key={column.key} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={visibleColumns.includes(column.key)}
+                      disabled={column.locked}
+                      onChange={() => toggleColumn(column.key)}
+                    />
+                    {column.label}{column.locked ? ' (Default)' : ''}
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="card" style={{ marginBottom: '16px' }}>
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+              <input type="text" className="form-input" placeholder="Search items..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ maxWidth: '300px' }} />
+              <select className="form-select" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} style={{ maxWidth: '200px' }}>
+                {categoryList.map(cat => (<option key={cat} value={cat}>{cat === 'All' ? 'All Categories' : cat}</option>))}
+              </select>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                <input type="checkbox" checked={hideInactive} onChange={(e) => setHideInactive(e.target.checked)} />
+                Hide Inactive
               </label>
-            ))}
+              <span style={{ marginLeft: 'auto', color: '#666' }}>{filteredMaterials.length} items</span>
             </div>
           </div>
-      )}
 
-      <div className="card" style={{ marginBottom: '16px' }}>
-        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
-          <input type="text" className="form-input" placeholder="Search items..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ maxWidth: '300px' }} />
-          <select className="form-select" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} style={{ maxWidth: '200px' }}>
-            {categoryList.map(cat => (<option key={cat} value={cat}>{cat === 'All' ? 'All Categories' : cat}</option>))}
-          </select>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-            <input type="checkbox" checked={hideInactive} onChange={(e) => setHideInactive(e.target.checked)} />
-            Hide Inactive
-          </label>
-          <span style={{ marginLeft: 'auto', color: '#666' }}>{filteredMaterials.length} items</span>
-        </div>
-      </div>
-
-      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-        {filteredMaterials.length === 0 ? (
-          <div className="empty-state"><h3>No Items</h3></div>
-        ) : (
-          <div className="table-container" style={{ overflowX: 'auto' }}>
-            <table className="table items-reference-table">
-              <thead>
-                <tr>
-                  {visibleColumns.includes('name') && <th>Name</th>}
-                  {visibleColumns.includes('code') && <th>Code</th>}
-                  {visibleColumns.includes('category') && <th>Category</th>}
-                  {visibleColumns.includes('sub_category') && <th>Sub Category</th>}
-                  {visibleColumns.includes('size') && <th>Size</th>}
-                  {visibleColumns.includes('make') && <th>MAKE(Brand name)</th>}
-                  {visibleColumns.includes('material') && <th>Material</th>}
-                  {visibleColumns.includes('end_connection') && <th>End Connection</th>}
-                  {visibleColumns.includes('unit') && <th>Unit</th>}
-                  {visibleColumns.includes('sale_price') && <th>Sale Price</th>}
-                  {visibleColumns.includes('purchase_price') && <th>Purchase Price</th>}
-                  {visibleColumns.includes('hsn_code') && <th>HSN/SAC</th>}
-                  {visibleColumns.includes('gst_rate') && <th>GST Rate</th>}
-                  {visibleColumns.includes('uses_variant') && <th>Variant</th>}
-                  {visibleColumns.includes('stock') && <th>Stock</th>}
-                  {visibleColumns.includes('status') && <th>Status</th>}
-                  <th style={{ width: '190px' }}>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredMaterials.map((m) => {
-                  const isActive = m.is_active !== false;
-                  const isSelected = selectedMaterialId === m.id;
-                  const stock = stockData[m.id] || 0;
-                  return (
-                    <tr
-                      key={m.id}
-                      className={`item-click-row ${isSelected ? 'selected' : ''}`}
-                      style={{ opacity: isActive ? 1 : 0.55 }}
-                    >
-                      {visibleColumns.includes('name') && (
-                        <td>
-                          <div className="item-main-cell">
-                            <div className="item-avatar">{(m.display_name || m.name || '?').slice(0, 1).toUpperCase()}</div>
-                            <div>
-                              <button type="button" className="item-name-link" onClick={() => selectMaterialRow(m)}>
-                                {m.display_name || m.name}
-                              </button>
-                              <div className="item-main-sub">{m.material || m.size || 'Item'}</div>
-                            </div>
-                          </div>
-                        </td>
-                      )}
-                      {visibleColumns.includes('code') && <td>{m.item_code || '-'}</td>}
-                      {visibleColumns.includes('category') && <td>{m.main_category || '-'}</td>}
-                      {visibleColumns.includes('sub_category') && <td>{formatColumnValue(m, 'sub_category')}</td>}
-                      {visibleColumns.includes('size') && <td>{formatColumnValue(m, 'size')}</td>}
-                      {visibleColumns.includes('pressure_class') && <td>{formatColumnValue(m, 'pressure_class')}</td>}
-                      {visibleColumns.includes('make') && <td>{formatColumnValue(m, 'make')}</td>}
-                      {visibleColumns.includes('material') && <td>{formatColumnValue(m, 'material')}</td>}
-                      {visibleColumns.includes('end_connection') && <td>{formatColumnValue(m, 'end_connection')}</td>}
-                      {visibleColumns.includes('unit') && <td>{m.unit || '-'}</td>}
-                      {visibleColumns.includes('sale_price') && <td>{formatColumnValue(m, 'sale_price')}</td>}
-                      {visibleColumns.includes('purchase_price') && <td>{formatColumnValue(m, 'purchase_price')}</td>}
-                      {visibleColumns.includes('hsn_code') && <td>{formatColumnValue(m, 'hsn_code')}</td>}
-                      {visibleColumns.includes('gst_rate') && <td>{formatColumnValue(m, 'gst_rate')}</td>}
-                      {visibleColumns.includes('uses_variant') && <td>{formatColumnValue(m, 'uses_variant')}</td>}
-                      {visibleColumns.includes('stock') && (
-                        <td style={{ color: stock < (m.low_stock_level || 0) ? '#b42318' : '#067647', fontWeight: 600 }}>
-                          {stock}
-                        </td>
-                      )}
-                      {visibleColumns.includes('status') && (
-                        <td>
-                          <span className={`status-chip ${isActive ? 'active' : 'inactive'}`}>{isActive ? 'Active' : 'Inactive'}</span>
-                        </td>
-                      )}
-                      <td>
-                        <div className="item-actions-cell">
-                          <button className="btn btn-sm btn-secondary" onClick={() => editMaterial(m)}>Edit</button>
-                          <button className="btn btn-sm btn-secondary" onClick={() => toggleActive(m)}>
-                            {m.is_active ? 'Disable' : 'Enable'}
-                          </button>
-                          <button className="btn btn-sm btn-secondary" onClick={() => openDeleteModal(m)}>Delete</button>
-                        </div>
-                      </td>
+          <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+            {filteredMaterials.length === 0 ? (
+              <div className="empty-state"><h3>No Items Found</h3></div>
+            ) : (
+              <div className="table-container" style={{ overflowX: 'auto' }}>
+                <table className="table items-reference-table">
+                  <thead>
+                    <tr>
+                      {visibleColumns.includes('name') && <th>Name</th>}
+                      {visibleColumns.includes('code') && <th>Code</th>}
+                      {visibleColumns.includes('category') && <th>Category</th>}
+                      {visibleColumns.includes('sub_category') && <th>Sub Category</th>}
+                      {visibleColumns.includes('size') && <th>Size</th>}
+                      {visibleColumns.includes('make') && <th>MAKE(Brand name)</th>}
+                      {visibleColumns.includes('material') && <th>Material</th>}
+                      {visibleColumns.includes('end_connection') && <th>End Connection</th>}
+                      {visibleColumns.includes('unit') && <th>Unit</th>}
+                      {visibleColumns.includes('sale_price') && <th>Sale Price</th>}
+                      {visibleColumns.includes('purchase_price') && <th>Purchase Price</th>}
+                      {visibleColumns.includes('hsn_code') && <th>HSN/SAC</th>}
+                      {visibleColumns.includes('gst_rate') && <th>GST Rate</th>}
+                      {visibleColumns.includes('uses_variant') && <th>Variant</th>}
+                      {visibleColumns.includes('stock') && <th>Stock</th>}
+                      {visibleColumns.includes('status') && <th>Status</th>}
+                      <th style={{ width: '190px' }}>Action</th>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                  </thead>
+                  <tbody>
+                    {filteredMaterials.map((m) => {
+                      const isActive = m.is_active !== false;
+                      const isSelected = selectedMaterialId === m.id;
+                      const stock = stockData[m.id] || 0;
+                      return (
+                        <tr
+                          key={m.id}
+                          className={`item-click-row ${isSelected ? 'selected' : ''}`}
+                          style={{ opacity: isActive ? 1 : 0.55 }}
+                        >
+                          {visibleColumns.includes('name') && (
+                            <td>
+                              <div className="item-main-cell">
+                                <div className="item-avatar">{(m.display_name || m.name || '?').slice(0, 1).toUpperCase()}</div>
+                                <div>
+                                  <button type="button" className="item-name-link" onClick={() => selectMaterialRow(m)}>
+                                    {m.display_name || m.name}
+                                  </button>
+                                  <div className="item-main-sub">{m.material || m.size || 'Item'}</div>
+                                </div>
+                              </div>
+                            </td>
+                          )}
+                          {visibleColumns.includes('code') && <td>{m.item_code || '-'}</td>}
+                          {visibleColumns.includes('category') && <td>{m.main_category || '-'}</td>}
+                          {visibleColumns.includes('sub_category') && <td>{formatColumnValue(m, 'sub_category')}</td>}
+                          {visibleColumns.includes('size') && <td>{formatColumnValue(m, 'size')}</td>}
+                          {visibleColumns.includes('pressure_class') && <td>{formatColumnValue(m, 'pressure_class')}</td>}
+                          {visibleColumns.includes('make') && <td>{formatColumnValue(m, 'make')}</td>}
+                          {visibleColumns.includes('material') && <td>{formatColumnValue(m, 'material')}</td>}
+                          {visibleColumns.includes('end_connection') && <td>{formatColumnValue(m, 'end_connection')}</td>}
+                          {visibleColumns.includes('unit') && <td>{m.unit || '-'}</td>}
+                          {visibleColumns.includes('sale_price') && <td>{formatColumnValue(m, 'sale_price')}</td>}
+                          {visibleColumns.includes('purchase_price') && <td>{formatColumnValue(m, 'purchase_price')}</td>}
+                          {visibleColumns.includes('hsn_code') && <td>{formatColumnValue(m, 'hsn_code')}</td>}
+                          {visibleColumns.includes('gst_rate') && <td>{formatColumnValue(m, 'gst_rate')}</td>}
+                          {visibleColumns.includes('uses_variant') && <td>{formatColumnValue(m, 'uses_variant')}</td>}
+                          {visibleColumns.includes('stock') && (
+                            <td style={{ color: stock < (m.low_stock_level || 0) ? '#b42318' : '#067647', fontWeight: 600 }}>
+                              {stock}
+                            </td>
+                          )}
+                          {visibleColumns.includes('status') && (
+                            <td>
+                              <span className={`status-chip ${isActive ? 'active' : 'inactive'}`}>{isActive ? 'Active' : 'Inactive'}</span>
+                            </td>
+                          )}
+                          <td>
+                            <div className="item-actions-cell">
+                              <button className="btn btn-sm btn-secondary" onClick={() => editMaterial(m)}>Edit</button>
+                              <button className="btn btn-sm btn-secondary" onClick={() => toggleActive(m)}>
+                                {m.is_active ? 'Disable' : 'Enable'}
+                              </button>
+                              <button className="btn btn-sm btn-secondary" onClick={() => openDeleteModal(m)}>Delete</button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </>
+      )}
 
       {showItemWorkspace && selectedMaterial && (
         <div className="modal-overlay open" onClick={closeItemWorkspace}>
@@ -2050,6 +2064,7 @@ function ItemsTab() {
 
 function ServiceTab() {
   const [services, setServices] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingService, setEditingService] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -2062,8 +2077,15 @@ function ServiceTab() {
   useEffect(() => { loadServices(); }, []);
 
   const loadServices = async () => {
-    const { data } = await supabase.from('materials').select('*').eq('item_type', 'service').order('name');
-    setServices(data || []);
+    setLoading(true);
+    try {
+      const { data } = await supabase.from('materials').select('*').eq('item_type', 'service').order('name');
+      setServices(data || []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const generateServiceCode = () => 'SVC-' + Date.now().toString(36).toUpperCase();
@@ -2142,13 +2164,15 @@ function ServiceTab() {
       </div>
 
       <div className="card">
-        {filteredServices.length === 0 ? <div className="empty-state"><h3>No Services</h3></div> : (
+        {loading ? (
+          <div style={{ padding: '40px', textAlign: 'center' }}>Loading services...</div>
+        ) : filteredServices.length === 0 ? <div className="empty-state"><h3>No Services Found</h3></div> : (
           <table className="table">
             <thead><tr><th>Service Code</th><th>Service Name</th><th>Unit</th><th>Sale Price</th><th>HSN/SAC</th><th>Active</th><th>Actions</th></tr></thead>
             <tbody>
               {filteredServices.map(s => (
                 <tr key={s.id} style={{ opacity: s.is_active === false ? 0.5 : 1 }}>
-                  <td>{s.item_code}</td><td><strong>{s.name}</strong></td><td>{s.unit}</td><td>â‚¹{s.sale_price || '-'}</td><td>{s.hsn_code || '-'}</td><td>{s.is_active ? '✓' : '✗'}</td>
+                  <td>{s.item_code}</td><td><strong>{s.name}</strong></td><td>{s.unit}</td><td>₹{s.sale_price || '-'}</td><td>{s.hsn_code || '-'}</td><td>{s.is_active ? '✓' : '✗'}</td>
                   <td><button className="btn btn-sm btn-secondary" onClick={() => editService(s)}>Edit</button><button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px' }} onClick={() => deleteService(s.id)}>Delete</button></td>
                 </tr>
               ))}
@@ -2190,6 +2214,7 @@ function ServiceTab() {
 
 function CategoryTab() {
   const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingCategory, setEditingCategory] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -2199,8 +2224,15 @@ function CategoryTab() {
   useEffect(() => { loadCategories(); }, []);
 
   const loadCategories = async () => {
-    const { data } = await supabase.from('item_categories').select('*').order('category_name');
-    setCategories(data || []);
+    setLoading(true);
+    try {
+      const { data } = await supabase.from('item_categories').select('*').order('category_name');
+      setCategories(data || []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -2232,7 +2264,9 @@ function CategoryTab() {
       <div className="page-header"><h1 className="page-title">Categories</h1><button className="btn btn-primary" onClick={() => setShowForm(true)}>+ Add Category</button></div>
       <div className="card" style={{ marginBottom: '16px' }}><input type="text" className="form-input" placeholder="Search categories..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ maxWidth: '300px' }} /></div>
       <div className="card">
-        {filteredCategories.length === 0 ? <div className="empty-state"><h3>No Categories</h3></div> : (
+        {loading ? (
+          <div style={{ padding: '40px', textAlign: 'center' }}>Loading categories...</div>
+        ) : filteredCategories.length === 0 ? <div className="empty-state"><h3>No Categories Found</h3></div> : (
           <table className="table">
             <thead><tr><th>Category Name</th><th>Description</th><th>Active</th><th>Actions</th></tr></thead>
             <tbody>{filteredCategories.map(c => (<tr key={c.id} style={{ opacity: c.is_active === false ? 0.5 : 1 }}><td><strong>{c.category_name}</strong></td><td>{c.description || '-'}</td><td>{c.is_active ? '✓' : '✗'}</td><td><button className="btn btn-sm btn-secondary" onClick={() => editCategory(c)}>Edit</button><button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px' }} onClick={() => deleteCategory(c.id)}>Delete</button></td></tr>))}</tbody>
@@ -2258,6 +2292,7 @@ function CategoryTab() {
 
 function UnitTab() {
   const [units, setUnits] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingUnit, setEditingUnit] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -2267,8 +2302,15 @@ function UnitTab() {
   useEffect(() => { loadUnits(); }, []);
 
   const loadUnits = async () => {
-    const { data } = await supabase.from('item_units').select('*').order('unit_name');
-    setUnits(data || []);
+    setLoading(true);
+    try {
+      const { data } = await supabase.from('item_units').select('*').order('unit_name');
+      setUnits(data || []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -2300,7 +2342,9 @@ function UnitTab() {
       <div className="page-header"><h1 className="page-title">Units</h1><button className="btn btn-primary" onClick={() => setShowForm(true)}>+ Add Unit</button></div>
       <div className="card" style={{ marginBottom: '16px' }}><input type="text" className="form-input" placeholder="Search units..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ maxWidth: '300px' }} /></div>
       <div className="card">
-        {filteredUnits.length === 0 ? <div className="empty-state"><h3>No Units</h3></div> : (
+        {loading ? (
+          <div style={{ padding: '40px', textAlign: 'center' }}>Loading units...</div>
+        ) : filteredUnits.length === 0 ? <div className="empty-state"><h3>No Units Found</h3></div> : (
           <table className="table">
             <thead><tr><th>Unit Name</th><th>Unit Code</th><th>Description</th><th>Active</th><th>Actions</th></tr></thead>
             <tbody>{filteredUnits.map(u => (<tr key={u.id} style={{ opacity: u.is_active === false ? 0.5 : 1 }}><td><strong>{u.unit_name}</strong></td><td>{u.unit_code}</td><td>{u.description || '-'}</td><td>{u.is_active ? '✓' : '✗'}</td><td><button className="btn btn-sm btn-secondary" onClick={() => editUnit(u)}>Edit</button><button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px' }} onClick={() => deleteUnit(u.id)}>Delete</button></td></tr>))}</tbody>
@@ -2329,6 +2373,7 @@ function UnitTab() {
 
 function WarehousesTab() {
   const [warehouses, setWarehouses] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingWarehouse, setEditingWarehouse] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -2338,8 +2383,15 @@ function WarehousesTab() {
   useEffect(() => { loadWarehouses(); }, []);
 
   const loadWarehouses = async () => {
-    const { data } = await supabase.from('warehouses').select('*').order('warehouse_name');
-    setWarehouses(data || []);
+    setLoading(true);
+    try {
+      const { data } = await supabase.from('warehouses').select('*').order('warehouse_name');
+      setWarehouses(data || []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const generateWarehouseCode = () => 'WH-' + Date.now().toString(36).toUpperCase();
@@ -2379,7 +2431,9 @@ function WarehousesTab() {
       <div className="page-header"><h1 className="page-title">Warehouses</h1><button className="btn btn-primary" onClick={() => setShowForm(true)}>+ Add Warehouse</button></div>
       <div className="card" style={{ marginBottom: '16px' }}><input type="text" className="form-input" placeholder="Search warehouses..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ maxWidth: '300px' }} /></div>
       <div className="card">
-        {filteredWarehouses.length === 0 ? <div className="empty-state"><h3>No Warehouses</h3></div> : (
+        {loading ? (
+          <div style={{ padding: '40px', textAlign: 'center' }}>Loading warehouses...</div>
+        ) : filteredWarehouses.length === 0 ? <div className="empty-state"><h3>No Warehouses Found</h3></div> : (
           <table className="table">
             <thead><tr><th>Warehouse Code</th><th>Warehouse Name</th><th>Location</th><th>Default</th><th>Active</th><th>Actions</th></tr></thead>
             <tbody>{filteredWarehouses.map(w => (<tr key={w.id} style={{ opacity: w.is_active === false ? 0.5 : 1 }}><td>{w.warehouse_code}</td><td><strong>{w.warehouse_name || w.name}</strong></td><td>{w.location || '-'}</td><td>{w.is_default ? '✓' : '-'}</td><td>{w.is_active ? '✓' : '✗'}</td><td><button className="btn btn-sm btn-secondary" onClick={() => editWarehouse(w)}>Edit</button><button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px' }} onClick={() => deleteWarehouse(w.id)}>Delete</button></td></tr>))}</tbody>
@@ -2409,6 +2463,7 @@ function WarehousesTab() {
 
 function VariantsTab() {
   const [variants, setVariants] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingVariant, setEditingVariant] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -2418,8 +2473,15 @@ function VariantsTab() {
   useEffect(() => { loadVariants(); }, []);
 
   const loadVariants = async () => {
-    const { data } = await supabase.from('company_variants').select('*').order('variant_name');
-    setVariants(data || []);
+    setLoading(true);
+    try {
+      const { data } = await supabase.from('company_variants').select('*').order('variant_name');
+      setVariants(data || []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -2448,7 +2510,9 @@ function VariantsTab() {
         <input type="text" className="form-input" placeholder="Search variants..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ maxWidth: '300px' }} />
       </div>
       <div className="card">
-        {filteredVariants.length === 0 ? <div className="empty-state"><h3>No Variants</h3></div> : (
+        {loading ? (
+          <div style={{ padding: '40px', textAlign: 'center' }}>Loading variants...</div>
+        ) : filteredVariants.length === 0 ? <div className="empty-state"><h3>No Variants Found</h3></div> : (
           <table className="table">
             <thead><tr><th>Variant Name</th><th>Active</th><th>Created</th><th>Actions</th></tr></thead>
             <tbody>{filteredVariants.map(v => (<tr key={v.id} style={{ opacity: v.is_active === false ? 0.5 : 1 }}><td><strong>{v.variant_name}</strong></td><td>{v.is_active ? '✓' : '✗'}</td><td>{v.created_at ? new Date(v.created_at).toLocaleDateString() : '-'}</td><td><button className="btn btn-sm btn-secondary" onClick={() => editVariant(v)}>Edit</button><button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px' }} onClick={() => deleteVariant(v.id)}>Delete</button></td></tr>))}</tbody>
@@ -2521,5 +2585,3 @@ export default function MaterialsList() {
     </div>
   );
 }
-
-
