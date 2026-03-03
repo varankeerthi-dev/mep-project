@@ -1340,61 +1340,69 @@ body {
 }
 
 .grid-table th.col-item {
-  min-width: 300px;
+  min-width: 200px;
   text-align: left;
 }
 
 .grid-table th.col-variant {
-  width: 140px;
-  min-width: 140px;
+  width: 100px;
+  min-width: 100px;
 }
 
 .grid-table th.col-avail {
-  width: 100px;
-  min-width: 100px;
+  width: 80px;
+  min-width: 80px;
   text-align: right;
   color: #059669;
 }
 
 .grid-table th.col-qty {
-  width: 100px;
-  min-width: 100px;
+  width: 60px;
+  min-width: 60px;
+  max-width: 60px;
   text-align: center;
 }
 
 .grid-table th.col-unit {
-  width: 90px;
-  min-width: 90px;
+  width: 60px;
+  min-width: 60px;
   text-align: center;
 }
 
 .grid-table th.col-rate {
-  width: 120px;
-  min-width: 120px;
+  width: 80px;
+  min-width: 80px;
+  max-width: 80px;
   text-align: right;
 }
 
 .grid-table th.col-amount {
-  width: 140px;
-  min-width: 140px;
+  width: 100px;
+  min-width: 100px;
+  max-width: 100px;
   text-align: right;
 }
 
 .grid-table th.col-disc {
-  width: 80px;
-  min-width: 80px;
+  width: 60px;
+  min-width: 60px;
   text-align: right;
 }
 
 .grid-table th.col-gst {
-  width: 80px;
-  min-width: 80px;
+  width: 60px;
+  min-width: 60px;
   text-align: right;
 }
 
 .grid-table th.col-hsn {
-  width: 90px;
-  min-width: 90px;
+  width: 70px;
+  min-width: 70px;
+}
+
+.grid-table th.col-make {
+  width: 120px;
+  min-width: 120px;
 }
 
 .grid-table td {
@@ -1419,15 +1427,19 @@ body {
 .grid-table .cell-input, 
 .grid-table .cell-select {
   width: 100%;
-  height: 36px;
+  height: 28px;
   border: 1px solid #d1d5db;
-  border-radius: 6px;
-  padding: 0 10px;
-  font-size: 13px;
+  border-radius: 4px;
+  padding: 0 6px;
+  font-size: 11px;
   color: #1f2937;
   background: white;
   outline: none;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  box-sizing: border-box;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .grid-table .cell-input:focus, 
@@ -1446,7 +1458,7 @@ body {
 .grid-table .cell-input.text-right,
 .grid-table .cell-select.text-right {
   text-align: right;
-  padding-right: 12px;
+  padding-right: 8px;
 }
 
 .grid-table .cell-input.text-center,
@@ -1455,14 +1467,14 @@ body {
 }
 
 .grid-table .cell-static {
-  padding: 0 12px;
-  font-size: 13px;
+  padding: 0 8px;
+  font-size: 11px;
   color: #1f2937;
 }
 
 .grid-table .cell-static.text-right {
   text-align: right;
-  padding-right: 14px;
+  padding-right: 10px;
 }
 
 .grid-table .cell-static.text-center {

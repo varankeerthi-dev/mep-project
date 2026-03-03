@@ -1342,18 +1342,18 @@ export default function CreateQuotation() {
     }
   };
 
-  const compactLabelStyle = { fontWeight: 600, fontSize: '10px', marginBottom: '2px', lineHeight: 1.2 };
-  const compactFieldStyle = { minHeight: '32px', padding: '4px 8px', fontSize: '12px' };
-  const compactHeadCellStyle = { padding: '6px 8px', fontSize: '11px', whiteSpace: 'nowrap' };
-  const compactBodyCellStyle = { padding: '5px 6px', fontSize: '12px', verticalAlign: 'middle' };
-  const compactCellInputStyle = { minHeight: '30px', padding: '4px 6px', fontSize: '12px' };
+  const compactLabelStyle = { fontWeight: 600, fontSize: '9px', marginBottom: '1px', lineHeight: 1.2 };
+  const compactFieldStyle = { minHeight: '26px', padding: '2px 6px', fontSize: '11px' };
+  const compactHeadCellStyle = { padding: '3px 4px', fontSize: '10px', whiteSpace: 'nowrap' };
+  const compactBodyCellStyle = { padding: '2px 4px', fontSize: '10px', verticalAlign: 'middle' };
+  const compactCellInputStyle = { minHeight: '24px', padding: '2px 4px', fontSize: '10px' };
 
-  const headerFieldStyle = { display: 'flex', alignItems: 'center', gap: '8px' };
-  const labelColStyle = { minWidth: '90px', maxWidth: '90px', fontWeight: 600, fontSize: '11px', color: '#374151' };
+  const headerFieldStyle = { display: 'flex', alignItems: 'center', gap: '6px' };
+  const labelColStyle = { minWidth: '70px', maxWidth: '70px', fontWeight: 600, fontSize: '10px', color: '#374151' };
   const fieldColStyle = { flex: 1 };
 
   const renderHeaderField = (label, field, isLast = false) => (
-    <div style={{ ...headerFieldStyle, marginBottom: isLast ? 0 : '6px' }}>
+    <div style={{ ...headerFieldStyle, marginBottom: isLast ? 0 : '8px' }}>
       <span style={labelColStyle}>{label}</span>
       <div style={fieldColStyle}>{field}</div>
     </div>
@@ -1379,8 +1379,8 @@ export default function CreateQuotation() {
         </div>
       </div>
 
-      <div style={{ background: '#f8f9fa', padding: '10px', borderRadius: '6px', marginBottom: '10px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr 1fr', gap: '10px 16px' }}>
+      <div style={{ background: '#f8f9fa', padding: '8px', borderRadius: '4px', marginBottom: '4px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr 1fr', gap: '6px 12px' }}>
           {/* Row 1 */}
           {renderHeaderField('Quote No:', (
             <input type="text" className="form-input" style={{ ...compactFieldStyle, background: '#f3f4f6' }} value={formData.quotation_no || quoteNoPreview || 'Auto'} readOnly />
@@ -1411,7 +1411,7 @@ export default function CreateQuotation() {
           {renderHeaderField('Valid Till:', (
             <input type="date" className="form-input" style={compactFieldStyle} value={formData.valid_till} onChange={(e) => setFormData({ ...formData, valid_till: e.target.value })} />
           ))}
-          {renderHeaderField('Payment Terms:', (
+          {renderHeaderField('Payment:', (
             <input type="text" className="form-input" style={compactFieldStyle} value={formData.payment_terms} onChange={(e) => setFormData({ ...formData, payment_terms: e.target.value })} />
           ))}
           {renderHeaderField('Contact:', (
@@ -1421,7 +1421,10 @@ export default function CreateQuotation() {
             </select>
           ))}
           
-          {/* Row 3 */}
+          {/* Row 3 - Address merged, State, GSTIN */}
+          {renderHeaderField('Address:', (
+            <input type="text" className="form-input" style={{ ...compactFieldStyle, minHeight: '50px', height: '50px' }} value={formData.billing_address || ''} onChange={(e) => setFormData({ ...formData, billing_address: e.target.value })} placeholder="Billing Address" />
+          ))}
           {renderHeaderField('State:', (
             <select className="form-select" style={compactFieldStyle} value={formData.state || ''} onChange={(e) => setFormData({ ...formData, state: e.target.value })}>
               <option value="">Select</option>
@@ -1431,39 +1434,23 @@ export default function CreateQuotation() {
           {renderHeaderField('GSTIN:', (
             <input type="text" className="form-input" style={compactFieldStyle} value={formData.gstin || ''} onChange={(e) => setFormData({ ...formData, gstin: e.target.value })} placeholder="GSTIN" />
           ))}
-          {renderHeaderField('Signatory:', (
-            <select className="form-select" style={compactFieldStyle} value={formData.authorized_signatory_id || ''} onChange={(e) => setFormData({ ...formData, authorized_signatory_id: e.target.value })}>
-              <option value="">Select</option>
-              {(organisation?.signatures || []).map((sig) => (<option key={sig.id} value={sig.id}>{sig.name}</option>))}
-            </select>
-          ))}
           {renderHeaderField('Remarks:', (
             <input type="text" className="form-input" style={compactFieldStyle} value={formData.reference} onChange={(e) => setFormData({ ...formData, reference: e.target.value })} placeholder="Remarks" />
           ))}
-          
-          {/* Row 4 - Billing Address */}
-          {renderHeaderField('Address:', (
-            <input type="text" className="form-input" style={compactFieldStyle} value={formData.billing_address || ''} onChange={(e) => setFormData({ ...formData, billing_address: e.target.value })} placeholder="Billing Address" />
-          ))}
-          {renderHeaderField('Extra Disc %:', (
-            <input type="number" className="form-input" style={compactFieldStyle} value={formData.extra_discount_percent} onChange={(e) => setFormData({ ...formData, extra_discount_percent: parseFloat(e.target.value) || 0 })} min="0" max="100" step="0.1" />
-          ))}
-          {renderHeaderField('', <></>)}
-          {renderHeaderField('', <></>)}
         </div>
       </div>
 
       {/* Phase-1: Dynamic Variant Discount Header Section */}
       {variants.length > 0 && (
-        <div className="card" style={{ marginBottom: '16px', padding: isMobile ? '10px' : '12px', background: '#fef9e7', border: '1px solid #fcd34d' }} data-html2canvas-ignore>
-          <div style={{ marginBottom: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div className="card" style={{ marginBottom: '8px', padding: '6px', background: '#fef9e7', border: '1px solid #fcd34d' }} data-html2canvas-ignore>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '13px', fontWeight: 600, color: '#92400e' }}>Discount Control</span>
-              <span style={{ fontSize: '11px', color: '#a16207' }}>(Set default % per variant)</span>
+              <span style={{ fontSize: '11px', fontWeight: 600, color: '#92400e' }}>Discount Control</span>
+              <span style={{ fontSize: '10px', color: '#a16207' }}>(Set default % per variant)</span>
             </div>
             <button
               className="btn btn-sm"
-              style={{ fontSize: '11px', padding: '4px 8px', background: '#fef3c7', border: '1px solid #fcd34d', color: '#92400e' }}
+              style={{ fontSize: '10px', padding: '2px 6px', background: '#fef3c7', border: '1px solid #fcd34d', color: '#92400e' }}
               onClick={() => setActiveTab(activeTab === 'items' ? 'approval' : 'items')}
             >
               {activeTab === 'items' ? 'View Approval History' : 'Back to Items'}
@@ -1471,12 +1458,7 @@ export default function CreateQuotation() {
           </div>
           
           {activeTab === 'items' && (
-          <div style={{ 
-            display: 'flex', 
-            flexWrap: 'wrap', 
-            gap: isMobile ? '8px' : '12px',
-            flexDirection: isMobile ? 'column' : 'row'
-          }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
             {variants.map(variant => {
               const discountValue = headerDiscounts[variant.id] || 0;
               const settings = discountSettings[variant.id];
@@ -1487,83 +1469,60 @@ export default function CreateQuotation() {
               <div 
                 key={variant.id} 
                 style={{ 
-                  flex: isMobile ? '1 1 auto' : '0 1 140px',
-                  minWidth: isMobile ? '100%' : '120px',
-                  padding: '8px',
+                  flex: '0 0 auto',
+                  padding: '4px 6px',
                   background: '#fff',
-                  borderRadius: '6px',
-                  border: isAboveMax ? '2px solid #dc2626' : '1px solid #fcd34d'
+                  borderRadius: '4px',
+                  border: isAboveMax ? '1px solid #dc2626' : '1px solid #fcd34d',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-                  <label style={{ 
-                    display: 'block', 
-                    fontSize: '11px', 
-                    fontWeight: 600, 
-                    color: '#92400e'
+                <span style={{ fontSize: '10px', fontWeight: 600, color: '#92400e' }}>
+                  {variant.variant_name}:
+                </span>
+                {approvalDisplay !== 'none' && (
+                  <span style={{
+                    fontSize: '8px',
+                    padding: '1px 4px',
+                    borderRadius: '8px',
+                    fontWeight: 600,
+                    background: approvalDisplay === 'approved' ? '#dcfce7' : approvalDisplay === 'pending' ? '#fef3c7' : '#fee2e2',
+                    color: approvalDisplay === 'approved' ? '#166534' : approvalDisplay === 'pending' ? '#92400e' : '#dc2626'
                   }}>
-                    {variant.variant_name}
-                  </label>
-                  {/* Phase-2: Approval Status Badge */}
-                  {approvalDisplay !== 'none' && (
-                    <span style={{
-                      fontSize: '9px',
-                      padding: '2px 6px',
-                      borderRadius: '10px',
-                      fontWeight: 600,
-                      background: approvalDisplay === 'approved' ? '#dcfce7' : approvalDisplay === 'pending' ? '#fef3c7' : '#fee2e2',
-                      color: approvalDisplay === 'approved' ? '#166534' : approvalDisplay === 'pending' ? '#92400e' : '#dc2626'
-                    }}>
-                      {approvalDisplay === 'approved' ? 'Approved' : approvalDisplay === 'pending' ? 'Pending' : 'Rejected'}
-                    </span>
-                  )}
-                  {isAboveMax && (
-                    <span style={{
-                      fontSize: '9px',
-                      padding: '2px 6px',
-                      borderRadius: '10px',
-                      fontWeight: 600,
-                      background: '#fee2e2',
-                      color: '#dc2626'
-                    }}>
-                      Above Limit
-                    </span>
-                  )}
-                </div>
-                {settings && (
-                  <div style={{ fontSize: '9px', color: '#a16207', marginBottom: '4px' }}>
-                    Max: {settings.max}%
-                  </div>
+                    {approvalDisplay === 'approved' ? 'A' : approvalDisplay === 'pending' ? 'P' : 'R'}
+                  </span>
                 )}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <input
-                    type="number"
-                    className="form-input"
-                    style={{ 
-                      width: '60px', 
-                      textAlign: 'right',
-                      minHeight: '28px',
-                      fontSize: '12px',
-                      padding: '4px 6px',
-                      background: isAboveMax ? '#fef2f2' : '#fff'
-                    }}
-                    value={headerDiscounts[variant.id] || 0}
-                    onBlur={(e) => {
-                      const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0));
-                      handleHeaderDiscountChange(variant.id, val);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.target.blur();
-                      }
-                    }}
-                    min="0"
-                    max="100"
-                    step="0.01"
-                    placeholder="0"
-                  />
-                  <span style={{ fontSize: '11px', color: '#92400e' }}>%</span>
-                </div>
+                {isAboveMax && (
+                  <span style={{ fontSize: '8px', color: '#dc2626', fontWeight: 600 }}>!</span>
+                )}
+                <input
+                  type="number"
+                  className="form-input"
+                  style={{ 
+                    width: '50px', 
+                    textAlign: 'right',
+                    minHeight: '22px',
+                    fontSize: '10px',
+                    padding: '2px 4px',
+                    background: isAboveMax ? '#fef2f2' : '#fff'
+                  }}
+                  value={headerDiscounts[variant.id] || 0}
+                  onBlur={(e) => {
+                    const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0));
+                    handleHeaderDiscountChange(variant.id, val);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.target.blur();
+                    }
+                  }}
+                  min="0"
+                  max="100"
+                  step="0.01"
+                />
+                <span style={{ fontSize: '10px', color: '#92400e' }}>%</span>
               </div>
               );
             })}
@@ -1678,6 +1637,10 @@ export default function CreateQuotation() {
                 </tr>
               ) : (
                 items.map((item, index) => {
+                  const itemCountBefore = items.slice(0, index).filter(i => !i.is_header).length;
+                  const headerDesc = item.is_header ? item.description : '';
+                  const isNewHeader = item.is_header && !headerDesc;
+                  
                   if (item.is_header) {
                     return (
                       <tr 
@@ -1690,13 +1653,13 @@ export default function CreateQuotation() {
                         style={{ background: '#f8fafc' }}
                       >
                         <td className="text-center cell-static col-shrink row-drag-handle" title="Drag to reorder">
-                          :::
+                          {isNewHeader ? ':::' : itemCountBefore + 1}
                         </td>
-                        <td colSpan={11} style={{ padding: '4px 12px' }}>
+                        <td colSpan={11} style={{ padding: '4px 8px' }}>
                           <input
                             type="text"
                             className="cell-input"
-                            style={{ fontWeight: 'bold', color: '#1e293b', background: 'transparent', border: 'none', borderBottom: '1px dashed #cbd5e1' }}
+                            style={{ fontWeight: 'bold', color: '#1e293b', background: 'transparent', border: 'none', borderBottom: '1px dashed #cbd5e1', fontSize: '11px' }}
                             placeholder="Enter Section Header (e.g. First Floor Piping)..."
                             value={item.description}
                             onChange={(e) => updateItem(item.id, 'description', e.target.value)}
@@ -1719,8 +1682,8 @@ export default function CreateQuotation() {
                       onDragEnd={handleDragEnd}
                       className={draggingItemId === item.id ? 'row-dragging' : item.is_override ? 'override-indicator' : ''}
                     >
-                      <td className="text-center cell-static col-shrink row-drag-handle" title="Drag to reorder">
-                        {index + 1}
+                      <td className="text-center cell-static col-shrink row-drag-handle" title="Drag to reorder" style={{ fontSize: '11px' }}>
+                        {itemCountBefore + 1}
                       </td>
                       <td className="col-shrink">
                         <input
@@ -2005,7 +1968,37 @@ export default function CreateQuotation() {
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '16px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginTop: '8px', marginBottom: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontWeight: 600, fontSize: '11px', color: '#374151' }}>Authorized Signatory:</span>
+          <select 
+            className="form-select" 
+            style={{ minHeight: '28px', padding: '2px 8px', fontSize: '11px', width: '200px' }}
+            value={formData.authorized_signatory_id || ''} 
+            onChange={(e) => setFormData({ ...formData, authorized_signatory_id: e.target.value })}
+          >
+            <option value="">Select Signatory</option>
+            {(organisation?.signatures || []).map((sig) => (
+              <option key={sig.id} value={sig.id}>{sig.name}</option>
+            ))}
+          </select>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontWeight: 600, fontSize: '11px', color: '#374151' }}>Extra Disc %:</span>
+          <input 
+            type="number" 
+            className="form-input" 
+            style={{ minHeight: '28px', padding: '2px 8px', fontSize: '11px', width: '80px' }}
+            value={formData.extra_discount_percent} 
+            onChange={(e) => setFormData({ ...formData, extra_discount_percent: parseFloat(e.target.value) || 0 })} 
+            min="0" 
+            max="100" 
+            step="0.1" 
+          />
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '8px' }}>
         <button className="btn btn-secondary" onClick={() => navigate('/quotation')}>
           Cancel
         </button>
