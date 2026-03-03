@@ -43,6 +43,7 @@ export default function CreateQuotation() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const editId = searchParams.get('id');
+  const duplicateId = searchParams.get('duplicateId');
   
   const { organisation } = useAuth();
   
@@ -131,7 +132,7 @@ export default function CreateQuotation() {
 
   useEffect(() => {
     loadInitialData();
-  }, [editId]);
+  }, [editId, duplicateId]);
 
   useEffect(() => {
     if (!loading) {
@@ -325,6 +326,8 @@ export default function CreateQuotation() {
 
       if (editId) {
         await loadQuotation(editId);
+      } else if (duplicateId) {
+        await loadQuotation(duplicateId, true);
       } else {
         await loadQuoteNoPreview();
       }
@@ -586,7 +589,7 @@ export default function CreateQuotation() {
     return { discounts, settings };
   }, [clients, variants]);
 
-  const loadQuotation = async (id) => {
+  const loadQuotation = async (id, isDuplicate = false) => {
     const { data, error } = await supabase
       .from('quotation_header')
       .select('*, items:quotation_items(*, item:materials(id, item_code, display_name, name, hsn_code, sale_price, unit))')
@@ -600,14 +603,14 @@ export default function CreateQuotation() {
 
     if (data) {
       setFormData({
-        quotation_no: data.quotation_no || '',
+        quotation_no: isDuplicate ? '' : (data.quotation_no || ''),
         client_id: data.client_id || '',
         project_id: data.project_id || '',
         billing_address: data.billing_address || '',
         gstin: data.gstin || '',
         state: data.state || '',
-        date: data.date || '',
-        valid_till: data.valid_till || '',
+        date: isDuplicate ? new Date().toISOString().split('T')[0] : (data.date || ''),
+        valid_till: isDuplicate ? '' : (data.valid_till || ''),
         payment_terms: data.payment_terms || DEFAULT_PAYMENT_TERMS,
         client_contact: '',
         variant_id: data.variant_id || '',
@@ -615,8 +618,8 @@ export default function CreateQuotation() {
         extra_discount_percent: data.extra_discount_percent || 0,
         extra_discount_amount: data.extra_discount_amount || 0,
         round_off: data.round_off || 0,
-        status: data.status || 'Draft',
-        negotiation_mode: data.negotiation_mode || false,
+        status: isDuplicate ? 'Draft' : (data.status || 'Draft'),
+        negotiation_mode: isDuplicate ? false : (data.negotiation_mode || false),
         authorized_signatory_id: data.authorized_signatory_id || ''
       });
 
@@ -624,7 +627,7 @@ export default function CreateQuotation() {
         setItems(data.items.map(item => ({
           ...item,
           hsn_code: item.hsn_code || item.item?.hsn_code || null,
-          id: item.id || Date.now() + Math.random(),
+          id: Date.now() + Math.random(),
           base_rate_snapshot: parseFloat(item.base_rate_snapshot) || parseFloat(item.rate) || 0,
           applied_discount_percent: parseFloat(item.applied_discount_percent) || 0,
           is_override: item.is_override || false,
@@ -642,7 +645,11 @@ export default function CreateQuotation() {
         setDiscountSettings(prev => ({ ...prev, ...portfolio.settings }));
       }
       
-      await loadApprovalData(id);
+      if (isDuplicate) {
+        await loadQuoteNoPreview();
+      } else {
+        await loadApprovalData(id);
+      }
     }
   };
   
@@ -954,6 +961,7 @@ export default function CreateQuotation() {
             
             const variantDiscount = nextVariant ? (headerDiscounts[nextVariant] || 0) : 0;
             updates.applied_discount_percent = variantDiscount;
+            updates.discount_percent = variantDiscount;
             const finalRate = calculateVariantDiscountedRate(newRate, variantDiscount);
             updates.final_rate_snapshot = finalRate;
             updates.is_override = false;
@@ -1303,7 +1311,7 @@ export default function CreateQuotation() {
   return (
     <div>
       <div className="page-header">
-        <h1 className="page-title">{editId ? 'Edit Quotation' : 'Create Quotation'}</h1>
+        <h1 className="page-title">{editId ? 'Edit Quotation' : duplicateId ? 'Duplicate Quotation' : 'Create Quotation'}</h1>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
             <input
@@ -1440,6 +1448,10 @@ export default function CreateQuotation() {
                     background: isAboveMax ? '#fef2f2' : '#fff'
                   }}
                   value={headerDiscounts[variant.id] || 0}
+                  onChange={(e) => {
+                    const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0));
+                    setHeaderDiscounts(prev => ({ ...prev, [variant.id]: val }));
+                  }}
                   onBlur={(e) => {
                     const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0));
                     handleHeaderDiscountChange(variant.id, val);
@@ -1674,7 +1686,7 @@ export default function CreateQuotation() {
                           <option value="">No Variant</option>
                           {variants
                             .filter(v => {
-                              if (!item.item_id) return true; // Show all if no item selected yet
+                              if (!item.item_id) return true;
                               const itemVariants = variantPricing[item.item_id];
                               return itemVariants && itemVariants[v.id];
                             })
@@ -1912,6 +1924,10 @@ export default function CreateQuotation() {
           </div>
         </div>
       )}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px', paddingBottom: '40px' }}>
+        <button type="button" className="btn btn-secondary" onClick={() => navigate('/quotation')}>Cancel</button>
+        <button type="button" className="btn btn-primary" onClick={() => handleSave(false)} disabled={saving}>{saving ? 'Saving...' : editId ? 'Update Quotation' : 'Save Quotation'}</button>
+      </div>
     </div>
   );
 }

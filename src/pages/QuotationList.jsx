@@ -207,6 +207,14 @@ export default function QuotationList() {
                   ✎ Edit
                 </button>
                 <div style={{ height: '16px', width: '1px', background: '#e5e7eb' }}></div>
+                <button 
+                  className="btn-toolbar" 
+                  onClick={() => navigate(`/quotation/create?duplicateId=${selectedQuotation.id}`)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', background: 'none', border: 'none', cursor: 'pointer', color: '#4b5563' }}
+                >
+                  📋 Duplicate
+                </button>
+                <div style={{ height: '16px', width: '1px', background: '#e5e7eb' }}></div>
                 <button style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', background: 'none', border: 'none', cursor: 'pointer', color: '#4b5563' }}>✉ Mails ▼</button>
                 <button style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', background: 'none', border: 'none', cursor: 'pointer', color: '#4b5563' }}>🔗 Share</button>
                 <button style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', background: 'none', border: 'none', cursor: 'pointer', color: '#4b5563' }}>🖨 PDF/Print ▼</button>
