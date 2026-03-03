@@ -173,12 +173,24 @@ export default function App() {
     initAuth();
     initStorageBuckets();
 
-    // Session Heartbeat: Refresh session when tab is focused
+    // Session Heartbeat: Optimized to prevent excessive state triggers
+    let lastCheck = 0;
     const handleFocus = async () => {
-      const { data: { session }, error } = await supabase.auth.getSession();
-      if (!error && session) {
-        setUser(session.user);
+      const now = Date.now();
+      if (now - lastCheck < 300000) return; // Only check every 5 minutes max
+      
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (!error && session?.user) {
+          // Only update state if identity actually changed or token was refreshed
+          if (session.user.id !== user?.id) {
+            setUser(session.user);
+          }
+        }
+      } catch (e) {
+        console.warn('Heartbeat check failed', e);
       }
+      lastCheck = now;
     };
 
     window.addEventListener('focus', handleFocus);
@@ -190,7 +202,7 @@ export default function App() {
       window.removeEventListener('focus', handleFocus);
       window.removeEventListener('visibilitychange', handleFocus);
     };
-  }, []);
+  }, [user?.id]);
 
   const handleLogout = async () => {
     await signOut();
@@ -342,6 +354,8 @@ export default function App() {
     }
   };
 
+  const renderedPage = useMemo(() => renderPage(user, organisation), [currentPath, user?.id, organisation?.id]);
+
   if (loading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
@@ -395,7 +409,7 @@ export default function App() {
               <div className="loading-spinner">Loading page...</div>
             </div>
           }>
-            {renderPage(user, organisation)}
+            {renderedPage}
           </Suspense>
         </main>
       </div>

@@ -31,7 +31,7 @@ const ITEM_TABLE_COLUMNS = [
   { key: 'sub_category', label: 'Sub Category', default: false },
   { key: 'size', label: 'Size', default: false },
   { key: 'pressure_class', label: 'Pressure Class', default: false },
-  { key: 'schedule_type', label: 'Type/Schedule', default: false },
+  { key: 'make', label: 'MAKE(Brand name)', default: false },
   { key: 'material', label: 'Material', default: false },
   { key: 'end_connection', label: 'End Connection', default: false },
   { key: 'unit', label: 'Unit', default: true, locked: true },
@@ -113,7 +113,7 @@ const buildItemChangeLog = (before, after) => {
     ['sub_category', 'Sub Category'],
     ['size', 'Size'],
     ['pressure_class', 'Pressure Class'],
-    ['schedule_type', 'Schedule'],
+    ['make', 'MAKE(Brand name)'],
     ['material', 'Material'],
     ['end_connection', 'End Connection'],
     ['unit', 'Unit'],
@@ -200,12 +200,12 @@ function ItemsTab() {
 
   const [formData, setFormData] = useState({
     item_code: '', item_name: '', display_name: '', main_category: '', sub_category: '',
-    size: '', pressure_class: '', schedule_type: '', material: '', end_connection: '',
+    size: '', pressure_class: '', make: '', material: '', end_connection: '',
     unit: 'nos', sale_price: '', purchase_price: '', hsn_code: '', gst_rate: 18, is_active: true,
     uses_variant: false
   });
 
-  const [variantPricing, setVariantPricing] = useState({});
+  const [variantPricing, setVariantPricing] = useState([]);
 
   const formatCurrencyOrDash = (value) => {
     if (value === null || value === undefined || value === '' || value === 0) return '-';
@@ -896,7 +896,7 @@ function ItemsTab() {
       sub_category: formData.sub_category || null,
       size: formData.size || null,
       pressure_class: formData.pressure_class || null,
-      schedule_type: formData.schedule_type || null,
+      make: formData.make || null,
       material: formData.material || null,
       end_connection: formData.end_connection || null,
       unit: formData.unit,
@@ -929,17 +929,23 @@ function ItemsTab() {
       }
 
       if (formData.uses_variant) {
-        for (const [variantId, prices] of Object.entries(variantPricing)) {
-          if (prices.sale_price || prices.purchase_price) {
-            const { error: pricingError } = await supabase.from('item_variant_pricing').upsert({
-              item_id: itemId,
-              company_variant_id: variantId,
-              sale_price: prices.sale_price ? parseFloat(prices.sale_price) : 0,
-              purchase_price: prices.purchase_price ? parseFloat(prices.purchase_price) : null,
-              updated_at: new Date().toISOString()
-            }, { onConflict: 'item_id,company_variant_id' });
-            if (pricingError) throw pricingError;
-          }
+        // Delete old pricing first to avoid duplicates if make changed
+        await supabase.from('item_variant_pricing').delete().eq('item_id', itemId);
+        
+        const pricingToInsert = variantPricing
+          .filter(p => p.sale_price || p.purchase_price)
+          .map(p => ({
+            item_id: itemId,
+            company_variant_id: p.company_variant_id || null,
+            make: p.make || '',
+            sale_price: p.sale_price ? parseFloat(p.sale_price) : 0,
+            purchase_price: p.purchase_price ? parseFloat(p.purchase_price) : null,
+            updated_at: nowIso
+          }));
+          
+        if (pricingToInsert.length > 0) {
+          const { error: pricingError } = await supabase.from('item_variant_pricing').insert(pricingToInsert);
+          if (pricingError) throw pricingError;
         }
       }
 
@@ -986,7 +992,7 @@ function ItemsTab() {
     setEditingMaterial(null);
     setFormData({
       item_code: '', item_name: '', display_name: '', main_category: '', sub_category: '',
-      size: '', pressure_class: '', schedule_type: '', material: '', end_connection: '',
+      size: '', pressure_class: '', make: '', material: '', end_connection: '',
       unit: 'nos', sale_price: '', purchase_price: '', hsn_code: '', gst_rate: 18, is_active: true,
       uses_variant: false
     });
@@ -1003,7 +1009,7 @@ function ItemsTab() {
       sub_category: material.sub_category || '',
       size: material.size || '',
       pressure_class: material.pressure_class || '',
-      schedule_type: material.schedule_type || '',
+      make: material.make || '',
       material: material.material || '',
       end_connection: material.end_connection || '',
       unit: material.unit || 'nos',
@@ -1031,16 +1037,24 @@ function ItemsTab() {
       }
     }
     setFormData({ ...formData, uses_variant: checked, sale_price: checked ? '0' : formData.sale_price });
+    if (checked && variantPricing.length === 0) {
+      addVariantPricingRow();
+    }
   };
 
-  const handleVariantPricingChange = (variantId, field, value) => {
-    setVariantPricing(prev => ({
+  const addVariantPricingRow = () => {
+    setVariantPricing(prev => [
       ...prev,
-      [variantId]: {
-        ...(prev[variantId] || {}),
-        [field]: value
-      }
-    }));
+      { id: Date.now() + Math.random(), company_variant_id: '', make: '', sale_price: '', purchase_price: '' }
+    ]);
+  };
+
+  const removeVariantPricingRow = (id) => {
+    setVariantPricing(prev => prev.filter(p => p.id !== id));
+  };
+
+  const handleVariantPricingRowChange = (id, field, value) => {
+    setVariantPricing(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p));
   };
 
   const deleteMaterial = async (id) => {
@@ -1150,8 +1164,8 @@ function ItemsTab() {
         return material.size || '-';
       case 'pressure_class':
         return material.pressure_class || '-';
-      case 'schedule_type':
-        return material.schedule_type || '-';
+      case 'make':
+        return material.make || '-';
       case 'material':
         return material.material || '-';
       case 'end_connection':
@@ -1254,8 +1268,7 @@ function ItemsTab() {
                   {visibleColumns.includes('category') && <th>Category</th>}
                   {visibleColumns.includes('sub_category') && <th>Sub Category</th>}
                   {visibleColumns.includes('size') && <th>Size</th>}
-                  {visibleColumns.includes('pressure_class') && <th>Pressure Class</th>}
-                  {visibleColumns.includes('schedule_type') && <th>Type/Schedule</th>}
+                  {visibleColumns.includes('make') && <th>MAKE(Brand name)</th>}
                   {visibleColumns.includes('material') && <th>Material</th>}
                   {visibleColumns.includes('end_connection') && <th>End Connection</th>}
                   {visibleColumns.includes('unit') && <th>Unit</th>}
@@ -1298,7 +1311,7 @@ function ItemsTab() {
                       {visibleColumns.includes('sub_category') && <td>{formatColumnValue(m, 'sub_category')}</td>}
                       {visibleColumns.includes('size') && <td>{formatColumnValue(m, 'size')}</td>}
                       {visibleColumns.includes('pressure_class') && <td>{formatColumnValue(m, 'pressure_class')}</td>}
-                      {visibleColumns.includes('schedule_type') && <td>{formatColumnValue(m, 'schedule_type')}</td>}
+                      {visibleColumns.includes('make') && <td>{formatColumnValue(m, 'make')}</td>}
                       {visibleColumns.includes('material') && <td>{formatColumnValue(m, 'material')}</td>}
                       {visibleColumns.includes('end_connection') && <td>{formatColumnValue(m, 'end_connection')}</td>}
                       {visibleColumns.includes('unit') && <td>{m.unit || '-'}</td>}
@@ -1813,8 +1826,8 @@ function ItemsTab() {
                 </div>
                 <div className="form-row">
                   <div className="form-group">
-                    <label className="form-label">Schedule</label>
-                    <input type="text" className="form-input" value={formData.schedule_type} onChange={e => setFormData({...formData, schedule_type: e.target.value})} placeholder="e.g., SCH40, S10" />
+                    <label className="form-label">MAKE(Brand name)</label>
+                    <input type="text" className="form-input" value={formData.make} onChange={e => setFormData({...formData, make: e.target.value})} placeholder="Brand name" />
                   </div>
                   <div className="form-group">
                     <label className="form-label">Material</label>
@@ -1940,34 +1953,73 @@ function ItemsTab() {
 
               {formData.uses_variant && (
                 <div style={{ background: '#f0f7ff', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
-                  <h4 style={{ marginBottom: '15px', color: '#1976d2' }}>Variant Pricing</h4>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                    <h4 style={{ margin: 0, color: '#1976d2' }}>Variant Pricing (by Variant & Make)</h4>
+                    <button type="button" className="btn btn-sm btn-primary" onClick={addVariantPricingRow}>+ Add Pricing Row</button>
+                  </div>
                   <table className="table">
                     <thead>
                       <tr>
                         <th>Variant</th>
+                        <th>MAKE (Brand)</th>
                         <th>Sale Price</th>
+                        <th>Purchase Price</th>
+                        <th>Action</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {variants.filter(v => v.variant_name !== 'No Variant').map(variant => (
-                        <tr key={variant.id}>
-                          <td>{variant.variant_name}</td>
+                      {variantPricing.map((row) => (
+                        <tr key={row.id}>
+                          <td>
+                            <select 
+                              className="form-select" 
+                              value={row.company_variant_id || ''} 
+                              onChange={e => handleVariantPricingRowChange(row.id, 'company_variant_id', e.target.value)}
+                            >
+                              <option value="">No Variant</option>
+                              {variants.filter(v => v.variant_name !== 'No Variant').map(v => (
+                                <option key={v.id} value={v.id}>{v.variant_name}</option>
+                              ))}
+                            </select>
+                          </td>
+                          <td>
+                            <input 
+                              type="text" 
+                              className="form-input"
+                              value={row.make || ''}
+                              onChange={e => handleVariantPricingRowChange(row.id, 'make', e.target.value)}
+                              placeholder="e.g. Brand A"
+                            />
+                          </td>
                           <td>
                             <input 
                               type="number" 
                               className="form-input"
-                              value={variantPricing[variant.id]?.sale_price || ''}
-                              onChange={e => handleVariantPricingChange(variant.id, 'sale_price', e.target.value)}
+                              value={row.sale_price || ''}
+                              onChange={e => handleVariantPricingRowChange(row.id, 'sale_price', e.target.value)}
                               placeholder="0.00"
                               step="0.01"
                             />
+                          </td>
+                          <td>
+                            <input 
+                              type="number" 
+                              className="form-input"
+                              value={row.purchase_price || ''}
+                              onChange={e => handleVariantPricingRowChange(row.id, 'purchase_price', e.target.value)}
+                              placeholder="0.00"
+                              step="0.01"
+                            />
+                          </td>
+                          <td>
+                            <button type="button" className="btn btn-sm btn-secondary" onClick={() => removeVariantPricingRow(row.id)}>Remove</button>
                           </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
-                  {Object.keys(variantPricing).length === 0 && (
-                    <p style={{ color: '#dc3545', fontSize: '12px', marginTop: '8px' }}>At least one variant price is required</p>
+                  {variantPricing.length === 0 && (
+                    <p style={{ color: '#dc3545', fontSize: '12px', marginTop: '8px' }}>At least one pricing row is required when using variants.</p>
                   )}
                 </div>
               )}

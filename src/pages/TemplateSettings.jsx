@@ -25,7 +25,7 @@ const OPTIONAL_COLUMNS = [
   { key: 'tax_amount', label: 'Tax Amount' },
   { key: 'line_total', label: 'Line Total' },
   { key: 'category', label: 'Category' },
-  { key: 'brand', label: 'Brand' },
+  { key: 'make', label: 'Make' },
   { key: 'custom1', label: 'Custom 1' },
   { key: 'custom2', label: 'Custom 2' },
   { key: 'subtotal', label: 'Sub-Total' },
@@ -75,7 +75,7 @@ export default function TemplateSettings() {
         tax_amount: false,
         line_total: true,
         category: false,
-        brand: false,
+        make: true,
         custom1: false,
         custom2: false,
         subtotal: true,
@@ -280,7 +280,7 @@ export default function TemplateSettings() {
     if (optionalCols.tax_percent) columnsHTML += '<th>Tax %</th>';
     if (optionalCols.tax_amount) columnsHTML += '<th>Tax Amt</th>';
     if (optionalCols.category) columnsHTML += '<th>Category</th>';
-    if (optionalCols.brand) columnsHTML += '<th>Brand</th>';
+    if (optionalCols.make) columnsHTML += '<th>Make</th>';
     if (optionalCols.custom1) columnsHTML += `<th>${labels.custom1 || 'Custom 1'}</th>`;
     if (optionalCols.custom2) columnsHTML += `<th>${labels.custom2 || 'Custom 2'}</th>`;
     if (optionalCols.line_total) columnsHTML += '<th>Total</th>';
@@ -308,7 +308,7 @@ export default function TemplateSettings() {
       if (optionalCols.tax_percent) rowHTML += `<td style="text-align:right">${item.tax}%</td>`;
       if (optionalCols.tax_amount) rowHTML += `<td style="text-align:right">₹${(item.total - (item.rate_after * item.qty)).toFixed(2)}</td>`;
       if (optionalCols.category) rowHTML += `<td>Fittings</td>`;
-      if (optionalCols.brand) rowHTML += `<td>BrandX</td>`;
+      if (optionalCols.make) rowHTML += `<td>${item.c1}</td>`;
       if (optionalCols.custom1) rowHTML += `<td>${item.c1}</td>`;
       if (optionalCols.custom2) rowHTML += `<td>${item.c2}</td>`;
       if (optionalCols.line_total) rowHTML += `<td style="text-align:right;font-weight:bold">₹${item.total.toFixed(2)}</td>`;

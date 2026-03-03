@@ -32,6 +32,7 @@ export default function CreateQuotation() {
   const [materials, setMaterials] = useState([]);
   const [variants, setVariants] = useState([]);
   const [variantPricing, setVariantPricing] = useState({});
+  const [itemMakes, setItemMakes] = useState({});
   const [companyState, setCompanyState] = useState(organisation?.state || 'Maharashtra');
   const [quoteNoPreview, setQuoteNoPreview] = useState('');
   const [defaultTemplate, setDefaultTemplate] = useState(null);
@@ -221,7 +222,7 @@ export default function CreateQuotation() {
         supabase.from('projects').select('id, project_name, project_code, client_id').order('project_name'),
         supabase.from('materials').select('*').order('name'),
         supabase.from('company_variants').select('id, variant_name').eq('is_active', true).order('variant_name'),
-        supabase.from('item_variant_pricing').select('item_id, company_variant_id, sale_price'),
+        supabase.from('item_variant_pricing').select('item_id, company_variant_id, sale_price, make'),
         supabase.from('discount_settings').select('*').eq('is_active', true),
         supabase.from('document_templates').select('*').eq('document_type', 'Quotation').eq('is_default', true).maybeSingle()
       ]);
@@ -237,11 +238,39 @@ export default function CreateQuotation() {
 
       setVariants(variantsData.data || []);
       const pricingMap = {};
+      const makesMap = {};
+      
       (pricingData.data || []).forEach((row) => {
-        if (!pricingMap[row.item_id]) pricingMap[row.item_id] = {};
-        pricingMap[row.item_id][row.company_variant_id] = parseFloat(row.sale_price) || 0;
+        const itemId = row.item_id;
+        const variantId = row.company_variant_id || 'no_variant';
+        const make = row.make || '';
+        
+        if (!pricingMap[itemId]) pricingMap[itemId] = {};
+        if (!pricingMap[itemId][variantId]) pricingMap[itemId][variantId] = {};
+        pricingMap[itemId][variantId][make] = parseFloat(row.sale_price) || 0;
+        
+        if (make) {
+          if (!makesMap[itemId]) makesMap[itemId] = new Set();
+          makesMap[itemId].add(make);
+        }
       });
+      
+      // Also add base make from materials if it exists
+      (materialsData.data || []).forEach(m => {
+        if (m.make) {
+          if (!makesMap[m.id]) makesMap[m.id] = new Set();
+          makesMap[m.id].add(m.make);
+        }
+      });
+
+      // Convert Sets to Arrays
+      const finalMakesMap = {};
+      for (const id in makesMap) {
+        finalMakesMap[id] = Array.from(makesMap[id]).sort();
+      }
+
       setVariantPricing(pricingMap);
+      setItemMakes(finalMakesMap);
 
       // Phase-2: Load discount settings
       const settingsMap = {};
@@ -793,11 +822,32 @@ export default function CreateQuotation() {
     );
   }, [materials, itemSearch]);
 
-  const getRateForMaterialVariant = (material, variantId) => {
+  const getRateForMaterialVariant = (material, variantId, make) => {
     if (!material) return 0;
-    if (variantId && variantPricing[material.id]?.[variantId] !== undefined) {
-      return variantPricing[material.id][variantId];
+    const vId = variantId || 'no_variant';
+    const mName = make || '';
+    
+    // 1. Try: Name + Variant + Make
+    if (variantPricing[material.id]?.[vId]?.[mName] !== undefined) {
+      return variantPricing[material.id][vId][mName];
     }
+    
+    // 2. Try: Name + Make (ignore Variant)
+    if (mName) {
+      const itemPricing = variantPricing[material.id] || {};
+      for (const v in itemPricing) {
+        if (itemPricing[v][mName] !== undefined) {
+          return itemPricing[v][mName];
+        }
+      }
+    }
+    
+    // 3. Try: Name + Variant (no make)
+    if (variantPricing[material.id]?.[vId]?.[''] !== undefined) {
+      return variantPricing[material.id][vId][''];
+    }
+
+    // 4. Fallback: Name only
     return parseFloat(material.sale_price) || 0;
   };
 
@@ -1204,6 +1254,7 @@ export default function CreateQuotation() {
         quotation_id: quotationId,
         item_id: item.item_id,
         variant_id: item.variant_id || null,
+        make: item.make || null,
         description: item.description,
         qty: parseFloat(item.qty) || 1,
         uom: item.uom,
@@ -1636,6 +1687,7 @@ export default function CreateQuotation() {
                 <th className="col-shrink">#</th>
                 <th className="col-hsn">HSN</th>
                 <th className="col-item">ITEM</th>
+                <th className="col-make">MAKE</th>
                 <th className="col-variant">VARIANT</th>
                 <th className="col-qty">QTY</th>
                 <th className="col-unit">UNIT</th>
@@ -1726,7 +1778,10 @@ export default function CreateQuotation() {
                               updateItem(item.id, 'material', mat);
                               updateItem(item.id, 'hsn_code', mat.hsn_code || '');
                               updateItem(item.id, 'description', mat.display_name || mat.name);
-                              const newRate = getRateForMaterialVariant(mat, item.variant_id || null);
+                              // Default to first available make if exists
+                              const firstMake = itemMakes[mat.id]?.[0] || '';
+                              updateItem(item.id, 'make', firstMake);
+                              const newRate = getRateForMaterialVariant(mat, item.variant_id || null, firstMake);
                               updateItem(item.id, 'base_rate_snapshot', newRate);
                               const finalRate = calculateVariantDiscountedRate(newRate, item.applied_discount_percent || 0);
                               updateItem(item.id, 'rate', finalRate);
@@ -1743,13 +1798,36 @@ export default function CreateQuotation() {
                       <td className="col-shrink">
                         <select
                           className="cell-select"
+                          value={item.make || ''}
+                          onChange={(e) => {
+                            const nextMake = e.target.value;
+                            updateItem(item.id, 'make', nextMake);
+                            const mat = materials.find(m => m.id === item.item_id);
+                            if (mat) {
+                              const newRate = getRateForMaterialVariant(mat, item.variant_id || null, nextMake);
+                              const variantDiscount = item.variant_id ? (headerDiscounts[item.variant_id] || 0) : 0;
+                              const finalRate = calculateVariantDiscountedRate(newRate, variantDiscount);
+                              updateItem(item.id, 'base_rate_snapshot', newRate);
+                              updateItem(item.id, 'rate', finalRate);
+                            }
+                          }}
+                        >
+                          <option value="">No Make</option>
+                          {(itemMakes[item.item_id] || []).map(m => (
+                            <option key={m} value={m}>{m}</option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="col-shrink">
+                        <select
+                          className="cell-select"
                           value={item.variant_id || ''}
                           onChange={(e) => {
                             const nextVariant = e.target.value || null;
                             updateItem(item.id, 'variant_id', nextVariant);
                             const mat = materials.find(m => m.id === item.item_id);
                             if (mat) {
-                              const newRate = getRateForMaterialVariant(mat, nextVariant);
+                              const newRate = getRateForMaterialVariant(mat, nextVariant, item.make || '');
                               const variantDiscount = nextVariant ? (headerDiscounts[nextVariant] || 0) : 0;
                               const finalRate = calculateVariantDiscountedRate(newRate, variantDiscount);
                               updateItem(item.id, 'base_rate_snapshot', newRate);

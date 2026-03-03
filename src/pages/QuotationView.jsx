@@ -375,6 +375,7 @@ export default function QuotationView() {
       if (optionalCols.sno !== false) columnConfig.push({ header: '#', key: 'sno', width: 10 });
       if (optionalCols.hsn_code) columnConfig.push({ header: 'HSN/SAC', key: 'hsn_code', width: 20 });
       if (optionalCols.item !== false) columnConfig.push({ header: 'Item', key: 'item', width: 45 });
+      if (optionalCols.make) columnConfig.push({ header: 'Make', key: 'make', width: 25 });
       if (optionalCols.variant) columnConfig.push({ header: 'Variant', key: 'variant', width: 25 });
       if (optionalCols.description) columnConfig.push({ header: 'Description', key: 'description', width: 40 });
       if (optionalCols.qty !== false) columnConfig.push({ header: 'Qty', key: 'qty', width: 12, align: 'right' });
@@ -456,6 +457,7 @@ export default function QuotationView() {
         if (optionalCols.sno !== false) row.sno = index + 1;
         if (optionalCols.hsn_code) row.hsn_code = material.hsn_code || '-';
         if (optionalCols.item !== false) row.item = item.description || '-';
+        if (optionalCols.make) row.make = item.make || '-';
         if (optionalCols.variant) row.variant = item.variant?.variant_name || '-';
         if (optionalCols.description) row.description = item.description || '-';
         if (optionalCols.qty !== false) row.qty = item.qty;
