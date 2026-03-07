@@ -130,9 +130,20 @@ export default function App() {
   const checkDatabase = async () => {
     try {
       const { error } = await supabase.from('projects').select('id').limit(1);
-      if (error) setDbSetup(true);
+      // Only treat "table/schema missing" as DB setup required.
+      // Transient network/auth/RLS issues should not force the app into setup mode.
+      if (error) {
+        const message = String(error.message || '');
+        const code = String(error.code || '');
+        const looksLikeMissingTable =
+          code === '42P01' || // postgres undefined_table
+          /does not exist/i.test(message) ||
+          /schema cache/i.test(message);
+        if (looksLikeMissingTable) setDbSetup(true);
+      }
     } catch (e) {
-      setDbSetup(true);
+      // Don't assume DB is missing on unexpected runtime errors.
+      console.warn('Database check failed (non-fatal):', e);
     }
   };
 
@@ -187,7 +198,9 @@ export default function App() {
   const init = async () => {
     await initAuth();
     await checkDatabase();
-    await initStorageBuckets();
+    // Storage bucket creation from the browser can be slow/unreliable depending on policy.
+    // Don't block initial render on this best-effort initializer.
+    initStorageBuckets().catch(() => {});
   };
 
   init();

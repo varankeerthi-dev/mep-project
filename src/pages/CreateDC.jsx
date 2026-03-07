@@ -164,13 +164,19 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
   const loadData = async () => {
     try {
       const [projData, matData, whData, varData, stockData, clientData, unitsData, variantPricingData] = await Promise.all([
-        supabase.from('projects').select('*').order('project_name'),
+        supabase
+          .from('projects')
+          .select('id, project_name, name, client_name, site_address')
+          .order('project_name'),
         supabase.from('materials').select('id, display_name, name, unit, uses_variant, sale_price, item_type').order('name'),
-        supabase.from('warehouses').select('*'),
-        supabase.from('company_variants').select('*').eq('is_active', true).order('variant_name'),
-        supabase.from('item_stock').select('*'),
-        supabase.from('clients').select('*').order('client_name'),
-        supabase.from('item_units').select('*').order('unit_name'),
+        supabase.from('warehouses').select('id, warehouse_name, name').order('warehouse_name'),
+        supabase.from('company_variants').select('id, variant_name, is_active').eq('is_active', true).order('variant_name'),
+        supabase.from('item_stock').select('item_id, warehouse_id, company_variant_id, current_stock'),
+        supabase
+          .from('clients')
+          .select('id, client_name, address1, address2, shipping_address, city, state, gstin, contact')
+          .order('client_name'),
+        supabase.from('item_units').select('id, unit_code, unit_name').order('unit_name'),
         supabase.from('item_variant_pricing').select('item_id, company_variant_id')
       ]);
       
@@ -246,7 +252,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
   const loadShippingAddresses = async (clientId) => {
     const { data } = await supabase
       .from('client_shipping_addresses')
-      .select('*')
+      .select('id, address_name, address_line1, address_line2, city, state, pincode, gstin, contact, created_at')
       .eq('client_id', clientId)
       .order('created_at', { ascending: true });
     setShippingAddresses(data || []);
@@ -333,7 +339,11 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
     let shipData = { project_id: projectId };
     
     if (projectId) {
-      const { data: proj } = await supabase.from('projects').select('*').eq('id', projectId).single();
+      const { data: proj } = await supabase
+        .from('projects')
+        .select('id, client_name, site_address')
+        .eq('id', projectId)
+        .single();
       if (proj) {
         shipData = {
           ...shipData,
@@ -727,7 +737,9 @@ export default function CreateDC({ onSuccess, onCancel, editDC }) {
     }
     
     // Fallback to old settings
-    const { count } = await supabase.from('delivery_challans').select('*', { count: 'exact' });
+    const { count } = await supabase
+      .from('delivery_challans')
+      .select('id', { count: 'exact', head: true });
     const num = (count || 0) + 1;
     const paddedNum = String(num).padStart(parseInt(dcSettings.padding) || 5, '0');
     return `${dcSettings.prefix || ''}${paddedNum}${dcSettings.suffix || ''}`;

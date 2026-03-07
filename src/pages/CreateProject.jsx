@@ -113,6 +113,7 @@ export default function CreateProject() {
     try {
       const projectData = {
         client_id: formData.client_id,
+        name: formData.project_name.trim(),
         project_name: formData.project_name.trim(),
         parent_project_id: formData.parent_project_id || null,
         project_type: formData.project_type,
