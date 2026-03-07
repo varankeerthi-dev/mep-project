@@ -196,7 +196,7 @@ export default function CreateQuotation() {
     try {
       const { data: defaultSeries } = await supabase
         .from('document_series')
-        .select('*')
+        .select('configs, current_number')
         .eq('is_default', true)
         .limit(1)
         .maybeSingle();
@@ -234,13 +234,27 @@ export default function CreateQuotation() {
     setLoading(true);
     try {
       const [clientsData, projectsData, materialsData, variantsData, pricingData, settingsData, templateData] = await Promise.all([
-        supabase.from('clients').select('*').order('client_name'),
+        supabase
+          .from('clients')
+          .select('id, client_name, address1, address2, city, state, pincode, gstin, contact, email, contact_person, contact_person_email, contact_person_2, contact_person_2_email, purchase_person, purchase_email, custom_discounts, discount_type, standard_pricelist_id, discount_profile_id')
+          .order('client_name'),
         supabase.from('projects').select('id, project_name, project_code, client_id').order('project_name'),
-        supabase.from('materials').select('*').order('name'),
+        supabase
+          .from('materials')
+          .select('id, item_code, display_name, name, hsn_code, sale_price, unit, gst_rate, make, item_type, uses_variant')
+          .order('name'),
         supabase.from('company_variants').select('id, variant_name').eq('is_active', true).order('variant_name'),
         supabase.from('item_variant_pricing').select('item_id, company_variant_id, sale_price, make'),
-        supabase.from('discount_settings').select('*').eq('is_active', true),
-        supabase.from('document_templates').select('*').eq('document_type', 'Quotation').eq('is_default', true).maybeSingle()
+        supabase
+          .from('discount_settings')
+          .select('variant_id, default_discount_percent, min_discount_percent, max_discount_percent')
+          .eq('is_active', true),
+        supabase
+          .from('document_templates')
+          .select('id, column_settings')
+          .eq('document_type', 'Quotation')
+          .eq('is_default', true)
+          .maybeSingle()
       ]);
 
       setClients(clientsData.data || []);

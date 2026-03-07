@@ -392,6 +392,15 @@ export default function App() {
 
   const renderedPage = useMemo(() => renderPage(user, organisation), [currentPath, user?.id, organisation?.id]);
 
+  // Prefetch heavier routes when user is already in the Quotation area.
+  // This keeps UI the same but reduces delay when navigating to create/edit.
+  useEffect(() => {
+    const pathKey = (currentPath || '').split('?')[0];
+    if (pathKey === '/quotation') {
+      import('./pages/CreateQuotation').catch(() => {});
+    }
+  }, [currentPath]);
+
   if (loading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
