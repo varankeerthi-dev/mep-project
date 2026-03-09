@@ -340,7 +340,14 @@ export function BOQ() {
   }, [items, activeSheetId, calculateRow]);
 
   const visibleColumns = columnSettings.filter(col => col.visible);
-  const snoCounter = useRef(0);
+
+  const getSno = (index, items) => {
+    let sno = 0;
+    for (let i = 0; i < index; i++) {
+      if (!items[i].isHeaderRow) sno++;
+    }
+    return sno + 1;
+  };
 
   const exportToPDF = () => {
     const doc = new jsPDF('landscape', 'mm', 'a4');
@@ -692,7 +699,7 @@ export function BOQ() {
                         )}
                         {col.key === 'sno' && (
                           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <span>{++snoCounter.current}</span>
+                            <span>{getSno(index, items[activeSheetId] || [])}</span>
                             <button onClick={() => insertRow(index)} style={iconBtnStyle} title="Insert Row Below">
                               <Plus size={12} />
                             </button>
