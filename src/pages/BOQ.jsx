@@ -82,7 +82,7 @@ export function BOQ() {
   const fetchInitialData = async () => {
     setLoading(true);
     try {
-      const [clientsRes, projectsRes, variantsRes, materialsRes, makesRes] = await Promise.all([
+      const results = await Promise.allSettled([
         supabase.from('clients').select('id, client_name').order('client_name'),
         supabase.from('projects').select('id, project_name').order('project_name'),
         supabase.from('company_variants').select('id, variant_name').order('variant_name'),
@@ -90,13 +90,16 @@ export function BOQ() {
         supabase.from('materials').select('make').not('make', 'is', null).neq('make', '').order('make'),
       ]);
 
-      if (clientsRes.data) setClients(clientsRes.data);
-      if (projectsRes.data) setProjects(projectsRes.data);
-      if (variantsRes.data) setVariants(variantsRes.data);
-      if (materialsRes.data) setMaterials(materialsRes.data);
+      if (results[0].status === 'fulfilled' && results[0].value.data) setClients(results[0].value.data);
+      if (results[1].status === 'fulfilled' && results[1].value.data) setProjects(results[1].value.data);
+      if (results[2].status === 'fulfilled' && results[2].value.data) setVariants(results[2].value.data);
+      if (results[3].status === 'fulfilled' && results[3].value.data) setMaterials(results[3].value.data);
       
-      const uniqueMakes = [...new Set(makesRes.data?.map(m => m.make).filter(Boolean))];
-      setMakes(uniqueMakes);
+      const makesResult = results[4];
+      if (makesResult.status === 'fulfilled' && makesResult.value.data) {
+        const uniqueMakes = [...new Set(makesResult.value.data.map(m => m.make).filter(Boolean))];
+        setMakes(uniqueMakes);
+      }
 
       const newBoqNo = await generateBoqNumber();
       setBoqData(prev => ({ ...prev, boqNo: newBoqNo }));
@@ -107,8 +110,13 @@ export function BOQ() {
   };
 
   const generateBoqNumber = async () => {
-    const { data } = await supabase.rpc('generate_boq_number');
-    return data || `BOQ-${String(Date.now()).slice(-4)}`;
+    try {
+      const { data } = await supabase.rpc('generate_boq_number');
+      if (data) return data;
+    } catch (error) {
+      console.log('RPC not available, using fallback');
+    }
+    return `BOQ-${String(Date.now()).slice(-4)}`;
   };
 
   const loadClientDiscounts = async (clientId) => {
