@@ -209,6 +209,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trg_boq_revision ON boq_headers;
+
 CREATE TRIGGER trg_boq_revision
   BEFORE UPDATE ON boq_headers
   FOR EACH ROW
