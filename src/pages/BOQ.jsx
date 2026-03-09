@@ -7,6 +7,15 @@ import { Save, FileDown, Plus, Trash2, Sheet, Table, X, Settings, FileSpreadshee
 import { saveBOQWithItems } from '../api';
 
 const generateId = () => Math.random().toString(36).substr(2, 9);
+const DEFAULT_TERMS = [
+  'All prices are inclusive of applicable taxes unless specified otherwise.',
+  'Delivery timeline will be confirmed after order acceptance.',
+  'Payment terms: 50% advance, balance within 7 days of delivery.',
+  'Warranty as per manufacturer standard terms.',
+  'Any variation in quantities will be billed as per actuals.',
+  'Freight and handling charges are extra unless specified.',
+  'Offer valid for 15 days from the BOQ date.'
+].map((t, i) => `${i + 1}. ${t}`).join('\n');
 const getColumnLabel = (index) => {
   let label = '';
   let n = index + 1;
@@ -73,6 +82,9 @@ export function BOQ() {
   const [columnSettings, setColumnSettings] = useState(DEFAULT_COLUMNS);
   const [showColumnPanel, setShowColumnPanel] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [showExportSettings, setShowExportSettings] = useState(false);
+  const [exportColumns, setExportColumns] = useState({});
+  const [exportSheets, setExportSheets] = useState({});
   const [loading, setLoading] = useState(false);
   const [materialSearch, setMaterialSearch] = useState({});
   const [materialSearchActive, setMaterialSearchActive] = useState(null);
@@ -90,6 +102,41 @@ export function BOQ() {
   useEffect(() => {
     fetchInitialData();
   }, []);
+
+  useEffect(() => {
+    if (!boqData.termsConditions) {
+      setBoqData(prev => ({ ...prev, termsConditions: DEFAULT_TERMS }));
+    }
+  }, []);
+
+  useEffect(() => {
+    const key = boqData.boqNo ? `boq_export_${boqData.boqNo}` : null;
+    if (!key) return;
+    const saved = localStorage.getItem(key);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed?.columns) setExportColumns(parsed.columns);
+        if (parsed?.sheets) setExportSheets(parsed.sheets);
+      } catch {}
+    }
+  }, [boqData.boqNo]);
+
+  useEffect(() => {
+    const sheetSelection = {};
+    sheets.forEach(s => {
+      sheetSelection[s.id] = true;
+    });
+    setExportSheets(sheetSelection);
+  }, [sheets]);
+
+  useEffect(() => {
+    const colSelection = {};
+    columnSettings.forEach(c => {
+      colSelection[c.key] = c.visible;
+    });
+    setExportColumns(colSelection);
+  }, [columnSettings]);
 
   useEffect(() => {
     if (!items[activeSheetId]) {
@@ -548,6 +595,8 @@ export function BOQ() {
   }, [items, activeSheetId, calculateRow]);
 
   const visibleColumns = columnSettings.filter(col => col.visible);
+  const exportColumnList = columnSettings.filter(col => exportColumns[col.key]);
+  const exportSheetList = sheets.filter(s => exportSheets[s.id]);
   const columnLetters = useMemo(() => visibleColumns.map((_, idx) => getColumnLabel(idx)), [visibleColumns]);
 
   const getSno = (index, itemsList) => {
@@ -561,80 +610,112 @@ export function BOQ() {
   const exportToPDF = useCallback(() => {
     const doc = new jsPDF('landscape', 'mm', 'a4');
     const pageWidth = doc.internal.pageSize.getWidth();
-    
-    doc.setFontSize(18);
-    doc.text('BILL OF QUANTITIES', pageWidth / 2, 20, { align: 'center' });
-    
-    doc.setFontSize(10);
-    doc.text(`BOQ No: ${boqData.boqNo}`, 14, 35);
-    doc.text(`Revision: ${boqData.revisionNo}`, 14, 42);
-    doc.text(`Date: ${boqData.date}`, 14, 49);
-    
-    const client = clients.find(c => c.id === boqData.clientId);
-    const project = projects.find(p => p.id === boqData.projectId);
-    doc.text(`Client: ${client?.client_name || '-'}`, 80, 35);
-    doc.text(`Project: ${project?.project_name || '-'}`, 80, 42);
 
-    const tableData = [];
-    let sno = 0;
-    
-    (items[activeSheetId] || []).forEach(item => {
-      if (item.isHeaderRow) {
-        tableData.push([{ content: item.headerText || 'SECTION', colSpan: visibleColumns.length, styles: { fontStyle: 'bold', fillColor: [240, 240, 240] } }]);
-      } else {
-        sno++;
-        const { rateAfterDiscount, totalAmount } = calculateRow(item);
-        const row = [];
-        
-        visibleColumns.forEach(col => {
-          switch (col.key) {
-            case 'sno': row.push(sno); break;
-            case 'description': row.push(item.description || ''); break;
-            case 'hsn_sac': row.push(item.hsn_sac || ''); break;
-            case 'variant': row.push(item.variantName || ''); break;
-            case 'make': row.push(item.make || ''); break;
-            case 'quantity': row.push(item.quantity || ''); break;
-            case 'rate': row.push(item.rate ? `₹${item.rate}` : ''); break;
-            case 'discountPercent': row.push(item.discountPercent ? `${item.discountPercent}%` : ''); break;
-            case 'rateAfterDiscount': row.push(rateAfterDiscount ? `₹${rateAfterDiscount}` : ''); break;
-            case 'totalAmount': row.push(totalAmount ? `₹${totalAmount.toLocaleString()}` : ''); break;
-            case 'specification': row.push(item.specification || ''); break;
-            case 'remarks': row.push(item.remarks || ''); break;
-            case 'pressure': row.push(item.pressure || ''); break;
-            case 'thickness': row.push(item.thickness || ''); break;
-            case 'schedule': row.push(item.schedule || ''); break;
-            case 'material': row.push(item.material || ''); break;
-            default: row.push('');
-          }
-        });
-        
-        tableData.push(row);
+    const renderHeader = (title) => {
+      doc.setFontSize(18);
+      doc.text('BILL OF QUANTITIES', pageWidth / 2, 20, { align: 'center' });
+      if (title) {
+        doc.setFontSize(11);
+        doc.text(title, pageWidth / 2, 28, { align: 'center' });
       }
+      doc.setFontSize(10);
+      doc.text(`BOQ No: ${boqData.boqNo}`, 14, 35);
+      doc.text(`Revision: ${boqData.revisionNo}`, 14, 42);
+      doc.text(`Date: ${boqData.date}`, 14, 49);
+      const client = clients.find(c => c.id === boqData.clientId);
+      const project = projects.find(p => p.id === boqData.projectId);
+      doc.text(`Client: ${client?.client_name || '-'}`, 80, 35);
+      doc.text(`Project: ${project?.project_name || '-'}`, 80, 42);
+    };
+
+    const contentWidth = pageWidth - 28;
+    const totalColWidth = exportColumnList.reduce((sum, c) => sum + (c.width || 100), 0) || 1;
+    const columnStyles = {};
+    exportColumnList.forEach((col, idx) => {
+      const width = ((col.width || 100) / totalColWidth) * contentWidth;
+      const isNumber = ['quantity', 'rate', 'discountPercent', 'rateAfterDiscount', 'totalAmount'].includes(col.key);
+      columnStyles[idx] = { cellWidth: width, halign: isNumber ? 'right' : 'left' };
     });
 
-    const headers = visibleColumns.map(col => col.label);
-    
-    autoTable(doc, {
-      head: [headers],
-      body: tableData,
-      startY: 55,
-      styles: { fontSize: 8, cellPadding: 2 },
-      headStyles: { fillColor: [41, 128, 185], textColor: 255 },
-      alternateRowStyles: { fillColor: [245, 245, 245] },
-    });
+    exportSheetList.forEach((sheet, sheetIdx) => {
+      const name = sheet.name.toLowerCase();
+      if (name.includes('terms') || name.includes('preface')) {
+        if (sheetIdx > 0) doc.addPage();
+        const title = name.includes('terms') ? 'Terms & Conditions' : 'Preface';
+        doc.setFontSize(16);
+        doc.text(title, 14, 20);
+        doc.setFontSize(10);
+        const content = name.includes('terms') ? (boqData.termsConditions || '') : (boqData.preface || '');
+        const lines = doc.splitTextToSize(content, pageWidth - 28);
+        doc.text(lines, 14, 30);
+        return;
+      }
 
-    const finalY = doc.lastAutoTable?.finalY || 55;
-    doc.text(`Total Qty: ${totals.totalQty}`, 14, finalY + 10);
-    doc.text(`Total Amount: Rs. ${totals.totalAmount.toLocaleString()}`, 14, finalY + 17);
+      if (sheetIdx > 0) doc.addPage();
+      renderHeader(sheet.name);
+
+      const tableData = [];
+      let sno = 0;
+      (items[sheet.id] || []).forEach(item => {
+        if (item.isHeaderRow) {
+          tableData.push([{ content: item.headerText || 'SECTION', colSpan: exportColumnList.length, styles: { fontStyle: 'bold', fillColor: [240, 240, 240] } }]);
+        } else {
+          sno++;
+          const { rateAfterDiscount, totalAmount } = calculateRow(item);
+          const row = [];
+          exportColumnList.forEach(col => {
+            switch (col.key) {
+              case 'sno': row.push(sno); break;
+              case 'description': row.push(item.description || ''); break;
+              case 'hsn_sac': row.push(item.hsn_sac || ''); break;
+              case 'variant': row.push(item.variantName || ''); break;
+              case 'make': row.push(item.make || ''); break;
+              case 'quantity': row.push(item.quantity || ''); break;
+              case 'rate': row.push(item.rate ? `Rs. ${item.rate}` : ''); break;
+              case 'discountPercent': row.push(item.discountPercent ? `${item.discountPercent}%` : ''); break;
+              case 'rateAfterDiscount': row.push(rateAfterDiscount ? `Rs. ${rateAfterDiscount}` : ''); break;
+              case 'totalAmount': row.push(totalAmount ? `Rs. ${totalAmount.toLocaleString()}` : ''); break;
+              case 'specification': row.push(item.specification || ''); break;
+              case 'remarks': row.push(item.remarks || ''); break;
+              case 'pressure': row.push(item.pressure || ''); break;
+              case 'thickness': row.push(item.thickness || ''); break;
+              case 'schedule': row.push(item.schedule || ''); break;
+              case 'material': row.push(item.material || ''); break;
+              default: row.push('');
+            }
+          });
+          tableData.push(row);
+        }
+      });
+
+      const headers = exportColumnList.map(col => col.label);
+      autoTable(doc, {
+        head: [headers],
+        body: tableData,
+        startY: 55,
+        theme: 'grid',
+        styles: { fontSize: 8, cellPadding: 1.5, textColor: 20 },
+        headStyles: { fillColor: [230, 232, 235], textColor: 20, fontStyle: 'bold' },
+        bodyStyles: { fontStyle: 'normal' },
+        alternateRowStyles: { fillColor: [255, 255, 255] },
+        columnStyles,
+      });
+
+      const finalY = doc.lastAutoTable?.finalY || 55;
+      doc.text(`Total Qty: ${totals.totalQty}`, 14, finalY + 10);
+      doc.text(`Total Amount: Rs. ${totals.totalAmount.toLocaleString()}`, 14, finalY + 17);
+    });
 
     doc.save(`${boqData.boqNo}.pdf`);
     setShowExportMenu(false);
-  }, [boqData, clients, projects, items, activeSheetId, visibleColumns, calculateRow, totals]);
+  }, [boqData, clients, projects, items, exportColumnList, exportSheetList, calculateRow, totals]);
 
   const exportToExcel = useCallback(() => {
     const wb = XLSX.utils.book_new();
     
-    sheets.forEach(sheet => {
+    exportSheetList.forEach(sheet => {
+      const lower = sheet.name.toLowerCase();
+      if (lower.includes('terms') || lower.includes('preface')) return;
       const sheetData = [];
       let sno = 0;
       
@@ -646,7 +727,7 @@ export function BOQ() {
       sheetData.push(['Project', project?.project_name || '']);
       sheetData.push([]);
       
-      const headers = visibleColumns.map(col => col.label);
+      const headers = exportColumnList.map(col => col.label);
       sheetData.push(headers);
       
       (items[sheet.id] || []).forEach(item => {
@@ -657,7 +738,7 @@ export function BOQ() {
           const { rateAfterDiscount, totalAmount } = calculateRow(item);
           const row = [];
           
-          visibleColumns.forEach(col => {
+          exportColumnList.forEach(col => {
             switch (col.key) {
               case 'sno': row.push(sno); break;
               case 'description': row.push(item.description || ''); break;
@@ -687,9 +768,21 @@ export function BOQ() {
       XLSX.utils.book_append_sheet(wb, ws, sheet.name.substring(0, 31));
     });
 
+    // Add Terms/Preface sheets if selected
+    exportSheetList.forEach(sheet => {
+      const name = sheet.name.toLowerCase();
+      if (name.includes('terms') || name.includes('preface')) {
+        const title = name.includes('terms') ? 'Terms & Conditions' : 'Preface';
+        const content = name.includes('terms') ? (boqData.termsConditions || '') : (boqData.preface || '');
+        const lines = content.split('\n');
+        const ws = XLSX.utils.aoa_to_sheet([[title], ...lines.map(l => [l])]);
+        XLSX.utils.book_append_sheet(wb, ws, sheet.name.substring(0, 31));
+      }
+    });
+
     XLSX.writeFile(wb, `${boqData.boqNo}.xlsx`);
     setShowExportMenu(false);
-  }, [boqData, clients, projects, sheets, items, visibleColumns, calculateRow]);
+  }, [boqData, clients, projects, exportSheetList, items, exportColumnList, calculateRow]);
 
   const handleKeyDown = (e, index, field) => {
     if (e.key === 'Enter' || e.key === 'Tab') {
@@ -759,6 +852,9 @@ export function BOQ() {
   }
 
   const currentItems = items[activeSheetId] || [];
+  const activeSheet = sheets.find(s => s.id === activeSheetId);
+  const isTermsSheet = activeSheet?.name?.toLowerCase().includes('terms');
+  const isPrefaceSheet = activeSheet?.name?.toLowerCase().includes('preface');
 
   return (
     <div className="page-container" style={{ padding: '18px', background: '#eef1f4', minHeight: '100vh', fontFamily: "'Open Sans', sans-serif" }}>
@@ -779,6 +875,9 @@ export function BOQ() {
                 </button>
                 <button onClick={exportToExcel} style={dropdownItemStyle}>
                   <Table size={16} /> Export to Excel
+                </button>
+                <button onClick={() => { setShowExportSettings(true); setShowExportMenu(false); }} style={dropdownItemStyle}>
+                  <Settings size={16} /> Export Settings
                 </button>
               </div>
             )}
@@ -855,9 +954,11 @@ export function BOQ() {
         </div>
 
         <div style={{ marginBottom: '15px', display: 'flex', gap: '10px' }}>
-          <button onClick={addHeaderRow} style={{ ...btnStyle, background: '#28a745', color: 'white' }}>
-            <Plus size={16} /> Add Header Row
-          </button>
+          {!isTermsSheet && !isPrefaceSheet && (
+            <button onClick={addHeaderRow} style={{ ...btnStyle, background: '#28a745', color: 'white' }}>
+              <Plus size={16} /> Add Header Row
+            </button>
+          )}
           <div style={{ display: 'flex', gap: '5px', marginLeft: 'auto', padding: '4px', background: '#e5e7eb', border: '1px solid #cbd5e1', borderRadius: '4px' }}>
             {sheets.map((sheet, idx) => (
               <div
@@ -906,8 +1007,9 @@ export function BOQ() {
           </div>
         </div>
 
+        {!isTermsSheet && !isPrefaceSheet ? (
         <div style={excelTableWrapStyle}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
             <thead>
               <tr style={excelColumnHeaderRowStyle}>
                 {visibleColumns.map((col, idx) => (
@@ -1227,6 +1329,21 @@ export function BOQ() {
             </tfoot>
           </table>
         </div>
+        ) : (
+          <div style={a4SheetStyle}>
+            <h2 style={{ marginTop: 0, fontSize: '16px' }}>
+              {isTermsSheet ? 'Terms & Conditions' : 'Preface'}
+            </h2>
+            <textarea
+              value={isTermsSheet ? boqData.termsConditions : boqData.preface}
+              onChange={(e) => setBoqData(prev => ({
+                ...prev,
+                ...(isTermsSheet ? { termsConditions: e.target.value } : { preface: e.target.value })
+              }))}
+              style={a4TextareaStyle}
+            />
+          </div>
+        )}
       </div>
 
       {showColumnPanel && (
@@ -1252,13 +1369,74 @@ export function BOQ() {
           </div>
         </div>
       )}
+
+      {showExportSettings && (
+        <div style={modalOverlayStyle} onClick={() => setShowExportSettings(false)}>
+          <div style={{ ...modalStyle, width: '520px', maxHeight: '80vh' }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ margin: 0, fontSize: '18px' }}>Export Settings</h3>
+              <button onClick={() => setShowExportSettings(false)} style={closeBtnStyle}><X size={20} /></button>
+            </div>
+
+            <div style={{ marginBottom: '16px' }}>
+              <div style={{ fontWeight: 600, marginBottom: '8px' }}>Columns</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', maxHeight: '220px', overflowY: 'auto' }}>
+                {columnSettings.filter(c => c.key !== 'rowControl').map(col => (
+                  <label key={col.key} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
+                    <input
+                      type="checkbox"
+                      checked={!!exportColumns[col.key]}
+                      onChange={() => setExportColumns(prev => ({ ...prev, [col.key]: !prev[col.key] }))}
+                    />
+                    <span>{col.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '16px' }}>
+              <div style={{ fontWeight: 600, marginBottom: '8px' }}>Sheets</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '160px', overflowY: 'auto' }}>
+                {sheets.map(sheet => (
+                  <label key={sheet.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
+                    <input
+                      type="checkbox"
+                      checked={!!exportSheets[sheet.id]}
+                      onChange={() => setExportSheets(prev => ({ ...prev, [sheet.id]: !prev[sheet.id] }))}
+                    />
+                    <span>{sheet.name}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button
+                className="btn btn-primary"
+                onClick={() => {
+                  if (boqData.boqNo) {
+                    localStorage.setItem(`boq_export_${boqData.boqNo}`, JSON.stringify({
+                      columns: exportColumns,
+                      sheets: exportSheets
+                    }));
+                  }
+                  setShowExportSettings(false);
+                }}
+              >
+                Save As Default
+              </button>
+              <button className="btn btn-secondary" onClick={() => setShowExportSettings(false)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 export default BOQ;
 
-const cardStyle = {
+  const cardStyle = {
   background: 'white',
   borderRadius: '4px',
   padding: '16px',
@@ -1280,7 +1458,7 @@ const btnStyle = {
 
 const labelStyle = {
   display: 'block',
-  fontSize: '11px',
+  fontSize: '10px',
   fontWeight: '600',
   color: '#4b5563',
   marginBottom: '4px',
@@ -1288,10 +1466,10 @@ const labelStyle = {
 
 const inputStyle = {
   width: '100%',
-  padding: '6px 8px',
+  padding: '4px 6px',
   border: '1px solid #cbd5e1',
   borderRadius: '2px',
-  fontSize: '12px',
+  fontSize: '11px',
   boxSizing: 'border-box',
   background: '#fff',
 };
@@ -1311,13 +1489,13 @@ const thStyle = {
 
 const cellInputStyle = {
   width: '100%',
-  padding: '4px 6px',
+  padding: '2px 4px',
   border: '1px solid #e2e8f0',
   borderRadius: '0',
-  fontSize: '12px',
+  fontSize: '11px',
   background: '#fff',
   boxSizing: 'border-box',
-  height: '26px',
+  height: '22px',
 };
 
 const iconBtnStyle = {
@@ -1508,4 +1686,30 @@ const excelMetaBoxStyle = {
   background: '#ffffff',
   borderRadius: '4px',
   border: '1px solid #d1d5db',
+};
+
+const a4SheetStyle = {
+  width: '210mm',
+  minHeight: '297mm',
+  margin: '0 auto',
+  background: '#fff',
+  border: '1px solid #d1d5db',
+  padding: '18mm 16mm',
+  boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '12px',
+};
+
+const a4TextareaStyle = {
+  flex: 1,
+  width: '100%',
+  minHeight: '220mm',
+  border: '1px solid #e2e8f0',
+  borderRadius: '4px',
+  padding: '10px',
+  fontSize: '12px',
+  lineHeight: 1.5,
+  fontFamily: "'Open Sans', sans-serif",
+  resize: 'vertical',
 };

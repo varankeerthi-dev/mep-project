@@ -752,33 +752,38 @@ export async function updateBOQItems(boqSheetId, items) {
     .delete()
     .eq('boq_sheet_id', boqSheetId);
 
-  const itemsWithSheetId = items.map((item, index) => ({
-    ...item,
-    boq_sheet_id: boqSheetId,
-    row_order: index + 1,
-    updated_at: new Date().toISOString()
-  })).filter(item => !item.isHeaderRow || item.headerText);
+  const itemsWithSheetId = items.map((item, index) => {
+    const description = item.description || '';
+    const material = item.material || description || null;
+    const specification = item.specification || '';
+    return {
+      boq_sheet_id: boqSheetId,
+      row_order: index + 1,
+      is_header_row: !!item.isHeaderRow,
+      header_text: item.headerText || null,
+      item_id: item.itemId || null,
+      variant_id: item.variantId || null,
+      make: item.make || null,
+      quantity: item.quantity || 0,
+      rate: item.rate || 0,
+      discount_percent: item.discountPercent || 0,
+      specification: specification || null,
+      remarks: item.remarks || null,
+      pressure: item.pressure || null,
+      thickness: item.thickness || null,
+      schedule: item.schedule || null,
+      material,
+      updated_at: new Date().toISOString()
+    };
+  }).filter(item => !item.is_header_row || item.header_text);
 
   if (itemsWithSheetId.length > 0) {
-    const insertItems = async (payload) => {
-      const { data, error } = await supabase
-        .from('boq_items')
-        .insert(payload)
-        .select();
-      if (error) throw error;
-      return data;
-    };
-
-    try {
-      return await insertItems(itemsWithSheetId);
-    } catch (error) {
-      const message = String(error?.message || '');
-      if (/hsn_sac|hsn/i.test(message)) {
-        const stripped = itemsWithSheetId.map(({ hsn_sac, ...rest }) => rest);
-        return await insertItems(stripped);
-      }
-      throw error;
-    }
+    const { data, error } = await supabase
+      .from('boq_items')
+      .insert(itemsWithSheetId)
+      .select();
+    if (error) throw error;
+    return data;
   }
   return [];
 }
