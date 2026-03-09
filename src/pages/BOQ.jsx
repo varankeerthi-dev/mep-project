@@ -30,8 +30,8 @@ const getColumnLabel = (index) => {
 const DEFAULT_COLUMNS = [
   { key: 'rowControl', label: '', width: 40, visible: true },
   { key: 'sno', label: 'S.No', width: 50, visible: true },
-  { key: 'description', label: 'Description', width: 250, visible: true },
   { key: 'hsn_sac', label: 'HSN/SAC', width: 90, visible: true },
+  { key: 'description', label: 'Description', width: 250, visible: true },
   { key: 'variant', label: 'Variant', width: 100, visible: true },
   { key: 'make', label: 'Make', width: 100, visible: true },
   { key: 'quantity', label: 'Qty', width: 70, visible: true },
@@ -746,118 +746,155 @@ export function BOQ() {
   const exportToPDF = useCallback(() => {
     const doc = new jsPDF(exportOrientation, 'mm', 'a4');
     const pageWidth = doc.internal.pageSize.getWidth();
+    const marginX = 10;
 
-    const renderHeader = (title) => {
-      doc.setFontSize(18);
-      doc.text('BILL OF QUANTITIES', pageWidth / 2, 20, { align: 'center' });
-      if (title) {
-        doc.setFontSize(11);
-        doc.text(title, pageWidth / 2, 28, { align: 'center' });
-      }
-      doc.setFontSize(10);
-      doc.text(`BOQ No: ${boqData.boqNo}`, 14, 35);
-      doc.text(`Revision: ${boqData.revisionNo}`, 14, 42);
-      doc.text(`Date: ${boqData.date}`, 14, 49);
-      const client = clients.find(c => c.id === boqData.clientId);
-      const project = projects.find(p => p.id === boqData.projectId);
-      doc.text(`Client: ${client?.client_name || '-'}`, 80, 35);
-      doc.text(`Project: ${project?.project_name || '-'}`, 80, 42);
+    const orderedColumns = exportColumnList.length ? exportColumnList : columnSettings.filter(c => c.key !== 'rowControl');
+
+    const colWidths = {
+      sno: 12,
+      hsn_sac: 18,
+      description: 80,
+      variant: 20,
+      make: 20,
+      quantity: 15,
+      unit: 18,
+      rate: 20,
+      discountPercent: 18,
+      rateAfterDiscount: 22,
+      totalAmount: 22,
+      specification: 24,
+      remarks: 24,
+      pressure: 18,
+      thickness: 18,
+      schedule: 18,
+      material: 22,
     };
 
-    const contentWidth = pageWidth - 28;
-    const totalColWidth = exportColumnList.reduce((sum, c) => sum + (c.width || 100), 0) || 1;
+    const columns = orderedColumns.map((col) => ({
+      key: col.key,
+      title: col.label,
+      width: colWidths[col.key] || col.width || 20,
+      align: ['quantity', 'rate', 'discountPercent', 'rateAfterDiscount', 'totalAmount'].includes(col.key) ? 'center' : 'left'
+    }));
+
+    const totalWidth = columns.reduce((sum, c) => sum + c.width, 0) || 1;
+    const availableWidth = pageWidth - marginX * 2;
+    const scale = availableWidth / totalWidth;
+
     const columnStyles = {};
-    exportColumnList.forEach((col, idx) => {
-      const width = ((col.width || 100) / totalColWidth) * contentWidth;
-      const isNumber = ['quantity', 'rate', 'discountPercent', 'rateAfterDiscount', 'totalAmount'].includes(col.key);
-      columnStyles[idx] = { cellWidth: width, halign: isNumber ? 'right' : 'left' };
+    columns.forEach((c, idx) => {
+      columnStyles[idx] = { cellWidth: c.width * scale, halign: c.align };
     });
 
-    exportSheetList.forEach((sheet, sheetIdx) => {
-      const name = sheet.name.toLowerCase();
-      if (name.includes('terms') || name.includes('preface')) {
-        if (sheetIdx > 0) doc.addPage();
-        const title = name.includes('terms') ? 'Terms' : 'Preface';
-        doc.setFontSize(16);
-        doc.text(title, 14, 20);
-        doc.setFontSize(10);
-        const content = name.includes('terms') ? (boqData.termsConditions || '') : (boqData.preface || '');
-        const lines = doc.splitTextToSize(content, pageWidth - 28);
-        doc.text(lines, 14, 30);
-        return;
-      }
+    const renderHeader = (sheetName) => {
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(12);
+      doc.text('BILL OF QUANTITIES', marginX, 12);
+      doc.setFont('helvetica', 'bold');
+      doc.text(sheetName, pageWidth / 2, 12, { align: 'center' });
+      doc.setFont('helvetica', 'normal');
 
-      if (sheetIdx > 0) doc.addPage();
-      renderHeader(sheet.name);
+      doc.setFontSize(9);
+      const client = clients.find(c => c.id === boqData.clientId);
+      const project = projects.find(p => p.id === boqData.projectId);
+      doc.text('Client:', marginX, 20);
+      doc.text('Project:', pageWidth / 2, 20);
 
-      const tableData = [];
+      doc.text(`BoQ No: ${boqData.boqNo || ''}`, marginX, 26);
+      doc.text(`Date: ${boqData.date || ''}`, marginX + 55, 26);
+      doc.text(`Revision no: ${boqData.revisionNo || ''}`, marginX + 100, 26);
+
+      doc.text(client?.client_name || '', marginX + 12, 20);
+      doc.text(project?.project_name || '', pageWidth / 2 + 16, 20);
+    };
+
+    const renderTable = (sheetItems) => {
+      const rows = [];
       let sno = 0;
-      const sheetItems = items[sheet.id] || [];
+      const dataRows = sheetItems.filter(i => !i.isHeaderRow);
+      const targetRows = Math.max(20, dataRows.length);
       let sheetTotalQty = 0;
       let sheetTotalAmount = 0;
 
-      sheetItems.forEach(item => {
-        if (item.isHeaderRow) {
-          tableData.push([{ content: item.headerText || 'SECTION', colSpan: exportColumnList.length, styles: { fontStyle: 'bold', fillColor: [240, 240, 240] } }]);
-        } else {
-          sno++;
-          const { rateAfterDiscount, totalAmount } = calculateRow(item);
-          sheetTotalQty += parseFloat(item.quantity) || 0;
-          sheetTotalAmount += totalAmount || 0;
-          const row = [];
-          exportColumnList.forEach(col => {
-            switch (col.key) {
-              case 'sno': row.push(sno); break;
-              case 'description': row.push(item.description || ''); break;
-              case 'hsn_sac': row.push(item.hsn_sac || ''); break;
-              case 'variant': row.push(item.variantName || ''); break;
-              case 'make': row.push(item.make || ''); break;
-              case 'quantity': row.push(item.quantity || ''); break;
-              case 'unit': row.push(item.unit || ''); break;
-              case 'rate': row.push(item.rate ? `Rs. ${item.rate}` : ''); break;
-              case 'discountPercent': row.push(item.discountPercent ? `${item.discountPercent}%` : ''); break;
-              case 'rateAfterDiscount': row.push(rateAfterDiscount ? `Rs. ${rateAfterDiscount}` : ''); break;
-              case 'totalAmount': row.push(totalAmount ? `Rs. ${totalAmount.toLocaleString()}` : ''); break;
-              case 'specification': row.push(item.specification || ''); break;
-              case 'remarks': row.push(item.remarks || ''); break;
-              case 'pressure': row.push(item.pressure || ''); break;
-              case 'thickness': row.push(item.thickness || ''); break;
-              case 'schedule': row.push(item.schedule || ''); break;
-              case 'material': row.push(item.material || ''); break;
-              default: row.push('');
-            }
-          });
-          tableData.push(row);
-        }
+      dataRows.forEach(item => {
+        const empty = isRowEmpty(item);
+        if (!empty) sno += 1;
+        const calc = calculateRow(item);
+        sheetTotalQty += parseFloat(item.quantity) || 0;
+        sheetTotalAmount += parseFloat(calc.totalAmount) || 0;
+
+        const row = columns.map(c => {
+          switch (c.key) {
+            case 'sno': return empty ? '' : sno;
+            case 'description': return item.description || '';
+            case 'hsn_sac': return item.hsn_sac || '';
+            case 'variant': return item.variantName || '';
+            case 'make': return item.make || '';
+            case 'quantity': return item.quantity || '';
+            case 'unit': return item.unit || '';
+            case 'rate': return item.rate || '';
+            case 'discountPercent': return item.discountPercent || '';
+            case 'rateAfterDiscount': return calc.rateAfterDiscount || '';
+            case 'totalAmount': return calc.totalAmount || '';
+            case 'specification': return item.specification || '';
+            case 'remarks': return item.remarks || '';
+            case 'pressure': return item.pressure || '';
+            case 'thickness': return item.thickness || '';
+            case 'schedule': return item.schedule || '';
+            case 'material': return item.material || '';
+            default: return '';
+          }
+        });
+        rows.push(row);
       });
 
-      const totalsRow = exportColumnList.map(col => {
-        if (col.key === 'description') return 'Total';
-        if (col.key === 'quantity') return sheetTotalQty || '';
-        if (col.key === 'totalAmount') return `Rs. ${sheetTotalAmount.toLocaleString()}`;
+      while (rows.length < targetRows) {
+        rows.push(columns.map(() => ''));
+      }
+
+      const totalsRow = columns.map(c => {
+        if (c.key === 'description') return 'Total';
+        if (c.key === 'quantity') return sheetTotalQty || '';
+        if (c.key === 'totalAmount') return sheetTotalAmount ? `${sheetTotalAmount.toLocaleString()}` : '';
         return '';
       });
-      tableData.push(totalsRow);
+      rows.push(totalsRow);
 
-      const headers = exportColumnList.map(col => col.label);
       autoTable(doc, {
-        head: [headers],
-        body: tableData,
-        startY: 55,
+        startY: 30,
+        head: [columns.map(c => c.title)],
+        body: rows,
         theme: 'grid',
-        styles: { fontSize: 8, cellPadding: 1.5, textColor: 20 },
-        headStyles: { fillColor: [230, 232, 235], textColor: 20, fontStyle: 'bold' },
-        bodyStyles: { fontStyle: 'normal' },
-        alternateRowStyles: { fillColor: [255, 255, 255] },
+        styles: { fontSize: 8, cellPadding: 1.2, textColor: 20, lineColor: [0, 0, 0], lineWidth: 0.1 },
+        headStyles: { fontStyle: 'bold', fillColor: [245, 245, 245], textColor: 20, lineColor: [0, 0, 0], lineWidth: 0.2 },
         columnStyles,
+        didParseCell: (data) => {
+          if (data.section === 'head' && columns[data.column.index]?.key === 'discountPercent') {
+            data.cell.styles.fillColor = [255, 244, 194];
+          }
+        }
       });
+    };
 
-      // Totals are included as the last row to match Excel layout
+    exportSheetList.forEach((sheet, idx) => {
+      if (idx > 0) doc.addPage();
+      const name = sheet.name.toLowerCase();
+      if (name.includes('terms') || name.includes('preface')) {
+        doc.setFontSize(14);
+        doc.text(name.includes('terms') ? 'Terms' : 'Preface', marginX, 12);
+        doc.setFontSize(9);
+        const content = name.includes('terms') ? (boqData.termsConditions || '') : (boqData.preface || '');
+        const lines = doc.splitTextToSize(content, pageWidth - marginX * 2);
+        doc.text(lines, marginX, 20);
+        return;
+      }
+      renderHeader(sheet.name);
+      renderTable(items[sheet.id] || []);
     });
 
     doc.save(`${boqData.boqNo}.pdf`);
     setShowExportMenu(false);
-  }, [boqData, clients, projects, items, exportColumnList, exportSheetList, calculateRow, totals, exportOrientation]);
+  }, [boqData, clients, projects, items, exportColumnList, exportSheetList, calculateRow, exportOrientation, columnSettings, isRowEmpty]);
 
   const exportToExcel = useCallback(() => {
     const wb = XLSX.utils.book_new();
