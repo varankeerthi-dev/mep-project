@@ -3,7 +3,7 @@ import { supabase } from '../supabase';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import * as XLSX from 'xlsx';
-import { Save, FileDown, Plus, Trash2, ChevronDown, ChevronRight, Sheet, Table, X, GripVertical, Settings, Copy, FileSpreadsheet, Loader2 } from 'lucide-react';
+import { Save, FileDown, Plus, Trash2, Sheet, Table, X, Settings, FileSpreadsheet, Loader2 } from 'lucide-react';
 import { saveBOQWithItems } from '../api';
 
 const generateId = () => Math.random().toString(36).substr(2, 9);
@@ -63,10 +63,8 @@ export function BOQ() {
   const [showColumnPanel, setShowColumnPanel] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [editingCell, setEditingCell] = useState(null);
   const [materialSearch, setMaterialSearch] = useState({});
 
-  const gridRef = useRef(null);
   const inputRefs = useRef({});
 
   useEffect(() => {
@@ -113,7 +111,7 @@ export function BOQ() {
     try {
       const { data } = await supabase.rpc('generate_boq_number');
       if (data) return data;
-    } catch (error) {
+    } catch {
       console.log('RPC not available, using fallback');
     }
     return `BOQ-${String(Date.now()).slice(-4)}`;
@@ -216,12 +214,12 @@ export function BOQ() {
     return { rateAfterDiscount, totalAmount };
   }, []);
 
-  const getVariantDiscount = (variantId) => {
+  const getVariantDiscount = useCallback((variantId) => {
     if (boqVariantDiscounts[variantId] !== undefined) {
       return boqVariantDiscounts[variantId];
     }
     return clientDiscounts[variantId]?.discount || 0;
-  };
+  }, [boqVariantDiscounts, clientDiscounts]);
 
   const insertRow = useCallback((afterIndex) => {
     const currentItems = items[activeSheetId] || [];
@@ -240,7 +238,6 @@ export function BOQ() {
       thickness: '',
       schedule: '',
       material: '',
-      isNew: true,
     };
 
     const newItems = [...currentItems];
@@ -320,12 +317,6 @@ export function BOQ() {
     });
   };
 
-  const renameSheet = (sheetId, newName) => {
-    setSheets(prev => prev.map(s => 
-      s.id === sheetId ? { ...s, name: newName } : s
-    ));
-  };
-
   const totals = useMemo(() => {
     const currentItems = items[activeSheetId] || [];
     const dataRows = currentItems.filter(item => !item.isHeaderRow);
@@ -341,15 +332,15 @@ export function BOQ() {
 
   const visibleColumns = columnSettings.filter(col => col.visible);
 
-  const getSno = (index, items) => {
+  const getSno = (index, itemsList) => {
     let sno = 0;
     for (let i = 0; i < index; i++) {
-      if (!items[i].isHeaderRow) sno++;
+      if (itemsList[i] && !itemsList[i].isHeaderRow) sno++;
     }
     return sno + 1;
   };
 
-  const exportToPDF = () => {
+  const exportToPDF = useCallback(() => {
     const doc = new jsPDF('landscape', 'mm', 'a4');
     const pageWidth = doc.internal.pageSize.getWidth();
     
@@ -418,9 +409,9 @@ export function BOQ() {
 
     doc.save(`${boqData.boqNo}.pdf`);
     setShowExportMenu(false);
-  };
+  }, [boqData, clients, projects, items, activeSheetId, visibleColumns, calculateRow, totals]);
 
-  const exportToExcel = () => {
+  const exportToExcel = useCallback(() => {
     const wb = XLSX.utils.book_new();
     
     sheets.forEach(sheet => {
@@ -477,12 +468,11 @@ export function BOQ() {
 
     XLSX.writeFile(wb, `${boqData.boqNo}.xlsx`);
     setShowExportMenu(false);
-  };
+  }, [boqData, clients, projects, sheets, items, visibleColumns, calculateRow]);
 
   const handleKeyDown = (e, index, field) => {
     if (e.key === 'Enter' || e.key === 'Tab') {
       e.preventDefault();
-      const currentItems = items[activeSheetId];
       const nextField = getNextField(field);
       
       if (nextField) {
@@ -517,6 +507,37 @@ export function BOQ() {
     return materials.filter(m => m.name.toLowerCase().includes(search));
   }, [materials, materialSearch, activeSheetId]);
 
+  const handleSave = async () => {
+    setLoading(true);
+    try {
+      const boqSaveData = {
+        id: boqData.id,
+        boqNo: boqData.boqNo,
+        revisionNo: boqData.revisionNo,
+        date: boqData.date,
+        clientId: boqData.clientId,
+        projectId: boqData.projectId,
+        variantId: boqData.variantId,
+        status: boqData.status,
+        termsConditions: boqData.termsConditions,
+        preface: boqData.preface
+      };
+      const savedId = await saveBOQWithItems(boqSaveData, sheets, items);
+      setBoqData(prev => ({ ...prev, id: savedId }));
+      alert('BOQ saved successfully!');
+    } catch (error) {
+      console.error('Error saving BOQ:', error);
+      alert('Error saving BOQ: ' + error.message);
+    }
+    setLoading(false);
+  };
+
+  if (loading && !clients.length) {
+    return <div style={{ padding: '40px', textAlign: 'center' }}>Loading BOQ...</div>;
+  }
+
+  const currentItems = items[activeSheetId] || [];
+
   return (
     <div className="page-container" style={{ padding: '20px', background: '#f5f5f5', minHeight: '100vh' }}>
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
@@ -531,40 +552,17 @@ export function BOQ() {
             </button>
             {showExportMenu && (
               <div style={{ position: 'absolute', top: '100%', right: 0, background: 'white', border: '1px solid #ddd', borderRadius: '4px', boxShadow: '0 2px 8px rgba(0,0,0,0.15)', zIndex: 100, minWidth: '160px' }}>
-                <button onClick={exportToPDF} style={{ ...dropdownItemStyle, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button onClick={exportToPDF} style={dropdownItemStyle}>
                   <FileSpreadsheet size={16} /> Export to PDF
                 </button>
-                <button onClick={exportToExcel} style={{ ...dropdownItemStyle, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button onClick={exportToExcel} style={dropdownItemStyle}>
                   <Table size={16} /> Export to Excel
                 </button>
               </div>
             )}
           </div>
           <button 
-            onClick={async () => {
-              setLoading(true);
-              try {
-                const boqSaveData = {
-                  id: boqData.id,
-                  boqNo: boqData.boqNo,
-                  revisionNo: boqData.revisionNo,
-                  date: boqData.date,
-                  clientId: boqData.clientId,
-                  projectId: boqData.projectId,
-                  variantId: boqData.variantId,
-                  status: boqData.status,
-                  termsConditions: boqData.termsConditions,
-                  preface: boqData.preface
-                };
-                const savedId = await saveBOQWithItems(boqSaveData, sheets, items);
-                setBoqData(prev => ({ ...prev, id: savedId }));
-                alert('BOQ saved successfully!');
-              } catch (error) {
-                console.error('Error saving BOQ:', error);
-                alert('Error saving BOQ: ' + error.message);
-              }
-              setLoading(false);
-            }} 
+            onClick={handleSave}
             style={{ ...btnStyle, background: '#1976d2', color: 'white' }}
             disabled={loading}
           >
@@ -616,7 +614,7 @@ export function BOQ() {
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '15px', paddingTop: '10px', borderTop: '1px solid #ddd' }}>
               <span style={{ fontWeight: '500', color: '#666' }}>Variant Discounts:</span>
               {Object.entries(clientDiscounts).map(([variantId, data]) => (
-                <div key={variantId} style={{ display: 'flex', alignItems: 'center', gap: '5px', background: 'white', padding: '5px 10px', borderRadius: '4px', border: '1px solid #ddd' }}>
+                <div key={variantId} style={variantDiscountBoxStyle}>
                   <span style={{ fontSize: '13px' }}>{data.variantName || 'Default'}</span>
                   <input
                     type="number"
@@ -650,7 +648,7 @@ export function BOQ() {
                   <Sheet size={14} /> {sheet.name}
                 </button>
                 {sheets.length > 1 && idx > 0 && (
-                  <button onClick={() => deleteSheet(sheet.id)} style={{ marginLeft: '2px', padding: '4px', background: 'none', border: 'none', cursor: 'pointer', color: '#999' }}>
+                  <button onClick={() => deleteSheet(sheet.id)} style={sheetCloseBtnStyle}>
                     <X size={12} />
                   </button>
                 )}
@@ -674,7 +672,7 @@ export function BOQ() {
               </tr>
             </thead>
             <tbody>
-              {(items[activeSheetId] || []).map((item, index) => (
+              {currentItems.map((item, index) => (
                 item.isHeaderRow ? (
                   <tr key={item.id} style={{ background: '#e8e8e8' }}>
                     <td colSpan={visibleColumns.length} style={{ padding: '10px', fontWeight: 'bold', textAlign: 'left' }}>
@@ -699,7 +697,7 @@ export function BOQ() {
                         )}
                         {col.key === 'sno' && (
                           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <span>{getSno(index, items[activeSheetId] || [])}</span>
+                            <span>{getSno(index, currentItems)}</span>
                             <button onClick={() => insertRow(index)} style={iconBtnStyle} title="Insert Row Below">
                               <Plus size={12} />
                             </button>
@@ -870,7 +868,7 @@ export function BOQ() {
               ))}
               <tr>
                 <td colSpan={visibleColumns.length} style={{ padding: '10px', textAlign: 'center' }}>
-                  <button onClick={() => insertRow((items[activeSheetId] || []).length - 1)} style={{ ...btnStyle, background: '#28a745', color: 'white' }}>
+                  <button onClick={() => insertRow(currentItems.length - 1)} style={{ ...btnStyle, background: '#28a745', color: 'white' }}>
                     <Plus size={16} /> Add Row
                   </button>
                 </td>
@@ -878,11 +876,11 @@ export function BOQ() {
             </tbody>
             <tfoot>
               <tr style={{ background: '#e8f4fc', fontWeight: '600' }}>
-                <td colSpan={visibleColumns.findIndex(c => c.key === 'quantity')} style={{ padding: '12px', textAlign: 'right' }}>Total</td>
+                <td colSpan={4} style={{ padding: '12px', textAlign: 'right' }}>Total</td>
                 <td style={{ padding: '12px' }}>{totals.totalQty}</td>
                 <td colSpan={2} style={{ padding: '12px' }}></td>
                 <td style={{ padding: '12px', color: '#1976d2', fontSize: '15px' }}>₹{totals.totalAmount.toLocaleString()}</td>
-                <td colSpan={visibleColumns.length - visibleColumns.findIndex(c => c.key === 'quantity') - 4}></td>
+                <td colSpan={2}></td>
               </tr>
             </tfoot>
           </table>
@@ -897,7 +895,7 @@ export function BOQ() {
               <button onClick={() => setShowColumnPanel(false)} style={closeBtnStyle}><X size={20} /></button>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '400px', overflowY: 'auto' }}>
-              {columnSettings.filter(c => c.key !== 'rowControl' && c.key !== 'sno' && c.key !== 'rateAfterDiscount' && c.key !== 'totalAmount').map(col => (
+              {columnSettings.filter(c => !['rowControl', 'sno', 'rateAfterDiscount', 'totalAmount'].includes(c.key)).map(col => (
                 <label key={col.key} style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
                   <input
                     type="checkbox"
@@ -916,6 +914,8 @@ export function BOQ() {
   );
 }
 
+export default BOQ;
+
 const cardStyle = {
   background: 'white',
   borderRadius: '8px',
@@ -933,7 +933,6 @@ const btnStyle = {
   background: 'white',
   cursor: 'pointer',
   fontSize: '13px',
-  transition: 'all 0.2s',
 };
 
 const labelStyle = {
@@ -950,6 +949,7 @@ const inputStyle = {
   border: '1px solid #ddd',
   borderRadius: '4px',
   fontSize: '13px',
+  boxSizing: 'border-box',
 };
 
 const thStyle = {
@@ -968,7 +968,7 @@ const cellInputStyle = {
   borderRadius: '3px',
   fontSize: '13px',
   background: 'transparent',
-  outline: 'none',
+  boxSizing: 'border-box',
 };
 
 const iconBtnStyle = {
@@ -991,6 +991,15 @@ const sheetTabStyle = {
   borderRadius: '4px 4px 0 0',
   cursor: 'pointer',
   fontSize: '12px',
+};
+
+const sheetCloseBtnStyle = {
+  marginLeft: '2px',
+  padding: '4px',
+  background: 'none',
+  border: 'none',
+  cursor: 'pointer',
+  color: '#999',
 };
 
 const modalOverlayStyle = {
@@ -1031,6 +1040,19 @@ const dropdownItemStyle = {
   cursor: 'pointer',
   textAlign: 'left',
   fontSize: '13px',
+  display: 'flex',
+  alignItems: 'center',
+  gap: '8px',
+};
+
+const variantDiscountBoxStyle = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '5px',
+  background: 'white',
+  padding: '5px 10px',
+  borderRadius: '4px',
+  border: '1px solid #ddd',
 };
 
 const autocompleteStyle = {
