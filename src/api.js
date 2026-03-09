@@ -792,15 +792,18 @@ export async function saveBOQ(boqData) {
   const { id, boqNo, revisionNo, date, clientId, projectId, variantId, status, termsConditions, preface } = boqData;
 
   let headerId = id;
+  const safeClientId = clientId || null;
+  const safeProjectId = projectId || null;
+  const safeVariantId = variantId || null;
 
   if (!id) {
     const header = await createBOQ({
       boq_no: boqNo,
       revision_no: revisionNo || 1,
       boq_date: date,
-      client_id: clientId,
-      project_id: projectId,
-      variant_id: variantId,
+      client_id: safeClientId,
+      project_id: safeProjectId,
+      variant_id: safeVariantId,
       status: status || 'Draft',
       terms_conditions: termsConditions,
       preface: preface
@@ -811,9 +814,9 @@ export async function saveBOQ(boqData) {
       boq_no: boqNo,
       revision_no: revisionNo,
       boq_date: date,
-      client_id: clientId,
-      project_id: projectId,
-      variant_id: variantId,
+      client_id: safeClientId,
+      project_id: safeProjectId,
+      variant_id: safeVariantId,
       status: status,
       terms_conditions: termsConditions,
       preface: preface

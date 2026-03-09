@@ -809,6 +809,8 @@ export function BOQ() {
       const client = clients.find(c => c.id === boqData.clientId);
       const project = projects.find(p => p.id === boqData.projectId);
 
+      const labelW = 26;
+      const valueW = (pageWidth - marginX * 2 - labelW * 2) / 2;
       autoTable(doc, {
         startY: 16,
         theme: 'grid',
@@ -817,13 +819,13 @@ export function BOQ() {
         body: [
           ['Client:', client?.client_name || '', 'Project:', project?.project_name || ''],
           ['BoQ No:', boqData.boqNo || '', 'Date:', boqData.date || ''],
-          ['Revision no:', String(boqData.revisionNo || ''), '', '']
+          ['Revision no:', String(boqData.revisionNo || ''), 'Date:', boqData.date || '']
         ],
         columnStyles: {
-          0: { cellWidth: 20, halign: 'left', fontStyle: 'bold' },
-          1: { cellWidth: (pageWidth - marginX*2) * 0.35, halign: 'left' },
-          2: { cellWidth: 20, halign: 'left', fontStyle: 'bold' },
-          3: { cellWidth: (pageWidth - marginX*2) * 0.35, halign: 'left' },
+          0: { cellWidth: labelW, halign: 'left', fontStyle: 'bold', overflow: 'linebreak' },
+          1: { cellWidth: valueW, halign: 'left' },
+          2: { cellWidth: labelW, halign: 'left', fontStyle: 'bold', overflow: 'linebreak' },
+          3: { cellWidth: valueW, halign: 'left' },
         }
       });
     };
