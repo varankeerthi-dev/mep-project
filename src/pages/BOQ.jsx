@@ -50,7 +50,7 @@ const DEFAULT_COLUMNS = [
 
 const DEFAULT_SHEETS = [
   { id: generateId(), name: 'BOQ Sheet 1', isDefault: true },
-  { id: generateId(), name: 'Terms & Conditions', isDefault: false },
+  { id: generateId(), name: 'Terms', isDefault: false },
   { id: generateId(), name: 'Preface', isDefault: false },
 ];
 
@@ -91,6 +91,7 @@ export function BOQ() {
   const [showExportSettings, setShowExportSettings] = useState(false);
   const [exportColumns, setExportColumns] = useState({});
   const [exportSheets, setExportSheets] = useState({});
+  const [exportOrientation, setExportOrientation] = useState('landscape');
   const [loading, setLoading] = useState(false);
   const [materialSearch, setMaterialSearch] = useState({});
   const [materialSearchActive, setMaterialSearchActive] = useState(null);
@@ -124,6 +125,7 @@ export function BOQ() {
         const parsed = JSON.parse(saved);
         if (parsed?.columns) setExportColumns(parsed.columns);
         if (parsed?.sheets) setExportSheets(parsed.sheets);
+        if (parsed?.orientation) setExportOrientation(parsed.orientation);
       } catch {}
     }
   }, [boqData.boqNo]);
@@ -393,8 +395,28 @@ export function BOQ() {
       });
       return next;
     });
+    Object.keys(items).forEach(sheetId => {
+      const list = items[sheetId] || [];
+      list.forEach((row, idx) => {
+        if (row.isHeaderRow) return;
+        const usesHeader = !row.variantId || row.variantId === prev;
+        if (usesHeader && row.itemId) {
+          getPrice(row.itemId, boqData.variantId || row.variantId, row.make || '')
+            .then(price => {
+              setItems(prevItems => {
+                const next = { ...prevItems };
+                const rows = [...(next[sheetId] || [])];
+                if (!rows[idx]) return prevItems;
+                rows[idx] = { ...rows[idx], rate: price || rows[idx].rate };
+                next[sheetId] = rows;
+                return next;
+              });
+            });
+        }
+      });
+    });
     prevDefaultVariantRef.current = boqData.variantId;
-  }, [boqData.variantId, getVariantDiscount]);
+  }, [boqData.variantId, getVariantDiscount, getVariantNameById, items, getPrice]);
 
   const insertRow = useCallback((afterIndex) => {
     const currentItems = items[activeSheetId] || [];
@@ -520,14 +542,10 @@ export function BOQ() {
       row.variantName = getVariantNameById(boqData.variantId);
       row.discountPercent = getVariantDiscount(boqData.variantId);
     }
+    const price = await getPrice(material.id, row.variantId || boqData.variantId, row.make);
+    row.rate = price || material.sale_price || row.rate || '';
     newItems[index] = row;
     setItems(prev => ({ ...prev, [activeSheetId]: newItems }));
-    const price = await getPrice(material.id, row.variantId || boqData.variantId, row.make);
-    setItems(prev => {
-      const next = [...(prev[activeSheetId] || [])];
-      next[index] = { ...next[index], rate: price || material.sale_price || next[index].rate };
-      return { ...prev, [activeSheetId]: next };
-    });
   };
 
   useEffect(() => {
@@ -726,7 +744,7 @@ export function BOQ() {
   };
 
   const exportToPDF = useCallback(() => {
-    const doc = new jsPDF('landscape', 'mm', 'a4');
+    const doc = new jsPDF(exportOrientation, 'mm', 'a4');
     const pageWidth = doc.internal.pageSize.getWidth();
 
     const renderHeader = (title) => {
@@ -759,7 +777,7 @@ export function BOQ() {
       const name = sheet.name.toLowerCase();
       if (name.includes('terms') || name.includes('preface')) {
         if (sheetIdx > 0) doc.addPage();
-        const title = name.includes('terms') ? 'Terms & Conditions' : 'Preface';
+        const title = name.includes('terms') ? 'Terms' : 'Preface';
         doc.setFontSize(16);
         doc.text(title, 14, 20);
         doc.setFontSize(10);
@@ -839,7 +857,7 @@ export function BOQ() {
 
     doc.save(`${boqData.boqNo}.pdf`);
     setShowExportMenu(false);
-  }, [boqData, clients, projects, items, exportColumnList, exportSheetList, calculateRow, totals]);
+  }, [boqData, clients, projects, items, exportColumnList, exportSheetList, calculateRow, totals, exportOrientation]);
 
   const exportToExcel = useCallback(() => {
     const wb = XLSX.utils.book_new();
@@ -904,7 +922,7 @@ export function BOQ() {
     exportSheetList.forEach(sheet => {
       const name = sheet.name.toLowerCase();
       if (name.includes('terms') || name.includes('preface')) {
-        const title = name.includes('terms') ? 'Terms & Conditions' : 'Preface';
+        const title = name.includes('terms') ? 'Terms' : 'Preface';
         const content = name.includes('terms') ? (boqData.termsConditions || '') : (boqData.preface || '');
         const lines = content.split('\n');
         const ws = XLSX.utils.aoa_to_sheet([[title], ...lines.map(l => [l])]);
@@ -1487,7 +1505,7 @@ export function BOQ() {
         ) : (
           <div style={a4SheetStyle}>
             <h2 style={{ marginTop: 0, fontSize: '16px' }}>
-              {isTermsSheet ? 'Terms & Conditions' : 'Preface'}
+              {isTermsSheet ? 'Terms' : 'Preface'}
             </h2>
             <textarea
               value={isTermsSheet ? boqData.termsConditions : boqData.preface}
@@ -1565,6 +1583,30 @@ export function BOQ() {
               </div>
             </div>
 
+            <div style={{ marginBottom: '16px' }}>
+              <div style={{ fontWeight: 600, marginBottom: '8px' }}>Orientation</div>
+              <div style={{ display: 'flex', gap: '14px', fontSize: '12px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <input
+                    type="radio"
+                    name="boq-export-orientation"
+                    checked={exportOrientation === 'portrait'}
+                    onChange={() => setExportOrientation('portrait')}
+                  />
+                  Portrait
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <input
+                    type="radio"
+                    name="boq-export-orientation"
+                    checked={exportOrientation === 'landscape'}
+                    onChange={() => setExportOrientation('landscape')}
+                  />
+                  Landscape
+                </label>
+              </div>
+            </div>
+
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
               <button
                 className="btn btn-primary"
@@ -1572,7 +1614,8 @@ export function BOQ() {
                   if (boqData.boqNo) {
                     localStorage.setItem(`boq_export_${boqData.boqNo}`, JSON.stringify({
                       columns: exportColumns,
-                      sheets: exportSheets
+                      sheets: exportSheets,
+                      orientation: exportOrientation
                     }));
                   }
                   setShowExportSettings(false);

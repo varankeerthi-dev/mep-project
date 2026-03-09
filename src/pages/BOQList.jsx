@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { fetchBOQList } from '../api';
+import { fetchBOQList, deleteBOQ } from '../api';
 
 export default function BOQList() {
   const navigate = useNavigate();
@@ -26,6 +26,18 @@ export default function BOQList() {
       active = false;
     };
   }, []);
+
+  const handleDelete = async (id) => {
+    const ok = window.confirm('Delete this BOQ? This cannot be undone.');
+    if (!ok) return;
+    try {
+      await deleteBOQ(id);
+      setBoqs(prev => prev.filter(b => b.id !== id));
+    } catch (err) {
+      console.error('Delete BOQ failed:', err);
+      alert('Failed to delete BOQ: ' + err.message);
+    }
+  };
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -106,6 +118,9 @@ export default function BOQList() {
                     <td>
                       <button className="btn btn-secondary" onClick={() => navigate(`/boq/create?editId=${boq.id}`)}>
                         Edit
+                      </button>
+                      <button className="btn btn-danger" style={{ marginLeft: '8px' }} onClick={() => handleDelete(boq.id)}>
+                        Delete
                       </button>
                     </td>
                   </tr>
