@@ -4,6 +4,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import { Save, FileDown, Plus, Trash2, Sheet, Table, X, Settings, FileSpreadsheet, Loader2, GripVertical } from 'lucide-react';
+import { openSansRegular, openSansBold } from '../fonts/openSans';
 import { saveBOQWithItems, fetchBOQById } from '../api';
 
 const generateId = () => Math.random().toString(36).substr(2, 9);
@@ -748,7 +749,18 @@ export function BOQ() {
     const pageWidth = doc.internal.pageSize.getWidth();
     const marginX = 10;
 
-    const orderedColumns = exportColumnList.length ? exportColumnList : columnSettings.filter(c => c.key !== 'rowControl');
+    // Ensure Open Sans is used
+    if (openSansRegular && openSansBold) {
+      try {
+        doc.addFileToVFS('OpenSans-Regular.ttf', openSansRegular);
+        doc.addFileToVFS('OpenSans-Bold.ttf', openSansBold);
+        doc.addFont('OpenSans-Regular.ttf', 'OpenSans', 'normal');
+        doc.addFont('OpenSans-Bold.ttf', 'OpenSans', 'bold');
+        doc.setFont('OpenSans', 'normal');
+      } catch {}
+    }
+
+    const orderedColumns = (exportColumnList.length ? exportColumnList : columnSettings).filter(c => c.key !== 'rowControl');
 
     const colWidths = {
       sno: 12,
@@ -774,7 +786,7 @@ export function BOQ() {
       key: col.key,
       title: col.label,
       width: colWidths[col.key] || col.width || 20,
-      align: ['quantity', 'rate', 'discountPercent', 'rateAfterDiscount', 'totalAmount'].includes(col.key) ? 'center' : 'left'
+      align: col.key === 'description' ? 'left' : 'center'
     }));
 
     const totalWidth = columns.reduce((sum, c) => sum + c.width, 0) || 1;
@@ -787,25 +799,33 @@ export function BOQ() {
     });
 
     const renderHeader = (sheetName) => {
-      doc.setFont('helvetica', 'normal');
+      doc.setFont('OpenSans', 'normal');
       doc.setFontSize(12);
       doc.text('BILL OF QUANTITIES', marginX, 12);
-      doc.setFont('helvetica', 'bold');
+      doc.setFont('OpenSans', 'bold');
       doc.text(sheetName, pageWidth / 2, 12, { align: 'center' });
-      doc.setFont('helvetica', 'normal');
+      doc.setFont('OpenSans', 'normal');
 
-      doc.setFontSize(9);
       const client = clients.find(c => c.id === boqData.clientId);
       const project = projects.find(p => p.id === boqData.projectId);
-      doc.text('Client:', marginX, 20);
-      doc.text('Project:', pageWidth / 2, 20);
 
-      doc.text(`BoQ No: ${boqData.boqNo || ''}`, marginX, 26);
-      doc.text(`Date: ${boqData.date || ''}`, marginX + 55, 26);
-      doc.text(`Revision no: ${boqData.revisionNo || ''}`, marginX + 100, 26);
-
-      doc.text(client?.client_name || '', marginX + 12, 20);
-      doc.text(project?.project_name || '', pageWidth / 2 + 16, 20);
+      autoTable(doc, {
+        startY: 16,
+        theme: 'grid',
+        styles: { font: 'OpenSans', fontSize: 9, cellPadding: 1.2, textColor: 20, lineColor: [0, 0, 0], lineWidth: 0.1 },
+        head: [],
+        body: [
+          ['Client:', client?.client_name || '', 'Project:', project?.project_name || ''],
+          ['BoQ No:', boqData.boqNo || '', 'Date:', boqData.date || ''],
+          ['Revision no:', String(boqData.revisionNo || ''), '', '']
+        ],
+        columnStyles: {
+          0: { cellWidth: 20, halign: 'left', fontStyle: 'bold' },
+          1: { cellWidth: (pageWidth - marginX*2) * 0.35, halign: 'left' },
+          2: { cellWidth: 20, halign: 'left', fontStyle: 'bold' },
+          3: { cellWidth: (pageWidth - marginX*2) * 0.35, halign: 'left' },
+        }
+      });
     };
 
     const renderTable = (sheetItems) => {
@@ -861,16 +881,20 @@ export function BOQ() {
       rows.push(totalsRow);
 
       autoTable(doc, {
-        startY: 30,
+        startY: 38,
         head: [columns.map(c => c.title)],
         body: rows,
         theme: 'grid',
-        styles: { fontSize: 8, cellPadding: 1.2, textColor: 20, lineColor: [0, 0, 0], lineWidth: 0.1 },
-        headStyles: { fontStyle: 'bold', fillColor: [245, 245, 245], textColor: 20, lineColor: [0, 0, 0], lineWidth: 0.2 },
+        styles: { font: 'OpenSans', fontSize: 8, cellPadding: 1.2, textColor: 20, lineColor: [0, 0, 0], lineWidth: 0.1 },
+        headStyles: { fontStyle: 'bold', fillColor: [245, 245, 245], textColor: 20, lineColor: [0, 0, 0], lineWidth: 0.2, halign: 'center' },
         columnStyles,
         didParseCell: (data) => {
           if (data.section === 'head' && columns[data.column.index]?.key === 'discountPercent') {
             data.cell.styles.fillColor = [255, 244, 194];
+          }
+          if (data.section === 'body' && data.row.index === rows.length - 1) {
+            data.cell.styles.fillColor = [216, 232, 247];
+            data.cell.styles.fontStyle = 'bold';
           }
         }
       });
@@ -880,8 +904,10 @@ export function BOQ() {
       if (idx > 0) doc.addPage();
       const name = sheet.name.toLowerCase();
       if (name.includes('terms') || name.includes('preface')) {
+        doc.setFont('OpenSans', 'bold');
         doc.setFontSize(14);
         doc.text(name.includes('terms') ? 'Terms' : 'Preface', marginX, 12);
+        doc.setFont('OpenSans', 'normal');
         doc.setFontSize(9);
         const content = name.includes('terms') ? (boqData.termsConditions || '') : (boqData.preface || '');
         const lines = doc.splitTextToSize(content, pageWidth - marginX * 2);
@@ -894,9 +920,9 @@ export function BOQ() {
 
     doc.save(`${boqData.boqNo}.pdf`);
     setShowExportMenu(false);
-  }, [boqData, clients, projects, items, exportColumnList, exportSheetList, calculateRow, exportOrientation, columnSettings, isRowEmpty]);
+  }, [boqData, clients, projects, items, exportColumnList, exportSheetList, calculateRow, exportOrientation, columnSettings, isRowEmpty, openSansRegular, openSansBold]);
 
-  const exportToExcel = useCallback(() => {
+const exportToExcel = useCallback(() => {
     const wb = XLSX.utils.book_new();
     
     exportSheetList.forEach(sheet => {
