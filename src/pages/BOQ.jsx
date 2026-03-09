@@ -22,6 +22,7 @@ const DEFAULT_COLUMNS = [
   { key: 'rowControl', label: '', width: 40, visible: true },
   { key: 'sno', label: 'S.No', width: 50, visible: true },
   { key: 'description', label: 'Description', width: 250, visible: true },
+  { key: 'hsn_sac', label: 'HSN/SAC', width: 90, visible: true },
   { key: 'variant', label: 'Variant', width: 100, visible: true },
   { key: 'make', label: 'Make', width: 100, visible: true },
   { key: 'quantity', label: 'Qty', width: 70, visible: true },
@@ -74,12 +75,14 @@ export function BOQ() {
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [loading, setLoading] = useState(false);
   const [materialSearch, setMaterialSearch] = useState({});
+  const [materialSearchActive, setMaterialSearchActive] = useState(null);
   const [dragRowIndex, setDragRowIndex] = useState(null);
   const [dragSheetId, setDragSheetId] = useState(null);
   const [editingSheetId, setEditingSheetId] = useState(null);
   const [editingSheetName, setEditingSheetName] = useState('');
 
   const inputRefs = useRef({});
+  const prevDefaultVariantRef = useRef('');
 
   useEffect(() => {
     fetchInitialData();
@@ -91,6 +94,10 @@ export function BOQ() {
     }
   }, [activeSheetId]);
 
+  useEffect(() => {
+    prevDefaultVariantRef.current = boqData.variantId;
+  }, []);
+
   const fetchInitialData = async () => {
     setLoading(true);
     try {
@@ -98,7 +105,7 @@ export function BOQ() {
         supabase.from('clients').select('id, client_name').order('client_name'),
         supabase.from('projects').select('id, project_name').order('project_name'),
         supabase.from('company_variants').select('id, variant_name').order('variant_name'),
-        supabase.from('materials').select('id, name, sale_price, make').order('name'),
+        supabase.from('materials').select('id, name, sale_price, make, hsn_code').order('name'),
         supabase.from('materials').select('make').not('make', 'is', null).neq('make', '').order('make'),
       ]);
 
@@ -240,6 +247,30 @@ export function BOQ() {
     return variants.find(v => v.id === variantId)?.variant_name || '';
   }, [variants]);
 
+  useEffect(() => {
+    const prev = prevDefaultVariantRef.current;
+    if (prev === boqData.variantId) return;
+    setItems(prevItems => {
+      const next = { ...prevItems };
+      Object.keys(next).forEach(sheetId => {
+        const list = next[sheetId] || [];
+        next[sheetId] = list.map(row => {
+          if (row.isHeaderRow) return row;
+          if (!row.variantId || row.variantId === prev) {
+            return {
+              ...row,
+              variantId: boqData.variantId || row.variantId,
+              discountPercent: getVariantDiscount(boqData.variantId || row.variantId)
+            };
+          }
+          return row;
+        });
+      });
+      return next;
+    });
+    prevDefaultVariantRef.current = boqData.variantId;
+  }, [boqData.variantId, getVariantDiscount]);
+
   const insertRow = useCallback((afterIndex) => {
     const currentItems = items[activeSheetId] || [];
     const newRow = {
@@ -251,6 +282,7 @@ export function BOQ() {
       quantity: '',
       rate: '',
       discountPercent: getVariantDiscount(boqData.variantId),
+      hsn_sac: '',
       specification: '',
       remarks: '',
       pressure: '',
@@ -469,6 +501,7 @@ export function BOQ() {
           switch (col.key) {
             case 'sno': row.push(sno); break;
             case 'description': row.push(item.description || ''); break;
+            case 'hsn_sac': row.push(item.hsn_sac || ''); break;
             case 'variant': row.push(item.variantName || ''); break;
             case 'make': row.push(item.make || ''); break;
             case 'quantity': row.push(item.quantity || ''); break;
@@ -538,6 +571,7 @@ export function BOQ() {
             switch (col.key) {
               case 'sno': row.push(sno); break;
               case 'description': row.push(item.description || ''); break;
+              case 'hsn_sac': row.push(item.hsn_sac || ''); break;
               case 'variant': row.push(item.variantName || ''); break;
               case 'make': row.push(item.make || ''); break;
               case 'quantity': row.push(item.quantity || ''); break;
@@ -599,8 +633,9 @@ export function BOQ() {
   };
 
   const filteredMaterials = useMemo(() => {
-    if (!materialSearch[activeSheetId]) return materials;
-    const search = materialSearch[activeSheetId].toLowerCase();
+    const searchRaw = materialSearch[activeSheetId];
+    const search = (searchRaw || '').toLowerCase();
+    if (!search) return materials;
     return materials.filter(m => m.name.toLowerCase().includes(search));
   }, [materials, materialSearch, activeSheetId]);
 
@@ -766,7 +801,7 @@ export function BOQ() {
                     }}
                     title="Double-click to rename"
                   >
-                    <Sheet size={14} /> {sheet.name}
+                    <GripVertical size={12} /> <Sheet size={14} /> {sheet.name}
                   </button>
                 )}
                 {editingSheetId !== sheet.id && (
@@ -807,7 +842,15 @@ export function BOQ() {
               </tr>
               <tr style={excelHeaderRowStyle}>
                 {visibleColumns.map(col => (
-                  <th key={col.key} style={{ ...thStyle, width: col.width, minWidth: col.width }}>
+                  <th
+                    key={col.key}
+                    style={{
+                      ...thStyle,
+                      width: col.width,
+                      minWidth: col.width,
+                      ...(col.key === 'discountPercent' ? discountHeaderCellStyle : null)
+                    }}
+                  >
                     {col.key === 'rowControl' ? '' : col.label}
                   </th>
                 ))}
@@ -824,13 +867,21 @@ export function BOQ() {
                     onDragOver={(e) => e.preventDefault()}
                     onDrop={() => handleRowDrop(index)}
                   >
-                    <td colSpan={visibleColumns.length} style={{ padding: '10px', fontWeight: 'bold', textAlign: 'left' }}>
-                      <input
-                        type="text"
-                        value={item.headerText}
-                        onChange={(e) => updateItem(index, 'headerText', e.target.value)}
-                        style={{ border: 'none', background: 'transparent', fontWeight: 'bold', width: '100%', fontSize: '14px' }}
-                      />
+                    <td colSpan={visibleColumns.length} style={{ padding: '6px 8px', fontWeight: 'bold', textAlign: 'left' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span title="Drag row" style={{ cursor: 'grab', color: '#9ca3af' }}>
+                          <GripVertical size={14} />
+                        </span>
+                        <button onClick={() => deleteRow(index)} style={iconBtnStyle} title="Delete Header Row">
+                          <Trash2 size={14} />
+                        </button>
+                        <input
+                          type="text"
+                          value={item.headerText}
+                          onChange={(e) => updateItem(index, 'headerText', e.target.value)}
+                          style={{ border: 'none', background: 'transparent', fontWeight: 'bold', width: '100%', fontSize: '13px' }}
+                        />
+                      </div>
                     </td>
                   </tr>
                 ) : (
@@ -873,14 +924,18 @@ export function BOQ() {
                               }}
                               onFocus={(e) => {
                                 setMaterialSearch(prev => ({ ...prev, [activeSheetId]: e.target.value }));
+                                setMaterialSearchActive({ sheetId: activeSheetId, index });
                                 e.target.select();
                               }}
-                              onBlur={() => setTimeout(() => setMaterialSearch(prev => ({ ...prev, [activeSheetId]: '' })), 200)}
+                              onBlur={() => setTimeout(() => {
+                                setMaterialSearch(prev => ({ ...prev, [activeSheetId]: '' }));
+                                setMaterialSearchActive(null);
+                              }, 200)}
                               style={cellInputStyle}
                               ref={(el) => { inputRefs.current[`${activeSheetId}-${index}-itemId`] = el; }}
                               onKeyDown={(e) => handleKeyDown(e, index, 'itemId')}
                             />
-                            {materialSearch[activeSheetId] && (
+                            {materialSearchActive?.sheetId === activeSheetId && materialSearchActive?.index === index && (
                               <div style={autocompleteStyle}>
                                 {filteredMaterials.slice(0, 8).map(m => (
                                   <div
@@ -888,7 +943,9 @@ export function BOQ() {
                                     onClick={() => {
                                       updateItem(index, 'itemId', m.id);
                                       updateItem(index, 'description', m.name);
+                                      updateItem(index, 'hsn_sac', m.hsn_code || m.hsn || m.hsn_sac || '');
                                       setMaterialSearch(prev => ({ ...prev, [activeSheetId]: '' }));
+                                      setMaterialSearchActive(null);
                                     }}
                                     style={autocompleteItemStyle}
                                   >
@@ -898,6 +955,14 @@ export function BOQ() {
                               </div>
                             )}
                           </div>
+                        )}
+                        {col.key === 'hsn_sac' && (
+                          <input
+                            type="text"
+                            value={item.hsn_sac || ''}
+                            onChange={(e) => updateItem(index, 'hsn_sac', e.target.value)}
+                            style={cellInputStyle}
+                          />
                         )}
                         {col.key === 'variant' && (
                           <select
@@ -949,14 +1014,33 @@ export function BOQ() {
                           />
                         )}
                         {col.key === 'discountPercent' && (
-                          <input
-                            type="number"
-                            value={item.discountPercent || ''}
-                            onChange={(e) => updateItem(index, 'discountPercent', e.target.value)}
-                            style={cellInputStyle}
-                            ref={(el) => { inputRefs.current[`${activeSheetId}-${index}-discountPercent`] = el; }}
-                            onKeyDown={(e) => handleKeyDown(e, index, 'discountPercent')}
-                          />
+                          <div style={{ position: 'relative' }}>
+                            {(() => {
+                              const base = getVariantDiscount(item.variantId || boqData.variantId);
+                              const current = parseFloat(item.discountPercent) || 0;
+                              const isOverride = item.discountPercent !== '' && item.discountPercent !== null && current !== base;
+                              return (
+                                <>
+                                  <input
+                                    type="number"
+                                    value={item.discountPercent || ''}
+                                    onChange={(e) => updateItem(index, 'discountPercent', e.target.value)}
+                                    style={{ 
+                                      ...cellInputStyle, 
+                                      background: isOverride ? '#fff7cc' : cellInputStyle.background,
+                                      borderColor: isOverride ? '#f59e0b' : cellInputStyle.borderColor
+                                    }}
+                                    ref={(el) => { inputRefs.current[`${activeSheetId}-${index}-discountPercent`] = el; }}
+                                    onKeyDown={(e) => handleKeyDown(e, index, 'discountPercent')}
+                                    title={isOverride ? `Override (default ${base}%)` : `Default ${base}%`}
+                                  />
+                                  {isOverride && (
+                                    <span style={discountOverrideBadgeStyle}>OVERWRITE</span>
+                                  )}
+                                </>
+                              );
+                            })()}
+                          </div>
                         )}
                         {col.key === 'rateAfterDiscount' && (
                           <span style={{ display: 'block', padding: '6px', color: '#333' }}>
@@ -1114,7 +1198,7 @@ const inputStyle = {
 };
 
 const thStyle = {
-  padding: '6px 6px',
+  padding: '4px 4px',
   textAlign: 'center',
   fontWeight: '700',
   color: '#1f2937',
@@ -1256,7 +1340,7 @@ const excelColumnHeaderRowStyle = {
 };
 
 const excelColumnHeaderCellStyle = {
-  padding: '4px 6px',
+  padding: '2px 4px',
   textAlign: 'center',
   fontWeight: '700',
   fontSize: '11px',
@@ -1286,6 +1370,24 @@ const excelCellStyle = {
 const excelRowHeaderCellStyle = {
   background: '#f3f4f6',
   borderRight: '1px solid #cbd5e1',
+};
+
+const discountHeaderCellStyle = {
+  background: '#fff4c2',
+  borderBottom: '1px solid #f3d27c',
+  color: '#8a5a00',
+};
+
+const discountOverrideBadgeStyle = {
+  position: 'absolute',
+  top: '-9px',
+  right: '4px',
+  background: '#f59e0b',
+  color: '#fff',
+  fontSize: '9px',
+  padding: '1px 4px',
+  borderRadius: '3px',
+  letterSpacing: '0.02em',
 };
 
 const excelMetaGridStyle = {

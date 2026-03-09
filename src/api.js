@@ -760,13 +760,25 @@ export async function updateBOQItems(boqSheetId, items) {
   })).filter(item => !item.isHeaderRow || item.headerText);
 
   if (itemsWithSheetId.length > 0) {
-    const { data, error } = await supabase
-      .from('boq_items')
-      .insert(itemsWithSheetId)
-      .select();
+    const insertItems = async (payload) => {
+      const { data, error } = await supabase
+        .from('boq_items')
+        .insert(payload)
+        .select();
+      if (error) throw error;
+      return data;
+    };
 
-    if (error) throw error;
-    return data;
+    try {
+      return await insertItems(itemsWithSheetId);
+    } catch (error) {
+      const message = String(error?.message || '');
+      if (/hsn_sac|hsn/i.test(message)) {
+        const stripped = itemsWithSheetId.map(({ hsn_sac, ...rest }) => rest);
+        return await insertItems(stripped);
+      }
+      throw error;
+    }
   }
   return [];
 }
