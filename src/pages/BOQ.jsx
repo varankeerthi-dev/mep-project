@@ -35,9 +35,10 @@ const DEFAULT_COLUMNS = [
   { key: 'variant', label: 'Variant', width: 100, visible: true },
   { key: 'make', label: 'Make', width: 100, visible: true },
   { key: 'quantity', label: 'Qty', width: 70, visible: true },
-  { key: 'rate', label: 'Rate', width: 100, visible: true },
+  { key: 'unit', label: 'Unit', width: 70, visible: true },
+  { key: 'rate', label: 'Price', width: 100, visible: true },
   { key: 'discountPercent', label: 'Disc %', width: 70, visible: true },
-  { key: 'rateAfterDiscount', label: 'Rate After Disc', width: 110, visible: true },
+  { key: 'rateAfterDiscount', label: 'Rate/Unit', width: 110, visible: true },
   { key: 'totalAmount', label: 'Total Amount', width: 120, visible: true },
   { key: 'specification', label: 'Specification', width: 150, visible: true },
   { key: 'remarks', label: 'Remarks', width: 120, visible: true },
@@ -155,7 +156,7 @@ export function BOQ() {
         supabase.from('clients').select('id, client_name').order('client_name'),
         supabase.from('projects').select('id, project_name').order('project_name'),
         supabase.from('company_variants').select('id, variant_name').order('variant_name'),
-        supabase.from('materials').select('id, name, sale_price, make, hsn_code').order('name'),
+        supabase.from('materials').select('id, name, sale_price, make, hsn_code, unit').order('name'),
         supabase.from('materials').select('make').not('make', 'is', null).neq('make', '').order('make'),
       ]);
 
@@ -297,6 +298,12 @@ export function BOQ() {
     return variants.find(v => v.id === variantId)?.variant_name || '';
   }, [variants]);
 
+  const isRowEmpty = useCallback((row) => {
+    if (!row || row.isHeaderRow) return false;
+    const hasValue = row.description || row.itemId || row.quantity || row.rate || row.hsn_sac || row.make || row.specification || row.remarks;
+    return !hasValue;
+  }, []);
+
   useEffect(() => {
     const prev = prevDefaultVariantRef.current;
     if (prev === boqData.variantId) return;
@@ -335,6 +342,7 @@ export function BOQ() {
       rate: '',
       discountPercent: getVariantDiscount(boqData.variantId),
       hsn_sac: '',
+      unit: '',
       specification: '',
       remarks: '',
       pressure: '',
@@ -397,6 +405,7 @@ export function BOQ() {
         if (!newItems[index].hsn_sac && (material?.hsn_code || material?.hsn || material?.hsn_sac)) {
           newItems[index].hsn_sac = material.hsn_code || material.hsn || material.hsn_sac;
         }
+        if (!newItems[index].unit && material?.unit) newItems[index].unit = material.unit;
       }
       getPrice(value, newItems[index].variantId || boqData.variantId, newItems[index].make)
         .then(price => {
@@ -411,6 +420,30 @@ export function BOQ() {
 
     setItems(prev => ({ ...prev, [activeSheetId]: newItems }));
   }, [activeSheetId, items, boqData.variantId, getPrice, getVariantDiscount, getVariantNameById, materials, pushUndo]);
+
+  const handleMaterialPick = async (index, material) => {
+    pushUndo();
+    const currentItems = items[activeSheetId] || [];
+    const newItems = [...currentItems];
+    const row = { ...newItems[index] };
+    row.itemId = material.id;
+    row.description = material.name || row.description;
+    row.hsn_sac = material.hsn_code || material.hsn || material.hsn_sac || row.hsn_sac || '';
+    row.unit = material.unit || row.unit || '';
+    if (!row.variantId && boqData.variantId) {
+      row.variantId = boqData.variantId;
+      row.variantName = getVariantNameById(boqData.variantId);
+      row.discountPercent = getVariantDiscount(boqData.variantId);
+    }
+    newItems[index] = row;
+    setItems(prev => ({ ...prev, [activeSheetId]: newItems }));
+    const price = await getPrice(material.id, row.variantId || boqData.variantId, row.make);
+    setItems(prev => {
+      const next = [...(prev[activeSheetId] || [])];
+      next[index] = { ...next[index], rate: price || material.sale_price || next[index].rate };
+      return { ...prev, [activeSheetId]: next };
+    });
+  };
 
   useEffect(() => {
     if (!materials.length) return;
@@ -602,7 +635,7 @@ export function BOQ() {
   const getSno = (index, itemsList) => {
     let sno = 0;
     for (let i = 0; i < index; i++) {
-      if (itemsList[i] && !itemsList[i].isHeaderRow) sno++;
+      if (itemsList[i] && !itemsList[i].isHeaderRow && !isRowEmpty(itemsList[i])) sno++;
     }
     return sno + 1;
   };
@@ -656,12 +689,18 @@ export function BOQ() {
 
       const tableData = [];
       let sno = 0;
-      (items[sheet.id] || []).forEach(item => {
+      const sheetItems = items[sheet.id] || [];
+      let sheetTotalQty = 0;
+      let sheetTotalAmount = 0;
+
+      sheetItems.forEach(item => {
         if (item.isHeaderRow) {
           tableData.push([{ content: item.headerText || 'SECTION', colSpan: exportColumnList.length, styles: { fontStyle: 'bold', fillColor: [240, 240, 240] } }]);
         } else {
           sno++;
           const { rateAfterDiscount, totalAmount } = calculateRow(item);
+          sheetTotalQty += parseFloat(item.quantity) || 0;
+          sheetTotalAmount += totalAmount || 0;
           const row = [];
           exportColumnList.forEach(col => {
             switch (col.key) {
@@ -671,6 +710,7 @@ export function BOQ() {
               case 'variant': row.push(item.variantName || ''); break;
               case 'make': row.push(item.make || ''); break;
               case 'quantity': row.push(item.quantity || ''); break;
+              case 'unit': row.push(item.unit || ''); break;
               case 'rate': row.push(item.rate ? `Rs. ${item.rate}` : ''); break;
               case 'discountPercent': row.push(item.discountPercent ? `${item.discountPercent}%` : ''); break;
               case 'rateAfterDiscount': row.push(rateAfterDiscount ? `Rs. ${rateAfterDiscount}` : ''); break;
@@ -688,6 +728,14 @@ export function BOQ() {
         }
       });
 
+      const totalsRow = exportColumnList.map(col => {
+        if (col.key === 'description') return 'Total';
+        if (col.key === 'quantity') return sheetTotalQty || '';
+        if (col.key === 'totalAmount') return `Rs. ${sheetTotalAmount.toLocaleString()}`;
+        return '';
+      });
+      tableData.push(totalsRow);
+
       const headers = exportColumnList.map(col => col.label);
       autoTable(doc, {
         head: [headers],
@@ -701,9 +749,7 @@ export function BOQ() {
         columnStyles,
       });
 
-      const finalY = doc.lastAutoTable?.finalY || 55;
-      doc.text(`Total Qty: ${totals.totalQty}`, 14, finalY + 10);
-      doc.text(`Total Amount: Rs. ${totals.totalAmount.toLocaleString()}`, 14, finalY + 17);
+      // Totals are included as the last row to match Excel layout
     });
 
     doc.save(`${boqData.boqNo}.pdf`);
@@ -746,6 +792,7 @@ export function BOQ() {
               case 'variant': row.push(item.variantName || ''); break;
               case 'make': row.push(item.make || ''); break;
               case 'quantity': row.push(item.quantity || ''); break;
+              case 'unit': row.push(item.unit || ''); break;
               case 'rate': row.push(item.rate || ''); break;
               case 'discountPercent': row.push(item.discountPercent || ''); break;
               case 'rateAfterDiscount': row.push(rateAfterDiscount); break;
@@ -1093,7 +1140,7 @@ export function BOQ() {
                         )}
                         {col.key === 'sno' && (
                           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <span>{getSno(index, currentItems)}</span>
+                            <span>{isRowEmpty(item) ? '' : getSno(index, currentItems)}</span>
                             <button onClick={() => insertRow(index)} style={iconBtnStyle} title="Insert Row Below">
                               <Plus size={12} />
                             </button>
@@ -1121,6 +1168,7 @@ export function BOQ() {
                                   if (match) {
                                     updateItem(index, 'itemId', match.id);
                                     updateItem(index, 'hsn_sac', match.hsn_code || match.hsn || match.hsn_sac || '');
+                                    if (match.unit) updateItem(index, 'unit', match.unit);
                                   }
                                 }
                                 setMaterialSearch(prev => ({ ...prev, [activeSheetId]: '' }));
@@ -1136,10 +1184,7 @@ export function BOQ() {
                                   <div
                                     key={m.id}
                                     onClick={() => {
-                                      updateItem(index, 'itemId', m.id);
-                                      updateItem(index, 'description', m.name);
-                                      updateItem(index, 'hsn_sac', m.hsn_code || m.hsn || m.hsn_sac || '');
-                                      if (m.sale_price) updateItem(index, 'rate', m.sale_price);
+                                      handleMaterialPick(index, m);
                                       setMaterialSearch(prev => ({ ...prev, [activeSheetId]: '' }));
                                       setMaterialSearchActive(null);
                                     }}
@@ -1200,6 +1245,15 @@ export function BOQ() {
                             style={cellInputStyle}
                             ref={(el) => { inputRefs.current[`${activeSheetId}-${index}-quantity`] = el; }}
                             onKeyDown={(e) => handleKeyDown(e, index, 'quantity')}
+                            onFocus={() => setActiveRowIndex(index)}
+                          />
+                        )}
+                        {col.key === 'unit' && (
+                          <input
+                            type="text"
+                            value={item.unit || ''}
+                            onChange={(e) => updateItem(index, 'unit', e.target.value)}
+                            style={cellInputStyle}
                             onFocus={() => setActiveRowIndex(index)}
                           />
                         )}
@@ -1318,6 +1372,22 @@ export function BOQ() {
                 )
               ))}
             </tbody>
+            <tfoot>
+              <tr style={{ background: '#e8f4fc', fontWeight: '600' }}>
+                {visibleColumns.map(col => {
+                  if (col.key === 'description') {
+                    return <td key={col.key} style={{ padding: '6px', textAlign: 'right' }}>Total</td>;
+                  }
+                  if (col.key === 'quantity') {
+                    return <td key={col.key} style={{ padding: '6px' }}>{totals.totalQty}</td>;
+                  }
+                  if (col.key === 'totalAmount') {
+                    return <td key={col.key} style={{ padding: '6px', color: '#1976d2' }}>Rs. {totals.totalAmount.toLocaleString()}</td>;
+                  }
+                  return <td key={col.key} style={{ padding: '6px' }}></td>;
+                })}
+              </tr>
+            </tfoot>
             <tfoot>
               <tr style={{ background: '#e8f4fc', fontWeight: '600' }}>
                 <td colSpan={4} style={{ padding: '12px', textAlign: 'right' }}>Total</td>
