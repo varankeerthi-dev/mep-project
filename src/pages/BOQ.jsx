@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '../supabase';
 import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
-import { Save, FileDown, Plus, Trash2, Sheet, Table, X, Settings, FileSpreadsheet, Loader2, GripVertical, Pencil } from 'lucide-react';
+import { Save, FileDown, Plus, Trash2, Sheet, Table, X, Settings, FileSpreadsheet, Loader2, GripVertical } from 'lucide-react';
 import { saveBOQWithItems } from '../api';
 
 const generateId = () => Math.random().toString(36).substr(2, 9);
@@ -80,9 +80,12 @@ export function BOQ() {
   const [dragSheetId, setDragSheetId] = useState(null);
   const [editingSheetId, setEditingSheetId] = useState(null);
   const [editingSheetName, setEditingSheetName] = useState('');
+  const [activeRowIndex, setActiveRowIndex] = useState(null);
 
   const inputRefs = useRef({});
   const prevDefaultVariantRef = useRef('');
+  const undoStackRef = useRef({});
+  const copiedRowRef = useRef(null);
 
   useEffect(() => {
     fetchInitialData();
@@ -260,6 +263,7 @@ export function BOQ() {
             return {
               ...row,
               variantId: boqData.variantId || row.variantId,
+              variantName: getVariantNameById(boqData.variantId || row.variantId),
               discountPercent: getVariantDiscount(boqData.variantId || row.variantId)
             };
           }
@@ -278,6 +282,7 @@ export function BOQ() {
       isHeaderRow: false,
       itemId: '',
       variantId: boqData.variantId,
+      variantName: getVariantNameById(boqData.variantId),
       make: '',
       quantity: '',
       rate: '',
@@ -317,15 +322,34 @@ export function BOQ() {
     setItems(prev => ({ ...prev, [activeSheetId]: [...currentItems, newRow] }));
   }, [activeSheetId, items]);
 
+  const pushUndo = useCallback(() => {
+    const sheetId = activeSheetId;
+    const snapshot = JSON.parse(JSON.stringify(items[sheetId] || []));
+    if (!undoStackRef.current[sheetId]) undoStackRef.current[sheetId] = [];
+    undoStackRef.current[sheetId].push(snapshot);
+    if (undoStackRef.current[sheetId].length > 50) {
+      undoStackRef.current[sheetId].shift();
+    }
+  }, [activeSheetId, items]);
+
   const updateItem = useCallback((index, field, value) => {
+    pushUndo();
     const currentItems = items[activeSheetId] || [];
     const newItems = [...currentItems];
     newItems[index] = { ...newItems[index], [field]: value };
 
     if (field === 'itemId' && value) {
+      if (!newItems[index].variantId && boqData.variantId) {
+        newItems[index].variantId = boqData.variantId;
+        newItems[index].variantName = getVariantNameById(boqData.variantId);
+        newItems[index].discountPercent = getVariantDiscount(boqData.variantId);
+      }
       if (!newItems[index].description) {
         const material = materials.find(m => m.id === value);
         if (material?.name) newItems[index].description = material.name;
+        if (!newItems[index].hsn_sac && (material?.hsn_code || material?.hsn || material?.hsn_sac)) {
+          newItems[index].hsn_sac = material.hsn_code || material.hsn || material.hsn_sac;
+        }
       }
       getPrice(value, newItems[index].variantId || boqData.variantId, newItems[index].make)
         .then(price => {
@@ -339,7 +363,7 @@ export function BOQ() {
     }
 
     setItems(prev => ({ ...prev, [activeSheetId]: newItems }));
-  }, [activeSheetId, items, boqData.variantId, getPrice, getVariantDiscount]);
+  }, [activeSheetId, items, boqData.variantId, getPrice, getVariantDiscount, getVariantNameById, materials, pushUndo]);
 
   useEffect(() => {
     if (!materials.length) return;
@@ -445,6 +469,71 @@ export function BOQ() {
     setEditingSheetName('');
   };
 
+  useEffect(() => {
+    const sheetId = activeSheetId;
+    if (!sheetId) return;
+    const list = items[sheetId] || [];
+    if (list.length >= 10) return;
+    const toAdd = 10 - list.length;
+    const extra = Array.from({ length: toAdd }).map(() => ({
+      id: generateId(),
+      isHeaderRow: false,
+      itemId: '',
+      variantId: boqData.variantId,
+      variantName: getVariantNameById(boqData.variantId),
+      make: '',
+      quantity: '',
+      rate: '',
+      discountPercent: getVariantDiscount(boqData.variantId),
+      hsn_sac: '',
+      specification: '',
+      remarks: '',
+      pressure: '',
+      thickness: '',
+      schedule: '',
+      material: '',
+    }));
+    setItems(prev => ({ ...prev, [sheetId]: [...list, ...extra] }));
+  }, [activeSheetId, items, boqData.variantId, getVariantDiscount, getVariantNameById]);
+
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      const isCtrl = e.ctrlKey || e.metaKey;
+      if (!isCtrl) return;
+
+      if (e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        const sheetId = activeSheetId;
+        const stack = undoStackRef.current[sheetId] || [];
+        const last = stack.pop();
+        if (last) {
+          setItems(prev => ({ ...prev, [sheetId]: last }));
+        }
+      }
+
+      if (e.key.toLowerCase() === 'c') {
+        if (activeRowIndex == null) return;
+        const row = (items[activeSheetId] || [])[activeRowIndex];
+        if (!row || row.isHeaderRow) return;
+        copiedRowRef.current = { ...row };
+      }
+
+      if (e.key.toLowerCase() === 'v') {
+        if (activeRowIndex == null) return;
+        const row = copiedRowRef.current;
+        if (!row) return;
+        const currentItems = items[activeSheetId] || [];
+        const nextItems = [...currentItems];
+        const target = nextItems[activeRowIndex];
+        if (!target || target.isHeaderRow) return;
+        nextItems[activeRowIndex] = { ...row, id: target.id };
+        setItems(prev => ({ ...prev, [activeSheetId]: nextItems }));
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [activeSheetId, activeRowIndex, items]);
+
   const totals = useMemo(() => {
     const currentItems = items[activeSheetId] || [];
     const dataRows = currentItems.filter(item => !item.isHeaderRow);
@@ -525,7 +614,7 @@ export function BOQ() {
 
     const headers = visibleColumns.map(col => col.label);
     
-    doc.autoTable({
+    autoTable(doc, {
       head: [headers],
       body: tableData,
       startY: 55,
@@ -534,8 +623,9 @@ export function BOQ() {
       alternateRowStyles: { fillColor: [245, 245, 245] },
     });
 
-    doc.text(`Total Qty: ${totals.totalQty}`, 14, doc.lastAutoTable.finalY + 10);
-    doc.text(`Total Amount: ₹${totals.totalAmount.toLocaleString()}`, 14, doc.lastAutoTable.finalY + 17);
+    const finalY = doc.lastAutoTable?.finalY || 55;
+    doc.text(`Total Qty: ${totals.totalQty}`, 14, finalY + 10);
+    doc.text(`Total Amount: Rs. ${totals.totalAmount.toLocaleString()}`, 14, finalY + 17);
 
     doc.save(`${boqData.boqNo}.pdf`);
     setShowExportMenu(false);
@@ -671,7 +761,7 @@ export function BOQ() {
   const currentItems = items[activeSheetId] || [];
 
   return (
-    <div className="page-container" style={{ padding: '18px', background: '#eef1f4', minHeight: '100vh' }}>
+    <div className="page-container" style={{ padding: '18px', background: '#eef1f4', minHeight: '100vh', fontFamily: "'Open Sans', sans-serif" }}>
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
         <h1 className="page-title" style={{ fontSize: '24px', fontWeight: '600', color: '#1a1a1a' }}>BOQ</h1>
         <div style={{ display: 'flex', gap: '10px' }}>
@@ -768,7 +858,7 @@ export function BOQ() {
           <button onClick={addHeaderRow} style={{ ...btnStyle, background: '#28a745', color: 'white' }}>
             <Plus size={16} /> Add Header Row
           </button>
-          <div style={{ display: 'flex', gap: '5px', marginLeft: 'auto' }}>
+          <div style={{ display: 'flex', gap: '5px', marginLeft: 'auto', padding: '4px', background: '#e5e7eb', border: '1px solid #cbd5e1', borderRadius: '4px' }}>
             {sheets.map((sheet, idx) => (
               <div
                 key={sheet.id}
@@ -792,21 +882,15 @@ export function BOQ() {
                   />
                 ) : (
                   <button
-                    onClick={() => setActiveSheetId(sheet.id)}
-                    onDoubleClick={() => startSheetRename(sheet)}
+                    onClick={() => (activeSheetId === sheet.id ? startSheetRename(sheet) : setActiveSheetId(sheet.id))}
                     style={{
                       ...sheetTabStyle,
                       background: activeSheetId === sheet.id ? '#1976d2' : '#f0f0f0',
                       color: activeSheetId === sheet.id ? 'white' : '#333',
                     }}
-                    title="Double-click to rename"
+                    title="Click to rename"
                   >
                     <GripVertical size={12} /> <Sheet size={14} /> {sheet.name}
-                  </button>
-                )}
-                {editingSheetId !== sheet.id && (
-                  <button onClick={() => startSheetRename(sheet)} style={sheetCloseBtnStyle} title="Rename sheet">
-                    <Pencil size={12} />
                   </button>
                 )}
                 {sheets.length > 1 && idx > 0 && (
@@ -925,9 +1009,18 @@ export function BOQ() {
                               onFocus={(e) => {
                                 setMaterialSearch(prev => ({ ...prev, [activeSheetId]: e.target.value }));
                                 setMaterialSearchActive({ sheetId: activeSheetId, index });
+                                setActiveRowIndex(index);
                                 e.target.select();
                               }}
                               onBlur={() => setTimeout(() => {
+                                const value = (item.description || '').trim();
+                                if (!item.itemId && value) {
+                                  const match = materials.find(m => m.name?.toLowerCase() === value.toLowerCase());
+                                  if (match) {
+                                    updateItem(index, 'itemId', match.id);
+                                    updateItem(index, 'hsn_sac', match.hsn_code || match.hsn || match.hsn_sac || '');
+                                  }
+                                }
                                 setMaterialSearch(prev => ({ ...prev, [activeSheetId]: '' }));
                                 setMaterialSearchActive(null);
                               }, 200)}
@@ -937,13 +1030,14 @@ export function BOQ() {
                             />
                             {materialSearchActive?.sheetId === activeSheetId && materialSearchActive?.index === index && (
                               <div style={autocompleteStyle}>
-                                {filteredMaterials.slice(0, 8).map(m => (
+                                {filteredMaterials.slice(0, 10).map(m => (
                                   <div
                                     key={m.id}
                                     onClick={() => {
                                       updateItem(index, 'itemId', m.id);
                                       updateItem(index, 'description', m.name);
                                       updateItem(index, 'hsn_sac', m.hsn_code || m.hsn || m.hsn_sac || '');
+                                      if (m.sale_price) updateItem(index, 'rate', m.sale_price);
                                       setMaterialSearch(prev => ({ ...prev, [activeSheetId]: '' }));
                                       setMaterialSearchActive(null);
                                     }}
@@ -962,11 +1056,12 @@ export function BOQ() {
                             value={item.hsn_sac || ''}
                             onChange={(e) => updateItem(index, 'hsn_sac', e.target.value)}
                             style={cellInputStyle}
+                            onFocus={() => setActiveRowIndex(index)}
                           />
                         )}
                         {col.key === 'variant' && (
                           <select
-                            value={item.variantId || ''}
+                            value={item.variantId || boqData.variantId || ''}
                             onChange={(e) => {
                               updateItem(index, 'variantId', e.target.value);
                               const variant = variants.find(v => v.id === e.target.value);
@@ -976,6 +1071,7 @@ export function BOQ() {
                             style={cellInputStyle}
                             ref={(el) => { inputRefs.current[`${activeSheetId}-${index}-variantId`] = el; }}
                             onKeyDown={(e) => handleKeyDown(e, index, 'variantId')}
+                            onFocus={() => setActiveRowIndex(index)}
                           >
                             <option value="">Select</option>
                             {variants.map(v => <option key={v.id} value={v.id}>{v.variant_name}</option>)}
@@ -988,6 +1084,7 @@ export function BOQ() {
                             style={cellInputStyle}
                             ref={(el) => { inputRefs.current[`${activeSheetId}-${index}-make`] = el; }}
                             onKeyDown={(e) => handleKeyDown(e, index, 'make')}
+                            onFocus={() => setActiveRowIndex(index)}
                           >
                             <option value="">Select</option>
                             {makes.map(m => <option key={m} value={m}>{m}</option>)}
@@ -1001,6 +1098,7 @@ export function BOQ() {
                             style={cellInputStyle}
                             ref={(el) => { inputRefs.current[`${activeSheetId}-${index}-quantity`] = el; }}
                             onKeyDown={(e) => handleKeyDown(e, index, 'quantity')}
+                            onFocus={() => setActiveRowIndex(index)}
                           />
                         )}
                         {col.key === 'rate' && (
@@ -1011,6 +1109,7 @@ export function BOQ() {
                             style={cellInputStyle}
                             ref={(el) => { inputRefs.current[`${activeSheetId}-${index}-rate`] = el; }}
                             onKeyDown={(e) => handleKeyDown(e, index, 'rate')}
+                            onFocus={() => setActiveRowIndex(index)}
                           />
                         )}
                         {col.key === 'discountPercent' && (
@@ -1033,6 +1132,7 @@ export function BOQ() {
                                     ref={(el) => { inputRefs.current[`${activeSheetId}-${index}-discountPercent`] = el; }}
                                     onKeyDown={(e) => handleKeyDown(e, index, 'discountPercent')}
                                     title={isOverride ? `Override (default ${base}%)` : `Default ${base}%`}
+                                    onFocus={() => setActiveRowIndex(index)}
                                   />
                                   {isOverride && (
                                     <span style={discountOverrideBadgeStyle}>OVERWRITE</span>
@@ -1060,6 +1160,7 @@ export function BOQ() {
                             style={cellInputStyle}
                             ref={(el) => { inputRefs.current[`${activeSheetId}-${index}-specification`] = el; }}
                             onKeyDown={(e) => handleKeyDown(e, index, 'specification')}
+                            onFocus={() => setActiveRowIndex(index)}
                           />
                         )}
                         {col.key === 'remarks' && (
@@ -1070,6 +1171,7 @@ export function BOQ() {
                             style={cellInputStyle}
                             ref={(el) => { inputRefs.current[`${activeSheetId}-${index}-remarks`] = el; }}
                             onKeyDown={(e) => handleKeyDown(e, index, 'remarks')}
+                            onFocus={() => setActiveRowIndex(index)}
                           />
                         )}
                         {col.key === 'pressure' && (
@@ -1078,6 +1180,7 @@ export function BOQ() {
                             value={item.pressure || ''}
                             onChange={(e) => updateItem(index, 'pressure', e.target.value)}
                             style={cellInputStyle}
+                            onFocus={() => setActiveRowIndex(index)}
                           />
                         )}
                         {col.key === 'thickness' && (
@@ -1086,6 +1189,7 @@ export function BOQ() {
                             value={item.thickness || ''}
                             onChange={(e) => updateItem(index, 'thickness', e.target.value)}
                             style={cellInputStyle}
+                            onFocus={() => setActiveRowIndex(index)}
                           />
                         )}
                         {col.key === 'schedule' && (
@@ -1094,6 +1198,7 @@ export function BOQ() {
                             value={item.schedule || ''}
                             onChange={(e) => updateItem(index, 'schedule', e.target.value)}
                             style={cellInputStyle}
+                            onFocus={() => setActiveRowIndex(index)}
                           />
                         )}
                         {col.key === 'material' && (
@@ -1102,6 +1207,7 @@ export function BOQ() {
                             value={item.material || ''}
                             onChange={(e) => updateItem(index, 'material', e.target.value)}
                             style={cellInputStyle}
+                            onFocus={() => setActiveRowIndex(index)}
                           />
                         )}
                       </td>
@@ -1109,13 +1215,6 @@ export function BOQ() {
                   </tr>
                 )
               ))}
-              <tr>
-                <td colSpan={visibleColumns.length} style={{ padding: '10px', textAlign: 'center' }}>
-                  <button onClick={() => insertRow(currentItems.length - 1)} style={{ ...btnStyle, background: '#28a745', color: 'white' }}>
-                    <Plus size={16} /> Add Row
-                  </button>
-                </td>
-              </tr>
             </tbody>
             <tfoot>
               <tr style={{ background: '#e8f4fc', fontWeight: '600' }}>
@@ -1237,11 +1336,11 @@ const sheetTabStyle = {
   alignItems: 'center',
   gap: '4px',
   padding: '6px 10px',
-  border: '1px solid #cbd5e1',
+  border: '1px solid #bfc7d1',
   borderRadius: '3px 3px 0 0',
   cursor: 'pointer',
   fontSize: '11px',
-  background: '#f8fafc',
+  background: '#e5e7eb',
 };
 
 const sheetCloseBtnStyle = {
@@ -1317,7 +1416,7 @@ const autocompleteStyle = {
   boxShadow: '0 4px 8px rgba(0,0,0,0.15)',
   maxHeight: '200px',
   overflowY: 'auto',
-  zIndex: 100,
+  zIndex: 1000,
 };
 
 const autocompleteItemStyle = {
@@ -1329,6 +1428,8 @@ const autocompleteItemStyle = {
 
 const excelTableWrapStyle = {
   overflowX: 'auto',
+  overflowY: 'visible',
+  position: 'relative',
   border: '1px solid #cbd5e1',
   borderRadius: '4px',
   background: '#fff',
