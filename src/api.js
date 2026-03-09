@@ -650,3 +650,186 @@ export async function getDefaultTemplate(documentType) {
   if (error && error.code !== 'PGRST116') throw error;
   return data;
 }
+
+// ============================================
+// BOQ API Functions
+// ============================================
+
+export async function fetchBOQList(filters = {}) {
+  let query = supabase
+    .from('boq_headers')
+    .select(`
+      *,
+      client:clients(id, client_name),
+      project:projects(id, project_name),
+      sheets:boq_sheets(*)
+    `)
+    .order('created_at', { ascending: false });
+
+  if (filters.clientId) {
+    query = query.eq('client_id', filters.clientId);
+  }
+  if (filters.projectId) {
+    query = query.eq('project_id', filters.projectId);
+  }
+  if (filters.status) {
+    query = query.eq('status', filters.status);
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return data || [];
+}
+
+export async function fetchBOQById(id) {
+  const { data: header, error } = await supabase
+    .from('boq_headers')
+    .select(`
+      *,
+      client:clients(*),
+      project:projects(*),
+      sheets:boq_sheets(*, items:boq_items(*))
+    `)
+    .eq('id', id)
+    .single();
+
+  if (error) throw error;
+  return header;
+}
+
+export async function createBOQ(boq) {
+  const { data: header, error } = await supabase
+    .from('boq_headers')
+    .insert(boq)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return header;
+}
+
+export async function updateBOQ(id, updates) {
+  const { data, error } = await supabase
+    .from('boq_headers')
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteBOQ(id) {
+  const { error } = await supabase
+    .from('boq_headers')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw error;
+  return { success: true };
+}
+
+export async function createBOQSheets(boqHeaderId, sheets) {
+  const sheetsWithHeaderId = sheets.map((sheet, index) => ({
+    ...sheet,
+    boq_header_id: boqHeaderId,
+    sheet_order: index + 1
+  }));
+
+  const { data, error } = await supabase
+    .from('boq_sheets')
+    .insert(sheetsWithHeaderId)
+    .select();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function updateBOQItems(boqSheetId, items) {
+  await supabase
+    .from('boq_items')
+    .delete()
+    .eq('boq_sheet_id', boqSheetId);
+
+  const itemsWithSheetId = items.map((item, index) => ({
+    ...item,
+    boq_sheet_id: boqSheetId,
+    row_order: index + 1,
+    updated_at: new Date().toISOString()
+  })).filter(item => !item.isHeaderRow || item.headerText);
+
+  if (itemsWithSheetId.length > 0) {
+    const { data, error } = await supabase
+      .from('boq_items')
+      .insert(itemsWithSheetId)
+      .select();
+
+    if (error) throw error;
+    return data;
+  }
+  return [];
+}
+
+export async function saveBOQ(boqData) {
+  const { id, boqNo, revisionNo, date, clientId, projectId, variantId, status, termsConditions, preface } = boqData;
+
+  let headerId = id;
+
+  if (!id) {
+    const header = await createBOQ({
+      boq_no: boqNo,
+      revision_no: revisionNo || 1,
+      boq_date: date,
+      client_id: clientId,
+      project_id: projectId,
+      variant_id: variantId,
+      status: status || 'Draft',
+      terms_conditions: termsConditions,
+      preface: preface
+    });
+    headerId = header.id;
+  } else {
+    await updateBOQ(id, {
+      boq_no: boqNo,
+      revision_no: revisionNo,
+      boq_date: date,
+      client_id: clientId,
+      project_id: projectId,
+      variant_id: variantId,
+      status: status,
+      terms_conditions: termsConditions,
+      preface: preface
+    });
+  }
+
+  return headerId;
+}
+
+export async function saveBOQWithItems(boqData, sheets, itemsMap) {
+  const headerId = await saveBOQ(boqData);
+
+  for (const sheet of sheets) {
+    if (!sheet.id || sheet.id.startsWith('temp-')) {
+      const newSheet = {
+        boq_header_id: headerId,
+        sheet_name: sheet.name,
+        sheet_order: sheets.indexOf(sheet) + 1,
+        is_default: sheet.isDefault || false
+      };
+      const { data: createdSheet } = await supabase
+        .from('boq_sheets')
+        .insert(newSheet)
+        .select()
+        .single();
+      
+      if (createdSheet && itemsMap[sheet.id]) {
+        await updateBOQItems(createdSheet.id, itemsMap[sheet.id]);
+      }
+    } else if (itemsMap[sheet.id]) {
+      await updateBOQItems(sheet.id, itemsMap[sheet.id]);
+    }
+  }
+
+  return headerId;
+}

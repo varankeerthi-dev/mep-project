@@ -71,7 +71,7 @@ const SalesReport = lazy(() => Reports.then(m => ({ default: m.SalesReport })));
 const ProjectManagementInternal = import('./pages/ProjectManagementInternal');
 const SiteMaterials = lazy(() => ProjectManagementInternal.then(m => ({ default: m.SiteMaterials })));
 const ToolsList = lazy(() => ProjectManagementInternal.then(m => ({ default: m.ToolsList })));
-const BOQ = lazy(() => ProjectManagementInternal.then(m => ({ default: m.BOQ })));
+const BOQ = lazy(() => import('./pages/BOQ'));
 const IssueList = lazy(() => ProjectManagementInternal.then(m => ({ default: m.IssueList })));
 const ClientComm = lazy(() => ProjectManagementInternal.then(m => ({ default: m.ClientComm })));
 const Documents = lazy(() => ProjectManagementInternal.then(m => ({ default: m.Documents })));
