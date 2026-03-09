@@ -72,6 +72,7 @@ const ProjectManagementInternal = import('./pages/ProjectManagementInternal');
 const SiteMaterials = lazy(() => ProjectManagementInternal.then(m => ({ default: m.SiteMaterials })));
 const ToolsList = lazy(() => ProjectManagementInternal.then(m => ({ default: m.ToolsList })));
 const BOQ = lazy(() => import('./pages/BOQ'));
+const BOQList = lazy(() => import('./pages/BOQList'));
 const IssueList = lazy(() => ProjectManagementInternal.then(m => ({ default: m.IssueList })));
 const ClientComm = lazy(() => ProjectManagementInternal.then(m => ({ default: m.ClientComm })));
 const Documents = lazy(() => ProjectManagementInternal.then(m => ({ default: m.Documents })));
@@ -345,7 +346,8 @@ export default function App() {
       case '/quotation/edit': return <CreateQuotation />;
       case '/quotation/view': return <QuotationView />;
       case '/settings/discounts': return <DiscountSettings />;
-      case '/boq': return <BOQ />;
+      case '/boq': return <BOQList />;
+      case '/boq/create': return <BOQ />;
       case '/issue': return <IssueList />;
       case '/client-comm': return <ClientComm />;
       case '/documents': return <Documents />;

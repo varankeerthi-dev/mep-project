@@ -7,6 +7,16 @@ import { Save, FileDown, Plus, Trash2, Sheet, Table, X, Settings, FileSpreadshee
 import { saveBOQWithItems } from '../api';
 
 const generateId = () => Math.random().toString(36).substr(2, 9);
+const getColumnLabel = (index) => {
+  let label = '';
+  let n = index + 1;
+  while (n > 0) {
+    const rem = (n - 1) % 26;
+    label = String.fromCharCode(65 + rem) + label;
+    n = Math.floor((n - 1) / 26);
+  }
+  return label;
+};
 
 const DEFAULT_COLUMNS = [
   { key: 'rowControl', label: '', width: 40, visible: true },
@@ -331,6 +341,7 @@ export function BOQ() {
   }, [items, activeSheetId, calculateRow]);
 
   const visibleColumns = columnSettings.filter(col => col.visible);
+  const columnLetters = useMemo(() => visibleColumns.map((_, idx) => getColumnLabel(idx)), [visibleColumns]);
 
   const getSno = (index, itemsList) => {
     let sno = 0;
@@ -539,8 +550,8 @@ export function BOQ() {
   const currentItems = items[activeSheetId] || [];
 
   return (
-    <div className="page-container" style={{ padding: '20px', background: '#f5f5f5', minHeight: '100vh' }}>
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+    <div className="page-container" style={{ padding: '18px', background: '#eef1f4', minHeight: '100vh' }}>
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
         <h1 className="page-title" style={{ fontSize: '24px', fontWeight: '600', color: '#1a1a1a' }}>BOQ</h1>
         <div style={{ display: 'flex', gap: '10px' }}>
           <button onClick={() => setShowColumnPanel(true)} style={btnStyle}>
@@ -572,7 +583,7 @@ export function BOQ() {
       </div>
 
       <div style={cardStyle}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '15px', marginBottom: '20px', padding: '15px', background: '#f8f9fa', borderRadius: '8px' }}>
+        <div style={excelMetaGridStyle}>
           <div>
             <label style={labelStyle}>Date</label>
             <input type="date" value={boqData.date} onChange={(e) => setBoqData(prev => ({ ...prev, date: e.target.value }))} style={inputStyle} />
@@ -601,7 +612,7 @@ export function BOQ() {
           </div>
         </div>
 
-        <div style={{ marginBottom: '20px', padding: '15px', background: '#f8f9fa', borderRadius: '8px' }}>
+        <div style={excelMetaBoxStyle}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
             <label style={{ ...labelStyle, marginBottom: 0 }}>Variant:</label>
             <select value={boqData.variantId} onChange={(e) => handleVariantChange(e.target.value)} style={{ ...inputStyle, width: '200px' }}>
@@ -660,10 +671,25 @@ export function BOQ() {
           </div>
         </div>
 
-        <div style={{ overflowX: 'auto', border: '1px solid #ddd', borderRadius: '8px', background: 'white' }}>
+        <div style={excelTableWrapStyle}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
             <thead>
-              <tr style={{ background: '#f8f9fa' }}>
+              <tr style={excelColumnHeaderRowStyle}>
+                {visibleColumns.map((col, idx) => (
+                  <th
+                    key={`${col.key}-letter`}
+                    style={{ 
+                      ...excelColumnHeaderCellStyle, 
+                      width: col.width, 
+                      minWidth: col.width,
+                      ...(col.key === 'rowControl' ? excelCornerCellStyle : null)
+                    }}
+                  >
+                    {col.key === 'rowControl' ? '' : columnLetters[idx]}
+                  </th>
+                ))}
+              </tr>
+              <tr style={excelHeaderRowStyle}>
                 {visibleColumns.map(col => (
                   <th key={col.key} style={{ ...thStyle, width: col.width, minWidth: col.width }}>
                     {col.key === 'rowControl' ? '' : col.label}
@@ -687,7 +713,7 @@ export function BOQ() {
                 ) : (
                   <tr key={item.id} style={{ background: index % 2 === 0 ? 'white' : '#fafafa' }}>
                     {visibleColumns.map(col => (
-                      <td key={col.key} style={{ padding: '4px', borderBottom: '1px solid #eee' }}>
+                      <td key={col.key} style={{ ...excelCellStyle, ...(col.key === 'rowControl' || col.key === 'sno' ? excelRowHeaderCellStyle : null) }}>
                         {col.key === 'rowControl' && (
                           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                             <button onClick={() => deleteRow(index)} style={iconBtnStyle} title="Delete Row">
@@ -918,65 +944,71 @@ export default BOQ;
 
 const cardStyle = {
   background: 'white',
-  borderRadius: '8px',
-  padding: '20px',
-  boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+  borderRadius: '4px',
+  padding: '16px',
+  border: '1px solid #d0d7de',
+  boxShadow: '0 1px 2px rgba(16,24,40,0.06)',
 };
 
 const btnStyle = {
   display: 'flex',
   alignItems: 'center',
   gap: '6px',
-  padding: '8px 14px',
-  border: '1px solid #ddd',
-  borderRadius: '4px',
-  background: 'white',
+  padding: '6px 12px',
+  border: '1px solid #cbd5e1',
+  borderRadius: '3px',
+  background: '#f8fafc',
   cursor: 'pointer',
-  fontSize: '13px',
+  fontSize: '12px',
 };
 
 const labelStyle = {
   display: 'block',
-  fontSize: '12px',
-  fontWeight: '500',
-  color: '#666',
+  fontSize: '11px',
+  fontWeight: '600',
+  color: '#4b5563',
   marginBottom: '4px',
 };
 
 const inputStyle = {
   width: '100%',
-  padding: '8px 10px',
-  border: '1px solid #ddd',
-  borderRadius: '4px',
-  fontSize: '13px',
+  padding: '6px 8px',
+  border: '1px solid #cbd5e1',
+  borderRadius: '2px',
+  fontSize: '12px',
   boxSizing: 'border-box',
+  background: '#fff',
 };
 
 const thStyle = {
-  padding: '10px 8px',
-  textAlign: 'left',
-  fontWeight: '600',
-  color: '#333',
-  borderBottom: '2px solid #ddd',
-  fontSize: '12px',
+  padding: '6px 6px',
+  textAlign: 'center',
+  fontWeight: '700',
+  color: '#1f2937',
+  borderBottom: '1px solid #cbd5e1',
+  fontSize: '11px',
+  background: '#f3f4f6',
+  textTransform: 'uppercase',
+  letterSpacing: '0.02em',
 };
 
 const cellInputStyle = {
   width: '100%',
-  padding: '6px 8px',
-  border: '1px solid transparent',
-  borderRadius: '3px',
-  fontSize: '13px',
-  background: 'transparent',
+  padding: '4px 6px',
+  border: '1px solid #e2e8f0',
+  borderRadius: '0',
+  fontSize: '12px',
+  background: '#fff',
   boxSizing: 'border-box',
+  height: '26px',
 };
 
 const iconBtnStyle = {
-  padding: '4px',
-  border: 'none',
+  padding: '2px',
+  border: '1px solid transparent',
   background: 'transparent',
   cursor: 'pointer',
-  color: '#666',
+  color: '#6b7280',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
@@ -986,11 +1018,12 @@ const sheetTabStyle = {
   display: 'flex',
   alignItems: 'center',
   gap: '4px',
-  padding: '6px 12px',
-  border: '1px solid #ddd',
-  borderRadius: '4px 4px 0 0',
+  padding: '6px 10px',
+  border: '1px solid #cbd5e1',
+  borderRadius: '3px 3px 0 0',
   cursor: 'pointer',
-  fontSize: '12px',
+  fontSize: '11px',
+  background: '#f8fafc',
 };
 
 const sheetCloseBtnStyle = {
@@ -1074,4 +1107,67 @@ const autocompleteItemStyle = {
   cursor: 'pointer',
   fontSize: '13px',
   borderBottom: '1px solid #f0f0f0',
+};
+
+const excelTableWrapStyle = {
+  overflowX: 'auto',
+  border: '1px solid #cbd5e1',
+  borderRadius: '4px',
+  background: '#fff',
+  boxShadow: 'inset 0 0 0 1px #e5e7eb',
+};
+
+const excelColumnHeaderRowStyle = {
+  background: '#e5e7eb',
+};
+
+const excelColumnHeaderCellStyle = {
+  padding: '4px 6px',
+  textAlign: 'center',
+  fontWeight: '700',
+  fontSize: '11px',
+  color: '#374151',
+  borderBottom: '1px solid #cbd5e1',
+  borderRight: '1px solid #d1d5db',
+  background: '#e5e7eb',
+};
+
+const excelCornerCellStyle = {
+  background: '#d9dde3',
+  borderRight: '1px solid #cbd5e1',
+};
+
+const excelHeaderRowStyle = {
+  background: '#f3f4f6',
+};
+
+const excelCellStyle = {
+  padding: '2px 4px',
+  borderBottom: '1px solid #e2e8f0',
+  borderRight: '1px solid #e2e8f0',
+  background: '#fff',
+};
+
+const excelRowHeaderCellStyle = {
+  background: '#f3f4f6',
+  borderRight: '1px solid #cbd5e1',
+};
+
+const excelMetaGridStyle = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(5, 1fr)',
+  gap: '12px',
+  marginBottom: '14px',
+  padding: '12px',
+  background: '#ffffff',
+  borderRadius: '4px',
+  border: '1px solid #d1d5db',
+};
+
+const excelMetaBoxStyle = {
+  marginBottom: '14px',
+  padding: '12px',
+  background: '#ffffff',
+  borderRadius: '4px',
+  border: '1px solid #d1d5db',
 };

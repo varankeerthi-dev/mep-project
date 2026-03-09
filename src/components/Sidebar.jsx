@@ -91,7 +91,14 @@ const menuData = [
           { id: 'quotation-create', label: 'Create Quotation', path: '/quotation/create' }
         ]
       },
-      { id: 'boq', label: 'BOQ', path: '/boq' },
+      {
+        id: 'boq',
+        label: 'BOQ',
+        submenu: [
+          { id: 'boq-list', label: 'BOQ List', path: '/boq' },
+          { id: 'boq-create', label: 'Create BOQ', path: '/boq/create' }
+        ]
+      },
       { id: 'documents', label: 'Documents', path: '/documents' },
       { id: 'issue', label: 'Issue', path: '/issue' },
       { id: 'client-comm', label: 'Client Communication', path: '/client-comm' }
