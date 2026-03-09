@@ -81,12 +81,13 @@ export default function BOQList() {
                   <th>Client</th>
                   <th>Project</th>
                   <th style={{ width: '120px' }}>Status</th>
+                  <th style={{ width: '120px' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={6} style={{ padding: '24px', textAlign: 'center', color: '#6b7280' }}>
+                    <td colSpan={7} style={{ padding: '24px', textAlign: 'center', color: '#6b7280' }}>
                       No BOQs found
                     </td>
                   </tr>
@@ -101,6 +102,11 @@ export default function BOQList() {
                       <span className={`badge ${boq.status === 'Approved' ? 'badge-success' : 'badge-neutral'}`}>
                         {boq.status || 'Draft'}
                       </span>
+                    </td>
+                    <td>
+                      <button className="btn btn-secondary" onClick={() => navigate(`/boq/create?editId=${boq.id}`)}>
+                        Edit
+                      </button>
                     </td>
                   </tr>
                 ))}

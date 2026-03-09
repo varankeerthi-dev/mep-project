@@ -4,7 +4,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import { Save, FileDown, Plus, Trash2, Sheet, Table, X, Settings, FileSpreadsheet, Loader2, GripVertical } from 'lucide-react';
-import { saveBOQWithItems } from '../api';
+import { saveBOQWithItems, fetchBOQById } from '../api';
 
 const generateId = () => Math.random().toString(36).substr(2, 9);
 const DEFAULT_TERMS = [
@@ -55,6 +55,11 @@ const DEFAULT_SHEETS = [
 ];
 
 export function BOQ() {
+  const editId = useMemo(() => {
+    if (typeof window === 'undefined') return null;
+    const params = new URLSearchParams(window.location.search);
+    return params.get('editId');
+  }, []);
   const [boqData, setBoqData] = useState({
     id: null,
     boqNo: '',
@@ -171,8 +176,70 @@ export function BOQ() {
         setMakes(uniqueMakes);
       }
 
-      const newBoqNo = await generateBoqNumber();
-      setBoqData(prev => ({ ...prev, boqNo: newBoqNo }));
+      if (editId) {
+        const header = await fetchBOQById(editId);
+        if (header) {
+          setBoqData(prev => ({
+            ...prev,
+            id: header.id,
+            boqNo: header.boq_no || '',
+            revisionNo: header.revision_no || 1,
+            date: header.boq_date || prev.date,
+            clientId: header.client_id || '',
+            projectId: header.project_id || '',
+            variantId: header.variant_id || '',
+            status: header.status || 'Draft',
+            termsConditions: header.terms_conditions || prev.termsConditions,
+            preface: header.preface || prev.preface
+          }));
+
+          const loadedSheets = (header.sheets || [])
+            .slice()
+            .sort((a, b) => (a.sheet_order || 0) - (b.sheet_order || 0))
+            .map(s => ({
+              id: s.id,
+              name: s.sheet_name,
+              isDefault: !!s.is_default
+            }));
+          if (loadedSheets.length > 0) {
+            setSheets(loadedSheets);
+            setActiveSheetId(loadedSheets[0].id);
+          }
+
+          const itemsMap = {};
+          (header.sheets || []).forEach(sheet => {
+            const rows = (sheet.items || [])
+              .slice()
+              .sort((a, b) => (a.row_order || 0) - (b.row_order || 0))
+              .map(item => ({
+                id: item.id,
+                isHeaderRow: !!item.is_header_row,
+                headerText: item.header_text || 'SECTION',
+                itemId: item.item_id || '',
+                variantId: item.variant_id || '',
+                variantName: '',
+                make: item.make || '',
+                quantity: item.quantity || '',
+                rate: item.rate || '',
+                discountPercent: item.discount_percent || '',
+                hsn_sac: '',
+                unit: '',
+                specification: item.specification || '',
+                remarks: item.remarks || '',
+                pressure: item.pressure || '',
+                thickness: item.thickness || '',
+                schedule: item.schedule || '',
+                material: item.material || '',
+                description: item.material || ''
+              }));
+            itemsMap[sheet.id] = rows;
+          });
+          setItems(itemsMap);
+        }
+      } else {
+        const newBoqNo = await generateBoqNumber();
+        setBoqData(prev => ({ ...prev, boqNo: newBoqNo }));
+      }
     } catch (error) {
       console.error('Error fetching data:', error);
     }
@@ -416,6 +483,24 @@ export function BOQ() {
 
     if (field === 'variantId' && value) {
       newItems[index].discountPercent = getVariantDiscount(value);
+      if (newItems[index].itemId) {
+        getPrice(newItems[index].itemId, value, newItems[index].make || '')
+          .then(price => {
+            newItems[index].rate = price;
+            setItems(prev => ({ ...prev, [activeSheetId]: [...newItems] }));
+          });
+      }
+    }
+
+    if (field === 'make') {
+      const variant = newItems[index].variantId || boqData.variantId;
+      if (newItems[index].itemId) {
+        getPrice(newItems[index].itemId, variant, value)
+          .then(price => {
+            newItems[index].rate = price;
+            setItems(prev => ({ ...prev, [activeSheetId]: [...newItems] }));
+          });
+      }
     }
 
     setItems(prev => ({ ...prev, [activeSheetId]: newItems }));
