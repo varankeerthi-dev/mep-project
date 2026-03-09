@@ -3,7 +3,7 @@ import { supabase } from '../supabase';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import * as XLSX from 'xlsx';
-import { Save, FileDown, Plus, Trash2, Sheet, Table, X, Settings, FileSpreadsheet, Loader2 } from 'lucide-react';
+import { Save, FileDown, Plus, Trash2, Sheet, Table, X, Settings, FileSpreadsheet, Loader2, GripVertical, Pencil } from 'lucide-react';
 import { saveBOQWithItems } from '../api';
 
 const generateId = () => Math.random().toString(36).substr(2, 9);
@@ -74,6 +74,10 @@ export function BOQ() {
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [loading, setLoading] = useState(false);
   const [materialSearch, setMaterialSearch] = useState({});
+  const [dragRowIndex, setDragRowIndex] = useState(null);
+  const [dragSheetId, setDragSheetId] = useState(null);
+  const [editingSheetId, setEditingSheetId] = useState(null);
+  const [editingSheetName, setEditingSheetName] = useState('');
 
   const inputRefs = useRef({});
 
@@ -158,7 +162,8 @@ export function BOQ() {
     } else if (client?.custom_discounts) {
       const discountMap = {};
       Object.entries(client.custom_discounts).forEach(([variantId, discount]) => {
-        discountMap[variantId] = { discount, variantName: '' };
+        const variantName = variants.find(v => v.id === variantId)?.variant_name || '';
+        discountMap[variantId] = { discount, variantName };
       });
       setClientDiscounts(discountMap);
     }
@@ -231,6 +236,10 @@ export function BOQ() {
     return clientDiscounts[variantId]?.discount || 0;
   }, [boqVariantDiscounts, clientDiscounts]);
 
+  const getVariantNameById = useCallback((variantId) => {
+    return variants.find(v => v.id === variantId)?.variant_name || '';
+  }, [variants]);
+
   const insertRow = useCallback((afterIndex) => {
     const currentItems = items[activeSheetId] || [];
     const newRow = {
@@ -282,6 +291,10 @@ export function BOQ() {
     newItems[index] = { ...newItems[index], [field]: value };
 
     if (field === 'itemId' && value) {
+      if (!newItems[index].description) {
+        const material = materials.find(m => m.id === value);
+        if (material?.name) newItems[index].description = material.name;
+      }
       getPrice(value, newItems[index].variantId || boqData.variantId, newItems[index].make)
         .then(price => {
           newItems[index].rate = price;
@@ -289,12 +302,33 @@ export function BOQ() {
         });
     }
 
-    if (field === 'variantId' && !newItems[index].variantId) {
+    if (field === 'variantId' && value) {
       newItems[index].discountPercent = getVariantDiscount(value);
     }
 
     setItems(prev => ({ ...prev, [activeSheetId]: newItems }));
   }, [activeSheetId, items, boqData.variantId, getPrice, getVariantDiscount]);
+
+  useEffect(() => {
+    if (!materials.length) return;
+    let changed = false;
+    const updated = { ...items };
+    Object.keys(updated).forEach(sheetId => {
+      const list = updated[sheetId] || [];
+      const next = list.map(row => {
+        if (!row.isHeaderRow && row.itemId && !row.description) {
+          const material = materials.find(m => m.id === row.itemId);
+          if (material?.name) {
+            changed = true;
+            return { ...row, description: material.name };
+          }
+        }
+        return row;
+      });
+      updated[sheetId] = next;
+    });
+    if (changed) setItems(updated);
+  }, [materials]);
 
   const toggleColumnVisibility = (columnKey) => {
     setColumnSettings(prev => prev.map(col => 
@@ -325,6 +359,58 @@ export function BOQ() {
       delete newItems[sheetId];
       return newItems;
     });
+  };
+
+  const handleRowDragStart = (e, index) => {
+    const tag = e.target?.tagName?.toLowerCase();
+    if (tag === 'input' || tag === 'select' || tag === 'textarea') {
+      e.preventDefault();
+      return;
+    }
+    setDragRowIndex(index);
+  };
+
+  const handleRowDrop = (index) => {
+    if (dragRowIndex === null || dragRowIndex === index) return;
+    const currentItems = items[activeSheetId] || [];
+    const nextItems = [...currentItems];
+    const [moved] = nextItems.splice(dragRowIndex, 1);
+    nextItems.splice(index, 0, moved);
+    setItems(prev => ({ ...prev, [activeSheetId]: nextItems }));
+    setDragRowIndex(null);
+  };
+
+  const handleSheetDragStart = (sheetId) => {
+    setDragSheetId(sheetId);
+  };
+
+  const handleSheetDrop = (sheetId) => {
+    if (!dragSheetId || dragSheetId === sheetId) return;
+    const current = [...sheets];
+    const fromIndex = current.findIndex(s => s.id === dragSheetId);
+    const toIndex = current.findIndex(s => s.id === sheetId);
+    if (fromIndex < 0 || toIndex < 0) return;
+    const [moved] = current.splice(fromIndex, 1);
+    current.splice(toIndex, 0, moved);
+    setSheets(current);
+    setDragSheetId(null);
+  };
+
+  const startSheetRename = (sheet) => {
+    setEditingSheetId(sheet.id);
+    setEditingSheetName(sheet.name || '');
+  };
+
+  const commitSheetRename = (sheetId) => {
+    const name = editingSheetName.trim();
+    if (!name) {
+      setEditingSheetId(null);
+      setEditingSheetName('');
+      return;
+    }
+    setSheets(prev => prev.map(s => (s.id === sheetId ? { ...s, name } : s)));
+    setEditingSheetId(null);
+    setEditingSheetName('');
   };
 
   const totals = useMemo(() => {
@@ -613,32 +699,34 @@ export function BOQ() {
         </div>
 
         <div style={excelMetaBoxStyle}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
             <label style={{ ...labelStyle, marginBottom: 0 }}>Variant:</label>
-            <select value={boqData.variantId} onChange={(e) => handleVariantChange(e.target.value)} style={{ ...inputStyle, width: '200px' }}>
+            <select value={boqData.variantId} onChange={(e) => handleVariantChange(e.target.value)} style={{ ...inputStyle, width: '220px' }}>
               <option value="">Select Variant (Default for all rows)</option>
               {variants.map(v => <option key={v.id} value={v.id}>{v.variant_name}</option>)}
             </select>
-          </div>
 
-          {Object.keys(clientDiscounts).length > 0 && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '15px', paddingTop: '10px', borderTop: '1px solid #ddd' }}>
-              <span style={{ fontWeight: '500', color: '#666' }}>Variant Discounts:</span>
-              {Object.entries(clientDiscounts).map(([variantId, data]) => (
-                <div key={variantId} style={variantDiscountBoxStyle}>
-                  <span style={{ fontSize: '13px' }}>{data.variantName || 'Default'}</span>
-                  <input
-                    type="number"
-                    value={boqVariantDiscounts[variantId] ?? data.discount}
-                    onChange={(e) => handleVariantDiscountChange(variantId, e.target.value)}
-                    style={{ ...inputStyle, width: '60px', padding: '4px' }}
-                    step="0.5"
-                  />
-                  <span style={{ fontSize: '12px', color: '#666' }}>%</span>
-                </div>
-              ))}
-            </div>
-          )}
+            {Object.keys(clientDiscounts).length > 0 && (
+              <>
+                <span style={{ fontWeight: '600', color: '#4b5563', fontSize: '12px' }}>Variant Discounts:</span>
+                {Object.entries(clientDiscounts).map(([variantId, data]) => (
+                  <div key={variantId} style={variantDiscountBoxStyle}>
+                    <span style={{ fontSize: '12px' }}>
+                      {data.variantName || getVariantNameById(variantId) || '-'}
+                    </span>
+                    <input
+                      type="number"
+                      value={boqVariantDiscounts[variantId] ?? data.discount}
+                      onChange={(e) => handleVariantDiscountChange(variantId, e.target.value)}
+                      style={{ ...inputStyle, width: '60px', padding: '4px' }}
+                      step="0.5"
+                    />
+                    <span style={{ fontSize: '11px', color: '#6b7280' }}>%</span>
+                  </div>
+                ))}
+              </>
+            )}
+          </div>
         </div>
 
         <div style={{ marginBottom: '15px', display: 'flex', gap: '10px' }}>
@@ -647,17 +735,45 @@ export function BOQ() {
           </button>
           <div style={{ display: 'flex', gap: '5px', marginLeft: 'auto' }}>
             {sheets.map((sheet, idx) => (
-              <div key={sheet.id} style={{ display: 'flex', alignItems: 'center' }}>
-                <button
-                  onClick={() => setActiveSheetId(sheet.id)}
-                  style={{
-                    ...sheetTabStyle,
-                    background: activeSheetId === sheet.id ? '#1976d2' : '#f0f0f0',
-                    color: activeSheetId === sheet.id ? 'white' : '#333',
-                  }}
-                >
-                  <Sheet size={14} /> {sheet.name}
-                </button>
+              <div
+                key={sheet.id}
+                style={{ display: 'flex', alignItems: 'center' }}
+                draggable
+                onDragStart={() => handleSheetDragStart(sheet.id)}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={() => handleSheetDrop(sheet.id)}
+              >
+                {editingSheetId === sheet.id ? (
+                  <input
+                    value={editingSheetName}
+                    onChange={(e) => setEditingSheetName(e.target.value)}
+                    onBlur={() => commitSheetRename(sheet.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') commitSheetRename(sheet.id);
+                      if (e.key === 'Escape') { setEditingSheetId(null); setEditingSheetName(''); }
+                    }}
+                    autoFocus
+                    style={{ ...inputStyle, width: '140px', height: '26px' }}
+                  />
+                ) : (
+                  <button
+                    onClick={() => setActiveSheetId(sheet.id)}
+                    onDoubleClick={() => startSheetRename(sheet)}
+                    style={{
+                      ...sheetTabStyle,
+                      background: activeSheetId === sheet.id ? '#1976d2' : '#f0f0f0',
+                      color: activeSheetId === sheet.id ? 'white' : '#333',
+                    }}
+                    title="Double-click to rename"
+                  >
+                    <Sheet size={14} /> {sheet.name}
+                  </button>
+                )}
+                {editingSheetId !== sheet.id && (
+                  <button onClick={() => startSheetRename(sheet)} style={sheetCloseBtnStyle} title="Rename sheet">
+                    <Pencil size={12} />
+                  </button>
+                )}
                 {sheets.length > 1 && idx > 0 && (
                   <button onClick={() => deleteSheet(sheet.id)} style={sheetCloseBtnStyle}>
                     <X size={12} />
@@ -672,7 +788,7 @@ export function BOQ() {
         </div>
 
         <div style={excelTableWrapStyle}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
             <thead>
               <tr style={excelColumnHeaderRowStyle}>
                 {visibleColumns.map((col, idx) => (
@@ -700,7 +816,14 @@ export function BOQ() {
             <tbody>
               {currentItems.map((item, index) => (
                 item.isHeaderRow ? (
-                  <tr key={item.id} style={{ background: '#e8e8e8' }}>
+                  <tr
+                    key={item.id}
+                    style={{ background: '#e8e8e8' }}
+                    draggable
+                    onDragStart={(e) => handleRowDragStart(e, index)}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={() => handleRowDrop(index)}
+                  >
                     <td colSpan={visibleColumns.length} style={{ padding: '10px', fontWeight: 'bold', textAlign: 'left' }}>
                       <input
                         type="text"
@@ -711,11 +834,21 @@ export function BOQ() {
                     </td>
                   </tr>
                 ) : (
-                  <tr key={item.id} style={{ background: index % 2 === 0 ? 'white' : '#fafafa' }}>
+                  <tr
+                    key={item.id}
+                    style={{ background: '#fff' }}
+                    draggable
+                    onDragStart={(e) => handleRowDragStart(e, index)}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={() => handleRowDrop(index)}
+                  >
                     {visibleColumns.map(col => (
                       <td key={col.key} style={{ ...excelCellStyle, ...(col.key === 'rowControl' || col.key === 'sno' ? excelRowHeaderCellStyle : null) }}>
                         {col.key === 'rowControl' && (
                           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <span title="Drag row" style={{ cursor: 'grab', color: '#9ca3af' }}>
+                              <GripVertical size={14} />
+                            </span>
                             <button onClick={() => deleteRow(index)} style={iconBtnStyle} title="Delete Row">
                               <Trash2 size={14} />
                             </button>
@@ -986,6 +1119,7 @@ const thStyle = {
   fontWeight: '700',
   color: '#1f2937',
   borderBottom: '1px solid #cbd5e1',
+  borderRight: '1px solid #d1d5db',
   fontSize: '11px',
   background: '#f3f4f6',
   textTransform: 'uppercase',
@@ -1145,6 +1279,7 @@ const excelCellStyle = {
   padding: '2px 4px',
   borderBottom: '1px solid #e2e8f0',
   borderRight: '1px solid #e2e8f0',
+  borderLeft: '1px solid #e2e8f0',
   background: '#fff',
 };
 
