@@ -101,6 +101,9 @@ export function BOQ() {
   const [editingSheetId, setEditingSheetId] = useState(null);
   const [editingSheetName, setEditingSheetName] = useState('');
   const [activeRowIndex, setActiveRowIndex] = useState(null);
+  const [showDiscountApplyModal, setShowDiscountApplyModal] = useState(false);
+  const [pendingDiscountChange, setPendingDiscountChange] = useState(null);
+  const [discountApplyMode, setDiscountApplyMode] = useState('skip');
 
   const inputRefs = useRef({});
   const prevDefaultVariantRef = useRef('');
@@ -314,8 +317,11 @@ export function BOQ() {
       alert(`Maximum allowed discount is ${maxDiscount}%`);
       return;
     }
-    
-    setBoqVariantDiscounts(prev => ({ ...prev, [variantId]: discount }));
+
+    const prevDiscount = getVariantDiscount(variantId);
+    setPendingDiscountChange({ variantId, discount, prevDiscount });
+    setDiscountApplyMode('skip');
+    setShowDiscountApplyModal(true);
   };
 
   const getPrice = useCallback(async (itemId, variantId, make) => {
@@ -363,6 +369,31 @@ export function BOQ() {
     }
     return clientDiscounts[variantId]?.discount || 0;
   }, [boqVariantDiscounts, clientDiscounts]);
+
+  const applyVariantDiscountToRows = useCallback((variantId, newDiscount, prevDiscount, mode) => {
+    setItems(prevItems => {
+      const next = { ...prevItems };
+      Object.keys(next).forEach(sheetId => {
+        const list = next[sheetId] || [];
+        next[sheetId] = list.map(row => {
+          if (row.isHeaderRow) return row;
+          const isTargetVariant = row.variantId
+            ? row.variantId === variantId
+            : boqData.variantId === variantId;
+          if (!isTargetVariant) return row;
+
+          if (mode === 'skip') {
+            const current = row.discountPercent;
+            const isOverwritten = current !== '' && current !== null && parseFloat(current) !== parseFloat(prevDiscount || 0);
+            if (isOverwritten) return row;
+          }
+
+          return { ...row, discountPercent: newDiscount };
+        });
+      });
+      return next;
+    });
+  }, [boqData.variantId]);
 
   const getVariantNameById = useCallback((variantId) => {
     return variants.find(v => v.id === variantId)?.variant_name || '';
@@ -1624,9 +1655,9 @@ const exportToExcel = useCallback(() => {
         </div>
       )}
 
-      {showExportSettings && (
-        <div style={modalOverlayStyle} onClick={() => setShowExportSettings(false)}>
-          <div style={{ ...modalStyle, width: '520px', maxHeight: '80vh' }} onClick={(e) => e.stopPropagation()}>
+        {showExportSettings && (
+          <div style={modalOverlayStyle} onClick={() => setShowExportSettings(false)}>
+            <div style={{ ...modalStyle, width: '520px', maxHeight: '80vh' }} onClick={(e) => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <h3 style={{ margin: 0, fontSize: '18px' }}>Export Settings</h3>
               <button onClick={() => setShowExportSettings(false)} style={closeBtnStyle}><X size={20} /></button>
@@ -1705,10 +1736,59 @@ const exportToExcel = useCallback(() => {
                 Save As Default
               </button>
               <button className="btn btn-secondary" onClick={() => setShowExportSettings(false)}>Close</button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+
+        {showDiscountApplyModal && pendingDiscountChange && (
+          <div style={modalOverlayStyle} onClick={() => setShowDiscountApplyModal(false)}>
+            <div style={{ ...modalStyle, width: '520px' }} onClick={(e) => e.stopPropagation()}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <h3 style={{ margin: 0, fontSize: '18px' }}>Apply Discount to Rows</h3>
+                <button onClick={() => setShowDiscountApplyModal(false)} style={closeBtnStyle}><X size={20} /></button>
+              </div>
+              <div style={{ fontSize: '13px', color: '#374151', marginBottom: '10px' }}>
+                Do you want to copy the discount % to all rows for this variant?
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '14px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
+                  <input
+                    type="radio"
+                    name="discount-apply-mode"
+                    checked={discountApplyMode === 'all'}
+                    onChange={() => setDiscountApplyMode('all')}
+                  />
+                  Copy to all rows of this variant
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
+                  <input
+                    type="radio"
+                    name="discount-apply-mode"
+                    checked={discountApplyMode === 'skip'}
+                    onChange={() => setDiscountApplyMode('skip')}
+                  />
+                  Skip overwritten rows (only update non-overwritten)
+                </label>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                <button className="btn btn-secondary" onClick={() => setShowDiscountApplyModal(false)}>Cancel</button>
+                <button
+                  className="btn btn-primary"
+                  onClick={() => {
+                    const { variantId, discount, prevDiscount } = pendingDiscountChange;
+                    setBoqVariantDiscounts(prev => ({ ...prev, [variantId]: discount }));
+                    applyVariantDiscountToRows(variantId, discount, prevDiscount, discountApplyMode);
+                    setShowDiscountApplyModal(false);
+                    setPendingDiscountChange(null);
+                  }}
+                >
+                  Apply
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
     </div>
   );
 }
