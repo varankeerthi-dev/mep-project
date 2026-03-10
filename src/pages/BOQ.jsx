@@ -1108,63 +1108,79 @@ const exportToExcel = useCallback(() => {
       </div>
 
       <div style={cardStyle}>
-        <div style={excelMetaGridStyle}>
-          <div>
-            <label style={labelStyle}>Date</label>
-            <input type="date" value={boqData.date} onChange={(e) => setBoqData(prev => ({ ...prev, date: e.target.value }))} style={inputStyle} />
+        <div style={boqHeaderGridStyle}>
+          <div style={boqHeaderCardStyle}>
+            <div style={boqHeaderTitleStyle}>BOQ Info</div>
+            <div style={boqHeaderFieldsStyle}>
+              <div>
+                <label style={labelStyle}>BOQ No</label>
+                <input type="text" value={boqData.boqNo} onChange={(e) => setBoqData(prev => ({ ...prev, boqNo: e.target.value }))} style={inputStyle} />
+              </div>
+              <div>
+                <label style={labelStyle}>Revision No</label>
+                <input type="number" value={boqData.revisionNo} onChange={(e) => setBoqData(prev => ({ ...prev, revisionNo: parseInt(e.target.value) || 1 }))} style={inputStyle} />
+              </div>
+              <div>
+                <label style={labelStyle}>Date</label>
+                <input type="date" value={boqData.date} onChange={(e) => setBoqData(prev => ({ ...prev, date: e.target.value }))} style={inputStyle} />
+              </div>
+            </div>
           </div>
-          <div>
-            <label style={labelStyle}>Client</label>
-            <select value={boqData.clientId} onChange={(e) => handleClientChange(e.target.value)} style={inputStyle}>
-              <option value="">Select Client</option>
-              {clients.map(c => <option key={c.id} value={c.id}>{c.client_name}</option>)}
-            </select>
-          </div>
-          <div>
-            <label style={labelStyle}>Project</label>
-            <select value={boqData.projectId} onChange={(e) => setBoqData(prev => ({ ...prev, projectId: e.target.value }))} style={inputStyle}>
-              <option value="">Select Project</option>
-              {projects.map(p => <option key={p.id} value={p.id}>{p.project_name}</option>)}
-            </select>
-          </div>
-          <div>
-            <label style={labelStyle}>BOQ No</label>
-            <input type="text" value={boqData.boqNo} onChange={(e) => setBoqData(prev => ({ ...prev, boqNo: e.target.value }))} style={inputStyle} />
-          </div>
-          <div>
-            <label style={labelStyle}>Revision No</label>
-            <input type="number" value={boqData.revisionNo} onChange={(e) => setBoqData(prev => ({ ...prev, revisionNo: parseInt(e.target.value) || 1 }))} style={inputStyle} />
-          </div>
-        </div>
 
-        <div style={excelMetaBoxStyle}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-            <label style={{ ...labelStyle, marginBottom: 0 }}>Variant:</label>
-            <select value={boqData.variantId} onChange={(e) => handleVariantChange(e.target.value)} style={{ ...inputStyle, width: '220px' }}>
-              <option value="">Select Variant (Default for all rows)</option>
-              {variants.map(v => <option key={v.id} value={v.id}>{v.variant_name}</option>)}
-            </select>
+          <div style={boqHeaderCardStyle}>
+            <div style={boqHeaderTitleStyle}>BOQ Info</div>
+            <div style={boqHeaderFieldsStyle}>
+              <div>
+                <label style={labelStyle}>Client</label>
+                <select value={boqData.clientId} onChange={(e) => handleClientChange(e.target.value)} style={inputStyle}>
+                  <option value="">Select Client</option>
+                  {clients.map(c => <option key={c.id} value={c.id}>{c.client_name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={labelStyle}>Project</label>
+                <select value={boqData.projectId} onChange={(e) => setBoqData(prev => ({ ...prev, projectId: e.target.value }))} style={inputStyle}>
+                  <option value="">Select Project</option>
+                  {projects.map(p => <option key={p.id} value={p.id}>{p.project_name}</option>)}
+                </select>
+              </div>
+            </div>
+          </div>
 
-            {Object.keys(clientDiscounts).length > 0 && (
-              <>
-                <span style={{ fontWeight: '600', color: '#4b5563', fontSize: '12px' }}>Variant Discounts:</span>
-                {Object.entries(clientDiscounts).map(([variantId, data]) => (
-                  <div key={variantId} style={variantDiscountBoxStyle}>
-                    <span style={{ fontSize: '12px' }}>
-                      {data.variantName || getVariantNameById(variantId) || '-'}
-                    </span>
-                    <input
-                      type="number"
-                      value={boqVariantDiscounts[variantId] ?? data.discount}
-                      onChange={(e) => handleVariantDiscountChange(variantId, e.target.value)}
-                      style={{ ...inputStyle, width: '60px', padding: '4px' }}
-                      step="0.5"
-                    />
-                    <span style={{ fontSize: '11px', color: '#6b7280' }}>%</span>
+          <div style={boqHeaderCardStyle}>
+            <div style={boqHeaderTitleStyle}>Discount Profile</div>
+            <div style={boqHeaderFieldsStyle}>
+              <div>
+                <label style={labelStyle}>Variant Default</label>
+                <select value={boqData.variantId} onChange={(e) => handleVariantChange(e.target.value)} style={{ ...inputStyle, width: '100%' }}>
+                  <option value="">Select Variant (Default for all rows)</option>
+                  {variants.map(v => <option key={v.id} value={v.id}>{v.variant_name}</option>)}
+                </select>
+              </div>
+
+              {Object.keys(clientDiscounts).length > 0 && (
+                <div style={boqHeaderDiscountWrapStyle}>
+                  <span style={boqHeaderDiscountLabelStyle}>Variant Discounts (Editable)</span>
+                  <div style={boqHeaderDiscountListStyle}>
+                    {Object.entries(clientDiscounts).map(([variantId, data]) => (
+                      <div key={variantId} style={variantDiscountBoxStyle}>
+                        <span style={{ fontSize: '12px' }}>
+                          {data.variantName || getVariantNameById(variantId) || '-'}
+                        </span>
+                        <input
+                          type="number"
+                          value={boqVariantDiscounts[variantId] ?? data.discount}
+                          onChange={(e) => handleVariantDiscountChange(variantId, e.target.value)}
+                          style={{ ...inputStyle, width: '60px', padding: '4px' }}
+                          step="0.5"
+                        />
+                        <span style={{ fontSize: '11px', color: '#6b7280' }}>%</span>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </>
-            )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -1932,23 +1948,53 @@ const discountOverrideBadgeStyle = {
   letterSpacing: '0.02em',
 };
 
-const excelMetaGridStyle = {
+const boqHeaderGridStyle = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(5, 1fr)',
-  gap: '12px',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+  gap: '10px',
   marginBottom: '14px',
-  padding: '12px',
-  background: '#ffffff',
-  borderRadius: '4px',
-  border: '1px solid #d1d5db',
+  fontFamily: "'Open Sans', 'Roboto', sans-serif",
 };
 
-const excelMetaBoxStyle = {
-  marginBottom: '14px',
-  padding: '12px',
+const boqHeaderCardStyle = {
+  padding: '10px',
   background: '#ffffff',
   borderRadius: '4px',
   border: '1px solid #d1d5db',
+  boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+};
+
+const boqHeaderTitleStyle = {
+  fontSize: '12px',
+  fontWeight: '700',
+  color: '#111827',
+  marginBottom: '8px',
+  textTransform: 'uppercase',
+  letterSpacing: '0.03em',
+};
+
+const boqHeaderFieldsStyle = {
+  display: 'grid',
+  gridTemplateColumns: '1fr',
+  gap: '8px',
+};
+
+const boqHeaderDiscountWrapStyle = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '6px',
+};
+
+const boqHeaderDiscountLabelStyle = {
+  fontWeight: '600',
+  color: '#4b5563',
+  fontSize: '11px',
+};
+
+const boqHeaderDiscountListStyle = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: '6px',
 };
 
 const a4SheetStyle = {
