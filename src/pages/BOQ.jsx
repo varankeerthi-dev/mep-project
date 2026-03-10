@@ -7,7 +7,7 @@ import { Save, FileDown, Plus, Trash2, Sheet, Table, X, Settings, FileSpreadshee
 import { openSansRegular, openSansBold } from '../fonts/openSans';
 import { saveBOQWithItems, fetchBOQById } from '../api';
 
-const generateId = () => Math.random().toString(36).substr(2, 9);
+const generateId = () => `temp-${Math.random().toString(36).substr(2, 9)}`;
 const DEFAULT_TERMS = [
   'All prices are inclusive of applicable taxes unless specified otherwise.',
   'Delivery timeline will be confirmed after order acceptance.',

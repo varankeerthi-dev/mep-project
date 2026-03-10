@@ -828,9 +828,10 @@ export async function saveBOQ(boqData) {
 
 export async function saveBOQWithItems(boqData, sheets, itemsMap) {
   const headerId = await saveBOQ(boqData);
+  const isUuid = (value) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(value || ''));
 
   for (const sheet of sheets) {
-    if (!sheet.id || sheet.id.startsWith('temp-')) {
+    if (!sheet.id || sheet.id.startsWith('temp-') || !isUuid(sheet.id)) {
       const newSheet = {
         boq_header_id: headerId,
         sheet_name: sheet.name,
