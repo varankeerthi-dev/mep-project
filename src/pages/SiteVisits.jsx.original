@@ -3,12 +3,15 @@ import { supabase } from '../supabase';
 
 export function SiteVisitsDashboard({ onNavigate }) {
   const [visits, setVisits] = useState([])
+  const [clients, setClients] = useState([])
   const [filter, setFilter] = useState('all')
   const [searchTerm, setSearchTerm] = useState('')
   const [viewMode, setViewMode] = useState('list')
-  const [selectedVisit, setSelectedVisit] = useState(null)
 
   const loadData = async () => {
+    const { data: clientsData } = await supabase.from('clients').select('*').order('client_name')
+    setClients(clientsData || [])
+    
     let query = supabase.from('site_visits').select('*, client:clients(client_name)').order('visit_date', { ascending: false })
     
     if (filter === 'pending') {
@@ -25,18 +28,7 @@ export function SiteVisitsDashboard({ onNavigate }) {
     setVisits(data || [])
   }
 
-  const filteredVisits = visits.filter(v => {
-    const clientName = v.client?.client_name?.toLowerCase() || ''
-    return clientName.includes(searchTerm.toLowerCase()) || v.site_address?.toLowerCase().includes(searchTerm.toLowerCase())
-  })
-
   useEffect(() => { loadData() }, [filter])
-
-  useEffect(() => { 
-    if (filteredVisits.length > 0) {
-      setSelectedVisit(filteredVisits[0])
-    }
-  }, [filteredVisits])
 
   const getStatusColor = (status) => {
     if (status === 'Pending') return '#fff3cd'
@@ -46,8 +38,13 @@ export function SiteVisitsDashboard({ onNavigate }) {
     return '#e2e3e5'
   }
 
+  const filteredVisits = visits.filter(v => {
+    const clientName = v.client?.client_name?.toLowerCase() || ''
+    return clientName.includes(searchTerm.toLowerCase()) || v.site_address?.toLowerCase().includes(searchTerm.toLowerCase())
+  })
+
   return (
-    <div style={{ fontFamily: 'Inter, sans-serif' }}>
+    <div>
       <div className="page-header">
         <h1 className="page-title">Site Visits</h1>
         <button className="btn btn-primary" onClick={() => onNavigate('/site-visits/new')}>+ New Visit</button>
@@ -60,10 +57,10 @@ export function SiteVisitsDashboard({ onNavigate }) {
           <button className={`btn ${filter === 'this_month' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setFilter('this_month')}>This Month</button>
           <button className={`btn ${filter === 'completed' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setFilter('completed')}>Completed</button>
           <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <input
-              type="text"
-              className="form-input"
-              placeholder="Search visits..."
+            <input 
+              type="text" 
+              className="form-input" 
+              placeholder="Search visits..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               style={{ width: '250px' }}
@@ -74,37 +71,44 @@ export function SiteVisitsDashboard({ onNavigate }) {
         </div>
       </div>
 
-      <div style={{ display: 'flex', height: 'calc(100vh - 200px)' }}>
-        <div style={{ width: '30%', padding: '16px', borderRight: '1px solid #ddd', overflowY: 'auto' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
-            <button className="btn btn-sm btn-secondary" onClick={() => { const idx = filteredVisits.findIndex(v => v.id === selectedVisit?.id); if (idx > 0) setSelectedVisit(filteredVisits[idx-1]) }}>↑</button>
-            <button className="btn btn-sm btn-secondary" onClick={() => { const idx = filteredVisits.findIndex(v => v.id === selectedVisit?.id); if (idx < filteredVisits.length-1 && idx !== -1) setSelectedVisit(filteredVisits[idx+1]) }}>↓</button>
+      <div className="card">
+        {filteredVisits.length === 0 ? <div className="empty-state"><h3>No Site Visits</h3></div> : viewMode === 'list' ? (
+          <div className="table-container">
+            <table className="table">
+              <thead><tr><th>Date</th><th>Client</th><th>Site Address</th><th>Visited By</th><th>Next Step</th><th>Status</th><th>Actions</th></tr></thead>
+              <tbody>{filteredVisits.map(v => (
+                <tr key={v.id}>
+                  <td>{v.visit_date}</td>
+                  <td>{v.client?.client_name || '-'}</td>
+                  <td>{v.site_address || '-'}</td>
+                  <td>{v.visited_by || v.engineer_name || '-'}</td>
+                  <td>{v.next_step || '-'}</td>
+                  <td><span style={{ padding: '4px 8px', borderRadius: '4px', background: getStatusColor(v.status), fontSize: '12px' }}>{v.status}</span></td>
+                  <td><button className="btn btn-sm btn-secondary" onClick={() => onNavigate('/site-visits/edit?id=' + v.id)}>Edit</button></td>
+                </tr>
+              ))}</tbody>
+            </table>
           </div>
-          {filteredVisits.length === 0 ? <div className="empty-state"><h3>No Site Visits</h3></div> : filteredVisits.map(v => (
-            <div key={v.id} onClick={() => setSelectedVisit(v)} style={{ padding: '8px', border: '1px solid #ddd', marginBottom: '8px', cursor: 'pointer', background: selectedVisit?.id === v.id ? '#f0f0f0' : 'white' }} title={`Visited on ${v.visit_date} by ${v.visited_by || v.engineer_name || '-'}`}>
-              {v.visit_date} | {v.client?.client_name || '-'}
-            </div>
-          ))}
-        </div>
-        <div style={{ width: '70%', padding: '16px', overflowY: 'auto' }}>
-          {selectedVisit ? (
-            <div className="card" style={{ padding: '16px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                <h2>{selectedVisit.client?.client_name || '-'} - {selectedVisit.visit_date}</h2>
-                <span style={{ padding: '4px 8px', borderRadius: '4px', background: getStatusColor(selectedVisit.status), fontSize: '12px' }}>{selectedVisit.status}</span>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
+            {filteredVisits.map(v => (
+              <div key={v.id} className="card" style={{ padding: '16px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <span style={{ fontWeight: 'bold' }}>{v.client?.client_name || '-'}</span>
+                  <span style={{ padding: '2px 8px', borderRadius: '4px', background: getStatusColor(v.status), fontSize: '11px' }}>{v.status}</span>
+                </div>
+                <div style={{ fontSize: '13px', color: '#666', marginBottom: '4px' }}>{v.visit_date} {v.visit_time}</div>
+                <div style={{ fontSize: '13px', marginBottom: '4px' }}><strong>Address:</strong> {v.site_address || '-'}</div>
+                <div style={{ fontSize: '13px', marginBottom: '4px' }}><strong>Visited By:</strong> {v.visited_by || v.engineer_name || '-'}</div>
+                <div style={{ fontSize: '13px', marginBottom: '4px' }}><strong>Purpose:</strong> {v.purpose_of_visit || '-'}</div>
+                <div style={{ fontSize: '13px', marginBottom: '4px' }}><strong>Next Step:</strong> {v.next_step || '-'}</div>
+                <div style={{ fontSize: '13px', marginBottom: '8px' }}><strong>Follow Up:</strong> {v.follow_up_date || '-'}</div>
+                <div style={{ fontSize: '13px', marginBottom: '12px' }}><strong>Measurements:</strong> {v.measurements ? v.measurements.substring(0, 50) + '...' : '-'}</div>
+                <button className="btn btn-sm btn-secondary" onClick={() => onNavigate('/site-visits/edit?id=' + v.id)}>Edit</button>
               </div>
-              <div style={{ fontSize: '14px', marginBottom: '4px' }}><strong>Address:</strong> {selectedVisit.site_address || '-'}</div>
-              <div style={{ fontSize: '14px', marginBottom: '4px' }}><strong>Visited By:</strong> {selectedVisit.visited_by || selectedVisit.engineer_name || '-'}</div>
-              <div style={{ fontSize: '14px', marginBottom: '4px' }}><strong>Purpose:</strong> {selectedVisit.purpose_of_visit || '-'}</div>
-              <div style={{ fontSize: '14px', marginBottom: '4px' }}><strong>Next Step:</strong> {selectedVisit.next_step || '-'}</div>
-              <div style={{ fontSize: '14px', marginBottom: '4px' }}><strong>Follow Up:</strong> {selectedVisit.follow_up_date || '-'}</div>
-              <div style={{ fontSize: '14px', marginBottom: '4px' }}><strong>Measurements:</strong> {selectedVisit.measurements || '-'}</div>
-              <div style={{ fontSize: '14px', marginBottom: '4px' }}><strong>Discussion:</strong> {selectedVisit.discussion_points || '-'}</div>
-              <div style={{ fontSize: '14px', marginBottom: '8px' }}><strong>Time:</strong> {selectedVisit.visit_time || '-'} - {selectedVisit.out_time || '-'}</div>
-              <button className="btn btn-sm btn-secondary" onClick={() => onNavigate('/site-visits/edit?id=' + selectedVisit.id)}>Edit</button>
-            </div>
-          ) : <div className="empty-state"><h3>Select a visit to view details</h3></div>}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )
@@ -432,7 +436,7 @@ export function CreateSiteVisit({ onSuccess, onCancel, editMode, visitData: prop
             <div className="form-group"><label className="form-label">Photos</label><input type="file" className="form-input" accept="image/*" multiple onChange={handlePhotoUpload} disabled={uploading} /></div>
             <div className="form-group"><label className="form-label">Documents</label><input type="file" className="form-input" accept=".pdf,.doc,.docx,.xls,.xlsx" multiple onChange={handleDocumentUpload} disabled={uploading} /></div>
           </div>
-          {photos.length > 0 && (<div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>{photos.map((photo, i) => (<div key={i} style={{ position: 'relative', width: '60px', height: '60px' }}><img src={photo.photo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '4px' }} /><button type="button" onClick={() => removePhoto(i)} style={{ position: 'absolute', top: '-5px', right: '-5px', background: 'red', color: 'white', border: 'none', borderRadius: '50%', width: '18px', height: '18px', cursor: 'pointer' }}>×</button></div>))}</div>)}
+          {photos.length > 0 && (<div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>{photos.map((p, i) => (<div key={i} style={{ position: 'relative', width: '60px', height: '60px' }}><img src={p.photo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '4px' }} /><button type="button" onClick={() => removePhoto(i)} style={{ position: 'absolute', top: '-5px', right: '-5px', background: 'red', color: 'white', border: 'none', borderRadius: '50%', width: '18px', height: '18px', cursor: 'pointer' }}>×</button></div>))}</div>)}
           {documents.length > 0 && (<div style={{ marginBottom: '12px' }}>{documents.map((d, i) => (<div key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 8px', background: '#f5f5f5', borderRadius: '4px', marginRight: '8px', marginBottom: '4px' }}><span style={{ fontSize: '12px' }}>{d.document_name}</span><button type="button" onClick={() => removeDocument(i)} style={{ background: 'red', color: 'white', border: 'none', borderRadius: '4px', padding: '2px 6px', cursor: 'pointer', fontSize: '10px' }}>×</button></div>))}</div>)}
           <div style={{ display: 'flex', gap: '12px', marginTop: '12px' }}>
             <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Saving...' : (editMode ? 'Update' : 'Save')}</button>
