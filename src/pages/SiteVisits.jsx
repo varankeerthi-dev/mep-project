@@ -5,8 +5,7 @@ export function SiteVisitsDashboard({ onNavigate }) {
   const [visits, setVisits] = useState([])
   const [filter, setFilter] = useState('all')
   const [searchTerm, setSearchTerm] = useState('')
-  const [viewMode, setViewMode] = useState('list')
-  const [selectedVisit, setSelectedVisit] = useState(null)
+  const [quickViewVisit, setQuickViewVisit] = useState(null)
 
   const loadData = async () => {
     let query = supabase.from('site_visits').select('*, client:clients(client_name)').order('visit_date', { ascending: false })
@@ -25,87 +24,176 @@ export function SiteVisitsDashboard({ onNavigate }) {
     setVisits(data || [])
   }
 
+  const handleDelete = async (id) => {
+    if (!confirm('Are you sure you want to delete this site visit?')) return
+    const { error } = await supabase.from('site_visits').delete().eq('id', id)
+    if (error) {
+      alert('Error deleting: ' + error.message)
+    } else {
+      loadData()
+    }
+  }
+
   const filteredVisits = visits.filter(v => {
     const clientName = v.client?.client_name?.toLowerCase() || ''
-    return clientName.includes(searchTerm.toLowerCase()) || v.site_address?.toLowerCase().includes(searchTerm.toLowerCase())
+    const visitedBy = (v.visited_by || v.engineer_name || '').toLowerCase()
+    const searchLower = searchTerm.toLowerCase()
+    return clientName.includes(searchLower) || visitedBy.includes(searchLower)
   })
 
   useEffect(() => { loadData() }, [filter])
 
-  useEffect(() => { 
-    if (filteredVisits.length > 0) {
-      setSelectedVisit(filteredVisits[0])
+  const getStatusBadgeStyle = (status) => {
+    const styles = {
+      'Pending': { background: '#fff3cd', color: '#856404' },
+      'Quote to be Sent': { background: '#cce5ff', color: '#004085' },
+      'Offer Submitted': { background: '#d4edda', color: '#155724' },
+      'Completed': { background: '#d1ecf1', color: '#0c5460' },
+      'In Progress': { background: '#e2e3e5', color: '#383d41' },
+      'Cancelled': { background: '#f8d7da', color: '#721c24' }
     }
-  }, [filteredVisits])
-
-  const getStatusColor = (status) => {
-    if (status === 'Pending') return '#fff3cd'
-    if (status === 'Quote to be Sent') return '#cce5ff'
-    if (status === 'Offer Submitted') return '#d4edda'
-    if (status === 'Completed') return '#155724'
-    return '#e2e3e5'
+    return styles[status] || { background: '#e2e3e5', color: '#383d41' }
   }
 
   return (
-    <div style={{ fontFamily: 'Inter, sans-serif' }}>
-      <div className="page-header">
+    <div style={{ fontFamily: 'Inter, sans-serif', padding: '16px' }}>
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
         <h1 className="page-title">Site Visits</h1>
         <button className="btn btn-primary" onClick={() => onNavigate('/site-visits/new')}>+ New Visit</button>
       </div>
 
       <div className="card" style={{ marginBottom: '16px' }}>
-        <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
           <button className={`btn ${filter === 'all' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setFilter('all')}>All</button>
           <button className={`btn ${filter === 'pending' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setFilter('pending')}>Pending</button>
           <button className={`btn ${filter === 'this_month' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setFilter('this_month')}>This Month</button>
           <button className={`btn ${filter === 'completed' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setFilter('completed')}>Completed</button>
-          <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <div style={{ marginLeft: 'auto' }}>
             <input
               type="text"
               className="form-input"
-              placeholder="Search visits..."
+              placeholder="Search by client or visited by..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              style={{ width: '250px' }}
+              style={{ width: '280px' }}
             />
-            <button className={`btn ${viewMode === 'list' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setViewMode('list')}>List</button>
-            <button className={`btn ${viewMode === 'card' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setViewMode('card')}>Card</button>
           </div>
         </div>
       </div>
 
-      <div style={{ display: 'flex', height: 'calc(100vh - 200px)' }}>
-        <div style={{ width: '30%', padding: '16px', borderRight: '1px solid #ddd', overflowY: 'auto' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
-            <button className="btn btn-sm btn-secondary" onClick={() => { const idx = filteredVisits.findIndex(v => v.id === selectedVisit?.id); if (idx > 0) setSelectedVisit(filteredVisits[idx-1]) }}>↑</button>
-            <button className="btn btn-sm btn-secondary" onClick={() => { const idx = filteredVisits.findIndex(v => v.id === selectedVisit?.id); if (idx < filteredVisits.length-1 && idx !== -1) setSelectedVisit(filteredVisits[idx+1]) }}>↓</button>
-          </div>
-          {filteredVisits.length === 0 ? <div className="empty-state"><h3>No Site Visits</h3></div> : filteredVisits.map(v => (
-            <div key={v.id} onClick={() => setSelectedVisit(v)} style={{ padding: '8px', border: '1px solid #ddd', marginBottom: '8px', cursor: 'pointer', background: selectedVisit?.id === v.id ? '#f0f0f0' : 'white' }} title={`Visited on ${v.visit_date} by ${v.visited_by || v.engineer_name || '-'}`}>
-              {v.visit_date} | {v.client?.client_name || '-'}
-            </div>
-          ))}
-        </div>
-        <div style={{ width: '70%', padding: '16px', overflowY: 'auto' }}>
-          {selectedVisit ? (
-            <div className="card" style={{ padding: '16px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                <h2>{selectedVisit.client?.client_name || '-'} - {selectedVisit.visit_date}</h2>
-                <span style={{ padding: '4px 8px', borderRadius: '4px', background: getStatusColor(selectedVisit.status), fontSize: '12px' }}>{selectedVisit.status}</span>
-              </div>
-              <div style={{ fontSize: '14px', marginBottom: '4px' }}><strong>Address:</strong> {selectedVisit.site_address || '-'}</div>
-              <div style={{ fontSize: '14px', marginBottom: '4px' }}><strong>Visited By:</strong> {selectedVisit.visited_by || selectedVisit.engineer_name || '-'}</div>
-              <div style={{ fontSize: '14px', marginBottom: '4px' }}><strong>Purpose:</strong> {selectedVisit.purpose_of_visit || '-'}</div>
-              <div style={{ fontSize: '14px', marginBottom: '4px' }}><strong>Next Step:</strong> {selectedVisit.next_step || '-'}</div>
-              <div style={{ fontSize: '14px', marginBottom: '4px' }}><strong>Follow Up:</strong> {selectedVisit.follow_up_date || '-'}</div>
-              <div style={{ fontSize: '14px', marginBottom: '4px' }}><strong>Measurements:</strong> {selectedVisit.measurements || '-'}</div>
-              <div style={{ fontSize: '14px', marginBottom: '4px' }}><strong>Discussion:</strong> {selectedVisit.discussion_points || '-'}</div>
-              <div style={{ fontSize: '14px', marginBottom: '8px' }}><strong>Time:</strong> {selectedVisit.visit_time || '-'} - {selectedVisit.out_time || '-'}</div>
-              <button className="btn btn-sm btn-secondary" onClick={() => onNavigate('/site-visits/edit?id=' + selectedVisit.id)}>Edit</button>
-            </div>
-          ) : <div className="empty-state"><h3>Select a visit to view details</h3></div>}
-        </div>
+      <div className="card" style={{ overflow: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+          <thead>
+            <tr style={{ background: '#f8f9fa', borderBottom: '2px solid #dee2e6' }}>
+              <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600' }}>Date</th>
+              <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600' }}>Client Name</th>
+              <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600' }}>Visited By</th>
+              <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600' }}>Status</th>
+              <th style={{ padding: '12px', textAlign: 'center', fontWeight: '600' }}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredVisits.length === 0 ? (
+              <tr>
+                <td colSpan="5" style={{ padding: '40px', textAlign: 'center', color: '#6c757d' }}>
+                  No site visits found
+                </td>
+              </tr>
+            ) : (
+              filteredVisits.map(v => (
+                <tr key={v.id} style={{ borderBottom: '1px solid #dee2e6' }}>
+                  <td style={{ padding: '12px' }}>{v.visit_date || '-'}</td>
+                  <td style={{ padding: '12px' }}>{v.client?.client_name || '-'}</td>
+                  <td style={{ padding: '12px' }}>{v.visited_by || v.engineer_name || '-'}</td>
+                  <td style={{ padding: '12px' }}>
+                    <span style={{
+                      padding: '4px 12px',
+                      borderRadius: '12px',
+                      fontSize: '12px',
+                      fontWeight: '500',
+                      ...getStatusBadgeStyle(v.status)
+                    }}>
+                      {v.status || 'Pending'}
+                    </span>
+                  </td>
+                  <td style={{ padding: '12px', textAlign: 'center' }}>
+                    <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                      <button
+                        className="btn btn-sm"
+                        onClick={() => setQuickViewVisit(v)}
+                        style={{ background: '#17a2b8', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}
+                      >
+                        Quick View
+                      </button>
+                      <button
+                        className="btn btn-sm"
+                        onClick={() => onNavigate('/site-visits/edit?id=' + v.id)}
+                        style={{ background: '#ffc107', color: '#000', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        className="btn btn-sm"
+                        onClick={() => handleDelete(v.id)}
+                        style={{ background: '#dc3545', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
       </div>
+
+      {quickViewVisit && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }} onClick={() => setQuickViewVisit(null)}>
+          <div style={{
+            background: 'white',
+            padding: '24px',
+            borderRadius: '8px',
+            maxWidth: '500px',
+            width: '90%',
+            maxHeight: '80vh',
+            overflowY: 'auto'
+          }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ margin: 0 }}>Visit Details</h3>
+              <button onClick={() => setQuickViewVisit(null)} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer' }}>×</button>
+            </div>
+            <div style={{ marginBottom: '8px' }}><strong>Client:</strong> {quickViewVisit.client?.client_name || '-'}</div>
+            <div style={{ marginBottom: '8px' }}><strong>Date:</strong> {quickViewVisit.visit_date || '-'}</div>
+            <div style={{ marginBottom: '8px' }}><strong>Time:</strong> {quickViewVisit.visit_time || '-'} - {quickViewVisit.out_time || '-'}</div>
+            <div style={{ marginBottom: '8px' }}><strong>Visited By:</strong> {quickViewVisit.visited_by || quickViewVisit.engineer_name || '-'}</div>
+            <div style={{ marginBottom: '8px' }}><strong>Status:</strong> {quickViewVisit.status || '-'}</div>
+            <div style={{ marginBottom: '8px' }}><strong>Purpose:</strong> {quickViewVisit.purpose_of_visit || '-'}</div>
+            <div style={{ marginBottom: '8px' }}><strong>Site Address:</strong> {quickViewVisit.site_address || '-'}</div>
+            <div style={{ marginBottom: '8px' }}><strong>Measurements:</strong> {quickViewVisit.measurements || '-'}</div>
+            <div style={{ marginBottom: '8px' }}><strong>Discussion:</strong> {quickViewVisit.discussion_points || '-'}</div>
+            <div style={{ marginBottom: '8px' }}><strong>Next Step:</strong> {quickViewVisit.next_step || '-'}</div>
+            <div style={{ marginBottom: '8px' }}><strong>Follow Up:</strong> {quickViewVisit.follow_up_date || '-'}</div>
+            <div style={{ display: 'flex', gap: '12px', marginTop: '20px', justifyContent: 'flex-end' }}>
+              <button
+                className="btn btn-secondary"
+                onClick={() => { setQuickViewVisit(null); onNavigate('/site-visits/edit?id=' + quickViewVisit.id); }}
+              >
+                Edit
+              </button>
+              <button className="btn btn-secondary" onClick={() => setQuickViewVisit(null)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
