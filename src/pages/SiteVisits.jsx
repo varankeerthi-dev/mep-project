@@ -6,6 +6,17 @@ export function SiteVisitsDashboard({ onNavigate }) {
   const [filter, setFilter] = useState('all')
   const [searchTerm, setSearchTerm] = useState('')
   const [quickViewVisit, setQuickViewVisit] = useState(null)
+  const [editingNextStep, setEditingNextStep] = useState(null)
+  const [savingNextStep, setSavingNextStep] = useState(false)
+
+  const nextStepOptions = [
+    'Quote to be Sent',
+    'Offer Submitted',
+    'Follow up Required',
+    'Client Approval Pending',
+    'Order Pending',
+    'Completed'
+  ]
 
   const loadData = async () => {
     let query = supabase.from('site_visits').select('*, client:clients(client_name)').order('visit_date', { ascending: false })
@@ -34,6 +45,18 @@ export function SiteVisitsDashboard({ onNavigate }) {
     }
   }
 
+  const handleNextStepChange = async (visitId, newNextStep) => {
+    setSavingNextStep(true)
+    const { error } = await supabase.from('site_visits').update({ next_step: newNextStep }).eq('id', visitId)
+    if (error) {
+      alert('Error updating: ' + error.message)
+    } else {
+      setVisits(prev => prev.map(v => v.id === visitId ? { ...v, next_step: newNextStep } : v))
+      setEditingNextStep(null)
+    }
+    setSavingNextStep(false)
+  }
+
   const filteredVisits = visits.filter(v => {
     const clientName = v.client?.client_name?.toLowerCase() || ''
     const visitedBy = (v.visited_by || v.engineer_name || '').toLowerCase()
@@ -53,6 +76,18 @@ export function SiteVisitsDashboard({ onNavigate }) {
       'Cancelled': { background: '#f8d7da', color: '#721c24' }
     }
     return styles[status] || { background: '#e2e3e5', color: '#383d41' }
+  }
+
+  const getNextStepBadgeStyle = (nextStep) => {
+    const styles = {
+      'Quote to be Sent': { background: '#dbeafe', color: '#1e40af', border: '1px solid #93c5fd' },
+      'Offer Submitted': { background: '#dcfce7', color: '#166534', border: '1px solid #86efac' },
+      'Follow up Required': { background: '#fef3c7', color: '#92400e', border: '1px solid #fcd34d' },
+      'Client Approval Pending': { background: '#f3e8ff', color: '#6b21a8', border: '1px solid #d8b4fe' },
+      'Order Pending': { background: '#ffedd5', color: '#9a3412', border: '1px solid #fdba74' },
+      'Completed': { background: '#d1fae5', color: '#065f46', border: '1px solid #6ee7b7' }
+    }
+    return styles[nextStep] || { background: '#f3f4f6', color: '#374151', border: '1px solid #d1d5db' }
   }
 
   return (
@@ -89,13 +124,14 @@ export function SiteVisitsDashboard({ onNavigate }) {
               <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600' }}>Client Name</th>
               <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600' }}>Visited By</th>
               <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600' }}>Status</th>
+              <th style={{ padding: '12px', textAlign: 'left', fontWeight: '600' }}>Next Step</th>
               <th style={{ padding: '12px', textAlign: 'center', fontWeight: '600' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
             {filteredVisits.length === 0 ? (
               <tr>
-                <td colSpan="5" style={{ padding: '40px', textAlign: 'center', color: '#6c757d' }}>
+                <td colSpan="6" style={{ padding: '40px', textAlign: 'center', color: '#6c757d' }}>
                   No site visits found
                 </td>
               </tr>
@@ -115,6 +151,69 @@ export function SiteVisitsDashboard({ onNavigate }) {
                     }}>
                       {v.status || 'Pending'}
                     </span>
+                  </td>
+                  <td style={{ padding: '12px', position: 'relative' }}>
+                    <div
+                      onClick={() => setEditingNextStep(v.id)}
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        fontWeight: '500',
+                        cursor: 'pointer',
+                        display: 'inline-block',
+                        ...getNextStepBadgeStyle(v.next_step)
+                      }}
+                    >
+                      {v.next_step || 'Quote to be Sent'}
+                      <span style={{ marginLeft: '6px', fontSize: '10px' }}>▼</span>
+                    </div>
+                    
+                    {editingNextStep === v.id && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: 'calc(100% + 4px)',
+                          left: '0',
+                          zIndex: 100,
+                          background: 'white',
+                          border: '1px solid #e5e7eb',
+                          borderRadius: '8px',
+                          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+                          minWidth: '200px',
+                          maxHeight: '250px',
+                          overflowY: 'auto'
+                        }}
+                      >
+                        {savingNextStep ? (
+                          <div style={{ padding: '12px', textAlign: 'center', color: '#6b7280' }}>Saving...</div>
+                        ) : (
+                          nextStepOptions.map(option => (
+                            <div
+                              key={option}
+                              onClick={() => handleNextStepChange(v.id, option)}
+                              style={{
+                                padding: '10px 14px',
+                                cursor: 'pointer',
+                                fontSize: '13px',
+                                borderBottom: '1px solid #f3f4f6',
+                                background: v.next_step === option ? '#eff6ff' : 'white',
+                                color: v.next_step === option ? '#1d4ed8' : '#374151',
+                                fontWeight: v.next_step === option ? '600' : '400'
+                              }}
+                              onMouseEnter={(e) => {
+                                e.target.style.background = '#f9fafb'
+                              }}
+                              onMouseLeave={(e) => {
+                                e.target.style.background = v.next_step === option ? '#eff6ff' : 'white'
+                              }}
+                            >
+                              {option}
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    )}
                   </td>
                   <td style={{ padding: '12px', textAlign: 'center' }}>
                     <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
@@ -147,6 +246,21 @@ export function SiteVisitsDashboard({ onNavigate }) {
           </tbody>
         </table>
       </div>
+
+      {/* Click outside to close Next Step popup */}
+      {editingNextStep && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 50
+          }}
+          onClick={() => setEditingNextStep(null)}
+        />
+      )}
 
       {quickViewVisit && (
         <div style={{
