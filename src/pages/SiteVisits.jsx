@@ -3,16 +3,12 @@ import { supabase } from '../supabase';
 
 export function SiteVisitsDashboard({ onNavigate }) {
   const [visits, setVisits] = useState([])
-  const [clients, setClients] = useState([])
   const [filter, setFilter] = useState('all')
   const [searchTerm, setSearchTerm] = useState('')
   const [viewMode, setViewMode] = useState('list')
   const [selectedVisit, setSelectedVisit] = useState(null)
 
   const loadData = async () => {
-    const { data: clientsData } = await supabase.from('clients').select('*').order('client_name')
-    setClients(clientsData || [])
-    
     let query = supabase.from('site_visits').select('*, client:clients(client_name)').order('visit_date', { ascending: false })
     
     if (filter === 'pending') {
