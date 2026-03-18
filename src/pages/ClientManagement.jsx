@@ -419,171 +419,218 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }) {
   };
 
   return (
-    <div>
-      <div className="page-header">
-        <h1 className="page-title">{editMode ? 'Edit Client' : 'Create Client'}</h1>
-      </div>
+    <div style={{ minHeight: '100vh', background: '#f8fafc', padding: '24px' }}>
+      <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
+        
+        {/* Header - Shadcn Style */}
+        <div style={{ marginBottom: '24px' }}>
+          <h1 style={{ fontSize: '28px', fontWeight: '700', color: '#0f172a', marginBottom: '4px' }}>
+            {editMode ? 'Edit Client' : 'Create Client'}
+          </h1>
+          <p style={{ fontSize: '14px', color: '#64748b' }}>
+            {editMode ? 'Update client information and settings' : 'Add a new client to your organization'}
+          </p>
+        </div>
 
-      <div className="item-mini-tabs" style={{ marginBottom: '20px' }}>
-        <button 
-          className={`item-mini-tab ${activeTab === 'general' ? 'active' : ''}`}
-          onClick={() => setActiveTab('general')}
-        >
-          General Information
-        </button>
-        <button 
-          className={`item-mini-tab ${activeTab === 'pricing' ? 'active' : ''}`}
-          onClick={() => setActiveTab('pricing')}
-        >
-          Client Pricing Control
-        </button>
-      </div>
+        {/* Tabs - Shadcn Style */}
+        <div style={{ 
+          display: 'inline-flex', 
+          gap: '4px', 
+          padding: '4px',
+          background: '#f1f5f9',
+          borderRadius: '10px', 
+          marginBottom: '24px',
+          border: '1px solid #e2e8f0'
+        }}>
+          <button
+            onClick={() => setActiveTab('general')}
+            style={{
+              padding: '10px 24px',
+              borderRadius: '8px',
+              border: 'none',
+              fontSize: '14px',
+              fontWeight: '500',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              background: activeTab === 'general' ? '#ffffff' : 'transparent',
+              color: activeTab === 'general' ? '#0f172a' : '#64748b',
+              boxShadow: activeTab === 'general' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+            }}
+          >
+            General Information
+          </button>
+          <button
+            onClick={() => setActiveTab('pricing')}
+            style={{
+              padding: '10px 24px',
+              borderRadius: '8px',
+              border: 'none',
+              fontSize: '14px',
+              fontWeight: '500',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              background: activeTab === 'pricing' ? '#ffffff' : 'transparent',
+              color: activeTab === 'pricing' ? '#0f172a' : '#64748b',
+              boxShadow: activeTab === 'pricing' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+            }}
+          >
+            Client Pricing Control
+          </button>
+        </div>
 
-      <div className="card">
-        {activeTab === 'general' ? (
-          <form onSubmit={handleSubmit}>
-            <div className="form-row">
-              <div className="form-group"><label className="form-label">Client Name *</label><input type="text" className="form-input" value={formData.client_name} onChange={e => setFormData({...formData, client_name: e.target.value})} required /></div>
-              <div className="form-group"><label className="form-label">Category</label><select className="form-select" value={formData.category || 'Active'} onChange={e => setFormData({...formData, category: e.target.value})}><option value="Active">Active</option><option value="Inactive">Inactive</option><option value="Prospect">Prospect</option></select></div>
-            </div>
-            
-            <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', marginBottom: '16px' }}>
-              <div style={{ fontWeight: '600', marginBottom: '8px', color: '#475569' }}>Contact Person 1</div>
-              <div className="form-row" style={{ marginBottom: '8px' }}>
-                <div className="form-group"><label className="form-label">Contact Person</label><input type="text" className="form-input" value={formData.contact_person || ''} onChange={e => setFormData({...formData, contact_person: e.target.value})} placeholder="Name" /></div>
-                <div className="form-group"><label className="form-label">Designation</label><input type="text" className="form-input" value={formData.contact_designation || ''} onChange={e => setFormData({...formData, contact_designation: e.target.value})} placeholder="e.g. Manager" /></div>
-                <div className="form-group"><label className="form-label">Phone</label><input type="text" className="form-input" value={formData.contact || ''} onChange={e => setFormData({...formData, contact: e.target.value})} placeholder="Phone" /></div>
-                <div className="form-group"><label className="form-label">Email</label><input type="email" className="form-input" value={formData.contact_person_email || ''} onChange={e => setFormData({...formData, contact_person_email: e.target.value})} placeholder="email@example.com" /></div>
+        {/* Main Card - Shadcn Style */}
+        <div style={{ 
+          background: '#ffffff', 
+          borderRadius: '12px', 
+          border: '1px solid #e2e8f0',
+          padding: '24px',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+        }}>
+          {activeTab === 'general' ? (
+            <form onSubmit={handleSubmit}>
+              <div className="form-row">
+                <div className="form-group"><label className="form-label">Client Name *</label><input type="text" className="form-input" value={formData.client_name} onChange={e => setFormData({...formData, client_name: e.target.value})} required /></div>
+                <div className="form-group"><label className="form-label">Category</label><select className="form-select" value={formData.category || 'Active'} onChange={e => setFormData({...formData, category: e.target.value})}><option value="Active">Active</option><option value="Inactive">Inactive</option><option value="Prospect">Prospect</option></select></div>
               </div>
-              <div className="form-row" style={{ marginBottom: '8px' }}>
-                <div className="form-group"><input type="text" className="form-input" value={formData.contact_person_2 || ''} onChange={e => setFormData({...formData, contact_person_2: e.target.value})} placeholder="Contact Person 2" /></div>
-                <div className="form-group"><input type="text" className="form-input" value={formData.contact_designation_2 || ''} onChange={e => setFormData({...formData, contact_designation_2: e.target.value})} placeholder="Designation" /></div>
-                <div className="form-group"><input type="text" className="form-input" value={formData.contact_person_2_contact || ''} onChange={e => setFormData({...formData, contact_person_2_contact: e.target.value})} placeholder="Phone" /></div>
-                <div className="form-group"><input type="email" className="form-input" value={formData.contact_person_2_email || ''} onChange={e => setFormData({...formData, contact_person_2_email: e.target.value})} placeholder="Email" /></div>
-              </div>
-              <div className="form-row" style={{ marginBottom: '0' }}>
-                <div className="form-group"><input type="text" className="form-input" value={formData.purchase_person || ''} onChange={e => setFormData({...formData, purchase_person: e.target.value})} placeholder="Contact Person 3" /></div>
-                <div className="form-group"><input type="text" className="form-input" value={formData.purchase_designation || ''} onChange={e => setFormData({...formData, purchase_designation: e.target.value})} placeholder="Designation" /></div>
-                <div className="form-group"><input type="text" className="form-input" value={formData.purchase_contact || ''} onChange={e => setFormData({...formData, purchase_contact: e.target.value})} placeholder="Phone" /></div>
-                <div className="form-group"><input type="email" className="form-input" value={formData.purchase_email || ''} onChange={e => setFormData({...formData, purchase_email: e.target.value})} placeholder="Email" /></div>
-              </div>
-            </div>
-
-            <div className="form-row">
-              <div className="form-group">
-                <label className="form-label">GST IN</label>
-                <input 
-                  type="text" 
-                  className="form-input" 
-                  value={formData.gstin || ''} 
-                  onChange={handleGstChange}
-                  placeholder="15 characters (e.g., 27AABCU9603R1ZM)"
-                  maxLength={15}
-                />
-                {gstError && <span style={{ color: '#dc3545', fontSize: '12px' }}>{gstError}</span>}
-              </div>
-              <div className="form-group"><label className="form-label">Vendor No</label><input type="text" className="form-input" value={formData.vendor_no} onChange={e => setFormData({...formData, vendor_no: e.target.value})} /></div>
-            </div>
-            
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
-              <div style={{ background: '#f0fdf4', padding: '12px', borderRadius: '8px', border: '1px solid #bbf7d0' }}>
-                <div style={{ fontWeight: '600', marginBottom: '8px', color: '#166534' }}>Billing Address</div>
-                <div className="form-row">
-                  <div className="form-group"><label className="form-label">Address Line 1</label><input type="text" className="form-input" value={formData.address1} onChange={e => setFormData({...formData, address1: e.target.value})} /></div>
-                  <div className="form-group"><label className="form-label">Address Line 2</label><input type="text" className="form-input" value={formData.address2} onChange={e => setFormData({...formData, address2: e.target.value})} /></div>
+              
+              <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', marginBottom: '16px' }}>
+                <div style={{ fontWeight: '600', marginBottom: '8px', color: '#475569' }}>Contact Person 1</div>
+                <div className="form-row" style={{ marginBottom: '8px' }}>
+                  <div className="form-group"><label className="form-label">Contact Person</label><input type="text" className="form-input" value={formData.contact_person || ''} onChange={e => setFormData({...formData, contact_person: e.target.value})} placeholder="Name" /></div>
+                  <div className="form-group"><label className="form-label">Designation</label><input type="text" className="form-input" value={formData.contact_designation || ''} onChange={e => setFormData({...formData, contact_designation: e.target.value})} placeholder="e.g. Manager" /></div>
+                  <div className="form-group"><label className="form-label">Phone</label><input type="text" className="form-input" value={formData.contact || ''} onChange={e => setFormData({...formData, contact: e.target.value})} placeholder="Phone" /></div>
+                  <div className="form-group"><label className="form-label">Email</label><input type="email" className="form-input" value={formData.contact_person_email || ''} onChange={e => setFormData({...formData, contact_person_email: e.target.value})} placeholder="email@example.com" /></div>
                 </div>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label className="form-label">State</label>
-                    <select className="form-select" value={formData.state || ''} onChange={e => setFormData({...formData, state: e.target.value})}>
-                      <option value="">Select State</option>
-                      {indianStates.map(state => (<option key={state} value={state}>{state}</option>))}
-                    </select>
+                <div className="form-row" style={{ marginBottom: '8px' }}>
+                  <div className="form-group"><input type="text" className="form-input" value={formData.contact_person_2 || ''} onChange={e => setFormData({...formData, contact_person_2: e.target.value})} placeholder="Contact Person 2" /></div>
+                  <div className="form-group"><input type="text" className="form-input" value={formData.contact_designation_2 || ''} onChange={e => setFormData({...formData, contact_designation_2: e.target.value})} placeholder="Designation" /></div>
+                  <div className="form-group"><input type="text" className="form-input" value={formData.contact_person_2_contact || ''} onChange={e => setFormData({...formData, contact_person_2_contact: e.target.value})} placeholder="Phone" /></div>
+                  <div className="form-group"><input type="email" className="form-input" value={formData.contact_person_2_email || ''} onChange={e => setFormData({...formData, contact_person_2_email: e.target.value})} placeholder="Email" /></div>
+                </div>
+                <div className="form-row" style={{ marginBottom: '0' }}>
+                  <div className="form-group"><input type="text" className="form-input" value={formData.purchase_person || ''} onChange={e => setFormData({...formData, purchase_person: e.target.value})} placeholder="Contact Person 3" /></div>
+                  <div className="form-group"><input type="text" className="form-input" value={formData.purchase_designation || ''} onChange={e => setFormData({...formData, purchase_designation: e.target.value})} placeholder="Designation" /></div>
+                  <div className="form-group"><input type="text" className="form-input" value={formData.purchase_contact || ''} onChange={e => setFormData({...formData, purchase_contact: e.target.value})} placeholder="Phone" /></div>
+                  <div className="form-group"><input type="email" className="form-input" value={formData.purchase_email || ''} onChange={e => setFormData({...formData, purchase_email: e.target.value})} placeholder="Email" /></div>
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">GST IN</label>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    value={formData.gstin || ''} 
+                    onChange={handleGstChange}
+                    placeholder="15 characters (e.g., 27AABCU9603R1ZM)"
+                    maxLength={15}
+                  />
+                  {gstError && <span style={{ color: '#dc3545', fontSize: '12px' }}>{gstError}</span>}
+                </div>
+                <div className="form-group"><label className="form-label">Vendor No</label><input type="text" className="form-input" value={formData.vendor_no} onChange={e => setFormData({...formData, vendor_no: e.target.value})} /></div>
+              </div>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                <div style={{ background: '#f0fdf4', padding: '12px', borderRadius: '8px', border: '1px solid #bbf7d0' }}>
+                  <div style={{ fontWeight: '600', marginBottom: '8px', color: '#166534' }}>Billing Address</div>
+                  <div className="form-row">
+                    <div className="form-group"><label className="form-label">Address Line 1</label><input type="text" className="form-input" value={formData.address1} onChange={e => setFormData({...formData, address1: e.target.value})} /></div>
+                    <div className="form-group"><label className="form-label">Address Line 2</label><input type="text" className="form-input" value={formData.address2} onChange={e => setFormData({...formData, address2: e.target.value})} /></div>
                   </div>
-                  <div className="form-group"><label className="form-label">City</label><input type="text" className="form-input" value={formData.city || ''} onChange={e => setFormData({...formData, city: e.target.value})} /></div>
-                  <div className="form-group"><label className="form-label">Pincode</label><input type="text" className="form-input" value={formData.pincode || ''} onChange={e => setFormData({...formData, pincode: e.target.value})} /></div>
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label className="form-label">State</label>
+                      <select className="form-select" value={formData.state || ''} onChange={e => setFormData({...formData, state: e.target.value})}>
+                        <option value="">Select State</option>
+                        {indianStates.map(state => (<option key={state} value={state}>{state}</option>))}
+                      </select>
+                    </div>
+                    <div className="form-group"><label className="form-label">City</label><input type="text" className="form-input" value={formData.city || ''} onChange={e => setFormData({...formData, city: e.target.value})} /></div>
+                    <div className="form-group"><label className="form-label">Pincode</label><input type="text" className="form-input" value={formData.pincode || ''} onChange={e => setFormData({...formData, pincode: e.target.value})} /></div>
+                  </div>
+                </div>
+                
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <div style={{ fontWeight: '600', color: '#475569' }}>Shipping Addresses</div>
+                    <button type="button" className="btn btn-secondary" onClick={copyBillingToShipping} style={{ whiteSpace: 'nowrap' }}>Copy Billing</button>
+                  </div>
+                  
+                  {shippingAddresses.length > 0 && (
+                    <div style={{ display: 'grid', gap: '8px' }}>
+                      {shippingAddresses.map(addr => (
+                        <div key={addr.id} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                            <div>
+                              <div style={{ fontWeight: '600', color: '#1e293b', fontSize: '13px' }}>{addr.address_name || 'Address'} {addr.is_default && <span style={{ background: '#dbeafe', color: '#1d4ed8', padding: '2px 6px', borderRadius: '4px', fontSize: '11px' }}>Default</span>}</div>
+                              <div style={{ color: '#64748b', fontSize: '12px', marginTop: '4px' }}>{addr.address_line1} {addr.address_line2}</div>
+                              <div style={{ color: '#64748b', fontSize: '12px' }}>{addr.city}, {addr.state} - {addr.pincode}</div>
+                            </div>
+                            <button type="button" onClick={() => deleteShippingAddress(addr.id)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '4px' }}>✕</button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {showShippingForm && (
+                    <div style={{ background: '#f0f9ff', padding: '12px', borderRadius: '8px', border: '1px solid #bae6fd', marginTop: '8px' }}>
+                      <div style={{ fontWeight: '600', marginBottom: '8px', color: '#0369a1' }}>Add Shipping Address</div>
+                      <div className="form-row">
+                        <div className="form-group"><label className="form-label">Address Name</label><input type="text" className="form-input" value={newShipping.address_name} onChange={e => setNewShipping({...newShipping, address_name: e.target.value})} placeholder="e.g. Main Office" /></div>
+                        <div className="form-group"><label className="form-label">Contact Person</label><input type="text" className="form-input" value={newShipping.contact} onChange={e => setNewShipping({...newShipping, contact: e.target.value})} /></div>
+                      </div>
+                      <div className="form-row">
+                        <div className="form-group"><label className="form-label">Address Line 1</label><input type="text" className="form-input" value={newShipping.address_line1} onChange={e => setNewShipping({...newShipping, address_line1: e.target.value})} /></div>
+                        <div className="form-group"><label className="form-label">Address Line 2</label><input type="text" className="form-input" value={newShipping.address_line2} onChange={e => setNewShipping({...newShipping, address_line2: e.target.value})} /></div>
+                      </div>
+                      <div className="form-row">
+                        <div className="form-group">
+                          <label className="form-label">State</label>
+                          <select className="form-select" value={newShipping.state} onChange={e => setNewShipping({...newShipping, state: e.target.value})}>
+                            <option value="">Select State</option>
+                            {indianStates.map(state => (<option key={state} value={state}>{state}</option>))}
+                          </select>
+                        </div>
+                        <div className="form-group"><label className="form-label">City</label><input type="text" className="form-input" value={newShipping.city} onChange={e => setNewShipping({...newShipping, city: e.target.value})} /></div>
+                        <div className="form-group"><label className="form-label">Pincode</label><input type="text" className="form-input" value={newShipping.pincode} onChange={e => setNewShipping({...newShipping, pincode: e.target.value})} /></div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                        <button type="button" className="btn btn-primary" onClick={addShippingAddress}>Save Address</button>
+                        <button type="button" className="btn btn-secondary" onClick={() => setShowShippingForm(false)}>Cancel</button>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {!showShippingForm && shippingAddresses.length === 0 && (
+                    <button type="button" className="btn btn-primary" onClick={() => setShowShippingForm(true)} style={{ marginTop: '8px' }}>+ Add Shipping</button>
+                  )}
                 </div>
               </div>
               
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                  <div style={{ fontWeight: '600', color: '#475569' }}>Shipping Addresses</div>
-                  <button type="button" className="btn btn-secondary" onClick={copyBillingToShipping} style={{ whiteSpace: 'nowrap' }}>Copy Billing</button>
-                </div>
-                
-                {shippingAddresses.length > 0 && (
-                  <div style={{ display: 'grid', gap: '8px' }}>
-                    {shippingAddresses.map(addr => (
-                      <div key={addr.id} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                          <div>
-                            <div style={{ fontWeight: '600', color: '#1e293b', fontSize: '13px' }}>{addr.address_name || 'Address'} {addr.is_default && <span style={{ background: '#dbeafe', color: '#1d4ed8', padding: '2px 6px', borderRadius: '4px', fontSize: '11px' }}>Default</span>}</div>
-                            <div style={{ color: '#64748b', fontSize: '12px', marginTop: '4px' }}>{addr.address_line1} {addr.address_line2}</div>
-                            <div style={{ color: '#64748b', fontSize: '12px' }}>{addr.city}, {addr.state} - {addr.pincode}</div>
-                          </div>
-                          <button type="button" onClick={() => deleteShippingAddress(addr.id)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '4px' }}>✕</button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+              <div className="form-group"><label className="form-label">Remarks</label><textarea className="form-textarea" value={formData.remarks} onChange={e => setFormData({...formData, remarks: e.target.value})} /></div>
+              <div className="form-group"><label className="form-label">About Client</label><textarea className="form-textarea" value={formData.about_client || ''} onChange={e => setFormData({...formData, about_client: e.target.value})} placeholder="Additional information about the client..." /></div>
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                <button type="submit" className="btn btn-primary" disabled={saving}>{editMode ? 'Update Client' : 'Submit'}</button>
+                {editMode && (
+                  <button type="button" className="btn btn-danger" onClick={deleteClient} disabled={saving} style={{ background: '#fee2e2', color: '#dc2626', border: '1px solid #fecaca' }}>
+                    Delete Client
+                  </button>
                 )}
-                
-                {showShippingForm && (
-                  <div style={{ background: '#f0f9ff', padding: '12px', borderRadius: '8px', border: '1px solid #bae6fd', marginTop: '8px' }}>
-                    <div style={{ fontWeight: '600', marginBottom: '8px', color: '#0369a1' }}>Add Shipping Address</div>
-                    <div className="form-row">
-                      <div className="form-group"><label className="form-label">Address Name</label><input type="text" className="form-input" value={newShipping.address_name} onChange={e => setNewShipping({...newShipping, address_name: e.target.value})} placeholder="e.g. Main Office" /></div>
-                      <div className="form-group"><label className="form-label">Contact Person</label><input type="text" className="form-input" value={newShipping.contact} onChange={e => setNewShipping({...newShipping, contact: e.target.value})} /></div>
-                    </div>
-                    <div className="form-row">
-                      <div className="form-group"><label className="form-label">Address Line 1</label><input type="text" className="form-input" value={newShipping.address_line1} onChange={e => setNewShipping({...newShipping, address_line1: e.target.value})} /></div>
-                      <div className="form-group"><label className="form-label">Address Line 2</label><input type="text" className="form-input" value={newShipping.address_line2} onChange={e => setNewShipping({...newShipping, address_line2: e.target.value})} /></div>
-                    </div>
-                    <div className="form-row">
-                      <div className="form-group">
-                        <label className="form-label">State</label>
-                        <select className="form-select" value={newShipping.state} onChange={e => setNewShipping({...newShipping, state: e.target.value})}>
-                          <option value="">Select State</option>
-                          {indianStates.map(state => (<option key={state} value={state}>{state}</option>))}
-                        </select>
-                      </div>
-                      <div className="form-group"><label className="form-label">City</label><input type="text" className="form-input" value={newShipping.city} onChange={e => setNewShipping({...newShipping, city: e.target.value})} /></div>
-                      <div className="form-group"><label className="form-label">Pincode</label><input type="text" className="form-input" value={newShipping.pincode} onChange={e => setNewShipping({...newShipping, pincode: e.target.value})} /></div>
-                    </div>
-                    <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-                      <button type="button" className="btn btn-primary" onClick={addShippingAddress}>Save Address</button>
-                      <button type="button" className="btn btn-secondary" onClick={() => setShowShippingForm(false)}>Cancel</button>
-                    </div>
-                  </div>
-                )}
-                
-                {!showShippingForm && shippingAddresses.length === 0 && (
-                  <button type="button" className="btn btn-primary" onClick={() => setShowShippingForm(true)} style={{ marginTop: '8px' }}>+ Add Shipping</button>
-                )}
+                <button type="button" className="btn btn-secondary" onClick={onCancel} disabled={saving}>Cancel</button>
+              </div>
+            </form>
+          ) : (
+            <div>
+              <ClientDiscountPortfolio formData={formData} setFormData={setFormData} isAdmin={isAdmin} />
+              <div style={{ display: 'flex', gap: '12px', marginTop: '24px', paddingTop: '20px', borderTop: '1px solid #e2e8f0' }}>
+                <button type="button" className="btn btn-primary" onClick={handleSubmit}>{editMode ? 'Update Pricing Profile' : 'Submit'}</button>
+                <button type="button" className="btn btn-secondary" onClick={onCancel}>Cancel</button>
               </div>
             </div>
-            
-            <div className="form-group"><label className="form-label">Remarks</label><textarea className="form-textarea" value={formData.remarks} onChange={e => setFormData({...formData, remarks: e.target.value})} /></div>
-            <div className="form-group"><label className="form-label">About Client</label><textarea className="form-textarea" value={formData.about_client || ''} onChange={e => setFormData({...formData, about_client: e.target.value})} placeholder="Additional information about the client..." /></div>
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-              <button type="submit" className="btn btn-primary" disabled={saving}>{editMode ? 'Update Client' : 'Submit'}</button>
-              {editMode && (
-                <button type="button" className="btn btn-danger" onClick={deleteClient} disabled={saving} style={{ background: '#fee2e2', color: '#dc2626', border: '1px solid #fecaca' }}>
-                  Delete Client
-                </button>
-              )}
-              <button type="button" className="btn btn-secondary" onClick={onCancel} disabled={saving}>Cancel</button>
-            </div>
-          </form>
-        ) : (
-          <div>
-            <ClientDiscountPortfolio formData={formData} setFormData={setFormData} isAdmin={isAdmin} />
-            <div style={{ display: 'flex', gap: '12px', marginTop: '24px', paddingTop: '20px', borderTop: '1px solid #e2e8f0' }}>
-              <button type="button" className="btn btn-primary" onClick={handleSubmit}>{editMode ? 'Update Pricing Profile' : 'Submit'}</button>
-              <button type="button" className="btn btn-secondary" onClick={onCancel}>Cancel</button>
-            </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );
