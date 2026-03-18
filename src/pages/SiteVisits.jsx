@@ -7,6 +7,7 @@ export function SiteVisitsDashboard({ onNavigate }) {
   const [filter, setFilter] = useState('all')
   const [searchTerm, setSearchTerm] = useState('')
   const [viewMode, setViewMode] = useState('list')
+  const [selectedVisit, setSelectedVisit] = useState(null)
 
   const loadData = async () => {
     const { data: clientsData } = await supabase.from('clients').select('*').order('client_name')
@@ -30,6 +31,8 @@ export function SiteVisitsDashboard({ onNavigate }) {
 
   useEffect(() => { loadData() }, [filter])
 
+  useEffect(() => { setSelectedVisit(filteredVisits[0] || null) }, [filteredVisits])
+
   const getStatusColor = (status) => {
     if (status === 'Pending') return '#fff3cd'
     if (status === 'Quote to be Sent') return '#cce5ff'
@@ -44,7 +47,7 @@ export function SiteVisitsDashboard({ onNavigate }) {
   })
 
   return (
-    <div>
+    <div style={{ fontFamily: 'Inter, sans-serif' }}>
       <div className="page-header">
         <h1 className="page-title">Site Visits</h1>
         <button className="btn btn-primary" onClick={() => onNavigate('/site-visits/new')}>+ New Visit</button>
@@ -57,10 +60,10 @@ export function SiteVisitsDashboard({ onNavigate }) {
           <button className={`btn ${filter === 'this_month' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setFilter('this_month')}>This Month</button>
           <button className={`btn ${filter === 'completed' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setFilter('completed')}>Completed</button>
           <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <input 
-              type="text" 
-              className="form-input" 
-              placeholder="Search visits..." 
+            <input
+              type="text"
+              className="form-input"
+              placeholder="Search visits..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               style={{ width: '250px' }}
@@ -71,44 +74,37 @@ export function SiteVisitsDashboard({ onNavigate }) {
         </div>
       </div>
 
-      <div className="card">
-        {filteredVisits.length === 0 ? <div className="empty-state"><h3>No Site Visits</h3></div> : viewMode === 'list' ? (
-          <div className="table-container">
-            <table className="table">
-              <thead><tr><th>Date</th><th>Client</th><th>Site Address</th><th>Visited By</th><th>Next Step</th><th>Status</th><th>Actions</th></tr></thead>
-              <tbody>{filteredVisits.map(v => (
-                <tr key={v.id}>
-                  <td>{v.visit_date}</td>
-                  <td>{v.client?.client_name || '-'}</td>
-                  <td>{v.site_address || '-'}</td>
-                  <td>{v.visited_by || v.engineer_name || '-'}</td>
-                  <td>{v.next_step || '-'}</td>
-                  <td><span style={{ padding: '4px 8px', borderRadius: '4px', background: getStatusColor(v.status), fontSize: '12px' }}>{v.status}</span></td>
-                  <td><button className="btn btn-sm btn-secondary" onClick={() => onNavigate('/site-visits/edit?id=' + v.id)}>Edit</button></td>
-                </tr>
-              ))}</tbody>
-            </table>
+      <div style={{ display: 'flex', height: 'calc(100vh - 200px)' }}>
+        <div style={{ width: '30%', padding: '16px', borderRight: '1px solid #ddd', overflowY: 'auto' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
+            <button className="btn btn-sm btn-secondary" onClick={() => { const idx = filteredVisits.findIndex(v => v.id === selectedVisit?.id); if (idx > 0) setSelectedVisit(filteredVisits[idx-1]) }}>↑</button>
+            <button className="btn btn-sm btn-secondary" onClick={() => { const idx = filteredVisits.findIndex(v => v.id === selectedVisit?.id); if (idx < filteredVisits.length-1 && idx !== -1) setSelectedVisit(filteredVisits[idx+1]) }}>↓</button>
           </div>
-        ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
-            {filteredVisits.map(v => (
-              <div key={v.id} className="card" style={{ padding: '16px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <span style={{ fontWeight: 'bold' }}>{v.client?.client_name || '-'}</span>
-                  <span style={{ padding: '2px 8px', borderRadius: '4px', background: getStatusColor(v.status), fontSize: '11px' }}>{v.status}</span>
-                </div>
-                <div style={{ fontSize: '13px', color: '#666', marginBottom: '4px' }}>{v.visit_date} {v.visit_time}</div>
-                <div style={{ fontSize: '13px', marginBottom: '4px' }}><strong>Address:</strong> {v.site_address || '-'}</div>
-                <div style={{ fontSize: '13px', marginBottom: '4px' }}><strong>Visited By:</strong> {v.visited_by || v.engineer_name || '-'}</div>
-                <div style={{ fontSize: '13px', marginBottom: '4px' }}><strong>Purpose:</strong> {v.purpose_of_visit || '-'}</div>
-                <div style={{ fontSize: '13px', marginBottom: '4px' }}><strong>Next Step:</strong> {v.next_step || '-'}</div>
-                <div style={{ fontSize: '13px', marginBottom: '8px' }}><strong>Follow Up:</strong> {v.follow_up_date || '-'}</div>
-                <div style={{ fontSize: '13px', marginBottom: '12px' }}><strong>Measurements:</strong> {v.measurements ? v.measurements.substring(0, 50) + '...' : '-'}</div>
-                <button className="btn btn-sm btn-secondary" onClick={() => onNavigate('/site-visits/edit?id=' + v.id)}>Edit</button>
+          {filteredVisits.length === 0 ? <div className="empty-state"><h3>No Site Visits</h3></div> : filteredVisits.map(v => (
+            <div key={v.id} onClick={() => setSelectedVisit(v)} style={{ padding: '8px', border: '1px solid #ddd', marginBottom: '8px', cursor: 'pointer', background: selectedVisit?.id === v.id ? '#f0f0f0' : 'white' }} title={`Visited on ${v.visit_date} by ${v.visited_by || v.engineer_name || '-'}`}>
+              {v.visit_date} | {v.client?.client_name || '-'}
+            </div>
+          ))}
+        </div>
+        <div style={{ width: '70%', padding: '16px', overflowY: 'auto' }}>
+          {selectedVisit ? (
+            <div className="card" style={{ padding: '16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <h2>{selectedVisit.client?.client_name || '-'} - {selectedVisit.visit_date}</h2>
+                <span style={{ padding: '4px 8px', borderRadius: '4px', background: getStatusColor(selectedVisit.status), fontSize: '12px' }}>{selectedVisit.status}</span>
               </div>
-            ))}
-          </div>
-        )}
+              <div style={{ fontSize: '14px', marginBottom: '4px' }}><strong>Address:</strong> {selectedVisit.site_address || '-'}</div>
+              <div style={{ fontSize: '14px', marginBottom: '4px' }}><strong>Visited By:</strong> {selectedVisit.visited_by || selectedVisit.engineer_name || '-'}</div>
+              <div style={{ fontSize: '14px', marginBottom: '4px' }}><strong>Purpose:</strong> {selectedVisit.purpose_of_visit || '-'}</div>
+              <div style={{ fontSize: '14px', marginBottom: '4px' }}><strong>Next Step:</strong> {selectedVisit.next_step || '-'}</div>
+              <div style={{ fontSize: '14px', marginBottom: '4px' }}><strong>Follow Up:</strong> {selectedVisit.follow_up_date || '-'}</div>
+              <div style={{ fontSize: '14px', marginBottom: '4px' }}><strong>Measurements:</strong> {selectedVisit.measurements || '-'}</div>
+              <div style={{ fontSize: '14px', marginBottom: '4px' }}><strong>Discussion:</strong> {selectedVisit.discussion_points || '-'}</div>
+              <div style={{ fontSize: '14px', marginBottom: '8px' }}><strong>Time:</strong> {selectedVisit.visit_time || '-'} - {selectedVisit.out_time || '-'}</div>
+              <button className="btn btn-sm btn-secondary" onClick={() => onNavigate('/site-visits/edit?id=' + selectedVisit.id)}>Edit</button>
+            </div>
+          ) : <div className="empty-state"><h3>Select a visit to view details</h3></div>}
+        </div>
       </div>
     </div>
   )
