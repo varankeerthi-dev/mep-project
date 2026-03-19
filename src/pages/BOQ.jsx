@@ -2028,3 +2028,5 @@ export function BOQ() {
     </div>
   );
 }
+
+export default BOQ;
