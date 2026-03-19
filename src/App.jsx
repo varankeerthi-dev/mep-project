@@ -127,9 +127,6 @@ export default function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [dbSetup, setDbSetup] = useState(false);
-  
-  // FIX #1: Add a key to force component remount on navigation
-  const [mountKey, setMountKey] = useState(0);
 
   const checkDatabase = async () => {
     try {
@@ -146,121 +143,182 @@ export default function App() {
         if (looksLikeMissingTable) setDbSetup(true);
       }
     } catch (e) {
-      console.error('DB check error:', e);
+      // Don't assume DB is missing on unexpected runtime errors.
+      console.warn('Database check failed (non-fatal):', e);
     }
   };
+
+  const initAuth = async () => {
+  try {
+    // IMPORTANT: wait for session restoration
+    const { data: { session } } = await supabase.auth.getSession()
+
+    if (session?.user) {
+      setUser(session.user)
+
+      const { data: orgs } = await getUserOrganisations(session.user.id)
+      setOrganisations(orgs || [])
+
+      if (orgs && orgs.length > 0) {
+        setOrganisation(orgs[0].organisation)
+      }
+    }
+  } catch (error) {
+    console.error("Auth init error:", error)
+  }
+
+  setLoading(false)
+
+  const { data: listener } = supabase.auth.onAuthStateChange(
+    async (event, session) => {
+      if (event === 'SIGNED_IN' && session?.user) {
+        setUser(session.user)
+
+        const { data: orgs } = await getUserOrganisations(session.user.id)
+        setOrganisations(orgs || [])
+
+        if (orgs && orgs.length > 0) {
+          setOrganisation(orgs[0].organisation)
+        }
+      }
+
+      if (event === 'SIGNED_OUT') {
+        setUser(null)
+        setOrganisation(null)
+        setOrganisations([])
+      }
+    }
+  )
+
+  return () => {
+    listener?.subscription?.unsubscribe()
+  }
+}
 
   useEffect(() => {
-    installLocationChangeListener();
-    checkDatabase();
-    
-    const unsubscribe = onAuthStateChange(async (session) => {
-      const usr = session?.user || null;
-      setUser(usr);
-      
-      if (usr) {
-        const orgs = await getUserOrganisations(usr.id);
-        setOrganisations(orgs);
-        
-        const savedOrgId = localStorage.getItem('selected_organisation_id');
-        let selectedOrg = null;
-        
-        if (savedOrgId) selectedOrg = orgs.find(o => o.id === savedOrgId);
-        if (!selectedOrg && orgs.length > 0) selectedOrg = orgs[0];
-        
-        if (selectedOrg) await initStorageBuckets(selectedOrg.id);
-        setOrganisation(selectedOrg);
-      } else {
-        setOrganisations([]);
-        setOrganisation(null);
+  const init = async () => {
+    await initAuth();
+    await checkDatabase();
+    // Storage bucket creation from the browser can be slow/unreliable depending on policy.
+    // Don't block initial render on this best-effort initializer.
+    initStorageBuckets().catch(() => {});
+  };
+
+  init();
+
+  let lastCheck = 0;
+
+  const handleFocus = async () => {
+    const now = Date.now();
+    if (now - lastCheck < 300000) return;
+
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (!error && session?.user) {
+        if (session.user.id !== user?.id) {
+          setUser(session.user);
+        }
       }
-      
-      setLoading(false);
-    });
+    } catch (e) {
+      console.warn('Heartbeat check failed', e);
+    }
 
-    const handleLocationChange = () => {
-      const newPath = getCurrentPathFromLocation();
-      setCurrentPath(newPath);
-      // FIX #2: Increment mount key to force fresh component mount
-      setMountKey(prev => prev + 1);
-    };
+    lastCheck = now;
+  };
 
-    window.addEventListener('locationchange', handleLocationChange);
-    window.addEventListener('popstate', handleLocationChange);
-    handleLocationChange();
-
-    return () => {
-      window.removeEventListener('locationchange', handleLocationChange);
-      window.removeEventListener('popstate', handleLocationChange);
-      unsubscribe();
-    };
-  }, []);
-
-  const handleSelectOrganisation = async (orgId) => {
-    const org = organisations.find(o => o.id === orgId);
-    if (org) {
-      await initStorageBuckets(org.id);
-      setOrganisation(org);
-      localStorage.setItem('selected_organisation_id', org.id);
+  const handleVisibility = () => {
+    if (document.visibilityState === 'visible') {
+      handleFocus();
     }
   };
 
-  const handleCreateOrganisation = async (orgName) => {
-    if (!user) return;
-    const org = await createOrganisation(user.id, orgName);
-    if (org) {
-      await initStorageBuckets(org.id);
-      setOrganisations([...organisations, org]);
-      setOrganisation(org);
-      localStorage.setItem('selected_organisation_id', org.id);
-    }
+  window.addEventListener('focus', handleFocus);
+  window.addEventListener('visibilitychange', handleVisibility);
+
+  return () => {
+    window.removeEventListener('focus', handleFocus);
+    window.removeEventListener('visibilitychange', handleVisibility);
   };
+}, [user?.id]);
 
   const handleLogout = async () => {
     await signOut();
-    localStorage.removeItem('selected_organisation_id');
-    navigate('/');
+    setUser(null);
+    setOrganisation(null);
+    setOrganisations([]);
+    setAuthView('login');
+  };
+
+  const handleSelectOrganisation = (org) => {
+    setOrganisation(org);
+  };
+
+  const handleCreateOrganisation = async (orgName) => {
+    const { data, error } = await createOrganisation(orgName, user.id);
+    if (error) {
+      console.error('Create org error:', error);
+      alert('Error creating organisation: ' + error.message);
+      return;
+    }
+    if (data) {
+      const { data: orgs } = await getUserOrganisations(user.id);
+      setOrganisations(orgs || []);
+      setOrganisation(orgs?.[0]?.organisation);
+    }
   };
 
   const navigate = (path) => {
     const nextPath = path || '/';
-    const current = `${window.location.pathname}${window.location.search}`;
-    
-    if (current !== nextPath || window.location.hash) {
+    setCurrentPath(nextPath);
+    if (`${window.location.pathname}${window.location.search}` !== nextPath || window.location.hash) {
       window.history.pushState({}, '', nextPath);
-      window.dispatchEvent(new Event('locationchange'));
     }
+    window.dispatchEvent(new Event('locationchange'));
   };
 
   const handleQuickAction = (action) => {
-    if (action === 'new-quotation') navigate('/quotation/create');
-    else if (action === 'new-project') navigate('/projects/new');
-    else if (action === 'new-client') navigate('/clients/new');
-    else if (action === 'new-dc') navigate('/dc/create');
+    switch (action) {
+      case 'new-dc': navigate('/dc/create'); break;
+      case 'daily-updates': navigate('/projects/daily-updates'); break;
+      case 'approvals': navigate('/approvals'); break;
+      case 'remind': navigate('/remindme'); break;
+      case 'search': navigate('/dc/list'); break;
+      case 'export': navigate('/dc/list'); break;
+      default: break;
+    }
   };
 
-  const authUser = user;
-  const authOrg = organisation;
+  useEffect(() => {
+    const syncPathFromLocation = () => {
+      setCurrentPath(getCurrentPathFromLocation());
+    };
 
-  const renderPage = (user, organisation) => {
-    const pathKey = (currentPath || '').split('?')[0];
-    
+    installLocationChangeListener();
+    syncPathFromLocation();
+    window.addEventListener('hashchange', syncPathFromLocation);
+    window.addEventListener('popstate', syncPathFromLocation);
+    window.addEventListener('locationchange', syncPathFromLocation);
+    return () => {
+      window.removeEventListener('hashchange', syncPathFromLocation);
+      window.removeEventListener('popstate', syncPathFromLocation);
+      window.removeEventListener('locationchange', syncPathFromLocation);
+    };
+  }, []);
+
+  const renderPage = (authUser, authOrg) => {
+    const pathKey = currentPath.split('?')[0]
     switch (pathKey) {
-      case '/':
-      case '/dashboard': return <Dashboard onNavigate={navigate} />;
+      case '/': return <Dashboard onNavigate={navigate} />;
+      case '/projects/new': return <CreateProject onSuccess={() => navigate('/projects')} onCancel={() => navigate('/projects')} />;
+      case '/projects/edit': return <CreateProject />;
       case '/projects': return <ProjectList />;
-      case '/projects/new': return <CreateProject onCancel={() => navigate('/projects')} />;
       case '/projects/daily-updates': return <DailyUpdates />;
       case '/projects/site-materials': return <SiteMaterials />;
       case '/todo': return <TodoList />;
-      case '/reminders': return <RemindMe />;
+      case '/remindme': return <RemindMe />;
       case '/approvals': return <Approvals />;
-      case '/clients/new': return <CreateClient onCancel={() => navigate('/clients')} />;
-      case '/clients/edit': {
-        const params = new URLSearchParams(currentPath.split('?')[1] || '')
-        const id = params.get('id')
-        return <CreateClientEdit editId={id} onCancel={() => navigate('/clients')} />
-      }
+      case '/clients/new': return <CreateClient onSuccess={() => navigate('/clients')} onCancel={() => navigate('/clients')} />;
+      case '/clients/edit': return <CreateClientEdit onSuccess={() => navigate('/clients')} onCancel={() => navigate('/clients')} />;
       case '/clients': return <ClientList />;
       case '/meetings': return <MeetingsDashboard onNavigate={navigate} />;
       case '/meetings/create': return <CreateMeeting onSuccess={() => navigate('/meetings')} onCancel={() => navigate('/meetings')} />;
@@ -334,12 +392,7 @@ export default function App() {
     }
   };
 
-  // FIX #3: Use mountKey in dependencies to force re-render on navigation
-  // Also include user and organisation objects (not just IDs) to detect ALL changes
-  const renderedPage = useMemo(
-    () => renderPage(user, organisation), 
-    [currentPath, mountKey, user, organisation]
-  );
+  const renderedPage = useMemo(() => renderPage(user, organisation), [currentPath, user?.id, organisation?.id]);
 
   // Prefetch heavier routes when user is already in the Quotation area.
   // This keeps UI the same but reduces delay when navigating to create/edit.
@@ -398,15 +451,11 @@ export default function App() {
         <QuickAccessBar onQuickAction={handleQuickAction} organisation={organisation} onLogout={handleLogout} onMenuToggle={() => setMobileSidebarOpen(!mobileSidebarOpen)} />
         <Sidebar currentPath={currentPath} onNavigate={(path) => { navigate(path); setMobileSidebarOpen(false); }} collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(!sidebarCollapsed)} mobileOpen={mobileSidebarOpen} />
         <main className={`main-content ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
-          {/* FIX #4: Add key prop to Suspense to force fresh mount on navigation */}
-          <Suspense 
-            key={mountKey}
-            fallback={
-              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
-                <div className="loading-spinner">Loading page...</div>
-              </div>
-            }
-          >
+          <Suspense fallback={
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
+              <div className="loading-spinner">Loading page...</div>
+            </div>
+          }>
             {renderedPage}
           </Suspense>
         </main>
