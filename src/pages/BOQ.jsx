@@ -7,7 +7,8 @@ import {
   Save, FileDown, Plus, Trash2, Sheet, Table, X, Settings, 
   FileSpreadsheet, Loader2, GripVertical, Home, BarChart3,
   Calendar, Percent, Send, AtSign, Paperclip, MessageSquare,
-  Edit3, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight
+  Edit3, ChevronsLeft, ChevronsRight,
+  Search, Filter, ChevronDown, Clock
 } from 'lucide-react';
 import { openSansRegular, openSansBold } from '../fonts/openSans';
 import { saveBOQWithItems, fetchBOQById } from '../api';
@@ -35,9 +36,9 @@ const getColumnLabel = (index) => {
 };
 
 const DEFAULT_COLUMNS = [
-  { key: 'rowControl', label: '', width: 40, visible: true },
-  { key: 'sno', label: 'S.No', width: 50, visible: true },
-  { key: 'hsn_sac', label: 'HSN/SAC', width: 90, visible: true },
+  { key: 'rowControl', label: '', width: 40, visible: false },
+  { key: 'sno', label: 'S.No', width: 50, visible: false },
+  { key: 'hsn_sac', label: 'HSN/SAC', width: 90, visible: false },
   { key: 'description', label: 'Description', width: 250, visible: true },
   { key: 'variant', label: 'Variant', width: 100, visible: true },
   { key: 'make', label: 'Make', width: 100, visible: true },
@@ -47,8 +48,8 @@ const DEFAULT_COLUMNS = [
   { key: 'discountPercent', label: 'Disc %', width: 70, visible: true },
   { key: 'rateAfterDiscount', label: 'Rate/Unit', width: 110, visible: true },
   { key: 'totalAmount', label: 'Total Amount', width: 120, visible: true },
-  { key: 'specification', label: 'Specification', width: 150, visible: true },
-  { key: 'remarks', label: 'Remarks', width: 120, visible: true },
+  { key: 'specification', label: 'Specification', width: 150, visible: false },
+  { key: 'remarks', label: 'Remarks', width: 120, visible: false },
   { key: 'pressure', label: 'Pressure', width: 80, visible: false },
   { key: 'thickness', label: 'Thickness', width: 80, visible: false },
   { key: 'schedule', label: 'Schedule', width: 80, visible: false },
@@ -973,6 +974,42 @@ export function BOQ() {
 
   // Discount types for display
   const discountTypes = ['Erection', 'Blue', 'Orange', 'Yellow', 'Pink'];
+  const visibleColumns = useMemo(
+    () => columnSettings.filter(c => c.visible && c.key !== 'rowControl' && c.key !== 'sno'),
+    [columnSettings]
+  );
+  const discountEntries = useMemo(() => {
+    const entries = Object.entries(boqVariantDiscounts || {});
+    if (entries.length > 0) return entries;
+    return discountTypes.map(type => [type, 0]);
+  }, [boqVariantDiscounts, discountTypes]);
+
+  const getHeaderClass = (key) => {
+    switch (key) {
+      case 'description': return 'text-left px-3';
+      case 'variant': return 'w-32 text-left px-3';
+      case 'make': return 'w-32 text-left px-3';
+      case 'quantity': return 'w-20 text-center px-3';
+      case 'unit': return 'w-20 text-center px-3';
+      case 'rate': return 'w-28 text-right px-3';
+      case 'discountPercent': return 'w-20 text-right px-3';
+      case 'rateAfterDiscount': return 'w-28 text-right px-3 bg-blue-50/50';
+      case 'totalAmount': return 'w-32 text-right px-3';
+      default: return 'text-left px-3';
+    }
+  };
+
+  const getCellClass = (key) => {
+    switch (key) {
+      case 'quantity': return 'text-center';
+      case 'unit': return 'text-center uppercase';
+      case 'rate': return 'text-right';
+      case 'discountPercent': return 'text-right';
+      case 'rateAfterDiscount': return 'text-right bg-blue-50/30 italic text-slate-500';
+      case 'totalAmount': return 'text-right bg-slate-50/50 text-slate-900 font-medium';
+      default: return 'text-left';
+    }
+  };
 
   if (loading) {
     return (
@@ -1065,69 +1102,6 @@ export function BOQ() {
                   </select>
                 </div>
 
-                {/* Action Buttons */}
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={handleSave}
-                    className="flex items-center space-x-1 px-3 py-1.5 bg-green-600 text-white rounded hover:bg-green-700 text-xs font-medium"
-                    disabled={loading}
-                  >
-                    <Save className="w-3.5 h-3.5" />
-                    <span>Save</span>
-                  </button>
-
-                  <div className="relative">
-                    <button
-                      onClick={() => setShowExportMenu(!showExportMenu)}
-                      className="flex items-center space-x-1 px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs font-medium"
-                    >
-                      <FileDown className="w-3.5 h-3.5" />
-                      <span>Export</span>
-                    </button>
-
-                    {showExportMenu && (
-                      <div className="absolute right-0 mt-1 w-40 bg-white border border-slate-200 rounded shadow-lg z-50">
-                        <button
-                          onClick={() => { exportToPDF(); setShowExportMenu(false); }}
-                          className="w-full px-3 py-2 text-left text-xs hover:bg-slate-50 flex items-center space-x-2"
-                        >
-                          <FileSpreadsheet className="w-4 h-4" />
-                          <span>Export as PDF</span>
-                        </button>
-                        <button
-                          onClick={() => { exportToExcel(); setShowExportMenu(false); }}
-                          className="w-full px-3 py-2 text-left text-xs hover:bg-slate-50 flex items-center space-x-2"
-                        >
-                          <Sheet className="w-4 h-4" />
-                          <span>Export as Excel</span>
-                        </button>
-                        <button
-                          onClick={() => { setShowExportSettings(true); setShowExportMenu(false); }}
-                          className="w-full px-3 py-2 text-left text-xs hover:bg-slate-50 flex items-center space-x-2 border-t border-slate-200"
-                        >
-                          <Settings className="w-4 h-4" />
-                          <span>Export Settings</span>
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
-                  <button
-                    onClick={addBlankRow}
-                    className="flex items-center space-x-1 px-3 py-1.5 bg-slate-600 text-white rounded hover:bg-slate-700 text-xs font-medium"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Row</span>
-                  </button>
-
-                  <button
-                    onClick={addHeaderRow}
-                    className="flex items-center space-x-1 px-3 py-1.5 bg-purple-600 text-white rounded hover:bg-purple-700 text-xs font-medium"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Section</span>
-                  </button>
-                </div>
               </div>
 
               {/* Row 2: Discount Profile */}
@@ -1151,13 +1125,13 @@ export function BOQ() {
                 </div>
 
                 <div className="flex-1 flex items-center space-x-2 overflow-x-auto">
-                  {discountTypes.map(type => (
+                  {discountEntries.map(([type, value]) => (
                     <div key={type} className="flex items-center bg-white border border-slate-200 rounded px-1.5 py-0.5 space-x-1 shadow-sm">
                       <span className="text-[10px] font-medium text-slate-600">{type}</span>
                       <input
                         className="w-8 text-[10px] border-slate-300 rounded p-0 text-center focus:ring-green-500 focus:border-green-500"
                         type="text"
-                        value={boqVariantDiscounts[type] || '0'}
+                        value={value ?? '0'}
                         readOnly
                       />
                       <span className="text-[9px] text-slate-400">%</span>
@@ -1168,521 +1142,517 @@ export function BOQ() {
             </div>
           </div>
 
+          {/* Sheet Tabs Bar */}
+          <div className="h-8 bg-slate-50 border-b border-slate-200 flex items-center flex-shrink-0">
+            <div className="flex h-full border-r border-slate-200">
+              {sheets.map(sheet => (
+                <div
+                  key={sheet.id}
+                  draggable
+                  onDragStart={(e) => handleSheetDragStart(e, sheet.id)}
+                  onDragOver={handleSheetDragOver}
+                  onDrop={(e) => handleSheetDrop(e, sheet.id)}
+                  className={`group flex items-center px-3 py-1 text-[11px] font-medium cursor-pointer border-r border-slate-200 hover:bg-slate-100 transition relative ${
+                    activeSheetId === sheet.id ? 'bg-white text-green-700 font-bold border-b-2 border-b-green-600' : ''
+                  }`}
+                  onClick={() => setActiveSheetId(sheet.id)}
+                >
+                  <GripVertical className="w-3 h-3 opacity-0 group-hover:opacity-40 mr-1" />
+                  {editingSheetId === sheet.id ? (
+                    <input
+                      type="text"
+                      value={editingSheetName}
+                      onChange={(e) => setEditingSheetName(e.target.value)}
+                      onBlur={() => {
+                        renameSheet(sheet.id, editingSheetName);
+                        setEditingSheetId(null);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          renameSheet(sheet.id, editingSheetName);
+                          setEditingSheetId(null);
+                        }
+                      }}
+                      className="text-[11px] px-1 py-0 border border-green-500 rounded"
+                      autoFocus
+                    />
+                  ) : (
+                    <span
+                      onDoubleClick={() => {
+                        setEditingSheetId(sheet.id);
+                        setEditingSheetName(sheet.name);
+                      }}
+                    >
+                      {sheet.name}
+                    </span>
+                  )}
+                  {sheets.length > 1 && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteSheet(sheet.id);
+                      }}
+                      className="ml-2 p-1 opacity-0 group-hover:opacity-100 hover:bg-red-100 rounded"
+                    >
+                      <X className="w-3 h-3 text-red-600" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+            <button
+              onClick={addNewSheet}
+              className="px-2 hover:bg-slate-200 h-full transition flex items-center justify-center"
+              title="Add new sheet"
+            >
+              <Plus className="w-4 h-4 text-slate-500" />
+            </button>
+          </div>
+
+          {/* Toolbar Row */}
+          <div className="h-10 border-b border-slate-200 flex items-center px-4 bg-slate-50 space-x-4 flex-shrink-0">
+            <div className="flex items-center space-x-2 border-r border-slate-300 pr-4">
+              <Search className="w-4 h-4 text-slate-400" />
+              <input
+                className="bg-transparent border-none text-xs focus:ring-0 w-48"
+                placeholder="Find in sheet..."
+                type="text"
+              />
+            </div>
+            <div className="flex items-center space-x-3">
+              <button className="flex items-center space-x-1 text-slate-600 hover:text-slate-900 text-xs font-medium">
+                <Filter className="w-4 h-4" />
+                <span>Filters</span>
+              </button>
+              <button
+                onClick={addBlankRow}
+                className="flex items-center space-x-1 text-slate-600 hover:text-slate-900 text-xs font-medium"
+              >
+                <Plus className="w-4 h-4" />
+                <span>New Row</span>
+              </button>
+              <button className="flex items-center space-x-1 text-slate-600 hover:text-slate-900 text-xs font-medium">
+                <Clock className="w-4 h-4" />
+                <span>History</span>
+              </button>
+            </div>
+            <div className="flex-1"></div>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => setShowColumnPanel(true)}
+                className="p-1.5 text-slate-500 hover:bg-slate-200 rounded transition"
+                title="Columns"
+              >
+                <Settings className="w-4 h-4" />
+              </button>
+              <div className="relative">
+                <button
+                  onClick={() => setShowExportMenu(!showExportMenu)}
+                  className="flex items-center space-x-1.5 px-3 py-1 border border-slate-300 rounded text-xs font-medium text-slate-700 hover:bg-slate-50 transition"
+                >
+                  <FileDown className="w-4 h-4" />
+                  <span>Export</span>
+                  <ChevronDown className="w-3 h-3" />
+                </button>
+                {showExportMenu && (
+                  <div className="absolute right-0 mt-1 w-44 bg-white border border-slate-200 rounded-md shadow-lg py-1 z-30">
+                    <button
+                      onClick={() => { exportToPDF(); setShowExportMenu(false); }}
+                      className="w-full text-left px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 flex items-center space-x-2"
+                    >
+                      <FileSpreadsheet className="w-4 h-4" />
+                      <span>Export PDF</span>
+                    </button>
+                    <button
+                      onClick={() => { exportToExcel(); setShowExportMenu(false); }}
+                      className="w-full text-left px-4 py-2 text-xs text-slate-700 hover:bg-slate-50 flex items-center space-x-2"
+                    >
+                      <Sheet className="w-4 h-4" />
+                      <span>Export Excel</span>
+                    </button>
+                    <div className="border-t border-slate-100 my-1"></div>
+                    <button
+                      onClick={() => { setShowExportSettings(true); setShowExportMenu(false); }}
+                      className="w-full text-left px-4 py-2 text-xs text-slate-500 hover:bg-slate-50 flex items-center space-x-2"
+                    >
+                      <Settings className="w-4 h-4" />
+                      <span>Export Settings...</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={handleSave}
+                className="bg-blue-600 text-white px-3 py-1 rounded text-xs font-semibold flex items-center space-x-1 hover:bg-blue-700 transition"
+                disabled={loading}
+              >
+                <Save className="w-3.5 h-3.5" />
+                <span>Save BOQ</span>
+              </button>
+            </div>
+          </div>
+
           {/* Excel Grid */}
           <div className="flex-1 overflow-auto">
-            <div className="min-w-full inline-block align-middle">
-              <table className="w-full border-collapse" style={{ borderSpacing: 0 }}>
-                <thead className="sticky top-0 z-10">
-                  {/* Column Letter Headers (A, B, C...) */}
-                  <tr style={{ background: '#e5e7eb' }}>
-                    <th style={{ width: '40px', minWidth: '40px', background: '#d9dde3', borderRight: '1px solid #cbd5e1' }}></th>
-                    {columnSettings.filter(c => c.visible).map((col, idx) => (
-                      <th
-                        key={col.key}
-                        style={{
-                          padding: '2px 4px',
-                          textAlign: 'center',
-                          fontWeight: '700',
-                          fontSize: '11px',
-                          color: '#374151',
-                          borderBottom: '1px solid #cbd5e1',
-                          borderRight: '0.5px solid #d1d5db',
-                          background: '#e5e7eb',
-                          minWidth: col.width + 'px',
-                        }}
-                      >
-                        {getColumnLabel(idx)}
-                      </th>
-                    ))}
-                  </tr>
+            <table className="w-full text-[13px] border-collapse min-w-[1200px]">
+              <thead className="sticky top-0 z-20">
+                <tr className="h-9">
+                  <th className="w-10 text-center text-[10px] uppercase bg-slate-100 text-slate-500 border border-slate-200">No.</th>
+                  {visibleColumns.map(col => (
+                    <th
+                      key={col.key}
+                      className={`border border-slate-200 bg-slate-100 text-slate-600 font-medium ${getHeaderClass(col.key)}`}
+                    >
+                      {col.label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
 
-                  {/* Column Name Headers */}
-                  <tr style={{ background: '#f3f4f6' }}>
-                    <th style={{ width: '40px', minWidth: '40px', background: '#f3f4f6', border: '0.5px solid #d1d5db', position: 'relative' }}></th>
-                    {columnSettings.filter(c => c.visible).map(col => (
-                      <th
-                        key={col.key}
-                        style={{
-                          padding: '6px 8px',
-                          textAlign: 'left',
-                          fontWeight: '500',
-                          fontSize: '11px',
-                          color: '#4b5563',
-                          background: col.key === 'discountPercent' ? '#fff4c2' : '#f3f4f6',
-                          border: '0.5px solid #d1d5db',
-                          minWidth: col.width + 'px',
-                        }}
-                      >
-                        {col.label}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {currentSheetItems.map((row, rowIndex) => {
-                    if (row.isHeaderRow) {
-                      return (
-                        <tr
-                          key={row.id}
-                          className="h-10 bg-blue-100 hover:bg-blue-150"
-                          draggable
-                          onDragStart={(e) => handleRowDragStart(e, rowIndex)}
-                          onDragOver={handleRowDragOver}
-                          onDrop={(e) => handleRowDrop(e, rowIndex)}
-                        >
-                          <td
-                            style={{
-                              textAlign: 'center',
-                              background: '#f3f4f6',
-                              fontFamily: 'monospace',
-                              fontSize: '11px',
-                              color: '#9ca3af',
-                              border: '0.5px solid #d1d5db',
-                              cursor: 'grab',
-                            }}
-                          >
-                            <GripVertical className="w-4 h-4 inline" />
-                          </td>
-                          <td
-                            colSpan={columnSettings.filter(c => c.visible).length}
-                            style={{
-                              padding: '8px',
-                              fontWeight: '700',
-                              fontSize: '13px',
-                              color: '#1e40af',
-                              background: '#dbeafe',
-                              border: '0.5px solid #d1d5db',
-                            }}
-                          >
-                            <input
-                              type="text"
-                              value={row.headerText}
-                              onChange={(e) => updateRow(rowIndex, 'headerText', e.target.value)}
-                              className="w-full bg-transparent border-none focus:ring-1 focus:ring-green-600 font-bold text-[13px]"
-                              placeholder="Section Header"
-                            />
-                          </td>
-                        </tr>
-                      );
-                    }
-
-                    const effectiveDisc = computeEffectiveDiscount(row);
-                    const rateNum = parseFloat(row.rate) || 0;
-                    const qtyNum = parseFloat(row.quantity) || 0;
-                    const rateAfterDisc = rateNum * (1 - effectiveDisc / 100);
-                    const totalAmt = qtyNum * rateAfterDisc;
-                    const hasOverride = row.discountPercent !== '' && row.discountPercent !== null && row.discountPercent !== undefined;
-
+              <tbody>
+                {currentSheetItems.map((row, rowIndex) => {
+                  if (row.isHeaderRow) {
                     return (
                       <tr
                         key={row.id}
-                        className="h-10 hover:bg-slate-50"
+                        className="h-10 bg-blue-50/20"
                         draggable
                         onDragStart={(e) => handleRowDragStart(e, rowIndex)}
                         onDragOver={handleRowDragOver}
                         onDrop={(e) => handleRowDrop(e, rowIndex)}
                       >
-                        {/* Row Number */}
-                        <td
-                          style={{
-                            textAlign: 'center',
-                            background: '#f3f4f6',
-                            fontFamily: 'monospace',
-                            fontSize: '11px',
-                            color: '#9ca3af',
-                            border: '0.5px solid #d1d5db',
-                            cursor: 'grab',
-                            position: 'relative',
-                          }}
-                        >
-                          <div className="flex items-center justify-center">
-                            <GripVertical className="w-3 h-3 opacity-40" />
-                            <button
-                              onClick={() => deleteRow(rowIndex)}
-                              className="ml-1 text-red-500 hover:text-red-700"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </button>
-                          </div>
+                        <td className="text-center text-slate-400 bg-slate-50 font-mono text-[11px] border border-slate-200">
+                          {rowIndex + 1}
                         </td>
-
-                        {/* Dynamic Columns */}
-                        {columnSettings.filter(c => c.visible).map(col => {
-                          const cellStyle = {
-                            padding: '2px 4px',
-                            border: '0.5px solid #d1d5db',
-                            background: '#fff',
-                            position: 'relative',
-                          };
-
-                          if (col.key === 'sno') {
-                            return (
-                              <td key={col.key} style={{ ...cellStyle, textAlign: 'center', fontSize: '11px', color: '#6b7280' }}>
-                                {rowIndex + 1}
-                              </td>
-                            );
-                          }
-
-                          if (col.key === 'description') {
-                            return (
-                              <td key={col.key} style={cellStyle}>
-                                <input
-                                  type="text"
-                                  value={row.description || ''}
-                                  onChange={(e) => {
-                                    handleMaterialSearch(rowIndex, e.target.value);
-                                    updateRow(rowIndex, 'description', e.target.value);
-                                  }}
-                                  onKeyDown={(e) => handleKeyDown(e, rowIndex, col.key)}
-                                  className="w-full bg-transparent border-none focus:ring-1 focus:ring-green-600 text-[13px]"
-                                  placeholder="Enter item description..."
-                                />
-                                {materialSearchActive === rowIndex && filteredMaterials(rowIndex).length > 0 && (
-                                  <div
-                                    style={{
-                                      position: 'absolute',
-                                      top: '100%',
-                                      left: 0,
-                                      right: 0,
-                                      background: 'white',
-                                      border: '1px solid #ddd',
-                                      borderRadius: '4px',
-                                      boxShadow: '0 4px 8px rgba(0,0,0,0.15)',
-                                      maxHeight: '200px',
-                                      overflowY: 'auto',
-                                      zIndex: 1000,
-                                    }}
-                                  >
-                                    {filteredMaterials(rowIndex).map(mat => (
-                                      <div
-                                        key={mat.id}
-                                        onClick={() => selectMaterial(rowIndex, mat)}
-                                        style={{
-                                          padding: '8px 12px',
-                                          cursor: 'pointer',
-                                          fontSize: '13px',
-                                          borderBottom: '1px solid #f0f0f0',
-                                        }}
-                                        onMouseEnter={(e) => e.currentTarget.style.background = '#f3f4f6'}
-                                        onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
-                                      >
-                                        {mat.name}
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-                              </td>
-                            );
-                          }
-
-                          if (col.key === 'variant') {
-                            return (
-                              <td key={col.key} style={cellStyle}>
-                                <select
-                                  value={row.variantId || ''}
-                                  onChange={(e) => handleVariantChange(rowIndex, e.target.value)}
-                                  className="w-full bg-transparent border-none focus:ring-1 focus:ring-green-600 text-[13px] py-0"
-                                >
-                                  <option value="">-</option>
-                                  {variants.map(v => (
-                                    <option key={v.id} value={v.id}>{v.variant_name}</option>
-                                  ))}
-                                </select>
-                              </td>
-                            );
-                          }
-
-                          if (col.key === 'make') {
-                            return (
-                              <td key={col.key} style={cellStyle}>
-                                <select
-                                  value={row.make || ''}
-                                  onChange={(e) => updateRow(rowIndex, 'make', e.target.value)}
-                                  className="w-full bg-transparent border-none focus:ring-1 focus:ring-green-600 text-[13px] py-0"
-                                >
-                                  <option value="">-</option>
-                                  {makes.map(make => (
-                                    <option key={make} value={make}>{make}</option>
-                                  ))}
-                                </select>
-                              </td>
-                            );
-                          }
-
-                          if (col.key === 'quantity') {
-                            return (
-                              <td key={col.key} style={cellStyle}>
-                                <input
-                                  type="number"
-                                  value={row.quantity || ''}
-                                  onChange={(e) => updateRow(rowIndex, 'quantity', e.target.value)}
-                                  onKeyDown={(e) => handleKeyDown(e, rowIndex, col.key)}
-                                  className="w-full bg-transparent border-none focus:ring-1 focus:ring-green-600 text-[13px] text-center"
-                                />
-                              </td>
-                            );
-                          }
-
-                          if (col.key === 'unit') {
-                            return (
-                              <td key={col.key} style={cellStyle}>
-                                <input
-                                  type="text"
-                                  value={row.unit || ''}
-                                  onChange={(e) => updateRow(rowIndex, 'unit', e.target.value.toUpperCase())}
-                                  onKeyDown={(e) => handleKeyDown(e, rowIndex, col.key)}
-                                  className="w-full bg-transparent border-none focus:ring-1 focus:ring-green-600 text-[13px] text-center uppercase"
-                                />
-                              </td>
-                            );
-                          }
-
-                          if (col.key === 'rate') {
-                            return (
-                              <td key={col.key} style={cellStyle}>
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  value={row.rate || ''}
-                                  onChange={(e) => updateRow(rowIndex, 'rate', e.target.value)}
-                                  onKeyDown={(e) => handleKeyDown(e, rowIndex, col.key)}
-                                  className="w-full bg-transparent border-none focus:ring-1 focus:ring-green-600 text-[13px] text-right"
-                                />
-                              </td>
-                            );
-                          }
-
-                          if (col.key === 'discountPercent') {
-                            return (
-                              <td key={col.key} style={{ ...cellStyle, background: hasOverride ? '#fef3c7' : '#fff' }}>
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  value={row.discountPercent || ''}
-                                  onChange={(e) => updateRow(rowIndex, 'discountPercent', e.target.value)}
-                                  onKeyDown={(e) => handleKeyDown(e, rowIndex, col.key)}
-                                  className="w-full bg-transparent border-none focus:ring-1 focus:ring-green-600 text-[13px] text-right"
-                                  placeholder={effectiveDisc.toFixed(2)}
-                                />
-                                {hasOverride && (
-                                  <span
-                                    style={{
-                                      position: 'absolute',
-                                      top: '-9px',
-                                      right: '4px',
-                                      background: '#f59e0b',
-                                      color: '#fff',
-                                      fontSize: '9px',
-                                      padding: '1px 4px',
-                                      borderRadius: '3px',
-                                      letterSpacing: '0.02em',
-                                    }}
-                                  >
-                                    OVERRIDE
-                                  </span>
-                                )}
-                              </td>
-                            );
-                          }
-
-                          if (col.key === 'rateAfterDiscount') {
-                            return (
-                              <td key={col.key} style={{ ...cellStyle, textAlign: 'right', fontWeight: '500', color: '#64748b', background: '#eff6ff', fontStyle: 'italic', fontSize: '13px' }}>
-                                {rateNum > 0 ? rateAfterDisc.toFixed(2) : ''}
-                              </td>
-                            );
-                          }
-
-                          if (col.key === 'totalAmount') {
-                            return (
-                              <td key={col.key} style={{ ...cellStyle, textAlign: 'right', fontWeight: '600', color: '#0f172a', background: '#f8fafc', fontSize: '13px' }}>
-                                {totalAmt > 0 ? totalAmt.toFixed(2) : ''}
-                              </td>
-                            );
-                          }
-
-                          if (col.key === 'hsn_sac') {
-                            return (
-                              <td key={col.key} style={cellStyle}>
-                                <input
-                                  type="text"
-                                  value={row.hsn_sac || ''}
-                                  onChange={(e) => updateRow(rowIndex, 'hsn_sac', e.target.value)}
-                                  onKeyDown={(e) => handleKeyDown(e, rowIndex, col.key)}
-                                  className="w-full bg-transparent border-none focus:ring-1 focus:ring-green-600 text-[13px]"
-                                />
-                              </td>
-                            );
-                          }
-
-                          if (col.key === 'specification') {
-                            return (
-                              <td key={col.key} style={cellStyle}>
-                                <input
-                                  type="text"
-                                  value={row.specification || ''}
-                                  onChange={(e) => updateRow(rowIndex, 'specification', e.target.value)}
-                                  onKeyDown={(e) => handleKeyDown(e, rowIndex, col.key)}
-                                  className="w-full bg-transparent border-none focus:ring-1 focus:ring-green-600 text-[13px]"
-                                />
-                              </td>
-                            );
-                          }
-
-                          if (col.key === 'remarks') {
-                            return (
-                              <td key={col.key} style={cellStyle}>
-                                <input
-                                  type="text"
-                                  value={row.remarks || ''}
-                                  onChange={(e) => updateRow(rowIndex, 'remarks', e.target.value)}
-                                  onKeyDown={(e) => handleKeyDown(e, rowIndex, col.key)}
-                                  className="w-full bg-transparent border-none focus:ring-1 focus:ring-green-600 text-[13px]"
-                                />
-                              </td>
-                            );
-                          }
-
-                          // Additional columns
-                          if (col.key === 'pressure') {
-                            return (
-                              <td key={col.key} style={cellStyle}>
-                                <input
-                                  type="text"
-                                  value={row.pressure || ''}
-                                  onChange={(e) => updateRow(rowIndex, 'pressure', e.target.value)}
-                                  onKeyDown={(e) => handleKeyDown(e, rowIndex, col.key)}
-                                  className="w-full bg-transparent border-none focus:ring-1 focus:ring-green-600 text-[13px]"
-                                />
-                              </td>
-                            );
-                          }
-
-                          if (col.key === 'thickness') {
-                            return (
-                              <td key={col.key} style={cellStyle}>
-                                <input
-                                  type="text"
-                                  value={row.thickness || ''}
-                                  onChange={(e) => updateRow(rowIndex, 'thickness', e.target.value)}
-                                  onKeyDown={(e) => handleKeyDown(e, rowIndex, col.key)}
-                                  className="w-full bg-transparent border-none focus:ring-1 focus:ring-green-600 text-[13px]"
-                                />
-                              </td>
-                            );
-                          }
-
-                          if (col.key === 'schedule') {
-                            return (
-                              <td key={col.key} style={cellStyle}>
-                                <input
-                                  type="text"
-                                  value={row.schedule || ''}
-                                  onChange={(e) => updateRow(rowIndex, 'schedule', e.target.value)}
-                                  onKeyDown={(e) => handleKeyDown(e, rowIndex, col.key)}
-                                  className="w-full bg-transparent border-none focus:ring-1 focus:ring-green-600 text-[13px]"
-                                />
-                              </td>
-                            );
-                          }
-
-                          if (col.key === 'material') {
-                            return (
-                              <td key={col.key} style={cellStyle}>
-                                <input
-                                  type="text"
-                                  value={row.material || ''}
-                                  onChange={(e) => updateRow(rowIndex, 'material', e.target.value)}
-                                  onKeyDown={(e) => handleKeyDown(e, rowIndex, col.key)}
-                                  className="w-full bg-transparent border-none focus:ring-1 focus:ring-green-600 text-[13px]"
-                                />
-                              </td>
-                            );
-                          }
-
-                          return <td key={col.key} style={cellStyle}></td>;
-                        })}
+                        <td
+                          colSpan={visibleColumns.length}
+                          className="border border-slate-200 bg-blue-50/30 px-3"
+                        >
+                          <input
+                            type="text"
+                            value={row.headerText}
+                            onChange={(e) => updateRow(rowIndex, 'headerText', e.target.value)}
+                            className="w-full bg-transparent border-none focus:ring-1 focus:ring-green-600 text-[13px] font-semibold text-slate-700"
+                            placeholder="Section Header"
+                          />
+                        </td>
                       </tr>
                     );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                  }
+
+                  const effectiveDisc = computeEffectiveDiscount(row);
+                  const rateNum = parseFloat(row.rate) || 0;
+                  const qtyNum = parseFloat(row.quantity) || 0;
+                  const rateAfterDisc = rateNum * (1 - effectiveDisc / 100);
+                  const totalAmt = qtyNum * rateAfterDisc;
+                  const hasOverride = row.discountPercent !== '' && row.discountPercent !== null && row.discountPercent !== undefined;
+                  const hasComment = !!row.remarks;
+
+                  return (
+                    <tr
+                      key={row.id}
+                      className="h-10 hover:bg-slate-50 group"
+                      draggable
+                      onDragStart={(e) => handleRowDragStart(e, rowIndex)}
+                      onDragOver={handleRowDragOver}
+                      onDrop={(e) => handleRowDrop(e, rowIndex)}
+                    >
+                      <td className="text-center text-slate-400 bg-slate-50 font-mono text-[11px] border border-slate-200">
+                        <div className="flex items-center justify-center space-x-1">
+                          <GripVertical className="w-3 h-3 opacity-0 group-hover:opacity-40" />
+                          <span>{rowIndex + 1}</span>
+                          <button
+                            onClick={() => deleteRow(rowIndex)}
+                            className="ml-1 opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </td>
+
+                      {visibleColumns.map(col => {
+                        const cellClass = `px-2 border border-slate-200 ${getCellClass(col.key)}`;
+
+                        if (col.key === 'description') {
+                          return (
+                            <td key={col.key} className={`${cellClass} relative`}>
+                              {hasComment && (
+                                <span
+                                  className="absolute top-0 right-0 w-0 h-0"
+                                  style={{
+                                    borderStyle: 'solid',
+                                    borderWidth: '0 8px 8px 0',
+                                    borderColor: 'transparent #ef4444 transparent transparent',
+                                  }}
+                                />
+                              )}
+                              <input
+                                type="text"
+                                value={row.description || ''}
+                                onChange={(e) => {
+                                  handleMaterialSearch(rowIndex, e.target.value);
+                                  updateRow(rowIndex, 'description', e.target.value);
+                                }}
+                                onKeyDown={(e) => handleKeyDown(e, rowIndex, col.key)}
+                                className="w-full bg-transparent border-none focus:ring-1 focus:ring-green-600 text-[13px]"
+                                placeholder="Enter item description..."
+                              />
+                              {materialSearchActive === rowIndex && filteredMaterials(rowIndex).length > 0 && (
+                                <div className="absolute top-full left-0 right-0 bg-white border border-slate-200 rounded shadow-lg max-h-52 overflow-y-auto z-30">
+                                  {filteredMaterials(rowIndex).map(mat => (
+                                    <div
+                                      key={mat.id}
+                                      onClick={() => selectMaterial(rowIndex, mat)}
+                                      className="px-3 py-2 text-[13px] cursor-pointer hover:bg-slate-50 border-b border-slate-100"
+                                    >
+                                      {mat.name}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </td>
+                          );
+                        }
+
+                        if (col.key === 'variant') {
+                          return (
+                            <td key={col.key} className={cellClass}>
+                              <select
+                                value={row.variantId || ''}
+                                onChange={(e) => handleVariantChange(rowIndex, e.target.value)}
+                                className="w-full bg-transparent border-none focus:ring-1 focus:ring-green-600 text-[13px] py-0"
+                              >
+                                <option value="">-</option>
+                                {variants.map(v => (
+                                  <option key={v.id} value={v.id}>{v.variant_name}</option>
+                                ))}
+                              </select>
+                            </td>
+                          );
+                        }
+
+                        if (col.key === 'make') {
+                          return (
+                            <td key={col.key} className={cellClass}>
+                              <select
+                                value={row.make || ''}
+                                onChange={(e) => updateRow(rowIndex, 'make', e.target.value)}
+                                className="w-full bg-transparent border-none focus:ring-1 focus:ring-green-600 text-[13px] py-0"
+                              >
+                                <option value="">Select Make</option>
+                                {makes.map(make => (
+                                  <option key={make} value={make}>{make}</option>
+                                ))}
+                              </select>
+                            </td>
+                          );
+                        }
+
+                        if (col.key === 'quantity') {
+                          return (
+                            <td key={col.key} className={cellClass}>
+                              <input
+                                type="number"
+                                value={row.quantity || ''}
+                                onChange={(e) => updateRow(rowIndex, 'quantity', e.target.value)}
+                                onKeyDown={(e) => handleKeyDown(e, rowIndex, col.key)}
+                                className="w-full bg-transparent border-none focus:ring-1 focus:ring-green-600 text-[13px] text-center"
+                              />
+                            </td>
+                          );
+                        }
+
+                        if (col.key === 'unit') {
+                          return (
+                            <td key={col.key} className={cellClass}>
+                              <input
+                                type="text"
+                                value={row.unit || ''}
+                                onChange={(e) => updateRow(rowIndex, 'unit', e.target.value)}
+                                onKeyDown={(e) => handleKeyDown(e, rowIndex, col.key)}
+                                className="w-full bg-transparent border-none focus:ring-1 focus:ring-green-600 text-[13px] text-center uppercase"
+                              />
+                            </td>
+                          );
+                        }
+
+                        if (col.key === 'rate') {
+                          return (
+                            <td key={col.key} className={cellClass}>
+                              <input
+                                type="number"
+                                value={row.rate || ''}
+                                onChange={(e) => updateRow(rowIndex, 'rate', e.target.value)}
+                                onKeyDown={(e) => handleKeyDown(e, rowIndex, col.key)}
+                                className="w-full bg-transparent border-none focus:ring-1 focus:ring-green-600 text-[13px] text-right"
+                              />
+                            </td>
+                          );
+                        }
+
+                        if (col.key === 'discountPercent') {
+                          return (
+                            <td key={col.key} className={`${cellClass} relative`}>
+                              {hasOverride && (
+                                <span
+                                  className="absolute top-0 right-0 w-0 h-0"
+                                  style={{
+                                    borderStyle: 'solid',
+                                    borderWidth: '0 8px 8px 0',
+                                    borderColor: 'transparent #f59e0b transparent transparent',
+                                  }}
+                                />
+                              )}
+                              <input
+                                type="number"
+                                value={row.discountPercent || ''}
+                                onChange={(e) => updateRow(rowIndex, 'discountPercent', e.target.value)}
+                                onKeyDown={(e) => handleKeyDown(e, rowIndex, col.key)}
+                                className="w-full bg-transparent border-none focus:ring-1 focus:ring-green-600 text-[13px] text-right"
+                              />
+                            </td>
+                          );
+                        }
+
+                        if (col.key === 'rateAfterDiscount') {
+                          return (
+                            <td key={col.key} className={cellClass}>
+                              {rateAfterDisc ? rateAfterDisc.toFixed(2) : ''}
+                            </td>
+                          );
+                        }
+
+                        if (col.key === 'totalAmount') {
+                          return (
+                            <td key={col.key} className={cellClass}>
+                              {totalAmt ? totalAmt.toFixed(2) : ''}
+                            </td>
+                          );
+                        }
+
+                        if (col.key === 'hsn_sac') {
+                          return (
+                            <td key={col.key} className={cellClass}>
+                              <input
+                                type="text"
+                                value={row.hsn_sac || ''}
+                                onChange={(e) => updateRow(rowIndex, 'hsn_sac', e.target.value)}
+                                onKeyDown={(e) => handleKeyDown(e, rowIndex, col.key)}
+                                className="w-full bg-transparent border-none focus:ring-1 focus:ring-green-600 text-[13px]"
+                              />
+                            </td>
+                          );
+                        }
+
+                        if (col.key === 'specification') {
+                          return (
+                            <td key={col.key} className={cellClass}>
+                              <input
+                                type="text"
+                                value={row.specification || ''}
+                                onChange={(e) => updateRow(rowIndex, 'specification', e.target.value)}
+                                onKeyDown={(e) => handleKeyDown(e, rowIndex, col.key)}
+                                className="w-full bg-transparent border-none focus:ring-1 focus:ring-green-600 text-[13px]"
+                              />
+                            </td>
+                          );
+                        }
+
+                        if (col.key === 'remarks') {
+                          return (
+                            <td key={col.key} className={cellClass}>
+                              <input
+                                type="text"
+                                value={row.remarks || ''}
+                                onChange={(e) => updateRow(rowIndex, 'remarks', e.target.value)}
+                                onKeyDown={(e) => handleKeyDown(e, rowIndex, col.key)}
+                                className="w-full bg-transparent border-none focus:ring-1 focus:ring-green-600 text-[13px]"
+                              />
+                            </td>
+                          );
+                        }
+
+                        if (col.key === 'pressure') {
+                          return (
+                            <td key={col.key} className={cellClass}>
+                              <input
+                                type="text"
+                                value={row.pressure || ''}
+                                onChange={(e) => updateRow(rowIndex, 'pressure', e.target.value)}
+                                onKeyDown={(e) => handleKeyDown(e, rowIndex, col.key)}
+                                className="w-full bg-transparent border-none focus:ring-1 focus:ring-green-600 text-[13px]"
+                              />
+                            </td>
+                          );
+                        }
+
+                        if (col.key === 'thickness') {
+                          return (
+                            <td key={col.key} className={cellClass}>
+                              <input
+                                type="text"
+                                value={row.thickness || ''}
+                                onChange={(e) => updateRow(rowIndex, 'thickness', e.target.value)}
+                                onKeyDown={(e) => handleKeyDown(e, rowIndex, col.key)}
+                                className="w-full bg-transparent border-none focus:ring-1 focus:ring-green-600 text-[13px]"
+                              />
+                            </td>
+                          );
+                        }
+
+                        if (col.key === 'schedule') {
+                          return (
+                            <td key={col.key} className={cellClass}>
+                              <input
+                                type="text"
+                                value={row.schedule || ''}
+                                onChange={(e) => updateRow(rowIndex, 'schedule', e.target.value)}
+                                onKeyDown={(e) => handleKeyDown(e, rowIndex, col.key)}
+                                className="w-full bg-transparent border-none focus:ring-1 focus:ring-green-600 text-[13px]"
+                              />
+                            </td>
+                          );
+                        }
+
+                        if (col.key === 'material') {
+                          return (
+                            <td key={col.key} className={cellClass}>
+                              <input
+                                type="text"
+                                value={row.material || ''}
+                                onChange={(e) => updateRow(rowIndex, 'material', e.target.value)}
+                                onKeyDown={(e) => handleKeyDown(e, rowIndex, col.key)}
+                                className="w-full bg-transparent border-none focus:ring-1 focus:ring-green-600 text-[13px]"
+                              />
+                            </td>
+                          );
+                        }
+
+                        return <td key={col.key} className={cellClass}></td>;
+                      })}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
-
-          {/* Sheet Tabs */}
-          <div className="h-10 bg-slate-100 border-t border-slate-200 flex items-end space-x-0 flex-shrink-0">
-            {sheets.map(sheet => (
-              <div
-                key={sheet.id}
-                draggable
-                onDragStart={(e) => handleSheetDragStart(e, sheet.id)}
-                onDragOver={handleSheetDragOver}
-                onDrop={(e) => handleSheetDrop(e, sheet.id)}
-                className={`group flex items-center px-3 py-1 text-[11px] font-medium cursor-pointer border-r border-slate-200 hover:bg-slate-100 transition relative ${
-                  activeSheetId === sheet.id ? 'bg-white text-green-700 font-bold border-b-2 border-b-green-600' : 'bg-slate-200'
-                }`}
-                onClick={() => setActiveSheetId(sheet.id)}
-              >
-                <GripVertical className="w-3 h-3 opacity-0 group-hover:opacity-40 mr-1" />
-                {editingSheetId === sheet.id ? (
-                  <input
-                    type="text"
-                    value={editingSheetName}
-                    onChange={(e) => setEditingSheetName(e.target.value)}
-                    onBlur={() => {
-                      renameSheet(sheet.id, editingSheetName);
-                      setEditingSheetId(null);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        renameSheet(sheet.id, editingSheetName);
-                        setEditingSheetId(null);
-                      }
-                    }}
-                    className="text-[11px] px-1 py-0 border border-green-500 rounded"
-                    autoFocus
-                  />
-                ) : (
-                  <span
-                    onDoubleClick={() => {
-                      setEditingSheetId(sheet.id);
-                      setEditingSheetName(sheet.name);
-                    }}
-                  >
-                    {sheet.name}
-                  </span>
-                )}
-                {sheets.length > 1 && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      deleteSheet(sheet.id);
-                    }}
-                    className="ml-2 p-1 opacity-0 group-hover:opacity-100 hover:bg-red-100 rounded"
-                  >
-                    <X className="w-3 h-3 text-red-600" />
-                  </button>
-                )}
-              </div>
-            ))}
-
-            <button
-              onClick={addNewSheet}
-              className="flex items-center px-2 py-1 text-[11px] text-slate-500 hover:text-slate-700 hover:bg-slate-100"
-            >
-              <Plus className="w-3 h-3 mr-1" />
-              <span>Add Sheet</span>
-            </button>
-          </div>
-
           {/* Footer with Totals */}
           <footer className="h-12 bg-slate-50 border-t border-slate-200 flex items-center justify-between px-4 text-xs flex-shrink-0">
             <div className="flex items-center space-x-6">
               <div className="flex items-center space-x-1 text-slate-500">
-                <span className="text-sm">ℹ</span>
+                <span className="text-slate-400 text-[10px] font-bold">i</span>
                 <span>1-{currentSheetItems.length} of {currentSheetItems.length} rows</span>
+              </div>
+              <div className="flex items-center space-x-1">
+                <button className="p-1 hover:bg-slate-200 rounded text-slate-400">
+                  <ChevronsLeft className="w-4 h-4" />
+                </button>
+                <button className="p-1 hover:bg-slate-200 rounded text-slate-600 font-bold">1</button>
+                <button className="p-1 hover:bg-slate-200 rounded text-slate-400">2</button>
+                <button className="p-1 hover:bg-slate-200 rounded text-slate-400">3</button>
+                <button className="p-1 hover:bg-slate-200 rounded text-slate-400">
+                  <ChevronsRight className="w-4 h-4" />
+                </button>
               </div>
             </div>
 
@@ -1744,6 +1714,31 @@ export function BOQ() {
                   </p>
                   <p className="text-[11px] text-slate-500 mt-0.5">Changed Quantity from 0 to 2 units</p>
                   <span className="text-[10px] text-slate-400 mt-1 block">15m ago</span>
+                </div>
+              </div>
+
+              <div className="bg-amber-50 border-l-4 border-amber-400 p-3 rounded-r-md">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-bold text-amber-800">Alex Lee</span>
+                  <span className="text-[10px] text-amber-500">1h ago</span>
+                </div>
+                <p className="text-xs text-amber-900 leading-relaxed">
+                  Still waiting for the supplier quote on the reinforcement bars (Row #2). Mark as pending for now.
+                </p>
+                <div className="mt-2 text-[10px] bg-white/50 inline-block px-1 rounded border border-amber-200">
+                  Linked to: Column "Disc %"
+                </div>
+              </div>
+
+              <div className="flex space-x-3 opacity-60">
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center">
+                  <Save className="w-4 h-4 text-slate-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-slate-900">
+                    <span className="font-bold">System</span> auto-saved version v2.4
+                  </p>
+                  <span className="text-[10px] text-slate-400 mt-1 block">2h ago</span>
                 </div>
               </div>
             </div>
