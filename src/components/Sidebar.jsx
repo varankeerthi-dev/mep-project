@@ -306,6 +306,7 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
         <div className="sidebar-content">
           {menuData.map(section => (
             <div key={section.section} className="sidebar-section">
+              {!collapsed && <div className="sidebar-section-title">{section.section}</div>}
               {section.items.map(item => {
                 const parentActive = isParentActive(item);
                 const isExpanded = expandedMenus.includes(item.id);
@@ -314,9 +315,10 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
                   <div key={item.id}>
                     {item.submenu ? (
                       <>
-                        <div
+                        <button
                           className={`sidebar-item ${parentActive ? "active" : ""} ${isExpanded ? "expanded" : ""}`}
                           onClick={() => handleClick(item)}
+                          type="button"
                         >
                           <span className="sidebar-item-icon">
                             {getIcon(item.id)}
@@ -325,36 +327,38 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
                           <span className="sidebar-item-chevron">
                             <ChevronDownIcon />
                           </span>
-                        </div>
+                        </button>
 
                         {isExpanded && (
                           <div className="sidebar-submenu">
                             {item.submenu.map(subItem => (
-                              <div
+                              <button
                                 key={subItem.id}
                                 className={`sidebar-submenu-item ${
                                   isActive(subItem.path) ? "active" : ""
                                 }`}
                                 onClick={() => handleSubmenuClick(subItem.path)}
+                                type="button"
                               >
                                 <span className="sidebar-item-label">{subItem.label}</span>
-                              </div>
+                              </button>
                             ))}
                           </div>
                         )}
                       </>
                     ) : (
-                      <div
+                      <button
                         className={`sidebar-item ${
                           isActive(item.path) ? "active" : ""
                         }`}
                         onClick={() => handleClick(item)}
+                        type="button"
                       >
                         <span className="sidebar-item-icon">
                           {getIcon(item.id)}
                         </span>
                         <span className="sidebar-item-label">{item.label}</span>
-                      </div>
+                      </button>
                     )}
                   </div>
                 );
@@ -364,9 +368,10 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
         </div>
 
         <div className="sidebar-bottom">
-          <div
+          <button
             className="sidebar-toggle"
             onClick={onToggle}
+            type="button"
           >
             <span className="sidebar-item-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -378,7 +383,7 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
               </svg>
             </span>
             {!collapsed && <span>Collapse</span>}
-          </div>
+          </button>
         </div>
       </aside>
     </>
