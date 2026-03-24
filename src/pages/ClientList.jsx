@@ -1,5 +1,7 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabase';
+import { useQuery } from '@tanstack/react-query';
+import { flexRender, getCoreRowModel, useReactTable } from '@tanstack/react-table';
 
 const pushPath = (path) => {
   const nextPath = path || '/';
@@ -9,46 +11,102 @@ const pushPath = (path) => {
   }
 };
 
+function TransactionsTable({ rows, loading, onOpen, emptyMessage }) {
+  const columns = useMemo(() => [
+    { header: 'Type', accessorKey: 'label' },
+    { header: 'Number', accessorKey: 'number', cell: (info) => <span style={{ fontWeight: 600 }}>{info.getValue()}</span> },
+    { header: 'Date', accessorKey: 'date', cell: (info) => info.getValue() ? new Date(info.getValue()).toLocaleDateString() : '-' },
+    { header: 'Details', accessorKey: 'details', cell: (info) => info.getValue() || '-' },
+    { header: 'Amount', accessorKey: 'amount', cell: (info) => <span style={{ textAlign: 'right', display: 'inline-block', width: '100%' }}>Rs {(info.getValue() || 0).toFixed(2)}</span> },
+    { header: 'Status', accessorKey: 'status' },
+    {
+      id: 'action',
+      header: 'Action',
+      cell: ({ row }) => (
+        <button className="btn btn-sm btn-secondary" onClick={() => onOpen(row.original)}>Open</button>
+      )
+    }
+  ], [onOpen]);
+
+  const table = useReactTable({
+    data: rows,
+    columns,
+    getCoreRowModel: getCoreRowModel()
+  });
+
+  return (
+    <div style={{ overflow: 'auto', border: '1px solid #e5e7eb', borderRadius: '6px' }}>
+      <table className="table" style={{ margin: 0 }}>
+        <thead>
+          {table.getHeaderGroups().map(headerGroup => (
+            <tr key={headerGroup.id}>
+              {headerGroup.headers.map(header => (
+                <th key={header.id} style={{ padding: '6px 8px', fontSize: '12px' }}>
+                  {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                </th>
+              ))}
+            </tr>
+          ))}
+        </thead>
+        <tbody>
+          {loading ? (
+            <tr><td colSpan={columns.length} style={{ padding: '8px' }}>Loading...</td></tr>
+          ) : table.getRowModel().rows.length === 0 ? (
+            <tr><td colSpan={columns.length} style={{ padding: '8px' }}>{emptyMessage}</td></tr>
+          ) : (
+            table.getRowModel().rows.map(row => (
+              <tr key={row.id}>
+                {row.getVisibleCells().map(cell => (
+                  <td key={cell.id} style={{ padding: '6px 8px', fontSize: '12px' }}>
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </td>
+                ))}
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export default function ClientList() {
-  const [clients, setClients] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeClientId, setActiveClientId] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
-  const [transactions, setTransactions] = useState([]);
   const [txFilter, setTxFilter] = useState('all');
   const [txSearch, setTxSearch] = useState('');
   const [txDateFrom, setTxDateFrom] = useState('');
   const [txDateTo, setTxDateTo] = useState('');
-  const [loadingTx, setLoadingTx] = useState(false);
-  const txCacheRef = useRef(new Map());
+  const clientsQuery = useQuery({
+    queryKey: ['clients'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('clients')
+        .select('id, client_name, client_id, contact, email, gstin, state, city, category, address1, address2, pincode')
+        .order('client_name');
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 5 * 60 * 1000
+  });
 
-  const loadClients = async () => {
-    const { data } = await supabase
-      .from('clients')
-      .select('id, client_name, client_id, contact, email, gstin, state, city, category, address1, address2, pincode')
-      .order('client_name');
-    const rows = data || [];
-    setClients(rows);
-    if (!activeClientId && rows.length > 0) setActiveClientId(rows[0].id);
-  };
+  const clients = clientsQuery.data || [];
 
-  useEffect(() => { loadClients(); }, []);
-  useEffect(() => { txCacheRef.current.clear(); }, [clients.length]);
+  useEffect(() => {
+    if (!activeClientId && clients.length > 0) setActiveClientId(clients[0].id);
+    if (activeClientId && clients.length > 0 && !clients.some(c => c.id === activeClientId)) {
+      setActiveClientId(clients[0].id);
+    }
+  }, [clients, activeClientId]);
 
   const activeClient = useMemo(
     () => clients.find(c => c.id === activeClientId) || null,
     [clients, activeClientId]
   );
 
-  const loadClientTransactions = async (client) => {
-    if (!client) return;
-    const cached = txCacheRef.current.get(client.id);
-    if (cached) {
-      setTransactions(cached);
-      return;
-    }
-
-    setLoadingTx(true);
+  const fetchClientTransactions = async (client) => {
+    if (!client) return [];
     const merged = [];
 
     const safePush = (rows, mapFn) => {
@@ -146,15 +204,19 @@ export default function ClientList() {
       console.log('Transaction load warning:', err.message);
     } finally {
       merged.sort((a, b) => (b.date_ms || 0) - (a.date_ms || 0));
-      txCacheRef.current.set(client.id, merged);
-      setTransactions(merged);
-      setLoadingTx(false);
+      return merged;
     }
   };
 
-  useEffect(() => {
-    if (activeClient) loadClientTransactions(activeClient);
-  }, [activeClientId, clients]);
+  const transactionsQuery = useQuery({
+    queryKey: ['clientTransactions', activeClientId],
+    queryFn: () => fetchClientTransactions(activeClient),
+    enabled: !!activeClient,
+    staleTime: 5 * 60 * 1000
+  });
+
+  const transactions = transactionsQuery.data || [];
+  const loadingTx = transactionsQuery.isFetching;
 
   const filteredClients = useMemo(() => {
     const q = searchTerm.toLowerCase();
@@ -237,6 +299,20 @@ export default function ClientList() {
     return { debit, credit, balance: debit - credit };
   }, [transactions]);
 
+  const scopedTransactions = useMemo(() => {
+    const typeMap = {
+      'tab-quotation': 'quotation',
+      'tab-client-po': 'client_po',
+      'tab-project': 'project',
+      'tab-site-visit': 'site_visit',
+      'tab-delivery-challan': 'delivery_challan',
+      'tab-meeting': 'meeting'
+    };
+    const type = typeMap[activeTab];
+    if (!type) return [];
+    return getTransactionsByType(type);
+  }, [activeTab, filteredTransactions]);
+
   return (
     <div style={{ height: 'calc(100vh - 120px)', minHeight: '560px', display: 'grid', gridTemplateColumns: '300px 1fr', gap: '10px' }}>
       <div className="card" style={{ padding: '8px', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
@@ -253,7 +329,9 @@ export default function ClientList() {
           style={{ marginBottom: '8px', padding: '6px 8px', fontSize: '12px' }}
         />
         <div style={{ overflowY: 'auto', minHeight: 0 }}>
-          {filteredClients.map((c) => (
+          {clientsQuery.isLoading ? (
+            <div style={{ padding: '8px', fontSize: '12px', color: '#6b7280' }}>Loading...</div>
+          ) : filteredClients.map((c) => (
             <div
               key={c.id}
               onClick={() => setActiveClientId(c.id)}
@@ -344,40 +422,12 @@ export default function ClientList() {
                     <input type="date" className="form-input" value={txDateTo} onChange={(e) => setTxDateTo(e.target.value)} style={{ padding: '6px 8px', fontSize: '12px' }} />
                   </div>
 
-                  <div style={{ overflow: 'auto', border: '1px solid #e5e7eb', borderRadius: '6px' }}>
-                    <table className="table" style={{ margin: 0 }}>
-                      <thead>
-                        <tr>
-                          <th style={{ padding: '6px 8px', fontSize: '12px' }}>Type</th>
-                          <th style={{ padding: '6px 8px', fontSize: '12px' }}>Number</th>
-                          <th style={{ padding: '6px 8px', fontSize: '12px' }}>Date</th>
-                          <th style={{ padding: '6px 8px', fontSize: '12px' }}>Details</th>
-                          <th style={{ padding: '6px 8px', fontSize: '12px', textAlign: 'right' }}>Amount</th>
-                          <th style={{ padding: '6px 8px', fontSize: '12px' }}>Status</th>
-                          <th style={{ padding: '6px 8px', fontSize: '12px' }}>Action</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {loadingTx ? (
-                          <tr><td colSpan={7} style={{ padding: '8px' }}>Loading...</td></tr>
-                        ) : filteredTransactions.length === 0 ? (
-                          <tr><td colSpan={7} style={{ padding: '8px' }}>No transactions</td></tr>
-                        ) : filteredTransactions.map((t, idx) => (
-                          <tr key={`${t.type}-${t.ref_id}-${idx}`}>
-                            <td style={{ padding: '6px 8px', fontSize: '12px' }}>{t.label}</td>
-                            <td style={{ padding: '6px 8px', fontSize: '12px', fontWeight: 600 }}>{t.number}</td>
-                            <td style={{ padding: '6px 8px', fontSize: '12px' }}>{t.date ? new Date(t.date).toLocaleDateString() : '-'}</td>
-                            <td style={{ padding: '6px 8px', fontSize: '12px' }}>{t.details || '-'}</td>
-                            <td style={{ padding: '6px 8px', fontSize: '12px', textAlign: 'right' }}>Rs {(t.amount || 0).toFixed(2)}</td>
-                            <td style={{ padding: '6px 8px', fontSize: '12px' }}>{t.status}</td>
-                            <td style={{ padding: '6px 8px', fontSize: '12px' }}>
-                              <button className="btn btn-sm btn-secondary" onClick={() => openTransaction(t)}>Open</button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                  <TransactionsTable
+                    rows={filteredTransactions}
+                    loading={loadingTx}
+                    onOpen={openTransaction}
+                    emptyMessage="No transactions"
+                  />
                 </div>
               )}
 
@@ -394,49 +444,12 @@ export default function ClientList() {
                     <input type="date" className="form-input" value={txDateTo} onChange={(e) => setTxDateTo(e.target.value)} style={{ padding: '6px 8px', fontSize: '12px' }} />
                   </div>
 
-                  <div style={{ overflow: 'auto', border: '1px solid #e5e7eb', borderRadius: '6px' }}>
-                    <table className="table" style={{ margin: 0 }}>
-                      <thead>
-                        <tr>
-                          <th style={{ padding: '6px 8px', fontSize: '12px' }}>Type</th>
-                          <th style={{ padding: '6px 8px', fontSize: '12px' }}>Number</th>
-                          <th style={{ padding: '6px 8px', fontSize: '12px' }}>Date</th>
-                          <th style={{ padding: '6px 8px', fontSize: '12px' }}>Details</th>
-                          <th style={{ padding: '6px 8px', fontSize: '12px', textAlign: 'right' }}>Amount</th>
-                          <th style={{ padding: '6px 8px', fontSize: '12px' }}>Status</th>
-                          <th style={{ padding: '6px 8px', fontSize: '12px' }}>Action</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {(() => {
-                          const typeMap = {
-                            'tab-quotation': 'quotation',
-                            'tab-client-po': 'client_po',
-                            'tab-project': 'project',
-                            'tab-site-visit': 'site_visit',
-                            'tab-delivery-challan': 'delivery_challan',
-                            'tab-meeting': 'meeting'
-                          };
-                          const scoped = getTransactionsByType(typeMap[activeTab]);
-                          if (loadingTx) return <tr><td colSpan={7} style={{ padding: '8px' }}>Loading...</td></tr>;
-                          if (scoped.length === 0) return <tr><td colSpan={7} style={{ padding: '8px' }}>No records</td></tr>;
-                          return scoped.map((t, idx) => (
-                            <tr key={`${activeTab}-${t.ref_id}-${idx}`}>
-                              <td style={{ padding: '6px 8px', fontSize: '12px' }}>{t.label}</td>
-                              <td style={{ padding: '6px 8px', fontSize: '12px', fontWeight: 600 }}>{t.number}</td>
-                              <td style={{ padding: '6px 8px', fontSize: '12px' }}>{t.date ? new Date(t.date).toLocaleDateString() : '-'}</td>
-                              <td style={{ padding: '6px 8px', fontSize: '12px' }}>{t.details || '-'}</td>
-                              <td style={{ padding: '6px 8px', fontSize: '12px', textAlign: 'right' }}>Rs {(t.amount || 0).toFixed(2)}</td>
-                              <td style={{ padding: '6px 8px', fontSize: '12px' }}>{t.status}</td>
-                              <td style={{ padding: '6px 8px', fontSize: '12px' }}>
-                                <button className="btn btn-sm btn-secondary" onClick={() => openTransaction(t)}>Open</button>
-                              </td>
-                            </tr>
-                          ));
-                        })()}
-                      </tbody>
-                    </table>
-                  </div>
+                  <TransactionsTable
+                    rows={scopedTransactions}
+                    loading={loadingTx}
+                    onOpen={openTransaction}
+                    emptyMessage="No records"
+                  />
                 </div>
               )}
             </div>

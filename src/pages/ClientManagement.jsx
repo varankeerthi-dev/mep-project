@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabase';
 import { useAuth } from '../App';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 function getCurrentQueryParams() {
   const hashQuery = window.location.hash.split('?')[1];
@@ -9,51 +10,71 @@ function getCurrentQueryParams() {
 }
 
 export function CreateClientEdit({ onSuccess, onCancel }) {
-  const [clientData, setClientData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const params = getCurrentQueryParams();
+  const clientId = params.get('id');
 
-  useEffect(() => {
-    const params = getCurrentQueryParams();
-    const clientId = params.get('id');
-    if (clientId) {
-      loadClient(clientId);
-    }
-  }, []);
+  const clientQuery = useQuery({
+    queryKey: ['client', clientId],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('clients').select('*').eq('id', clientId).single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!clientId
+  });
 
-  const loadClient = async (id) => {
-    const { data } = await supabase.from('clients').select('*').eq('id', id).single();
-    setClientData(data);
-    setLoading(false);
-  };
+  if (clientQuery.isLoading) return <div>Loading...</div>;
+  if (clientQuery.isError) return <div>Error loading client.</div>;
 
-  if (loading) return <div>Loading...</div>;
-
-  return <CreateClient editMode={true} clientData={clientData} onSuccess={onSuccess} onCancel={onCancel} />;
+  return <CreateClient editMode={true} clientData={clientQuery.data} onSuccess={onSuccess} onCancel={onCancel} />;
 }
 
 function ClientDiscountPortfolio({ formData, setFormData, isAdmin }) {
-  const [pricelists, setPricelists] = useState([]);
-  const [structures, setStructures] = useState([]);
-  const [variants, setVariants] = useState([]);
-  const [previewSettings, setPreviewSettings] = useState([]);
   const [customDiscounts, setCustomDiscounts] = useState({});
-  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState({ type: '', text: '' });
 
-  useEffect(() => {
-    const fetchData = async () => {
-      const [plData, stData, varData] = await Promise.all([
-        supabase.from('standard_discount_pricelists').select('*').eq('is_active', true),
-        supabase.from('discount_structures').select('*').eq('is_active', true).neq('structure_name', 'Standard'),
-        supabase.from('company_variants').select('*').eq('is_active', true).order('variant_name')
-      ]);
-      setPricelists(plData.data || []);
-      setStructures(stData.data || []);
-      setVariants(varData.data || []);
-    };
-    fetchData();
-  }, []);
+  const pricelistsQuery = useQuery({
+    queryKey: ['discountPricelists'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('standard_discount_pricelists').select('*').eq('is_active', true);
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 10 * 60 * 1000
+  });
+
+  const structuresQuery = useQuery({
+    queryKey: ['discountStructures'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('discount_structures')
+        .select('*')
+        .eq('is_active', true)
+        .neq('structure_name', 'Standard');
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 10 * 60 * 1000
+  });
+
+  const variantsQuery = useQuery({
+    queryKey: ['companyVariants'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('company_variants')
+        .select('*')
+        .eq('is_active', true)
+        .order('variant_name');
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 10 * 60 * 1000
+  });
+
+  const pricelists = pricelistsQuery.data || [];
+  const structures = structuresQuery.data || [];
+  const variants = variantsQuery.data || [];
 
   useEffect(() => {
     if (formData.custom_discounts && typeof formData.custom_discounts === 'object') {
@@ -63,22 +84,27 @@ function ClientDiscountPortfolio({ formData, setFormData, isAdmin }) {
     }
   }, [formData.custom_discounts]);
 
-  useEffect(() => {
-    const fetchPreview = async () => {
-      if (formData.discount_type === 'Standard' || !formData.discount_type) {
-        setPreviewSettings([]);
-        return;
-      }
-      setLoading(true);
-      const struct = structures.find(s => s.structure_name === formData.discount_type);
-      if (struct) {
-        const { data } = await supabase.from('discount_variant_settings').select('*, variant:company_variants(variant_name)').eq('structure_id', struct.id);
-        setPreviewSettings(data || []);
-      }
-      setLoading(false);
-    };
-    fetchPreview();
+  const selectedStructureId = useMemo(() => {
+    if (formData.discount_type === 'Standard' || !formData.discount_type) return null;
+    const struct = structures.find(s => s.structure_name === formData.discount_type);
+    return struct?.id || null;
   }, [formData.discount_type, structures]);
+
+  const previewQuery = useQuery({
+    queryKey: ['discountVariantSettings', selectedStructureId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('discount_variant_settings')
+        .select('*, variant:company_variants(variant_name)')
+        .eq('structure_id', selectedStructureId);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!selectedStructureId
+  });
+
+  const previewSettings = previewQuery.data || [];
+  const loading = previewQuery.isFetching;
 
   const handleCustomDiscountChange = (variantId, value) => {
     setCustomDiscounts(prev => ({
@@ -246,6 +272,7 @@ function ClientDiscountPortfolio({ formData, setFormData, isAdmin }) {
 
 export function CreateClient({ onSuccess, onCancel, editMode, clientData }) {
   const { user, organisation, organisations } = useAuth();
+  const queryClient = useQueryClient();
   const isAdmin = organisations?.find(o => o.organisation.id === organisation?.id)?.role?.toLowerCase() === 'admin';
   const [activeTab, setActiveTab] = useState('general');
 
@@ -286,7 +313,6 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }) {
   }, [isDirty, saving]);
 
   const [gstError, setGstError] = useState('');
-  const [shippingAddresses, setShippingAddresses] = useState([]);
   const [showShippingForm, setShowShippingForm] = useState(false);
   const [newShipping, setNewShipping] = useState({ address_name: '', address_line1: '', address_line2: '', city: '', state: '', pincode: '', gstin: '', contact: '', is_default: false });
 
@@ -312,16 +338,21 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }) {
     '33': 'Telangana', '34': 'Andhra Pradesh', '35': 'Ladakh'
   };
 
-  useEffect(() => {
-    if (editMode && clientData?.id) {
-      loadShippingAddresses(clientData.id);
-    }
-  }, [editMode, clientData?.id]);
+  const shippingQuery = useQuery({
+    queryKey: ['clientShipping', clientData?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('client_shipping_addresses')
+        .select('*')
+        .eq('client_id', clientData?.id)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: editMode && !!clientData?.id
+  });
 
-  const loadShippingAddresses = async (clientId) => {
-    const { data } = await supabase.from('client_shipping_addresses').select('*').eq('client_id', clientId).order('created_at', { ascending: false });
-    setShippingAddresses(data || []);
-  };
+  const shippingAddresses = shippingQuery.data || [];
 
   const handleGstChange = (e) => {
     const value = e.target.value.toUpperCase();
@@ -363,14 +394,14 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }) {
     } else {
       setNewShipping({ address_name: '', address_line1: '', address_line2: '', city: '', state: '', pincode: '', gstin: '', contact: '', is_default: false });
       setShowShippingForm(false);
-      loadShippingAddresses(clientData.id);
+      queryClient.invalidateQueries({ queryKey: ['clientShipping', clientData.id] });
     }
   };
 
   const deleteShippingAddress = async (id) => {
     if (!confirm('Delete this shipping address?')) return;
     await supabase.from('client_shipping_addresses').delete().eq('id', id);
-    loadShippingAddresses(clientData.id);
+    queryClient.invalidateQueries({ queryKey: ['clientShipping', clientData.id] });
   };
 
   const deleteClient = async () => {
@@ -382,6 +413,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }) {
       const { error } = await supabase.from('clients').delete().eq('id', clientData.id);
       if (error) throw error;
       alert('Client deleted successfully!');
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
       setIsDirty(false);
       onCancel();
     } catch (err) {
@@ -409,6 +441,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }) {
         if (error) throw error;
         alert('Client saved successfully!');
       }
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
       setIsDirty(false);
       onSuccess();
     } catch (error) {

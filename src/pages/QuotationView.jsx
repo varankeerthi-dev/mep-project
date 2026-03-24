@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../supabase';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
@@ -16,40 +17,14 @@ export default function QuotationView() {
   const quotationId = searchParams.get('id');
   const { organisation } = useAuth();
   
-  const [loading, setLoading] = useState(true);
-  const [quotation, setQuotation] = useState(null);
   const [showConvertMenu, setShowConvertMenu] = useState(false);
   const [showPrintMenu, setShowPrintMenu] = useState(false);
   const [showTemplateMenu, setShowTemplateMenu] = useState(false);
-  const [templates, setTemplates] = useState([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState(null);
 
-  useEffect(() => {
-    if (quotationId) {
-      loadQuotation();
-      loadTemplates();
-    }
-  }, [quotationId]);
-
-  const loadTemplates = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('document_templates')
-        .select('*')
-        .eq('document_type', 'Quotation')
-        .eq('active', true)
-        .order('is_default', { ascending: false });
-
-      if (error) throw error;
-      setTemplates(data || []);
-    } catch (err) {
-      console.error('Error loading templates:', err);
-    }
-  };
-
-  const loadQuotation = async () => {
-    setLoading(true);
-    try {
+  const quotationQuery = useQuery({
+    queryKey: ['quotation', quotationId],
+    queryFn: async () => {
       const { data, error } = await supabase
         .from('quotation_header')
         .select(`
@@ -65,15 +40,49 @@ export default function QuotationView() {
         .single();
 
       if (error) throw error;
-      setQuotation(data);
-      setSelectedTemplateId(data.template_id);
-    } catch (err) {
-      console.error('Error loading quotation:', err);
-      alert('Error loading quotation: ' + err.message);
-    } finally {
-      setLoading(false);
+      return data;
+    },
+    enabled: !!quotationId
+  });
+
+  const templatesQuery = useQuery({
+    queryKey: ['documentTemplates', 'Quotation'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('document_templates')
+        .select('*')
+        .eq('document_type', 'Quotation')
+        .eq('active', true)
+        .order('is_default', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 10 * 60 * 1000
+  });
+
+  const quotation = quotationQuery.data || null;
+  const templates = templatesQuery.data || [];
+  const loading = quotationQuery.isLoading;
+
+  useEffect(() => {
+    if (quotation?.template_id) {
+      setSelectedTemplateId(quotation.template_id);
     }
-  };
+  }, [quotation?.template_id]);
+
+  useEffect(() => {
+    if (quotationQuery.isError) {
+      console.error('Error loading quotation:', quotationQuery.error);
+      alert('Error loading quotation: ' + (quotationQuery.error?.message || 'Unknown error'));
+    }
+  }, [quotationQuery.isError, quotationQuery.error]);
+
+  useEffect(() => {
+    if (templatesQuery.isError) {
+      console.error('Error loading templates:', templatesQuery.error);
+    }
+  }, [templatesQuery.isError, templatesQuery.error]);
 
   const handleEdit = () => {
     navigate(`/quotation/edit?id=${quotationId}`);
@@ -171,7 +180,7 @@ export default function QuotationView() {
       }
       
       setShowConvertMenu(false);
-      loadQuotation();
+      quotationQuery.refetch();
     } catch (err) {
       console.error('Error converting quotation:', err);
       alert('Error: ' + err.message);
@@ -187,7 +196,7 @@ export default function QuotationView() {
         .update({ status: 'Cancelled' })
         .eq('id', quotationId);
       
-      loadQuotation();
+      quotationQuery.refetch();
     } catch (err) {
       console.error('Error cancelling quotation:', err);
       alert('Error: ' + err.message);
@@ -223,7 +232,7 @@ export default function QuotationView() {
       
       setSelectedTemplateId(templateId);
       setShowTemplateMenu(false);
-      loadQuotation();
+      quotationQuery.refetch();
     } catch (err) {
       console.error('Error selecting template:', err);
       alert('Error: ' + err.message);

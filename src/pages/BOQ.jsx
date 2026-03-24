@@ -2,12 +2,11 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '../supabase';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import * as XLSX from 'xlsx';
 import { 
   Save, FileDown, Plus, Trash2, Sheet, Table, X, Settings, 
   FileSpreadsheet, Loader2, GripVertical, Home, BarChart3,
   Calendar, Percent, Send, AtSign, Paperclip, MessageSquare,
-  Edit3, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight
+  Edit3, ChevronsLeft, ChevronsRight, Search, Filter, ChevronDown, Clock
 } from 'lucide-react';
 import { openSansRegular, openSansBold } from '../fonts/openSans';
 import { saveBOQWithItems, fetchBOQById } from '../api';
@@ -35,20 +34,20 @@ const getColumnLabel = (index) => {
 };
 
 const DEFAULT_COLUMNS = [
-  { key: 'rowControl', label: '', width: 40, visible: true },
-  { key: 'sno', label: 'S.No', width: 50, visible: true },
-  { key: 'hsn_sac', label: 'HSN/SAC', width: 90, visible: true },
+  { key: 'rowControl', label: '', width: 40, visible: false },
+  { key: 'sno', label: 'S.No', width: 50, visible: false },
+  { key: 'hsn_sac', label: 'HSN/SAC', width: 90, visible: false },
   { key: 'description', label: 'Description', width: 250, visible: true },
-  { key: 'variant', label: 'Variant', width: 100, visible: true },
+  { key: 'variant', label: 'Size/Variant', width: 120, visible: true },
   { key: 'make', label: 'Make', width: 100, visible: true },
   { key: 'quantity', label: 'Qty', width: 70, visible: true },
   { key: 'unit', label: 'Unit', width: 70, visible: true },
-  { key: 'rate', label: 'Price', width: 100, visible: true },
+  { key: 'rate', label: 'Price/Rate ($)', width: 120, visible: true },
   { key: 'discountPercent', label: 'Disc %', width: 70, visible: true },
-  { key: 'rateAfterDiscount', label: 'Rate/Unit', width: 110, visible: true },
-  { key: 'totalAmount', label: 'Total Amount', width: 120, visible: true },
-  { key: 'specification', label: 'Specification', width: 150, visible: true },
-  { key: 'remarks', label: 'Remarks', width: 120, visible: true },
+  { key: 'rateAfterDiscount', label: 'Rate/Unit ($)', width: 120, visible: true },
+  { key: 'totalAmount', label: 'Amount ($)', width: 120, visible: true },
+  { key: 'specification', label: 'Specification', width: 150, visible: false },
+  { key: 'remarks', label: 'Remarks', width: 120, visible: false },
   { key: 'pressure', label: 'Pressure', width: 80, visible: false },
   { key: 'thickness', label: 'Thickness', width: 80, visible: false },
   { key: 'schedule', label: 'Schedule', width: 80, visible: false },
@@ -728,8 +727,10 @@ export function BOQ() {
     doc.save(`${boqData.boqNo || 'BOQ'}.pdf`);
   };
 
-  const exportToExcel = () => {
-    const wb = XLSX.utils.book_new();
+  const exportToExcel = async () => {
+    const ExcelJSImport = await import('exceljs');
+    const ExcelJS = ExcelJSImport.default || ExcelJSImport;
+    const wb = new ExcelJS.Workbook();
 
     sheets.forEach(sheet => {
       if (!exportSheets[sheet.id]) return;
@@ -737,14 +738,14 @@ export function BOQ() {
       const sheetItems = items[sheet.id] || [];
 
       if (sheet.name === 'Terms' && boqData.termsConditions) {
-        const ws = XLSX.utils.aoa_to_sheet([[boqData.termsConditions]]);
-        XLSX.utils.book_append_sheet(wb, ws, sheet.name);
+        const ws = wb.addWorksheet(sheet.name);
+        ws.addRow([boqData.termsConditions]);
         return;
       }
 
       if (sheet.name === 'Preface' && boqData.preface) {
-        const ws = XLSX.utils.aoa_to_sheet([[boqData.preface]]);
-        XLSX.utils.book_append_sheet(wb, ws, sheet.name);
+        const ws = wb.addWorksheet(sheet.name);
+        ws.addRow([boqData.preface]);
         return;
       }
 
@@ -756,8 +757,10 @@ export function BOQ() {
         c.key !== 'rowControl'
       );
 
+      const ws = wb.addWorksheet(sheet.name);
+
       const headers = visibleCols.map(c => c.label);
-      const data = [headers];
+      ws.addRow(headers);
 
       let snoCounter = 1;
 
@@ -766,7 +769,7 @@ export function BOQ() {
           const headerRow = visibleCols.map(col => 
             col.key === 'description' ? row.headerText : ''
           );
-          data.push(headerRow);
+          ws.addRow(headerRow);
         } else {
           const dataRow = visibleCols.map(col => {
             if (col.key === 'sno') return snoCounter++;
@@ -800,15 +803,23 @@ export function BOQ() {
             if (col.key === 'material') return row.material || '';
             return '';
           });
-          data.push(dataRow);
+          ws.addRow(dataRow);
         }
       });
-
-      const ws = XLSX.utils.aoa_to_sheet(data);
-      XLSX.utils.book_append_sheet(wb, ws, sheet.name);
     });
 
-    XLSX.writeFile(wb, `${boqData.boqNo || 'BOQ'}.xlsx`);
+    const buffer = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buffer], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${boqData.boqNo || 'BOQ'}.xlsx`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
   };
 
   const toggleColumnVisibility = (key) => {
@@ -983,7 +994,68 @@ export function BOQ() {
   }
 
   return (
-    <div className="bg-slate-100 text-slate-900 h-screen overflow-hidden flex flex-col" style={{ fontFamily: "'Inter', sans-serif" }}>
+    <div
+      className="bg-slate-100 text-slate-900 h-screen overflow-hidden flex flex-col"
+      style={{
+        fontFamily: "'Inter', sans-serif",
+        '--excel-border': '#d1d5db',
+        '--cell-active': '#e8f5e9',
+        '--cell-focus': '#217346'
+      }}
+    >
+      <style>{`
+        .excel-grid td, .excel-grid th {
+          border: 0.5px solid var(--excel-border);
+          position: relative;
+        }
+        .excel-grid th {
+          background-color: #f3f4f6;
+          font-weight: 500;
+          color: #4b5563;
+        }
+        .excel-grid tr:hover td {
+          background-color: #f9fafb;
+        }
+        .cell-indicator-comment::after {
+          content: '';
+          position: absolute;
+          top: 0;
+          right: 0;
+          width: 0;
+          height: 0;
+          border-style: solid;
+          border-width: 0 8px 8px 0;
+          border-color: transparent #ef4444 transparent transparent;
+        }
+        .cell-indicator-pending::after {
+          content: '';
+          position: absolute;
+          top: 0;
+          right: 0;
+          width: 0;
+          height: 0;
+          border-style: solid;
+          border-width: 0 8px 8px 0;
+          border-color: transparent #f59e0b transparent transparent;
+        }
+        .cell-indicator-update {
+          border-left: 3px solid #3b82f6 !important;
+        }
+        .activity-panel {
+          transition: width 0.3s ease;
+        }
+        ::-webkit-scrollbar {
+          width: 8px;
+          height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+          background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+          background: #cbd5e1;
+          border-radius: 4px;
+        }
+      `}</style>
       {/* Main Container */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left Sidebar */}

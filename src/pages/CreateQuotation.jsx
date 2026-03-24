@@ -3,6 +3,8 @@ import { supabase } from '../supabase';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { formatCurrency } from '../utils/formatters';
 import { useAuth } from '../App';
+import { useQuery } from '@tanstack/react-query';
+import { flexRender, getCoreRowModel, useReactTable } from '@tanstack/react-table';
 
 const INDIAN_STATES = [
   'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
@@ -47,7 +49,6 @@ export default function CreateQuotation() {
   
   const { organisation } = useAuth();
   
-  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [clients, setClients] = useState([]);
   const [projects, setProjects] = useState([]);
@@ -101,6 +102,143 @@ export default function CreateQuotation() {
   const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth <= 768 : false);
   const [isDirty, setIsDirty] = useState(false);
 
+  const initQuery = useQuery({
+    queryKey: ['quotationInit'],
+    queryFn: async () => {
+      const [clientsData, projectsData, materialsData, variantsData, pricingData, settingsData, templateData] = await Promise.all([
+        supabase
+          .from('clients')
+          .select('id, client_name, address1, address2, city, state, pincode, gstin, contact, email, contact_person, contact_person_email, contact_person_2, contact_person_2_email, purchase_person, purchase_email, custom_discounts, discount_type, standard_pricelist_id, discount_profile_id')
+          .order('client_name'),
+        supabase.from('projects').select('id, project_name, project_code, client_id').order('project_name'),
+        supabase
+          .from('materials')
+          .select('id, item_code, display_name, name, hsn_code, sale_price, unit, gst_rate, make, item_type, uses_variant')
+          .order('name'),
+        supabase.from('company_variants').select('id, variant_name').eq('is_active', true).order('variant_name'),
+        supabase.from('item_variant_pricing').select('item_id, company_variant_id, sale_price, make'),
+        supabase
+          .from('discount_settings')
+          .select('variant_id, default_discount_percent, min_discount_percent, max_discount_percent')
+          .eq('is_active', true),
+        supabase
+          .from('document_templates')
+          .select('id, column_settings')
+          .eq('document_type', 'Quotation')
+          .eq('is_default', true)
+          .maybeSingle()
+      ]);
+
+      return {
+        clients: clientsData.data || [],
+        projects: projectsData.data || [],
+        materials: materialsData.data || [],
+        variants: variantsData.data || [],
+        pricing: pricingData.data || [],
+        settings: settingsData.data || [],
+        template: templateData.data || null
+      };
+    },
+    staleTime: 5 * 60 * 1000
+  });
+
+  const initLoading = initQuery.isLoading;
+
+  useEffect(() => {
+    if (!initQuery.data) return;
+
+    const { clients, projects, materials, variants, pricing, settings, template } = initQuery.data;
+
+    setClients(clients);
+    setProjects(projects);
+
+    const mappedItems = materials.map(item => ({
+      ...item,
+      isService: item.item_type === 'service'
+    }));
+    setMaterials(mappedItems);
+
+    setVariants(variants);
+    const pricingMap = {};
+    const makesMap = {};
+    
+    (pricing || []).forEach((row) => {
+      const itemId = row.item_id;
+      const variantId = row.company_variant_id || 'no_variant';
+      const make = row.make || '';
+      
+      if (!pricingMap[itemId]) pricingMap[itemId] = {};
+      if (!pricingMap[itemId][variantId]) pricingMap[itemId][variantId] = {};
+      pricingMap[itemId][variantId][make] = parseFloat(row.sale_price) || 0;
+      
+      if (make) {
+        if (!makesMap[itemId]) makesMap[itemId] = new Set();
+        makesMap[itemId].add(make);
+      }
+    });
+    
+    materials.forEach(m => {
+      if (m.make) {
+        if (!makesMap[m.id]) makesMap[m.id] = new Set();
+        makesMap[m.id].add(m.make);
+      }
+    });
+
+    const finalMakesMap = {};
+    for (const id in makesMap) {
+      finalMakesMap[id] = Array.from(makesMap[id]).sort();
+    }
+
+    setVariantPricing(pricingMap);
+    setItemMakes(finalMakesMap);
+
+    const settingsMap = {};
+    (settings || []).forEach((row) => {
+      settingsMap[row.variant_id] = {
+        default: parseFloat(row.default_discount_percent) || 0,
+        min: parseFloat(row.min_discount_percent) || 0,
+        max: parseFloat(row.max_discount_percent) || 0
+      };
+    });
+    setDiscountSettings(settingsMap);
+
+    if (template) {
+      setTemplateSettings(template);
+    } else {
+      setTemplateSettings({
+        column_settings: {
+          mandatory: ['sno', 'item', 'qty', 'uom'],
+          optional: {
+            item_code: true,
+            variant: true,
+            description: true,
+            hsn_code: true,
+            rate: true,
+            discount_percent: true,
+            rate_after_discount: true,
+            tax_percent: true,
+            line_total: true,
+            custom1: false,
+            custom2: false
+          },
+          labels: {
+            custom1: 'Custom 1',
+            custom2: 'Custom 2',
+            rate_after_discount: 'Rate/Unit'
+          }
+        }
+      });
+    }
+
+    if (editId) {
+      loadQuotation(editId);
+    } else if (duplicateId) {
+      loadQuotation(duplicateId, true);
+    } else {
+      loadQuoteNoPreview();
+    }
+  }, [initQuery.data, editId, duplicateId]);
+
   const handleDragStart = (e, itemId) => {
     setDraggingItemId(itemId);
     e.dataTransfer.effectAllowed = 'move';
@@ -131,14 +269,10 @@ export default function CreateQuotation() {
   };
 
   useEffect(() => {
-    loadInitialData();
-  }, [editId, duplicateId]);
-
-  useEffect(() => {
-    if (!loading) {
+    if (!initLoading) {
       setIsDirty(true);
     }
-  }, [formData, items]);
+  }, [formData, items, initLoading]);
 
   useEffect(() => {
     const handleBeforeUnload = (e) => {
@@ -227,128 +361,6 @@ export default function CreateQuotation() {
     } catch (err) {
       setQuoteNoPreview('QT-0001');
       setFormData((prev) => ({ ...prev, quotation_no: 'QT-0001' }));
-    }
-  };
-
-  const loadInitialData = async () => {
-    setLoading(true);
-    try {
-      const [clientsData, projectsData, materialsData, variantsData, pricingData, settingsData, templateData] = await Promise.all([
-        supabase
-          .from('clients')
-          .select('id, client_name, address1, address2, city, state, pincode, gstin, contact, email, contact_person, contact_person_email, contact_person_2, contact_person_2_email, purchase_person, purchase_email, custom_discounts, discount_type, standard_pricelist_id, discount_profile_id')
-          .order('client_name'),
-        supabase.from('projects').select('id, project_name, project_code, client_id').order('project_name'),
-        supabase
-          .from('materials')
-          .select('id, item_code, display_name, name, hsn_code, sale_price, unit, gst_rate, make, item_type, uses_variant')
-          .order('name'),
-        supabase.from('company_variants').select('id, variant_name').eq('is_active', true).order('variant_name'),
-        supabase.from('item_variant_pricing').select('item_id, company_variant_id, sale_price, make'),
-        supabase
-          .from('discount_settings')
-          .select('variant_id, default_discount_percent, min_discount_percent, max_discount_percent')
-          .eq('is_active', true),
-        supabase
-          .from('document_templates')
-          .select('id, column_settings')
-          .eq('document_type', 'Quotation')
-          .eq('is_default', true)
-          .maybeSingle()
-      ]);
-
-      setClients(clientsData.data || []);
-      setProjects(projectsData.data || []);
-
-      const mappedItems = (materialsData.data || []).map(item => ({
-        ...item,
-        isService: item.item_type === 'service'
-      }));
-      setMaterials(mappedItems);
-
-      setVariants(variantsData.data || []);
-      const pricingMap = {};
-      const makesMap = {};
-      
-      (pricingData.data || []).forEach((row) => {
-        const itemId = row.item_id;
-        const variantId = row.company_variant_id || 'no_variant';
-        const make = row.make || '';
-        
-        if (!pricingMap[itemId]) pricingMap[itemId] = {};
-        if (!pricingMap[itemId][variantId]) pricingMap[itemId][variantId] = {};
-        pricingMap[itemId][variantId][make] = parseFloat(row.sale_price) || 0;
-        
-        if (make) {
-          if (!makesMap[itemId]) makesMap[itemId] = new Set();
-          makesMap[itemId].add(make);
-        }
-      });
-      
-      (materialsData.data || []).forEach(m => {
-        if (m.make) {
-          if (!makesMap[m.id]) makesMap[m.id] = new Set();
-          makesMap[m.id].add(m.make);
-        }
-      });
-
-      const finalMakesMap = {};
-      for (const id in makesMap) {
-        finalMakesMap[id] = Array.from(makesMap[id]).sort();
-      }
-
-      setVariantPricing(pricingMap);
-      setItemMakes(finalMakesMap);
-
-      const settingsMap = {};
-      (settingsData.data || []).forEach((row) => {
-        settingsMap[row.variant_id] = {
-          default: parseFloat(row.default_discount_percent) || 0,
-          min: parseFloat(row.min_discount_percent) || 0,
-          max: parseFloat(row.max_discount_percent) || 0
-        };
-      });
-      setDiscountSettings(settingsMap);
-
-      if (templateData.data) {
-        setTemplateSettings(templateData.data);
-      } else {
-        setTemplateSettings({
-          column_settings: {
-            mandatory: ['sno', 'item', 'qty', 'uom'],
-            optional: {
-              item_code: true,
-              variant: true,
-              description: true,
-              hsn_code: true,
-              rate: true,
-              discount_percent: true,
-              rate_after_discount: true,
-              tax_percent: true,
-              line_total: true,
-              custom1: false,
-              custom2: false
-            },
-            labels: {
-              custom1: 'Custom 1',
-              custom2: 'Custom 2',
-              rate_after_discount: 'Rate/Unit'
-            }
-          }
-        });
-      }
-
-      if (editId) {
-        await loadQuotation(editId);
-      } else if (duplicateId) {
-        await loadQuotation(duplicateId, true);
-      } else {
-        await loadQuoteNoPreview();
-      }
-    } catch (err) {
-      console.error('Error loading data:', err);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -867,6 +879,32 @@ export default function CreateQuotation() {
     }
   };
 
+  const pickerColumns = useMemo(() => [
+    {
+      header: 'Item',
+      accessorKey: 'display_name',
+      cell: ({ row }) => row.original.display_name || row.original.name
+    },
+    {
+      header: 'Rate',
+      accessorKey: 'sale_price',
+      cell: ({ row }) => formatCurrency(row.original.sale_price)
+    },
+    {
+      id: 'action',
+      header: 'Action',
+      cell: ({ row }) => (
+        <button className="btn btn-sm btn-primary" onClick={() => handleAddItemToPicker(row.original)}>+</button>
+      )
+    }
+  ], [handleAddItemToPicker]);
+
+  const pickerTable = useReactTable({
+    data: filteredMaterials,
+    columns: pickerColumns,
+    getCoreRowModel: getCoreRowModel()
+  });
+
   const handlePickerQtyChange = (itemId, delta) => {
     setPickerItems(pickerItems.map(i => {
       if (i.item_id === itemId) {
@@ -1328,7 +1366,7 @@ export default function CreateQuotation() {
     </div>
   );
 
-  if (loading) {
+  if (initLoading) {
     return <div style={{ padding: '40px', textAlign: 'center' }}>Loading...</div>;
   }
 
@@ -1884,20 +1922,24 @@ export default function CreateQuotation() {
                 <div style={{ overflowY: 'auto', border: '1px solid #eee' }}>
                   <table className="table">
                     <thead>
-                      <tr>
-                        <th>Item</th>
-                        <th>Rate</th>
-                        <th>Action</th>
-                      </tr>
+                      {pickerTable.getHeaderGroups().map(headerGroup => (
+                        <tr key={headerGroup.id}>
+                          {headerGroup.headers.map(header => (
+                            <th key={header.id}>
+                              {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                            </th>
+                          ))}
+                        </tr>
+                      ))}
                     </thead>
                     <tbody>
-                      {filteredMaterials.map(m => (
-                        <tr key={m.id}>
-                          <td>{m.display_name || m.name}</td>
-                          <td>{formatCurrency(m.sale_price)}</td>
-                          <td>
-                            <button className="btn btn-sm btn-primary" onClick={() => handleAddItemToPicker(m)}>+</button>
-                          </td>
+                      {pickerTable.getRowModel().rows.map(row => (
+                        <tr key={row.id}>
+                          {row.getVisibleCells().map(cell => (
+                            <td key={cell.id}>
+                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                            </td>
+                          ))}
                         </tr>
                       ))}
                     </tbody>

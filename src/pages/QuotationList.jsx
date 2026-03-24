@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../supabase';
 import { useNavigate } from 'react-router-dom';
 import { formatDate, formatCurrency } from '../utils/formatters';
@@ -31,23 +32,16 @@ function numberToWords(num) {
 export default function QuotationList() {
   const navigate = useNavigate();
   const { organisation } = useAuth();
-  const [quotations, setQuotations] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedQuotation, setSelectedQuotation] = useState(null);
-  const [previewLoading, setPreviewLoading] = useState(false);
-  const [printSettings, setPrintSettings] = useState(null);
+  const [selectedQuotationId, setSelectedQuotationId] = useState(null);
   const [activeTab, setActiveTab] = useState('details');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [openMenu, setOpenMenu] = useState(false);
+  const userClearedRef = useRef(false);
 
-  useEffect(() => {
-    loadQuotations();
-  }, [statusFilter]);
-
-  const loadQuotations = async () => {
-    setLoading(true);
-    try {
+  const quotationsQuery = useQuery({
+    queryKey: ['quotations', statusFilter],
+    queryFn: async () => {
       let query = supabase
         .from('quotation_header')
         .select(`
@@ -65,56 +59,71 @@ export default function QuotationList() {
       if (error) throw error;
 
       const today = new Date().toISOString().split('T')[0];
-      const updatedData = (data || []).map((q) => {
+      return (data || []).map((q) => {
         if (q.status === 'Draft' && q.valid_till && q.valid_till < today) {
           return { ...q, status: 'Expired' };
         }
         return q;
       });
-
-      setQuotations(updatedData);
-      if (updatedData.length > 0 && !selectedQuotation) {
-        handleSelectQuotation(updatedData[0]);
-      }
-    } catch (err) {
-      console.error('Error loading quotations:', err);
-    } finally {
-      setLoading(false);
     }
-  };
+  });
 
-  const loadQuotationDetails = async (quotationId) => {
-    setPreviewLoading(true);
-    try {
-      const [settingsRes, quoteResponse] = await Promise.all([
-        getPrintSettings('Quotation'),
-        supabase
-          .from('quotation_header')
-          .select(`
+  const printSettingsQuery = useQuery({
+    queryKey: ['printSettings', 'Quotation'],
+    queryFn: () => getPrintSettings('Quotation'),
+    staleTime: 10 * 60 * 1000
+  });
+
+  const quotationDetailsQuery = useQuery({
+    queryKey: ['quotation', selectedQuotationId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('quotation_header')
+        .select(`
+          *,
+          client:clients(*),
+          project:projects(id, project_name, project_code),
+          items:quotation_items(
             *,
-            client:clients(*),
-            project:projects(id, project_name, project_code),
-            items:quotation_items(
-              *,
-              item:materials(id, item_code, display_name, name, hsn_code)
-            )
-          `)
-          .eq('id', quotationId)
-          .single()
-      ]);
+            item:materials(id, item_code, display_name, name, hsn_code)
+          )
+        `)
+        .eq('id', selectedQuotationId)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!selectedQuotationId
+  });
 
-      if (quoteResponse.error) throw quoteResponse.error;
-      setSelectedQuotation(quoteResponse.data);
-      setPrintSettings(settingsRes.style_settings);
-    } catch (err) {
-      console.error('Error loading quotation details:', err);
-    } finally {
-      setPreviewLoading(false);
+  const quotations = quotationsQuery.data || [];
+  const loading = quotationsQuery.isLoading;
+  const previewLoading = quotationDetailsQuery.isFetching;
+  const selectedQuotation = quotationDetailsQuery.data || null;
+  const printSettings = printSettingsQuery.data?.style_settings;
+
+  useEffect(() => {
+    if (quotations.length === 0) {
+      setSelectedQuotationId(null);
+      userClearedRef.current = false;
+      return;
     }
-  };
+    if (!selectedQuotationId) {
+      if (userClearedRef.current) return;
+      setSelectedQuotationId(quotations[0].id);
+      return;
+    }
+    if (!quotations.some((q) => q.id === selectedQuotationId)) {
+      setSelectedQuotationId(quotations[0].id);
+    }
+  }, [quotations, selectedQuotationId]);
+
+  useEffect(() => {
+    userClearedRef.current = false;
+  }, [statusFilter]);
 
   const handleSelectQuotation = (quotation) => {
-    loadQuotationDetails(quotation.id);
+    setSelectedQuotationId(quotation.id);
   };
 
   const getStatusColor = (status) => {
@@ -377,8 +386,8 @@ export default function QuotationList() {
                 padding: '12px 16px', 
                 borderBottom: '1px solid #f3f4f6', 
                 cursor: 'pointer',
-                background: selectedQuotation?.id === q.id ? '#f0f7ff' : '#fff',
-                borderLeft: selectedQuotation?.id === q.id ? '3px solid #2563eb' : '3px solid transparent'
+                background: selectedQuotationId === q.id ? '#f0f7ff' : '#fff',
+                borderLeft: selectedQuotationId === q.id ? '3px solid #2563eb' : '3px solid transparent'
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
@@ -415,7 +424,15 @@ export default function QuotationList() {
                 <div style={{ display: 'flex', gap: '12px' }}>
                   <button style={{ background: 'none', border: 'none', cursor: 'pointer' }}>📎</button>
                   <button style={{ background: 'none', border: 'none', cursor: 'pointer' }}>📄</button>
-                  <button style={{ background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => setSelectedQuotation(null)}>×</button>
+                  <button
+                    style={{ background: 'none', border: 'none', cursor: 'pointer' }}
+                    onClick={() => {
+                      userClearedRef.current = true;
+                      setSelectedQuotationId(null);
+                    }}
+                  >
+                    ×
+                  </button>
                 </div>
               </div>
               
