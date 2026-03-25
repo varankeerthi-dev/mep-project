@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { flexRender, getCoreRowModel, useReactTable } from '@tanstack/react-table';
 import { supabase } from '../supabase';
 import { formatDate, formatCurrency } from '../utils/formatters';
 
@@ -156,12 +158,7 @@ function TabButton({ active, onClick, children }) {
 }
 
 function ItemsTab() {
-  const [materials, setMaterials] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [stockData, setStockData] = useState({});
-  const [categories, setCategories] = useState([]);
-  const [units, setUnits] = useState([]);
-  const [variants, setVariants] = useState([]);
+  const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [showColumnSettings, setShowColumnSettings] = useState(false);
   const [showBulkPriceModal, setShowBulkPriceModal] = useState(false);
@@ -213,25 +210,129 @@ function ItemsTab() {
     return formatCurrency(value);
   };
 
-  useEffect(() => {
-    const safeLoad = async () => {
-      setLoading(true);
-      try {
-        await Promise.all([
-          loadMaterials(),
-          loadCategories(),
-          loadUnits(),
-          loadVariants()
-        ]);
-      } catch (err) {
-        console.error("Initial load error:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const withTimeout = (promise, ms, label) => {
+    let timer;
+    return Promise.race([
+      promise,
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`${label} request timed out`)), ms);
+      })
+    ]).finally(() => clearTimeout(timer));
+  };
 
-    safeLoad();
-  }, []);
+  const materialsQuery = useQuery({
+    queryKey: ['materials', 'product'],
+    queryFn: async () => {
+      try {
+        const { data, error } = await withTimeout(
+          supabase
+            .from('materials')
+            .select('*')
+            .eq('item_type', 'product')
+            .order('name'),
+          15000,
+          'Materials'
+        );
+        if (error) throw error;
+        return data || [];
+      } catch (error) {
+        console.log('materials table error', error);
+        return [];
+      }
+    },
+    staleTime: 5 * 60 * 1000
+  });
+
+  const stockQuery = useQuery({
+    queryKey: ['itemStock'],
+    queryFn: async () => {
+      try {
+        const { data, error } = await withTimeout(
+          supabase.from('item_stock').select('*'),
+          15000,
+          'Item Stock'
+        );
+        if (error) throw error;
+        return data || [];
+      } catch {
+        console.log('item_stock table not found');
+        return [];
+      }
+    },
+    staleTime: 5 * 60 * 1000
+  });
+
+  const categoriesQuery = useQuery({
+    queryKey: ['itemCategories'],
+    queryFn: async () => {
+      try {
+        const { data, error } = await withTimeout(
+          supabase.from('item_categories').select('*').eq('is_active', true).order('category_name'),
+          15000,
+          'Item Categories'
+        );
+        if (error) throw error;
+        return data || [];
+      } catch {
+        console.log('item_categories table not found, using defaults');
+        return [];
+      }
+    },
+    staleTime: 10 * 60 * 1000
+  });
+
+  const unitsQuery = useQuery({
+    queryKey: ['itemUnits'],
+    queryFn: async () => {
+      try {
+        const { data, error } = await withTimeout(
+          supabase.from('item_units').select('*').eq('is_active', true).order('unit_name'),
+          15000,
+          'Item Units'
+        );
+        if (error) throw error;
+        return data || [];
+      } catch {
+        console.log('item_units table not found, using defaults');
+        return [{ unit_code: 'nos', unit_name: 'Numbers' }];
+      }
+    },
+    staleTime: 10 * 60 * 1000
+  });
+
+  const variantsQuery = useQuery({
+    queryKey: ['companyVariants'],
+    queryFn: async () => {
+      try {
+        const { data, error } = await withTimeout(
+          supabase.from('company_variants').select('*').eq('is_active', true).order('variant_name'),
+          15000,
+          'Company Variants'
+        );
+        if (error) throw error;
+        return data || [];
+      } catch {
+        console.log('company_variants table not found');
+        return [];
+      }
+    },
+    staleTime: 10 * 60 * 1000
+  });
+
+  const materials = materialsQuery.data || [];
+  const categories = categoriesQuery.data || [];
+  const units = unitsQuery.data || [];
+  const variants = variantsQuery.data || [];
+  const stockData = useMemo(() => {
+    const stockMap = {};
+    (stockQuery.data || []).forEach((s) => {
+      if (!stockMap[s.item_id]) stockMap[s.item_id] = 0;
+      stockMap[s.item_id] += parseFloat(s.current_stock) || 0;
+    });
+    return stockMap;
+  }, [stockQuery.data]);
+
+  const loading = materialsQuery.isLoading && materials.length === 0;
 
   useEffect(() => {
     localStorage.setItem('itemsTableColumns', JSON.stringify(visibleColumns));
@@ -243,62 +344,18 @@ function ItemsTab() {
     return () => window.clearTimeout(timer);
   }, [saveNotice]);
 
-  const loadMaterials = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('materials')
-        .select('*')
-        .eq('item_type', 'product')
-        .order('name');
-
-      if (error) throw error;
-      setMaterials(data || []);
-      
-      // Load stock from item_stock table
-      try {
-        const { data: stock } = await supabase.from('item_stock').select('*');
-        const stockMap = {};
-        stock?.forEach(s => {
-          if (!stockMap[s.item_id]) stockMap[s.item_id] = 0;
-          stockMap[s.item_id] += parseFloat(s.current_stock) || 0;
-        });
-        setStockData(stockMap);
-      } catch {
-        console.log('item_stock table not found');
-      }
-    } catch (error) {
-      console.log('materials table error', error);
-    }
+  const refreshMaterials = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['materials', 'product'] }),
+      queryClient.invalidateQueries({ queryKey: ['itemStock'] })
+    ]);
   };
 
-  const loadCategories = async () => {
-    try {
-      const { data } = await supabase.from('item_categories').select('*').eq('is_active', true).order('category_name');
-      setCategories(data || []);
-    } catch {
-      console.log('item_categories table not found, using defaults');
-      setCategories([]);
-    }
-  };
-
-  const loadUnits = async () => {
-    try {
-      const { data } = await supabase.from('item_units').select('*').eq('is_active', true).order('unit_name');
-      setUnits(data || []);
-    } catch {
-      console.log('item_units table not found, using defaults');
-      setUnits([{ unit_code: 'nos', unit_name: 'Numbers' }]);
-    }
-  };
-
-  const loadVariants = async () => {
-    try {
-      const { data } = await supabase.from('company_variants').select('*').eq('is_active', true).order('variant_name');
-      setVariants(data || []);
-    } catch {
-      console.log('company_variants table not found');
-      setVariants([]);
-    }
+  const updateMaterialsCache = (updater) => {
+    queryClient.setQueryData(['materials', 'product'], (old) => {
+      const base = Array.isArray(old) ? old : [];
+      return typeof updater === 'function' ? updater(base) : updater;
+    });
   };
 
   const loadVariantPricing = async (itemId) => {
@@ -506,7 +563,7 @@ function ItemsTab() {
       }
     }
 
-    await loadMaterials();
+    await refreshMaterials();
     if (selectedMaterialId) {
       await loadItemTransactions(selectedMaterialId);
     }
@@ -931,6 +988,7 @@ function ItemsTab() {
       const originalMaterial = editingMaterial;
       const nowIso = new Date().toISOString();
       let itemId;
+      let createdMaterial = null;
 
       if (isEditing) {
         const { error } = await supabase
@@ -943,6 +1001,7 @@ function ItemsTab() {
         const { data, error } = await supabase.from('materials').insert(materialData).select().single();
         if (error) throw error;
         itemId = data.id;
+        createdMaterial = data;
       }
 
       if (formData.uses_variant) {
@@ -991,10 +1050,19 @@ function ItemsTab() {
         }
       }
 
+      const nextMaterial = isEditing
+        ? { ...originalMaterial, ...materialData, id: itemId }
+        : (createdMaterial || { id: itemId, ...materialData });
+      updateMaterialsCache((prev) => {
+        const next = [...prev.filter((m) => m.id !== itemId), nextMaterial];
+        next.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+        return next;
+      });
+
       setSaveNotice(isEditing ? 'Item updated successfully.' : 'Item added successfully.');
       setSelectedMaterialId(itemId);
       setActiveDetailTab(isEditing ? 'audit' : 'overview');
-      await loadMaterials();
+      await refreshMaterials();
       if (selectedMaterialId === itemId) {
         await loadItemTransactions(itemId);
       }
@@ -1092,18 +1160,19 @@ function ItemsTab() {
 
         const { error } = await supabase.from('materials').delete().eq('id', id);
         if (error) throw error;
-        setMaterials((prev) => prev.filter((m) => m.id !== id));
+        updateMaterialsCache((prev) => prev.filter((m) => m.id !== id));
         if (selectedMaterialId === id) {
           setSelectedMaterialId(null);
           setItemTransactions(emptyItemTransactions());
         }
+        queryClient.invalidateQueries({ queryKey: ['itemStock'] });
       } else {
         const { error } = await supabase
           .from('materials')
           .update({ is_active: false, updated_at: new Date().toISOString() })
           .eq('id', id);
         if (error) throw error;
-        setMaterials((prev) =>
+        updateMaterialsCache((prev) =>
           prev.map((item) =>
             item.id === id ? { ...item, is_active: false, updated_at: new Date().toISOString() } : item
           )
@@ -1119,8 +1188,13 @@ function ItemsTab() {
   };
 
   const toggleActive = async (material) => {
-    await supabase.from('materials').update({ is_active: !material.is_active, updated_at: new Date().toISOString() }).eq('id', material.id);
-    loadMaterials();
+    const nowIso = new Date().toISOString();
+    await supabase.from('materials').update({ is_active: !material.is_active, updated_at: nowIso }).eq('id', material.id);
+    updateMaterialsCache((prev) =>
+      prev.map((item) =>
+        item.id === material.id ? { ...item, is_active: !material.is_active, updated_at: nowIso } : item
+      )
+    );
   };
 
   const filteredMaterials = materials.filter(m => {
@@ -1201,6 +1275,95 @@ function ItemsTab() {
         return '-';
     }
   };
+
+  const itemColumns = useMemo(() => {
+    const columns = [];
+    const addColumn = (key, column) => {
+      if (visibleColumns.includes(key)) columns.push(column);
+    };
+
+    addColumn('name', {
+      id: 'name',
+      header: 'Name',
+      cell: ({ row }) => {
+        const m = row.original;
+        return (
+          <div className="item-main-cell">
+            <div className="item-avatar">{(m.display_name || m.name || '?').slice(0, 1).toUpperCase()}</div>
+            <div>
+              <button type="button" className="item-name-link" onClick={() => selectMaterialRow(m)}>
+                {m.display_name || m.name}
+              </button>
+              <div className="item-main-sub">{m.material || m.size || 'Item'}</div>
+            </div>
+          </div>
+        );
+      }
+    });
+
+    addColumn('code', { id: 'code', header: 'Code', cell: ({ row }) => row.original.item_code || '-' });
+    addColumn('category', { id: 'category', header: 'Category', cell: ({ row }) => row.original.main_category || '-' });
+    addColumn('sub_category', { id: 'sub_category', header: 'Sub Category', cell: ({ row }) => formatColumnValue(row.original, 'sub_category') });
+    addColumn('size', { id: 'size', header: 'Size', cell: ({ row }) => formatColumnValue(row.original, 'size') });
+    addColumn('pressure_class', { id: 'pressure_class', header: 'Pressure Class', cell: ({ row }) => formatColumnValue(row.original, 'pressure_class') });
+    addColumn('make', { id: 'make', header: 'MAKE(Brand name)', cell: ({ row }) => formatColumnValue(row.original, 'make') });
+    addColumn('material', { id: 'material', header: 'Material', cell: ({ row }) => formatColumnValue(row.original, 'material') });
+    addColumn('end_connection', { id: 'end_connection', header: 'End Connection', cell: ({ row }) => formatColumnValue(row.original, 'end_connection') });
+    addColumn('unit', { id: 'unit', header: 'Unit', cell: ({ row }) => row.original.unit || '-' });
+    addColumn('sale_price', { id: 'sale_price', header: 'Sale Price', cell: ({ row }) => formatColumnValue(row.original, 'sale_price') });
+    addColumn('purchase_price', { id: 'purchase_price', header: 'Purchase Price', cell: ({ row }) => formatColumnValue(row.original, 'purchase_price') });
+    addColumn('hsn_code', { id: 'hsn_code', header: 'HSN/SAC', cell: ({ row }) => formatColumnValue(row.original, 'hsn_code') });
+    addColumn('gst_rate', { id: 'gst_rate', header: 'GST Rate', cell: ({ row }) => formatColumnValue(row.original, 'gst_rate') });
+    addColumn('uses_variant', { id: 'uses_variant', header: 'Variant', cell: ({ row }) => formatColumnValue(row.original, 'uses_variant') });
+    addColumn('stock', {
+      id: 'stock',
+      header: 'Stock',
+      cell: ({ row }) => {
+        const m = row.original;
+        const stock = stockData[m.id] || 0;
+        return (
+          <span style={{ color: stock < (m.low_stock_level || 0) ? '#b42318' : '#067647', fontWeight: 600 }}>
+            {stock}
+          </span>
+        );
+      }
+    });
+    addColumn('status', {
+      id: 'status',
+      header: 'Status',
+      cell: ({ row }) => {
+        const isActive = row.original.is_active !== false;
+        return (
+          <span className={`status-chip ${isActive ? 'active' : 'inactive'}`}>{isActive ? 'Active' : 'Inactive'}</span>
+        );
+      }
+    });
+
+    columns.push({
+      id: 'action',
+      header: 'Action',
+      cell: ({ row }) => {
+        const m = row.original;
+        return (
+          <div className="item-actions-cell">
+            <button className="btn btn-sm btn-secondary" onClick={() => editMaterial(m)}>Edit</button>
+            <button className="btn btn-sm btn-secondary" onClick={() => toggleActive(m)}>
+              {m.is_active ? 'Disable' : 'Enable'}
+            </button>
+            <button className="btn btn-sm btn-secondary" onClick={() => openDeleteModal(m)}>Delete</button>
+          </div>
+        );
+      }
+    });
+
+    return columns;
+  }, [visibleColumns, stockData, formatColumnValue, selectMaterialRow, editMaterial, toggleActive, openDeleteModal]);
+
+  const table = useReactTable({
+    data: filteredMaterials,
+    columns: itemColumns,
+    getCoreRowModel: getCoreRowModel()
+  });
 
   const overviewStats = {
     totalStock: itemTransactions.warehouseRows.reduce((sum, row) => sum + (row.current_stock || 0), 0),
@@ -1286,83 +1449,32 @@ function ItemsTab() {
               <div className="table-container" style={{ overflowX: 'auto' }}>
                 <table className="table items-reference-table">
                   <thead>
-                    <tr>
-                      {visibleColumns.includes('name') && <th>Name</th>}
-                      {visibleColumns.includes('code') && <th>Code</th>}
-                      {visibleColumns.includes('category') && <th>Category</th>}
-                      {visibleColumns.includes('sub_category') && <th>Sub Category</th>}
-                      {visibleColumns.includes('size') && <th>Size</th>}
-                      {visibleColumns.includes('make') && <th>MAKE(Brand name)</th>}
-                      {visibleColumns.includes('material') && <th>Material</th>}
-                      {visibleColumns.includes('end_connection') && <th>End Connection</th>}
-                      {visibleColumns.includes('unit') && <th>Unit</th>}
-                      {visibleColumns.includes('sale_price') && <th>Sale Price</th>}
-                      {visibleColumns.includes('purchase_price') && <th>Purchase Price</th>}
-                      {visibleColumns.includes('hsn_code') && <th>HSN/SAC</th>}
-                      {visibleColumns.includes('gst_rate') && <th>GST Rate</th>}
-                      {visibleColumns.includes('uses_variant') && <th>Variant</th>}
-                      {visibleColumns.includes('stock') && <th>Stock</th>}
-                      {visibleColumns.includes('status') && <th>Status</th>}
-                      <th style={{ width: '190px' }}>Action</th>
-                    </tr>
+                    {table.getHeaderGroups().map(headerGroup => (
+                      <tr key={headerGroup.id}>
+                        {headerGroup.headers.map(header => (
+                          <th key={header.id}>
+                            {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                          </th>
+                        ))}
+                      </tr>
+                    ))}
                   </thead>
                   <tbody>
-                    {filteredMaterials.map((m) => {
+                    {table.getRowModel().rows.map(row => {
+                      const m = row.original;
                       const isActive = m.is_active !== false;
                       const isSelected = selectedMaterialId === m.id;
-                      const stock = stockData[m.id] || 0;
                       return (
                         <tr
-                          key={m.id}
+                          key={row.id}
                           className={`item-click-row ${isSelected ? 'selected' : ''}`}
                           style={{ opacity: isActive ? 1 : 0.55 }}
                         >
-                          {visibleColumns.includes('name') && (
-                            <td>
-                              <div className="item-main-cell">
-                                <div className="item-avatar">{(m.display_name || m.name || '?').slice(0, 1).toUpperCase()}</div>
-                                <div>
-                                  <button type="button" className="item-name-link" onClick={() => selectMaterialRow(m)}>
-                                    {m.display_name || m.name}
-                                  </button>
-                                  <div className="item-main-sub">{m.material || m.size || 'Item'}</div>
-                                </div>
-                              </div>
+                          {row.getVisibleCells().map(cell => (
+                            <td key={cell.id}>
+                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
                             </td>
-                          )}
-                          {visibleColumns.includes('code') && <td>{m.item_code || '-'}</td>}
-                          {visibleColumns.includes('category') && <td>{m.main_category || '-'}</td>}
-                          {visibleColumns.includes('sub_category') && <td>{formatColumnValue(m, 'sub_category')}</td>}
-                          {visibleColumns.includes('size') && <td>{formatColumnValue(m, 'size')}</td>}
-                          {visibleColumns.includes('pressure_class') && <td>{formatColumnValue(m, 'pressure_class')}</td>}
-                          {visibleColumns.includes('make') && <td>{formatColumnValue(m, 'make')}</td>}
-                          {visibleColumns.includes('material') && <td>{formatColumnValue(m, 'material')}</td>}
-                          {visibleColumns.includes('end_connection') && <td>{formatColumnValue(m, 'end_connection')}</td>}
-                          {visibleColumns.includes('unit') && <td>{m.unit || '-'}</td>}
-                          {visibleColumns.includes('sale_price') && <td>{formatColumnValue(m, 'sale_price')}</td>}
-                          {visibleColumns.includes('purchase_price') && <td>{formatColumnValue(m, 'purchase_price')}</td>}
-                          {visibleColumns.includes('hsn_code') && <td>{formatColumnValue(m, 'hsn_code')}</td>}
-                          {visibleColumns.includes('gst_rate') && <td>{formatColumnValue(m, 'gst_rate')}</td>}
-                          {visibleColumns.includes('uses_variant') && <td>{formatColumnValue(m, 'uses_variant')}</td>}
-                          {visibleColumns.includes('stock') && (
-                            <td style={{ color: stock < (m.low_stock_level || 0) ? '#b42318' : '#067647', fontWeight: 600 }}>
-                              {stock}
-                            </td>
-                          )}
-                          {visibleColumns.includes('status') && (
-                            <td>
-                              <span className={`status-chip ${isActive ? 'active' : 'inactive'}`}>{isActive ? 'Active' : 'Inactive'}</span>
-                            </td>
-                          )}
-                          <td>
-                            <div className="item-actions-cell">
-                              <button className="btn btn-sm btn-secondary" onClick={() => editMaterial(m)}>Edit</button>
-                              <button className="btn btn-sm btn-secondary" onClick={() => toggleActive(m)}>
-                                {m.is_active ? 'Disable' : 'Enable'}
-                              </button>
-                              <button className="btn btn-sm btn-secondary" onClick={() => openDeleteModal(m)}>Delete</button>
-                            </div>
-                          </td>
+                          ))}
                         </tr>
                       );
                     })}
