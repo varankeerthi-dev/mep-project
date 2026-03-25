@@ -141,6 +141,40 @@ export default function QuotationList() {
     return colors[status] || colors.Draft;
   };
 
+  const ITEM_HEIGHT = 68;
+  const VISIBLE = 10;
+  const BUFFER = 5;
+  const sidebarScrollRef = useRef(null);
+  const [startIndex, setStartIndex] = useState(0);
+
+  const onSidebarScroll = (e) => {
+    const container = e.target;
+    const scrollTop = container.scrollTop;
+    const containerHeight = container.clientHeight;
+    const totalHeight = container.scrollHeight;
+    const visibleItems = Math.floor(containerHeight / ITEM_HEIGHT);
+    const bufferItems = Math.floor(visibleItems * BUFFER / 100);
+    const newStartIndex = Math.max(0, Math.floor(scrollTop / ITEM_HEIGHT) - bufferItems);
+    setStartIndex(newStartIndex);
+  };
+
+  const totalHeight = useMemo(() => {
+    const visibleItems = Math.floor(VISIBLE + BUFFER);
+    return visibleItems * ITEM_HEIGHT;
+  }, []);
+
+  const virtualItems = useMemo(() => {
+    const visibleItems = Math.floor(VISIBLE + BUFFER);
+    const start = Math.max(0, startIndex);
+    const end = Math.min(start + visibleItems, quotations.length);
+    const items = quotations.slice(start, end);
+    const offset = start * ITEM_HEIGHT;
+    return items.map((q, idx) => ({
+      ...q,
+      offset: offset + idx * ITEM_HEIGHT
+    }));
+  }, [quotations, startIndex]);
+
   const filteredQuotations = quotations.filter(q => 
     q.quotation_no?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     q.client?.client_name?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -338,7 +372,7 @@ export default function QuotationList() {
         </div>
       </div>
     );
-  }, [selectedQuotation, printSettings, organisation]);
+  }, [selectedQuotation?.id, JSON.stringify(printSettings), organisation?.id]);
 
   return (
     <div style={{ display: 'flex', height: 'calc(100vh - 60px)', margin: '-24px', background: '#fff' }}>
@@ -375,40 +409,52 @@ export default function QuotationList() {
           />
         </div>
 
-        <div style={{ flex: 1, overflowY: 'auto' }}>
+        <div style={{ flex: 1, overflowY: 'auto' }} ref={sidebarScrollRef} onScroll={onSidebarScroll}>
           {loading ? (
             <div style={{ padding: '20px', textAlign: 'center' }}>Loading...</div>
-          ) : filteredQuotations.map(q => (
-            <div 
-              key={q.id}
-              onClick={() => handleSelectQuotation(q)}
-              style={{ 
-                padding: '12px 16px', 
-                borderBottom: '1px solid #f3f4f6', 
-                cursor: 'pointer',
-                background: selectedQuotationId === q.id ? '#f0f7ff' : '#fff',
-                borderLeft: selectedQuotationId === q.id ? '3px solid #2563eb' : '3px solid transparent'
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                <span style={{ fontWeight: 600, color: '#111827', fontSize: '13px' }}>{q.client?.client_name}</span>
-                <span style={{ fontWeight: 600, color: '#111827', fontSize: '13px' }}>{formatCurrency(q.grand_total)}</span>
+          ) : (
+            <>
+              <div style={{ height: totalHeight, position: 'relative' }}>
+                {virtualItems.map(q => (
+                  <div
+                    key={q.id}
+                    onClick={() => handleSelectQuotation(q)}
+                    style={{
+                      position: 'absolute',
+                      top: q.offset,
+                      left: 0,
+                      right: 0,
+                      height: ITEM_HEIGHT,
+                      padding: '12px 16px',
+                      cursor: 'pointer',
+                      background: selectedQuotationId === q.id ? '#f0f7ff' : '#fff',
+                      borderLeft: selectedQuotationId === q.id ? '3px solid #2563eb' : '3px solid transparent',
+                      borderBottom: '1px solid #f3f4f6',
+                      boxSizing: 'border-box'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                      <span style={{ fontWeight: 600, color: '#111827', fontSize: '13px' }}>{q.client?.client_name}</span>
+                      <span style={{ fontWeight: 600, color: '#111827', fontSize: '13px' }}>{formatCurrency(q.grand_total)}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ color: '#6b7280', fontSize: '11px' }}>
+                        {q.quotation_no} • {formatDate(q.date)}
+                      </div>
+                      <span style={{
+                        fontSize: '9px',
+                        fontWeight: 700,
+                        color: getStatusColor(q.status === 'Converted' ? 'INVOICED' : q.status).color,
+                        textTransform: 'uppercase'
+                      }}>
+                        {q.status === 'Converted' ? 'INVOICED' : q.status}
+                      </span>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ color: '#6b7280', fontSize: '11px' }}>
-                  {q.quotation_no} • {formatDate(q.date)}
-                </div>
-                <span style={{ 
-                  fontSize: '9px', 
-                  fontWeight: 700, 
-                  color: getStatusColor(q.status === 'Converted' ? 'INVOICED' : q.status).color,
-                  textTransform: 'uppercase'
-                }}>
-                  {q.status === 'Converted' ? 'INVOICED' : q.status}
-                </span>
-              </div>
-            </div>
-          ))}
+            </>
+          )}
         </div>
       </div>
 
