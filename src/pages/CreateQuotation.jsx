@@ -1305,7 +1305,7 @@ export default function CreateQuotation() {
           : Promise.resolve()
       ]);
 
-      alert(editId ? 'Quotation updated!' : 'Quotation created!');
+      // alert removed
       
       if (saveAndNew) {
         setFormData({
@@ -1978,7 +1978,16 @@ export default function CreateQuotation() {
       )}
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px', paddingBottom: '40px' }}>
         <button type="button" className="btn btn-secondary" onClick={() => navigate('/quotation')}>Cancel</button>
-        <button type="button" className="btn btn-primary" onClick={() => handleSave(false)} disabled={saving}>{saving ? 'Saving...' : editId ? 'Update Quotation' : 'Save Quotation'}</button>
+        {saving && (
+          <div style={{position:'fixed',inset:0,background:'rgba(255,255,255,0.92)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',zIndex:9999,gap:'16px'}}>
+            <div style={{width:'48px',height:'48px',border:'4px solid #e5e7eb',borderTopColor:'#2563eb',borderRadius:'50%',animation:'spin 0.8s linear infinite'}}></div>
+            <span style={{fontSize:'16px',fontWeight:600,color:'#374161'}}>Saving Quotation...</span>
+          </div>
+        )}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px', paddingBottom: '40px' }}>
+          <button type="button" className="btn btn-secondary" onClick={() => navigate('/quotation')}>Cancel</button>
+          <button type="button" className="btn btn-primary" onClick={() => handleSave(false)} disabled={saving}>{saving ? 'Saving...' : editId ? 'Update Quotation' : 'Save Quotation'}</button>
+        </div>
       </div>
     </div>
   );
