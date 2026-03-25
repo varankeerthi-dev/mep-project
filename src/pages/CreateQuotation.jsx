@@ -1260,15 +1260,6 @@ export default function CreateQuotation() {
         }
       }
 
-      const { error: deleteError } = await withTimeout(
-        supabase
-          .from('quotation_items')
-          .delete()
-          .eq('quotation_id', quotationId),
-        'clearing previous quotation items'
-      );
-      if (deleteError) throw deleteError;
-
       const itemsToInsert = items.map(item => ({
         quotation_id: quotationId,
         item_id: item.item_id,
@@ -1294,28 +1285,25 @@ export default function CreateQuotation() {
         custom2: item.custom2 || ''
       }));
 
-      const { error: insertItemsError } = await withTimeout(
-        supabase.from('quotation_items').insert(itemsToInsert),
-        'saving quotation items'
-      );
-      if (insertItemsError) throw insertItemsError;
-
       const variantDiscountRecords = Object.entries(headerDiscounts).map(([variantId, discount]) => ({
         quotation_revision_id: quotationId,
         variant_id: variantId,
         header_discount_percent: parseFloat(discount) || 0
-      })).filter(r => r.header_discount_percent > 0);
+      }));
 
-      if (variantDiscountRecords.length > 0) {
-        await supabase
-          .from('quotation_revision_variant_discount')
-          .delete()
-          .eq('quotation_revision_id', quotationId);
-          
-        await supabase
-          .from('quotation_revision_variant_discount')
-          .insert(variantDiscountRecords);
-      }
+      // Phase 1: delete old items + old variant discounts in parallel
+      await Promise.all([
+        supabase.from('quotation_items').delete().eq('quotation_id', quotationId),
+        supabase.from('quotation_revision_variant_discount').delete().eq('quotation_revision_id', quotationId)
+      ]);
+
+      // Phase 2: insert new items + insert variant discounts in parallel
+      await Promise.all([
+        supabase.from('quotation_items').insert(itemsToInsert),
+        variantDiscountRecords.length > 0
+          ? supabase.from('quotation_revision_variant_discount').insert(variantDiscountRecords)
+          : Promise.resolve()
+      ]);
 
       alert(editId ? 'Quotation updated!' : 'Quotation created!');
       
@@ -1694,8 +1682,6 @@ export default function CreateQuotation() {
                               updateItem(item.id, 'base_rate_snapshot', newRate);
                               const finalRate = calculateVariantDiscountedRate(newRate, item.applied_discount_percent || 0);
                               updateItem(item.id, 'rate', finalRate);
-                              updateItem(item.id, 'uom', mat.unit || 'Nos');
-                              updateItem(item.id, 'tax_percent', mat.gst_rate || 18);
                             }
                           }}
                         >
@@ -1886,7 +1872,7 @@ export default function CreateQuotation() {
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginTop: '8px', marginBottom: '12px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
           <span style={{ fontWeight: 600, fontSize: '11px', color: '#374151' }}>Authorized Signatory:</span>
           <select 
             className="form-select" 
