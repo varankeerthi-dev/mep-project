@@ -284,96 +284,82 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
 
   const isCollapsed = collapsed && !mobileOpen;
 
-  const itemBase = 'group flex w-full items-center gap-3 rounded-md px-3 py-2 text-[14px] font-medium transition-colors';
-  const itemInactive = 'text-slate-700 hover:bg-orange-50 hover:text-orange-700';
-  const itemActive = 'bg-emerald-900 text-white shadow-sm';
-
   return (
     <>
       {mobileOpen && <div className="sidebar-overlay" onClick={() => onNavigate(currentPath)} />}
       <aside
         className={cx(
-          'sidebar shadcn-sidebar fixed left-0 top-[60px] z-[900] h-[calc(100vh-60px)] border-r border-slate-200 bg-white font-inter text-[14px] shadow-sm transition-all duration-200',
-          isCollapsed ? 'w-[72px]' : 'w-[260px]',
-          mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+          'sidebar',
+          isCollapsed && 'collapsed',
+          mobileOpen && 'mobile-open'
         )}
       >
-        <div className="flex h-full flex-col">
-          <div className="sidebar-content flex-1 space-y-2 overflow-y-auto px-2 py-3">
-            {menuData.map(section => (
-              <div key={section.section} className="sidebar-section space-y-1">
-                {!isCollapsed && (
-                  <div className="sidebar-section-title px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-                    {section.section}
-                  </div>
-                )}
-                {section.items.map(item => {
-                  const parentActive = isParentActive(item);
-                  const isExpanded = expandedMenus.includes(item.id);
-                  const Icon = getIcon(item.id);
+        <div className="sidebar-content">
+          {menuData.map(section => (
+            <div key={section.section} className="sidebar-section">
+              {!isCollapsed && (
+                <div className="sidebar-section-title">
+                  {section.section}
+                </div>
+              )}
+              {section.items.map(item => {
+                const parentActive = isParentActive(item);
+                const isExpanded = expandedMenus.includes(item.id);
+                const Icon = getIcon(item.id);
 
-                  return (
-                    <div key={item.id} className="space-y-1">
-                      <button
-                        className={cx('sidebar-item', itemBase, parentActive ? itemActive : itemInactive)}
-                        onClick={() => handleClick(item)}
-                        type="button"
-                      >
-                        <span className="sidebar-item-icon">
-                          <Icon className={cx('h-5 w-5 flex-shrink-0', parentActive ? 'text-white' : 'text-slate-500 group-hover:text-orange-600')} />
-                        </span>
-                        {!isCollapsed && <span className="sidebar-item-label flex-1 truncate text-left">{item.label}</span>}
-                        {item.submenu && !isCollapsed && (
-                          <span className="sidebar-item-chevron">
-                            <ChevronDownIcon className={cx('h-4 w-4 text-slate-400 transition-transform', isExpanded && 'rotate-180')} />
-                          </span>
-                        )}
-                      </button>
-
-                      {item.submenu && isExpanded && !isCollapsed && (
-                        <div className="sidebar-submenu ml-8 space-y-1">
-                          {item.submenu.map(subItem => (
-                            <button
-                              key={subItem.id}
-                              className={cx(
-                                'sidebar-submenu-item',
-                                itemBase,
-                                'px-3 py-1.5 text-[14px]',
-                                isActive(subItem.path) ? itemActive : 'text-slate-600 hover:bg-orange-50 hover:text-orange-700'
-                              )}
-                              onClick={() => handleSubmenuClick(subItem.path)}
-                              type="button"
-                            >
-                              <span className="sidebar-item-label flex-1 truncate text-left">{subItem.label}</span>
-                            </button>
-                          ))}
-                        </div>
+                return (
+                  <div key={item.id}>
+                    <button
+                      className={cx(
+                        'sidebar-item',
+                        parentActive && 'active',
+                        isExpanded && 'expanded'
                       )}
-                    </div>
-                  );
-                })}
-              </div>
-            ))}
-          </div>
+                      onClick={() => handleClick(item)}
+                      type="button"
+                    >
+                      <span className="sidebar-item-icon">
+                        <Icon />
+                      </span>
+                      {!isCollapsed && <span className="sidebar-item-label">{item.label}</span>}
+                      {item.submenu && !isCollapsed && (
+                        <span className="sidebar-item-chevron">
+                          <ChevronDownIcon />
+                        </span>
+                      )}
+                    </button>
 
-          <div className="sidebar-bottom border-t border-slate-200 p-2">
-            <button
-              className={cx(
-                'sidebar-toggle',
-                itemBase,
-                'justify-center text-slate-600 hover:bg-orange-50 hover:text-orange-700'
-              )}
-              onClick={onToggle}
-              type="button"
-            >
-              {isCollapsed ? (
-                <ChevronRightIcon className="h-5 w-5" />
-              ) : (
-                <ChevronLeftIcon className="h-5 w-5" />
-              )}
-              {!isCollapsed && <span className="ml-2">Collapse</span>}
-            </button>
-          </div>
+                    {item.submenu && isExpanded && !isCollapsed && (
+                      <div className="sidebar-submenu">
+                        {item.submenu.map(subItem => (
+                          <button
+                            key={subItem.id}
+                            className={cx(
+                              'sidebar-submenu-item',
+                              isActive(subItem.path) && 'active'
+                            )}
+                            onClick={() => handleSubmenuClick(subItem.path)}
+                            type="button"
+                          >
+                            <span className="sidebar-item-label">{subItem.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+
+        <div className="sidebar-bottom">
+          <button className="sidebar-toggle" onClick={onToggle} type="button">
+            <span className="sidebar-item-icon">
+              {isCollapsed ? <ChevronRightIcon /> : <ChevronLeftIcon />}
+            </span>
+            {!isCollapsed && <span>Collapse</span>}
+          </button>
         </div>
       </aside>
     </>

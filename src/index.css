@@ -1408,6 +1408,7 @@ body {
   flex-direction: column;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   font-size: 14px;
+  color: #334155;
 }
 
 .sidebar.collapsed {
@@ -1487,6 +1488,7 @@ body {
 .sidebar-item-icon svg {
   width: 18px;
   height: 18px;
+  stroke: currentColor;
 }
 
 .sidebar-item-label {
@@ -1505,6 +1507,12 @@ body {
   transition: transform 0.2s ease;
   color: #94a3b8;
   flex-shrink: 0;
+}
+
+.sidebar-item-chevron svg {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
 }
 
 .sidebar-item.expanded .sidebar-item-chevron {
