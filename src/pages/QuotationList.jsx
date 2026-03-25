@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../supabase';
 import { useNavigate } from 'react-router-dom';
 import { formatDate, formatCurrency } from '../utils/formatters';
@@ -39,6 +39,8 @@ export default function QuotationList() {
   const [openMenu, setOpenMenu] = useState(false);
   const userClearedRef = useRef(false);
 
+  const queryClient = useQueryClient();
+
   const quotationsQuery = useQuery({
     queryKey: ['quotations', statusFilter],
     queryFn: async () => {
@@ -76,7 +78,15 @@ export default function QuotationList() {
 
   const quotationDetailsQuery = useQuery({
     queryKey: ['quotation', selectedQuotationId],
-    queryFn: async () => {
+    queryFn: async ({ queryKey }) => {
+      const [, quotationId] = queryKey;
+
+      const cachedHeader = queryClient.getQueryData(['quotations', statusFilter])?.find(q => q.id === quotationId);
+
+      if (cachedHeader && cachedHeader.items && cachedHeader.items.length > 0) {
+        return cachedHeader;
+      }
+
       const { data, error } = await supabase
         .from('quotation_header')
         .select(`
@@ -88,7 +98,7 @@ export default function QuotationList() {
             item:materials(id, item_code, display_name, name, hsn_code)
           )
         `)
-        .eq('id', selectedQuotationId)
+        .eq('id', quotationId)
         .single();
       if (error) throw error;
       return data;
