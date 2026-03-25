@@ -7,7 +7,7 @@ import { format } from 'date-fns';
 import { generateZohoTemplate } from './ZohoTemplate';
 import { generateAurumGridTemplate } from './AurumGridTemplate';
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
-import { flexRender, getCoreRowModel, useReactTable } from '@tanstack/react-table';
+import { flexRender, getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
 
 export default function DCList() {
   const navigate = useNavigate();
@@ -15,7 +15,7 @@ export default function DCList() {
   const queryClient = useQueryClient();
   const [showConvertModal, setShowConvertModal] = useState(false);
   const [convertDC, setConvertDC] = useState(null);
-  const [showPrintMenu, setShowPrintMenu] = useState({});
+  const [openPrintMenuId, setOpenPrintMenuId] = useState(null);
   const [previewDC, setPreviewDC] = useState(null);
   const [previewHtml, setPreviewHtml] = useState('');
   const [showPreview, setShowPreview] = useState(false);
@@ -134,7 +134,7 @@ export default function DCList() {
           .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
           .replace(/\s+/g, '_');
         zohoDoc.save(`${safeFileName}.pdf`);
-        setShowPrintMenu({});
+        setOpenPrintMenuId(null);
         return;
       }
 
@@ -145,7 +145,7 @@ export default function DCList() {
           .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
           .replace(/\s+/g, '_');
         aurumDoc.save(`${safeFileName}.pdf`);
-        setShowPrintMenu({});
+        setOpenPrintMenuId(null);
         return;
       }
       
@@ -259,7 +259,7 @@ export default function DCList() {
       doc.line(130, finalY + 33, 190, finalY + 33);
 
       doc.save(`${challan.dc_number}.pdf`);
-      setShowPrintMenu({});
+      setOpenPrintMenuId(null);
     } catch (error) {
       console.error('Error generating PDF:', error);
       alert('Error generating PDF: ' + error.message);
@@ -542,7 +542,7 @@ export default function DCList() {
               <button 
                 className="action-btn" 
                 title="Download PDF"
-                onClick={() => setShowPrintMenu(prev => ({ ...prev, [challan.id]: !prev[challan.id] }))}
+                onClick={() => setOpenPrintMenuId(challan.id)}
               >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -551,7 +551,7 @@ export default function DCList() {
                   <line x1="16" y1="17" x2="8" y2="17"/>
                 </svg>
               </button>
-              {showPrintMenu[challan.id] && (
+              {openPrintMenuId === challan.id && (
                 <div style={{
                   position: 'absolute',
                   top: '100%',
@@ -624,12 +624,13 @@ export default function DCList() {
         );
       }
     }
-  ], [templates, showPrintMenu, navigate, handlePreview, handlePrintDC, handleConvertClick, handleDelete]);
+  ], [templates, openPrintMenuId, navigate, handlePreview, handlePrintDC, handleConvertClick, handleDelete]);
 
   const table = useReactTable({
     data: challans,
     columns,
-    getCoreRowModel: getCoreRowModel()
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel()
   });
 
   return (
@@ -738,6 +739,41 @@ export default function DCList() {
                 ))}
               </tbody>
             </table>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 4px', borderTop: '1px solid #e5e7eb', fontSize: '12px', color: '#6b7280' }}>
+              <span>
+                Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{' '}
+                {Math.min((table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize, challans.length)} of{' '}
+                {challans.length} results
+              </span>
+              <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                <button
+                  className="btn btn-sm btn-secondary"
+                  onClick={() => table.previousPage()}
+                  disabled={!table.getCanPreviousPage()}
+                  style={{ padding: '4px 10px', fontSize: '12px' }}
+                >
+                  Prev
+                </button>
+                {Array.from({ length: table.getPageCount() }, (_, i) => i).map(pageNum => (
+                  <button
+                    key={pageNum}
+                    className={`btn btn-sm ${table.getState().pagination.pageIndex === pageNum ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={() => table.setPageIndex(pageNum)}
+                    style={{ padding: '4px 10px', fontSize: '12px', minWidth: '36px' }}
+                  >
+                    {pageNum + 1}
+                  </button>
+                ))}
+                <button
+                  className="btn btn-sm btn-secondary"
+                  onClick={() => table.nextPage()}
+                  disabled={!table.getCanNextPage()}
+                  style={{ padding: '4px 10px', fontSize: '12px' }}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>
