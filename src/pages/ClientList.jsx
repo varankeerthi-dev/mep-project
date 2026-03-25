@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabase';
-import { useQuery } from '@tanstack/react-query';
+import { useQueries, useQuery } from '@tanstack/react-query';
 import { flexRender, getCoreRowModel, useReactTable } from '@tanstack/react-table';
 
 const pushPath = (path) => {
@@ -105,118 +105,188 @@ export default function ClientList() {
     [clients, activeClientId]
   );
 
-  const fetchClientTransactions = async (client) => {
-    if (!client) return [];
-    const merged = [];
+  const withTimeout = (promise, ms, label) => {
+    let timer;
+    return Promise.race([
+      promise,
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`${label} request timed out`)), ms);
+      })
+    ]).finally(() => clearTimeout(timer));
+  };
 
+  const txQueries = useQueries({
+    queries: activeClient ? [
+      {
+        queryKey: ['clientTx', 'quotation', activeClientId],
+        queryFn: async () => {
+          const { data, error } = await withTimeout(
+            supabase.from('quotation_header').select('id, quotation_no, date, grand_total, status, created_at').eq('client_id', activeClient.id),
+            15000,
+            'Quotation'
+          );
+          if (error) throw error;
+          return data || [];
+        },
+        staleTime: 5 * 60 * 1000
+      },
+      {
+        queryKey: ['clientTx', 'client_po', activeClientId],
+        queryFn: async () => {
+          const { data, error } = await withTimeout(
+            supabase.from('client_purchase_orders').select('id, po_number, po_date, po_total_value, status, created_at').eq('client_id', activeClient.id),
+            15000,
+            'Client PO'
+          );
+          if (error) throw error;
+          return data || [];
+        },
+        staleTime: 5 * 60 * 1000
+      },
+      {
+        queryKey: ['clientTx', 'project', activeClientId],
+        queryFn: async () => {
+          const { data, error } = await withTimeout(
+            supabase.from('projects').select('id, project_code, project_name, status, created_at').eq('client_id', activeClient.id),
+            15000,
+            'Projects'
+          );
+          if (error) throw error;
+          return data || [];
+        },
+        staleTime: 5 * 60 * 1000
+      },
+      {
+        queryKey: ['clientTx', 'site_visit', activeClientId],
+        queryFn: async () => {
+          const { data, error } = await withTimeout(
+            supabase.from('site_visits').select('id, visit_date, purpose, status, created_at').eq('client_id', activeClient.id),
+            15000,
+            'Site Visits'
+          );
+          if (error) throw error;
+          return data || [];
+        },
+        staleTime: 5 * 60 * 1000
+      },
+      {
+        queryKey: ['clientTx', 'delivery_challan', activeClientId],
+        queryFn: async () => {
+          const { data, error } = await withTimeout(
+            supabase.from('delivery_challans').select('id, dc_number, dc_date, status, created_at').eq('client_name', activeClient.client_name),
+            15000,
+            'Delivery Challans'
+          );
+          if (error) throw error;
+          return data || [];
+        },
+        staleTime: 5 * 60 * 1000
+      },
+      {
+        queryKey: ['clientTx', 'meeting', activeClientId],
+        queryFn: async () => {
+          const { data, error } = await withTimeout(
+            supabase.from('meetings').select('id, meeting_date, agenda, status, created_at').eq('client_id', activeClient.id),
+            15000,
+            'Meetings'
+          );
+          if (error) throw error;
+          return data || [];
+        },
+        staleTime: 5 * 60 * 1000
+      }
+    ] : []
+  });
+
+  const [
+    quotationTx,
+    clientPoTx,
+    projectTx,
+    siteVisitTx,
+    dcTx,
+    meetingTx
+  ] = txQueries;
+
+  const transactions = useMemo(() => {
+    const merged = [];
     const safePush = (rows, mapFn) => {
       (rows || []).forEach((r) => merged.push(mapFn(r)));
     };
 
-    try {
-      const [quo, po, prj, visit, dc, meet] = await Promise.allSettled([
-        supabase.from('quotation_header').select('id, quotation_no, date, grand_total, status, created_at').eq('client_id', client.id),
-        supabase.from('client_purchase_orders').select('id, po_number, po_date, po_total_value, status, created_at').eq('client_id', client.id),
-        supabase.from('projects').select('id, project_code, project_name, status, created_at').eq('client_id', client.id),
-        supabase.from('site_visits').select('id, visit_date, purpose, status, created_at').eq('client_id', client.id),
-        supabase.from('delivery_challans').select('id, dc_number, dc_date, status, created_at').eq('client_name', client.client_name),
-        supabase.from('meetings').select('id, meeting_date, agenda, status, created_at').eq('client_id', client.id)
-      ]);
+    safePush(quotationTx?.data, (r) => ({
+      type: 'quotation',
+      label: 'Quotation',
+      number: r.quotation_no || '-',
+      date: r.date || r.created_at,
+      date_ms: new Date(r.date || r.created_at || 0).getTime(),
+      amount: parseFloat(r.grand_total) || 0,
+      status: r.status || '-',
+      ref_id: r.id
+    }));
 
-      const rowsFrom = (result) => {
-        if (result.status !== 'fulfilled') return [];
-        if (result.value?.error) {
-          console.log('Transaction source warning:', result.value.error.message);
-          return [];
-        }
-        return result.value?.data || [];
-      };
+    safePush(clientPoTx?.data, (r) => ({
+      type: 'client_po',
+      label: 'Client PO',
+      number: r.po_number || '-',
+      date: r.po_date || r.created_at,
+      date_ms: new Date(r.po_date || r.created_at || 0).getTime(),
+      amount: parseFloat(r.po_total_value) || 0,
+      status: r.status || '-',
+      ref_id: r.id
+    }));
 
-      safePush(rowsFrom(quo), (r) => ({
-        type: 'quotation',
-        label: 'Quotation',
-        number: r.quotation_no || '-',
-        date: r.date || r.created_at,
-        date_ms: new Date(r.date || r.created_at || 0).getTime(),
-        amount: parseFloat(r.grand_total) || 0,
-        status: r.status || '-',
-        ref_id: r.id
-      }));
+    safePush(projectTx?.data, (r) => ({
+      type: 'project',
+      label: 'Project',
+      number: r.project_code || '-',
+      date: r.created_at,
+      date_ms: new Date(r.created_at || 0).getTime(),
+      amount: 0,
+      status: r.status || '-',
+      details: r.project_name || '-',
+      ref_id: r.id
+    }));
 
-      safePush(rowsFrom(po), (r) => ({
-        type: 'client_po',
-        label: 'Client PO',
-        number: r.po_number || '-',
-        date: r.po_date || r.created_at,
-        date_ms: new Date(r.po_date || r.created_at || 0).getTime(),
-        amount: parseFloat(r.po_total_value) || 0,
-        status: r.status || '-',
-        ref_id: r.id
-      }));
+    safePush(siteVisitTx?.data, (r) => ({
+      type: 'site_visit',
+      label: 'Site Visit',
+      number: `SV-${String(r.id).slice(0, 6)}`,
+      date: r.visit_date || r.created_at,
+      date_ms: new Date(r.visit_date || r.created_at || 0).getTime(),
+      amount: 0,
+      status: r.status || '-',
+      details: r.purpose || '-',
+      ref_id: r.id
+    }));
 
-      safePush(rowsFrom(prj), (r) => ({
-        type: 'project',
-        label: 'Project',
-        number: r.project_code || '-',
-        date: r.created_at,
-        date_ms: new Date(r.created_at || 0).getTime(),
-        amount: 0,
-        status: r.status || '-',
-        details: r.project_name || '-',
-        ref_id: r.id
-      }));
+    safePush(dcTx?.data, (r) => ({
+      type: 'delivery_challan',
+      label: 'Delivery Challan',
+      number: r.dc_number || '-',
+      date: r.dc_date || r.created_at,
+      date_ms: new Date(r.dc_date || r.created_at || 0).getTime(),
+      amount: 0,
+      status: r.status || '-',
+      ref_id: r.id
+    }));
 
-      safePush(rowsFrom(visit), (r) => ({
-        type: 'site_visit',
-        label: 'Site Visit',
-        number: `SV-${String(r.id).slice(0, 6)}`,
-        date: r.visit_date || r.created_at,
-        date_ms: new Date(r.visit_date || r.created_at || 0).getTime(),
-        amount: 0,
-        status: r.status || '-',
-        details: r.purpose || '-',
-        ref_id: r.id
-      }));
+    safePush(meetingTx?.data, (r) => ({
+      type: 'meeting',
+      label: 'Meeting',
+      number: `MT-${String(r.id).slice(0, 6)}`,
+      date: r.meeting_date || r.created_at,
+      date_ms: new Date(r.meeting_date || r.created_at || 0).getTime(),
+      amount: 0,
+      status: r.status || '-',
+      details: r.agenda || '-',
+      ref_id: r.id
+    }));
 
-      safePush(rowsFrom(dc), (r) => ({
-        type: 'delivery_challan',
-        label: 'Delivery Challan',
-        number: r.dc_number || '-',
-        date: r.dc_date || r.created_at,
-        date_ms: new Date(r.dc_date || r.created_at || 0).getTime(),
-        amount: 0,
-        status: r.status || '-',
-        ref_id: r.id
-      }));
+    merged.sort((a, b) => (b.date_ms || 0) - (a.date_ms || 0));
+    return merged;
+  }, [quotationTx?.data, clientPoTx?.data, projectTx?.data, siteVisitTx?.data, dcTx?.data, meetingTx?.data]);
 
-      safePush(rowsFrom(meet), (r) => ({
-        type: 'meeting',
-        label: 'Meeting',
-        number: `MT-${String(r.id).slice(0, 6)}`,
-        date: r.meeting_date || r.created_at,
-        date_ms: new Date(r.meeting_date || r.created_at || 0).getTime(),
-        amount: 0,
-        status: r.status || '-',
-        details: r.agenda || '-',
-        ref_id: r.id
-      }));
-    } catch (err) {
-      console.log('Transaction load warning:', err.message);
-    } finally {
-      merged.sort((a, b) => (b.date_ms || 0) - (a.date_ms || 0));
-      return merged;
-    }
-  };
-
-  const transactionsQuery = useQuery({
-    queryKey: ['clientTransactions', activeClientId],
-    queryFn: () => fetchClientTransactions(activeClient),
-    enabled: !!activeClient,
-    staleTime: 5 * 60 * 1000
-  });
-
-  const transactions = transactionsQuery.data || [];
-  const loadingTx = transactionsQuery.isFetching;
+  const loadingTx = txQueries.length > 0 && txQueries.some((q) => q.isFetching);
 
   const filteredClients = useMemo(() => {
     const q = searchTerm.toLowerCase();
