@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabase';
 import { useQueries, useQuery } from '@tanstack/react-query';
-import { flexRender, getCoreRowModel, useReactTable } from '@tanstack/react-table';
+import { flexRender, getCoreRowModel, getSortedRowModel, getFilteredRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
+import { ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
 
 const pushPath = (path) => {
   const nextPath = path || '/';
@@ -12,60 +13,200 @@ const pushPath = (path) => {
 };
 
 function TransactionsTable({ rows, loading, onOpen, emptyMessage }) {
+  const [sorting, setSorting] = useState([]);
+  const [columnFilters, setColumnFilters] = useState([]);
+  const [globalFilter, setGlobalFilter] = useState('');
+
   const columns = useMemo(() => [
-    { header: 'Type', accessorKey: 'label' },
-    { header: 'Number', accessorKey: 'number', cell: (info) => <span style={{ fontWeight: 600 }}>{info.getValue()}</span> },
-    { header: 'Date', accessorKey: 'date', cell: (info) => info.getValue() ? new Date(info.getValue()).toLocaleDateString() : '-' },
-    { header: 'Details', accessorKey: 'details', cell: (info) => info.getValue() || '-' },
-    { header: 'Amount', accessorKey: 'amount', cell: (info) => <span style={{ textAlign: 'right', display: 'inline-block', width: '100%' }}>Rs {(info.getValue() || 0).toFixed(2)}</span> },
-    { header: 'Status', accessorKey: 'status' },
+    {
+      header: 'Type',
+      accessorKey: 'label',
+      cell: (info) => info.getValue(),
+      enableSorting: true
+    },
+    {
+      header: 'Number',
+      accessorKey: 'number',
+      cell: (info) => <span style={{ fontWeight: 600 }}>{info.getValue()}</span>,
+      enableSorting: true
+    },
+    {
+      header: 'Date',
+      accessorKey: 'date',
+      cell: (info) => info.getValue() ? new Date(info.getValue()).toLocaleDateString() : '-',
+      enableSorting: true
+    },
+    {
+      header: 'Details',
+      accessorKey: 'details',
+      cell: (info) => info.getValue() || '-',
+      enableSorting: false
+    },
+    {
+      header: 'Amount',
+      accessorKey: 'amount',
+      cell: (info) => <span style={{ textAlign: 'right', display: 'inline-block', width: '100%' }}>Rs {(info.getValue() || 0).toFixed(2)}</span>,
+      enableSorting: true
+    },
+    {
+      header: 'Status',
+      accessorKey: 'status',
+      cell: (info) => info.getValue() || '-',
+      enableSorting: true
+    },
     {
       id: 'action',
       header: 'Action',
       cell: ({ row }) => (
         <button className="btn btn-sm btn-secondary" onClick={() => onOpen(row.original)}>Open</button>
-      )
+      ),
+      enableSorting: false
     }
   ], [onOpen]);
 
   const table = useReactTable({
     data: rows,
     columns,
-    getCoreRowModel: getCoreRowModel()
+    state: {
+      sorting,
+      columnFilters,
+      globalFilter,
+    },
+    onSortingChange: setSorting,
+    onColumnFiltersChange: setColumnFilters,
+    onGlobalFilterChange: setGlobalFilter,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    initialState: {
+      pagination: { pageSize: 10 }
+    }
   });
 
+  const SortIcon = ({ column }) => {
+    const sorted = column.getIsSorted();
+    if (!column.getCanSort()) return null;
+    if (sorted === 'asc') return <ChevronUp size={12} style={{ display: 'inline', marginLeft: 4 }} />;
+    if (sorted === 'desc') return <ChevronDown size={12} style={{ display: 'inline', marginLeft: 4 }} />;
+    return <ChevronsUpDown size={12} style={{ display: 'inline', marginLeft: 4, opacity: 0.4 }} />;
+  };
+
+  const pageCount = table.getPageCount();
+  const currentPage = table.getState().pagination.pageIndex;
+
   return (
-    <div style={{ overflow: 'auto', border: '1px solid #e5e7eb', borderRadius: '6px' }}>
-      <table className="table" style={{ margin: 0 }}>
-        <thead>
-          {table.getHeaderGroups().map(headerGroup => (
-            <tr key={headerGroup.id}>
-              {headerGroup.headers.map(header => (
-                <th key={header.id} style={{ padding: '6px 8px', fontSize: '12px' }}>
-                  {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
-                </th>
-              ))}
-            </tr>
-          ))}
-        </thead>
-        <tbody>
-          {loading ? (
-            <tr><td colSpan={columns.length} style={{ padding: '8px' }}>Loading...</td></tr>
-          ) : table.getRowModel().rows.length === 0 ? (
-            <tr><td colSpan={columns.length} style={{ padding: '8px' }}>{emptyMessage}</td></tr>
-          ) : (
-            table.getRowModel().rows.map(row => (
-              <tr key={row.id}>
-                {row.getVisibleCells().map(cell => (
-                  <td key={cell.id} style={{ padding: '6px 8px', fontSize: '12px' }}>
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </td>
-                ))}
-              </tr>
-            ))
-          )}
-        </tbody>
-      </table>
+    <div>
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
+        <input
+          className="form-input"
+          placeholder="Search all columns..."
+          value={globalFilter ?? ''}
+          onChange={(e) => setGlobalFilter(e.target.value)}
+          style={{ padding: '6px 8px', fontSize: '12px', maxWidth: '280px' }}
+        />
+        <span style={{ fontSize: '12px', color: '#6b7280', marginLeft: 'auto' }}>
+          {table.getFilteredRowModel().rows.length} record{table.getFilteredRowModel().rows.length !== 1 ? 's' : ''}
+        </span>
+      </div>
+
+      <div style={{ overflow: 'auto', border: '1px solid #e5e7eb', borderRadius: '6px', marginBottom: '8px' }}>
+        <table className="table" style={{ margin: 0 }}>
+          <thead>
+            {table.getHeaderGroups().map(headerGroup => (
+              <>
+                <tr key={`${headerGroup.id}-sort`} style={{ background: '#f8fafc' }}>
+                  {headerGroup.headers.map(header => (
+                    <th
+                      key={header.id}
+                      style={{ padding: '6px 8px', fontSize: '12px', cursor: header.column.getCanSort() ? 'pointer' : 'default', userSelect: 'none' }}
+                      onClick={header.column.getToggleSortingHandler()}
+                    >
+                      {header.isPlaceholder ? null : (
+                        <span style={{ display: 'flex', alignItems: 'center' }}>
+                          {flexRender(header.column.columnDef.header, header.getContext())}
+                          <SortIcon column={header.column} />
+                        </span>
+                      )}
+                    </th>
+                  ))}
+                </tr>
+                <tr key={`${headerGroup.id}-filter`}>
+                  {headerGroup.headers.map(header => (
+                    <th key={`${header.id}-filter`} style={{ padding: '4px 8px', fontSize: '11px' }}>
+                      {header.column.getCanFilter() && header.id !== 'action' && header.id !== 'number' ? (
+                        <input
+                          className="form-input"
+                          placeholder={`Filter ${typeof header.column.columnDef.header === 'string' ? header.column.columnDef.header : header.id}...`}
+                          value={(header.column.getFilterValue() ?? '')}
+                          onChange={(e) => header.column.setFilterValue(e.target.value)}
+                          style={{ padding: '3px 6px', fontSize: '11px', width: '100%' }}
+                        />
+                      ) : null}
+                    </th>
+                  ))}
+                </tr>
+              </>
+            ))}
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr><td colSpan={columns.length} style={{ padding: '16px', textAlign: 'center' }}>Loading...</td></tr>
+            ) : table.getRowModel().rows.length === 0 ? (
+              <tr><td colSpan={columns.length} style={{ padding: '16px', textAlign: 'center', color: '#6b7280' }}>{emptyMessage}</td></tr>
+            ) : (
+              table.getRowModel().rows.map(row => (
+                <tr key={row.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                  {row.getVisibleCells().map(cell => (
+                    <td key={cell.id} style={{ padding: '8px 8px', fontSize: '12px' }}>
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </td>
+                  ))}
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'flex-end' }}>
+        <span style={{ fontSize: '12px', color: '#6b7280' }}>
+          Page {currentPage + 1} of {pageCount || 1}
+        </span>
+        <button
+          className="btn btn-sm btn-secondary"
+          onClick={() => table.previousPage()}
+          disabled={!table.getCanPreviousPage()}
+          style={{ padding: '4px 10px', fontSize: '12px' }}
+        >
+          Prev
+        </button>
+        {Array.from({ length: Math.min(5, pageCount) }, (_, i) => {
+          let pageIdx;
+          if (pageCount <= 5) pageIdx = i;
+          else if (currentPage < 3) pageIdx = i;
+          else if (currentPage > pageCount - 4) pageIdx = pageCount - 5 + i;
+          else pageIdx = currentPage - 2 + i;
+          return (
+            <button
+              key={pageIdx}
+              className={`btn btn-sm ${currentPage === pageIdx ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => table.setPageIndex(pageIdx)}
+              style={{ padding: '4px 10px', fontSize: '12px', minWidth: '32px' }}
+            >
+              {pageIdx + 1}
+            </button>
+          );
+        })}
+        <button
+          className="btn btn-sm btn-secondary"
+          onClick={() => table.nextPage()}
+          disabled={!table.getCanNextPage()}
+          style={{ padding: '4px 10px', fontSize: '12px' }}
+        >
+          Next
+        </button>
+      </div>
     </div>
   );
 }
