@@ -74,6 +74,7 @@ export default function ClientList() {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeClientId, setActiveClientId] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
+  const [reportsSubTab, setReportsSubTab] = useState('ledger');
   const [txFilter, setTxFilter] = useState('all');
   const [txSearch, setTxSearch] = useState('');
   const [txDateFrom, setTxDateFrom] = useState('');
@@ -371,17 +372,17 @@ export default function ClientList() {
 
   const scopedTransactions = useMemo(() => {
     const typeMap = {
-      'tab-quotation': 'quotation',
-      'tab-client-po': 'client_po',
-      'tab-project': 'project',
-      'tab-site-visit': 'site_visit',
-      'tab-delivery-challan': 'delivery_challan',
-      'tab-meeting': 'meeting'
+      'quotation': 'quotation',
+      'client_po': 'client_po',
+      'project': 'project',
+      'site_visit': 'site_visit',
+      'delivery_challan': 'delivery_challan',
+      'meeting': 'meeting'
     };
-    const type = typeMap[activeTab];
+    const type = typeMap[reportsSubTab];
     if (!type) return [];
     return getTransactionsByType(type);
-  }, [activeTab, filteredTransactions]);
+  }, [reportsSubTab, filteredTransactions]);
 
   return (
     <div style={{ height: 'calc(100vh - 120px)', minHeight: '560px', display: 'grid', gridTemplateColumns: '300px 1fr', gap: '10px' }}>
@@ -433,15 +434,21 @@ export default function ClientList() {
 
             <div style={{ display: 'flex', gap: '6px', borderBottom: '1px solid #e5e7eb', marginBottom: '8px', flexWrap: 'wrap' }}>
               <button className={`btn btn-sm ${activeTab === 'overview' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('overview')}>Overview</button>
-              <button className={`btn btn-sm ${activeTab === 'ledger' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('ledger')}>Ledger Statement</button>
-              <button className={`btn btn-sm ${activeTab === 'transactions' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('transactions')}>Transactions</button>
-              <button className={`btn btn-sm ${activeTab === 'tab-quotation' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('tab-quotation')}>Quotations ({txCounts.quotation})</button>
-              <button className={`btn btn-sm ${activeTab === 'tab-client-po' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('tab-client-po')}>Client PO ({txCounts.client_po})</button>
-              <button className={`btn btn-sm ${activeTab === 'tab-project' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('tab-project')}>Projects ({txCounts.project})</button>
-              <button className={`btn btn-sm ${activeTab === 'tab-site-visit' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('tab-site-visit')}>Site Visits ({txCounts.site_visit})</button>
-              <button className={`btn btn-sm ${activeTab === 'tab-delivery-challan' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('tab-delivery-challan')}>Delivery Challans ({txCounts.delivery_challan})</button>
-              <button className={`btn btn-sm ${activeTab === 'tab-meeting' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('tab-meeting')}>Meetings ({txCounts.meeting})</button>
+              <button className={`btn btn-sm ${activeTab === 'reports' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('reports')}>Reports</button>
             </div>
+
+            {activeTab === 'reports' && (
+              <div style={{ display: 'flex', gap: '6px', borderBottom: '1px solid #e5e7eb', marginBottom: '8px', flexWrap: 'wrap' }}>
+                <button className={`btn btn-sm ${reportsSubTab === 'ledger' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setReportsSubTab('ledger')}>Ledger Statement</button>
+                <button className={`btn btn-sm ${reportsSubTab === 'transactions' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setReportsSubTab('transactions')}>Transactions</button>
+                <button className={`btn btn-sm ${reportsSubTab === 'quotation' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setReportsSubTab('quotation')}>Quotations ({txCounts.quotation})</button>
+                <button className={`btn btn-sm ${reportsSubTab === 'client_po' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setReportsSubTab('client_po')}>Client PO ({txCounts.client_po})</button>
+                <button className={`btn btn-sm ${reportsSubTab === 'project' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setReportsSubTab('project')}>Projects ({txCounts.project})</button>
+                <button className={`btn btn-sm ${reportsSubTab === 'site_visit' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setReportsSubTab('site_visit')}>Site Visits ({txCounts.site_visit})</button>
+                <button className={`btn btn-sm ${reportsSubTab === 'delivery_challan' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setReportsSubTab('delivery_challan')}>Delivery Challans ({txCounts.delivery_challan})</button>
+                <button className={`btn btn-sm ${reportsSubTab === 'meeting' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setReportsSubTab('meeting')}>Meetings ({txCounts.meeting})</button>
+              </div>
+            )}
 
             <div style={{ minHeight: 0, overflow: 'auto' }}>
               {activeTab === 'overview' && (
@@ -464,7 +471,7 @@ export default function ClientList() {
                 </div>
               )}
 
-              {activeTab === 'ledger' && (
+              {activeTab === 'reports' && reportsSubTab === 'ledger' && (
                 <div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(140px, 1fr))', gap: '8px', marginBottom: '8px' }}>
                     <div style={{ border: '1px solid #e5e7eb', borderRadius: '6px', padding: '8px' }}><div style={{ fontSize: '11px', color: '#6b7280' }}>Debit (Quotations)</div><div style={{ fontSize: '16px', fontWeight: 700 }}>Rs {ledgerTotals.debit.toFixed(2)}</div></div>
@@ -475,7 +482,7 @@ export default function ClientList() {
                 </div>
               )}
 
-              {activeTab === 'transactions' && (
+              {activeTab === 'reports' && reportsSubTab === 'transactions' && (
                 <div>
                   <div style={{ display: 'grid', gridTemplateColumns: '160px 1fr 140px 140px', gap: '6px', marginBottom: '8px' }}>
                     <select className="form-select" value={txFilter} onChange={(e) => setTxFilter(e.target.value)} style={{ padding: '6px 8px', fontSize: '12px' }}>
@@ -501,12 +508,7 @@ export default function ClientList() {
                 </div>
               )}
 
-              {(activeTab === 'tab-quotation' ||
-                activeTab === 'tab-client-po' ||
-                activeTab === 'tab-project' ||
-                activeTab === 'tab-site-visit' ||
-                activeTab === 'tab-delivery-challan' ||
-                activeTab === 'tab-meeting') && (
+              {activeTab === 'reports' && (reportsSubTab === 'quotation' || reportsSubTab === 'client_po' || reportsSubTab === 'project' || reportsSubTab === 'site_visit' || reportsSubTab === 'delivery_challan' || reportsSubTab === 'meeting') && (
                 <div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px 140px', gap: '6px', marginBottom: '8px' }}>
                     <input className="form-input" value={txSearch} onChange={(e) => setTxSearch(e.target.value)} placeholder="Search no/type/details..." style={{ padding: '6px 8px', fontSize: '12px' }} />
