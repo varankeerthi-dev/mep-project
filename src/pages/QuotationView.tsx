@@ -9,6 +9,7 @@ import { useAuth } from '../App';
 import { generateQuotationTally } from './QuotationTallyTemplate';
 import { generateProfessionalTemplate } from './ProfessionalTemplate';
 import { generateZohoTemplate } from './ZohoTemplate';
+import { timedSupabaseQuery } from '../utils/queryTimeout';
 
 export default function QuotationView() {
   const navigate = useNavigate();
@@ -24,21 +25,22 @@ export default function QuotationView() {
   const quotationQuery = useQuery({
     queryKey: ['quotation', quotationId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('quotation_header')
-        .select(`
-          *,
-          client:clients(*),
-          project:projects(id, project_name, project_code),
-          items:quotation_items(
+      const data = await timedSupabaseQuery(
+        supabase
+          .from('quotation_header')
+          .select(`
             *,
-            item:materials(id, item_code, display_name, name, hsn_code)
-          )
-        `)
-        .eq('id', quotationId)
-        .single();
-
-      if (error) throw error;
+            client:clients(*),
+            project:projects(id, project_name, project_code),
+            items:quotation_items(
+              *,
+              item:materials(id, item_code, display_name, name, hsn_code)
+            )
+          `)
+          .eq('id', quotationId)
+          .single(),
+        'Quotation view',
+      );
       return data;
     },
     enabled: !!quotationId
@@ -47,14 +49,15 @@ export default function QuotationView() {
   const templatesQuery = useQuery({
     queryKey: ['documentTemplates', 'Quotation'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('document_templates')
-        .select('*')
-        .eq('document_type', 'Quotation')
-        .eq('active', true)
-        .order('is_default', { ascending: false });
-
-      if (error) throw error;
+      const data = await timedSupabaseQuery(
+        supabase
+          .from('document_templates')
+          .select('*')
+          .eq('document_type', 'Quotation')
+          .eq('active', true)
+          .order('is_default', { ascending: false }),
+        'Quotation templates',
+      );
       return data || [];
     },
     staleTime: 10 * 60 * 1000
@@ -62,20 +65,13 @@ export default function QuotationView() {
 
   const quotation = quotationQuery.data || null;
   const templates = templatesQuery.data || [];
-  const loading = quotationQuery.isLoading;
+  const loading = quotationQuery.isPending && !quotationQuery.data;
 
   useEffect(() => {
     if (quotation?.template_id) {
       setSelectedTemplateId(quotation.template_id);
     }
   }, [quotation?.template_id]);
-
-  useEffect(() => {
-    if (quotationQuery.isError) {
-      console.error('Error loading quotation:', quotationQuery.error);
-      alert('Error loading quotation: ' + (quotationQuery.error?.message || 'Unknown error'));
-    }
-  }, [quotationQuery.isError, quotationQuery.error]);
 
   useEffect(() => {
     if (templatesQuery.isError) {
@@ -709,6 +705,23 @@ export default function QuotationView() {
 
   if (loading) {
     return <div style={{ padding: '40px', textAlign: 'center' }}>Loading...</div>;
+  }
+
+  if (!quotationId) {
+    return <div style={{ padding: '40px', textAlign: 'center' }}>Quotation ID is missing.</div>;
+  }
+
+  if (quotationQuery.isError) {
+    return (
+      <div style={{ padding: '40px', textAlign: 'center' }}>
+        <div style={{ fontWeight: 600, color: '#b91c1c', marginBottom: '12px' }}>
+          {(quotationQuery.error as Error)?.message || 'Unable to load quotation.'}
+        </div>
+        <button type="button" className="btn btn-primary" onClick={() => quotationQuery.refetch()}>
+          Retry
+        </button>
+      </div>
+    );
   }
 
   if (!quotation) {

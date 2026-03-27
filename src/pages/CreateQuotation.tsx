@@ -5,6 +5,7 @@ import { formatCurrency } from '../utils/formatters';
 import { useAuth } from '../App';
 import { useQuery } from '@tanstack/react-query';
 import { flexRender, getCoreRowModel, useReactTable } from '@tanstack/react-table';
+import { timedSupabaseQuery } from '../utils/queryTimeout';
 
 const INDIAN_STATES = [
   'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
@@ -105,44 +106,66 @@ export default function CreateQuotation() {
   const initQuery = useQuery({
     queryKey: ['quotationInit'],
     queryFn: async () => {
-      const [clientsData, projectsData, materialsData, variantsData, pricingData, settingsData, templateData] = await Promise.all([
-        supabase
-          .from('clients')
-          .select('id, client_name, address1, address2, city, state, pincode, gstin, contact, email, contact_person, contact_person_email, contact_person_2, contact_person_2_email, purchase_person, purchase_email, custom_discounts, discount_type, standard_pricelist_id, discount_profile_id')
-          .order('client_name'),
-        supabase.from('projects').select('id, project_name, project_code, client_id').order('project_name'),
-        supabase
-          .from('materials')
-          .select('id, item_code, display_name, name, hsn_code, sale_price, unit, gst_rate, make, item_type, uses_variant')
-          .order('name'),
-        supabase.from('company_variants').select('id, variant_name').eq('is_active', true).order('variant_name'),
-        supabase.from('item_variant_pricing').select('item_id, company_variant_id, sale_price, make'),
-        supabase
-          .from('discount_settings')
-          .select('variant_id, default_discount_percent, min_discount_percent, max_discount_percent')
-          .eq('is_active', true),
-        supabase
-          .from('document_templates')
-          .select('id, column_settings')
-          .eq('document_type', 'Quotation')
-          .eq('is_default', true)
-          .maybeSingle()
+      const [clients, projects, materials, variants, pricing, settings, template] = await Promise.all([
+        timedSupabaseQuery(
+          supabase
+            .from('clients')
+            .select('id, client_name, address1, address2, city, state, pincode, gstin, contact, email, contact_person, contact_person_email, contact_person_2, contact_person_2_email, purchase_person, purchase_email, custom_discounts, discount_type, standard_pricelist_id, discount_profile_id')
+            .order('client_name'),
+          'Quotation clients',
+        ),
+        timedSupabaseQuery(
+          supabase.from('projects').select('id, project_name, project_code, client_id').order('project_name'),
+          'Quotation projects',
+        ),
+        timedSupabaseQuery(
+          supabase
+            .from('materials')
+            .select('id, item_code, display_name, name, hsn_code, sale_price, unit, gst_rate, make, item_type, uses_variant')
+            .order('name'),
+          'Quotation materials',
+        ),
+        timedSupabaseQuery(
+          supabase.from('company_variants').select('id, variant_name').eq('is_active', true).order('variant_name'),
+          'Quotation variants',
+        ),
+        timedSupabaseQuery(
+          supabase.from('item_variant_pricing').select('item_id, company_variant_id, sale_price, make'),
+          'Quotation pricing',
+        ),
+        timedSupabaseQuery(
+          supabase
+            .from('discount_settings')
+            .select('variant_id, default_discount_percent, min_discount_percent, max_discount_percent')
+            .eq('is_active', true),
+          'Quotation discount settings',
+        ),
+        timedSupabaseQuery(
+          supabase
+            .from('document_templates')
+            .select('id, column_settings')
+            .eq('document_type', 'Quotation')
+            .eq('is_default', true)
+            .maybeSingle(),
+          'Quotation template',
+        ),
       ]);
 
       return {
-        clients: clientsData.data || [],
-        projects: projectsData.data || [],
-        materials: materialsData.data || [],
-        variants: variantsData.data || [],
-        pricing: pricingData.data || [],
-        settings: settingsData.data || [],
-        template: templateData.data || null
+        clients: clients || [],
+        projects: projects || [],
+        materials: materials || [],
+        variants: variants || [],
+        pricing: pricing || [],
+        settings: settings || [],
+        template: template || null
       };
     },
     staleTime: 5 * 60 * 1000
   });
 
-  const initLoading = initQuery.isLoading;
+  const initLoading = initQuery.isPending && !initQuery.data;
+  const initErrorMessage = initQuery.error instanceof Error ? initQuery.error.message : 'Unable to load quotation setup data.';
 
   useEffect(() => {
     if (!initQuery.data) return;
@@ -616,14 +639,18 @@ export default function CreateQuotation() {
   }, [clients, variants]);
 
   const loadQuotation = async (id, isDuplicate = false) => {
-    const { data, error } = await supabase
-      .from('quotation_header')
-      .select('*, items:quotation_items(*, item:materials(id, item_code, display_name, name, hsn_code, sale_price, unit))')
-      .eq('id', id)
-      .single();
-
-    if (error) {
-      alert('Error loading quotation: ' + error.message);
+    let data;
+    try {
+      data = await timedSupabaseQuery(
+        supabase
+          .from('quotation_header')
+          .select('*, items:quotation_items(*, item:materials(id, item_code, display_name, name, hsn_code, sale_price, unit))')
+          .eq('id', id)
+          .single(),
+        'Quotation details',
+      );
+    } catch (error) {
+      alert('Error loading quotation: ' + ((error as Error)?.message || 'Unknown error'));
       return;
     }
 
@@ -1356,6 +1383,17 @@ export default function CreateQuotation() {
 
   if (initLoading) {
     return <div style={{ padding: '40px', textAlign: 'center' }}>Loading...</div>;
+  }
+
+  if (initQuery.isError) {
+    return (
+      <div style={{ padding: '40px', textAlign: 'center' }}>
+        <div style={{ fontWeight: 600, color: '#b91c1c', marginBottom: '12px' }}>{initErrorMessage}</div>
+        <button type="button" className="btn btn-primary" onClick={() => initQuery.refetch()}>
+          Retry
+        </button>
+      </div>
+    );
   }
 
   return (

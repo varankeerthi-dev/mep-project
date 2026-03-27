@@ -3,14 +3,8 @@ import { supabase } from '../supabase';
 import { useQueries, useQuery } from '@tanstack/react-query';
 import { flexRender, getCoreRowModel, getSortedRowModel, getFilteredRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
 import { ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
-
-const pushPath = (path: string) => {
-  const nextPath = path || '/';
-  if (`${window.location.pathname}${window.location.search}` !== nextPath || window.location.hash) {
-    window.history.pushState({}, '', nextPath);
-    window.dispatchEvent(new Event('locationchange'));
-  }
-};
+import { useNavigate } from 'react-router-dom';
+import { withTimeout } from '../utils/queryTimeout';
 
 type TransactionsTableProps = {
   rows: any[]
@@ -145,7 +139,7 @@ function TransactionsTable({ rows, loading, onOpen, emptyMessage }: Transactions
                         <input
                           className="form-input"
                           placeholder={`Filter ${typeof header.column.columnDef.header === 'string' ? header.column.columnDef.header : header.id}...`}
-                          value={(header.column.getFilterValue() ?? '')}
+                          value={(header.column.getFilterValue() as string) ?? ''}
                           onChange={(e) => header.column.setFilterValue(e.target.value)}
                           style={{ padding: '3px 6px', fontSize: '11px', width: '100%' }}
                         />
@@ -219,6 +213,7 @@ function TransactionsTable({ rows, loading, onOpen, emptyMessage }: Transactions
 }
 
 export default function ClientList() {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeClientId, setActiveClientId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
@@ -253,16 +248,6 @@ export default function ClientList() {
     () => clients.find(c => c.id === activeClientId) || null,
     [clients, activeClientId]
   );
-
-  const withTimeout = <T,>(promise: Promise<T>, ms: number, label: string): Promise<T> => {
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    return Promise.race([
-      promise,
-      new Promise((_, reject) => {
-        timer = setTimeout(() => reject(new Error(`${label} request timed out`)), ms);
-      })
-    ]).finally(() => clearTimeout(timer));
-  };
 
   const txQueries = useQueries({
     queries: (activeClient ? [
@@ -435,7 +420,8 @@ export default function ClientList() {
     return merged;
   }, [quotationTx?.data, clientPoTx?.data, projectTx?.data, siteVisitTx?.data, dcTx?.data, meetingTx?.data]);
 
-  const loadingTx = txQueries.length > 0 && txQueries.some((q) => q.isFetching);
+  const loadingTx = txQueries.length > 0 && txQueries.some((q) => q.isPending && !q.data);
+  const transactionsError = txQueries.find((q) => q.isError)?.error;
 
   const filteredClients = useMemo(() => {
     const q = searchTerm.toLowerCase();
@@ -484,27 +470,27 @@ export default function ClientList() {
   const openTransaction = (t: any) => {
     if (!t) return;
     if (t.type === 'quotation') {
-      pushPath(`/quotation/view?id=${t.ref_id}`);
+      navigate(`/quotation/view?id=${t.ref_id}`);
       return;
     }
     if (t.type === 'client_po') {
-      pushPath(`/client-po/details?id=${t.ref_id}`);
+      navigate(`/client-po/details?id=${t.ref_id}`);
       return;
     }
     if (t.type === 'project') {
-      pushPath('/projects');
+      navigate('/projects');
       return;
     }
     if (t.type === 'site_visit') {
-      pushPath(`/site-visits/edit?id=${t.ref_id}`);
+      navigate(`/site-visits/edit?id=${t.ref_id}`);
       return;
     }
     if (t.type === 'delivery_challan') {
-      pushPath(`/dc/edit/${t.ref_id}`);
+      navigate(`/dc/edit/${t.ref_id}`);
       return;
     }
     if (t.type === 'meeting') {
-      pushPath(`/meetings/edit?id=${t.ref_id}`);
+      navigate(`/meetings/edit?id=${t.ref_id}`);
     }
   };
 
@@ -519,7 +505,7 @@ export default function ClientList() {
   }, [transactions]);
 
   const scopedTransactions = useMemo(() => {
-    const typeMap = {
+    const typeMap: Record<string, string> = {
       'quotation': 'quotation',
       'client_po': 'client_po',
       'project': 'project',
@@ -537,7 +523,7 @@ export default function ClientList() {
       <div className="card" style={{ padding: '8px', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
           <h3 style={{ margin: 0, fontSize: '16px' }}>Clients</h3>
-          <button className="btn btn-sm btn-primary" onClick={() => pushPath('/clients/new')} style={{ marginLeft: 'auto' }}>+ New</button>
+          <button className="btn btn-sm btn-primary" onClick={() => navigate('/clients/new')} style={{ marginLeft: 'auto' }}>+ New</button>
         </div>
         <input
           type="text"
@@ -550,6 +536,10 @@ export default function ClientList() {
         <div style={{ overflowY: 'auto', minHeight: 0 }}>
           {clientsQuery.isLoading ? (
             <div style={{ padding: '8px', fontSize: '12px', color: '#6b7280' }}>Loading...</div>
+          ) : clientsQuery.isError ? (
+            <div style={{ padding: '8px', fontSize: '12px', color: '#dc2626' }}>
+              {(clientsQuery.error as Error)?.message || 'Unable to load clients.'}
+            </div>
           ) : filteredClients.map((c) => (
             <div
               key={c.id}
@@ -577,7 +567,7 @@ export default function ClientList() {
           <>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
               <h2 style={{ margin: 0, fontSize: '28px', lineHeight: 1.1 }}>{activeClient.client_name}</h2>
-              <button className="btn btn-sm btn-secondary" style={{ marginLeft: 'auto' }} onClick={() => pushPath(`/clients/edit?id=${activeClient.id}`)}>Edit</button>
+              <button className="btn btn-sm btn-secondary" style={{ marginLeft: 'auto' }} onClick={() => navigate(`/clients/edit?id=${activeClient.id}`)}>Edit</button>
             </div>
 
             <div style={{ display: 'flex', gap: '6px', borderBottom: '1px solid #e5e7eb', marginBottom: '8px', flexWrap: 'wrap' }}>
@@ -651,7 +641,7 @@ export default function ClientList() {
                     rows={filteredTransactions}
                     loading={loadingTx}
                     onOpen={openTransaction}
-                    emptyMessage="No transactions"
+                    emptyMessage={transactionsError ? ((transactionsError as Error)?.message || 'Unable to load transactions.') : 'No transactions'}
                   />
                 </div>
               )}
@@ -668,7 +658,7 @@ export default function ClientList() {
                     rows={scopedTransactions}
                     loading={loadingTx}
                     onOpen={openTransaction}
-                    emptyMessage="No records"
+                    emptyMessage={transactionsError ? ((transactionsError as Error)?.message || 'Unable to load records.') : 'No records'}
                   />
                 </div>
               )}

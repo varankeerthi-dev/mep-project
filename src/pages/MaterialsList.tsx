@@ -1,8 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { flexRender, getCoreRowModel, useReactTable } from '@tanstack/react-table';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { formatDate, formatCurrency } from '../utils/formatters';
+import { timedSupabaseQuery } from '../utils/queryTimeout';
 
 const MAIN_CATEGORIES = ['VALVE', 'PIPE', 'FITTING', 'FLANGE', 'ELECTRICAL', 'PLUMBING', 'HVAC', 'FIRE PROTECTION', 'BUILDING MATERIALS', 'TOOLS', 'SAFETY', 'OFFICE', 'OTHER'];
 
@@ -137,6 +139,18 @@ const buildItemChangeLog = (before, after) => {
     .filter(Boolean);
 };
 
+const isMissingRelationError = (error) => {
+  const code = String(error?.code || '');
+  const message = String(error?.message || '');
+  return code === '42P01' || /does not exist/i.test(message) || /schema cache/i.test(message);
+};
+
+const getMaterialsTabFromSearch = (search = '') => {
+  const tab = new URLSearchParams(search || '').get('tab');
+  const allowedTabs = new Set(['items', 'service', 'category', 'unit', 'warehouses', 'variants']);
+  return allowedTabs.has(tab) ? tab : 'items';
+};
+
 function TabButton({ active, onClick, children }) {
   return (
     <button
@@ -210,36 +224,17 @@ function ItemsTab() {
     return formatCurrency(value);
   };
 
-  const withTimeout = (promise, ms, label) => {
-    let timer;
-    return Promise.race([
-      promise,
-      new Promise((_, reject) => {
-        timer = setTimeout(() => reject(new Error(`${label} request timed out`)), ms);
-      })
-    ]).finally(() => clearTimeout(timer));
-  };
-
   const materialsQuery = useQuery({
     queryKey: ['materials', 'product'],
-    queryFn: async () => {
-      try {
-        const { data, error } = await withTimeout(
-          supabase
-            .from('materials')
-            .select('*')
-            .eq('item_type', 'product')
-            .order('name'),
-          15000,
-          'Materials'
-        );
-        if (error) throw error;
-        return data || [];
-      } catch (error) {
-        console.log('materials table error', error);
-        return [];
-      }
-    },
+    queryFn: () =>
+      timedSupabaseQuery(
+        supabase
+          .from('materials')
+          .select('*')
+          .eq('item_type', 'product')
+          .order('name'),
+        'Materials'
+      ).then((data) => data || []),
     staleTime: 5 * 60 * 1000
   });
 
@@ -247,16 +242,17 @@ function ItemsTab() {
     queryKey: ['itemStock'],
     queryFn: async () => {
       try {
-        const { data, error } = await withTimeout(
+        const data = await timedSupabaseQuery(
           supabase.from('item_stock').select('*'),
-          15000,
           'Item Stock'
         );
-        if (error) throw error;
         return data || [];
-      } catch {
-        console.log('item_stock table not found');
-        return [];
+      } catch (error) {
+        if (isMissingRelationError(error)) {
+          console.log('item_stock table not found');
+          return [];
+        }
+        throw error;
       }
     },
     staleTime: 5 * 60 * 1000
@@ -266,16 +262,17 @@ function ItemsTab() {
     queryKey: ['itemCategories'],
     queryFn: async () => {
       try {
-        const { data, error } = await withTimeout(
+        const data = await timedSupabaseQuery(
           supabase.from('item_categories').select('*').eq('is_active', true).order('category_name'),
-          15000,
           'Item Categories'
         );
-        if (error) throw error;
         return data || [];
-      } catch {
-        console.log('item_categories table not found, using defaults');
-        return [];
+      } catch (error) {
+        if (isMissingRelationError(error)) {
+          console.log('item_categories table not found, using defaults');
+          return [];
+        }
+        throw error;
       }
     },
     staleTime: 10 * 60 * 1000
@@ -285,16 +282,17 @@ function ItemsTab() {
     queryKey: ['itemUnits'],
     queryFn: async () => {
       try {
-        const { data, error } = await withTimeout(
+        const data = await timedSupabaseQuery(
           supabase.from('item_units').select('*').eq('is_active', true).order('unit_name'),
-          15000,
           'Item Units'
         );
-        if (error) throw error;
         return data || [];
-      } catch {
-        console.log('item_units table not found, using defaults');
-        return [{ unit_code: 'nos', unit_name: 'Numbers' }];
+      } catch (error) {
+        if (isMissingRelationError(error)) {
+          console.log('item_units table not found, using defaults');
+          return [{ unit_code: 'nos', unit_name: 'Numbers' }];
+        }
+        throw error;
       }
     },
     staleTime: 10 * 60 * 1000
@@ -304,16 +302,17 @@ function ItemsTab() {
     queryKey: ['companyVariants'],
     queryFn: async () => {
       try {
-        const { data, error } = await withTimeout(
+        const data = await timedSupabaseQuery(
           supabase.from('company_variants').select('*').eq('is_active', true).order('variant_name'),
-          15000,
           'Company Variants'
         );
-        if (error) throw error;
         return data || [];
-      } catch {
-        console.log('company_variants table not found');
-        return [];
+      } catch (error) {
+        if (isMissingRelationError(error)) {
+          console.log('company_variants table not found');
+          return [];
+        }
+        throw error;
       }
     },
     staleTime: 10 * 60 * 1000
@@ -323,6 +322,14 @@ function ItemsTab() {
   const categories = categoriesQuery.data || [];
   const units = unitsQuery.data || [];
   const variants = variantsQuery.data || [];
+  const categoryOptions = categories.length > 0 ? categories.map((c) => c.category_name) : MAIN_CATEGORIES;
+  const materialsError = materialsQuery.error instanceof Error ? materialsQuery.error.message : '';
+  const auxiliaryQueryError =
+    (stockQuery.error instanceof Error && stockQuery.error.message) ||
+    (categoriesQuery.error instanceof Error && categoriesQuery.error.message) ||
+    (unitsQuery.error instanceof Error && unitsQuery.error.message) ||
+    (variantsQuery.error instanceof Error && variantsQuery.error.message) ||
+    '';
   const stockData = useMemo(() => {
     const stockMap = {};
     (stockQuery.data || []).forEach((s) => {
@@ -332,7 +339,26 @@ function ItemsTab() {
     return stockMap;
   }, [stockQuery.data]);
 
-  const loading = materialsQuery.isLoading && materials.length === 0;
+  const loading = materialsQuery.isPending && materials.length === 0;
+
+  useEffect(() => {
+    if (materialsQuery.isError) {
+      setSelectedMaterialId(null);
+      setShowItemWorkspace(false);
+      setItemTransactions(emptyItemTransactions());
+      setDetailError('');
+    }
+  }, [materialsQuery.isError]);
+
+  const retryItemDependencies = async () => {
+    await Promise.allSettled([
+      materialsQuery.refetch(),
+      stockQuery.refetch(),
+      categoriesQuery.refetch(),
+      unitsQuery.refetch(),
+      variantsQuery.refetch(),
+    ]);
+  };
 
   useEffect(() => {
     localStorage.setItem('itemsTableColumns', JSON.stringify(visibleColumns));
@@ -361,7 +387,10 @@ function ItemsTab() {
   const loadVariantPricing = async (itemId) => {
     if (!itemId) return;
     try {
-      const { data } = await supabase.from('item_variant_pricing').select('*').eq('item_id', itemId);
+      const data = await timedSupabaseQuery(
+        supabase.from('item_variant_pricing').select('*').eq('item_id', itemId),
+        'Item variant pricing'
+      );
       setVariantPricing(data || []);
     } catch (error) {
       console.log('item_variant_pricing error', error);
@@ -582,8 +611,7 @@ function ItemsTab() {
 
   const runQuery = async (label, queryBuilder) => {
     try {
-      const { data, error } = await queryBuilder;
-      if (error) throw error;
+      const data = await timedSupabaseQuery(queryBuilder, label, 15000);
       return data || [];
     } catch (err) {
       console.log(`${label} load warning:`, err.message);
@@ -1379,7 +1407,7 @@ function ItemsTab() {
       itemTransactions.auditRows.length,
   };
 
-  const categoryList = ['All', ...categories.map(c => c.category_name)];
+  const categoryList = ['All', ...categoryOptions];
 
   return (
     <div>
@@ -1402,10 +1430,26 @@ function ItemsTab() {
         <div className="alert alert-success">{saveNotice}</div>
       )}
 
+      {auxiliaryQueryError && !materialsQuery.isError && (
+        <div className="alert alert-error" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
+          <span>{auxiliaryQueryError}</span>
+          <button type="button" className="btn btn-secondary" onClick={retryItemDependencies}>
+            Retry Data Load
+          </button>
+        </div>
+      )}
+
       {loading ? (
         <div style={{ padding: '100px', textAlign: 'center' }}>
           <div className="loading-spinner"></div>
           <p style={{ marginTop: '10px', color: '#666' }}>Loading items...</p>
+        </div>
+      ) : materialsQuery.isError ? (
+        <div style={{ padding: '100px', textAlign: 'center' }}>
+          <p style={{ marginBottom: '12px', color: '#b91c1c', fontWeight: 600 }}>{materialsError || 'Unable to load materials.'}</p>
+          <button type="button" className="btn btn-primary" onClick={retryItemDependencies}>
+            Retry
+          </button>
         </div>
       ) : (
         <>
@@ -1546,7 +1590,14 @@ function ItemsTab() {
 
                 <div className="item-detail-content">
                   {detailLoading && <div className="empty-state"><h3>Loading transactions...</h3></div>}
-                  {!detailLoading && detailError && <div className="alert alert-error">{detailError}</div>}
+                  {!detailLoading && detailError && (
+                    <div className="alert alert-error" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
+                      <span>{detailError}</span>
+                      <button type="button" className="btn btn-secondary" onClick={() => loadItemTransactions(selectedMaterial.id)}>
+                        Retry
+                      </button>
+                    </div>
+                  )}
 
             {!detailLoading && !detailError && activeDetailTab === 'overview' && (
               <div>
@@ -1942,10 +1993,12 @@ function ItemsTab() {
                   </div>
                   <div className="form-group">
                     <label className="form-label">Main Category</label>
-                    <select className="form-select" value={formData.main_category} onChange={e => setFormData({...formData, main_category: e.target.value})}>
-                      <option value="">Select Category</option>
-                      {categories.map(cat => (<option key={cat.id} value={cat.category_name}>{cat.category_name}</option>))}
-                    </select>
+                      <select className="form-select" value={formData.main_category} onChange={e => setFormData({...formData, main_category: e.target.value})}>
+                        <option value="">Select Category</option>
+                        {categoryOptions.map((categoryName) => (
+                          <option key={categoryName} value={categoryName}>{categoryName}</option>
+                        ))}
+                      </select>
                   </div>
                 </div>
               </div>
@@ -2648,33 +2701,12 @@ function VariantsTab() {
 }
 
 export default function MaterialsList() {
-  const getTabFromUrl = () => {
-    const hashQuery = window.location.hash.split('?')[1] || '';
-    const query = window.location.search.slice(1) || hashQuery;
-    const tab = new URLSearchParams(query).get('tab');
-    const allowedTabs = new Set(['items', 'service', 'category', 'unit', 'warehouses', 'variants']);
-    return allowedTabs.has(tab) ? tab : 'items';
-  };
-
-  const [activeTab, setActiveTab] = useState(getTabFromUrl);
-
-  useEffect(() => {
-    const syncTabFromUrl = () => {
-      setActiveTab(getTabFromUrl());
-    };
-    window.addEventListener('hashchange', syncTabFromUrl);
-    window.addEventListener('popstate', syncTabFromUrl);
-    return () => {
-      window.removeEventListener('hashchange', syncTabFromUrl);
-      window.removeEventListener('popstate', syncTabFromUrl);
-    };
-  }, []);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const activeTab = useMemo(() => getMaterialsTabFromSearch(location.search), [location.search]);
 
   const changeTab = (tab) => {
-    setActiveTab(tab);
-    const nextPath = `/store/materials?tab=${tab}`;
-    window.history.pushState({}, '', nextPath);
-    window.dispatchEvent(new PopStateEvent('popstate'));
+    navigate(`/store/materials?tab=${tab}`);
   };
 
   return (

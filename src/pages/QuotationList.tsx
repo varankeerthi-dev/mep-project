@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { formatDate, formatCurrency } from '../utils/formatters';
 import { useAuth } from '../App';
 import { getPrintSettings } from '../utils/printSettings';
+import { timedSupabaseQuery } from '../utils/queryTimeout';
 
 const QUOTATION_STATUSES = ['All', 'Draft', 'Sent', 'Under Negotiation', 'Approved', 'Rejected', 'Converted', 'Cancelled', 'Expired'];
 
@@ -57,8 +58,7 @@ export default function QuotationList() {
         query = query.eq('status', statusFilter);
       }
 
-      const { data, error } = await query;
-      if (error) throw error;
+      const data = await timedSupabaseQuery(query, 'Quotation list');
 
       const today = new Date().toISOString().split('T')[0];
       return (data || []).map((q) => {
@@ -81,36 +81,40 @@ export default function QuotationList() {
     queryFn: async ({ queryKey }) => {
       const [, quotationId] = queryKey;
 
-      const cachedHeader = queryClient.getQueryData(['quotations', statusFilter])?.find(q => q.id === quotationId);
+      const cachedHeader = queryClient.getQueryData<any[]>(['quotations', statusFilter])?.find(q => q.id === quotationId);
 
       if (cachedHeader && cachedHeader.items && cachedHeader.items.length > 0) {
         return cachedHeader;
       }
 
-      const { data, error } = await supabase
-        .from('quotation_header')
-        .select(`
-          *,
-          client:clients(*),
-          project:projects(id, project_name, project_code),
-          items:quotation_items(
+      const data = await timedSupabaseQuery(
+        supabase
+          .from('quotation_header')
+          .select(`
             *,
-            item:materials(id, item_code, display_name, name, hsn_code)
-          )
-        `)
-        .eq('id', quotationId)
-        .single();
-      if (error) throw error;
+            client:clients(*),
+            project:projects(id, project_name, project_code),
+            items:quotation_items(
+              *,
+              item:materials(id, item_code, display_name, name, hsn_code)
+            )
+          `)
+          .eq('id', quotationId)
+          .single(),
+        'Quotation details',
+      );
       return data;
     },
     enabled: !!selectedQuotationId
   });
 
   const quotations = quotationsQuery.data || [];
-  const loading = quotationsQuery.isLoading;
-  const previewLoading = quotationDetailsQuery.isFetching;
+  const loading = quotationsQuery.isPending && !quotationsQuery.data;
+  const previewLoading = quotationDetailsQuery.isFetching && !quotationDetailsQuery.data;
   const selectedQuotation = quotationDetailsQuery.data || null;
   const printSettings = printSettingsQuery.data?.style_settings;
+  const quotationsError = quotationsQuery.error instanceof Error ? quotationsQuery.error.message : '';
+  const previewError = quotationDetailsQuery.error instanceof Error ? quotationDetailsQuery.error.message : '';
 
   useEffect(() => {
     if (quotations.length === 0) {
@@ -168,27 +172,31 @@ export default function QuotationList() {
     setStartIndex(newStartIndex);
   };
 
-  const totalHeight = useMemo(() => {
-    const visibleItems = Math.floor(VISIBLE + BUFFER);
-    return visibleItems * ITEM_HEIGHT;
-  }, []);
+  const filteredQuotations = useMemo(() => (
+    quotations.filter((q) =>
+      q.quotation_no?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      q.client?.client_name?.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+  ), [quotations, searchTerm]);
+
+  const totalHeight = useMemo(() => filteredQuotations.length * ITEM_HEIGHT, [filteredQuotations.length]);
 
   const virtualItems = useMemo(() => {
     const visibleItems = Math.floor(VISIBLE + BUFFER);
     const start = Math.max(0, startIndex);
-    const end = Math.min(start + visibleItems, quotations.length);
-    const items = quotations.slice(start, end);
+    const end = Math.min(start + visibleItems, filteredQuotations.length);
+    const items = filteredQuotations.slice(start, end);
     const offset = start * ITEM_HEIGHT;
     return items.map((q, idx) => ({
       ...q,
       offset: offset + idx * ITEM_HEIGHT
     }));
-  }, [quotations, startIndex]);
+  }, [filteredQuotations, startIndex]);
 
-  const filteredQuotations = quotations.filter(q => 
-    q.quotation_no?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    q.client?.client_name?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  useEffect(() => {
+    setStartIndex(0);
+    sidebarScrollRef.current?.scrollTo?.({ top: 0 });
+  }, [searchTerm, statusFilter]);
 
   const quotationPreview = useMemo(() => {
     if (!selectedQuotation) return null;
@@ -422,6 +430,15 @@ export default function QuotationList() {
         <div style={{ flex: 1, overflowY: 'auto' }} ref={sidebarScrollRef} onScroll={onSidebarScroll}>
           {loading ? (
             <div style={{ padding: '20px', textAlign: 'center' }}>Loading...</div>
+          ) : quotationsQuery.isError ? (
+            <div style={{ padding: '20px', textAlign: 'center', color: '#b91c1c' }}>
+              <div style={{ marginBottom: '12px' }}>{quotationsError || 'Unable to load quotations.'}</div>
+              <button type="button" className="btn btn-primary" onClick={() => quotationsQuery.refetch()}>
+                Retry
+              </button>
+            </div>
+          ) : filteredQuotations.length === 0 ? (
+            <div style={{ padding: '20px', textAlign: 'center', color: '#6b7280' }}>No quotations found.</div>
           ) : (
             <>
               <div style={{ height: totalHeight, position: 'relative' }}>
@@ -571,6 +588,13 @@ export default function QuotationList() {
 
               {previewLoading ? (
                 <div style={{ padding: '40px' }}>Loading...</div>
+              ) : quotationDetailsQuery.isError ? (
+                <div style={{ padding: '40px', textAlign: 'center', color: '#b91c1c' }}>
+                  <div style={{ marginBottom: '12px' }}>{previewError || 'Unable to load quotation details.'}</div>
+                  <button type="button" className="btn btn-primary" onClick={() => quotationDetailsQuery.refetch()}>
+                    Retry
+                  </button>
+                </div>
               ) : quotationPreview}
             </div>
           </>

@@ -1,6 +1,7 @@
-import { useState, useEffect, useMemo, createContext, useContext, lazy, Suspense } from 'react';
+import { useState, useEffect, useMemo, useCallback, createContext, useContext, lazy, Suspense } from 'react';
 import type { ComponentType, LazyExoticComponent } from 'react';
 import type { User } from '@supabase/supabase-js';
+import { useLocation, useNavigate } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import QuickAccessBar from './components/QuickAccessBar';
 import { supabase, getUserOrganisations, createOrganisation, signOut, initStorageBuckets } from './supabase';
@@ -117,12 +118,6 @@ type QuickAction =
   | 'search'
   | 'export';
 
-declare global {
-  interface Window {
-    __mepLocationPatched?: boolean;
-  }
-}
-
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function useAuth(): AuthContextValue {
@@ -133,45 +128,18 @@ export function useAuth(): AuthContextValue {
   return ctx;
 }
 
-function getCurrentPathFromLocation() {
-  const hashPath = window.location.hash.slice(1);
-  if (hashPath) return hashPath;
-  const path = `${window.location.pathname}${window.location.search}`;
-  return path || '/';
-}
-
-function installLocationChangeListener() {
-  if (typeof window === 'undefined') return;
-  if (window.__mepLocationPatched) return;
-
-  const originalPushState = window.history.pushState;
-  const originalReplaceState = window.history.replaceState;
-
-  window.history.pushState = function patchedPushState(...args) {
-    const result = originalPushState.apply(this, args);
-    window.dispatchEvent(new Event('locationchange'));
-    return result;
-  };
-
-  window.history.replaceState = function patchedReplaceState(...args) {
-    const result = originalReplaceState.apply(this, args);
-    window.dispatchEvent(new Event('locationchange'));
-    return result;
-  };
-
-  window.__mepLocationPatched = true;
-}
-
 export default function App() {
+  const location = useLocation();
+  const routerNavigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);
   const [organisation, setOrganisation] = useState<Organisation | null>(null);
   const [organisations, setOrganisations] = useState<OrganisationMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [authView, setAuthView] = useState<'login' | 'signup' | 'callback'>('login');
-  const [currentPath, setCurrentPath] = useState('/');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [dbSetup, setDbSetup] = useState(false);
+  const currentPath = `${location.pathname}${location.search}` || '/';
 
   const checkDatabase = async () => {
     try {
@@ -317,14 +285,9 @@ export default function App() {
     }
   };
 
-  const navigate = (path?: string) => {
-    const nextPath = path || '/';
-    setCurrentPath(nextPath);
-    if (`${window.location.pathname}${window.location.search}` !== nextPath || window.location.hash) {
-      window.history.pushState({}, '', nextPath);
-    }
-    window.dispatchEvent(new Event('locationchange'));
-  };
+  const navigate = useCallback((path?: string) => {
+    routerNavigate(path || '/');
+  }, [routerNavigate]);
 
   const handleQuickAction = (action: QuickAction) => {
     switch (action) {
@@ -337,23 +300,6 @@ export default function App() {
       default: break;
     }
   };
-
-  useEffect(() => {
-    const syncPathFromLocation = () => {
-      setCurrentPath(getCurrentPathFromLocation());
-    };
-
-    installLocationChangeListener();
-    syncPathFromLocation();
-    window.addEventListener('hashchange', syncPathFromLocation);
-    window.addEventListener('popstate', syncPathFromLocation);
-    window.addEventListener('locationchange', syncPathFromLocation);
-    return () => {
-      window.removeEventListener('hashchange', syncPathFromLocation);
-      window.removeEventListener('popstate', syncPathFromLocation);
-      window.removeEventListener('locationchange', syncPathFromLocation);
-    };
-  }, []);
 
   const renderPage = (authUser: User | null, authOrg: Organisation | null) => {
     const pathKey = currentPath.split('?')[0]
@@ -399,9 +345,9 @@ export default function App() {
       case '/client-comm': return <ClientComm />;
       case '/documents': return <Documents />;
       case '/store/materials': return <MaterialsList />;
-      case '/store/inward': return <MaterialInward onSuccess={() => navigate('/store/stock')} onCancel={() => navigate('/store/inward')} />;
-      case '/store/outward': return <MaterialOutward onSuccess={() => navigate('/store/stock')} onCancel={() => navigate('/store/outward')} />;
-      case '/store/transfer': return <StockTransfer onCancel={() => navigate('/store/transfer')} />;
+      case '/store/inward': return <MaterialInward onSuccess={() => navigate('/store/stock')} onCancel={() => navigate('/store/stock')} />;
+      case '/store/outward': return <MaterialOutward onSuccess={() => navigate('/store/stock')} onCancel={() => navigate('/store/stock')} />;
+      case '/store/transfer': return <StockTransfer onCancel={() => navigate('/store/stock')} />;
       case '/store/stock': return <StockBalance />;
       case '/tools': return <ToolsList />;
       case '/dc/create': return <CreateDC onSuccess={() => navigate('/dc/list')} onCancel={() => navigate('/dc/list')} />;
