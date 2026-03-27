@@ -4,7 +4,6 @@ import { useSearchParams } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import * as XLSX from 'xlsx';
 import { Save, FileDown, Plus, Trash2, Sheet, Table, X, Settings, FileSpreadsheet, Loader2, GripVertical } from 'lucide-react';
 import { openSansRegular, openSansBold } from '../fonts/openSans';
 import { saveBOQWithItems, fetchBOQById } from '../api';
@@ -609,47 +608,94 @@ export function BOQ() {
   useEffect(() => {
     const prev = prevDefaultVariantRef.current;
     if (prev === boqData.variantId) return;
-    setItems(prevItems => {
-      const next = { ...prevItems };
-      Object.keys(next).forEach(sheetId => {
+    let cancelled = false;
+    const priceLookups: Array<{
+      sheetId: string;
+      rowId: string;
+      itemId: string;
+      variantId: string;
+      make: string;
+    }> = [];
+
+    setItems((prevItems) => {
+      const next: ItemsBySheet = { ...prevItems };
+
+      Object.keys(next).forEach((sheetId) => {
         const list = next[sheetId] || [];
-        next[sheetId] = list.map(row => {
+        next[sheetId] = list.map((row) => {
           if (row.isHeaderRow) return row;
-          if (!row.variantId || row.variantId === prev) {
-            return {
-              ...row,
-              variantId: boqData.variantId || row.variantId,
-              variantName: getVariantNameById(boqData.variantId || row.variantId),
-              discountPercent: getVariantDiscount(boqData.variantId || row.variantId)
-            };
+
+          const usesHeaderVariant = !row.variantId || row.variantId === prev;
+          if (!usesHeaderVariant) return row;
+
+          const nextVariantId = boqData.variantId || row.variantId || '';
+          const updatedRow = {
+            ...row,
+            variantId: nextVariantId,
+            variantName: getVariantNameById(nextVariantId),
+            discountPercent: getVariantDiscount(nextVariantId),
+          };
+
+          if (updatedRow.itemId) {
+            priceLookups.push({
+              sheetId,
+              rowId: updatedRow.id,
+              itemId: updatedRow.itemId,
+              variantId: nextVariantId,
+              make: updatedRow.make || '',
+            });
           }
-          return row;
+
+          return updatedRow;
         });
       });
+
       return next;
     });
-    Object.keys(items).forEach(sheetId => {
-      const list = items[sheetId] || [];
-      list.forEach((row, idx) => {
-        if (row.isHeaderRow) return;
-        const usesHeader = !row.variantId || row.variantId === prev;
-        if (usesHeader && row.itemId) {
-          getPrice(row.itemId, boqData.variantId || row.variantId, row.make || '')
-            .then(price => {
-              setItems(prevItems => {
-                const next = { ...prevItems };
-                const rows = [...(next[sheetId] || [])];
-                if (!rows[idx]) return prevItems;
-                rows[idx] = { ...rows[idx], rate: price || rows[idx].rate };
-                next[sheetId] = rows;
-                return next;
-              });
-            });
-        }
-      });
-    });
+
     prevDefaultVariantRef.current = boqData.variantId;
-  }, [boqData.variantId, getVariantDiscount, getVariantNameById, items, getPrice]);
+
+    if (priceLookups.length === 0) return;
+
+    (async () => {
+      const resolvedPrices = await Promise.all(
+        priceLookups.map(async (lookup) => ({
+          sheetId: lookup.sheetId,
+          rowId: lookup.rowId,
+          price: await getPrice(lookup.itemId, lookup.variantId, lookup.make),
+        })),
+      );
+
+      if (cancelled) return;
+
+      setItems((prevItems) => {
+        let changed = false;
+        const next: ItemsBySheet = { ...prevItems };
+
+        resolvedPrices.forEach(({ sheetId, rowId, price }) => {
+          const rows = next[sheetId];
+          if (!rows?.length) return;
+
+          const rowIndex = rows.findIndex((row) => row.id === rowId);
+          if (rowIndex < 0) return;
+
+          const currentRow = rows[rowIndex];
+          if ((currentRow.rate || '') === (price || '')) return;
+
+          const updatedRows = [...rows];
+          updatedRows[rowIndex] = { ...currentRow, rate: price || currentRow.rate };
+          next[sheetId] = updatedRows;
+          changed = true;
+        });
+
+        return changed ? next : prevItems;
+      });
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [boqData.variantId, getVariantDiscount, getVariantNameById, getPrice]);
 
   const insertRow = useCallback((afterIndex) => {
     const currentItems = items[activeSheetId] || [];
@@ -1156,7 +1202,8 @@ export function BOQ() {
     setShowExportMenu(false);
   }, [boqData, clients, projects, items, exportColumnList, exportSheetList, calculateRow, exportOrientation, columnSettings, isRowEmpty, openSansRegular, openSansBold]);
 
-const exportToExcel = useCallback(() => {
+const exportToExcel = useCallback(async () => {
+    const XLSX = await import('xlsx');
     const wb = XLSX.utils.book_new();
     
     exportSheetList.forEach(sheet => {
