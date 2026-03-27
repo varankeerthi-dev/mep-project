@@ -1,4 +1,0 @@
-export function StockBalance() { return <div><div className="page-header"><h1 className="page-title">Stock Balance</h1></div><div className="card"><div className="empty-state"><h3>Stock Balance</h3></div></div></div>; }
-export function StockReport() { return <div><div className="page-header"><h1 className="page-title">Stock Report</h1></div><div className="card"><div className="empty-state"><h3>Stock Report</h3></div></div></div>; }
-export function PurchaseReport() { return <div><div className="page-header"><h1 className="page-title">Purchase Report</h1></div><div className="card"><div className="empty-state"><h3>Purchase Report</h3></div></div></div>; }
-export function SalesReport() { return <div><div className="page-header"><h1 className="page-title">Sales Report</h1></div><div className="card"><div className="empty-state"><h3>Sales Report</h3></div></div></div>; }

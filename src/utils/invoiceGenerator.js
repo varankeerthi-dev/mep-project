@@ -1,14 +1,10 @@
 import { supabase } from '../supabase';
 import { generateInvoiceA4 } from '../pages/InvoiceA4Template';
-import { generateInvoiceClassicGstV2 } from '../pages/InvoiceClassicGstV2Template';
 import { generateZohoTemplate } from '../pages/ZohoTemplate';
-import { generateAurumGridTemplate } from '../pages/AurumGridTemplate';
 
 const TEMPLATE_GENERATORS = {
   'INV_DEFAULT': generateInvoiceA4,
-  'INV_CLASSIC_V2': generateInvoiceClassicGstV2,
-  'INV_ZOHO': generateZohoTemplate,
-  'DOC_AURUM_INV_V1': generateAurumGridTemplate
+  'INV_ZOHO': generateZohoTemplate
 };
 
 export async function getInvoiceTemplate(templateCode) {
@@ -81,7 +77,7 @@ export async function generateInvoicePDF(invoiceData, organisation, templateCode
 
   // Determine which generator to use based on template_code
   const templateKey = template?.template_code || template?.id;
-  const generator = TEMPLATE_GENERATORS[templateKey] || generateInvoiceClassicGstV2;
+  const generator = TEMPLATE_GENERATORS[templateKey] || generateInvoiceA4;
   
   const templateSettings = {
     show_logo: template?.show_logo ?? true,

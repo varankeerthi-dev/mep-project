@@ -46,54 +46,7 @@ UPDATE document_templates SET template_code = 'INV_DEFAULT'
 WHERE document_type = 'Invoice' AND template_code IS NULL 
 AND (template_name LIKE '%Default%' OR is_default = true);
 
--- 5. Insert the Classic GST Layout V2 template for Invoice
-INSERT INTO document_templates (
-  template_name, 
-  document_type, 
-  template_code,
-  is_default, 
-  page_size, 
-  orientation,
-  show_logo,
-  show_bank_details,
-  show_terms,
-  show_signature,
-  column_settings,
-  active
-) 
-SELECT 
-  'Classic GST Layout V2',
-  'Invoice',
-  'INV_CLASSIC_V2',
-  false,
-  'A4',
-  'Portrait',
-  true,
-  true,
-  true,
-  true,
-  '{
-    "mandatory": ["sno", "item", "qty", "uom"],
-    "optional": {
-      "sno": true,
-      "item": true,
-      "qty": true,
-      "uom": true,
-      "hsn_code": true,
-      "rate": true,
-      "tax_percent": true,
-      "line_total": true,
-      "bank_details": true,
-      "po_no": true,
-      "eway_bill": true,
-      "remarks": true
-    }
-  }'::jsonb,
-  true
-WHERE NOT EXISTS (
-  SELECT 1 FROM document_templates 
-  WHERE template_code = 'INV_CLASSIC_V2'
-);
+-- 5. (Removed) Classic GST Layout V2 template insertion
 
 -- 6. Create function to set default invoice template
 CREATE OR REPLACE FUNCTION set_default_invoice_template(template_id UUID)
