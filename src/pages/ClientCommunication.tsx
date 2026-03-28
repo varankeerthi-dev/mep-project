@@ -96,16 +96,20 @@ export function ClientCommunication() {
   });
 
   // Fetch clients for dropdown
-  const { data: clients = [] } = useQuery({
+  const { data: clients = [], isLoading: clientsLoading } = useQuery({
     queryKey: ['clients-list'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('clients')
         .select('id, client_name, client_type, address, contact_name, phone')
         .order('client_name');
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching clients:', error);
+        return [];
+      }
       return data || [];
-    }
+    },
+    enabled: true
   });
 
   // Fetch users for dropdown
@@ -612,8 +616,9 @@ export function ClientCommunication() {
                     value={formData.client_id}
                     onChange={(e) => setFormData({ ...formData, client_id: e.target.value })}
                     style={{ flex: 1, padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px' }}
+                    disabled={clientsLoading}
                   >
-                    <option value="">Select Client</option>
+                    <option value="">{clientsLoading ? 'Loading...' : 'Select Client'}</option>
                     {clients.map(c => <option key={c.id} value={c.id}>{c.client_name}</option>)}
                   </select>
                   <button
