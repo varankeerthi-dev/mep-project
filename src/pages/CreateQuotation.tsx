@@ -260,8 +260,7 @@ export default function CreateQuotation() {
     } else {
       loadQuoteNoPreview();
     }
-  }
-}, [initQuery.data, editId, duplicateId]);
+  }}, [initQuery.data, editId, duplicateId]);
 
 const handleDragStart = useCallback((e, itemId) => {
   setDraggingItemId(itemId);
