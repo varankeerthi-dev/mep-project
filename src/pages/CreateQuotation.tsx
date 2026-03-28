@@ -365,18 +365,18 @@ const loadQuoteNoPreview = useCallback(async () => {
       .select('quotation_no')
       .order('created_at', { ascending: false })
       .limit(1);
-      let fallbackNo = 'QT-0001';
-      if (existing && existing.length > 0) {
-        const lastNum = parseInt((existing[0].quotation_no || '').replace(/[^0-9]/g, ''), 10) || 0;
-        fallbackNo = `QT-${String(lastNum + 1).padStart(4, '0')}`;
-      }
-      setQuoteNoPreview(fallbackNo);
-      setFormData((prev) => ({ ...prev, quotation_no: fallbackNo }));
-    } catch (err) {
-      setQuoteNoPreview('QT-0001');
-      setFormData((prev) => ({ ...prev, quotation_no: 'QT-0001' }));
+    let fallbackNo = 'QT-0001';
+    if (existing && existing.length > 0) {
+      const lastNum = parseInt((existing[0].quotation_no || '').replace(/[^0-9]/g, ''), 10) || 0;
+      fallbackNo = `QT-${String(lastNum + 1).padStart(4, '0')}`;
     }
-  };
+    setQuoteNoPreview(fallbackNo);
+    setFormData((prev) => ({ ...prev, quotation_no: fallbackNo }));
+  } catch (err) {
+    setQuoteNoPreview('QT-0001');
+    setFormData((prev) => ({ ...prev, quotation_no: 'QT-0001' }));
+  }
+};
 
   const loadVariantDiscounts = async (quotationId) => {
     try {
