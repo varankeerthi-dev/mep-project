@@ -376,7 +376,7 @@ const loadQuoteNoPreview = useCallback(async () => {
     setQuoteNoPreview('QT-0001');
     setFormData((prev) => ({ ...prev, quotation_no: 'QT-0001' }));
   }
-};
+});
 
   const loadVariantDiscounts = async (quotationId) => {
     try {
