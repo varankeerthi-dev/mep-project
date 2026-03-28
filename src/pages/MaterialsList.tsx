@@ -1493,49 +1493,49 @@ function ItemsTab() {
             {filteredMaterials.length === 0 ? (
               <div className="empty-state"><h3>No Items Found</h3></div>
             ) : (
-              <div className="table-container" style={{ overflowX: 'auto' }}>
-                <table className="table items-reference-table">
-                  <thead>
-                    {table.getHeaderGroups().map(headerGroup => (
-                      <tr key={headerGroup.id}>
-                        {headerGroup.headers.map(header => (
-                          <th key={header.id}>
-                            {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
-                          </th>
-                        ))}
-                      </tr>
-                    ))}
-                  </thead>
-                  <tbody>
-                    {table.getRowModel().rows.map(row => {
-                      const m = row.original;
-                      const isActive = m.is_active !== false;
-                      const isSelected = selectedMaterialId === m.id;
-                      return (
-                        <tr
-                          key={row.id}
-                          className={`item-click-row ${isSelected ? 'selected' : ''}`}
-                          style={{ opacity: isActive ? 1 : 0.55 }}
-                        >
-                          {row.getVisibleCells().map(cell => (
-                            <td key={cell.id}>
-                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                            </td>
+              <div>
+                <div className="table-container" style={{ overflowX: 'auto' }}>
+                  <table className="table items-reference-table">
+                    <thead>
+                      {table.getHeaderGroups().map(headerGroup => (
+                        <tr key={headerGroup.id}>
+                          {headerGroup.headers.map(header => (
+                            <th key={header.id}>
+                              {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                            </th>
                           ))}
                         </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-
-              {filteredMaterials.length > visibleCount ? (
-                <div style={{ padding: '12px', textAlign: 'center' }}>
-                  <button className="btn btn-secondary" onClick={() => setVisibleCount((v) => v + 200)}>Show more</button>
-                  <span style={{ marginLeft: 12, color: '#666' }}>{visibleMaterials.length} / {filteredMaterials.length} shown</span>
+                      ))}
+                    </thead>
+                    <tbody>
+                      {table.getRowModel().rows.map(row => {
+                        const m = row.original;
+                        const isActive = m.is_active !== false;
+                        const isSelected = selectedMaterialId === m.id;
+                        return (
+                          <tr
+                            key={row.id}
+                            className={`item-click-row ${isSelected ? 'selected' : ''}`}
+                            style={{ opacity: isActive ? 1 : 0.55 }}
+                          >
+                            {row.getVisibleCells().map(cell => (
+                              <td key={cell.id}>
+                                {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                              </td>
+                            ))}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
-              ) : null}
-
+                {filteredMaterials.length > visibleCount ? (
+                  <div style={{ padding: '12px', textAlign: 'center' }}>
+                    <button className="btn btn-secondary" onClick={() => setVisibleCount((v) => v + 200)}>Show more</button>
+                    <span style={{ marginLeft: 12, color: '#666' }}>{visibleMaterials.length} / {filteredMaterials.length} shown</span>
+                  </div>
+                ) : null}
+              </div>
             )}
           </div>
         </>
