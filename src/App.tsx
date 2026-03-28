@@ -5,6 +5,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import QuickAccessBar from './components/QuickAccessBar';
 import { supabase, getUserOrganisations, createOrganisation, signOut, initStorageBuckets } from './supabase';
+import LandingPage from './pages/LandingPage';
 
 const lazyAny = (
   factory: () => Promise<{ default: ComponentType<any> }>
@@ -304,7 +305,8 @@ export default function App() {
   const renderPage = (authUser: User | null, authOrg: Organisation | null) => {
     const pathKey = currentPath.split('?')[0]
     switch (pathKey) {
-      case '/': return <Dashboard onNavigate={navigate} />;
+      case '/': return <LandingPage />;
+      case '/login': return <Login onLogin={() => {}} onSwitch={() => setAuthView('signup')} />;
       case '/projects/new': return <CreateProject onSuccess={() => navigate('/projects')} onCancel={() => navigate('/projects')} />;
       case '/projects/edit': return <CreateProject />;
       case '/projects': return <ProjectList />;

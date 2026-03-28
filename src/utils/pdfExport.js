@@ -1,10 +1,12 @@
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
 import { format } from 'date-fns';
 import { supabase } from '../supabase';
 
 export async function exportDCToPDF(challan) {
+  const { default: jsPDF } = await import('jspdf');
+  const autoTableModule = await import('jspdf-autotable');
+  const autoTable = autoTableModule.default || autoTableModule;
   const doc = new jsPDF();
+  if (typeof doc.autoTable !== 'function') { doc.autoTable = (...args) => autoTable(doc, ...args); }
   const pageWidth = doc.internal.pageSize.width;
   const pageHeight = doc.internal.pageSize.height;
 
@@ -90,8 +92,12 @@ export async function exportDCToPDF(challan) {
   doc.save(`${challan.dc_number}.pdf`);
 }
 
-export function exportDateWiseConsolidationPDF(data, filters) {
+export async function exportDateWiseConsolidationPDF(data, filters) {
+  const { default: jsPDF } = await import('jspdf');
+  const autoTableModule = await import('jspdf-autotable');
+  const autoTable = autoTableModule.default || autoTableModule;
   const doc = new jsPDF();
+  if (typeof doc.autoTable !== 'function') { doc.autoTable = (...args) => autoTable(doc, ...args); }
   
   doc.setFontSize(16);
   doc.setFont('helvetica', 'bold');
@@ -167,8 +173,12 @@ export function exportDateWiseConsolidationPDF(data, filters) {
   doc.save('date-wise-consolidation.pdf');
 }
 
-export function exportMaterialWiseConsolidationPDF(data, dcColumns, filters) {
+export async function exportMaterialWiseConsolidationPDF(data, dcColumns, filters) {
+  const { default: jsPDF } = await import('jspdf');
+  const autoTableModule = await import('jspdf-autotable');
+  const autoTable = autoTableModule.default || autoTableModule;
   const doc = new jsPDF('landscape');
+  if (typeof doc.autoTable !== 'function') { doc.autoTable = (...args) => autoTable(doc, ...args); }
   
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');

@@ -260,120 +260,112 @@ export default function CreateQuotation() {
     } else {
       loadQuoteNoPreview();
     }
-  }, [initQuery.data, editId, duplicateId]);
+  }
+}, [initQuery.data, editId, duplicateId]);
 
-  const handleDragStart = (e, itemId) => {
-    setDraggingItemId(itemId);
-    e.dataTransfer.effectAllowed = 'move';
-  };
+const handleDragStart = useCallback((e, itemId) => {
+  setDraggingItemId(itemId);
+  e.dataTransfer.effectAllowed = 'move';
+}, []);
 
-  const handleDragOver = (e) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-  };
+const handleDragOver = useCallback((e) => {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+}, []);
 
-  const handleDropOnRow = (e, targetId) => {
-    e.preventDefault();
-    if (!draggingItemId || draggingItemId === targetId) return;
-    setItems((prev) => {
-      const fromIndex = prev.findIndex((r) => r.id === draggingItemId);
-      const toIndex = prev.findIndex((r) => r.id === targetId);
-      if (fromIndex < 0 || toIndex < 0) return prev;
-      const updated = [...prev];
-      const [moved] = updated.splice(fromIndex, 1);
-      updated.splice(toIndex, 0, moved);
-      return updated;
-    });
-    setDraggingItemId(null);
-  };
+const handleDropOnRow = useCallback((e, targetId) => {
+  e.preventDefault();
+  if (!draggingItemId || draggingItemId === targetId) return;
+  setItems((prev) => {
+    const fromIndex = prev.findIndex((r) => r.id === draggingItemId);
+    const toIndex = prev.findIndex((r) => r.id === targetId);
+    if (fromIndex < 0 || toIndex < 0) return prev;
+    const updated = [...prev];
+    const [moved] = updated.splice(fromIndex, 1);
+    updated.splice(toIndex, 0, moved);
+    return updated;
+  });
+  setDraggingItemId(null);
+}, [draggingItemId]);
 
-  const handleDragEnd = () => {
-    setDraggingItemId(null);
-  };
+const handleDragEnd = useCallback(() => {
+  setDraggingItemId(null);
+}, []);
 
-  useEffect(() => {
-    if (!initLoading) {
-      setIsDirty(true);
-    }
-  }, [formData, items, initLoading]);
+useEffect(() => {
+  if (!initLoading) {
+    setIsDirty(true);
+  }
+}, [initLoading]);
 
-  useEffect(() => {
-    const handleBeforeUnload = (e) => {
-      if (isDirty && !saving) {
-        e.preventDefault();
-        e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
-        return e.returnValue;
-      }
-    };
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [isDirty, saving]);
-
-  const safeNavigate = (path) => {
+useEffect(() => {
+  const handleBeforeUnload = useCallback((e) => {
     if (isDirty && !saving) {
-      if (window.confirm('You have unsaved changes. Do you want to save them before leaving?')) {
-        handleSave(false);
-        return;
-      }
+      e.preventDefault();
+      e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+      return e.returnValue;
     }
-    navigate(path);
-  };
+  }, [isDirty, saving]);
+  window.addEventListener('beforeunload', handleBeforeUnload);
+  return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+}, [isDirty, saving]);
 
-  const getFyPrefix = () => {
-    const now = new Date();
-    const month = now.getMonth() + 1;
-    const year = now.getFullYear();
-    const startYear = month >= 4 ? year : year - 1;
-    const endYear = (startYear + 1).toString().slice(-2);
-    return `${startYear}-${endYear}`;
-  };
-
-  const getQuoteSeriesNumber = (seriesRow) => {
-    const cfg = seriesRow?.configs?.quote;
-    if (cfg && cfg.enabled) {
-      return parseInt(cfg.start_number || 1, 10);
+const safeNavigate = useCallback((path) => {
+  if (isDirty && !saving) {
+    if (window.confirm('You have unsaved changes. Do you want to save them before leaving?')) {
+      handleSave(false);
+      return;
     }
-    return parseInt(seriesRow?.current_number || 1, 10);
-  };
+  }
+  navigate(path);
+}, [isDirty, saving, navigate, handleSave]);
 
-  const buildQuoteNoFromSeries = (seriesRow) => {
-    if (!seriesRow) return '';
-    const cfg = seriesRow?.configs?.quote || {};
-    const rawPrefix = cfg.prefix || 'QT-';
-    const suffix = cfg.suffix || '';
-    const number = getQuoteSeriesNumber(seriesRow);
-    const padded = String(number).padStart(4, '0');
-    const fy = getFyPrefix();
-    const prefix = String(rawPrefix).replace('{FY}', fy);
-    return `${prefix}${padded}${suffix}`;
-  };
+const getQuoteSeriesNumber = useCallback((seriesRow) => {
+  const cfg = seriesRow?.configs?.quote;
+  if (cfg && cfg.enabled) {
+    return parseInt(cfg.start_number || 1, 10);
+  }
+  return parseInt(seriesRow?.current_number || 1, 10);
+}, []);
 
-  const loadQuoteNoPreview = async () => {
-    if (editId) return;
-    try {
-      const { data: defaultSeries } = await supabase
-        .from('document_series')
-        .select('configs, current_number')
-        .eq('is_default', true)
-        .limit(1)
-        .maybeSingle();
+const buildQuoteNoFromSeries = useCallback((seriesRow) => {
+  if (!seriesRow) return '';
+  const cfg = seriesRow?.configs?.quote || {};
+  const rawPrefix = cfg.prefix || 'QT-';
+  const suffix = cfg.suffix || '';
+  const number = getQuoteSeriesNumber(seriesRow);
+  const padded = String(number).padStart(4, '0');
+  const fy = getFyPrefix();
+  const prefix = String(rawPrefix).replace('{FY}', fy);
+  return `${prefix}${padded}${suffix}`;
+}, [getQuoteSeriesNumber, getFyPrefix]);
 
-      if (defaultSeries) {
-        const seriesNo = buildQuoteNoFromSeries(defaultSeries);
-        setQuoteNoPreview(seriesNo);
-        setFormData((prev) => ({ ...prev, quotation_no: seriesNo }));
-        return;
-      }
-    } catch (err) {
-      console.warn('Unable to load default quote series:', err);
+const loadQuoteNoPreview = useCallback(async () => {
+  if (editId) return;
+  try {
+    const { data: defaultSeries } = await supabase
+      .from('document_series')
+      .select('configs, current_number')
+      .eq('is_default', true)
+      .limit(1)
+      .maybeSingle();
+
+    if (defaultSeries) {
+      const seriesNo = buildQuoteNoFromSeries(defaultSeries);
+      setQuoteNoPreview(seriesNo);
+      setFormData((prev) => ({ ...prev, quotation_no: seriesNo }));
+      return;
     }
+  } catch (err) {
+    console.warn('Unable to load default quote series:', err);
+  }
 
-    try {
-      const { data: existing } = await supabase
-        .from('quotation_header')
-        .select('quotation_no')
-        .order('created_at', { ascending: false })
-        .limit(1);
+  try {
+    const { data: existing } = await supabase
+      .from('quotation_header')
+      .select('quotation_no')
+      .order('created_at', { ascending: false })
+      .limit(1);
       let fallbackNo = 'QT-0001';
       if (existing && existing.length > 0) {
         const lastNum = parseInt((existing[0].quotation_no || '').replace(/[^0-9]/g, ''), 10) || 0;

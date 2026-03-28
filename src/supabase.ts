@@ -1,9 +1,14 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, SupabaseClient } from '@supabase/supabase-js'
+import type { User, AuthResponse, OAuthResponse, UserResponse, Session } from '@supabase/supabase-js'
 
-const supabaseUrl = 'https://rujqejtisqermjyqqgoj.supabase.co'
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ1anFlanRpc3Flcm1qeXFxZ29qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE2OTA0NDIsImV4cCI6MjA4NzI2NjQ0Mn0.XKS-L4usiB0kKMz2p6SazFyNKc2Iyk2b35qqAoiRHio'
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://rujqejtisqermjyqqgoj.supabase.co'
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 
-export const supabase = createClient(supabaseUrl, supabaseKey, {
+if (!supabaseKey) {
+  console.warn('Supabase anon key is not set. Set VITE_SUPABASE_ANON_KEY in your environment. Do NOT commit secret keys.')
+}
+
+export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseKey, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
@@ -12,7 +17,40 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
   }
 })
 
-export const signUp = async (email, password, fullName) => {
+export interface Organisation {
+  id: string
+  name: string
+  created_at?: string
+  updated_at?: string
+  [key: string]: unknown
+}
+
+export interface OrganisationMember {
+  id: string
+  organisation_id: string
+  user_id: string
+  role: string
+  status?: string
+  created_at?: string
+  organisation?: Organisation | null
+}
+
+export interface UserProfile {
+  id: string
+  user_id: string
+  full_name?: string
+  role?: string
+  phone?: string
+  avatar_url?: string
+  created_at?: string
+  updated_at?: string
+}
+
+export const signUp = async (
+  email: string,
+  password: string,
+  fullName: string
+): Promise<AuthResponse> => {
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
@@ -25,7 +63,10 @@ export const signUp = async (email, password, fullName) => {
   return { data, error }
 }
 
-export const signInWithEmail = async (email, password) => {
+export const signInWithEmail = async (
+  email: string,
+  password: string
+): Promise<AuthResponse> => {
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password
@@ -33,7 +74,7 @@ export const signInWithEmail = async (email, password) => {
   return { data, error }
 }
 
-export const signInWithGoogle = async () => {
+export const signInWithGoogle = async (): Promise<OAuthResponse> => {
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
@@ -43,37 +84,42 @@ export const signInWithGoogle = async () => {
   return { data, error }
 }
 
-export const signOut = async () => {
+export const signOut = async (): Promise<{ error: Error | null }> => {
   const { error } = await supabase.auth.signOut()
   return { error }
 }
 
-export const getCurrentUser = async () => {
-  const { data: { user }, error } = await supabase.auth.getUser()
-  return { user, error }
+export const getCurrentUser = async (): Promise<UserResponse> => {
+  const { data, error } = await supabase.auth.getUser()
+  return { data: { user: data.user as User | null }, error }
 }
 
-export const onAuthStateChange = (callback) => {
+export const onAuthStateChange = (
+  callback: (event: string, session: Session | null) => void
+) => {
   return supabase.auth.onAuthStateChange(callback)
 }
 
-export const getUserProfile = async (userId) => {
+export const getUserProfile = async (
+  userId: string
+): Promise<{ data: UserProfile | null; error: Error | null }> => {
   const { data, error } = await supabase
     .from('user_profiles')
     .select('*, org_members(*, organisation:organisations(*))')
     .eq('user_id', userId)
     .single()
-  return { data, error }
+  return { data: data as UserProfile | null, error }
 }
 
-export const getUserOrganisations = async (userId) => {
+export const getUserOrganisations = async (
+  userId: string
+): Promise<{ data: OrganisationMember[] | null; error: Error | null }> => {
   let { data, error } = await supabase
     .from('org_members')
     .select('*, organisation:organisations(*)')
     .eq('user_id', userId)
     .or('status.eq.active,status.eq.Active,status.is.null')
 
-  // Fallback for legacy rows/schemas if status filtering causes issues.
   if (error) {
     const retry = await supabase
       .from('org_members')
@@ -83,8 +129,6 @@ export const getUserOrganisations = async (userId) => {
     error = retry.error
   }
 
-  // If membership rows are present but embedded organisation is missing,
-  // fetch organisation records directly and hydrate the response.
   if (!error && Array.isArray(data) && data.length > 0 && data.some((row) => !row.organisation && row.organisation_id)) {
     const orgIds = [...new Set(data.map((row) => row.organisation_id).filter(Boolean))]
     if (orgIds.length > 0) {
@@ -103,11 +147,13 @@ export const getUserOrganisations = async (userId) => {
     }
   }
 
-  return { data, error }
+  return { data: data as OrganisationMember[] | null, error }
 }
 
-export const createOrganisation = async (orgName, userId) => {
-  // Create organisation first
+export const createOrganisation = async (
+  orgName: string,
+  userId: string
+): Promise<{ data: Organisation | null; error: Error | null }> => {
   const { data: org, error: orgError } = await supabase
     .from('organisations')
     .insert({ name: orgName })
@@ -116,7 +162,6 @@ export const createOrganisation = async (orgName, userId) => {
   
   if (orgError) throw orgError
   
-  // Add user as admin member
   const { error: memberError } = await supabase
     .from('org_members')
     .insert({
@@ -127,16 +172,19 @@ export const createOrganisation = async (orgName, userId) => {
   
   if (memberError) throw memberError
   
-  // Update user profile role
   await supabase
     .from('user_profiles')
     .update({ role: 'admin' })
     .eq('user_id', userId)
   
-  return { data: org, error: null }
+  return { data: org as Organisation, error: null }
 }
 
-export const joinOrganisation = async (organisationId, userId, role = 'member') => {
+export const joinOrganisation = async (
+  organisationId: string,
+  userId: string,
+  role = 'member'
+): Promise<{ data: unknown | null; error: Error | null }> => {
   const { data, error } = await supabase
     .from('org_members')
     .insert({
@@ -147,15 +195,20 @@ export const joinOrganisation = async (organisationId, userId, role = 'member') 
   return { data, error }
 }
 
-export const getOrganisationMembers = async (organisationId) => {
+export const getOrganisationMembers = async (
+  organisationId: string
+): Promise<{ data: OrganisationMember[] | null; error: Error | null }> => {
   const { data, error } = await supabase
     .from('org_members')
     .select('*, user:user_profiles(*)')
     .eq('organisation_id', organisationId)
-  return { data, error }
+  return { data: data as OrganisationMember[] | null, error }
 }
 
-export const updateUserRole = async (memberId, role) => {
+export const updateUserRole = async (
+  memberId: string,
+  role: string
+): Promise<{ data: unknown | null; error: Error | null }> => {
   const { data, error } = await supabase
     .from('org_members')
     .update({ role })
@@ -163,7 +216,9 @@ export const updateUserRole = async (memberId, role) => {
   return { data, error }
 }
 
-export const removeMember = async (memberId) => {
+export const removeMember = async (
+  memberId: string
+): Promise<{ data: unknown | null; error: Error | null }> => {
   const { data, error } = await supabase
     .from('org_members')
     .delete()
@@ -171,7 +226,9 @@ export const removeMember = async (memberId) => {
   return { data, error }
 }
 
-export const sendVerificationEmail = async (email) => {
+export const sendVerificationEmail = async (
+  email: string
+): Promise<{ data: unknown; error: Error | null }> => {
   const { data, error } = await supabase.auth.resend({
     type: 'signup',
     email: email
@@ -179,14 +236,19 @@ export const sendVerificationEmail = async (email) => {
   return { data, error }
 }
 
-export const resetPassword = async (email) => {
+export const resetPassword = async (
+  email: string
+): Promise<{ data: unknown; error: Error | null }> => {
   const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: `${window.location.origin}/auth/reset-password`
   })
   return { data, error }
 }
 
-export const updateProfile = async (userId, updates) => {
+export const updateProfile = async (
+  userId: string,
+  updates: Partial<UserProfile>
+): Promise<{ data: unknown | null; error: Error | null }> => {
   const { data, error } = await supabase
     .from('user_profiles')
     .update(updates)
@@ -194,7 +256,7 @@ export const updateProfile = async (userId, updates) => {
   return { data, error }
 }
 
-export const initStorageBuckets = async () => {
+export const initStorageBuckets = async (): Promise<void> => {
   try {
     const buckets = ['site-visit-photos', 'site-visit-documents']
     
@@ -207,6 +269,6 @@ export const initStorageBuckets = async () => {
       }
     }
   } catch (err) {
-    console.log('Storage bucket init skipped:', err.message)
+    console.log('Storage bucket init skipped:', (err as Error).message)
   }
 }

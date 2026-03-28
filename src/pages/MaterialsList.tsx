@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { flexRender, getCoreRowModel, useReactTable } from '@tanstack/react-table';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -370,21 +370,21 @@ function ItemsTab() {
     return () => window.clearTimeout(timer);
   }, [saveNotice]);
 
-  const refreshMaterials = async () => {
+  const refreshMaterials = useCallback(async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ['materials', 'product'] }),
       queryClient.invalidateQueries({ queryKey: ['itemStock'] })
     ]);
-  };
+  }, [queryClient]);
 
-  const updateMaterialsCache = (updater) => {
+  const updateMaterialsCache = useCallback((updater) => {
     queryClient.setQueryData(['materials', 'product'], (old) => {
       const base = Array.isArray(old) ? old : [];
       return typeof updater === 'function' ? updater(base) : updater;
     });
-  };
+  }, [queryClient]);
 
-  const loadVariantPricing = async (itemId) => {
+  const loadVariantPricing = useCallback(async (itemId: string) => {
     if (!itemId) return;
     try {
       const data = await timedSupabaseQuery(
@@ -396,9 +396,9 @@ function ItemsTab() {
       console.log('item_variant_pricing error', error);
       setVariantPricing([]);
     }
-  };
+  }, []);
 
-  const checkVariantRecords = async (itemId) => {
+  const checkVariantRecords = useCallback(async (itemId: string) => {
     try {
       const [stockRes, pricingRes] = await Promise.all([
         supabase.from('item_stock').select('id').eq('item_id', itemId).not('company_variant_id', 'is', null),
@@ -411,9 +411,9 @@ function ItemsTab() {
     } catch {
       return { hasStock: false, hasPricing: false };
     }
-  };
+  }, []);
 
-  const toggleColumn = (columnKey) => {
+  const toggleColumn = useCallback((columnKey: string) => {
     if (MANDATORY_ITEM_COLUMNS.includes(columnKey)) return;
     setVisibleColumns((prev) => {
       if (prev.includes(columnKey)) {
@@ -422,20 +422,20 @@ function ItemsTab() {
       }
       return [...new Set([...prev, columnKey, ...MANDATORY_ITEM_COLUMNS])];
     });
-  };
+  }, []);
 
-  const openBulkPriceModal = () => {
+  const openBulkPriceModal = useCallback(() => {
     setShowBulkPriceModal(true);
     setBulkPriceText('');
     setBulkPreviewRows([]);
     setBulkParseErrors([]);
     setBulkApplyErrors([]);
-  };
+  }, []);
 
-  const closeBulkPriceModal = () => {
+  const closeBulkPriceModal = useCallback(() => {
     if (bulkInProgress) return;
     setShowBulkPriceModal(false);
-  };
+  }, [bulkInProgress]);
 
   const parseBulkPriceRows = () => {
     const text = bulkPriceText.trim();
@@ -1225,7 +1225,7 @@ function ItemsTab() {
     );
   };
 
-  const filteredMaterials = materials.filter(m => {
+  const filteredMaterials = useMemo(() => materials.filter(m => {
     const matchesSearch = 
       m.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       m.display_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -1234,34 +1234,34 @@ function ItemsTab() {
     const matchesCategory = categoryFilter === 'All' || m.main_category === categoryFilter;
     const matchesActive = !hideInactive || m.is_active;
     return matchesSearch && matchesCategory && matchesActive;
-  });
+  }), [materials, searchTerm, categoryFilter, hideInactive]);
 
-  const selectedMaterial = materials.find((item) => item.id === selectedMaterialId) || null;
+  const selectedMaterial = useMemo(() => materials.find((item) => item.id === selectedMaterialId) || null, [materials, selectedMaterialId]);
 
-  const openDeleteModal = (material) => {
+  const openDeleteModal = useCallback((material) => {
     setDeleteTarget(material);
-  };
+  }, []);
 
-  const closeDeleteModal = () => {
+  const closeDeleteModal = useCallback(() => {
     if (deleteInProgress) return;
     setDeleteTarget(null);
-  };
+  }, [deleteInProgress]);
 
-  const confirmDeleteMaterial = async () => {
+  const confirmDeleteMaterial = useCallback(async () => {
     if (!deleteTarget?.id) return;
     await deleteMaterial(deleteTarget.id);
     setDeleteTarget(null);
-  };
+  }, [deleteTarget]);
 
-  const selectMaterialRow = (material) => {
+  const selectMaterialRow = useCallback((material) => {
     setSelectedMaterialId(material.id);
     setActiveDetailTab('overview');
     setShowItemWorkspace(true);
-  };
+  }, []);
 
-  const closeItemWorkspace = () => {
+  const closeItemWorkspace = useCallback(() => {
     setShowItemWorkspace(false);
-  };
+  }, []);
 
   const workspaceMaterials = materials
     .filter((item) => {
@@ -1387,8 +1387,11 @@ function ItemsTab() {
     return columns;
   }, [visibleColumns, stockData, formatColumnValue, selectMaterialRow, editMaterial, toggleActive, openDeleteModal]);
 
+  const [visibleCount, setVisibleCount] = useState(200);
+  const visibleMaterials = useMemo(() => filteredMaterials.slice(0, visibleCount), [filteredMaterials, visibleCount]);
+
   const table = useReactTable({
-    data: filteredMaterials,
+    data: visibleMaterials,
     columns: itemColumns,
     getCoreRowModel: getCoreRowModel()
   });
@@ -1525,6 +1528,14 @@ function ItemsTab() {
                   </tbody>
                 </table>
               </div>
+
+              {filteredMaterials.length > visibleCount ? (
+                <div style={{ padding: '12px', textAlign: 'center' }}>
+                  <button className="btn btn-secondary" onClick={() => setVisibleCount((v) => v + 200)}>Show more</button>
+                  <span style={{ marginLeft: 12, color: '#666' }}>{visibleMaterials.length} / {filteredMaterials.length} shown</span>
+                </div>
+              ) : null}
+
             )}
           </div>
         </>

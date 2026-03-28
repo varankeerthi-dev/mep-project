@@ -1,0 +1,16 @@
+Push instructions (run these on your machine where Git/GitHub auth is configured):
+
+1) Ensure PowerShell 6+ (pwsh) or Git is available on your machine.
+
+2) From the project root (C:\Users\admin\mep-project) run (PowerShell):
+   .\push_to_github.ps1 -RemoteUrl 'git@github.com:YOUR_USER/YOUR_REPO.git' -Branch main
+
+   -OR- use HTTPS remote:
+   git remote add origin https://github.com/YOUR_USER/YOUR_REPO.git
+   git push -u origin main
+
+3) If push fails due to authentication, ensure SSH key or credential manager is configured. The script will create .gitignore and commit changes; it will not upload secrets.
+
+4) AFTER PUSH: Rotate Supabase anon key in Supabase dashboard and update .env (VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY). Do NOT commit .env to the repo.
+
+If you'd like, provide a Git remote URL and I can re-run the script locally (if this environment had pwsh) or guide you through any errors you encounter when running the script.
