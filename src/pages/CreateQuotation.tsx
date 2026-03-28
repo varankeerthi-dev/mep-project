@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { supabase } from '../supabase';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { formatCurrency } from '../utils/formatters';
-import { useAuth } from '../App';
 import { useQuery } from '@tanstack/react-query';
 import { flexRender, getCoreRowModel, useReactTable } from '@tanstack/react-table';
 import { timedSupabaseQuery } from '../utils/queryTimeout';
@@ -48,7 +47,13 @@ export default function CreateQuotation() {
   const editId = searchParams.get('id');
   const duplicateId = searchParams.get('duplicateId');
   
-  const { organisation } = useAuth();
+  let organisation = null;
+  try {
+    const auth = useAuth();
+    organisation = auth?.organisation;
+  } catch (e) {
+    // Auth context not available yet
+  }
   
   const [saving, setSaving] = useState(false);
   const [clients, setClients] = useState([]);
