@@ -57,6 +57,7 @@ const MeetingsDashboard = lazyAny(() => Meetings.then(m => ({ default: m.Meeting
 const CreateMeeting = lazyAny(() => Meetings.then(m => ({ default: m.CreateMeeting })));
 const ClientRequests = lazyAny(() => import('./pages/ClientRequests'));
 const SiteVisits = lazyAny(() => import('./pages/SiteVisits').then(m => ({ default: m.SiteVisits })));
+const ClientCommunication = lazyAny(() => import('./pages/ClientCommunication').then(m => ({ default: m.ClientCommunication })));
 const Subcontractors = import('./pages/Subcontractors');
 const SubcontractorDashboard = lazyAny(() => Subcontractors.then(m => ({ default: m.SubcontractorDashboard })));
 const CreateSubcontractor = lazyAny(() => Subcontractors.then(m => ({ default: m.CreateSubcontractor })));
@@ -325,6 +326,8 @@ export default function App() {
       case '/site-visits/new':
       case '/site-visits/edit':
         return <SiteVisits />
+      case '/client-communication':
+        return <ClientCommunication />
       case '/subcontractors': return <SubcontractorDashboard onNavigate={navigate} />;
       case '/subcontractors/new': return <CreateSubcontractor onSuccess={() => navigate('/subcontractors')} onCancel={() => navigate('/subcontractors')} />;
       case '/subcontractors/view': return <SubcontractorView onNavigate={navigate} />;

@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase, SiteVisit, Project, Client } from '@/lib/supabase';
-import { Button } from '@/components/ui/button';
+import { supabase } from '../supabase';
+import { Button } from '../components/ui/button';
 import { 
   Plus, 
   MapPin, 
@@ -34,20 +34,20 @@ import {
   DialogTitle, 
   DialogTrigger,
   DialogFooter
-} from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
+} from '../components/ui/dialog';
+import { Label } from '../components/ui/label';
 import { 
   Select, 
   SelectContent, 
   SelectItem, 
   SelectTrigger, 
   SelectValue 
-} from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+} from '../components/ui/select';
+import { Textarea } from '../components/ui/textarea';
+import { Input } from '../components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { Badge } from '../components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import {
   Table,
   TableBody,
@@ -55,7 +55,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
+} from '../components/ui/table';
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -64,7 +64,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   DropdownMenuItem,
-} from '@/components/ui/dropdown-menu';
+} from '../components/ui/dropdown-menu';
 import { toast } from 'sonner';
 import { 
   format, 
@@ -80,7 +80,7 @@ import {
   parseISO,
   isToday
 } from 'date-fns';
-import { cn } from '@/lib/utils';
+import { cn } from '../lib/utils';
 
 export function SiteVisits() {
   const [activeTab, setActiveTab] = useState('dashboard');

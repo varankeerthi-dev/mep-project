@@ -111,6 +111,13 @@ const menuData: MenuSection[] = [
         ]
       },
       {
+        id: 'client-communication',
+        label: 'Client Communication',
+        submenu: [
+          { id: 'client-comm-dashboard', label: 'Dashboard', path: '/client-communication' }
+        ]
+      },
+      {
         id: 'subcontractor',
         label: 'Sub-Contractor',
         submenu: [
