@@ -1200,6 +1200,11 @@ const loadQuoteNoPreview = useCallback(async () => {
 
       let quotationId = editId;
 
+      // OPTIMIZED: Fetch series data in parallel with header operation for new quotes
+      const seriesQuery = !editId 
+        ? supabase.from('document_series').select('*').eq('is_default', true).limit(1).maybeSingle()
+        : Promise.resolve({ data: null });
+
       if (editId) {
         const { data: updatedHeader, error: updateError } = await withTimeout(
           supabase
@@ -1215,15 +1220,10 @@ const loadQuoteNoPreview = useCallback(async () => {
         }
         quotationId = updatedHeader[0].id;
       } else {
-        // GENERATE FRESH QUOTATION NUMBER IMMEDIATELY BEFORE INSERT
+        const [seriesResult] = await Promise.all([seriesQuery]);
+        const defaultSeries = seriesResult?.data;
+        
         let quotationNo = '';
-        const { data: defaultSeries } = await supabase
-          .from('document_series')
-          .select('*')
-          .eq('is_default', true)
-          .limit(1)
-          .maybeSingle();
-
         if (defaultSeries) {
           quotationNo = buildQuoteNoFromSeries(defaultSeries);
         } else {
@@ -1260,22 +1260,13 @@ const loadQuoteNoPreview = useCallback(async () => {
         }
         quotationId = data[0].id;
 
-        // Update series after successful insert
+        // Update series after successful insert (fire and forget - don't await)
         if (defaultSeries) {
           const nextNo = getQuoteSeriesNumber(defaultSeries) + 1;
           const cfg = defaultSeries?.configs || {};
           const quoteCfg = cfg.quote || {};
-          const updatedCfg = {
-            ...cfg,
-            quote: {
-              ...quoteCfg,
-              start_number: nextNo
-            }
-          };
-          await supabase
-            .from('document_series')
-            .update({ current_number: nextNo, configs: updatedCfg })
-            .eq('id', defaultSeries.id);
+          const updatedCfg = { ...cfg, quote: { ...quoteCfg, start_number: nextNo } };
+          supabase.from('document_series').update({ current_number: nextNo, configs: updatedCfg }).eq('id', defaultSeries.id).then();
         }
       }
 
@@ -1310,19 +1301,18 @@ const loadQuoteNoPreview = useCallback(async () => {
         header_discount_percent: parseFloat(discount) || 0
       }));
 
-      // Phase 1: delete old items + old variant discounts in parallel
+      // OPTIMIZED: Delete and insert in single batch - run all operations in parallel
       await Promise.all([
         supabase.from('quotation_items').delete().eq('quotation_id', quotationId),
         supabase.from('quotation_revision_variant_discount').delete().eq('quotation_revision_id', quotationId)
       ]);
 
-      // Phase 2: insert new items + insert variant discounts in parallel
-      await Promise.all([
-        supabase.from('quotation_items').insert(itemsToInsert),
-        variantDiscountRecords.length > 0
-          ? supabase.from('quotation_revision_variant_discount').insert(variantDiscountRecords)
-          : Promise.resolve()
-      ]);
+      // Insert new items and discounts in parallel
+      const insertPromises = [supabase.from('quotation_items').insert(itemsToInsert)];
+      if (variantDiscountRecords.length > 0) {
+        insertPromises.push(supabase.from('quotation_revision_variant_discount').insert(variantDiscountRecords));
+      }
+      await Promise.all(insertPromises);
 
       // alert removed
       

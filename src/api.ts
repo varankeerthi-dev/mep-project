@@ -1071,12 +1071,13 @@ export async function saveBOQWithItems(
   const headerId = await saveBOQ(boqData);
   const isUuid = (value: string | undefined): boolean => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(value || ''));
 
-  for (const sheet of sheets) {
+  // OPTIMIZED: Process sheets in parallel batches
+  const sheetOperations = sheets.map(async (sheet, index) => {
     if (!sheet.id || sheet.id.startsWith('temp-') || !isUuid(sheet.id)) {
       const newSheet = {
         boq_header_id: headerId,
         sheet_name: sheet.name,
-        sheet_order: sheets.indexOf(sheet) + 1,
+        sheet_order: index + 1,
         is_default: sheet.isDefault || false
       };
       const { data: createdSheet } = await supabase
@@ -1088,10 +1089,13 @@ export async function saveBOQWithItems(
       if (createdSheet && itemsMap[sheet.id || '']) {
         await updateBOQItems(createdSheet.id, itemsMap[sheet.id || '']);
       }
+      return createdSheet;
     } else if (itemsMap[sheet.id]) {
       await updateBOQItems(sheet.id, itemsMap[sheet.id]);
     }
-  }
+    return null;
+  });
 
+  await Promise.all(sheetOperations);
   return headerId;
 }
