@@ -211,53 +211,51 @@ export default function App() {
   };
 
   useEffect(() => {
-    let unsubscribeAuth: (() => void) | undefined;
+  let unsubscribeAuth: (() => void) | undefined;
+  let lastCheck = 0;
 
-    const init = async () => {
-      unsubscribeAuth = await initAuth();
-      await checkDatabase();
-      // Storage bucket creation from the browser can be slow/unreliable depending on policy.
-      // Don't block initial render on this best-effort initializer.
-      initStorageBuckets().catch(() => {});
-    };
+  const init = async () => {
+    unsubscribeAuth = await initAuth();
+    await checkDatabase();
+    initStorageBuckets().catch(() => {});
+  };
 
-    init();
+  init();
 
-    let lastCheck = 0;
+  const handleFocus = async () => {
+    const now = Date.now();
+    if (now - lastCheck < 300000) return;
+    lastCheck = now;
 
-    const handleFocus = async () => {
-      const now = Date.now();
-      if (now - lastCheck < 300000) return;
-
-      try {
-        const { data: { session }, error } = await supabase.auth.getSession();
-        if (!error && session?.user) {
-          if (session.user.id !== user?.id) {
-            setUser(session.user);
-          }
-        }
-      } catch (e) {
-        console.warn('Heartbeat check failed', e);
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (!error && session?.user) {
+        // Use functional update to avoid reading stale user from closure
+        setUser(prev => {
+          if (prev?.id !== session.user.id) return session.user;
+          return prev;
+        });
       }
+    } catch (e) {
+      console.warn('Heartbeat check failed', e);
+    }
+  };
 
-      lastCheck = now;
-    };
+  const handleVisibility = () => {
+    if (document.visibilityState === 'visible') {
+      handleFocus();
+    }
+  };
 
-    const handleVisibility = () => {
-      if (document.visibilityState === 'visible') {
-        handleFocus();
-      }
-    };
+  window.addEventListener('focus', handleFocus);
+  window.addEventListener('visibilitychange', handleVisibility);
 
-    window.addEventListener('focus', handleFocus);
-    window.addEventListener('visibilitychange', handleVisibility);
-
-    return () => {
-      unsubscribeAuth?.();
-      window.removeEventListener('focus', handleFocus);
-      window.removeEventListener('visibilitychange', handleVisibility);
-    };
-  }, [user?.id]);
+  return () => {
+    unsubscribeAuth?.();
+    window.removeEventListener('focus', handleFocus);
+    window.removeEventListener('visibilitychange', handleVisibility);
+  };
+}, []); // ← Empty deps. No more re-runs on user change.
 
   const handleLogout = async () => {
     await signOut();
