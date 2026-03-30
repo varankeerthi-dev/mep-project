@@ -106,8 +106,7 @@ const menuData: MenuSection[] = [
         id: 'site-visit',
         label: 'Site Visit',
         submenu: [
-          { id: 'site-visit-dashboard', label: 'Dashboard', path: '/site-visits' },
-          { id: 'site-visit-create', label: 'New Visit', path: '/site-visits/new' }
+          { id: 'site-visit-dashboard', label: 'Dashboard', path: '/site-visits' }
         ]
       },
       {

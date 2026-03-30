@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../supabase';
-import { Button } from '../components/ui/button';
 import { 
   Plus, 
   MapPin, 
@@ -15,10 +14,8 @@ import {
   CalendarDays,
   Search,
   MoreVertical,
-  ExternalLink,
   Camera,
   FileText,
-  User,
   AlertCircle,
   Edit,
   Settings2,
@@ -27,44 +24,6 @@ import {
   CalendarClock,
   Pencil
 } from 'lucide-react';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogTrigger,
-  DialogFooter
-} from '../components/ui/dialog';
-import { Label } from '../components/ui/label';
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from '../components/ui/select';
-import { Textarea } from '../components/ui/textarea';
-import { Input } from '../components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { Badge } from '../components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '../components/ui/table';
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-  DropdownMenuItem,
-} from '../components/ui/dropdown-menu';
 import { toast } from 'sonner';
 import { 
   format, 
@@ -80,7 +39,6 @@ import {
   parseISO,
   isToday
 } from 'date-fns';
-import { cn } from '../lib/utils';
 
 export function SiteVisits() {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -122,37 +80,21 @@ export function SiteVisits() {
         .from('site_visits')
         .select(`
           *,
-          projects (
-            name,
-            clients (name)
-          ),
-          clients (name)
+          clients (client_name)
         `)
         .order('visit_date', { ascending: false });
       
       if (error) throw error;
-      return data as (SiteVisit & { 
-        projects: { name: string, clients: { name: string } },
-        clients: { name: string }
-      })[];
-    },
-  });
-
-  const { data: projects } = useQuery({
-    queryKey: ['projects'],
-    queryFn: async () => {
-      const { data, error } = await supabase.from('projects').select('id, name, client_id');
-      if (error) throw error;
-      return data as (Pick<Project, 'id' | 'name' | 'client_id'>)[];
+      return data;
     },
   });
 
   const { data: clients } = useQuery({
     queryKey: ['clients'],
     queryFn: async () => {
-      const { data, error } = await supabase.from('clients').select('id, name');
+      const { data, error } = await supabase.from('clients').select('id, client_name');
       if (error) throw error;
-      return data as Pick<Client, 'id' | 'name'>[];
+      return data;
     },
   });
 
@@ -190,7 +132,7 @@ export function SiteVisits() {
       setIsScheduleModalOpen(false);
       toast.success('Site visit saved successfully');
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast.error(`Error saving visit: ${error.message}`);
     },
   });
@@ -213,7 +155,7 @@ export function SiteVisits() {
       setSelectedVisit(null);
       toast.success('Site visit updated successfully');
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast.error(`Error updating visit: ${error.message}`);
     },
   });
@@ -229,7 +171,7 @@ export function SiteVisits() {
       setVisitToDelete(null);
       toast.success('Site visit deleted successfully');
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast.error(`Error deleting visit: ${error.message}`);
     },
   });
@@ -249,7 +191,7 @@ export function SiteVisits() {
       setIsAddClientModalOpen(false);
       toast.success('Client added successfully');
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast.error(`Error adding client: ${error.message}`);
     },
   });
@@ -264,13 +206,13 @@ export function SiteVisits() {
       if (error) throw error;
       return data[0];
     },
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['visit-purposes'] });
       setUpdatePurpose(data.name);
       setIsAddPurposeModalOpen(false);
       toast.success('Purpose added successfully');
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast.error(`Error adding purpose: ${error.message}`);
     },
   });
@@ -329,14 +271,14 @@ export function SiteVisits() {
     }
   };
 
-  const statusIcons = {
+  const statusIcons: any = {
     pending: Clock,
     scheduled: Clock,
     completed: CheckCircle2,
     cancelled: XCircle,
   };
 
-  const statusColors = {
+  const statusColors: any = {
     pending: 'bg-amber-100 text-amber-700',
     scheduled: 'bg-blue-100 text-blue-700',
     completed: 'bg-emerald-100 text-emerald-700',
@@ -350,16 +292,16 @@ export function SiteVisits() {
     const now = new Date();
     return {
       total: visits.length,
-      pending: visits.filter(v => v.status === 'pending' || v.status === 'scheduled').length,
-      completed: visits.filter(v => v.status === 'completed').length,
-      thisMonth: visits.filter(v => isSameMonth(parseISO(v.visit_date), now)).length,
+      pending: visits.filter((v: any) => v.status === 'pending' || v.status === 'scheduled').length,
+      completed: visits.filter((v: any) => v.status === 'completed').length,
+      thisMonth: visits.filter((v: any) => isSameMonth(parseISO(v.visit_date), now)).length,
     };
   }, [visits]);
 
   const filteredVisits = useMemo(() => {
     if (!visits) return [];
-    return visits.filter(v => {
-      const clientName = v.projects?.clients?.name || v.clients?.name || '';
+    return visits.filter((v: any) => {
+      const clientName = v.clients?.client_name || '';
       const engineerName = v.engineer || v.visited_by || '';
       
       const matchesSearch = clientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -371,735 +313,538 @@ export function SiteVisits() {
   }, [visits, searchQuery, statusFilter]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-slate-900">Site Visit Module</h1>
           <p className="text-slate-500">Manage, schedule and track all site inspections and client visits.</p>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="outline" className="gap-2">
+          <button className="px-4 py-2 border border-gray-300 rounded-lg flex items-center gap-2 hover:bg-gray-50">
             <Search className="w-4 h-4" /> Search
-          </Button>
+          </button>
 
           {/* Schedule Site Visit Modal (Simple) */}
-          <Dialog open={isScheduleModalOpen} onOpenChange={(open) => {
-            setIsScheduleModalOpen(open);
-            if (open) {
-              const initialDate = selectedDate ? format(selectedDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd');
-              setScheduleDateStr(initialDate);
-              const isPast = new Date(initialDate) < new Date(new Date().setHours(0,0,0,0));
-              setScheduleStatus(isPast ? 'completed' : 'scheduled');
-            }
-          }}>
-            <DialogTrigger asChild>
-              <Button className="gap-2 bg-indigo-600 hover:bg-indigo-700" onClick={() => {
-                setSelectedVisit(null);
-                setSelectedDate(null);
-              }}>
-                <CalendarIcon className="w-4 h-4" /> Schedule Site Visit
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-md">
-              <DialogHeader>
-                <DialogTitle className="text-xl font-bold text-slate-900">Schedule Site Visit</DialogTitle>
-              </DialogHeader>
-              <form key={selectedVisit?.id || 'new-schedule'} onSubmit={handleAddVisit} className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="simple_client_id">Client *</Label>
-                    <Button 
-                      type="button" 
-                      variant="ghost" 
-                      size="sm" 
-                      className="h-6 text-xs text-indigo-600 px-2"
-                      onClick={() => setIsAddClientModalOpen(true)}
+          {isScheduleModalOpen && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
+                <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+                  <h3 className="text-xl font-bold text-slate-900">Schedule Site Visit</h3>
+                  <button onClick={() => setIsScheduleModalOpen(false)} className="text-gray-400 hover:text-gray-600">
+                    <XCircle className="w-5 h-5" />
+                  </button>
+                </div>
+                <form onSubmit={handleAddVisit} className="p-6 space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-sm font-medium">Client *</label>
+                      <button 
+                        type="button" 
+                        className="text-xs text-blue-600 hover:underline"
+                        onClick={() => setIsAddClientModalOpen(true)}
+                      >
+                        + Add New Client
+                      </button>
+                    </div>
+                    <select 
+                      name="client_id" 
+                      required 
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     >
-                      + Add New Client
-                    </Button>
-                  </div>
-                  <Select 
-                    name="client_id" 
-                    required 
-                    defaultValue={selectedVisit?.client_id || undefined}
-                    items={clients?.map(c => ({ value: c.id, label: c.name })) || []}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select Client" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {clients?.map((client) => (
-                        <SelectItem key={client.id} value={client.id}>
-                          {client.name}
-                        </SelectItem>
+                      <option value="">Select Client</option>
+                      {clients?.map((client: any) => (
+                        <option key={client.id} value={client.id}>{client.client_name}</option>
                       ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                    </select>
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="simple_visit_date">Date of Visit *</Label>
-                  <Input 
-                    id="simple_visit_date" 
-                    name="visit_date" 
-                    type="date" 
-                    required 
-                    value={scheduleDateStr}
-                    onChange={(e) => {
-                      const newDate = e.target.value;
-                      setScheduleDateStr(newDate);
-                      const isPast = new Date(newDate) < new Date(new Date().setHours(0,0,0,0));
-                      if (isPast && (scheduleStatus === 'scheduled' || scheduleStatus === 'pending')) {
-                        setScheduleStatus('completed');
-                      } else if (!isPast && (scheduleStatus === 'completed' || scheduleStatus === 'postponed')) {
-                        setScheduleStatus('scheduled');
-                      }
-                    }}
-                  />
-                </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Date of Visit *</label>
+                    <input 
+                      type="date" 
+                      name="visit_date" 
+                      required 
+                      value={scheduleDateStr}
+                      onChange={(e) => {
+                        const newDate = e.target.value;
+                        setScheduleDateStr(newDate);
+                        const isPast = new Date(newDate) < new Date(new Date().setHours(0,0,0,0));
+                        if (isPast && (scheduleStatus === 'scheduled' || scheduleStatus === 'pending')) {
+                          setScheduleStatus('completed');
+                        } else if (!isPast && (scheduleStatus === 'completed' || scheduleStatus === 'postponed')) {
+                          setScheduleStatus('scheduled');
+                        }
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="simple_created_by">Created By</Label>
-                  <Input id="simple_created_by" name="created_by" placeholder="Your name" defaultValue={selectedVisit?.created_by || ''} />
-                </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Created By</label>
+                    <input type="text" name="created_by" placeholder="Your name" className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="simple_engineer">Visiting By (Engineer)</Label>
-                  <Select name="engineer" defaultValue={selectedVisit?.engineer || undefined}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select Engineer" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="John Doe">John Doe</SelectItem>
-                      <SelectItem value="Jane Smith">Jane Smith</SelectItem>
-                      <SelectItem value="Mike Johnson">Mike Johnson</SelectItem>
-                      <SelectItem value="Sarah Williams">Sarah Williams</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Visiting By (Engineer)</label>
+                    <select name="engineer" className="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                      <option value="">Select Engineer</option>
+                      <option value="John Doe">John Doe</option>
+                      <option value="Jane Smith">Jane Smith</option>
+                      <option value="Mike Johnson">Mike Johnson</option>
+                      <option value="Sarah Williams">Sarah Williams</option>
+                    </select>
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="simple_status">Status *</Label>
-                  <Select 
-                    name="status" 
-                    value={scheduleStatus} 
-                    onValueChange={setScheduleStatus} 
-                    required
-                    items={[
-                      { value: 'completed', label: 'Completed' },
-                      { value: 'postponed', label: 'Postponed' },
-                      { value: 'cancelled', label: 'Cancelled' },
-                      { value: 'scheduled', label: 'Scheduled' },
-                      { value: 'pending', label: 'Pending' }
-                    ]}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Status" />
-                    </SelectTrigger>
-                    <SelectContent>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Status *</label>
+                    <select 
+                      name="status" 
+                      value={scheduleStatus} 
+                      onChange={(e) => setScheduleStatus(e.target.value)}
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    >
                       {new Date(scheduleDateStr) < new Date(new Date().setHours(0,0,0,0)) ? (
                         <>
-                          <SelectItem value="completed">Completed</SelectItem>
-                          <SelectItem value="postponed">Postponed</SelectItem>
-                          <SelectItem value="cancelled">Cancelled</SelectItem>
+                          <option value="completed">Completed</option>
+                          <option value="postponed">Postponed</option>
+                          <option value="cancelled">Cancelled</option>
                         </>
                       ) : (
                         <>
-                          <SelectItem value="scheduled">Scheduled</SelectItem>
-                          <SelectItem value="pending">Pending</SelectItem>
+                          <option value="scheduled">Scheduled</option>
+                          <option value="pending">Pending</option>
                         </>
                       )}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {scheduleStatus === 'postponed' && (
-                  <div className="space-y-2">
-                    <Label htmlFor="simple_postponed_reason">Reason for Postponement *</Label>
-                    <Textarea id="simple_postponed_reason" name="postponed_reason" required placeholder="Why was this visit postponed?" />
+                    </select>
                   </div>
-                )}
 
-                <DialogFooter className="pt-4">
-                  <Button type="button" variant="outline" onClick={() => setIsScheduleModalOpen(false)}>Cancel</Button>
-                  <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700" disabled={addVisitMutation.isPending}>
-                    {addVisitMutation.isPending ? 'Saving...' : 'Submit'}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
+                  {scheduleStatus === 'postponed' && (
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Reason for Postponement *</label>
+                      <textarea name="postponed_reason" required placeholder="Why was this visit postponed?" className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
+                    </div>
+                  )}
+
+                  <div className="flex justify-end gap-3 pt-4">
+                    <button type="button" className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50" onClick={() => setIsScheduleModalOpen(false)}>Cancel</button>
+                    <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700" disabled={addVisitMutation.isPending}>
+                      {addVisitMutation.isPending ? 'Saving...' : 'Submit'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
 
           {/* Add New Client Quick Modal */}
-          <Dialog open={isAddClientModalOpen} onOpenChange={setIsAddClientModalOpen}>
-            <DialogContent className="max-w-sm">
-              <DialogHeader>
-                <DialogTitle>Add New Client</DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleAddClient} className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="new_client_name">Client Name *</Label>
-                  <Input id="new_client_name" name="name" required placeholder="Enter client name" />
+          {isAddClientModalOpen && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-xl shadow-xl max-w-sm w-full mx-4">
+                <div className="p-6 border-b border-gray-200">
+                  <h3 className="text-lg font-bold">Add New Client</h3>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="new_client_status">Status</Label>
-                  <Input id="new_client_status" name="status" defaultValue="Lead" readOnly className="bg-slate-50 text-slate-500" />
-                </div>
-                <DialogFooter>
-                  <Button type="button" variant="outline" onClick={() => setIsAddClientModalOpen(false)}>Cancel</Button>
-                  <Button type="submit" disabled={addClientMutation.isPending}>
-                    {addClientMutation.isPending ? 'Adding...' : 'Add Client'}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
-
-          {/* Site Visit Update Modal (Detailed) */}
-          <Dialog open={isUpdateModalOpen} onOpenChange={(open) => {
-            setIsUpdateModalOpen(open);
-            if (!open) setSelectedVisit(null);
-            else {
-              setUpdateStatus(selectedVisit?.status || 'pending');
-              setUpdatePurpose(selectedVisit?.purpose || '');
-            }
-          }}>
-            <DialogTrigger asChild>
-              <Button variant="outline" className="gap-2" onClick={() => {
-                setSelectedVisit(null);
-                setUpdateStatus('pending');
-                setUpdatePurpose('');
-              }}>
-                <Edit className="w-4 h-4" /> Site Visit Update
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="w-screen h-screen max-w-none sm:max-w-none m-0 rounded-none sm:rounded-none overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle className="text-2xl font-bold text-slate-900">
-                  {selectedVisit ? 'Edit Site Visit' : 'Site Visit Update'}
-                </DialogTitle>
-              </DialogHeader>
-              <form key={selectedVisit?.id || 'new-update'} onSubmit={handleAddVisit} className="space-y-6 py-4 max-w-7xl mx-auto w-full">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Left Column */}
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="client_id">Client *</Label>
-                      <Select 
-                        name="client_id" 
-                        required 
-                        defaultValue={selectedVisit?.client_id || ''}
-                        items={clients?.map(c => ({ value: c.id, label: c.name })) || []}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select Client" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {clients?.map((client) => (
-                            <SelectItem key={client.id} value={client.id}>
-                              {client.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="in_time">In Time</Label>
-                        <Input id="in_time" name="in_time" type="time" defaultValue={selectedVisit?.in_time || ''} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="out_time">Out Time</Label>
-                        <Input id="out_time" name="out_time" type="time" defaultValue={selectedVisit?.out_time || ''} />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="visited_by">Visited By</Label>
-                      <Input id="visited_by" name="visited_by" placeholder="Who visited" defaultValue={selectedVisit?.visited_by || ''} />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="site_address">Site Address</Label>
-                      <Input id="site_address" name="site_address" placeholder="Site Address" defaultValue={selectedVisit?.site_address || ''} />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="measurements">Measurements</Label>
-                      <Textarea id="measurements" name="measurements" placeholder="Site measurements" className="min-h-[100px]" defaultValue={selectedVisit?.measurements || ''} />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="follow_up_date">Follow Up</Label>
-                      <Input id="follow_up_date" name="follow_up_date" type="date" defaultValue={selectedVisit?.follow_up_date || ''} />
-                    </div>
-                  </div>
-
-                  {/* Right Column */}
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="visit_date">Visit Date *</Label>
-                      <Input id="visit_date" name="visit_date" type="date" required defaultValue={selectedVisit?.visit_date || (selectedDate ? format(selectedDate, 'yyyy-MM-dd') : '')} />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="engineer">Engineer</Label>
-                      <Input id="engineer" name="engineer" placeholder="Engineer name" defaultValue={selectedVisit?.engineer || ''} />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="purpose">Purpose</Label>
-                      <input type="hidden" name="purpose" value={updatePurpose} />
-                      <Select 
-                        value={updatePurpose} 
-                        onValueChange={(val) => {
-                          if (val === 'ADD_NEW') {
-                            setIsAddPurposeModalOpen(true);
-                          } else {
-                            setUpdatePurpose(val);
-                          }
-                        }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select Purpose" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {purposes?.map((p) => (
-                            <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>
-                          ))}
-                          <DropdownMenuSeparator />
-                          <SelectItem value="ADD_NEW" className="text-indigo-600 font-medium">
-                            + Add New Purpose
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="location_url">Location</Label>
-                      <div className="relative">
-                        <Input id="location_url" name="location_url" placeholder="Google Maps link" className="pr-10" defaultValue={selectedVisit?.location_url || ''} />
-                        <MapPin className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="discussion">Discussion</Label>
-                      <Textarea id="discussion" name="discussion" placeholder="Discussion with client" className="min-h-[100px]" defaultValue={selectedVisit?.discussion || ''} />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="next_step">Next Step</Label>
-                        <Select 
-                          name="next_step" 
-                          defaultValue={selectedVisit?.next_step || ''}
-                          items={[
-                            { value: 'Quote to be Sent', label: 'Quote to be Sent' },
-                            { value: 'Follow up call', label: 'Follow up call' },
-                            { value: 'Second Visit', label: 'Second Visit' },
-                            { value: 'Order Confirmation', label: 'Order Confirmation' }
-                          ]}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select Next Step" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="Quote to be Sent">Quote to be Sent</SelectItem>
-                            <SelectItem value="Follow up call">Follow up call</SelectItem>
-                            <SelectItem value="Second Visit">Second Visit</SelectItem>
-                            <SelectItem value="Order Confirmation">Order Confirmation</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="status">Status</Label>
-                        <Select 
-                          name="status" 
-                          value={updateStatus} 
-                          onValueChange={setUpdateStatus}
-                          items={[
-                            { value: 'pending', label: 'Pending' },
-                            { value: 'scheduled', label: 'Scheduled' },
-                            { value: 'completed', label: 'Completed' },
-                            { value: 'postponed', label: 'Postponed' },
-                            { value: 'cancelled', label: 'Cancelled' }
-                          ]}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Status" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="pending">Pending</SelectItem>
-                            <SelectItem value="scheduled">Scheduled</SelectItem>
-                            <SelectItem value="completed">Completed</SelectItem>
-                            <SelectItem value="postponed">Postponed</SelectItem>
-                            <SelectItem value="cancelled">Cancelled</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                    
-                    {updateStatus === 'postponed' && (
-                      <div className="space-y-2 mt-4">
-                        <Label htmlFor="postponed_reason">Reason for Postponement *</Label>
-                        <Textarea id="postponed_reason" name="postponed_reason" required placeholder="Why was this visit postponed?" defaultValue={selectedVisit?.postponed_reason || ''} />
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <form onSubmit={handleAddClient} className="p-6 space-y-4">
                   <div className="space-y-2">
-                    <Label>Photos</Label>
-                    <div className="border-2 border-dashed border-slate-200 rounded-lg p-4 text-center hover:border-indigo-400 transition-colors cursor-pointer">
-                      <Camera className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-                      <p className="text-sm text-slate-500">Click to upload photos</p>
-                      <input type="file" multiple className="hidden" />
-                    </div>
+                    <label className="text-sm font-medium">Client Name *</label>
+                    <input type="text" name="client_name" required placeholder="Enter client name" className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
                   </div>
-                  <div className="space-y-2">
-                    <Label>Documents</Label>
-                    <div className="border-2 border-dashed border-slate-200 rounded-lg p-4 text-center hover:border-indigo-400 transition-colors cursor-pointer">
-                      <FileText className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-                      <p className="text-sm text-slate-500">Click to upload documents</p>
-                      <input type="file" multiple className="hidden" />
-                    </div>
+                  <div className="flex justify-end gap-3">
+                    <button type="button" className="px-4 py-2 border border-gray-300 rounded-lg" onClick={() => setIsAddClientModalOpen(false)}>Cancel</button>
+                    <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg" disabled={addClientMutation.isPending}>
+                      {addClientMutation.isPending ? 'Adding...' : 'Add Client'}
+                    </button>
                   </div>
-                </div>
-
-                <DialogFooter className="gap-3">
-                  <Button type="button" variant="outline" onClick={() => setIsUpdateModalOpen(false)}>Cancel</Button>
-                  <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700 px-8" disabled={addVisitMutation.isPending || updateVisitMutation.isPending}>
-                    {addVisitMutation.isPending || updateVisitMutation.isPending ? 'Saving...' : 'Save Update'}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
-
-          {/* Add New Purpose Modal */}
-          <Dialog open={isAddPurposeModalOpen} onOpenChange={setIsAddPurposeModalOpen}>
-            <DialogContent className="max-w-sm">
-              <DialogHeader>
-                <DialogTitle>Add New Purpose</DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleAddPurpose} className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="new_purpose_name">Purpose Name *</Label>
-                  <Input id="new_purpose_name" name="name" required placeholder="e.g. Site Survey" />
-                </div>
-                <DialogFooter>
-                  <Button type="button" variant="outline" onClick={() => setIsAddPurposeModalOpen(false)}>Cancel</Button>
-                  <Button type="submit" disabled={addPurposeMutation.isPending}>
-                    {addPurposeMutation.isPending ? 'Adding...' : 'Add Purpose'}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
-
-          {/* Delete Confirmation Modal */}
-          <Dialog open={!!visitToDelete} onOpenChange={(open) => !open && setVisitToDelete(null)}>
-            <DialogContent className="max-w-md">
-              <DialogHeader>
-                <DialogTitle>Delete Site Visit</DialogTitle>
-              </DialogHeader>
-              <div className="py-4">
-                <p className="text-slate-600">Are you sure you want to delete this site visit? This action cannot be undone.</p>
+                </form>
               </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setVisitToDelete(null)}>Cancel</Button>
-                <Button variant="destructive" onClick={() => deleteVisitMutation.mutate(visitToDelete.id)} disabled={deleteVisitMutation.isPending}>
-                  {deleteVisitMutation.isPending ? 'Deleting...' : 'Delete'}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+            </div>
+          )}
+
+          <button 
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg flex items-center gap-2 hover:bg-blue-700"
+            onClick={() => {
+              setSelectedVisit(null);
+              setSelectedDate(null);
+              setIsScheduleModalOpen(true);
+            }}
+          >
+            <CalendarIcon className="w-4 h-4" /> Schedule Site Visit
+          </button>
         </div>
       </div>
 
-      <Tabs defaultValue="dashboard" className="w-full" onValueChange={setActiveTab}>
-        <TabsList className="grid w-full max-w-[400px] grid-cols-2 mb-8 bg-slate-100 p-1 rounded-xl">
-          <TabsTrigger value="dashboard" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm gap-2">
-            <LayoutDashboard className="w-4 h-4" /> Dashboard
-          </TabsTrigger>
-          <TabsTrigger value="calendar" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm gap-2">
-            <CalendarDays className="w-4 h-4" /> Calendar
-          </TabsTrigger>
-        </TabsList>
+      {/* Tabs */}
+      <div className="flex gap-2 bg-gray-100 p-1 rounded-lg max-w-md">
+        <button
+          onClick={() => setActiveTab('dashboard')}
+          className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+            activeTab === 'dashboard' 
+              ? 'bg-white text-blue-600 shadow-sm' 
+              : 'text-gray-600 hover:text-gray-900'
+          }`}
+        >
+          <LayoutDashboard className="w-4 h-4" /> Dashboard
+        </button>
+        <button
+          onClick={() => setActiveTab('calendar')}
+          className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+            activeTab === 'calendar' 
+              ? 'bg-white text-blue-600 shadow-sm' 
+              : 'text-gray-600 hover:text-gray-900'
+          }`}
+        >
+          <CalendarDays className="w-4 h-4" /> Calendar
+        </button>
+      </div>
 
-        <TabsContent value="dashboard" className="space-y-8">
+      {activeTab === 'dashboard' ? (
+        <div className="space-y-6">
           {/* Stats Grid */}
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Card className="border border-slate-200 shadow-sm bg-white">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-medium text-slate-500 mb-1">Total Visits</p>
-                    <h3 className="text-2xl font-bold text-slate-900">{stats.total}</h3>
-                  </div>
-                  <div className="p-2 bg-indigo-50 rounded-lg">
-                    <CalendarIcon className="w-4 h-4 text-indigo-600" />
-                  </div>
+            <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-gray-500 mb-1">Total Visits</p>
+                  <h3 className="text-2xl font-bold text-gray-900">{stats.total}</h3>
                 </div>
-              </CardContent>
-            </Card>
-            <Card className="border border-slate-200 shadow-sm bg-white">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-medium text-slate-500 mb-1">Pending/Scheduled</p>
-                    <h3 className="text-2xl font-bold text-slate-900">{stats.pending}</h3>
-                  </div>
-                  <div className="p-2 bg-amber-50 rounded-lg">
-                    <Clock className="w-4 h-4 text-amber-600" />
-                  </div>
+                <div className="p-2 bg-blue-50 rounded-lg">
+                  <CalendarIcon className="w-4 h-4 text-blue-600" />
                 </div>
-              </CardContent>
-            </Card>
-            <Card className="border border-slate-200 shadow-sm bg-white">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-medium text-slate-500 mb-1">Completed</p>
-                    <h3 className="text-2xl font-bold text-slate-900">{stats.completed}</h3>
-                  </div>
-                  <div className="p-2 bg-emerald-50 rounded-lg">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                  </div>
+              </div>
+            </div>
+            <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-gray-500 mb-1">Pending/Scheduled</p>
+                  <h3 className="text-2xl font-bold text-gray-900">{stats.pending}</h3>
                 </div>
-              </CardContent>
-            </Card>
-            <Card className="border border-slate-200 shadow-sm bg-white">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-medium text-slate-500 mb-1">This Month</p>
-                    <h3 className="text-2xl font-bold text-slate-900">{stats.thisMonth}</h3>
-                  </div>
-                  <div className="p-2 bg-slate-100 rounded-lg">
-                    <CalendarDays className="w-4 h-4 text-slate-600" />
-                  </div>
+                <div className="p-2 bg-amber-50 rounded-lg">
+                  <Clock className="w-4 h-4 text-amber-600" />
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
+            <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-gray-500 mb-1">Completed</p>
+                  <h3 className="text-2xl font-bold text-gray-900">{stats.completed}</h3>
+                </div>
+                <div className="p-2 bg-emerald-50 rounded-lg">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                </div>
+              </div>
+            </div>
+            <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-gray-500 mb-1">This Month</p>
+                  <h3 className="text-2xl font-bold text-gray-900">{stats.thisMonth}</h3>
+                </div>
+                <div className="p-2 bg-gray-100 rounded-lg">
+                  <CalendarDays className="w-4 h-4 text-gray-600" />
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Recent Visits */}
-            <Card className="lg:col-span-2 border-slate-200 shadow-sm">
-              <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4">
-                <CardTitle className="text-lg font-bold">Recent Site Visits</CardTitle>
-                <div className="flex items-center gap-2 w-full sm:w-auto">
-                  <div className="relative flex-1 sm:w-64">
-                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                    <Input 
-                      placeholder="Search clients..." 
-                      className="pl-9 h-9 text-sm"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                  </div>
-                  <Select 
-                    value={statusFilter} 
-                    onValueChange={setStatusFilter}
-                    items={[
-                      { value: 'all', label: 'All Status' },
-                      { value: 'pending', label: 'Pending' },
-                      { value: 'scheduled', label: 'Scheduled' },
-                      { value: 'completed', label: 'Completed' },
-                      { value: 'cancelled', label: 'Cancelled' }
-                    ]}
-                  >
-                    <SelectTrigger className="w-[130px] h-9 text-sm">
-                      <SelectValue placeholder="Status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Status</SelectItem>
-                      <SelectItem value="pending">Pending</SelectItem>
-                      <SelectItem value="scheduled">Scheduled</SelectItem>
-                      <SelectItem value="completed">Completed</SelectItem>
-                      <SelectItem value="cancelled">Cancelled</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="sm" className="h-9 gap-2">
-                        <Settings2 className="w-4 h-4" /> <span className="hidden sm:inline">Columns</span>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuLabel>Toggle Columns</DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      {Object.keys(defaultColumns).map(col => (
-                        <DropdownMenuCheckboxItem
-                          key={col}
-                          checked={visibleColumns[col]}
-                          onCheckedChange={(checked) => setVisibleColumns(prev => ({ ...prev, [col]: checked }))}
-                          className="capitalize"
-                        >
-                          {col.replace(/([A-Z])/g, ' $1').trim()}
-                        </DropdownMenuCheckboxItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+          {/* Recent Visits Table */}
+          <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
+            <div className="p-4 border-b border-gray-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <h3 className="text-lg font-bold">Recent Site Visits</h3>
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <div className="relative flex-1 sm:w-64">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input 
+                    placeholder="Search clients..." 
+                    className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
                 </div>
-              </CardHeader>
-              <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader className="bg-slate-50/80">
-                      <TableRow>
-                        {visibleColumns.date && <TableHead className="font-semibold text-slate-700">Date</TableHead>}
-                        {visibleColumns.client && <TableHead className="font-semibold text-slate-700">Client Name</TableHead>}
-                        {visibleColumns.visitedBy && <TableHead className="font-semibold text-slate-700">Visited By</TableHead>}
-                        {visibleColumns.status && <TableHead className="font-semibold text-slate-700">Status</TableHead>}
-                        {visibleColumns.nextStep && <TableHead className="font-semibold text-slate-700">Next Step</TableHead>}
-                        {visibleColumns.actions && <TableHead className="font-semibold text-slate-700 text-right">Actions</TableHead>}
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {isLoadingVisits ? (
-                        <TableRow>
-                          <TableCell colSpan={6} className="text-center py-8 text-slate-500">Loading visits...</TableCell>
-                        </TableRow>
-                      ) : filteredVisits.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={6} className="text-center py-8 text-slate-500">No site visits found.</TableCell>
-                        </TableRow>
-                      ) : (
-                        filteredVisits.slice(0, 10).map((visit) => {
-                          return (
-                            <TableRow 
-                              key={visit.id} 
-                              className="hover:bg-slate-50/50 cursor-pointer"
-                              onClick={() => {
-                                setSelectedVisit(visit);
-                                setUpdateStatus(visit.status);
-                                setIsUpdateModalOpen(true);
+                <select 
+                  value={statusFilter} 
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                >
+                  <option value="all">All Status</option>
+                  <option value="pending">Pending</option>
+                  <option value="scheduled">Scheduled</option>
+                  <option value="completed">Completed</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+              </div>
+            </div>
+            
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    {visibleColumns.date && <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">Date</th>}
+                    {visibleColumns.client && <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">Client Name</th>}
+                    {visibleColumns.visitedBy && <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">Visited By</th>}
+                    {visibleColumns.status && <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">Status</th>}
+                    {visibleColumns.nextStep && <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">Next Step</th>}
+                    {visibleColumns.actions && <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700">Actions</th>}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {isLoadingVisits ? (
+                    <tr><td colSpan={6} className="text-center py-8 text-gray-500">Loading visits...</td></tr>
+                  ) : filteredVisits.length === 0 ? (
+                    <tr><td colSpan={6} className="text-center py-8 text-gray-500">No site visits found.</td></tr>
+                  ) : (
+                    filteredVisits.slice(0, 10).map((visit: any) => (
+                      <tr 
+                        key={visit.id} 
+                        className="hover:bg-gray-50 cursor-pointer"
+                        onClick={() => {
+                          setSelectedVisit(visit);
+                          setUpdateStatus(visit.status);
+                          setIsUpdateModalOpen(true);
+                        }}
+                      >
+                        {visibleColumns.date && (
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
+                            {format(parseISO(visit.visit_date), 'MMM dd, yyyy')}
+                          </td>
+                        )}
+                        {visibleColumns.client && (
+                          <td className="px-4 py-3 font-medium text-gray-900">
+                            {visit.clients?.client_name || 'Unknown Client'}
+                          </td>
+                        )}
+                        {visibleColumns.visitedBy && (
+                          <td className="px-4 py-3 text-sm text-gray-600">
+                            {visit.visited_by || visit.engineer || '-'}
+                          </td>
+                        )}
+                        {visibleColumns.status && (
+                          <td className="px-4 py-3">
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium capitalize ${statusColors[visit.status]}`}>
+                              {visit.status}
+                            </span>
+                          </td>
+                        )}
+                        {visibleColumns.nextStep && (
+                          <td className="px-4 py-3 text-sm text-gray-600">
+                            {visit.next_step || '-'}
+                          </td>
+                        )}
+                        {visibleColumns.actions && (
+                          <td className="px-4 py-3 text-right">
+                            <button 
+                              className="text-gray-400 hover:text-red-500"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setVisitToDelete(visit);
                               }}
                             >
-                              {visibleColumns.date && (
-                                <TableCell className="whitespace-nowrap text-sm text-slate-600">
-                                  {format(parseISO(visit.visit_date), 'MMM dd, yyyy')}
-                                </TableCell>
-                              )}
-                              {visibleColumns.client && (
-                                <TableCell className="font-medium text-slate-900">
-                                  {visit.projects?.clients?.name || visit.clients?.name || 'Unknown Client'}
-                                </TableCell>
-                              )}
-                              {visibleColumns.visitedBy && (
-                                <TableCell className="text-sm text-slate-600">
-                                  {visit.visited_by || visit.engineer || '-'}
-                                </TableCell>
-                              )}
-                              {visibleColumns.status && (
-                                <TableCell>
-                                  <Badge variant="secondary" className={cn("capitalize font-medium", statusColors[visit.status])}>
-                                    {visit.status}
-                                  </Badge>
-                                </TableCell>
-                              )}
-                              {visibleColumns.nextStep && (
-                                <TableCell className="text-sm text-slate-600">
-                                  {visit.next_step || '-'}
-                                </TableCell>
-                              )}
-                              {visibleColumns.actions && (
-                                <TableCell className="text-right">
-                                  <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                      <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-indigo-600">
-                                        <MoreVertical className="w-4 h-4" />
-                                      </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                      <DropdownMenuItem onClick={(e) => {
-                                        e.stopPropagation();
-                                        setSelectedVisit(visit);
-                                        setUpdateStatus(visit.status);
-                                        setIsUpdateModalOpen(true);
-                                      }}>
-                                        <Pencil className="w-4 h-4 mr-2" /> Edit
-                                      </DropdownMenuItem>
-                                      <DropdownMenuItem onClick={(e) => {
-                                        e.stopPropagation();
-                                        setSelectedVisit(visit);
-                                        setScheduleDateStr(visit.visit_date);
-                                        setScheduleStatus(visit.status);
-                                        setIsScheduleModalOpen(true);
-                                      }}>
-                                        <CalendarClock className="w-4 h-4 mr-2" /> Reschedule
-                                      </DropdownMenuItem>
-                                      <DropdownMenuSeparator />
-                                      <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={(e) => {
-                                        e.stopPropagation();
-                                        setVisitToDelete(visit);
-                                      }}>
-                                        <Trash2 className="w-4 h-4 mr-2" /> Delete
-                                      </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                  </DropdownMenu>
-                                </TableCell>
-                              )}
-                            </TableRow>
-                          );
-                        })
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Upcoming/Follow-ups */}
-            <Card className="border-slate-200 shadow-sm">
-              <CardHeader>
-                <CardTitle className="text-lg font-bold flex items-center gap-2">
-                  <AlertCircle className="w-5 h-5 text-amber-500" /> Follow-ups Required
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {visits?.filter(v => v.follow_up_date && v.status !== 'completed').slice(0, 4).map(visit => (
-                    <div key={visit.id} className="p-4 rounded-xl bg-slate-50 border border-slate-100">
-                      <p className="font-bold text-slate-900 text-sm">{visit.projects?.clients?.name || visit.clients?.name}</p>
-                      <p className="text-xs text-slate-500 mt-1">Next Step: {visit.next_step || 'Not defined'}</p>
-                      <div className="flex items-center justify-between mt-3">
-                        <Badge variant="outline" className="text-[10px] border-amber-200 text-amber-700 bg-amber-50">
-                          Due: {visit.follow_up_date ? format(parseISO(visit.follow_up_date), 'MMM dd') : 'N/A'}
-                        </Badge>
-                        <Button size="sm" variant="ghost" className="h-7 text-xs text-indigo-600">Action</Button>
-                      </div>
-                    </div>
-                  ))}
-                  {visits?.filter(v => v.follow_up_date && v.status !== 'completed').length === 0 && (
-                    <p className="text-center py-8 text-slate-500 text-sm">No pending follow-ups.</p>
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </td>
+                        )}
+                      </tr>
+                    ))
                   )}
-                </div>
-              </CardContent>
-            </Card>
+                </tbody>
+              </table>
+            </div>
           </div>
-        </TabsContent>
+        </div>
+      ) : (
+        <CalendarView 
+          visits={visits || []} 
+          onDateClick={(date) => {
+            setSelectedDate(date);
+            setIsScheduleModalOpen(true);
+          }}
+          onVisitClick={(visit) => {
+            setSelectedVisit(visit);
+            setUpdateStatus(visit.status);
+            setIsUpdateModalOpen(true);
+          }}
+        />
+      )}
 
-        <TabsContent value="calendar" className="mt-0">
-          <CalendarView 
-            visits={visits || []} 
-            onDateClick={(date) => {
-              setSelectedDate(date);
-              setIsScheduleModalOpen(true);
-            }}
-            onVisitClick={(visit) => {
-              setSelectedVisit(visit);
-              setUpdateStatus(visit.status);
-              setIsUpdateModalOpen(true);
-            }}
-          />
-        </TabsContent>
-      </Tabs>
+      {/* Delete Confirmation */}
+      {visitToDelete && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 p-6">
+            <h3 className="text-lg font-bold mb-4">Delete Site Visit</h3>
+            <p className="text-gray-600 mb-4">Are you sure you want to delete this site visit? This action cannot be undone.</p>
+            <div className="flex justify-end gap-3">
+              <button className="px-4 py-2 border border-gray-300 rounded-lg" onClick={() => setVisitToDelete(null)}>Cancel</button>
+              <button 
+                className="px-4 py-2 bg-red-600 text-white rounded-lg"
+                onClick={() => deleteVisitMutation.mutate(visitToDelete.id)}
+                disabled={deleteVisitMutation.isPending}
+              >
+                {deleteVisitMutation.isPending ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Update Modal */}
+      {isUpdateModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full mx-4 my-8">
+            <div className="p-6 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white z-10">
+              <h3 className="text-xl font-bold">
+                {selectedVisit ? 'Edit Site Visit' : 'Site Visit Update'}
+              </h3>
+              <button onClick={() => setIsUpdateModalOpen(false)} className="text-gray-400 hover:text-gray-600">
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleAddVisit} className="p-6 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Left Column */}
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Client *</label>
+                    <select 
+                      name="client_id" 
+                      required 
+                      defaultValue={selectedVisit?.client_id || ''}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Select Client</option>
+                      {clients?.map((client: any) => (
+                        <option key={client.id} value={client.id}>{client.client_name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">In Time</label>
+                      <input type="time" name="in_time" defaultValue={selectedVisit?.in_time || ''} className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Out Time</label>
+                      <input type="time" name="out_time" defaultValue={selectedVisit?.out_time || ''} className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Visited By</label>
+                    <input type="text" name="visited_by" placeholder="Who visited" defaultValue={selectedVisit?.visited_by || ''} className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Site Address</label>
+                    <input type="text" name="site_address" placeholder="Site Address" defaultValue={selectedVisit?.site_address || ''} className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Measurements</label>
+                    <textarea name="measurements" placeholder="Site measurements" rows={4} defaultValue={selectedVisit?.measurements || ''} className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
+                  </div>
+                </div>
+
+                {/* Right Column */}
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Visit Date *</label>
+                    <input 
+                      type="date" 
+                      name="visit_date" 
+                      required 
+                      defaultValue={selectedVisit?.visit_date || ''} 
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Engineer</label>
+                    <input type="text" name="engineer" placeholder="Engineer name" defaultValue={selectedVisit?.engineer || ''} className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Purpose</label>
+                    <select 
+                      value={updatePurpose} 
+                      onChange={(e) => {
+                        if (e.target.value === 'ADD_NEW') {
+                          setIsAddPurposeModalOpen(true);
+                        } else {
+                          setUpdatePurpose(e.target.value);
+                        }
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    >
+                      <option value="">Select Purpose</option>
+                      {purposes?.map((p: any) => (
+                        <option key={p.id} value={p.name}>{p.name}</option>
+                      ))}
+                      <option value="ADD_NEW">+ Add New Purpose</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Location</label>
+                    <div className="relative">
+                      <input type="text" name="location_url" placeholder="Google Maps link" defaultValue={selectedVisit?.location_url || ''} className="w-full px-3 py-2 border border-gray-300 rounded-lg pr-10" />
+                      <MapPin className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Discussion</label>
+                    <textarea name="discussion" placeholder="Discussion with client" rows={4} defaultValue={selectedVisit?.discussion || ''} className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Status</label>
+                    <select 
+                      name="status" 
+                      value={updateStatus} 
+                      onChange={(e) => setUpdateStatus(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="pending">Pending</option>
+                      <option value="scheduled">Scheduled</option>
+                      <option value="completed">Completed</option>
+                      <option value="postponed">Postponed</option>
+                      <option value="cancelled">Cancelled</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t">
+                <button type="button" className="px-4 py-2 border border-gray-300 rounded-lg" onClick={() => setIsUpdateModalOpen(false)}>Cancel</button>
+                <button type="submit" className="px-6 py-2 bg-blue-600 text-white rounded-lg" disabled={addVisitMutation.isPending || updateVisitMutation.isPending}>
+                  {addVisitMutation.isPending || updateVisitMutation.isPending ? 'Saving...' : 'Save Update'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add Purpose Modal */}
+      {isAddPurposeModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl max-w-sm w-full mx-4 p-6">
+            <h3 className="text-lg font-bold mb-4">Add New Purpose</h3>
+            <form onSubmit={handleAddPurpose} className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Purpose Name *</label>
+                <input type="text" name="name" required placeholder="e.g. Site Survey" className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
+              </div>
+              <div className="flex justify-end gap-3">
+                <button type="button" className="px-4 py-2 border border-gray-300 rounded-lg" onClick={() => setIsAddPurposeModalOpen(false)}>Cancel</button>
+                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg" disabled={addPurposeMutation.isPending}>
+                  {addPurposeMutation.isPending ? 'Adding...' : 'Add Purpose'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1121,49 +866,49 @@ function CalendarView({ visits, onDateClick, onVisitClick }: { visits: any[], on
   const prevMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
 
   const getVisitsForDay = (day: Date) => {
-    return visits.filter(visit => isSameDay(parseISO(visit.visit_date), day));
+    return visits.filter((visit: any) => isSameDay(parseISO(visit.visit_date), day));
   };
 
   return (
-    <Card className="border-none shadow-xl overflow-hidden bg-white">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-7 bg-slate-50 border-b border-slate-200">
+    <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+      <div className="flex flex-row items-center justify-between p-6 bg-gray-50 border-b border-gray-200">
         <div className="flex items-center gap-4">
-          <h2 className="text-2xl font-bold text-slate-900">
+          <h2 className="text-2xl font-bold text-gray-900">
             {format(currentMonth, 'MMMM yyyy')}
           </h2>
-          <div className="flex items-center bg-white border border-slate-200 rounded-lg p-1">
-            <Button variant="ghost" size="icon" onClick={prevMonth} className="h-8 w-8">
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => setCurrentMonth(new Date())} className="h-8 px-3 text-xs font-medium">
+          <div className="flex items-center bg-white border border-gray-200 rounded-lg">
+            <button onClick={prevMonth} className="p-2 hover:bg-gray-100">
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <button onClick={() => setCurrentMonth(new Date())} className="px-3 py-2 text-xs font-medium hover:bg-gray-100">
               Today
-            </Button>
-            <Button variant="ghost" size="icon" onClick={nextMonth} className="h-8 w-8">
-              <ChevronRight className="h-4 w-4" />
-            </Button>
+            </button>
+            <button onClick={nextMonth} className="p-2 hover:bg-gray-100">
+              <ChevronRight className="w-4 h-4" />
+            </button>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-full text-xs font-medium text-slate-600">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-full text-xs font-medium text-gray-600">
             <div className="w-2 h-2 rounded-full bg-amber-400" /> Pending
           </div>
-          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-full text-xs font-medium text-slate-600">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-full text-xs font-medium text-gray-600">
             <div className="w-2 h-2 rounded-full bg-blue-500" /> Scheduled
           </div>
-          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-full text-xs font-medium text-slate-600">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-full text-xs font-medium text-gray-600">
             <div className="w-2 h-2 rounded-full bg-emerald-500" /> Completed
           </div>
         </div>
-      </CardHeader>
-      <CardContent className="p-0">
-        <div className="grid grid-cols-7 border-b border-slate-200">
+      </div>
+      <div className="p-0">
+        <div className="grid grid-cols-7 border-b border-gray-200">
           {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-            <div key={day} className="py-3 text-center text-xs font-bold text-slate-400 uppercase tracking-wider bg-slate-50/50">
+            <div key={day} className="py-3 text-center text-xs font-bold text-gray-400 uppercase tracking-wider bg-gray-50/50">
               {day}
             </div>
           ))}
         </div>
-        <div className="grid grid-cols-7 auto-rows-[minmax(150px,auto)]">
+        <div className="grid grid-cols-7 auto-rows-[minmax(120px,auto)]">
           {calendarDays.map((day, idx) => {
             const dayVisits = getVisitsForDay(day);
             const isCurrentMonth = isSameMonth(day, monthStart);
@@ -1171,68 +916,49 @@ function CalendarView({ visits, onDateClick, onVisitClick }: { visits: any[], on
             return (
               <div 
                 key={day.toString()} 
-                className={cn(
-                  "border-r border-b border-slate-100 p-2 transition-colors hover:bg-slate-50/50 group relative",
-                  !isCurrentMonth && "bg-slate-50/30 text-slate-300",
-                  idx % 7 === 6 && "border-r-0"
-                )}
+                className={`border-r border-b border-gray-100 p-2 transition-colors hover:bg-gray-50/50 group relative cursor-pointer ${
+                  !isCurrentMonth ? 'bg-gray-50/30 text-gray-300' : ''
+                } ${idx % 7 === 6 ? 'border-r-0' : ''}`}
                 onClick={() => onDateClick(day)}
               >
                 <div className="flex justify-between items-start mb-2">
-                  <span className={cn(
-                    "text-sm font-bold w-7 h-7 flex items-center justify-center rounded-full transition-colors",
-                    isToday(day) ? "bg-indigo-600 text-white shadow-md" : "text-slate-600 group-hover:text-indigo-600",
-                    !isCurrentMonth && "text-slate-300"
-                  )}>
+                  <span className={`text-sm font-bold w-7 h-7 flex items-center justify-center rounded-full transition-colors ${
+                    isToday(day) ? 'bg-blue-600 text-white shadow-md' : 'text-gray-600 group-hover:text-blue-600'
+                  } ${!isCurrentMonth ? 'text-gray-300' : ''}`}>
                     {format(day, 'd')}
                   </span>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-indigo-600"
-                  >
-                    <Plus className="h-3 w-3" />
-                  </Button>
+                  <button className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-colors text-gray-400 hover:text-blue-600">
+                    <Plus className="w-3 h-3" />
+                  </button>
                 </div>
 
-                <div className="space-y-1.5">
-                  {dayVisits.map((visit) => (
+                <div className="space-y-1">
+                  {dayVisits.map((visit: any) => (
                     <div 
                       key={visit.id}
-                      className={cn(
-                        "px-1.5 py-1 rounded-md text-[9px] font-bold border-l-2 shadow-sm transition-transform hover:scale-[1.02] cursor-pointer",
-                        visit.status === 'completed' ? "bg-emerald-50 border-emerald-500 text-emerald-800" :
-                        visit.status === 'scheduled' ? "bg-blue-50 border-blue-500 text-blue-800" :
-                        visit.status === 'pending' ? "bg-amber-50 border-amber-500 text-amber-800" :
-                        "bg-slate-50 border-slate-400 text-slate-800"
-                      )}
+                      className={`px-1.5 py-1 rounded-md text-[9px] font-bold border-l-2 shadow-sm transition-transform hover:scale-[1.02] cursor-pointer ${
+                        visit.status === 'completed' ? 'bg-emerald-50 border-emerald-500 text-emerald-800' :
+                        visit.status === 'scheduled' ? 'bg-blue-50 border-blue-500 text-blue-800' :
+                        visit.status === 'pending' ? 'bg-amber-50 border-amber-500 text-amber-800' :
+                        'bg-gray-50 border-gray-400 text-gray-800'
+                      }`}
                       onClick={(e) => {
                         e.stopPropagation();
                         onVisitClick(visit);
                       }}
                     >
                       <div className="flex flex-col gap-0.5">
-                        <span className="truncate leading-tight">{visit.projects?.clients?.name || visit.clients?.name || 'Client'}</span>
+                        <span className="truncate leading-tight">{visit.clients?.client_name || 'Client'}</span>
                         <span className="truncate text-[8px] opacity-80 leading-tight font-medium">{visit.engineer || 'No Eng.'}</span>
                       </div>
                     </div>
                   ))}
-                  
-                  {/* Quick Add Placeholder */}
-                  {isCurrentMonth && dayVisits.length === 0 && (
-                    <div className="hidden group-hover:block absolute inset-x-2 bottom-2">
-                      <div className="text-[10px] text-slate-400 italic text-center py-2 border border-dashed border-slate-200 rounded-lg">
-                        Click to schedule
-                      </div>
-                    </div>
-                  )}
                 </div>
               </div>
             );
           })}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
-

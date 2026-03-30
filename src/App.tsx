@@ -321,8 +321,6 @@ export default function App() {
       case '/meetings/create': return <CreateMeeting onSuccess={() => navigate('/meetings')} onCancel={() => navigate('/meetings')} />;
       case '/meetings/edit': return <CreateMeeting onSuccess={() => navigate('/meetings')} onCancel={() => navigate('/meetings')} editMode={true} />;
       case '/site-visits':
-      case '/site-visits/new':
-      case '/site-visits/edit':
         return <SiteVisits />
       case '/client-communication':
         return <ClientCommunication />
