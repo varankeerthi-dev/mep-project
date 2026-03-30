@@ -4,39 +4,15 @@ import { supabase } from '../supabase';
 import { useAuth } from '../App';
 import { toast } from 'sonner';
 
-// shadcn/ui components - only using what exists
+// shadcn/ui components
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Textarea } from '../components/ui/textarea';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../components/ui/select';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '../components/ui/card';
+import { Select, SelectTrigger, SelectValue } from '../components/ui/select';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { Badge } from '../components/ui/badge';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '../components/ui/dialog';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '../components/ui/dropdown-menu';
 
 // Icons
 import {
@@ -44,8 +20,6 @@ import {
   MapPin,
   CreditCard,
   Users,
-  Phone,
-  Mail,
   Tag,
   Plus,
   Trash2,
@@ -54,8 +28,6 @@ import {
   CheckCircle2,
   AlertCircle,
   Briefcase,
-  MoreVertical,
-  ChevronDown,
 } from 'lucide-react';
 
 interface CreateClientProps {
@@ -88,7 +60,7 @@ const gstStateCodes: Record<string, string> = {
 };
 
 export function CreateClient({ onSuccess, onCancel, editMode, clientData }: CreateClientProps) {
-  const { user, organisation, organisations } = useAuth();
+  const { organisation, organisations } = useAuth();
   const queryClient = useQueryClient();
   const isAdmin = organisations?.find((o: any) => o.organisation?.id === organisation?.id)?.role?.toString().toLowerCase() === 'admin';
   
@@ -150,7 +122,6 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
         standard_pricelist_id: clientData.standard_pricelist_id || '',
       });
       
-      // Load contacts if they exist
       if (clientData.contacts && clientData.contacts.length > 0) {
         setContacts(clientData.contacts);
       }
@@ -282,7 +253,6 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
       setActiveTab('basic');
       return false;
     }
-    // Validate contacts
     const validContacts = contacts.filter(c => c.name.trim() && c.phone.trim());
     if (validContacts.length === 0) {
       toast.error('At least one contact with name and phone is required');
@@ -435,17 +405,15 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
 
                   <div className="space-y-2">
                     <Label className="text-sm font-medium">Category</Label>
-                    <Select 
+                    <select 
                       value={formData.category}
-                      onValueChange={(value) => handleInputChange('category', value)}
-                      items={[
-                        { value: 'Active', label: 'Active' },
-                        { value: 'Inactive', label: 'Inactive' },
-                        { value: 'Prospect', label: 'Prospect' },
-                      ]}
+                      onChange={(e) => handleInputChange('category', e.target.value)}
+                      className="w-full h-10 px-3 rounded-md border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
-                      <SelectTrigger><SelectValue>Select category</SelectValue></SelectTrigger>
-                    </Select>
+                      <option value="Active">Active</option>
+                      <option value="Inactive">Inactive</option>
+                      <option value="Prospect">Prospect</option>
+                    </select>
                   </div>
                 </div>
 
@@ -643,18 +611,23 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">
-                    State <span className="text-red-500">*</span>
-                  </Label>
-                  <Select 
-                    value={formData.state}
-                    onValueChange={(value) => handleInputChange('state', value)}
-                    items={indianStates.map(state => ({ value: state, label: state }))}
-                  >
-                    <SelectTrigger><SelectValue>Select state</SelectValue></SelectTrigger>
-                  </Select>
-                </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">
+                      State <span className="text-red-500">*</span>
+                    </Label>
+                    <select 
+                      value={formData.state}
+                      onChange={(e) => handleInputChange('state', e.target.value)}
+                      className="w-full h-10 px-3 rounded-md border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Select state</option>
+                      {indianStates.map((state) => (
+                        <option key={state} value={state}>
+                          {state}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
                   <div className="space-y-2">
                     <Label className="text-sm font-medium">
@@ -740,13 +713,16 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                         placeholder="Address Line 2"
                       />
                       <div className="grid grid-cols-3 gap-4">
-                        <Select 
+                        <select 
                           value={newShipping.state}
-                          onValueChange={(value) => setNewShipping({...newShipping, state: value})}
-                          items={indianStates.map(state => ({ value: state, label: state }))}
+                          onChange={(e) => setNewShipping({...newShipping, state: e.target.value})}
+                          className="w-full h-10 px-3 rounded-md border border-slate-300 bg-white text-sm"
                         >
-                          <SelectTrigger><SelectValue>State</SelectValue></SelectTrigger>
-                        </Select>
+                          <option value="">State</option>
+                          {indianStates.map((state) => (
+                            <option key={state} value={state}>{state}</option>
+                          ))}
+                        </select>
                         <Input 
                           value={newShipping.city}
                           onChange={(e) => setNewShipping({...newShipping, city: e.target.value})}
@@ -831,23 +807,21 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
               <CardContent className="space-y-6">
                 <div className="space-y-2">
                   <Label className="text-sm font-medium">Discount Type</Label>
-                  <Select 
+                  <select 
                     value={formData.discount_type}
-                    onValueChange={(value) => {
-                      handleInputChange('discount_type', value);
-                      if (value !== 'Standard') {
+                    onChange={(e) => {
+                      handleInputChange('discount_type', e.target.value);
+                      if (e.target.value !== 'Standard') {
                         handleInputChange('standard_pricelist_id', '');
                       }
                     }}
-                    items={[
-                      { value: 'Standard', label: 'Standard (Price List Based)' },
-                      { value: 'Premium', label: 'Premium (Variant Based)' },
-                      { value: 'Bulk', label: 'Bulk (Variant Based)' },
-                      { value: 'Special', label: 'Special (Variant Based)' },
-                    ]}
+                    className="w-full h-10 px-3 rounded-md border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    <SelectTrigger><SelectValue>Select discount type</SelectValue></SelectTrigger>
-                  </Select>
+                    <option value="Standard">Standard (Price List Based)</option>
+                    <option value="Premium">Premium (Variant Based)</option>
+                    <option value="Bulk">Bulk (Variant Based)</option>
+                    <option value="Special">Special (Variant Based)</option>
+                  </select>
                 </div>
 
                 {formData.discount_type === 'Standard' && (
@@ -855,13 +829,18 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                     <Label className="text-sm font-medium">
                       Select Standard Price List
                     </Label>
-                    <Select 
+                    <select 
                       value={formData.standard_pricelist_id}
-                      onValueChange={(value) => handleInputChange('standard_pricelist_id', value)}
-                      items={pricelists?.map((pl: any) => ({ value: pl.id, label: `${pl.pricelist_name} (${pl.discount_percent}%)` })) || []}
+                      onChange={(e) => handleInputChange('standard_pricelist_id', e.target.value)}
+                      className="w-full h-10 px-3 rounded-md border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
-                      <SelectTrigger><SelectValue>Choose a price list</SelectValue></SelectTrigger>
-                    </Select>
+                      <option value="">Choose a price list</option>
+                      {pricelists?.map((pl: any) => (
+                        <option key={pl.id} value={pl.id}>
+                          {pl.pricelist_name} ({pl.discount_percent}%)
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 )}
 
@@ -958,4 +937,33 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
       </div>
     </div>
   );
+}
+
+export function CreateClientEdit({ onSuccess, onCancel }: { onSuccess: () => void; onCancel: () => void }) {
+  const params = new URLSearchParams(window.location.hash.split('?')[1] || window.location.search.slice(1) || '');
+  const clientId = params.get('id');
+
+  const { data: clientData, isLoading } = useQuery({
+    queryKey: ['client', clientId],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('clients').select('*').eq('id', clientId).single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!clientId
+  });
+
+  if (isLoading) return (
+    <div className="flex items-center justify-center h-64">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+    </div>
+  );
+  
+  if (!clientData) return (
+    <div className="flex items-center justify-center h-64 text-red-500">
+      Error loading client.
+    </div>
+  );
+
+  return <CreateClient editMode={true} clientData={clientData} onSuccess={onSuccess} onCancel={onCancel} />;
 }
