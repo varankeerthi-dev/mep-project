@@ -471,39 +471,41 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-6 font-inter">
-      <div className="max-w-5xl mx-auto">
-        <div className="mb-4">
-          <h1 className="text-2xl font-bold text-gray-900">{editMode ? 'Edit Client' : 'Create Client'}</h1>
-          <p className="text-sm text-gray-500">{editMode ? 'Update client information' : 'Add a new client to your organization'}</p>
+    <div className="min-h-screen bg-slate-50 p-4 md:p-6 font-inter">
+      <div className="max-w-4xl mx-auto">
+        <div className="mb-5">
+          <h1 className="text-2xl font-bold text-slate-800">{editMode ? 'Edit Client' : 'Create Client'}</h1>
+          <p className="text-sm text-slate-500">{editMode ? 'Update client information' : 'Add a new client to your organization'}</p>
         </div>
 
-        <div className="flex gap-1 p-1 bg-gray-100 rounded-lg mb-4 w-fit">
+        <div className="flex gap-1 p-1 bg-slate-200/50 rounded-xl mb-5 backdrop-blur-sm">
           <button
+            type="button"
             onClick={() => setActiveTab('general')}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'general' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}
+            className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${activeTab === 'general' ? 'bg-white text-indigo-600 shadow-lg shadow-indigo-500/20' : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'}`}
           >
             General
           </button>
           <button
+            type="button"
             onClick={() => setActiveTab('pricing')}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${activeTab === 'pricing' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}
+            className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${activeTab === 'pricing' ? 'bg-white text-indigo-600 shadow-lg shadow-indigo-500/20' : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'}`}
           >
             Pricing
           </button>
         </div>
 
-        <div className="bg-white rounded-xl border border-gray-200 p-4 md:p-6">
+        <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100 p-5 md:p-6">
           {activeTab === 'general' ? (
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-5">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Client Name *</label>
-                  <input type="text" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" value={formData.client_name} onChange={e => setFormData({...formData, client_name: e.target.value})} required />
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide">Client Name <span className="text-red-500">*</span></label>
+                  <input type="text" className="w-full px-4 py-2.5 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all text-sm" value={formData.client_name} onChange={e => setFormData({...formData, client_name: e.target.value})} required />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                  <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" value={formData.category || 'Active'} onChange={e => setFormData({...formData, category: e.target.value})}>
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide">Category</label>
+                  <select className="w-full px-4 py-2.5 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all text-sm" value={formData.category || 'Active'} onChange={e => setFormData({...formData, category: e.target.value})}>
                     <option value="Active">Active</option>
                     <option value="Inactive">Inactive</option>
                     <option value="Prospect">Prospect</option>
@@ -511,129 +513,145 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                 </div>
               </div>
               
-              <div className="bg-gray-50 rounded-lg p-2">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-sm font-semibold text-gray-700">Contact Persons</span>
-                  <span className="text-xs text-gray-400">(Name, Designation, Phone, Email)</span>
+              <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl p-4 border border-slate-200/50">
+                <div className="flex items-center gap-2 mb-3">
+                  <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                  <span className="text-xs font-bold text-slate-600 uppercase tracking-wide">Contact Persons</span>
                 </div>
-                <div className="flex flex-wrap gap-2 mb-2">
-                  <input type="text" className="flex-1 min-w-[120px] px-2 py-1.5 border border-gray-300 rounded text-sm" value={formData.contact_person || ''} onChange={e => setFormData({...formData, contact_person: e.target.value})} placeholder="Contact 1" />
-                  <input type="text" className="flex-1 min-w-[100px] px-2 py-1.5 border border-gray-300 rounded text-sm" value={formData.contact_designation || ''} onChange={e => setFormData({...formData, contact_designation: e.target.value})} placeholder="Designation" />
-                  <input type="text" className="flex-1 min-w-[100px] px-2 py-1.5 border border-gray-300 rounded text-sm" value={formData.contact || ''} onChange={e => setFormData({...formData, contact: e.target.value})} placeholder="Phone" />
-                  <input type="email" className="flex-1 min-w-[140px] px-2 py-1.5 border border-gray-300 rounded text-sm" value={formData.contact_person_email || ''} onChange={e => setFormData({...formData, contact_person_email: e.target.value})} placeholder="Email" />
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
+                  <input type="text" className="px-3 py-2 bg-white border border-slate-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs" value={formData.contact_person || ''} onChange={e => setFormData({...formData, contact_person: e.target.value})} placeholder="Contact 1" />
+                  <input type="text" className="px-3 py-2 bg-white border border-slate-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs" value={formData.contact_designation || ''} onChange={e => setFormData({...formData, contact_designation: e.target.value})} placeholder="Designation" />
+                  <input type="text" className="px-3 py-2 bg-white border border-slate-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs" value={formData.contact || ''} onChange={e => setFormData({...formData, contact: e.target.value})} placeholder="Phone" />
+                  <input type="email" className="px-3 py-2 bg-white border border-slate-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs" value={formData.contact_person_email || ''} onChange={e => setFormData({...formData, contact_person_email: e.target.value})} placeholder="Email" />
                 </div>
-                <div className="flex flex-wrap gap-2 mb-2">
-                  <input type="text" className="flex-1 min-w-[120px] px-2 py-1.5 border border-gray-300 rounded text-sm" value={formData.contact_person_2 || ''} onChange={e => setFormData({...formData, contact_person_2: e.target.value})} placeholder="Contact 2" />
-                  <input type="text" className="flex-1 min-w-[100px] px-2 py-1.5 border border-gray-300 rounded text-sm" value={formData.contact_designation_2 || ''} onChange={e => setFormData({...formData, contact_designation_2: e.target.value})} placeholder="Designation" />
-                  <input type="text" className="flex-1 min-w-[100px] px-2 py-1.5 border border-gray-300 rounded text-sm" value={formData.contact_person_2_contact || ''} onChange={e => setFormData({...formData, contact_person_2_contact: e.target.value})} placeholder="Phone" />
-                  <input type="email" className="flex-1 min-w-[140px] px-2 py-1.5 border border-gray-300 rounded text-sm" value={formData.contact_person_2_email || ''} onChange={e => setFormData({...formData, contact_person_2_email: e.target.value})} placeholder="Email" />
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
+                  <input type="text" className="px-3 py-2 bg-white border border-slate-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs" value={formData.contact_person_2 || ''} onChange={e => setFormData({...formData, contact_person_2: e.target.value})} placeholder="Contact 2" />
+                  <input type="text" className="px-3 py-2 bg-white border border-slate-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs" value={formData.contact_designation_2 || ''} onChange={e => setFormData({...formData, contact_designation_2: e.target.value})} placeholder="Designation" />
+                  <input type="text" className="px-3 py-2 bg-white border border-slate-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs" value={formData.contact_person_2_contact || ''} onChange={e => setFormData({...formData, contact_person_2_contact: e.target.value})} placeholder="Phone" />
+                  <input type="email" className="px-3 py-2 bg-white border border-slate-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs" value={formData.contact_person_2_email || ''} onChange={e => setFormData({...formData, contact_person_2_email: e.target.value})} placeholder="Email" />
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  <input type="text" className="flex-1 min-w-[120px] px-2 py-1.5 border border-gray-300 rounded text-sm" value={formData.purchase_person || ''} onChange={e => setFormData({...formData, purchase_person: e.target.value})} placeholder="Purchase Person" />
-                  <input type="text" className="flex-1 min-w-[100px] px-2 py-1.5 border border-gray-300 rounded text-sm" value={formData.purchase_designation || ''} onChange={e => setFormData({...formData, purchase_designation: e.target.value})} placeholder="Designation" />
-                  <input type="text" className="flex-1 min-w-[100px] px-2 py-1.5 border border-gray-300 rounded text-sm" value={formData.purchase_contact || ''} onChange={e => setFormData({...formData, purchase_contact: e.target.value})} placeholder="Phone" />
-                  <input type="email" className="flex-1 min-w-[140px] px-2 py-1.5 border border-gray-300 rounded text-sm" value={formData.purchase_email || ''} onChange={e => setFormData({...formData, purchase_email: e.target.value})} placeholder="Email" />
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  <input type="text" className="px-3 py-2 bg-white border border-slate-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs" value={formData.purchase_person || ''} onChange={e => setFormData({...formData, purchase_person: e.target.value})} placeholder="Purchase Person" />
+                  <input type="text" className="px-3 py-2 bg-white border border-slate-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs" value={formData.purchase_designation || ''} onChange={e => setFormData({...formData, purchase_designation: e.target.value})} placeholder="Designation" />
+                  <input type="text" className="px-3 py-2 bg-white border border-slate-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs" value={formData.purchase_contact || ''} onChange={e => setFormData({...formData, purchase_contact: e.target.value})} placeholder="Phone" />
+                  <input type="email" className="px-3 py-2 bg-white border border-slate-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs" value={formData.purchase_email || ''} onChange={e => setFormData({...formData, purchase_email: e.target.value})} placeholder="Email" />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">GST IN</label>
-                  <input type="text" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" value={formData.gstin || ''} onChange={handleGstChange} placeholder="15 characters" maxLength={15} />
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide">GST IN</label>
+                  <input type="text" className="w-full px-4 py-2.5 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all text-sm" value={formData.gstin || ''} onChange={handleGstChange} placeholder="15 characters" maxLength={15} />
                   {gstError && <span className="text-red-500 text-xs">{gstError}</span>}
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Vendor No</label>
-                  <input type="text" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" value={formData.vendor_no || ''} onChange={e => setFormData({...formData, vendor_no: e.target.value})} />
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide">Vendor No</label>
+                  <input type="text" className="w-full px-4 py-2.5 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all text-sm" value={formData.vendor_no || ''} onChange={e => setFormData({...formData, vendor_no: e.target.value})} />
                 </div>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-green-50 rounded-lg p-3 border border-green-200">
-                  <div className="text-sm font-semibold text-green-800 mb-2">Billing Address</div>
+                <div className="bg-gradient-to-br from-emerald-50 to-emerald-100/50 rounded-xl p-4 border border-emerald-200/50">
+                  <div className="flex items-center gap-2 mb-3">
+                    <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                    <div className="text-xs font-bold text-emerald-700 uppercase tracking-wide">Billing Address</div>
+                  </div>
                   <div className="space-y-2">
-                    <input type="text" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" value={formData.address1 || ''} onChange={e => setFormData({...formData, address1: e.target.value})} placeholder="Address Line 1" />
-                    <input type="text" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm" value={formData.address2 || ''} onChange={e => setFormData({...formData, address2: e.target.value})} placeholder="Address Line 2" />
+                    <input type="text" className="w-full px-3 py-2 bg-white/80 border border-emerald-200 rounded-lg focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all text-sm" value={formData.address1 || ''} onChange={e => setFormData({...formData, address1: e.target.value})} placeholder="Address Line 1" />
+                    <input type="text" className="w-full px-3 py-2 bg-white/80 border border-emerald-200 rounded-lg focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all text-sm" value={formData.address2 || ''} onChange={e => setFormData({...formData, address2: e.target.value})} placeholder="Address Line 2" />
                     <div className="grid grid-cols-3 gap-2">
-                      <select className="px-2 py-2 border border-gray-300 rounded-lg text-sm" value={formData.state || ''} onChange={e => setFormData({...formData, state: e.target.value})}>
+                      <select className="px-2 py-2 bg-white/80 border border-emerald-200 rounded-lg focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all text-xs" value={formData.state || ''} onChange={e => setFormData({...formData, state: e.target.value})}>
                         <option value="">State</option>
                         {indianStates.map(state => (<option key={state} value={state}>{state}</option>))}
                       </select>
-                      <input type="text" className="px-2 py-2 border border-gray-300 rounded-lg text-sm" value={formData.city || ''} onChange={e => setFormData({...formData, city: e.target.value})} placeholder="City" />
-                      <input type="text" className="px-2 py-2 border border-gray-300 rounded-lg text-sm" value={formData.pincode || ''} onChange={e => setFormData({...formData, pincode: e.target.value})} placeholder="Pincode" />
+                      <input type="text" className="px-2 py-2 bg-white/80 border border-emerald-200 rounded-lg focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all text-xs" value={formData.city || ''} onChange={e => setFormData({...formData, city: e.target.value})} placeholder="City" />
+                      <input type="text" className="px-2 py-2 bg-white/80 border border-emerald-200 rounded-lg focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all text-xs" value={formData.pincode || ''} onChange={e => setFormData({...formData, pincode: e.target.value})} placeholder="Pincode" />
                     </div>
                   </div>
                 </div>
                 
                 <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <div className="text-sm font-semibold text-gray-700">Shipping Addresses</div>
-                    <button type="button" className="text-sm text-blue-600 hover:text-blue-700" onClick={copyBillingToShipping}>Copy Billing</button>
+                  <div className="flex justify-between items-center mb-3">
+                    <div className="flex items-center gap-2">
+                      <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>
+                      <div className="text-xs font-bold text-slate-600 uppercase tracking-wide">Shipping Addresses</div>
+                    </div>
+                    <button type="button" className="text-xs font-medium text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition-all" onClick={copyBillingToShipping}>Copy Billing</button>
                   </div>
                   
                   {shippingAddresses.map(addr => (
-                    <div key={addr.id} className="bg-white border border-gray-200 rounded-lg p-2 mb-2">
+                    <div key={addr.id} className="bg-slate-50 border border-slate-200 rounded-xl p-3 mb-2 hover:shadow-md transition-all">
                       <div className="flex justify-between items-start">
                         <div>
-                          <div className="text-sm font-medium text-gray-900">{addr.address_name || 'Address'}{addr.is_default && <span className="ml-2 px-1.5 py-0.5 bg-blue-100 text-blue-700 text-xs rounded">Default</span>}</div>
-                          <div className="text-xs text-gray-500">{addr.address_line1} {addr.address_line2}</div>
-                          <div className="text-xs text-gray-500">{addr.city}, {addr.state} - {addr.pincode}</div>
+                          <div className="text-sm font-semibold text-slate-800">{addr.address_name || 'Address'}{addr.is_default && <span className="ml-2 px-2 py-0.5 bg-indigo-100 text-indigo-700 text-xs font-medium rounded-full">Default</span>}</div>
+                          <div className="text-xs text-slate-500 mt-1">{addr.address_line1} {addr.address_line2}</div>
+                          <div className="text-xs text-slate-500">{addr.city}, {addr.state} - {addr.pincode}</div>
                         </div>
-                        <button type="button" onClick={() => deleteShippingAddress(addr.id)} className="text-red-500 hover:text-red-700 text-sm">✕</button>
+                        <button type="button" onClick={() => deleteShippingAddress(addr.id)} className="text-slate-400 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-all">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
                       </div>
                     </div>
                   ))}
                   
                   {showShippingForm && (
-                    <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
-                      <div className="text-sm font-semibold text-blue-800 mb-2">Add Shipping Address</div>
+                    <div className="bg-gradient-to-br from-indigo-50 to-indigo-100/50 rounded-xl p-4 border border-indigo-200/50">
+                      <div className="flex items-center gap-2 mb-3">
+                        <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
+                        <div className="text-xs font-bold text-indigo-700 uppercase tracking-wide">Add Shipping Address</div>
+                      </div>
                       <div className="space-y-2">
                         <div className="grid grid-cols-2 gap-2">
-                          <input type="text" className="px-2 py-2 border border-gray-300 rounded-lg text-sm" value={newShipping.address_name} onChange={e => setNewShipping({...newShipping, address_name: e.target.value})} placeholder="Address Name" />
-                          <input type="text" className="px-2 py-2 border border-gray-300 rounded-lg text-sm" value={newShipping.contact} onChange={e => setNewShipping({...newShipping, contact: e.target.value})} placeholder="Contact" />
+                          <input type="text" className="px-3 py-2 bg-white border border-indigo-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs" value={newShipping.address_name} onChange={e => setNewShipping({...newShipping, address_name: e.target.value})} placeholder="Address Name" />
+                          <input type="text" className="px-3 py-2 bg-white border border-indigo-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs" value={newShipping.contact} onChange={e => setNewShipping({...newShipping, contact: e.target.value})} placeholder="Contact" />
                         </div>
-                        <input type="text" className="w-full px-2 py-2 border border-gray-300 rounded-lg text-sm" value={newShipping.address_line1} onChange={e => setNewShipping({...newShipping, address_line1: e.target.value})} placeholder="Address Line 1" />
-                        <input type="text" className="w-full px-2 py-2 border border-gray-300 rounded-lg text-sm" value={newShipping.address_line2} onChange={e => setNewShipping({...newShipping, address_line2: e.target.value})} placeholder="Address Line 2" />
+                        <input type="text" className="w-full px-3 py-2 bg-white border border-indigo-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs" value={newShipping.address_line1} onChange={e => setNewShipping({...newShipping, address_line1: e.target.value})} placeholder="Address Line 1" />
+                        <input type="text" className="w-full px-3 py-2 bg-white border border-indigo-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs" value={newShipping.address_line2} onChange={e => setNewShipping({...newShipping, address_line2: e.target.value})} placeholder="Address Line 2" />
                         <div className="grid grid-cols-3 gap-2">
-                          <select className="px-2 py-2 border border-gray-300 rounded-lg text-sm" value={newShipping.state} onChange={e => setNewShipping({...newShipping, state: e.target.value})}>
+                          <select className="px-2 py-2 bg-white border border-indigo-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs" value={newShipping.state} onChange={e => setNewShipping({...newShipping, state: e.target.value})}>
                             <option value="">State</option>
                             {indianStates.map(state => (<option key={state} value={state}>{state}</option>))}
                           </select>
-                          <input type="text" className="px-2 py-2 border border-gray-300 rounded-lg text-sm" value={newShipping.city} onChange={e => setNewShipping({...newShipping, city: e.target.value})} placeholder="City" />
-                          <input type="text" className="px-2 py-2 border border-gray-300 rounded-lg text-sm" value={newShipping.pincode} onChange={e => setNewShipping({...newShipping, pincode: e.target.value})} placeholder="Pincode" />
+                          <input type="text" className="px-2 py-2 bg-white border border-indigo-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs" value={newShipping.city} onChange={e => setNewShipping({...newShipping, city: e.target.value})} placeholder="City" />
+                          <input type="text" className="px-2 py-2 bg-white border border-indigo-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs" value={newShipping.pincode} onChange={e => setNewShipping({...newShipping, pincode: e.target.value})} placeholder="Pincode" />
                         </div>
                         <div className="flex gap-2">
-                          <button type="button" className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700" onClick={addShippingAddress}>Save</button>
-                          <button type="button" className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200" onClick={() => setShowShippingForm(false)}>Cancel</button>
+                          <button type="button" className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-xs font-semibold hover:bg-indigo-700 shadow-lg shadow-indigo-500/30 transition-all" onClick={addShippingAddress}>Save</button>
+                          <button type="button" className="px-4 py-2 bg-white text-slate-600 border border-slate-200 rounded-lg text-xs font-semibold hover:bg-slate-50 transition-all" onClick={() => setShowShippingForm(false)}>Cancel</button>
                         </div>
                       </div>
                     </div>
                   )}
                   
                   {!showShippingForm && shippingAddresses.length === 0 && (
-                    <button type="button" className="w-full py-2 border-2 border-dashed border-gray-300 rounded-lg text-sm text-gray-500 hover:border-gray-400 hover:text-gray-600" onClick={() => setShowShippingForm(true)}>+ Add Shipping</button>
+                    <button type="button" className="w-full py-3 border-2 border-dashed border-slate-300 rounded-xl text-sm text-slate-500 hover:border-indigo-400 hover:text-indigo-500 hover:bg-indigo-50/50 transition-all" onClick={() => setShowShippingForm(true)}>
+                      <span className="flex items-center justify-center gap-2">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
+                        Add Shipping Address
+                      </span>
+                    </button>
                   )}
                 </div>
               </div>
               
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Remarks</label>
-                <textarea className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" rows={2} value={formData.remarks || ''} onChange={e => setFormData({...formData, remarks: e.target.value})} />
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide">Remarks</label>
+                <textarea className="w-full px-4 py-2.5 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all text-sm" rows={2} value={formData.remarks || ''} onChange={e => setFormData({...formData, remarks: e.target.value})} />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">About Client</label>
-                <textarea className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" rows={2} value={formData.about_client || ''} onChange={e => setFormData({...formData, about_client: e.target.value})} placeholder="Additional information..." />
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide">About Client</label>
+                <textarea className="w-full px-4 py-2.5 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all text-sm" rows={2} value={formData.about_client || ''} onChange={e => setFormData({...formData, about_client: e.target.value})} placeholder="Additional information..." />
               </div>
               <div className="flex gap-3 pt-2">
-                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50" disabled={saving}>
+                <button type="submit" className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 shadow-lg shadow-indigo-500/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all" disabled={saving}>
                   {editMode ? 'Update Client' : 'Submit'}
                 </button>
                 {editMode && (
-                  <button type="button" className="px-4 py-2 bg-red-50 text-red-600 border border-red-200 rounded-lg text-sm font-medium hover:bg-red-100" onClick={deleteClient} disabled={saving}>
+                  <button type="button" className="px-6 py-2.5 bg-red-50 text-red-600 border border-red-200 rounded-xl text-sm font-semibold hover:bg-red-100 transition-all" onClick={deleteClient} disabled={saving}>
                     Delete
                   </button>
                 )}
-                <button type="button" className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200" onClick={onCancel} disabled={saving}>Cancel</button>
+                <button type="button" className="px-6 py-2.5 bg-white text-slate-600 border-2 border-slate-200 rounded-xl text-sm font-semibold hover:bg-slate-50 hover:border-slate-300 transition-all" onClick={onCancel} disabled={saving}>Cancel</button>
               </div>
             </form>
           ) : (
