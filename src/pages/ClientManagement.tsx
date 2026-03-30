@@ -3,6 +3,23 @@ import type { ChangeEvent, FormEvent } from 'react';
 import { supabase } from '../supabase';
 import { useAuth } from '../App';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { 
+  Building2, 
+  MapPin, 
+  Phone, 
+  Mail, 
+  User, 
+  Briefcase,
+  CreditCard,
+  Tag,
+  Plus,
+  Trash2,
+  ChevronLeft,
+  Save,
+  AlertCircle,
+  CheckCircle2,
+  X
+} from 'lucide-react';
 
 function getCurrentQueryParams() {
   const hashQuery = window.location.hash.split('?')[1];
@@ -42,8 +59,17 @@ export function CreateClientEdit({ onSuccess, onCancel }: CreateClientEditProps)
     enabled: !!clientId
   });
 
-  if (clientQuery.isLoading) return <div>Loading...</div>;
-  if (clientQuery.isError) return <div>Error loading client.</div>;
+  if (clientQuery.isLoading) return (
+    <div className="flex items-center justify-center h-64">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+    </div>
+  );
+  if (clientQuery.isError) return (
+    <div className="flex items-center justify-center h-64 text-red-500">
+      <AlertCircle className="w-5 h-5 mr-2" />
+      Error loading client.
+    </div>
+  );
 
   return <CreateClient editMode={true} clientData={clientQuery.data} onSuccess={onSuccess} onCancel={onCancel} />;
 }
@@ -157,90 +183,96 @@ function ClientDiscountPortfolio({ formData, setFormData, isAdmin }: ClientDisco
   };
 
   return (
-    <div className="pricing-control">
-      <div className="card" style={{ maxWidth: '600px', marginBottom: '12px' }}>
-        <h3 style={{ fontSize: '16px', marginBottom: '8px' }}>Discount Portfolio</h3>
-        <div className="form-group">
-          <label className="form-label">Discount Type *</label>
-          <select 
-            className="form-select" 
-            value={formData.discount_type || 'Special'} 
-            onChange={e => setFormData({...formData, discount_type: e.target.value, standard_pricelist_id: e.target.value === 'Standard' ? formData.standard_pricelist_id : null})}
-            disabled={!isAdmin}
-          >
-            <option value="Standard">Standard (Price List Based)</option>
-            <option value="Premium">Premium (Variant Based)</option>
-            <option value="Bulk">Bulk (Variant Based)</option>
-            <option value="Special">Special (Variant Based)</option>
-          </select>
+    <div className="space-y-4">
+      {/* Discount Type Card */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+        <div className="flex items-center gap-2 mb-3">
+          <Tag className="w-4 h-4 text-blue-600" />
+          <h3 className="text-sm font-semibold text-gray-900">Discount Portfolio</h3>
         </div>
-
-        {formData.discount_type === 'Standard' && (
-          <div className="form-group" style={{ marginTop: '8px' }}>
-            <label className="form-label">Select Standard Price List *</label>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Discount Type</label>
             <select 
-              className="form-select" 
-              value={formData.standard_pricelist_id || ''} 
-              onChange={e => setFormData({...formData, standard_pricelist_id: e.target.value})}
-              required
+              className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+              value={formData.discount_type || 'Special'} 
+              onChange={e => setFormData({...formData, discount_type: e.target.value, standard_pricelist_id: e.target.value === 'Standard' ? formData.standard_pricelist_id : null})}
               disabled={!isAdmin}
             >
-              <option value="">-- Select Price List --</option>
-              {pricelists.map(pl => (
-                <option key={pl.id} value={pl.id}>{pl.pricelist_name} ({pl.discount_percent}%)</option>
-              ))}
+              <option value="Standard">Standard (Price List Based)</option>
+              <option value="Premium">Premium (Variant Based)</option>
+              <option value="Bulk">Bulk (Variant Based)</option>
+              <option value="Special">Special (Variant Based)</option>
             </select>
           </div>
-        )}
+
+          {formData.discount_type === 'Standard' && (
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Select Standard Price List</label>
+              <select 
+                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                value={formData.standard_pricelist_id || ''} 
+                onChange={e => setFormData({...formData, standard_pricelist_id: e.target.value})}
+                required
+                disabled={!isAdmin}
+              >
+                <option value="">-- Select Price List --</option>
+                {pricelists.map(pl => (
+                  <option key={pl.id} value={pl.id}>{pl.pricelist_name} ({pl.discount_percent}%)</option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Custom Discounts Section */}
-      <div className="card" style={{ marginBottom: '12px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-          <h3 style={{ fontSize: '14px', margin: 0 }}>Custom Discounts (Per Variant)</h3>
+      {/* Custom Discounts Card */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <CreditCard className="w-4 h-4 text-blue-600" />
+            <h3 className="text-sm font-semibold text-gray-900">Custom Discounts (Per Variant)</h3>
+          </div>
           <button 
-            className="btn btn-primary btn-sm" 
+            className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
             onClick={handleSaveCustomDiscounts}
             disabled={saving || !formData.id}
-            style={{ padding: '4px 12px', fontSize: '12px' }}
           >
-            {saving ? 'Saving...' : 'Save Discounts'}
+            <Save className="w-3 h-3" />
+            {saving ? 'Saving...' : 'Save'}
           </button>
         </div>
         
         {saveMessage.text && (
-          <div style={{ 
-            padding: '8px 12px', 
-            marginBottom: '8px', 
-            borderRadius: '4px', 
-            fontSize: '12px',
-            background: saveMessage.type === 'success' ? '#dcfce7' : '#fee2e2',
-            color: saveMessage.type === 'success' ? '#166534' : '#dc2626'
-          }}>
+          <div className={`flex items-center gap-2 px-3 py-2 mb-3 rounded-lg text-xs ${
+            saveMessage.type === 'success' 
+              ? 'bg-green-50 text-green-700 border border-green-200' 
+              : 'bg-red-50 text-red-700 border border-red-200'
+          }`}>
+            {saveMessage.type === 'success' ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
             {saveMessage.text}
           </div>
         )}
 
-        <div className="table-container" style={{ maxHeight: '200px', overflow: 'auto' }}>
-          <table className="table" style={{ fontSize: '12px' }}>
-            <thead>
+        <div className="border border-gray-200 rounded-lg overflow-hidden max-h-[200px] overflow-y-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 sticky top-0">
               <tr>
-                <th style={{ width: '60%' }}>Variant</th>
-                <th style={{ width: '40%' }}>Discount %</th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-gray-600">Variant</th>
+                <th className="px-3 py-2 text-right text-xs font-medium text-gray-600 w-24">Discount %</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-gray-100">
               {variants.length === 0 ? (
-                <tr><td colSpan="2" style={{ textAlign: 'center' }}>No variants found</td></tr>
+                <tr><td colSpan={2} className="px-3 py-4 text-center text-sm text-gray-400">No variants found</td></tr>
               ) : (
                 variants.map(v => (
-                  <tr key={v.id}>
-                    <td>{v.variant_name}</td>
-                    <td>
+                  <tr key={v.id} className="hover:bg-gray-50">
+                    <td className="px-3 py-2 text-sm text-gray-900">{v.variant_name}</td>
+                    <td className="px-3 py-2">
                       <input 
                         type="number" 
-                        className="form-input" 
-                        style={{ width: '80px', textAlign: 'right', padding: '4px 8px', fontSize: '12px' }}
+                        className="w-20 px-2 py-1 text-right bg-white border border-gray-200 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         value={customDiscounts[v.id] || 0}
                         onChange={(e) => handleCustomDiscountChange(v.id, e.target.value)}
                         min="0"
@@ -256,30 +288,41 @@ function ClientDiscountPortfolio({ formData, setFormData, isAdmin }: ClientDisco
         </div>
       </div>
 
-      <div className="card">
-        <h3 style={{ fontSize: '14px', marginBottom: '6px' }}>Portfolio Preview</h3>
+      {/* Portfolio Preview Card */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+        <h3 className="text-sm font-semibold text-gray-900 mb-3">Portfolio Preview</h3>
         {formData.discount_type === 'Standard' ? (
-          <div style={{ padding: '12px', background: '#f8fafc', borderRadius: '6px' }}>
-            <p style={{ fontSize: '13px', margin: 0 }}>
-              <strong>Standard Discount:</strong> {pricelists.find(pl => pl.id === formData.standard_pricelist_id)?.discount_percent || 0}% flat on all items.
+          <div className="bg-blue-50 border border-blue-100 rounded-lg p-3">
+            <p className="text-sm text-gray-700">
+              <span className="font-medium">Standard Discount:</span> {pricelists.find(pl => pl.id === formData.standard_pricelist_id)?.discount_percent || 0}% flat on all items.
             </p>
           </div>
         ) : (
-          <div className="table-container">
-            <table className="table" style={{ fontSize: '12px' }}>
-              <thead><tr><th style={{ width: '40%' }}>Variant</th><th style={{ width: '20%' }}>Default %</th><th style={{ width: '20%' }}>Min %</th><th style={{ width: '20%' }}>Max %</th></tr></thead>
-              <tbody>
-                {loading ? <tr><td colSpan="4" style={{ textAlign: 'center' }}>Loading...</td></tr> : 
-                 previewSettings.length === 0 ? <tr><td colSpan="4" style={{ textAlign: 'center' }}>No settings found.</td></tr> :
-                 previewSettings.map(s => (
-                  <tr key={s.id}>
-                    <td>{s.variant?.variant_name}</td>
-                    <td>{s.default_discount_percent}%</td>
-                    <td>{s.min_discount_percent}%</td>
-                    <td>{s.max_discount_percent}%</td>
-                  </tr>
-                ))
-                }
+          <div className="border border-gray-200 rounded-lg overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-600">Variant</th>
+                  <th className="px-3 py-2 text-right text-xs font-medium text-gray-600">Default %</th>
+                  <th className="px-3 py-2 text-right text-xs font-medium text-gray-600">Min %</th>
+                  <th className="px-3 py-2 text-right text-xs font-medium text-gray-600">Max %</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {loading ? (
+                  <tr><td colSpan={4} className="px-3 py-4 text-center text-sm text-gray-400">Loading...</td></tr>
+                ) : previewSettings.length === 0 ? (
+                  <tr><td colSpan={4} className="px-3 py-4 text-center text-sm text-gray-400">No settings found.</td></tr>
+                ) : (
+                  previewSettings.map(s => (
+                    <tr key={s.id} className="hover:bg-gray-50">
+                      <td className="px-3 py-2 text-sm text-gray-900">{s.variant?.variant_name}</td>
+                      <td className="px-3 py-2 text-sm text-gray-600 text-right">{s.default_discount_percent}%</td>
+                      <td className="px-3 py-2 text-sm text-gray-600 text-right">{s.min_discount_percent}%</td>
+                      <td className="px-3 py-2 text-sm text-gray-600 text-right">{s.max_discount_percent}%</td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -292,7 +335,7 @@ function ClientDiscountPortfolio({ formData, setFormData, isAdmin }: ClientDisco
 export function CreateClient({ onSuccess, onCancel, editMode, clientData }: CreateClientProps) {
   const { organisation, organisations } = useAuth();
   const queryClient = useQueryClient();
-  const isAdmin = organisations?.find(o => o.organisation.id === organisation?.id)?.role?.toLowerCase() === 'admin';
+  const isAdmin = organisations?.find(o => o.organisation?.id === organisation?.id)?.role?.toString().toLowerCase() === 'admin';
   const [activeTab, setActiveTab] = useState('general');
 
   const [formData, setFormData] = useState<any>({ 
@@ -345,7 +388,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
     'Delhi', 'Jammu and Kashmir', 'Ladakh', 'Puducherry'
   ];
 
-  const gstStateCodes = {
+  const gstStateCodes: Record<string, string> = {
     '01': 'Jammu and Kashmir', '02': 'Himachal Pradesh', '03': 'Punjab', '04': 'Chandigarh',
     '05': 'Uttarakhand', '06': 'Haryana', '07': 'Delhi', '08': 'Rajasthan',
     '09': 'Uttar Pradesh', '10': 'Bihar', '11': 'Sikkim', '12': 'Arunachal Pradesh',
@@ -471,201 +514,495 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4 md:p-6 font-inter">
-      <div className="max-w-4xl mx-auto">
-        <div className="mb-5">
-          <h1 className="text-2xl font-bold text-slate-800">{editMode ? 'Edit Client' : 'Create Client'}</h1>
-          <p className="text-sm text-slate-500">{editMode ? 'Update client information' : 'Add a new client to your organization'}</p>
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
+        <div className="max-w-5xl mx-auto px-4 py-3">
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={onCancel}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <ChevronLeft className="w-5 h-5 text-gray-600" />
+            </button>
+            <div>
+              <h1 className="text-lg font-semibold text-gray-900">
+                {editMode ? 'Edit Client' : 'Create Client'}
+              </h1>
+              <p className="text-xs text-gray-500">
+                {editMode ? 'Update client information' : 'Add a new client to your organization'}
+              </p>
+            </div>
+          </div>
         </div>
+      </div>
 
-        <div className="flex gap-1 p-1 bg-slate-200/50 rounded-xl mb-5 backdrop-blur-sm">
-          <button
-            type="button"
-            onClick={() => setActiveTab('general')}
-            className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${activeTab === 'general' ? 'bg-white text-indigo-600 shadow-lg shadow-indigo-500/20' : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'}`}
-          >
-            General
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('pricing')}
-            className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${activeTab === 'pricing' ? 'bg-white text-indigo-600 shadow-lg shadow-indigo-500/20' : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'}`}
-          >
-            Pricing
-          </button>
+      {/* Tabs */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-5xl mx-auto px-4">
+          <div className="flex gap-6">
+            <button
+              type="button"
+              onClick={() => setActiveTab('general')}
+              className={`py-3 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === 'general' 
+                  ? 'border-blue-600 text-blue-600' 
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              General
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('pricing')}
+              className={`py-3 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === 'pricing' 
+                  ? 'border-blue-600 text-blue-600' 
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Pricing
+            </button>
+          </div>
         </div>
+      </div>
 
-        <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100 p-5 md:p-6">
-          {activeTab === 'general' ? (
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide">Client Name <span className="text-red-500">*</span></label>
-                  <input type="text" className="w-full px-4 py-2.5 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all text-sm" value={formData.client_name} onChange={e => setFormData({...formData, client_name: e.target.value})} required />
+      {/* Content */}
+      <div className="max-w-5xl mx-auto px-4 py-4">
+        {activeTab === 'general' ? (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Basic Info Card */}
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Building2 className="w-4 h-4 text-blue-600" />
+                <h2 className="text-sm font-semibold text-gray-900">Basic Information</h2>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Client Name <span className="text-red-500">*</span></label>
+                  <input 
+                    type="text" 
+                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                    value={formData.client_name} 
+                    onChange={e => setFormData({...formData, client_name: e.target.value})} 
+                    required 
+                  />
                 </div>
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide">Category</label>
-                  <select className="w-full px-4 py-2.5 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all text-sm" value={formData.category || 'Active'} onChange={e => setFormData({...formData, category: e.target.value})}>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Category</label>
+                  <select 
+                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                    value={formData.category || 'Active'} 
+                    onChange={e => setFormData({...formData, category: e.target.value})}
+                  >
                     <option value="Active">Active</option>
                     <option value="Inactive">Inactive</option>
                     <option value="Prospect">Prospect</option>
                   </select>
                 </div>
               </div>
-              
-              <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl p-4 border border-slate-200/50">
-                <div className="flex items-center gap-2 mb-3">
-                  <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-                  <span className="text-xs font-bold text-slate-600 uppercase tracking-wide">Contact Persons</span>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
-                  <input type="text" className="px-3 py-2 bg-white border border-slate-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs" value={formData.contact_person || ''} onChange={e => setFormData({...formData, contact_person: e.target.value})} placeholder="Contact 1" />
-                  <input type="text" className="px-3 py-2 bg-white border border-slate-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs" value={formData.contact_designation || ''} onChange={e => setFormData({...formData, contact_designation: e.target.value})} placeholder="Designation" />
-                  <input type="text" className="px-3 py-2 bg-white border border-slate-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs" value={formData.contact || ''} onChange={e => setFormData({...formData, contact: e.target.value})} placeholder="Phone" />
-                  <input type="email" className="px-3 py-2 bg-white border border-slate-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs" value={formData.contact_person_email || ''} onChange={e => setFormData({...formData, contact_person_email: e.target.value})} placeholder="Email" />
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
-                  <input type="text" className="px-3 py-2 bg-white border border-slate-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs" value={formData.contact_person_2 || ''} onChange={e => setFormData({...formData, contact_person_2: e.target.value})} placeholder="Contact 2" />
-                  <input type="text" className="px-3 py-2 bg-white border border-slate-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs" value={formData.contact_designation_2 || ''} onChange={e => setFormData({...formData, contact_designation_2: e.target.value})} placeholder="Designation" />
-                  <input type="text" className="px-3 py-2 bg-white border border-slate-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs" value={formData.contact_person_2_contact || ''} onChange={e => setFormData({...formData, contact_person_2_contact: e.target.value})} placeholder="Phone" />
-                  <input type="email" className="px-3 py-2 bg-white border border-slate-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs" value={formData.contact_person_2_email || ''} onChange={e => setFormData({...formData, contact_person_2_email: e.target.value})} placeholder="Email" />
-                </div>
+            </div>
+
+            {/* Contact Persons Card */}
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <User className="w-4 h-4 text-blue-600" />
+                <h2 className="text-sm font-semibold text-gray-900">Contact Persons</h2>
+              </div>
+              <div className="space-y-2">
+                {/* Contact 1 */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                  <input type="text" className="px-3 py-2 bg-white border border-slate-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs" value={formData.purchase_person || ''} onChange={e => setFormData({...formData, purchase_person: e.target.value})} placeholder="Purchase Person" />
-                  <input type="text" className="px-3 py-2 bg-white border border-slate-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs" value={formData.purchase_designation || ''} onChange={e => setFormData({...formData, purchase_designation: e.target.value})} placeholder="Designation" />
-                  <input type="text" className="px-3 py-2 bg-white border border-slate-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs" value={formData.purchase_contact || ''} onChange={e => setFormData({...formData, purchase_contact: e.target.value})} placeholder="Phone" />
-                  <input type="email" className="px-3 py-2 bg-white border border-slate-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs" value={formData.purchase_email || ''} onChange={e => setFormData({...formData, purchase_email: e.target.value})} placeholder="Email" />
+                  <input 
+                    type="text" 
+                    className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                    value={formData.contact_person || ''} 
+                    onChange={e => setFormData({...formData, contact_person: e.target.value})} 
+                    placeholder="Name"
+                  />
+                  <input 
+                    type="text" 
+                    className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                    value={formData.contact_designation || ''} 
+                    onChange={e => setFormData({...formData, contact_designation: e.target.value})} 
+                    placeholder="Designation"
+                  />
+                  <input 
+                    type="text" 
+                    className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                    value={formData.contact || ''} 
+                    onChange={e => setFormData({...formData, contact: e.target.value})} 
+                    placeholder="Phone"
+                  />
+                  <input 
+                    type="email" 
+                    className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                    value={formData.contact_person_email || ''} 
+                    onChange={e => setFormData({...formData, contact_person_email: e.target.value})} 
+                    placeholder="Email"
+                  />
+                </div>
+                {/* Contact 2 */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  <input 
+                    type="text" 
+                    className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                    value={formData.contact_person_2 || ''} 
+                    onChange={e => setFormData({...formData, contact_person_2: e.target.value})} 
+                    placeholder="Name 2"
+                  />
+                  <input 
+                    type="text" 
+                    className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                    value={formData.contact_designation_2 || ''} 
+                    onChange={e => setFormData({...formData, contact_designation_2: e.target.value})} 
+                    placeholder="Designation"
+                  />
+                  <input 
+                    type="text" 
+                    className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                    value={formData.contact_person_2_contact || ''} 
+                    onChange={e => setFormData({...formData, contact_person_2_contact: e.target.value})} 
+                    placeholder="Phone"
+                  />
+                  <input 
+                    type="email" 
+                    className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                    value={formData.contact_person_2_email || ''} 
+                    onChange={e => setFormData({...formData, contact_person_2_email: e.target.value})} 
+                    placeholder="Email"
+                  />
+                </div>
+                {/* Purchase Contact */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  <input 
+                    type="text" 
+                    className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                    value={formData.purchase_person || ''} 
+                    onChange={e => setFormData({...formData, purchase_person: e.target.value})} 
+                    placeholder="Purchase Person"
+                  />
+                  <input 
+                    type="text" 
+                    className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                    value={formData.purchase_designation || ''} 
+                    onChange={e => setFormData({...formData, purchase_designation: e.target.value})} 
+                    placeholder="Designation"
+                  />
+                  <input 
+                    type="text" 
+                    className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                    value={formData.purchase_contact || ''} 
+                    onChange={e => setFormData({...formData, purchase_contact: e.target.value})} 
+                    placeholder="Phone"
+                  />
+                  <input 
+                    type="email" 
+                    className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                    value={formData.purchase_email || ''} 
+                    onChange={e => setFormData({...formData, purchase_email: e.target.value})} 
+                    placeholder="Email"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* GST & Vendor Card */}
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <CreditCard className="w-4 h-4 text-blue-600" />
+                <h2 className="text-sm font-semibold text-gray-900">Tax & Vendor Info</h2>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">GSTIN</label>
+                  <input 
+                    type="text" 
+                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                    value={formData.gstin || ''} 
+                    onChange={handleGstChange}
+                    placeholder="15 characters"
+                    maxLength={15}
+                  />
+                  {gstError && <span className="text-red-500 text-xs mt-1">{gstError}</span>}
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Vendor No</label>
+                  <input 
+                    type="text" 
+                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                    value={formData.vendor_no || ''} 
+                    onChange={e => setFormData({...formData, vendor_no: e.target.value})}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Addresses Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Billing Address */}
+              <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <MapPin className="w-4 h-4 text-emerald-600" />
+                  <h2 className="text-sm font-semibold text-gray-900">Billing Address</h2>
+                </div>
+                <div className="space-y-2">
+                  <input 
+                    type="text" 
+                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
+                    value={formData.address1 || ''} 
+                    onChange={e => setFormData({...formData, address1: e.target.value})}
+                    placeholder="Address Line 1"
+                  />
+                  <input 
+                    type="text" 
+                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
+                    value={formData.address2 || ''} 
+                    onChange={e => setFormData({...formData, address2: e.target.value})}
+                    placeholder="Address Line 2"
+                  />
+                  <div className="grid grid-cols-3 gap-2">
+                    <select 
+                      className="px-2 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
+                      value={formData.state || ''} 
+                      onChange={e => setFormData({...formData, state: e.target.value})}
+                    >
+                      <option value="">State</option>
+                      {indianStates.map(state => (<option key={state} value={state}>{state}</option>))}
+                    </select>
+                    <input 
+                      type="text" 
+                      className="px-2 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
+                      value={formData.city || ''} 
+                      onChange={e => setFormData({...formData, city: e.target.value})}
+                      placeholder="City"
+                    />
+                    <input 
+                      type="text" 
+                      className="px-2 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
+                      value={formData.pincode || ''} 
+                      onChange={e => setFormData({...formData, pincode: e.target.value})}
+                      placeholder="Pincode"
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide">GST IN</label>
-                  <input type="text" className="w-full px-4 py-2.5 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all text-sm" value={formData.gstin || ''} onChange={handleGstChange} placeholder="15 characters" maxLength={15} />
-                  {gstError && <span className="text-red-500 text-xs">{gstError}</span>}
-                </div>
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide">Vendor No</label>
-                  <input type="text" className="w-full px-4 py-2.5 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all text-sm" value={formData.vendor_no || ''} onChange={e => setFormData({...formData, vendor_no: e.target.value})} />
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-gradient-to-br from-emerald-50 to-emerald-100/50 rounded-xl p-4 border border-emerald-200/50">
-                  <div className="flex items-center gap-2 mb-3">
-                    <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                    <div className="text-xs font-bold text-emerald-700 uppercase tracking-wide">Billing Address</div>
+              {/* Shipping Addresses */}
+              <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Briefcase className="w-4 h-4 text-blue-600" />
+                    <h2 className="text-sm font-semibold text-gray-900">Shipping Addresses</h2>
                   </div>
-                  <div className="space-y-2">
-                    <input type="text" className="w-full px-3 py-2 bg-white/80 border border-emerald-200 rounded-lg focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all text-sm" value={formData.address1 || ''} onChange={e => setFormData({...formData, address1: e.target.value})} placeholder="Address Line 1" />
-                    <input type="text" className="w-full px-3 py-2 bg-white/80 border border-emerald-200 rounded-lg focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all text-sm" value={formData.address2 || ''} onChange={e => setFormData({...formData, address2: e.target.value})} placeholder="Address Line 2" />
-                    <div className="grid grid-cols-3 gap-2">
-                      <select className="px-2 py-2 bg-white/80 border border-emerald-200 rounded-lg focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all text-xs" value={formData.state || ''} onChange={e => setFormData({...formData, state: e.target.value})}>
-                        <option value="">State</option>
-                        {indianStates.map(state => (<option key={state} value={state}>{state}</option>))}
-                      </select>
-                      <input type="text" className="px-2 py-2 bg-white/80 border border-emerald-200 rounded-lg focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all text-xs" value={formData.city || ''} onChange={e => setFormData({...formData, city: e.target.value})} placeholder="City" />
-                      <input type="text" className="px-2 py-2 bg-white/80 border border-emerald-200 rounded-lg focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all text-xs" value={formData.pincode || ''} onChange={e => setFormData({...formData, pincode: e.target.value})} placeholder="Pincode" />
-                    </div>
-                  </div>
+                  <button 
+                    type="button" 
+                    className="text-xs font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-2 py-1 rounded transition-all"
+                    onClick={copyBillingToShipping}
+                  >
+                    Copy Billing
+                  </button>
                 </div>
                 
-                <div>
-                  <div className="flex justify-between items-center mb-3">
-                    <div className="flex items-center gap-2">
-                      <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>
-                      <div className="text-xs font-bold text-slate-600 uppercase tracking-wide">Shipping Addresses</div>
-                    </div>
-                    <button type="button" className="text-xs font-medium text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition-all" onClick={copyBillingToShipping}>Copy Billing</button>
-                  </div>
-                  
+                <div className="space-y-2 max-h-[200px] overflow-y-auto">
                   {shippingAddresses.map(addr => (
-                    <div key={addr.id} className="bg-slate-50 border border-slate-200 rounded-xl p-3 mb-2 hover:shadow-md transition-all">
+                    <div key={addr.id} className="bg-gray-50 border border-gray-200 rounded-lg p-3">
                       <div className="flex justify-between items-start">
                         <div>
-                          <div className="text-sm font-semibold text-slate-800">{addr.address_name || 'Address'}{addr.is_default && <span className="ml-2 px-2 py-0.5 bg-indigo-100 text-indigo-700 text-xs font-medium rounded-full">Default</span>}</div>
-                          <div className="text-xs text-slate-500 mt-1">{addr.address_line1} {addr.address_line2}</div>
-                          <div className="text-xs text-slate-500">{addr.city}, {addr.state} - {addr.pincode}</div>
+                          <div className="text-sm font-medium text-gray-900">
+                            {addr.address_name || 'Address'}
+                            {addr.is_default && (
+                              <span className="ml-2 px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">Default</span>
+                            )}
+                          </div>
+                          <div className="text-xs text-gray-500 mt-0.5">{addr.address_line1} {addr.address_line2}</div>
+                          <div className="text-xs text-gray-500">{addr.city}, {addr.state} - {addr.pincode}</div>
                         </div>
-                        <button type="button" onClick={() => deleteShippingAddress(addr.id)} className="text-slate-400 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-all">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                        <button 
+                          type="button" 
+                          onClick={() => deleteShippingAddress(addr.id)} 
+                          className="text-gray-400 hover:text-red-500 p-1 hover:bg-red-50 rounded transition-all"
+                        >
+                          <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
                     </div>
                   ))}
                   
                   {showShippingForm && (
-                    <div className="bg-gradient-to-br from-indigo-50 to-indigo-100/50 rounded-xl p-4 border border-indigo-200/50">
-                      <div className="flex items-center gap-2 mb-3">
-                        <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
-                        <div className="text-xs font-bold text-indigo-700 uppercase tracking-wide">Add Shipping Address</div>
-                      </div>
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                       <div className="space-y-2">
                         <div className="grid grid-cols-2 gap-2">
-                          <input type="text" className="px-3 py-2 bg-white border border-indigo-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs" value={newShipping.address_name} onChange={e => setNewShipping({...newShipping, address_name: e.target.value})} placeholder="Address Name" />
-                          <input type="text" className="px-3 py-2 bg-white border border-indigo-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs" value={newShipping.contact} onChange={e => setNewShipping({...newShipping, contact: e.target.value})} placeholder="Contact" />
+                          <input 
+                            type="text" 
+                            className="px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                            value={newShipping.address_name} 
+                            onChange={e => setNewShipping({...newShipping, address_name: e.target.value})}
+                            placeholder="Address Name"
+                          />
+                          <input 
+                            type="text" 
+                            className="px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                            value={newShipping.contact} 
+                            onChange={e => setNewShipping({...newShipping, contact: e.target.value})}
+                            placeholder="Contact"
+                          />
                         </div>
-                        <input type="text" className="w-full px-3 py-2 bg-white border border-indigo-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs" value={newShipping.address_line1} onChange={e => setNewShipping({...newShipping, address_line1: e.target.value})} placeholder="Address Line 1" />
-                        <input type="text" className="w-full px-3 py-2 bg-white border border-indigo-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs" value={newShipping.address_line2} onChange={e => setNewShipping({...newShipping, address_line2: e.target.value})} placeholder="Address Line 2" />
+                        <input 
+                          type="text" 
+                          className="w-full px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                          value={newShipping.address_line1} 
+                          onChange={e => setNewShipping({...newShipping, address_line1: e.target.value})}
+                          placeholder="Address Line 1"
+                        />
+                        <input 
+                          type="text" 
+                          className="w-full px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                          value={newShipping.address_line2} 
+                          onChange={e => setNewShipping({...newShipping, address_line2: e.target.value})}
+                          placeholder="Address Line 2"
+                        />
                         <div className="grid grid-cols-3 gap-2">
-                          <select className="px-2 py-2 bg-white border border-indigo-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs" value={newShipping.state} onChange={e => setNewShipping({...newShipping, state: e.target.value})}>
+                          <select 
+                            className="px-2 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                            value={newShipping.state} 
+                            onChange={e => setNewShipping({...newShipping, state: e.target.value})}
+                          >
                             <option value="">State</option>
                             {indianStates.map(state => (<option key={state} value={state}>{state}</option>))}
                           </select>
-                          <input type="text" className="px-2 py-2 bg-white border border-indigo-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs" value={newShipping.city} onChange={e => setNewShipping({...newShipping, city: e.target.value})} placeholder="City" />
-                          <input type="text" className="px-2 py-2 bg-white border border-indigo-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs" value={newShipping.pincode} onChange={e => setNewShipping({...newShipping, pincode: e.target.value})} placeholder="Pincode" />
+                          <input 
+                            type="text" 
+                            className="px-2 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                            value={newShipping.city} 
+                            onChange={e => setNewShipping({...newShipping, city: e.target.value})}
+                            placeholder="City"
+                          />
+                          <input 
+                            type="text" 
+                            className="px-2 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                            value={newShipping.pincode} 
+                            onChange={e => setNewShipping({...newShipping, pincode: e.target.value})}
+                            placeholder="Pincode"
+                          />
                         </div>
                         <div className="flex gap-2">
-                          <button type="button" className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-xs font-semibold hover:bg-indigo-700 shadow-lg shadow-indigo-500/30 transition-all" onClick={addShippingAddress}>Save</button>
-                          <button type="button" className="px-4 py-2 bg-white text-slate-600 border border-slate-200 rounded-lg text-xs font-semibold hover:bg-slate-50 transition-all" onClick={() => setShowShippingForm(false)}>Cancel</button>
+                          <button 
+                            type="button" 
+                            className="flex items-center gap-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 transition-colors"
+                            onClick={addShippingAddress}
+                          >
+                            <Save className="w-3 h-3" />
+                            Save
+                          </button>
+                          <button 
+                            type="button" 
+                            className="px-4 py-2 bg-white text-gray-600 border border-gray-200 rounded-lg text-xs font-medium hover:bg-gray-50 transition-colors"
+                            onClick={() => setShowShippingForm(false)}
+                          >
+                            Cancel
+                          </button>
                         </div>
                       </div>
                     </div>
                   )}
                   
-                  {!showShippingForm && shippingAddresses.length === 0 && (
-                    <button type="button" className="w-full py-3 border-2 border-dashed border-slate-300 rounded-xl text-sm text-slate-500 hover:border-indigo-400 hover:text-indigo-500 hover:bg-indigo-50/50 transition-all" onClick={() => setShowShippingForm(true)}>
-                      <span className="flex items-center justify-center gap-2">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
-                        Add Shipping Address
-                      </span>
+                  {!showShippingForm && (
+                    <button 
+                      type="button" 
+                      className="w-full py-2 border-2 border-dashed border-gray-300 rounded-lg text-sm text-gray-500 hover:border-blue-400 hover:text-blue-500 hover:bg-blue-50 transition-all flex items-center justify-center gap-2"
+                      onClick={() => setShowShippingForm(true)}
+                    >
+                      <Plus className="w-4 h-4" />
+                      Add Shipping Address
                     </button>
                   )}
                 </div>
               </div>
-              
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide">Remarks</label>
-                <textarea className="w-full px-4 py-2.5 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all text-sm" rows={2} value={formData.remarks || ''} onChange={e => setFormData({...formData, remarks: e.target.value})} />
+            </div>
+
+            {/* Notes Card */}
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Mail className="w-4 h-4 text-blue-600" />
+                <h2 className="text-sm font-semibold text-gray-900">Additional Information</h2>
               </div>
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide">About Client</label>
-                <textarea className="w-full px-4 py-2.5 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all text-sm" rows={2} value={formData.about_client || ''} onChange={e => setFormData({...formData, about_client: e.target.value})} placeholder="Additional information..." />
-              </div>
-              <div className="flex gap-3 pt-2">
-                <button type="submit" className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 shadow-lg shadow-indigo-500/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all" disabled={saving}>
-                  {editMode ? 'Update Client' : 'Submit'}
-                </button>
-                {editMode && (
-                  <button type="button" className="px-6 py-2.5 bg-red-50 text-red-600 border border-red-200 rounded-xl text-sm font-semibold hover:bg-red-100 transition-all" onClick={deleteClient} disabled={saving}>
-                    Delete
-                  </button>
-                )}
-                <button type="button" className="px-6 py-2.5 bg-white text-slate-600 border-2 border-slate-200 rounded-xl text-sm font-semibold hover:bg-slate-50 hover:border-slate-300 transition-all" onClick={onCancel} disabled={saving}>Cancel</button>
-              </div>
-            </form>
-          ) : (
-            <div>
-              <ClientDiscountPortfolio formData={formData} setFormData={setFormData} isAdmin={isAdmin} />
-              <div className="flex gap-3 pt-4 mt-4 border-t border-gray-200">
-                <button type="button" className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700" onClick={() => handleSubmit()}>{editMode ? 'Update Pricing' : 'Submit'}</button>
-                <button type="button" className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200" onClick={onCancel}>Cancel</button>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Remarks</label>
+                  <textarea 
+                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all resize-none"
+                    rows={2}
+                    value={formData.remarks || ''} 
+                    onChange={e => setFormData({...formData, remarks: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">About Client</label>
+                  <textarea 
+                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all resize-none"
+                    rows={2}
+                    value={formData.about_client || ''} 
+                    onChange={e => setFormData({...formData, about_client: e.target.value})}
+                    placeholder="Additional information..."
+                  />
+                </div>
               </div>
             </div>
-          )}
-        </div>
+
+            {/* Actions */}
+            <div className="flex gap-3 pt-2">
+              <button 
+                type="submit" 
+                className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
+                disabled={saving}
+              >
+                <Save className="w-4 h-4" />
+                {editMode ? 'Update Client' : 'Create Client'}
+              </button>
+              {editMode && (
+                <button 
+                  type="button" 
+                  className="flex items-center gap-2 px-6 py-2.5 bg-red-50 text-red-600 border border-red-200 rounded-lg text-sm font-medium hover:bg-red-100 transition-colors"
+                  onClick={deleteClient}
+                  disabled={saving}
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Delete
+                </button>
+              )}
+              <button 
+                type="button" 
+                className="px-6 py-2.5 bg-white text-gray-600 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+                onClick={onCancel}
+                disabled={saving}
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        ) : (
+          <div>
+            <ClientDiscountPortfolio formData={formData} setFormData={setFormData} isAdmin={isAdmin} />
+            <div className="flex gap-3 pt-4 mt-4 border-t border-gray-200">
+              <button 
+                type="button" 
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+                onClick={() => handleSubmit()}
+              >
+                <Save className="w-4 h-4" />
+                {editMode ? 'Update Pricing' : 'Save'}
+              </button>
+              <button 
+                type="button" 
+                className="px-4 py-2 bg-white text-gray-600 border border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+                onClick={onCancel}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
 }
-

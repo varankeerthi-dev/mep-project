@@ -253,20 +253,20 @@ export default function TodoList() {
           onDragOver={handleDragOver}
           onDrop={(e) => handleDrop(e, status.id)}
         >
-          <div className="px-4 py-4 flex items-center justify-between">
+          <div className="px-3 py-3 flex items-center justify-between bg-gray-50/50 border-b border-gray-100">
             <div className="flex items-center gap-2">
               <span className="flex-shrink-0">{status.icon}</span>
-              <span className="text-[13px] font-600 text-gray-800">{status.label}</span>
-              <span className="text-[11px] text-gray-500 bg-gray-100 px-2.5 py-1 rounded-md border border-gray-200 font-500">
+              <span className="text-sm font-semibold text-gray-800">{status.label}</span>
+              <span className="text-xs text-gray-500 bg-white px-2 py-0.5 rounded border border-gray-200 font-medium">
                 {filteredTasks.filter(t => t.status === status.id).length}
               </span>
             </div>
-            <button className="text-gray-400 hover:text-gray-600 p-1 hover:bg-gray-100 rounded-md transition-colors">
+            <button className="text-gray-400 hover:text-gray-600 p-1 hover:bg-gray-100 rounded transition-colors">
               <MoreHorizontal size={14} />
             </button>
           </div>
 
-          <div className="flex-1 p-2 space-y-2 min-h-[500px]">
+          <div className="flex-1 p-2 space-y-2 min-h-[400px] overflow-y-auto">
             <div className="group relative space-y-2 bg-transparent p-1 rounded-lg border border-transparent hover:border-gray-100 transition-all mb-2">
               <div className="relative">
                 <input
@@ -722,9 +722,14 @@ export default function TodoList() {
 
   return (
     <div className="flex flex-col h-full bg-white text-gray-900 font-sans">
-      <div className="px-6 py-5 border-b border-gray-200 bg-white">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Tasks</h1>
+      {/* Header - Fixed structure with proper alignment */}
+      <div className="px-6 py-4 border-b border-gray-200 bg-white">
+        {/* Row 1: Title and Add Button */}
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h1 className="text-xl font-semibold text-gray-900">Tasks</h1>
+            <p className="text-xs text-gray-500 mt-0.5">Manage your tasks and ideas</p>
+          </div>
           <button 
             onClick={() => {
               if (activeTab === 'reminders') {
@@ -734,59 +739,62 @@ export default function TodoList() {
                 setShowAddModal(true)
               }
             }}
-            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-lg text-[12px] font-semibold tracking-wide transition-all shadow-sm active:scale-95"
+            className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-all shadow-sm hover:shadow active:scale-95"
           >
             <Plus size={16} />
             <span>{activeTab === 'reminders' ? 'New Announcement' : 'New Task'}</span>
           </button>
         </div>
 
-        <div className="flex items-center justify-between">
-          <div className="flex gap-1 overflow-hidden bg-gray-100 rounded-lg p-1">
+        {/* Row 2: Tabs and View Mode */}
+        <div className="flex items-center justify-between gap-4">
+          {/* Tabs - Left aligned */}
+          <div className="flex gap-1 bg-gray-100 rounded-lg p-1">
             {TABS.map(tab => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-2 text-[12px] font-semibold transition-all rounded-md ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium transition-all rounded-md whitespace-nowrap ${
                   activeTab === tab.id 
-                    ? 'bg-white text-indigo-600 shadow-sm' 
-                    : 'text-gray-600 hover:text-gray-900'
+                    ? 'bg-white text-blue-600 shadow-sm' 
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/50'
                 }`}
               >
                 {React.cloneElement(tab.icon, { size: 14 })}
-                {tab.label}
+                <span>{tab.label}</span>
               </button>
             ))}
           </div>
 
+          {/* View Mode Buttons - Right aligned */}
           {activeTab !== 'reminders' && activeTab !== 'idea' && (
-            <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+            <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1 shrink-0">
               <button
                 onClick={() => setViewMode('board')}
-                className={`flex items-center gap-1.5 px-3 py-2 text-[11px] font-semibold transition-all rounded-md ${
-                  viewMode === 'board' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium transition-all rounded-md ${
+                  viewMode === 'board' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/50'
                 }`}
               >
-                <Layout size={13} />
-                <span>Board</span>
+                <Layout size={14} />
+                <span className="hidden sm:inline">Board</span>
               </button>
               <button
                 onClick={() => setViewMode('table')}
-                className={`flex items-center gap-1.5 px-3 py-2 text-[11px] font-semibold transition-all rounded-md ${
-                  viewMode === 'table' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium transition-all rounded-md ${
+                  viewMode === 'table' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/50'
                 }`}
               >
-                <Table size={13} />
-                <span>Table</span>
+                <Table size={14} />
+                <span className="hidden sm:inline">Table</span>
               </button>
               <button
                 onClick={() => setViewMode('dashboard')}
-                className={`flex items-center gap-1.5 px-3 py-2 text-[11px] font-semibold transition-all rounded-md ${
-                  viewMode === 'dashboard' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium transition-all rounded-md ${
+                  viewMode === 'dashboard' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/50'
                 }`}
               >
-                <BarChart2 size={13} />
-                <span>Dashboard</span>
+                <BarChart2 size={14} />
+                <span className="hidden sm:inline">Dashboard</span>
               </button>
             </div>
           )}
@@ -794,20 +802,20 @@ export default function TodoList() {
       </div>
 
       {activeTab === 'team' && (
-        <div className="px-6 py-4 border-b border-gray-200 bg-white">
-          <div className="flex items-center gap-3">
-            <Filter size={18} className="text-gray-400" />
-            <span className="text-sm text-gray-600">Filter by Client:</span>
-            <div className="flex items-center gap-2 flex-wrap">
+        <div className="px-6 py-3 border-b border-gray-200 bg-gray-50/50">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Filter size={16} className="text-gray-400 shrink-0" />
+            <span className="text-xs font-medium text-gray-500 uppercase tracking-wide shrink-0">Filter:</span>
+            <div className="flex items-center gap-1.5 flex-wrap">
               <button
                 onClick={() => setClientFilter('all')}
-                className={`px-3 py-1.5 rounded-lg text-sm transition-all ${
+                className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
                   clientFilter === 'all'
-                    ? 'bg-indigo-600 text-white shadow-sm'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'bg-white text-gray-600 border border-gray-200 hover:border-blue-300 hover:text-blue-600'
                 }`}
               >
-                All Tasks ({tasks.filter(t => !t.is_personal && t.category === 'task').length})
+                All ({tasks.filter(t => !t.is_personal && t.category === 'task').length})
               </button>
               {CLIENT_TYPES.map(type => {
                 const count = tasks.filter(t => 
@@ -819,15 +827,15 @@ export default function TodoList() {
                   <button
                     key={type.id}
                     onClick={() => setClientFilter(type.id)}
-                    className={`px-3 py-1.5 rounded-lg text-sm transition-all flex items-center gap-1.5 ${
+                    className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all flex items-center gap-1 border ${
                       clientFilter === type.id
-                        ? `${type.bgColor} ${type.color} border-2 ${type.borderColor} shadow-sm`
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        ? `${type.bgColor} ${type.color} ${type.borderColor} shadow-sm`
+                        : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
                     }`}
                   >
                     <span>{type.icon}</span>
                     <span>{type.label}</span>
-                    <span className={`text-xs ${clientFilter === type.id ? type.color : 'text-gray-500'}`}>
+                    <span className={`text-[10px] ${clientFilter === type.id ? type.color : 'text-gray-400'}`}>
                       {count}
                     </span>
                   </button>
@@ -835,10 +843,10 @@ export default function TodoList() {
               })}
               <button
                 onClick={() => setClientFilter('internal')}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all border ${
                   clientFilter === 'internal'
-                    ? 'bg-gray-800 text-white shadow-sm'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    ? 'bg-gray-800 text-white border-gray-800 shadow-sm'
+                    : 'bg-white text-gray-600 border-gray-200 hover:border-gray-800 hover:text-gray-800'
                 }`}
               >
                 🏠 Internal ({tasks.filter(t => !t.is_personal && t.category === 'task' && !t.client_name && !t.client_type).length})
@@ -848,7 +856,7 @@ export default function TodoList() {
         </div>
       )}
 
-      <div className="flex-1 overflow-x-auto p-6 bg-gray-50">
+      <div className="flex-1 overflow-x-auto p-4 bg-gray-50/30">
         {activeTab === 'reminders' ? (
           <div className="max-w-4xl mx-auto space-y-4">
             {reminders.length === 0 ? (
@@ -907,41 +915,41 @@ export default function TodoList() {
       </div>
 
       {showAddModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto flex flex-col">
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white z-10">
               <h3 className="text-lg font-semibold text-gray-900">
                 {activeTab === 'idea' ? 'New Idea' : 'New Task'}
               </h3>
               <button 
                 onClick={() => setShowAddModal(false)}
-                className="text-gray-400 hover:text-gray-600 p-1 hover:bg-gray-100 rounded transition-colors"
+                className="text-gray-400 hover:text-gray-600 p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
               >
                 <X size={20} />
               </button>
             </div>
-            <form onSubmit={handleCreateTask} className="p-6 space-y-4">
+            <form onSubmit={handleCreateTask} className="p-6 space-y-4 flex-1">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
                   {activeTab === 'idea' ? 'Idea Title' : 'Task Title'}
                 </label>
                 <input
                   type="text"
                   value={newTask.title}
                   onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                   placeholder={activeTab === 'idea' ? "What's your idea?" : "What needs to be done?"}
                   required
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Description</label>
                 <textarea
                   value={newTask.description}
                   onChange={(e) => setNewTask({ ...newTask, description: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none"
-                  rows="3"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all resize-none"
+                  rows={3}
                   placeholder="Add more details..."
                 />
               </div>
@@ -949,22 +957,22 @@ export default function TodoList() {
               {activeTab !== 'idea' && (
                 <>
                   <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                  <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">Status</label>
                       <select
                         value={newTask.status}
                         onChange={(e) => setNewTask({ ...newTask, status: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                       >
                         {STATUSES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">Priority</label>
                       <select
                         value={newTask.priority}
                         onChange={(e) => setNewTask({ ...newTask, priority: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                       >
                         <option value="normal">Normal</option>
                         <option value="high">High</option>
@@ -975,20 +983,20 @@ export default function TodoList() {
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">Due Date</label>
                       <input
                         type="date"
                         value={newTask.due_date || ''}
                         onChange={(e) => setNewTask({ ...newTask, due_date: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Client Type</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">Client Type</label>
                       <select
                         value={newTask.client_type || ''}
                         onChange={(e) => setNewTask({ ...newTask, client_type: e.target.value || null })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                       >
                         <option value="">Internal</option>
                         {CLIENT_TYPES.map(ct => <option key={ct.id} value={ct.id}>{ct.label}</option>)}
@@ -998,12 +1006,12 @@ export default function TodoList() {
 
                   {newTask.client_type && (
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Client Name</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">Client Name</label>
                       <input
                         type="text"
                         value={newTask.client_name}
                         onChange={(e) => setNewTask({ ...newTask, client_name: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                         placeholder="Enter client name"
                       />
                     </div>
@@ -1012,27 +1020,27 @@ export default function TodoList() {
               )}
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Notes</label>
                 <textarea
                   value={newTask.notes}
                   onChange={(e) => setNewTask({ ...newTask, notes: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none"
-                  rows="2"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all resize-none"
+                  rows={2}
                   placeholder="Additional notes..."
                 />
               </div>
 
-              <div className="flex justify-end gap-3 pt-4">
+              <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 mt-6">
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                  className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors font-medium"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors"
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium"
                 >
                   Create {activeTab === 'idea' ? 'Idea' : 'Task'}
                 </button>
