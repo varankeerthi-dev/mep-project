@@ -237,100 +237,101 @@ export default function ClientList() {
 
   const clients = clientsQuery.data || [];
 
-  useEffect(() => {
-    if (!activeClientId && clients.length > 0) setActiveClientId(clients[0].id);
-    if (activeClientId && clients.length > 0 && !clients.some(c => c.id === activeClientId)) {
-      setActiveClientId(clients[0].id);
-    }
-  }, [clients, activeClientId]);
+ useEffect(() => {
+  if (clients.length === 0) return;
+  setActiveClientId(prev => {
+    if (!prev) return clients[0].id;
+    if (!clients.some(c => c.id === prev)) return clients[0].id;
+    return prev; // no change, won't trigger re-render
+  });
+}, [clients]); // ← only clients, not activeClientId
 
   const activeClient = useMemo(
     () => clients.find(c => c.id === activeClientId) || null,
     [clients, activeClientId]
   );
-
-  const txQueries = useQueries({
-    queries: (activeClient ? [
-      {
-        queryKey: ['clientTx', 'quotation', activeClientId],
-        queryFn: async () => {
-          const { data, error } = await withTimeout(
-            supabase.from('quotation_header').select('id, quotation_no, date, grand_total, status, created_at').eq('client_id', activeClient.id),
-            15000,
-            'Quotation'
-          );
-          if (error) throw error;
-          return data || [];
-        },
-        staleTime: 5 * 60 * 1000
+const txQueries = useQueries({
+  queries: (activeClient ? [
+    {
+      queryKey: ['clientTx', 'quotation', activeClientId],
+      queryFn: async () => {
+        const { data, error } = await withTimeout(
+          supabase.from('quotation_header').select('id, quotation_no, date, grand_total, status, created_at').eq('client_id', activeClient.id),
+          15000, 'Quotation'
+        );
+        if (error) throw error;
+        return data || [];
       },
-      {
-        queryKey: ['clientTx', 'client_po', activeClientId],
-        queryFn: async () => {
-          const { data, error } = await withTimeout(
-            supabase.from('client_purchase_orders').select('id, po_number, po_date, po_total_value, status, created_at').eq('client_id', activeClient.id),
-            15000,
-            'Client PO'
-          );
-          if (error) throw error;
-          return data || [];
-        },
-        staleTime: 5 * 60 * 1000
+      staleTime: 5 * 60 * 1000,
+      enabled: activeTab === 'reports'
+    },
+    {
+      queryKey: ['clientTx', 'client_po', activeClientId],
+      queryFn: async () => {
+        const { data, error } = await withTimeout(
+          supabase.from('client_purchase_orders').select('id, po_number, po_date, po_total_value, status, created_at').eq('client_id', activeClient.id),
+          15000, 'Client PO'
+        );
+        if (error) throw error;
+        return data || [];
       },
-      {
-        queryKey: ['clientTx', 'project', activeClientId],
-        queryFn: async () => {
-          const { data, error } = await withTimeout(
-            supabase.from('projects').select('id, project_code, project_name, status, created_at').eq('client_id', activeClient.id),
-            15000,
-            'Projects'
-          );
-          if (error) throw error;
-          return data || [];
-        },
-        staleTime: 5 * 60 * 1000
+      staleTime: 5 * 60 * 1000,
+      enabled: activeTab === 'reports'
+    },
+    {
+      queryKey: ['clientTx', 'project', activeClientId],
+      queryFn: async () => {
+        const { data, error } = await withTimeout(
+          supabase.from('projects').select('id, project_code, project_name, status, created_at').eq('client_id', activeClient.id),
+          15000, 'Projects'
+        );
+        if (error) throw error;
+        return data || [];
       },
-      {
-        queryKey: ['clientTx', 'site_visit', activeClientId],
-        queryFn: async () => {
-          const { data, error } = await withTimeout(
-            supabase.from('site_visits').select('id, visit_date, purpose, status, created_at').eq('client_id', activeClient.id),
-            15000,
-            'Site Visits'
-          );
-          if (error) throw error;
-          return data || [];
-        },
-        staleTime: 5 * 60 * 1000
+      staleTime: 5 * 60 * 1000,
+      enabled: activeTab === 'reports'
+    },
+    {
+      queryKey: ['clientTx', 'site_visit', activeClientId],
+      queryFn: async () => {
+        const { data, error } = await withTimeout(
+          supabase.from('site_visits').select('id, visit_date, purpose, status, created_at').eq('client_id', activeClient.id),
+          15000, 'Site Visits'
+        );
+        if (error) throw error;
+        return data || [];
       },
-      {
-        queryKey: ['clientTx', 'delivery_challan', activeClientId],
-        queryFn: async () => {
-          const { data, error } = await withTimeout(
-            supabase.from('delivery_challans').select('id, dc_number, dc_date, status, created_at').eq('client_name', activeClient.client_name),
-            15000,
-            'Delivery Challans'
-          );
-          if (error) throw error;
-          return data || [];
-        },
-        staleTime: 5 * 60 * 1000
+      staleTime: 5 * 60 * 1000,
+      enabled: activeTab === 'reports'
+    },
+    {
+      queryKey: ['clientTx', 'delivery_challan', activeClientId],
+      queryFn: async () => {
+        const { data, error } = await withTimeout(
+          supabase.from('delivery_challans').select('id, dc_number, dc_date, status, created_at').eq('client_name', activeClient.client_name),
+          15000, 'Delivery Challans'
+        );
+        if (error) throw error;
+        return data || [];
       },
-      {
-        queryKey: ['clientTx', 'meeting', activeClientId],
-        queryFn: async () => {
-          const { data, error } = await withTimeout(
-            supabase.from('meetings').select('id, meeting_date, agenda, status, created_at').eq('client_id', activeClient.id),
-            15000,
-            'Meetings'
-          );
-          if (error) throw error;
-          return data || [];
-        },
-        staleTime: 5 * 60 * 1000
-      }
-    ] : []) as any
-  }) as any[];
+      staleTime: 5 * 60 * 1000,
+      enabled: activeTab === 'reports'
+    },
+    {
+      queryKey: ['clientTx', 'meeting', activeClientId],
+      queryFn: async () => {
+        const { data, error } = await withTimeout(
+          supabase.from('meetings').select('id, meeting_date, agenda, status, created_at').eq('client_id', activeClient.id),
+          15000, 'Meetings'
+        );
+        if (error) throw error;
+        return data || [];
+      },
+      staleTime: 5 * 60 * 1000,
+      enabled: activeTab === 'reports'
+    }
+  ] : []) as any
+}) as any[];
 
   const [
     quotationTx,

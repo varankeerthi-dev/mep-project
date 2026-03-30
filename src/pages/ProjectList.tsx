@@ -1,168 +1,173 @@
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { supabase } from '../supabase';
 import { formatDate, formatCurrency } from '../utils/formatters';
+import { useQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 
-export default function ProjectList() {
-  const [projects, setProjects] = useState<any[]>([]);
-  const [clients, setClients] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [viewMode, setViewMode] = useState('list');
-  const [selectedProject, setSelectedProject] = useState<any | null>(null);
-  const [financialSummary, setFinancialSummary] = useState<any | null>(null);
-  const [projectPOs, setProjectPOs] = useState<any[]>([]);
-  const [projectInvoices, setProjectInvoices] = useState<any[]>([]);
-  const [projectExpenses, setProjectExpenses] = useState<any[]>([]);
-  const [projectPayments, setProjectPayments] = useState<any[]>([]);
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-  const loadData = async () => {
-  setLoading(true);
-
-  try {
-    const [projectsRes, clientsRes] = await Promise.all([
-      supabase
-        .from('projects')
-        .select('*, client:clients(client_name)')
-        .order('created_at', { ascending: false }),
-      supabase
-        .from('clients')
-        .select('id, client_name')
-        .order('client_name')
-    ]);
-
-    if (projectsRes.error) throw projectsRes.error;
-    if (clientsRes.error) throw clientsRes.error;
-
-    setProjects(projectsRes.data || []);
-    setClients(clientsRes.data || []);
-
-  } catch (err) {
-    console.error('Error loading data:', err);
-
-    // IMPORTANT: retry once after short delay (fixes post-refresh race)
-    setTimeout(() => {
-      loadData();
-    }, 800);
-
-  } finally {
-    setLoading(false);
-  }
+type Project = {
+  id: string;
+  project_name?: string;
+  project_code?: string;
+  project_type?: string;
+  project_estimated_value?: number;
+  po_required?: boolean;
+  po_status?: string;
+  status?: string;
+  completion_percentage?: number;
+  start_date?: string;
+  expected_end_date?: string;
+  actual_end_date?: string;
+  remarks?: string;
+  client?: { client_name?: string } | null;
+  client_id?: string;
 };
 
-  useEffect(() => {
-    loadData();
-  }, []);
+type ProjectDetails = {
+  pos: any[];
+  invoices: any[];
+  expenses: any[];
+  payments: any[];
+};
 
-  const loadProjectDetails = async (project: any) => {
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
+  Draft:                { bg: '#f3f4f6', color: '#6b7280' },
+  Active:               { bg: '#dbeafe', color: '#1d4ed8' },
+  'Execution Completed':{ bg: '#fef3c7', color: '#b45309' },
+  'Financially Closed': { bg: '#d1fae5', color: '#047857' },
+  Closed:               { bg: '#f3f4f6', color: '#374151' },
+};
+
+const PO_STATUS_COLORS: Record<string, { bg: string; color: string }> = {
+  'Not Required': { bg: '#d1fae5', color: '#047857' },
+  Pending:        { bg: '#fef3c7', color: '#b45309' },
+  Received:       { bg: '#dbeafe', color: '#1d4ed8' },
+};
+
+const getStatusColor  = (s?: string) => STATUS_COLORS[s ?? '']    ?? STATUS_COLORS['Draft'];
+const getPOStatusColor = (s?: string) => PO_STATUS_COLORS[s ?? ''] ?? PO_STATUS_COLORS['Pending'];
+
+// ─── ProjectList ──────────────────────────────────────────────────────────────
+
+export default function ProjectList() {
+  const navigate = useNavigate();
+  const [searchTerm, setSearchTerm]         = useState('');
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [viewMode, setViewMode]             = useState<'list' | 'detail'>('list');
+
+  // ── Projects query (cached, no re-fetch on tab switch) ──────────────────────
+  const { data: projects = [], isLoading } = useQuery<Project[]>({
+    queryKey: ['projects'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('projects')
+        .select('*, client:clients(client_name)')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+    staleTime: 3 * 60 * 1000,
+  });
+
+  // ── Project details query (only fires when a project is selected in detail view) ─
+  const { data: projectDetails, isLoading: detailsLoading } = useQuery<ProjectDetails>({
+    queryKey: ['project-details', selectedProject?.id],
+    queryFn: async () => {
+      const [posResult, invoicesResult, expensesResult, paymentsResult] = await Promise.all([
+        supabase.from('client_purchase_orders').select('*').eq('project_id', selectedProject!.id),
+        supabase.from('project_invoices').select('*').eq('project_id', selectedProject!.id).order('invoice_date', { ascending: false }),
+        supabase.from('project_expenses').select('*').eq('project_id', selectedProject!.id).order('expense_date', { ascending: false }),
+        supabase.from('project_payments').select('*').eq('project_id', selectedProject!.id).order('payment_date', { ascending: false }),
+      ]);
+      if (posResult.error)     throw posResult.error;
+      if (invoicesResult.error) throw invoicesResult.error;
+      if (expensesResult.error) throw expensesResult.error;
+      if (paymentsResult.error) throw paymentsResult.error;
+      return {
+        pos:      posResult.data      ?? [],
+        invoices: invoicesResult.data ?? [],
+        expenses: expensesResult.data ?? [],
+        payments: paymentsResult.data ?? [],
+      };
+    },
+    // Only fetches when we're actually viewing the detail page
+    enabled: !!selectedProject?.id && viewMode === 'detail',
+    staleTime: 2 * 60 * 1000,
+  });
+
+  const projectPOs       = projectDetails?.pos      ?? [];
+  const projectInvoices  = projectDetails?.invoices ?? [];
+  const projectExpenses  = projectDetails?.expenses ?? [];
+  const projectPayments  = projectDetails?.payments ?? [];
+
+  // ── Financial summary (derived, no extra query needed) ─────────────────────
+  const financialSummary = useMemo(() => {
+    if (!projectDetails) return null;
+    const totalPOValue           = projectPOs.reduce((s, p) => s + (parseFloat(p.po_total_value) || 0), 0);
+    const totalInvoiceValue      = projectInvoices.reduce((s, i) => s + (parseFloat(i.total_amount) || 0), 0);
+    const totalPaymentReceived   = projectPayments.reduce((s, p) => s + (parseFloat(p.payment_amount) || 0), 0);
+    const totalExpense           = projectExpenses.reduce((s, e) => s + (parseFloat(e.amount) || 0), 0);
+    return {
+      total_po_value:          totalPOValue,
+      total_invoice_value:     totalInvoiceValue,
+      total_payment_received:  totalPaymentReceived,
+      total_expense:           totalExpense,
+      outstanding_amount:      totalInvoiceValue - totalPaymentReceived,
+      profit:                  totalInvoiceValue - totalExpense,
+      po_balance:              totalPOValue - totalInvoiceValue,
+    };
+  }, [projectDetails]);
+
+  // ── Filtered list ───────────────────────────────────────────────────────────
+  const filteredProjects = useMemo(() => {
+    const q = searchTerm.toLowerCase();
+    return projects.filter(p =>
+      (p.project_name  ?? '').toLowerCase().includes(q) ||
+      (p.project_code  ?? '').toLowerCase().includes(q) ||
+      (p.client?.client_name ?? '').toLowerCase().includes(q)
+    );
+  }, [projects, searchTerm]);
+
+  // ── Delete ──────────────────────────────────────────────────────────────────
+  const deleteProject = async (id: string) => {
+    const [posRes, invoicesRes, expensesRes, paymentsRes] = await Promise.all([
+      supabase.from('client_purchase_orders').select('id').eq('project_id', id),
+      supabase.from('project_invoices').select('id').eq('project_id', id),
+      supabase.from('project_expenses').select('id').eq('project_id', id),
+      supabase.from('project_payments').select('id').eq('project_id', id),
+    ]);
+    if (
+      (posRes.data?.length  ?? 0) > 0 ||
+      (invoicesRes.data?.length ?? 0) > 0 ||
+      (expensesRes.data?.length ?? 0) > 0 ||
+      (paymentsRes.data?.length ?? 0) > 0
+    ) {
+      alert('Cannot delete project: Related records exist');
+      return;
+    }
+    if (!confirm('Are you sure you want to delete this project?')) return;
+    const { error } = await supabase.from('projects').delete().eq('id', id);
+    if (error) { alert('Error deleting project: ' + error.message); return; }
+    // TanStack Query will auto-refetch on next stale check.
+    // Force immediate refresh:
+    setSelectedProject(null);
+    window.location.reload();
+  };
+
+  const checkPORequiredWarning = (p: Project) =>
+    p.po_required && p.po_status !== 'Received' && p.po_status !== 'Not Required';
+
+  const loadProjectDetails = (project: Project) => {
     setSelectedProject(project);
     setViewMode('detail');
-    setFinancialSummary(null);
-
-    try {
-      const [posResult, invoicesResult, expensesResult, paymentsResult] = await Promise.all([
-        supabase.from('client_purchase_orders').select('*').eq('project_id', project.id),
-        supabase.from('project_invoices').select('*').eq('project_id', project.id).order('invoice_date', { ascending: false }),
-        supabase.from('project_expenses').select('*').eq('project_id', project.id).order('expense_date', { ascending: false }),
-        supabase.from('project_payments').select('*').eq('project_id', project.id).order('payment_date', { ascending: false })
-      ]);
-      if (posResult.error) throw posResult.error;
-if (invoicesResult.error) throw invoicesResult.error;
-if (expensesResult.error) throw expensesResult.error;
-if (paymentsResult.error) throw paymentsResult.error;
-
-      setProjectPOs(posResult.data || []);
-      setProjectInvoices(invoicesResult.data || []);
-      setProjectExpenses(expensesResult.data || []);
-      setProjectPayments(paymentsResult.data || []);
-
-      calculateFinancialSummary(
-        posResult.data || [], 
-        invoicesResult.data || [], 
-        expensesResult.data || [], 
-        paymentsResult.data || []
-      );
-    } catch (err) {
-      console.error('Error loading project details:', err);
-      alert('Error loading project details');
-    }
   };
 
-  const calculateFinancialSummary = (pos, invoices, expenses, payments) => {
-    const totalPOValue = pos.reduce((sum, po) => sum + (parseFloat(po.po_total_value) || 0), 0);
-    const totalInvoiceValue = invoices.reduce((sum, inv) => sum + (parseFloat(inv.total_amount) || 0), 0);
-    const totalPaymentReceived = payments.reduce((sum, pay) => sum + (parseFloat(pay.payment_amount) || 0), 0);
-    const totalExpense = expenses.reduce((sum, exp) => sum + (parseFloat(exp.amount) || 0), 0);
-    const outstandingAmount = totalInvoiceValue - totalPaymentReceived;
-    const profit = totalInvoiceValue - totalExpense;
-    const poBalance = totalPOValue - totalInvoiceValue;
+  // ── Render ──────────────────────────────────────────────────────────────────
 
-    setFinancialSummary({
-      total_po_value: totalPOValue,
-      total_invoice_value: totalInvoiceValue,
-      total_payment_received: totalPaymentReceived,
-      total_expense: totalExpense,
-      outstanding_amount: outstandingAmount,
-      profit: profit,
-      po_balance: poBalance
-    });
-  };
-
-  const deleteProject = async (id) => {
-    try {
-      const [posRes, invoicesRes, expensesRes, paymentsRes] = await Promise.all([
-        supabase.from('client_purchase_orders').select('id').eq('project_id', id),
-        supabase.from('project_invoices').select('id').eq('project_id', id),
-        supabase.from('project_expenses').select('id').eq('project_id', id),
-        supabase.from('project_payments').select('id').eq('project_id', id)
-      ]);
-
-      if ((posRes.data?.length > 0) || (invoicesRes.data?.length > 0) || (expensesRes.data?.length > 0) || (paymentsRes.data?.length > 0)) {
-        alert('Cannot delete project: Related records exist');
-        return;
-      }
-
-      if (confirm('Are you sure you want to delete this project?')) {
-        const { error } = await supabase.from('projects').delete().eq('id', id);
-        if (error) throw error;
-        loadData();
-      }
-    } catch (err) {
-      console.error('Error deleting project:', err);
-      alert('Error deleting project: ' + err.message);
-    }
-  };
-
-  const checkPORequiredWarning = (project) => {
-    return project.po_required && project.po_status !== 'Received' && project.po_status !== 'Not Required';
-  };
-
-  const filteredProjects = projects.filter(p =>
-    (p.project_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (p.project_code || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (p.client?.client_name || '').toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const getStatusColor = (status) => {
-    const colors = {
-      'Draft': { bg: '#f3f4f6', color: '#6b7280' },
-      'Active': { bg: '#dbeafe', color: '#1d4ed8' },
-      'Execution Completed': { bg: '#fef3c7', color: '#b45309' },
-      'Financially Closed': { bg: '#d1fae5', color: '#047857' },
-      'Closed': { bg: '#f3f4f6', color: '#374151' }
-    };
-    return colors[status] || colors['Draft'];
-  };
-
-  const getPOStatusColor = (status) => {
-    const colors = {
-      'Not Required': { bg: '#d1fae5', color: '#047857' },
-      'Pending': { bg: '#fef3c7', color: '#b45309' },
-      'Received': { bg: '#dbeafe', color: '#1d4ed8' }
-    };
-    return colors[status] || colors['Pending'];
-  };
-
-  if (loading) {
+  if (isLoading) {
     return <div style={{ padding: '40px', textAlign: 'center' }}>Loading...</div>;
   }
 
@@ -175,11 +180,9 @@ if (paymentsResult.error) throw paymentsResult.error;
         projectInvoices={projectInvoices}
         projectExpenses={projectExpenses}
         projectPayments={projectPayments}
+        detailsLoading={detailsLoading}
         onBack={() => { setViewMode('list'); setSelectedProject(null); }}
-        onEdit={() => {
-          window.history.pushState({}, '', `/projects/edit?id=${selectedProject.id}`);
-          window.dispatchEvent(new PopStateEvent('popstate'));
-        }}
+        onEdit={() => navigate(`/projects/edit?id=${selectedProject.id}`)}
       />
     );
   }
@@ -188,10 +191,7 @@ if (paymentsResult.error) throw paymentsResult.error;
     <div>
       <div className="page-header">
         <h1 className="page-title">Projects</h1>
-        <button className="btn btn-primary" onClick={() => {
-          window.history.pushState({}, '', '/projects/new');
-          window.dispatchEvent(new PopStateEvent('popstate'));
-        }}>
+        <button className="btn btn-primary" onClick={() => navigate('/projects/new')}>
           + New Project
         </button>
       </div>
@@ -203,7 +203,7 @@ if (paymentsResult.error) throw paymentsResult.error;
             className="form-input"
             placeholder="Search projects..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={e => setSearchTerm(e.target.value)}
             style={{ maxWidth: '300px' }}
           />
         </div>
@@ -233,28 +233,25 @@ if (paymentsResult.error) throw paymentsResult.error;
               </thead>
               <tbody>
                 {filteredProjects.map(p => {
-                  const statusStyle = getStatusColor(p.status);
+                  const statusStyle   = getStatusColor(p.status);
                   const poStatusStyle = getPOStatusColor(p.po_status);
-                  const showWarning = checkPORequiredWarning(p);
+                  const showWarning   = checkPORequiredWarning(p);
                   return (
                     <tr key={p.id}>
                       <td>{p.project_code || '-'}</td>
-<td>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span
-                              style={{ cursor: 'pointer', color: '#2563eb', fontWeight: 500 }}
-                              onClick={() => loadProjectDetails(p)}
-                            >
-                              {p.project_name || 'Unnamed Project'}
-                            </span>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span
+                            style={{ cursor: 'pointer', color: '#2563eb', fontWeight: 500 }}
+                            onClick={() => loadProjectDetails(p)}
+                          >
+                            {p.project_name || 'Unnamed Project'}
+                          </span>
                           {showWarning && (
                             <span style={{
-                              background: '#fee2e2',
-                              color: '#dc2626',
-                              padding: '2px 6px',
-                              borderRadius: '4px',
-                              fontSize: '10px',
-                              fontWeight: 600
+                              background: '#fee2e2', color: '#dc2626',
+                              padding: '2px 6px', borderRadius: '4px',
+                              fontSize: '10px', fontWeight: 600,
                             }}>
                               PO Required
                             </span>
@@ -266,24 +263,18 @@ if (paymentsResult.error) throw paymentsResult.error;
                       <td>{p.project_estimated_value ? formatCurrency(p.project_estimated_value) : '-'}</td>
                       <td>
                         <span style={{
-                          background: poStatusStyle.bg,
-                          color: poStatusStyle.color,
-                          padding: '4px 8px',
-                          borderRadius: '4px',
-                          fontSize: '11px',
-                          fontWeight: 600
+                          background: poStatusStyle.bg, color: poStatusStyle.color,
+                          padding: '4px 8px', borderRadius: '4px',
+                          fontSize: '11px', fontWeight: 600,
                         }}>
                           {p.po_status || 'Pending'}
                         </span>
                       </td>
                       <td>
                         <span style={{
-                          background: statusStyle.bg,
-                          color: statusStyle.color,
-                          padding: '4px 8px',
-                          borderRadius: '4px',
-                          fontSize: '11px',
-                          fontWeight: 600
+                          background: statusStyle.bg, color: statusStyle.color,
+                          padding: '4px 8px', borderRadius: '4px',
+                          fontSize: '11px', fontWeight: 600,
                         }}>
                           {p.status || 'Draft'}
                         </span>
@@ -291,10 +282,7 @@ if (paymentsResult.error) throw paymentsResult.error;
                       <td>{p.completion_percentage || 0}%</td>
                       <td>
                         <button className="btn btn-sm btn-secondary" onClick={() => loadProjectDetails(p)}>View</button>
-                        <button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px' }} onClick={() => {
-                          window.history.pushState({}, '', `/projects/edit?id=${p.id}`);
-                          window.dispatchEvent(new PopStateEvent('popstate'));
-                        }}>Edit</button>
+                        <button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px' }} onClick={() => navigate(`/projects/edit?id=${p.id}`)}>Edit</button>
                         <button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px', color: '#dc2626' }} onClick={() => deleteProject(p.id)}>Delete</button>
                       </td>
                     </tr>
@@ -309,29 +297,34 @@ if (paymentsResult.error) throw paymentsResult.error;
   );
 }
 
-function ProjectDetailView({ project, financialSummary, projectPOs, projectInvoices, projectExpenses, projectPayments, onBack, onEdit }) {
+// ─── ProjectDetailView ────────────────────────────────────────────────────────
+
+function ProjectDetailView({
+  project,
+  financialSummary,
+  projectPOs,
+  projectInvoices,
+  projectExpenses,
+  projectPayments,
+  detailsLoading,
+  onBack,
+  onEdit,
+}: {
+  project: Project;
+  financialSummary: any;
+  projectPOs: any[];
+  projectInvoices: any[];
+  projectExpenses: any[];
+  projectPayments: any[];
+  detailsLoading: boolean;
+  onBack: () => void;
+  onEdit: () => void;
+}) {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('summary');
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(amount || 0);
-  };
-
-  const formatDate = (dateStr) => {
-    if (!dateStr) return '-';
-    const d = new Date(dateStr);
-    return isNaN(d.getTime()) ? '-' : d.toLocaleDateString();
-  };
-
-  const getStatusColor = (status) => {
-    const colors = {
-      'Draft': { bg: '#f3f4f6', color: '#6b7280' },
-      'Active': { bg: '#dbeafe', color: '#1d4ed8' },
-      'Execution Completed': { bg: '#fef3c7', color: '#b45309' },
-      'Financially Closed': { bg: '#d1fae5', color: '#047857' },
-      'Closed': { bg: '#f3f4f6', color: '#374151' }
-    };
-    return colors[status] || colors['Draft'];
-  };
+  const fmt  = (n: any) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(n || 0);
+  const fmtD = (d?: string) => { if (!d) return '-'; const x = new Date(d); return isNaN(x.getTime()) ? '-' : x.toLocaleDateString(); };
 
   return (
     <div>
@@ -347,72 +340,46 @@ function ProjectDetailView({ project, financialSummary, projectPOs, projectInvoi
       </div>
 
       <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-        <button
-          className={`btn ${activeTab === 'summary' ? 'btn-primary' : 'btn-secondary'}`}
-          onClick={() => setActiveTab('summary')}
-        >
-          Summary
-        </button>
-        <button
-          className={`btn ${activeTab === 'pos' ? 'btn-primary' : 'btn-secondary'}`}
-          onClick={() => setActiveTab('pos')}
-        >
-          POs ({projectPOs.length})
-        </button>
-        <button
-          className={`btn ${activeTab === 'invoices' ? 'btn-primary' : 'btn-secondary'}`}
-          onClick={() => setActiveTab('invoices')}
-        >
-          Invoices ({projectInvoices.length})
-        </button>
-        <button
-          className={`btn ${activeTab === 'payments' ? 'btn-primary' : 'btn-secondary'}`}
-          onClick={() => setActiveTab('payments')}
-        >
-          Payments ({projectPayments.length})
-        </button>
-        <button
-          className={`btn ${activeTab === 'expenses' ? 'btn-primary' : 'btn-secondary'}`}
-          onClick={() => setActiveTab('expenses')}
-        >
-          Expenses ({projectExpenses.length})
-        </button>
+        {(['summary', 'pos', 'invoices', 'payments', 'expenses'] as const).map(tab => (
+          <button
+            key={tab}
+            className={`btn ${activeTab === tab ? 'btn-primary' : 'btn-secondary'}`}
+            onClick={() => setActiveTab(tab)}
+          >
+            {tab === 'summary'  && 'Summary'}
+            {tab === 'pos'      && `POs (${projectPOs.length})`}
+            {tab === 'invoices' && `Invoices (${projectInvoices.length})`}
+            {tab === 'payments' && `Payments (${projectPayments.length})`}
+            {tab === 'expenses' && `Expenses (${projectExpenses.length})`}
+          </button>
+        ))}
       </div>
 
+      {detailsLoading && activeTab !== 'summary' && (
+        <div style={{ padding: '20px', textAlign: 'center', color: '#6b7280' }}>Loading...</div>
+      )}
+
+      {/* ── Summary ── */}
       {activeTab === 'summary' && (
         <>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
             <div className="card">
               <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '16px', color: '#374151' }}>Commercial Summary</h3>
               <div style={{ display: 'grid', gap: '12px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #e5e7eb' }}>
-                  <span style={{ color: '#6b7280' }}>Project Code</span>
-                  <span style={{ fontWeight: 500 }}>{project.project_code || '-'}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #e5e7eb' }}>
-                  <span style={{ color: '#6b7280' }}>Project Name</span>
-                  <span style={{ fontWeight: 500 }}>{project.project_name}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #e5e7eb' }}>
-                  <span style={{ color: '#6b7280' }}>Client</span>
-                  <span style={{ fontWeight: 500 }}>{project.client?.client_name || '-'}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #e5e7eb' }}>
-                  <span style={{ color: '#6b7280' }}>Project Type</span>
-                  <span style={{ fontWeight: 500 }}>{project.project_type || '-'}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #e5e7eb' }}>
-                  <span style={{ color: '#6b7280' }}>Estimated Value</span>
-                  <span style={{ fontWeight: 500 }}>{project.project_estimated_value ? formatCurrency(project.project_estimated_value) : '-'}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #e5e7eb' }}>
-                  <span style={{ color: '#6b7280' }}>PO Required</span>
-                  <span style={{ fontWeight: 500 }}>{project.po_required ? 'Yes' : 'No'}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0' }}>
-                  <span style={{ color: '#6b7280' }}>PO Status</span>
-                  <span style={{ fontWeight: 500 }}>{project.po_status || 'Pending'}</span>
-                </div>
+                {[
+                  ['Project Code',      project.project_code || '-'],
+                  ['Project Name',      project.project_name || '-'],
+                  ['Client',            project.client?.client_name || '-'],
+                  ['Project Type',      project.project_type || '-'],
+                  ['Estimated Value',   project.project_estimated_value ? fmt(project.project_estimated_value) : '-'],
+                  ['PO Required',       project.po_required ? 'Yes' : 'No'],
+                  ['PO Status',         project.po_status || 'Pending'],
+                ].map(([k, v], i, arr) => (
+                  <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: i < arr.length - 1 ? '1px solid #e5e7eb' : undefined }}>
+                    <span style={{ color: '#6b7280' }}>{k}</span>
+                    <span style={{ fontWeight: 500 }}>{v}</span>
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -421,126 +388,85 @@ function ProjectDetailView({ project, financialSummary, projectPOs, projectInvoi
               <div style={{ display: 'grid', gap: '12px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #e5e7eb' }}>
                   <span style={{ color: '#6b7280' }}>Status</span>
-                  <span style={{
-                    background: getStatusColor(project.status).bg,
-                    color: getStatusColor(project.status).color,
-                    padding: '4px 12px',
-                    borderRadius: '12px',
-                    fontSize: '12px',
-                    fontWeight: 600
-                  }}>
+                  <span style={{ background: getStatusColor(project.status).bg, color: getStatusColor(project.status).color, padding: '4px 12px', borderRadius: '12px', fontSize: '12px', fontWeight: 600 }}>
                     {project.status || 'Draft'}
                   </span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #e5e7eb' }}>
-                  <span style={{ color: '#6b7280' }}>Start Date</span>
-                  <span style={{ fontWeight: 500 }}>{formatDate(project.start_date)}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #e5e7eb' }}>
-                  <span style={{ color: '#6b7280' }}>Expected End Date</span>
-                  <span style={{ fontWeight: 500 }}>{formatDate(project.expected_end_date)}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #e5e7eb' }}>
-                  <span style={{ color: '#6b7280' }}>Actual End Date</span>
-                  <span style={{ fontWeight: 500 }}>{formatDate(project.actual_end_date)}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #e5e7eb' }}>
-                  <span style={{ color: '#6b7280' }}>Completion</span>
-                  <span style={{ fontWeight: 500 }}>{project.completion_percentage || 0}%</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0' }}>
-                  <span style={{ color: '#6b7280' }}>Remarks</span>
-                  <span style={{ fontWeight: 500, maxWidth: '200px', textAlign: 'right' }}>{project.remarks || '-'}</span>
-                </div>
+                {[
+                  ['Start Date',         fmtD(project.start_date)],
+                  ['Expected End Date',  fmtD(project.expected_end_date)],
+                  ['Actual End Date',    fmtD(project.actual_end_date)],
+                  ['Completion',         `${project.completion_percentage || 0}%`],
+                  ['Remarks',            project.remarks || '-'],
+                ].map(([k, v], i, arr) => (
+                  <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: i < arr.length - 1 ? '1px solid #e5e7eb' : undefined }}>
+                    <span style={{ color: '#6b7280' }}>{k}</span>
+                    <span style={{ fontWeight: 500, maxWidth: '200px', textAlign: 'right' }}>{v}</span>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
 
           <div className="card">
             <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '16px', color: '#374151' }}>Financial Summary</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
-              <div style={{ background: '#eff6ff', padding: '16px', borderRadius: '8px', textAlign: 'center' }}>
-                <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '4px' }}>Total PO Value</div>
-                <div style={{ fontSize: '20px', fontWeight: 700, color: '#1d4ed8' }}>
-                  {formatCurrency(financialSummary?.total_po_value)}
-                </div>
+            {!financialSummary ? (
+              <div style={{ padding: '16px', textAlign: 'center', color: '#6b7280', fontSize: '13px' }}>
+                Click the POs / Invoices / Payments / Expenses tabs to load financial data.
               </div>
-              <div style={{ background: '#fef3c7', padding: '16px', borderRadius: '8px', textAlign: 'center' }}>
-                <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '4px' }}>Total Invoice Value</div>
-                <div style={{ fontSize: '20px', fontWeight: 700, color: '#b45309' }}>
-                  {formatCurrency(financialSummary?.total_invoice_value)}
+            ) : (
+              <>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+                  {[
+                    { label: 'Total PO Value',           value: financialSummary.total_po_value,         bg: '#eff6ff', color: '#1d4ed8' },
+                    { label: 'Total Invoice Value',       value: financialSummary.total_invoice_value,    bg: '#fef3c7', color: '#b45309' },
+                    { label: 'Total Payment Received',    value: financialSummary.total_payment_received, bg: '#dcfce7', color: '#047857' },
+                    { label: 'Total Expense',             value: financialSummary.total_expense,          bg: '#fee2e2', color: '#dc2626' },
+                  ].map(({ label, value, bg, color }) => (
+                    <div key={label} style={{ background: bg, padding: '16px', borderRadius: '8px', textAlign: 'center' }}>
+                      <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '4px' }}>{label}</div>
+                      <div style={{ fontSize: '20px', fontWeight: 700, color }}>{fmt(value)}</div>
+                    </div>
+                  ))}
                 </div>
-              </div>
-              <div style={{ background: '#dcfce7', padding: '16px', borderRadius: '8px', textAlign: 'center' }}>
-                <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '4px' }}>Total Payment Received</div>
-                <div style={{ fontSize: '20px', fontWeight: 700, color: '#047857' }}>
-                  {formatCurrency(financialSummary?.total_payment_received)}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginTop: '16px' }}>
+                  <div style={{ background: '#f3f4f6', padding: '16px', borderRadius: '8px', textAlign: 'center' }}>
+                    <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '4px' }}>Outstanding Amount</div>
+                    <div style={{ fontSize: '24px', fontWeight: 700, color: financialSummary.outstanding_amount > 0 ? '#dc2626' : '#047857' }}>{fmt(financialSummary.outstanding_amount)}</div>
+                  </div>
+                  <div style={{ background: '#f0fdf4', padding: '16px', borderRadius: '8px', textAlign: 'center' }}>
+                    <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '4px' }}>Profit</div>
+                    <div style={{ fontSize: '24px', fontWeight: 700, color: financialSummary.profit >= 0 ? '#047857' : '#dc2626' }}>{fmt(financialSummary.profit)}</div>
+                  </div>
+                  <div style={{ background: '#f5f3ff', padding: '16px', borderRadius: '8px', textAlign: 'center' }}>
+                    <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '4px' }}>PO Balance</div>
+                    <div style={{ fontSize: '24px', fontWeight: 700, color: financialSummary.po_balance >= 0 ? '#7c3aed' : '#dc2626' }}>{fmt(financialSummary.po_balance)}</div>
+                  </div>
                 </div>
-              </div>
-              <div style={{ background: '#fee2e2', padding: '16px', borderRadius: '8px', textAlign: 'center' }}>
-                <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '4px' }}>Total Expense</div>
-                <div style={{ fontSize: '20px', fontWeight: 700, color: '#dc2626' }}>
-                  {formatCurrency(financialSummary?.total_expense)}
-                </div>
-              </div>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginTop: '16px' }}>
-              <div style={{ background: '#f3f4f6', padding: '16px', borderRadius: '8px', textAlign: 'center' }}>
-                <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '4px' }}>Outstanding Amount</div>
-                <div style={{ fontSize: '24px', fontWeight: 700, color: financialSummary?.outstanding_amount > 0 ? '#dc2626' : '#047857' }}>
-                  {formatCurrency(financialSummary?.outstanding_amount)}
-                </div>
-              </div>
-              <div style={{ background: '#f0fdf4', padding: '16px', borderRadius: '8px', textAlign: 'center' }}>
-                <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '4px' }}>Profit</div>
-                <div style={{ fontSize: '24px', fontWeight: 700, color: financialSummary?.profit >= 0 ? '#047857' : '#dc2626' }}>
-                  {formatCurrency(financialSummary?.profit)}
-                </div>
-              </div>
-              <div style={{ background: '#f5f3ff', padding: '16px', borderRadius: '8px', textAlign: 'center' }}>
-                <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '4px' }}>PO Balance</div>
-                <div style={{ fontSize: '24px', fontWeight: 700, color: financialSummary?.po_balance >= 0 ? '#7c3aed' : '#dc2626' }}>
-                  {formatCurrency(financialSummary?.po_balance)}
-                </div>
-              </div>
-            </div>
+              </>
+            )}
           </div>
         </>
       )}
 
+      {/* ── POs ── */}
       {activeTab === 'pos' && (
         <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
             <h3 style={{ margin: 0 }}>Purchase Orders</h3>
-            <button className="btn btn-primary" onClick={() => {
-              window.history.pushState({}, '', `/client-po/create?project_id=${project.id}`);
-              window.dispatchEvent(new PopStateEvent('popstate'));
-            }}>
-              + Create PO
-            </button>
+            <button className="btn btn-primary" onClick={() => navigate(`/client-po/create?project_id=${project.id}`)}>+ Create PO</button>
           </div>
-          {projectPOs.length === 0 ? (
-            <div className="empty-state"><p>No POs found</p></div>
-          ) : (
+          {projectPOs.length === 0 ? <div className="empty-state"><p>No POs found</p></div> : (
             <table className="table">
-              <thead>
-                <tr>
-                  <th>PO Number</th>
-                  <th>PO Date</th>
-                  <th>Total Value</th>
-                  <th>Utilized</th>
-                  <th>Available</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
+              <thead><tr><th>PO Number</th><th>PO Date</th><th>Total Value</th><th>Utilized</th><th>Available</th><th>Status</th></tr></thead>
               <tbody>
                 {projectPOs.map(po => (
                   <tr key={po.id}>
                     <td>{po.po_number}</td>
-                    <td>{formatDate(po.po_date)}</td>
-                    <td>{formatCurrency(po.po_total_value)}</td>
-                    <td>{formatCurrency(po.po_utilized_value)}</td>
-                    <td>{formatCurrency(po.po_available_value)}</td>
+                    <td>{fmtD(po.po_date)}</td>
+                    <td>{fmt(po.po_total_value)}</td>
+                    <td>{fmt(po.po_utilized_value)}</td>
+                    <td>{fmt(po.po_available_value)}</td>
                     <td>{po.status}</td>
                   </tr>
                 ))}
@@ -550,39 +476,24 @@ function ProjectDetailView({ project, financialSummary, projectPOs, projectInvoi
         </div>
       )}
 
+      {/* ── Invoices ── */}
       {activeTab === 'invoices' && (
         <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
             <h3 style={{ margin: 0 }}>Invoices</h3>
-            <button className="btn btn-primary" onClick={() => {
-              window.history.pushState({}, '', `/projects/invoice/new?project_id=${project.id}`);
-              window.dispatchEvent(new PopStateEvent('popstate'));
-            }}>
-              + Create Invoice
-            </button>
+            <button className="btn btn-primary" onClick={() => navigate(`/projects/invoice/new?project_id=${project.id}`)}>+ Create Invoice</button>
           </div>
-          {projectInvoices.length === 0 ? (
-            <div className="empty-state"><p>No invoices found</p></div>
-          ) : (
+          {projectInvoices.length === 0 ? <div className="empty-state"><p>No invoices found</p></div> : (
             <table className="table">
-              <thead>
-                <tr>
-                  <th>Invoice Number</th>
-                  <th>Date</th>
-                  <th>Amount</th>
-                  <th>Tax</th>
-                  <th>Total</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
+              <thead><tr><th>Invoice Number</th><th>Date</th><th>Amount</th><th>Tax</th><th>Total</th><th>Status</th></tr></thead>
               <tbody>
                 {projectInvoices.map(inv => (
                   <tr key={inv.id}>
                     <td>{inv.invoice_number}</td>
-                    <td>{formatDate(inv.invoice_date)}</td>
-                    <td>{formatCurrency(inv.invoice_amount)}</td>
-                    <td>{formatCurrency(inv.tax_amount)}</td>
-                    <td>{formatCurrency(inv.total_amount)}</td>
+                    <td>{fmtD(inv.invoice_date)}</td>
+                    <td>{fmt(inv.invoice_amount)}</td>
+                    <td>{fmt(inv.tax_amount)}</td>
+                    <td>{fmt(inv.total_amount)}</td>
                     <td>{inv.status}</td>
                   </tr>
                 ))}
@@ -592,36 +503,22 @@ function ProjectDetailView({ project, financialSummary, projectPOs, projectInvoi
         </div>
       )}
 
+      {/* ── Payments ── */}
       {activeTab === 'payments' && (
         <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
             <h3 style={{ margin: 0 }}>Payments</h3>
-            <button className="btn btn-primary" onClick={() => {
-              window.history.pushState({}, '', `/projects/payment/new?project_id=${project.id}`);
-              window.dispatchEvent(new PopStateEvent('popstate'));
-            }}>
-              + Record Payment
-            </button>
+            <button className="btn btn-primary" onClick={() => navigate(`/projects/payment/new?project_id=${project.id}`)}>+ Record Payment</button>
           </div>
-          {projectPayments.length === 0 ? (
-            <div className="empty-state"><p>No payments found</p></div>
-          ) : (
+          {projectPayments.length === 0 ? <div className="empty-state"><p>No payments found</p></div> : (
             <table className="table">
-              <thead>
-                <tr>
-                  <th>Payment Number</th>
-                  <th>Date</th>
-                  <th>Amount</th>
-                  <th>Mode</th>
-                  <th>Reference</th>
-                </tr>
-              </thead>
+              <thead><tr><th>Payment Number</th><th>Date</th><th>Amount</th><th>Mode</th><th>Reference</th></tr></thead>
               <tbody>
                 {projectPayments.map(pay => (
                   <tr key={pay.id}>
                     <td>{pay.payment_number}</td>
-                    <td>{formatDate(pay.payment_date)}</td>
-                    <td>{formatCurrency(pay.payment_amount)}</td>
+                    <td>{fmtD(pay.payment_date)}</td>
+                    <td>{fmt(pay.payment_amount)}</td>
                     <td>{pay.payment_mode}</td>
                     <td>{pay.reference_number || '-'}</td>
                   </tr>
@@ -632,38 +529,24 @@ function ProjectDetailView({ project, financialSummary, projectPOs, projectInvoi
         </div>
       )}
 
+      {/* ── Expenses ── */}
       {activeTab === 'expenses' && (
         <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
             <h3 style={{ margin: 0 }}>Expenses</h3>
-            <button className="btn btn-primary" onClick={() => {
-              window.history.pushState({}, '', `/projects/expense/new?project_id=${project.id}`);
-              window.dispatchEvent(new PopStateEvent('popstate'));
-            }}>
-              + Add Expense
-            </button>
+            <button className="btn btn-primary" onClick={() => navigate(`/projects/expense/new?project_id=${project.id}`)}>+ Add Expense</button>
           </div>
-          {projectExpenses.length === 0 ? (
-            <div className="empty-state"><p>No expenses found</p></div>
-          ) : (
+          {projectExpenses.length === 0 ? <div className="empty-state"><p>No expenses found</p></div> : (
             <table className="table">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Type</th>
-                  <th>Description</th>
-                  <th>Vendor</th>
-                  <th>Amount</th>
-                </tr>
-              </thead>
+              <thead><tr><th>Date</th><th>Type</th><th>Description</th><th>Vendor</th><th>Amount</th></tr></thead>
               <tbody>
                 {projectExpenses.map(exp => (
                   <tr key={exp.id}>
-                    <td>{formatDate(exp.expense_date)}</td>
+                    <td>{fmtD(exp.expense_date)}</td>
                     <td>{exp.expense_type}</td>
                     <td>{exp.description || '-'}</td>
                     <td>{exp.vendor_name || '-'}</td>
-                    <td>{formatCurrency(exp.amount)}</td>
+                    <td>{fmt(exp.amount)}</td>
                   </tr>
                 ))}
               </tbody>
