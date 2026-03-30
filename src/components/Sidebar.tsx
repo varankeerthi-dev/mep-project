@@ -110,6 +110,13 @@ const menuData: MenuSection[] = [
         ]
       },
       {
+        id: 'site-report',
+        label: 'Site Report',
+        submenu: [
+          { id: 'site-report-dashboard', label: 'Reports', path: '/site-reports' }
+        ]
+      },
+      {
         id: 'client-communication',
         label: 'Client Communication',
         submenu: [
@@ -250,6 +257,7 @@ const iconMap = {
   'client-po': DocumentTextIcon,
   meetings: CalendarDaysIcon,
   'site-visit': MapPinIcon,
+  'site-report': ClipboardDocumentCheckIcon,
   subcontractor: UserGroupIcon,
   'client-requests': InboxIcon,
   quotation: DocumentDuplicateIcon,

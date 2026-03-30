@@ -57,6 +57,7 @@ const MeetingsDashboard = lazyAny(() => Meetings.then(m => ({ default: m.Meeting
 const CreateMeeting = lazyAny(() => Meetings.then(m => ({ default: m.CreateMeeting })));
 const ClientRequests = lazyAny(() => import('./pages/ClientRequests'));
 const SiteVisits = lazyAny(() => import('./pages/SiteVisits').then(m => ({ default: m.SiteVisits })));
+const SiteReport = lazyAny(() => import('./pages/SiteReport').then(m => ({ default: m.SiteReport })));
 const ClientCommunication = lazyAny(() => import('./pages/ClientCommunication').then(m => ({ default: m.ClientCommunication })));
 const Subcontractors = import('./pages/Subcontractors');
 const SubcontractorDashboard = lazyAny(() => Subcontractors.then(m => ({ default: m.SubcontractorDashboard })));
@@ -322,6 +323,8 @@ export default function App() {
       case '/meetings/edit': return <CreateMeeting onSuccess={() => navigate('/meetings')} onCancel={() => navigate('/meetings')} editMode={true} />;
       case '/site-visits':
         return <SiteVisits />
+      case '/site-reports':
+        return <SiteReport />
       case '/client-communication':
         return <ClientCommunication />
       case '/subcontractors': return <SubcontractorDashboard onNavigate={navigate} />;
