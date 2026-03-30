@@ -158,8 +158,8 @@ function ClientDiscountPortfolio({ formData, setFormData, isAdmin }: ClientDisco
 
   return (
     <div className="pricing-control">
-      <div className="card" style={{ maxWidth: '600px', marginBottom: '16px' }}>
-        <h3 style={{ fontSize: '16px', marginBottom: '12px' }}>Discount Portfolio</h3>
+      <div className="card" style={{ maxWidth: '600px', marginBottom: '12px' }}>
+        <h3 style={{ fontSize: '16px', marginBottom: '8px', fontFamily: 'Inter, sans-serif' }}>Discount Portfolio</h3>
         <div className="form-group">
           <label className="form-label">Discount Type *</label>
           <select 
@@ -176,7 +176,7 @@ function ClientDiscountPortfolio({ formData, setFormData, isAdmin }: ClientDisco
         </div>
 
         {formData.discount_type === 'Standard' && (
-          <div className="form-group" style={{ marginTop: '12px' }}>
+          <div className="form-group" style={{ marginTop: '8px' }}>
             <label className="form-label">Select Standard Price List *</label>
             <select 
               className="form-select" 
@@ -195,9 +195,9 @@ function ClientDiscountPortfolio({ formData, setFormData, isAdmin }: ClientDisco
       </div>
 
       {/* Custom Discounts Section */}
-      <div className="card" style={{ marginBottom: '16px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-          <h3 style={{ fontSize: '14px', margin: 0 }}>Custom Discounts (Per Variant)</h3>
+      <div className="card" style={{ marginBottom: '12px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+          <h3 style={{ fontSize: '14px', margin: 0, fontFamily: 'Inter, sans-serif' }}>Custom Discounts (Per Variant)</h3>
           <button 
             className="btn btn-primary btn-sm" 
             onClick={handleSaveCustomDiscounts}
@@ -211,7 +211,7 @@ function ClientDiscountPortfolio({ formData, setFormData, isAdmin }: ClientDisco
         {saveMessage.text && (
           <div style={{ 
             padding: '8px 12px', 
-            marginBottom: '12px', 
+            marginBottom: '8px', 
             borderRadius: '4px', 
             fontSize: '12px',
             background: saveMessage.type === 'success' ? '#dcfce7' : '#fee2e2',
@@ -257,7 +257,7 @@ function ClientDiscountPortfolio({ formData, setFormData, isAdmin }: ClientDisco
       </div>
 
       <div className="card">
-        <h3 style={{ fontSize: '14px', marginBottom: '10px' }}>Portfolio Preview</h3>
+        <h3 style={{ fontSize: '14px', marginBottom: '6px', fontFamily: 'Inter, sans-serif' }}>Portfolio Preview</h3>
         {formData.discount_type === 'Standard' ? (
           <div style={{ padding: '12px', background: '#f8fafc', borderRadius: '6px' }}>
             <p style={{ fontSize: '13px', margin: 0 }}>
@@ -475,11 +475,11 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
       <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
         
         {/* Header - Shadcn Style */}
-        <div style={{ marginBottom: '24px' }}>
-          <h1 style={{ fontSize: '28px', fontWeight: '700', color: '#0f172a', marginBottom: '4px' }}>
+        <div style={{ marginBottom: '16px' }}>
+          <h1 style={{ fontSize: '28px', fontWeight: '700', color: '#0f172a', marginBottom: '4px', fontFamily: 'Inter, sans-serif' }}>
             {editMode ? 'Edit Client' : 'Create Client'}
           </h1>
-          <p style={{ fontSize: '14px', color: '#64748b' }}>
+          <p style={{ fontSize: '14px', color: '#64748b', fontFamily: 'Inter, sans-serif' }}>
             {editMode ? 'Update client information and settings' : 'Add a new client to your organization'}
           </p>
         </div>
@@ -491,7 +491,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
           padding: '4px',
           background: '#f1f5f9',
           borderRadius: '10px', 
-          marginBottom: '24px',
+          marginBottom: '16px',
           border: '1px solid #e2e8f0'
         }}>
           <button
@@ -545,15 +545,15 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                 <div className="form-group"><label className="form-label">Category</label><select className="form-select" value={formData.category || 'Active'} onChange={e => setFormData({...formData, category: e.target.value})}><option value="Active">Active</option><option value="Inactive">Inactive</option><option value="Prospect">Prospect</option></select></div>
               </div>
               
-              <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', marginBottom: '16px' }}>
-                <div style={{ fontWeight: '600', marginBottom: '8px', color: '#475569' }}>Contact Person 1</div>
-                <div className="form-row" style={{ marginBottom: '8px' }}>
+              <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', marginBottom: '12px' }}>
+                <div style={{ fontWeight: '600', marginBottom: '6px', color: '#475569', fontFamily: 'Inter, sans-serif' }}>Contact Person 1</div>
+                <div className="form-row" style={{ marginBottom: '6px' }}>
                   <div className="form-group"><label className="form-label">Contact Person</label><input type="text" className="form-input" value={formData.contact_person || ''} onChange={e => setFormData({...formData, contact_person: e.target.value})} placeholder="Name" /></div>
                   <div className="form-group"><label className="form-label">Designation</label><input type="text" className="form-input" value={formData.contact_designation || ''} onChange={e => setFormData({...formData, contact_designation: e.target.value})} placeholder="e.g. Manager" /></div>
                   <div className="form-group"><label className="form-label">Phone</label><input type="text" className="form-input" value={formData.contact || ''} onChange={e => setFormData({...formData, contact: e.target.value})} placeholder="Phone" /></div>
                   <div className="form-group"><label className="form-label">Email</label><input type="email" className="form-input" value={formData.contact_person_email || ''} onChange={e => setFormData({...formData, contact_person_email: e.target.value})} placeholder="email@example.com" /></div>
                 </div>
-                <div className="form-row" style={{ marginBottom: '8px' }}>
+                <div className="form-row" style={{ marginBottom: '6px' }}>
                   <div className="form-group"><input type="text" className="form-input" value={formData.contact_person_2 || ''} onChange={e => setFormData({...formData, contact_person_2: e.target.value})} placeholder="Contact Person 2" /></div>
                   <div className="form-group"><input type="text" className="form-input" value={formData.contact_designation_2 || ''} onChange={e => setFormData({...formData, contact_designation_2: e.target.value})} placeholder="Designation" /></div>
                   <div className="form-group"><input type="text" className="form-input" value={formData.contact_person_2_contact || ''} onChange={e => setFormData({...formData, contact_person_2_contact: e.target.value})} placeholder="Phone" /></div>
@@ -583,9 +583,9 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                 <div className="form-group"><label className="form-label">Vendor No</label><input type="text" className="form-input" value={formData.vendor_no} onChange={e => setFormData({...formData, vendor_no: e.target.value})} /></div>
               </div>
               
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '12px' }}>
                 <div style={{ background: '#f0fdf4', padding: '12px', borderRadius: '8px', border: '1px solid #bbf7d0' }}>
-                  <div style={{ fontWeight: '600', marginBottom: '8px', color: '#166534' }}>Billing Address</div>
+                  <div style={{ fontWeight: '600', marginBottom: '6px', color: '#166534', fontFamily: 'Inter, sans-serif' }}>Billing Address</div>
                   <div className="form-row">
                     <div className="form-group"><label className="form-label">Address Line 1</label><input type="text" className="form-input" value={formData.address1} onChange={e => setFormData({...formData, address1: e.target.value})} /></div>
                     <div className="form-group"><label className="form-label">Address Line 2</label><input type="text" className="form-input" value={formData.address2} onChange={e => setFormData({...formData, address2: e.target.value})} /></div>
@@ -604,8 +604,8 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                 </div>
                 
                 <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                    <div style={{ fontWeight: '600', color: '#475569' }}>Shipping Addresses</div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                    <div style={{ fontWeight: '600', color: '#475569', fontFamily: 'Inter, sans-serif' }}>Shipping Addresses</div>
                     <button type="button" className="btn btn-secondary" onClick={copyBillingToShipping} style={{ whiteSpace: 'nowrap' }}>Copy Billing</button>
                   </div>
                   
@@ -628,7 +628,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                   
                   {showShippingForm && (
                     <div style={{ background: '#f0f9ff', padding: '12px', borderRadius: '8px', border: '1px solid #bae6fd', marginTop: '8px' }}>
-                      <div style={{ fontWeight: '600', marginBottom: '8px', color: '#0369a1' }}>Add Shipping Address</div>
+                      <div style={{ fontWeight: '600', marginBottom: '6px', color: '#0369a1', fontFamily: 'Inter, sans-serif' }}>Add Shipping Address</div>
                       <div className="form-row">
                         <div className="form-group"><label className="form-label">Address Name</label><input type="text" className="form-input" value={newShipping.address_name} onChange={e => setNewShipping({...newShipping, address_name: e.target.value})} placeholder="e.g. Main Office" /></div>
                         <div className="form-group"><label className="form-label">Contact Person</label><input type="text" className="form-input" value={newShipping.contact} onChange={e => setNewShipping({...newShipping, contact: e.target.value})} /></div>
@@ -662,7 +662,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
               </div>
               
               <div className="form-group"><label className="form-label">Remarks</label><textarea className="form-textarea" value={formData.remarks} onChange={e => setFormData({...formData, remarks: e.target.value})} /></div>
-              <div className="form-group"><label className="form-label">About Client</label><textarea className="form-textarea" value={formData.about_client || ''} onChange={e => setFormData({...formData, about_client: e.target.value})} placeholder="Additional information about the client..." /></div>
+              <div className="form-group" style={{ marginBottom: '8px' }}><label className="form-label">About Client</label><textarea className="form-textarea" value={formData.about_client || ''} onChange={e => setFormData({...formData, about_client: e.target.value})} placeholder="Additional information about the client..." /></div>
               <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                 <button type="submit" className="btn btn-primary" disabled={saving}>{editMode ? 'Update Client' : 'Submit'}</button>
                 {editMode && (
@@ -676,7 +676,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
           ) : (
             <div>
               <ClientDiscountPortfolio formData={formData} setFormData={setFormData} isAdmin={isAdmin} />
-              <div style={{ display: 'flex', gap: '12px', marginTop: '24px', paddingTop: '20px', borderTop: '1px solid #e2e8f0' }}>
+              <div style={{ display: 'flex', gap: '12px', marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #e2e8f0' }}>
                 <button type="button" className="btn btn-primary" onClick={handleSubmit}>{editMode ? 'Update Pricing Profile' : 'Submit'}</button>
                 <button type="button" className="btn btn-secondary" onClick={onCancel}>Cancel</button>
               </div>
