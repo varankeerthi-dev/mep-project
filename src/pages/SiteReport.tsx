@@ -28,11 +28,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '../App';
 
 const siteReportSchema = z.object({
   client: z.string().min(1, "Client name is required"),
@@ -127,22 +127,22 @@ const siteReportSchema = z.object({
 type SiteReportFormValues = z.infer<typeof siteReportSchema>;
 
 export function SiteReport() {
-  const { user } = useAuth();
+  const { user, organisation } = useAuth();
   const [view, setView] = useState<'list' | 'create'>('list');
   const [photos, setPhotos] = useState<File[]>([]);
   const queryClient = useQueryClient();
 
   // Fetch existing reports
   const { data: reports, isLoading: reportsLoading } = useQuery({
-    queryKey: ['site-reports', user?.organization_id],
+    queryKey: ['site-reports', organisation?.id],
     queryFn: async () => {
       let query = supabase
         .from('site_reports')
         .select('*, clients(name), projects(name)')
         .order('report_date', { ascending: false });
       
-      if (user?.organization_id) {
-        query = query.eq('organization_id', user.organization_id);
+      if (organisation?.id) {
+        query = query.eq('organization_id', organisation?.id);
       }
       
       const { data, error } = await query;
@@ -216,12 +216,12 @@ export function SiteReport() {
 
   // Fetch Clients and Projects from system
   const { data: clients } = useQuery({
-    queryKey: ['clients', user?.organization_id],
+    queryKey: ['clients', organisation?.id],
     staleTime: 1000 * 60 * 5, // 5 minutes
     queryFn: async () => {
       let query = supabase.from('clients').select('id, name');
-      if (user?.organization_id) {
-        query = query.eq('organization_id', user.organization_id);
+      if (organisation?.id) {
+        query = query.eq('organization_id', organisation?.id);
       }
       const { data, error } = await query;
       if (error) throw error;
@@ -232,7 +232,7 @@ export function SiteReport() {
   const selectedClientId = form.watch('client');
 
   const { data: projects } = useQuery({
-    queryKey: ['projects', selectedClientId, user?.organization_id],
+    queryKey: ['projects', selectedClientId, organisation?.id],
     enabled: !!selectedClientId,
     staleTime: 1000 * 60 * 5, // 5 minutes
     queryFn: async () => {
@@ -241,8 +241,8 @@ export function SiteReport() {
         .select('id, name')
         .eq('client_id', selectedClientId);
       
-      if (user?.organization_id) {
-        query = query.eq('organization_id', user.organization_id);
+      if (organisation?.id) {
+        query = query.eq('organization_id', organisation?.id);
       }
       
       const { data, error } = await query;
@@ -257,7 +257,7 @@ export function SiteReport() {
       const { data: report, error: reportError } = await supabase
         .from('site_reports')
         .insert([{
-          organization_id: user?.organization_id,
+          organization_id: organisation?.id,
           client_id: values.client,
           project_id: values.projectName,
           report_date: values.date,
@@ -309,7 +309,7 @@ export function SiteReport() {
         const subs = values.manpower.subContractors
           .filter(s => s.name)
           .map(s => ({
-            organization_id: user?.organization_id,
+            organization_id: organisation?.id,
             report_id: report.id,
             name: s.name,
             count: s.count,
@@ -327,7 +327,7 @@ export function SiteReport() {
         const items = values.workCarriedOut
           .filter(i => i.value)
           .map(i => ({ 
-            organization_id: user?.organization_id,
+            organization_id: organisation?.id,
             report_id: report.id, 
             description: i.value 
           }));
@@ -342,7 +342,7 @@ export function SiteReport() {
         const items = values.milestonesCompleted
           .filter(i => i.value)
           .map(i => ({ 
-            organization_id: user?.organization_id,
+            organization_id: organisation?.id,
             report_id: report.id, 
             description: i.value 
           }));
@@ -426,7 +426,7 @@ export function SiteReport() {
                       <TableCell>{report.projects?.name}</TableCell>
                       <TableCell>{report.engineer_name}</TableCell>
                       <TableCell>
-                        <Badge variant={report.pm_status === 'Reported' ? 'success' : 'secondary'}>
+                        <Badge variant={report.pm_status === 'Reported' ? 'default' : 'secondary'}>
                           {report.pm_status}
                         </Badge>
                       </TableCell>
