@@ -511,25 +511,28 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                 </div>
               </div>
               
-              <div className="bg-gray-50 rounded-lg p-3">
-                <div className="text-sm font-semibold text-gray-700 mb-2">Contact Persons</div>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-2">
-                  <input type="text" className="px-3 py-2 border border-gray-300 rounded-lg text-sm" value={formData.contact_person || ''} onChange={e => setFormData({...formData, contact_person: e.target.value})} placeholder="Contact 1 Name" />
-                  <input type="text" className="px-3 py-2 border border-gray-300 rounded-lg text-sm" value={formData.contact_designation || ''} onChange={e => setFormData({...formData, contact_designation: e.target.value})} placeholder="Designation" />
-                  <input type="text" className="px-3 py-2 border border-gray-300 rounded-lg text-sm" value={formData.contact || ''} onChange={e => setFormData({...formData, contact: e.target.value})} placeholder="Phone" />
-                  <input type="email" className="px-3 py-2 border border-gray-300 rounded-lg text-sm" value={formData.contact_person_email || ''} onChange={e => setFormData({...formData, contact_person_email: e.target.value})} placeholder="Email" />
+              <div className="bg-gray-50 rounded-lg p-2">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-sm font-semibold text-gray-700">Contact Persons</span>
+                  <span className="text-xs text-gray-400">(Name, Designation, Phone, Email)</span>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-2">
-                  <input type="text" className="px-3 py-2 border border-gray-300 rounded-lg text-sm" value={formData.contact_person_2 || ''} onChange={e => setFormData({...formData, contact_person_2: e.target.value})} placeholder="Contact 2 Name" />
-                  <input type="text" className="px-3 py-2 border border-gray-300 rounded-lg text-sm" value={formData.contact_designation_2 || ''} onChange={e => setFormData({...formData, contact_designation_2: e.target.value})} placeholder="Designation" />
-                  <input type="text" className="px-3 py-2 border border-gray-300 rounded-lg text-sm" value={formData.contact_person_2_contact || ''} onChange={e => setFormData({...formData, contact_person_2_contact: e.target.value})} placeholder="Phone" />
-                  <input type="email" className="px-3 py-2 border border-gray-300 rounded-lg text-sm" value={formData.contact_person_2_email || ''} onChange={e => setFormData({...formData, contact_person_2_email: e.target.value})} placeholder="Email" />
+                <div className="flex flex-wrap gap-2 mb-2">
+                  <input type="text" className="flex-1 min-w-[120px] px-2 py-1.5 border border-gray-300 rounded text-sm" value={formData.contact_person || ''} onChange={e => setFormData({...formData, contact_person: e.target.value})} placeholder="Contact 1" />
+                  <input type="text" className="flex-1 min-w-[100px] px-2 py-1.5 border border-gray-300 rounded text-sm" value={formData.contact_designation || ''} onChange={e => setFormData({...formData, contact_designation: e.target.value})} placeholder="Designation" />
+                  <input type="text" className="flex-1 min-w-[100px] px-2 py-1.5 border border-gray-300 rounded text-sm" value={formData.contact || ''} onChange={e => setFormData({...formData, contact: e.target.value})} placeholder="Phone" />
+                  <input type="email" className="flex-1 min-w-[140px] px-2 py-1.5 border border-gray-300 rounded text-sm" value={formData.contact_person_email || ''} onChange={e => setFormData({...formData, contact_person_email: e.target.value})} placeholder="Email" />
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                  <input type="text" className="px-3 py-2 border border-gray-300 rounded-lg text-sm" value={formData.purchase_person || ''} onChange={e => setFormData({...formData, purchase_person: e.target.value})} placeholder="Purchase Person" />
-                  <input type="text" className="px-3 py-2 border border-gray-300 rounded-lg text-sm" value={formData.purchase_designation || ''} onChange={e => setFormData({...formData, purchase_designation: e.target.value})} placeholder="Designation" />
-                  <input type="text" className="px-3 py-2 border border-gray-300 rounded-lg text-sm" value={formData.purchase_contact || ''} onChange={e => setFormData({...formData, purchase_contact: e.target.value})} placeholder="Phone" />
-                  <input type="email" className="px-3 py-2 border border-gray-300 rounded-lg text-sm" value={formData.purchase_email || ''} onChange={e => setFormData({...formData, purchase_email: e.target.value})} placeholder="Email" />
+                <div className="flex flex-wrap gap-2 mb-2">
+                  <input type="text" className="flex-1 min-w-[120px] px-2 py-1.5 border border-gray-300 rounded text-sm" value={formData.contact_person_2 || ''} onChange={e => setFormData({...formData, contact_person_2: e.target.value})} placeholder="Contact 2" />
+                  <input type="text" className="flex-1 min-w-[100px] px-2 py-1.5 border border-gray-300 rounded text-sm" value={formData.contact_designation_2 || ''} onChange={e => setFormData({...formData, contact_designation_2: e.target.value})} placeholder="Designation" />
+                  <input type="text" className="flex-1 min-w-[100px] px-2 py-1.5 border border-gray-300 rounded text-sm" value={formData.contact_person_2_contact || ''} onChange={e => setFormData({...formData, contact_person_2_contact: e.target.value})} placeholder="Phone" />
+                  <input type="email" className="flex-1 min-w-[140px] px-2 py-1.5 border border-gray-300 rounded text-sm" value={formData.contact_person_2_email || ''} onChange={e => setFormData({...formData, contact_person_2_email: e.target.value})} placeholder="Email" />
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <input type="text" className="flex-1 min-w-[120px] px-2 py-1.5 border border-gray-300 rounded text-sm" value={formData.purchase_person || ''} onChange={e => setFormData({...formData, purchase_person: e.target.value})} placeholder="Purchase Person" />
+                  <input type="text" className="flex-1 min-w-[100px] px-2 py-1.5 border border-gray-300 rounded text-sm" value={formData.purchase_designation || ''} onChange={e => setFormData({...formData, purchase_designation: e.target.value})} placeholder="Designation" />
+                  <input type="text" className="flex-1 min-w-[100px] px-2 py-1.5 border border-gray-300 rounded text-sm" value={formData.purchase_contact || ''} onChange={e => setFormData({...formData, purchase_contact: e.target.value})} placeholder="Phone" />
+                  <input type="email" className="flex-1 min-w-[140px] px-2 py-1.5 border border-gray-300 rounded text-sm" value={formData.purchase_email || ''} onChange={e => setFormData({...formData, purchase_email: e.target.value})} placeholder="Email" />
                 </div>
               </div>
 
