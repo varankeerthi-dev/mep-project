@@ -354,7 +354,7 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
                       <span className="sidebar-item-icon">
                         <Icon />
                       </span>
-                      {!isCollapsed && <span className="sidebar-item-label">{item.label}</span>}
+                      <span className="sidebar-item-label">{item.label}</span>
                       {item.submenu && !isCollapsed && (
                         <span className="sidebar-item-chevron">
                           <ChevronDownIcon />
@@ -391,7 +391,7 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
             <span className="sidebar-item-icon">
               {isCollapsed ? <ChevronRightIcon /> : <ChevronLeftIcon />}
             </span>
-            {!isCollapsed && <span>Collapse</span>}
+            <span>{isCollapsed ? 'Expand' : 'Collapse'}</span>
           </button>
         </div>
       </aside>

@@ -159,7 +159,7 @@ function ClientDiscountPortfolio({ formData, setFormData, isAdmin }: ClientDisco
   return (
     <div className="pricing-control">
       <div className="card" style={{ maxWidth: '600px', marginBottom: '12px' }}>
-        <h3 style={{ fontSize: '16px', marginBottom: '8px', fontFamily: 'Inter, sans-serif' }}>Discount Portfolio</h3>
+        <h3 style={{ fontSize: '16px', marginBottom: '8px' }}>Discount Portfolio</h3>
         <div className="form-group">
           <label className="form-label">Discount Type *</label>
           <select 
@@ -197,7 +197,7 @@ function ClientDiscountPortfolio({ formData, setFormData, isAdmin }: ClientDisco
       {/* Custom Discounts Section */}
       <div className="card" style={{ marginBottom: '12px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-          <h3 style={{ fontSize: '14px', margin: 0, fontFamily: 'Inter, sans-serif' }}>Custom Discounts (Per Variant)</h3>
+          <h3 style={{ fontSize: '14px', margin: 0 }}>Custom Discounts (Per Variant)</h3>
           <button 
             className="btn btn-primary btn-sm" 
             onClick={handleSaveCustomDiscounts}
@@ -257,7 +257,7 @@ function ClientDiscountPortfolio({ formData, setFormData, isAdmin }: ClientDisco
       </div>
 
       <div className="card">
-        <h3 style={{ fontSize: '14px', marginBottom: '6px', fontFamily: 'Inter, sans-serif' }}>Portfolio Preview</h3>
+        <h3 style={{ fontSize: '14px', marginBottom: '6px' }}>Portfolio Preview</h3>
         {formData.discount_type === 'Standard' ? (
           <div style={{ padding: '12px', background: '#f8fafc', borderRadius: '6px' }}>
             <p style={{ fontSize: '13px', margin: 0 }}>

@@ -29,7 +29,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{ padding: 40, textAlign: 'center', fontFamily: 'sans-serif' }}>
+        <div style={{ padding: 40, textAlign: 'center', fontFamily: '"Inter", sans-serif' }}>
           <h1>Something went wrong</h1>
           <p style={{ color: '#666' }}>{this.state.error?.message}</p>
           <button

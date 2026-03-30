@@ -1389,7 +1389,7 @@ const exportToExcel = useCallback(async () => {
   const isPrefaceSheet = activeSheet?.name?.toLowerCase().includes('preface');
 
   return (
-    <div className="page-container" style={{ padding: '18px', background: '#eef1f4', minHeight: '100vh', fontFamily: "'Open Sans', sans-serif" }}>
+    <div className="page-container" style={{ padding: '18px', background: '#eef1f4', minHeight: '100vh' }}>
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
         <h1 className="page-title" style={{ fontSize: '24px', fontWeight: '600', color: '#1a1a1a' }}>BOQ</h1>
         <div style={{ display: 'flex', gap: '10px' }}>
@@ -2334,7 +2334,7 @@ const boqHeaderGridStyle = {
   gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
   gap: '10px',
   marginBottom: '14px',
-  fontFamily: "'Open Sans', 'Roboto', sans-serif",
+  fontFamily: "'Inter', sans-serif",
 };
 
 const boqHeaderCardStyle = {
@@ -2400,6 +2400,6 @@ const a4TextareaStyle = {
   padding: '10px',
   fontSize: '12px',
   lineHeight: 1.5,
-  fontFamily: "'Open Sans', sans-serif",
+  fontFamily: "'Inter', sans-serif",
   resize: 'vertical',
 };

@@ -75,7 +75,7 @@ export function Login({ onLogin }: LoginProps) {
       justifyContent: 'center',
       background: '#0a0a0a',
       padding: '24px',
-      fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", sans-serif'
+      fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
     }}>
       <div style={{
         width: '100%',

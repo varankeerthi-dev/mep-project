@@ -83,7 +83,7 @@ export default function LandingPage() {
   }, []);
 
   return (
-    <div className="landing-page" style={{ background: '#000', minHeight: '100vh', color: '#fff', fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", sans-serif' }}>
+    <div className="landing-page" style={{ background: '#000', minHeight: '100vh', color: '#fff', fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
       {/* Navigation */}
       <nav style={{
         position: 'fixed',
