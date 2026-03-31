@@ -1,5 +1,8 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useForm, useFieldArray } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import { supabase } from '../supabase';
 import { 
   Plus, 
@@ -23,33 +26,19 @@ import {
   ArrowLeft,
   ArrowRight,
   Check,
-  Users,
-  Briefcase,
-  Target,
-  TrendingUp,
-  Truck,
-  Shield,
-  Award,
-  Paperclip,
-  MessageSquare,
-  FileCheck,
-  ClipboardList,
-  AlertTriangle,
-  Image,
-  X,
-  Upload,
-  GripVertical,
-  ChevronDown,
-  ChevronUp,
-  MoreHorizontal,
   Save,
-  Printer
+  Upload,
+  HardHat,
+  Users,
+  Wrench,
+  ClipboardCheck,
+  Construction
 } from 'lucide-react';
 import { 
   Box, 
   Paper, 
   Typography, 
-  Button as MuiButton,
+  Button as MuiButton, 
   TextField, 
   Chip, 
   IconButton, 
@@ -72,163 +61,140 @@ import {
   parseISO,
   isToday
 } from 'date-fns';
-import { useForm, useFieldArray, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+
+// shadcn/ui imports for the form
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
 
-// Zod Schema for Site Report
+// Zod Schema from your code
 const siteReportSchema = z.object({
-  // Basic Info
-  client_id: z.string().min(1, 'Client is required'),
-  project_name: z.string().min(1, 'Project name is required'),
-  visit_date: z.string().min(1, 'Visit date is required'),
-  report_no: z.string().optional(),
+  client: z.string().min(1, "Client name is required"),
+  projectName: z.string().min(1, "Project name is required"),
+  date: z.string().min(1, "Date is required"),
   
-  // Manpower
-  subcontractors: z.array(z.object({
-    id: z.string(),
-    name: z.string().min(1, 'Subcontractor name is required'),
-    trade: z.string().min(1, 'Trade is required'),
-    workers_count: z.number().min(0, 'Must be 0 or more'),
-    supervisor: z.string().optional(),
-  })).default([]),
+  manpower: z.object({
+    total: z.string().min(1, "Total manpower is required"),
+    skilled: z.string().min(1, "Skilled manpower is required"),
+    unskilled: z.string().min(1, "Unskilled manpower is required"),
+    startTime: z.string().min(1, "Start time is required"),
+    endTime: z.string().min(1, "End time is required"),
+    subContractors: z.array(z.object({
+      name: z.string(),
+      count: z.string(),
+      start: z.string(),
+      end: z.string()
+    }))
+  }),
   
-  // Work Carried Out
-  work_items: z.array(z.object({
-    id: z.string(),
-    category: z.string().min(1, 'Category is required'),
-    description: z.string().min(1, 'Description is required'),
-    location: z.string().optional(),
-    status: z.enum(['completed', 'in_progress', 'pending', 'delayed']).default('in_progress'),
-    completion_percentage: z.number().min(0).max(100).default(0),
-  })).default([]),
+  workCarriedOut: z.array(z.object({ value: z.string().min(1, "Work description is required") })).min(1, "At least one work item is required"),
+  milestonesCompleted: z.array(z.object({ value: z.string() })),
   
-  // Milestones
-  milestones: z.array(z.object({
-    id: z.string(),
-    description: z.string().min(1, 'Description is required'),
-    target_date: z.string().optional(),
-    status: z.enum(['achieved', 'on_track', 'at_risk', 'delayed']).default('on_track'),
-    remarks: z.string().optional(),
-  })).default([]),
+  progress: z.object({
+    planned: z.string().min(1, "Planned progress is required"),
+    actual: z.string().min(1, "Actual progress is required"),
+    percentComplete: z.string().min(1, "Percent complete is required")
+  }),
   
-  // Progress
-  overall_progress: z.number().min(0).max(100).default(0),
-  planned_progress: z.number().min(0).max(100).default(0),
-  progress_variance: z.string().optional(),
-  schedule_status: z.enum(['on_schedule', 'ahead', 'behind']).default('on_schedule'),
+  equipment: z.object({
+    onSite: z.string(),
+    breakdown: z.string()
+  }),
   
-  // Equipment
-  equipment: z.array(z.object({
-    id: z.string(),
-    name: z.string().min(1, 'Equipment name is required'),
-    type: z.string().optional(),
-    quantity: z.number().min(0).default(1),
-    condition: z.enum(['excellent', 'good', 'fair', 'poor']).default('good'),
-    operator: z.string().optional(),
-  })).default([]),
+  safety: z.object({
+    toolboxMeeting: z.boolean(),
+    ppe: z.boolean()
+  }),
   
-  // Safety
-  safety_compliance: z.boolean().default(true),
-  ppe_compliance: z.enum(['full', 'partial', 'none']).default('full'),
-  incidents: z.array(z.object({
-    id: z.string(),
-    type: z.enum(['near_miss', 'first_aid', 'medical', 'lost_time', 'fatality']).default('near_miss'),
-    description: z.string().min(1, 'Description is required'),
-    date: z.string().optional(),
-    action_taken: z.string().optional(),
-  })).default([]),
-  safety_meeting: z.boolean().default(false),
-  safety_meeting_notes: z.string().optional(),
+  quality: z.object({
+    inspection: z.enum(['Yes', 'Pending', 'Not Required']),
+    satisfiedPercent: z.string().min(1, "Satisfied percentage is required"),
+    reworkRequiredReason: z.string()
+  }),
   
-  // Quality
-  quality_checks: z.array(z.object({
-    id: z.string(),
-    description: z.string().min(1, 'Description is required'),
-    status: z.enum(['passed', 'failed', 'pending', 'rejected']).default('passed'),
-    remarks: z.string().optional(),
-  })).default([]),
-  non_conformance: z.boolean().default(false),
+  rework: z.object({
+    isRework: z.boolean(),
+    reason: z.string(),
+    start: z.string(),
+    end: z.string(),
+    materialUsed: z.string(),
+    totalManpower: z.string()
+  }),
   
-  // Documents
-  document_references: z.array(z.object({
-    id: z.string(),
-    document_type: z.enum(['drawing', 'specification', 'method_statement', 'permit', 'approval']),
-    document_no: z.string().min(1, 'Document number is required'),
-    revision: z.string().optional(),
-    status: z.enum(['approved', 'pending', 'rejected', 'superseded']).default('approved'),
-  })).default([]),
+  documents: z.object({
+    type: z.enum(['INVOICE', 'DC']),
+    docNo: z.string(),
+    receivedSignature: z.enum(['Yes', 'Pending'])
+  }),
   
-  // Client Requirements
-  client_instructions: z.string().optional(),
-  approvals_pending: z.array(z.object({
-    id: z.string(),
-    description: z.string().min(1, 'Description is required'),
-    requested_date: z.string().optional(),
-    required_by: z.string().optional(),
-  })).default([]),
+  clientRequirements: z.object({
+    details: z.array(z.object({ value: z.string() })),
+    quoteToBeSent: z.boolean(),
+    mailReceived: z.boolean()
+  }),
   
-  // Reporting
-  weather_condition: z.string().optional(),
-  temperature: z.string().optional(),
-  working_hours_start: z.string().optional(),
-  working_hours_end: z.string().optional(),
+  reporting: z.object({
+    pmStatus: z.enum(['Reported', 'Pending']),
+    materialArrangement: z.enum(['Arranged', 'Pending', 'Not Required', 'Informed to stores'])
+  }),
   
-  // Work Plan
-  work_plan_next_day: z.array(z.object({
-    id: z.string(),
-    description: z.string().min(1, 'Description is required'),
-    location: z.string().optional(),
-    resources_required: z.string().optional(),
-  })).default([]),
+  workPlanNextDay: z.array(z.object({ value: z.string().min(1, "Next day plan is required") })).min(1, "At least one plan item is required"),
+  specialInstructions: z.array(z.object({ value: z.string() })),
   
-  // Issues
   issues: z.array(z.object({
-    id: z.string(),
-    category: z.enum(['delay', 'shortage', 'dispute', 'design', 'weather', 'safety', 'other']),
-    description: z.string().min(1, 'Description is required'),
-    impact: z.enum(['low', 'medium', 'high', 'critical']).default('low'),
-    mitigation: z.string().optional(),
-  })).default([]),
+    issue: z.string(),
+    solution: z.string()
+  })),
   
-  // Photos
-  photos: z.array(z.object({
-    id: z.string(),
-    url: z.string(),
-    caption: z.string().optional(),
-    category: z.enum(['progress', 'safety', 'quality', 'issue', 'general']).default('general'),
-  })).default([]),
+  documentation: z.object({
+    filed: z.boolean(),
+    toolsLocked: z.boolean(),
+    sitePictures: z.enum(['Taken', 'Not Allowed'])
+  }),
   
-  // Documentation
-  prepared_by: z.string().min(1, 'Prepared by is required'),
-  approved_by: z.string().optional(),
-  remarks: z.string().optional(),
+  footer: z.object({
+    engineer: z.string().min(1, "Engineer name is required"),
+    signatureDate: z.string().min(1, "Signature date is required")
+  })
 });
 
-type SiteReportFormData = z.infer<typeof siteReportSchema>;
-
-// Generate unique ID
-const generateId = () => Math.random().toString(36).substr(2, 9);
+type SiteReportFormValues = z.infer<typeof siteReportSchema>;
 
 export function SiteVisits() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isAddClientModalOpen, setIsAddClientModalOpen] = useState(false);
   const [isAddPurposeModalOpen, setIsAddPurposeModalOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedVisit, setSelectedVisit] = useState<any | null>(null);
   const [visitToDelete, setVisitToDelete] = useState<any | null>(null);
+  
+  // Multi-step form state
+  const [currentStep, setCurrentStep] = useState(1);
+  const [formData, setFormData] = useState({
+    client_id: '',
+    visit_date: format(new Date(), 'yyyy-MM-dd'),
+    purpose: '',
+    visited_by: '',
+    engineer: '',
+    in_time: '',
+    out_time: '',
+    site_address: '',
+    location_url: '',
+    discussion: '',
+    measurements: '',
+    status: 'pending',
+    next_step: ''
+  });
+  
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [expandedCards, setExpandedCards] = useState<string[]>(['basic-info']);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const defaultColumns = { date: true, client: true, visitedBy: true, status: true, nextStep: true, actions: true };
   const [visibleColumns, setVisibleColumns] = useState<Record<string, boolean>>(() => {
@@ -239,64 +205,6 @@ export function SiteVisits() {
       return defaultColumns;
     }
   });
-
-  // React Hook Form setup
-  const {
-    control,
-    handleSubmit,
-    reset,
-    setValue,
-    watch,
-    formState: { errors, isDirty },
-  } = useForm<SiteReportFormData>({
-    resolver: zodResolver(siteReportSchema),
-    defaultValues: {
-      client_id: '',
-      project_name: '',
-      visit_date: format(new Date(), 'yyyy-MM-dd'),
-      report_no: '',
-      subcontractors: [],
-      work_items: [],
-      milestones: [],
-      overall_progress: 0,
-      planned_progress: 0,
-      schedule_status: 'on_schedule',
-      equipment: [],
-      safety_compliance: true,
-      ppe_compliance: 'full',
-      incidents: [],
-      safety_meeting: false,
-      safety_meeting_notes: '',
-      quality_checks: [],
-      non_conformance: false,
-      document_references: [],
-      client_instructions: '',
-      approvals_pending: [],
-      weather_condition: '',
-      temperature: '',
-      working_hours_start: '',
-      working_hours_end: '',
-      work_plan_next_day: [],
-      issues: [],
-      photos: [],
-      prepared_by: '',
-      approved_by: '',
-      remarks: '',
-    },
-  });
-
-  // Field Arrays
-  const subcontractorsArray = useFieldArray({ control, name: 'subcontractors' });
-  const workItemsArray = useFieldArray({ control, name: 'work_items' });
-  const milestonesArray = useFieldArray({ control, name: 'milestones' });
-  const equipmentArray = useFieldArray({ control, name: 'equipment' });
-  const incidentsArray = useFieldArray({ control, name: 'incidents' });
-  const qualityChecksArray = useFieldArray({ control, name: 'quality_checks' });
-  const documentsArray = useFieldArray({ control, name: 'document_references' });
-  const approvalsArray = useFieldArray({ control, name: 'approvals_pending' });
-  const workPlanArray = useFieldArray({ control, name: 'work_plan_next_day' });
-  const issuesArray = useFieldArray({ control, name: 'issues' });
-  const photosArray = useFieldArray({ control, name: 'photos' });
 
   useEffect(() => {
     localStorage.setItem('siteVisitColumns', JSON.stringify(visibleColumns));
@@ -448,115 +356,51 @@ export function SiteVisits() {
   });
 
   const resetForm = () => {
-    reset({
+    setCurrentStep(1);
+    setFormData({
       client_id: '',
-      project_name: '',
       visit_date: format(new Date(), 'yyyy-MM-dd'),
-      report_no: '',
-      subcontractors: [],
-      work_items: [],
-      milestones: [],
-      overall_progress: 0,
-      planned_progress: 0,
-      schedule_status: 'on_schedule',
-      equipment: [],
-      safety_compliance: true,
-      ppe_compliance: 'full',
-      incidents: [],
-      safety_meeting: false,
-      safety_meeting_notes: '',
-      quality_checks: [],
-      non_conformance: false,
-      document_references: [],
-      client_instructions: '',
-      approvals_pending: [],
-      weather_condition: '',
-      temperature: '',
-      working_hours_start: '',
-      working_hours_end: '',
-      work_plan_next_day: [],
-      issues: [],
-      photos: [],
-      prepared_by: '',
-      approved_by: '',
-      remarks: '',
+      purpose: '',
+      visited_by: '',
+      engineer: '',
+      in_time: '',
+      out_time: '',
+      site_address: '',
+      location_url: '',
+      discussion: '',
+      measurements: '',
+      status: 'pending',
+      next_step: ''
     });
-    setSelectedVisit(null);
   };
 
   const openFormForEdit = (visit: any) => {
     setSelectedVisit(visit);
-    // Populate form with existing data if available
-    reset({
+    setFormData({
       client_id: visit.client_id || '',
-      project_name: visit.project_name || '',
       visit_date: visit.visit_date || format(new Date(), 'yyyy-MM-dd'),
-      report_no: visit.report_no || '',
-      subcontractors: visit.subcontractors || [],
-      work_items: visit.work_items || [],
-      milestones: visit.milestones || [],
-      overall_progress: visit.overall_progress || 0,
-      planned_progress: visit.planned_progress || 0,
-      schedule_status: visit.schedule_status || 'on_schedule',
-      equipment: visit.equipment || [],
-      safety_compliance: visit.safety_compliance ?? true,
-      ppe_compliance: visit.ppe_compliance || 'full',
-      incidents: visit.incidents || [],
-      safety_meeting: visit.safety_meeting || false,
-      safety_meeting_notes: visit.safety_meeting_notes || '',
-      quality_checks: visit.quality_checks || [],
-      non_conformance: visit.non_conformance || false,
-      document_references: visit.document_references || [],
-      client_instructions: visit.client_instructions || '',
-      approvals_pending: visit.approvals_pending || [],
-      weather_condition: visit.weather_condition || '',
-      temperature: visit.temperature || '',
-      working_hours_start: visit.working_hours_start || '',
-      working_hours_end: visit.working_hours_end || '',
-      work_plan_next_day: visit.work_plan_next_day || [],
-      issues: visit.issues || [],
-      photos: visit.photos || [],
-      prepared_by: visit.prepared_by || '',
-      approved_by: visit.approved_by || '',
-      remarks: visit.remarks || '',
+      purpose: visit.purpose || '',
+      visited_by: visit.visited_by || '',
+      engineer: visit.engineer || '',
+      in_time: visit.in_time || '',
+      out_time: visit.out_time || '',
+      site_address: visit.site_address || '',
+      location_url: visit.location_url || '',
+      discussion: visit.discussion || '',
+      measurements: visit.measurements || '',
+      status: visit.status || 'pending',
+      next_step: visit.next_step || ''
     });
+    setCurrentStep(1);
     setIsFormOpen(true);
   };
 
-  const onSubmitForm = async (data: SiteReportFormData) => {
+  const handleFormSubmit = async () => {
     if (selectedVisit) {
-      updateVisitMutation.mutate({ id: selectedVisit.id, ...data });
+      updateVisitMutation.mutate({ id: selectedVisit.id, ...formData });
     } else {
-      addVisitMutation.mutate(data);
+      addVisitMutation.mutate(formData);
     }
-  };
-
-  // Handle photo upload
-  const handlePhotoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (!files) return;
-    
-    Array.from(files).forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const url = e.target?.result as string;
-        photosArray.append({
-          id: generateId(),
-          url,
-          caption: file.name,
-          category: 'general',
-        });
-      };
-      reader.readAsDataURL(file);
-    });
-  };
-
-  const toggleCard = (cardId: string) => {
-    setExpandedCards(prev => 
-      prev.includes(cardId) 
-        ? prev.filter(id => id !== cardId)
-        : [...prev, cardId]
-    );
   };
 
   const handleAddClient = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -605,6 +449,27 @@ export function SiteVisits() {
     cancelled: 'bg-red-50 text-red-700 border border-red-200',
   };
 
+  const steps = [
+    { number: 1, title: 'Basic info', icon: FileText },
+    { number: 2, title: 'Visit details', icon: Clock },
+    { number: 3, title: 'Location', icon: MapPin },
+    { number: 4, title: 'Notes', icon: Pencil },
+    { number: 5, title: 'Review', icon: CheckCircle2 }
+  ];
+
+  const canProceedToNextStep = () => {
+    switch (currentStep) {
+      case 1:
+        return formData.client_id && formData.visit_date && formData.purpose;
+      case 2:
+      case 3:
+      case 4:
+        return true;
+      default:
+        return true;
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -630,7 +495,7 @@ export function SiteVisits() {
                 sx={{ fontSize: '12px', height: 24 }}
               />
             </Box>
-            <MuiButton
+            <Button
               variant="contained"
               startIcon={<AddIcon />}
               onClick={() => {
@@ -646,14 +511,14 @@ export function SiteVisits() {
               }}
             >
               Add Site Visit
-            </MuiButton>
+            </Button>
           </Box>
 
           {/* Tabs and Filters Row */}
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2, pb: 1 }}>
             {/* Tabs */}
             <Box sx={{ display: 'flex', gap: 1 }}>
-              <MuiButton
+              <Button
                 onClick={() => setActiveTab('dashboard')}
                 variant={activeTab === 'dashboard' ? 'contained' : 'text'}
                 size="small"
@@ -666,8 +531,8 @@ export function SiteVisits() {
                 }}
               >
                 Dashboard
-              </MuiButton>
-              <MuiButton
+              </Button>
+              <Button
                 onClick={() => setActiveTab('calendar')}
                 variant={activeTab === 'calendar' ? 'contained' : 'text'}
                 size="small"
@@ -680,7 +545,7 @@ export function SiteVisits() {
                 }}
               >
                 Calendar
-              </MuiButton>
+              </Button>
             </Box>
 
             {/* Search and Filters */}
@@ -698,7 +563,7 @@ export function SiteVisits() {
               />
               <Box sx={{ display: 'flex', gap: 0.5 }}>
                 {['All', 'Pending', 'Scheduled', 'Completed', 'Postponed', 'Cancelled'].map((filter) => (
-                  <MuiButton
+                  <Button
                     key={filter}
                     onClick={() => setStatusFilter(filter.toLowerCase())}
                     variant={statusFilter === filter.toLowerCase() ? 'contained' : 'text'}
@@ -715,7 +580,7 @@ export function SiteVisits() {
                     }}
                   >
                     {filter}
-                  </MuiButton>
+                  </Button>
                 ))}
               </Box>
             </Box>
@@ -794,7 +659,7 @@ export function SiteVisits() {
             visits={visits || []} 
             onDateClick={(date) => {
               resetForm();
-              setValue('visit_date', format(date, 'yyyy-MM-dd'));
+              setFormData(prev => ({ ...prev, visit_date: format(date, 'yyyy-MM-dd') }));
               setIsFormOpen(true);
             }}
             onVisitClick={(visit) => openFormForEdit(visit)}
@@ -804,19 +669,14 @@ export function SiteVisits() {
 
       {/* Comprehensive Site Report Form Modal */}
       {isFormOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-hidden">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl my-8 max-h-[90vh] overflow-y-auto">
             {/* Header */}
-            <div className="p-4 sm:p-6 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
-              <div>
+            <div className="p-4 sm:p-6 border-b border-gray-200 sticky top-0 bg-white z-10">
+              <div className="flex items-center justify-between mb-2">
                 <h2 className="text-xl font-semibold text-gray-900">
                   {selectedVisit ? 'Edit Site Report' : 'New Site Report'}
                 </h2>
-                <p className="text-sm text-gray-500 mt-1">
-                  Comprehensive site visit documentation
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
                 <button
                   onClick={() => setIsFormOpen(false)}
                   className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
@@ -824,1586 +684,612 @@ export function SiteVisits() {
                   <XCircle className="w-5 h-5" />
                 </button>
               </div>
+              <p className="text-sm text-gray-500">Complete all fields below for comprehensive site reporting</p>
             </div>
 
-            {/* Form Content - Scrollable */}
-            <form onSubmit={handleSubmit(onSubmitForm)} className="flex-1 overflow-hidden flex flex-col">
-              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
-                {/* Card 1: Basic Information */}
-                <Card className={expandedCards.includes('basic-info') ? '' : 'opacity-90'}>
-                  <CardHeader className="pb-3 cursor-pointer" onClick={() => toggleCard('basic-info')}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <FileText className="w-5 h-5 text-blue-600" />
-                        <CardTitle className="text-base">Basic Information</CardTitle>
-                      </div>
-                      {expandedCards.includes('basic-info') ? (
-                        <ChevronUp className="w-5 h-5 text-gray-400" />
-                      ) : (
-                        <ChevronDown className="w-5 h-5 text-gray-400" />
-                      )}
-                    </div>
-                  </CardHeader>
-                  {expandedCards.includes('basic-info') && (
-                    <CardContent className="pt-0 space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="client_id">
-                            Client <span className="text-red-500">*</span>
-                          </Label>
-                          <Controller
-                            name="client_id"
-                            control={control}
-                            render={({ field }) => (
-                              <Select onValueChange={field.onChange} value={field.value}>
-                                <SelectTrigger id="client_id" className={errors.client_id ? 'border-red-500' : ''}>
-                                  <SelectValue placeholder="Select client" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {clients?.map((client: any) => (
-                                    <SelectItem key={client.id} value={client.id}>
-                                      {client.client_name}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            )}
-                          />
-                          {errors.client_id && (
-                            <p className="text-xs text-red-500">{errors.client_id.message}</p>
-                          )}
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <Label htmlFor="project_name">
-                            Project Name <span className="text-red-500">*</span>
-                          </Label>
-                          <Controller
-                            name="project_name"
-                            control={control}
-                            render={({ field }) => (
-                              <Input 
-                                {...field} 
-                                id="project_name" 
-                                placeholder="Enter project name"
-                                className={errors.project_name ? 'border-red-500' : ''}
-                              />
-                            )}
-                          />
-                          {errors.project_name && (
-                            <p className="text-xs text-red-500">{errors.project_name.message}</p>
-                          )}
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <Label htmlFor="visit_date">
-                            Visit Date <span className="text-red-500">*</span>
-                          </Label>
-                          <Controller
-                            name="visit_date"
-                            control={control}
-                            render={({ field }) => (
-                              <Input 
-                                {...field} 
-                                id="visit_date" 
-                                type="date"
-                                className={errors.visit_date ? 'border-red-500' : ''}
-                              />
-                            )}
-                          />
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <Label htmlFor="report_no">Report Number</Label>
-                          <Controller
-                            name="report_no"
-                            control={control}
-                            render={({ field }) => (
-                              <Input 
-                                {...field} 
-                                id="report_no" 
-                                placeholder="e.g., SR-2024-001"
-                              />
-                            )}
-                          />
-                        </div>
-                      </div>
-                    </CardContent>
-                  )}
-                </Card>
-
-                {/* Card 2: Manpower */}
-                <Card>
-                  <CardHeader className="pb-3 cursor-pointer" onClick={() => toggleCard('manpower')}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Users className="w-5 h-5 text-green-600" />
-                        <CardTitle className="text-base">Manpower</CardTitle>
-                        <Badge variant="secondary" className="text-xs">
-                          {subcontractorsArray.fields.length}
-                        </Badge>
-                      </div>
-                      {expandedCards.includes('manpower') ? (
-                        <ChevronUp className="w-5 h-5 text-gray-400" />
-                      ) : (
-                        <ChevronDown className="w-5 h-5 text-gray-400" />
-                      )}
-                    </div>
-                  </CardHeader>
-                  {expandedCards.includes('manpower') && (
-                    <CardContent className="pt-0 space-y-4">
-                      {subcontractorsArray.fields.map((field, index) => (
-                        <div key={field.id} className="p-3 bg-gray-50 rounded-lg border border-gray-200 space-y-3">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium text-gray-700">Subcontractor #{index + 1}</span>
-                            <button
-                              type="button"
-                              onClick={() => subcontractorsArray.remove(index)}
-                              className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-                            <div className="space-y-1">
-                              <Label className="text-xs">Name</Label>
-                              <Controller
-                                name={`subcontractors.${index}.name`}
-                                control={control}
-                                render={({ field }) => (
-                                  <Input {...field} placeholder="Company name" className="text-sm" />
-                                )}
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <Label className="text-xs">Trade</Label>
-                              <Controller
-                                name={`subcontractors.${index}.trade`}
-                                control={control}
-                                render={({ field }) => (
-                                  <Input {...field} placeholder="e.g., Electrical" className="text-sm" />
-                                )}
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <Label className="text-xs">Workers</Label>
-                              <Controller
-                                name={`subcontractors.${index}.workers_count`}
-                                control={control}
-                                render={({ field }) => (
-                                  <Input 
-                                    {...field} 
-                                    type="number" 
-                                    min="0"
-                                    className="text-sm"
-                                    onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
-                                  />
-                                )}
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <Label className="text-xs">Supervisor</Label>
-                              <Controller
-                                name={`subcontractors.${index}.supervisor`}
-                                control={control}
-                                render={({ field }) => (
-                                  <Input {...field} placeholder="Supervisor name" className="text-sm" />
-                                )}
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => subcontractorsArray.append({ id: generateId(), name: '', trade: '', workers_count: 0, supervisor: '' })}
-                        className="w-full"
-                      >
-                        <Plus className="w-4 h-4 mr-2" />
-                        Add Subcontractor
-                      </Button>
-                    </CardContent>
-                  )}
-                </Card>
-
-                {/* Card 3: Work Carried Out */}
-                <Card>
-                  <CardHeader className="pb-3 cursor-pointer" onClick={() => toggleCard('work')}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Briefcase className="w-5 h-5 text-blue-600" />
-                        <CardTitle className="text-base">Work Carried Out</CardTitle>
-                        <Badge variant="secondary" className="text-xs">
-                          {workItemsArray.fields.length}
-                        </Badge>
-                      </div>
-                      {expandedCards.includes('work') ? (
-                        <ChevronUp className="w-5 h-5 text-gray-400" />
-                      ) : (
-                        <ChevronDown className="w-5 h-5 text-gray-400" />
-                      )}
-                    </div>
-                  </CardHeader>
-                  {expandedCards.includes('work') && (
-                    <CardContent className="pt-0 space-y-4">
-                      {workItemsArray.fields.map((field, index) => (
-                        <div key={field.id} className="p-3 bg-gray-50 rounded-lg border border-gray-200 space-y-3">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium text-gray-700">Work Item #{index + 1}</span>
-                            <button
-                              type="button"
-                              onClick={() => workItemsArray.remove(index)}
-                              className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <div className="space-y-1">
-                              <Label className="text-xs">Category</Label>
-                              <Controller
-                                name={`work_items.${index}.category`}
-                                control={control}
-                                render={({ field }) => (
-                                  <Input {...field} placeholder="e.g., Installation" className="text-sm" />
-                                )}
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <Label className="text-xs">Location</Label>
-                              <Controller
-                                name={`work_items.${index}.location`}
-                                control={control}
-                                render={({ field }) => (
-                                  <Input {...field} placeholder="Work location" className="text-sm" />
-                                )}
-                              />
-                            </div>
-                            <div className="space-y-1 md:col-span-2">
-                              <Label className="text-xs">Description</Label>
-                              <Controller
-                                name={`work_items.${index}.description`}
-                                control={control}
-                                render={({ field }) => (
-                                  <Textarea {...field} placeholder="Describe the work done..." className="text-sm min-h-[60px]" />
-                                )}
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <Label className="text-xs">Status</Label>
-                              <Controller
-                                name={`work_items.${index}.status`}
-                                control={control}
-                                render={({ field }) => (
-                                  <Select onValueChange={field.onChange} value={field.value}>
-                                    <SelectTrigger className="text-sm">
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="completed">Completed</SelectItem>
-                                      <SelectItem value="in_progress">In Progress</SelectItem>
-                                      <SelectItem value="pending">Pending</SelectItem>
-                                      <SelectItem value="delayed">Delayed</SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                )}
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <Label className="text-xs">Completion %</Label>
-                              <Controller
-                                name={`work_items.${index}.completion_percentage`}
-                                control={control}
-                                render={({ field }) => (
-                                  <Input 
-                                    {...field} 
-                                    type="number" 
-                                    min="0" 
-                                    max="100"
-                                    className="text-sm"
-                                    onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
-                                  />
-                                )}
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => workItemsArray.append({ id: generateId(), category: '', description: '', location: '', status: 'in_progress', completion_percentage: 0 })}
-                        className="w-full"
-                      >
-                        <Plus className="w-4 h-4 mr-2" />
-                        Add Work Item
-                      </Button>
-                    </CardContent>
-                  )}
-                </Card>
-
-                {/* Card 4: Milestones */}
-                <Card>
-                  <CardHeader className="pb-3 cursor-pointer" onClick={() => toggleCard('milestones')}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Target className="w-5 h-5 text-purple-600" />
-                        <CardTitle className="text-base">Milestones</CardTitle>
-                        <Badge variant="secondary" className="text-xs">
-                          {milestonesArray.fields.length}
-                        </Badge>
-                      </div>
-                      {expandedCards.includes('milestones') ? (
-                        <ChevronUp className="w-5 h-5 text-gray-400" />
-                      ) : (
-                        <ChevronDown className="w-5 h-5 text-gray-400" />
-                      )}
-                    </div>
-                  </CardHeader>
-                  {expandedCards.includes('milestones') && (
-                    <CardContent className="pt-0 space-y-4">
-                      {milestonesArray.fields.map((field, index) => (
-                        <div key={field.id} className="p-3 bg-gray-50 rounded-lg border border-gray-200 space-y-3">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium text-gray-700">Milestone #{index + 1}</span>
-                            <button
-                              type="button"
-                              onClick={() => milestonesArray.remove(index)}
-                              className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                            <div className="space-y-1 md:col-span-2">
-                              <Label className="text-xs">Description</Label>
-                              <Controller
-                                name={`milestones.${index}.description`}
-                                control={control}
-                                render={({ field }) => (
-                                  <Input {...field} placeholder="Milestone description" className="text-sm" />
-                                )}
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <Label className="text-xs">Target Date</Label>
-                              <Controller
-                                name={`milestones.${index}.target_date`}
-                                control={control}
-                                render={({ field }) => (
-                                  <Input {...field} type="date" className="text-sm" />
-                                )}
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <Label className="text-xs">Status</Label>
-                              <Controller
-                                name={`milestones.${index}.status`}
-                                control={control}
-                                render={({ field }) => (
-                                  <Select onValueChange={field.onChange} value={field.value}>
-                                    <SelectTrigger className="text-sm">
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="achieved">Achieved</SelectItem>
-                                      <SelectItem value="on_track">On Track</SelectItem>
-                                      <SelectItem value="at_risk">At Risk</SelectItem>
-                                      <SelectItem value="delayed">Delayed</SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                )}
-                              />
-                            </div>
-                            <div className="space-y-1 md:col-span-2">
-                              <Label className="text-xs">Remarks</Label>
-                              <Controller
-                                name={`milestones.${index}.remarks`}
-                                control={control}
-                                render={({ field }) => (
-                                  <Input {...field} placeholder="Additional notes" className="text-sm" />
-                                )}
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => milestonesArray.append({ id: generateId(), description: '', target_date: '', status: 'on_track', remarks: '' })}
-                        className="w-full"
-                      >
-                        <Plus className="w-4 h-4 mr-2" />
-                        Add Milestone
-                      </Button>
-                    </CardContent>
-                  )}
-                </Card>
-
-                {/* Card 5: Progress */}
-                <Card>
-                  <CardHeader className="pb-3 cursor-pointer" onClick={() => toggleCard('progress')}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <TrendingUp className="w-5 h-5 text-orange-600" />
-                        <CardTitle className="text-base">Progress</CardTitle>
-                      </div>
-                      {expandedCards.includes('progress') ? (
-                        <ChevronUp className="w-5 h-5 text-gray-400" />
-                      ) : (
-                        <ChevronDown className="w-5 h-5 text-gray-400" />
-                      )}
-                    </div>
-                  </CardHeader>
-                  {expandedCards.includes('progress') && (
-                    <CardContent className="pt-0 space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="space-y-2">
-                          <Label>Overall Progress (%)</Label>
-                          <Controller
-                            name="overall_progress"
-                            control={control}
-                            render={({ field }) => (
-                              <Input 
-                                {...field} 
-                                type="number" 
-                                min="0" 
-                                max="100"
-                                onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
-                              />
-                            )}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Planned Progress (%)</Label>
-                          <Controller
-                            name="planned_progress"
-                            control={control}
-                            render={({ field }) => (
-                              <Input 
-                                {...field} 
-                                type="number" 
-                                min="0" 
-                                max="100"
-                                onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
-                              />
-                            )}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Schedule Status</Label>
-                          <Controller
-                            name="schedule_status"
-                            control={control}
-                            render={({ field }) => (
-                              <Select onValueChange={field.onChange} value={field.value}>
-                                <SelectTrigger>
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="on_schedule">On Schedule</SelectItem>
-                                  <SelectItem value="ahead">Ahead</SelectItem>
-                                  <SelectItem value="behind">Behind</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            )}
-                          />
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Progress Variance</Label>
-                        <Controller
-                          name="progress_variance"
-                          control={control}
-                          render={({ field }) => (
-                            <Textarea {...field} placeholder="Explain any variance from planned progress..." />
-                          )}
-                        />
-                      </div>
-                    </CardContent>
-                  )}
-                </Card>
-
-                {/* Card 6: Equipment */}
-                <Card>
-                  <CardHeader className="pb-3 cursor-pointer" onClick={() => toggleCard('equipment')}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Truck className="w-5 h-5 text-yellow-600" />
-                        <CardTitle className="text-base">Equipment</CardTitle>
-                        <Badge variant="secondary" className="text-xs">
-                          {equipmentArray.fields.length}
-                        </Badge>
-                      </div>
-                      {expandedCards.includes('equipment') ? (
-                        <ChevronUp className="w-5 h-5 text-gray-400" />
-                      ) : (
-                        <ChevronDown className="w-5 h-5 text-gray-400" />
-                      )}
-                    </div>
-                  </CardHeader>
-                  {expandedCards.includes('equipment') && (
-                    <CardContent className="pt-0 space-y-4">
-                      {equipmentArray.fields.map((field, index) => (
-                        <div key={field.id} className="p-3 bg-gray-50 rounded-lg border border-gray-200 space-y-3">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium text-gray-700">Equipment #{index + 1}</span>
-                            <button
-                              type="button"
-                              onClick={() => equipmentArray.remove(index)}
-                              className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-                            <div className="space-y-1">
-                              <Label className="text-xs">Name</Label>
-                              <Controller
-                                name={`equipment.${index}.name`}
-                                control={control}
-                                render={({ field }) => (
-                                  <Input {...field} placeholder="Equipment name" className="text-sm" />
-                                )}
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <Label className="text-xs">Type</Label>
-                              <Controller
-                                name={`equipment.${index}.type`}
-                                control={control}
-                                render={({ field }) => (
-                                  <Input {...field} placeholder="Equipment type" className="text-sm" />
-                                )}
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <Label className="text-xs">Quantity</Label>
-                              <Controller
-                                name={`equipment.${index}.quantity`}
-                                control={control}
-                                render={({ field }) => (
-                                  <Input 
-                                    {...field} 
-                                    type="number" 
-                                    min="1"
-                                    className="text-sm"
-                                    onChange={(e) => field.onChange(parseInt(e.target.value) || 1)}
-                                  />
-                                )}
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <Label className="text-xs">Condition</Label>
-                              <Controller
-                                name={`equipment.${index}.condition`}
-                                control={control}
-                                render={({ field }) => (
-                                  <Select onValueChange={field.onChange} value={field.value}>
-                                    <SelectTrigger className="text-sm">
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="excellent">Excellent</SelectItem>
-                                      <SelectItem value="good">Good</SelectItem>
-                                      <SelectItem value="fair">Fair</SelectItem>
-                                      <SelectItem value="poor">Poor</SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                )}
-                              />
-                            </div>
-                            <div className="space-y-1 md:col-span-4">
-                              <Label className="text-xs">Operator</Label>
-                              <Controller
-                                name={`equipment.${index}.operator`}
-                                control={control}
-                                render={({ field }) => (
-                                  <Input {...field} placeholder="Operator name" className="text-sm" />
-                                )}
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => equipmentArray.append({ id: generateId(), name: '', type: '', quantity: 1, condition: 'good', operator: '' })}
-                        className="w-full"
-                      >
-                        <Plus className="w-4 h-4 mr-2" />
-                        Add Equipment
-                      </Button>
-                    </CardContent>
-                  )}
-                </Card>
-
-                {/* Card 7: Safety */}
-                <Card>
-                  <CardHeader className="pb-3 cursor-pointer" onClick={() => toggleCard('safety')}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Shield className="w-5 h-5 text-red-600" />
-                        <CardTitle className="text-base">Safety</CardTitle>
-                      </div>
-                      {expandedCards.includes('safety') ? (
-                        <ChevronUp className="w-5 h-5 text-gray-400" />
-                      ) : (
-                        <ChevronDown className="w-5 h-5 text-gray-400" />
-                      )}
-                    </div>
-                  </CardHeader>
-                  {expandedCards.includes('safety') && (
-                    <CardContent className="pt-0 space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="flex items-center space-x-2">
-                          <Controller
-                            name="safety_compliance"
-                            control={control}
-                            render={({ field }) => (
-                              <Checkbox 
-                                checked={field.value} 
-                                onCheckedChange={field.onChange}
-                                id="safety_compliance"
-                              />
-                            )}
-                          />
-                          <Label htmlFor="safety_compliance" className="text-sm cursor-pointer">
-                            Safety compliance met
-                          </Label>
-                        </div>
-                        <div className="space-y-2">
-                          <Label>PPE Compliance</Label>
-                          <Controller
-                            name="ppe_compliance"
-                            control={control}
-                            render={({ field }) => (
-                              <Select onValueChange={field.onChange} value={field.value}>
-                                <SelectTrigger>
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="full">Full</SelectItem>
-                                  <SelectItem value="partial">Partial</SelectItem>
-                                  <SelectItem value="none">None</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            )}
-                          />
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <div className="flex items-center space-x-2">
-                          <Controller
-                            name="safety_meeting"
-                            control={control}
-                            render={({ field }) => (
-                              <Checkbox 
-                                checked={field.value} 
-                                onCheckedChange={field.onChange}
-                                id="safety_meeting"
-                              />
-                            )}
-                          />
-                          <Label htmlFor="safety_meeting" className="text-sm cursor-pointer">
-                            Safety meeting conducted
-                          </Label>
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <Label>Safety Meeting Notes</Label>
-                        <Controller
-                          name="safety_meeting_notes"
-                          control={control}
-                          render={({ field }) => (
-                            <Textarea {...field} placeholder="Notes from safety meeting..." />
-                          )}
-                        />
-                      </div>
-                      
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <Label>Incidents ({incidentsArray.fields.length})</Label>
-                        </div>
-                        {incidentsArray.fields.map((field, index) => (
-                          <div key={field.id} className="p-3 bg-red-50 rounded-lg border border-red-200 space-y-3">
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm font-medium text-red-700">Incident #{index + 1}</span>
-                              <button
-                                type="button"
-                                onClick={() => incidentsArray.remove(index)}
-                                className="p-1 text-red-400 hover:text-red-600 hover:bg-red-100 rounded transition-colors"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                              <div className="space-y-1">
-                                <Label className="text-xs">Type</Label>
-                                <Controller
-                                  name={`incidents.${index}.type`}
-                                  control={control}
-                                  render={({ field }) => (
-                                    <Select onValueChange={field.onChange} value={field.value}>
-                                      <SelectTrigger className="text-sm">
-                                        <SelectValue />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="near_miss">Near Miss</SelectItem>
-                                        <SelectItem value="first_aid">First Aid</SelectItem>
-                                        <SelectItem value="medical">Medical</SelectItem>
-                                        <SelectItem value="lost_time">Lost Time</SelectItem>
-                                        <SelectItem value="fatality">Fatality</SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                  )}
-                                />
-                              </div>
-                              <div className="space-y-1">
-                                <Label className="text-xs">Date</Label>
-                                <Controller
-                                  name={`incidents.${index}.date`}
-                                  control={control}
-                                  render={({ field }) => (
-                                    <Input {...field} type="date" className="text-sm" />
-                                  )}
-                                />
-                              </div>
-                              <div className="space-y-1">
-                                <Label className="text-xs">Action Taken</Label>
-                                <Controller
-                                  name={`incidents.${index}.action_taken`}
-                                  control={control}
-                                  render={({ field }) => (
-                                    <Input {...field} placeholder="Actions taken" className="text-sm" />
-                                  )}
-                                />
-                              </div>
-                              <div className="space-y-1 md:col-span-3">
-                                <Label className="text-xs">Description</Label>
-                                <Controller
-                                  name={`incidents.${index}.description`}
-                                  control={control}
-                                  render={({ field }) => (
-                                    <Textarea {...field} placeholder="Describe the incident..." className="text-sm min-h-[60px]" />
-                                  )}
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => incidentsArray.append({ id: generateId(), type: 'near_miss', description: '', date: '', action_taken: '' })}
-                          className="w-full border-red-300 text-red-700 hover:bg-red-50"
-                        >
-                          <Plus className="w-4 h-4 mr-2" />
-                          Add Incident
-                        </Button>
-                      </div>
-                    </CardContent>
-                  )}
-                </Card>
-
-                {/* Card 8: Quality */}
-                <Card>
-                  <CardHeader className="pb-3 cursor-pointer" onClick={() => toggleCard('quality')}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Award className="w-5 h-5 text-indigo-600" />
-                        <CardTitle className="text-base">Quality</CardTitle>
-                      </div>
-                      {expandedCards.includes('quality') ? (
-                        <ChevronUp className="w-5 h-5 text-gray-400" />
-                      ) : (
-                        <ChevronDown className="w-5 h-5 text-gray-400" />
-                      )}
-                    </div>
-                  </CardHeader>
-                  {expandedCards.includes('quality') && (
-                    <CardContent className="pt-0 space-y-4">
-                      <div className="flex items-center space-x-2">
-                        <Controller
-                          name="non_conformance"
-                          control={control}
-                          render={({ field }) => (
-                            <Checkbox 
-                              checked={field.value} 
-                              onCheckedChange={field.onChange}
-                              id="non_conformance"
-                            />
-                          )}
-                        />
-                        <Label htmlFor="non_conformance" className="text-sm cursor-pointer text-red-600">
-                          Non-conformance identified
-                        </Label>
-                      </div>
-                      
-                      <div className="space-y-3">
-                        <Label>Quality Checks ({qualityChecksArray.fields.length})</Label>
-                        {qualityChecksArray.fields.map((field, index) => (
-                          <div key={field.id} className="p-3 bg-gray-50 rounded-lg border border-gray-200 space-y-3">
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm font-medium text-gray-700">Check #{index + 1}</span>
-                              <button
-                                type="button"
-                                onClick={() => qualityChecksArray.remove(index)}
-                                className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                              <div className="space-y-1 md:col-span-2">
-                                <Label className="text-xs">Description</Label>
-                                <Controller
-                                  name={`quality_checks.${index}.description`}
-                                  control={control}
-                                  render={({ field }) => (
-                                    <Input {...field} placeholder="Quality check description" className="text-sm" />
-                                  )}
-                                />
-                              </div>
-                              <div className="space-y-1">
-                                <Label className="text-xs">Status</Label>
-                                <Controller
-                                  name={`quality_checks.${index}.status`}
-                                  control={control}
-                                  render={({ field }) => (
-                                    <Select onValueChange={field.onChange} value={field.value}>
-                                      <SelectTrigger className="text-sm">
-                                        <SelectValue />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="passed">Passed</SelectItem>
-                                        <SelectItem value="failed">Failed</SelectItem>
-                                        <SelectItem value="pending">Pending</SelectItem>
-                                        <SelectItem value="rejected">Rejected</SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                  )}
-                                />
-                              </div>
-                              <div className="space-y-1 md:col-span-3">
-                                <Label className="text-xs">Remarks</Label>
-                                <Controller
-                                  name={`quality_checks.${index}.remarks`}
-                                  control={control}
-                                  render={({ field }) => (
-                                    <Input {...field} placeholder="Additional remarks" className="text-sm" />
-                                  )}
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => qualityChecksArray.append({ id: generateId(), description: '', status: 'passed', remarks: '' })}
-                          className="w-full"
-                        >
-                          <Plus className="w-4 h-4 mr-2" />
-                          Add Quality Check
-                        </Button>
-                      </div>
-                    </CardContent>
-                  )}
-                </Card>
-
-                {/* Card 9: Documents */}
-                <Card>
-                  <CardHeader className="pb-3 cursor-pointer" onClick={() => toggleCard('documents')}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Paperclip className="w-5 h-5 text-cyan-600" />
-                        <CardTitle className="text-base">Documents</CardTitle>
-                        <Badge variant="secondary" className="text-xs">
-                          {documentsArray.fields.length}
-                        </Badge>
-                      </div>
-                      {expandedCards.includes('documents') ? (
-                        <ChevronUp className="w-5 h-5 text-gray-400" />
-                      ) : (
-                        <ChevronDown className="w-5 h-5 text-gray-400" />
-                      )}
-                    </div>
-                  </CardHeader>
-                  {expandedCards.includes('documents') && (
-                    <CardContent className="pt-0 space-y-4">
-                      {documentsArray.fields.map((field, index) => (
-                        <div key={field.id} className="p-3 bg-gray-50 rounded-lg border border-gray-200 space-y-3">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium text-gray-700">Document #{index + 1}</span>
-                            <button
-                              type="button"
-                              onClick={() => documentsArray.remove(index)}
-                              className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                            <div className="space-y-1">
-                              <Label className="text-xs">Type</Label>
-                              <Controller
-                                name={`document_references.${index}.document_type`}
-                                control={control}
-                                render={({ field }) => (
-                                  <Select onValueChange={field.onChange} value={field.value}>
-                                    <SelectTrigger className="text-sm">
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="drawing">Drawing</SelectItem>
-                                      <SelectItem value="specification">Specification</SelectItem>
-                                      <SelectItem value="method_statement">Method Statement</SelectItem>
-                                      <SelectItem value="permit">Permit</SelectItem>
-                                      <SelectItem value="approval">Approval</SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                )}
-                              />
-                            </div>
-                            <div className="space-y-1 md:col-span-2">
-                              <Label className="text-xs">Document No.</Label>
-                              <Controller
-                                name={`document_references.${index}.document_no`}
-                                control={control}
-                                render={({ field }) => (
-                                  <Input {...field} placeholder="e.g., DRW-001" className="text-sm" />
-                                )}
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <Label className="text-xs">Revision</Label>
-                              <Controller
-                                name={`document_references.${index}.revision`}
-                                control={control}
-                                render={({ field }) => (
-                                  <Input {...field} placeholder="Rev A" className="text-sm" />
-                                )}
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <Label className="text-xs">Status</Label>
-                              <Controller
-                                name={`document_references.${index}.status`}
-                                control={control}
-                                render={({ field }) => (
-                                  <Select onValueChange={field.onChange} value={field.value}>
-                                    <SelectTrigger className="text-sm">
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="approved">Approved</SelectItem>
-                                      <SelectItem value="pending">Pending</SelectItem>
-                                      <SelectItem value="rejected">Rejected</SelectItem>
-                                      <SelectItem value="superseded">Superseded</SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                )}
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => documentsArray.append({ id: generateId(), document_type: 'drawing', document_no: '', revision: '', status: 'approved' })}
-                        className="w-full"
-                      >
-                        <Plus className="w-4 h-4 mr-2" />
-                        Add Document Reference
-                      </Button>
-                    </CardContent>
-                  )}
-                </Card>
-
-                {/* Card 10: Client Requirements */}
-                <Card>
-                  <CardHeader className="pb-3 cursor-pointer" onClick={() => toggleCard('client-req')}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <MessageSquare className="w-5 h-5 text-teal-600" />
-                        <CardTitle className="text-base">Client Requirements</CardTitle>
-                      </div>
-                      {expandedCards.includes('client-req') ? (
-                        <ChevronUp className="w-5 h-5 text-gray-400" />
-                      ) : (
-                        <ChevronDown className="w-5 h-5 text-gray-400" />
-                      )}
-                    </div>
-                  </CardHeader>
-                  {expandedCards.includes('client-req') && (
-                    <CardContent className="pt-0 space-y-4">
-                      <div className="space-y-2">
-                        <Label>Client Instructions</Label>
-                        <Controller
-                          name="client_instructions"
-                          control={control}
-                          render={({ field }) => (
-                            <Textarea {...field} placeholder="Client instructions received..." />
-                          )}
-                        />
-                      </div>
-                      
-                      <div className="space-y-3">
-                        <Label>Pending Approvals ({approvalsArray.fields.length})</Label>
-                        {approvalsArray.fields.map((field, index) => (
-                          <div key={field.id} className="p-3 bg-amber-50 rounded-lg border border-amber-200 space-y-3">
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm font-medium text-amber-700">Approval #{index + 1}</span>
-                              <button
-                                type="button"
-                                onClick={() => approvalsArray.remove(index)}
-                                className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                              <div className="space-y-1 md:col-span-2">
-                                <Label className="text-xs">Description</Label>
-                                <Controller
-                                  name={`approvals_pending.${index}.description`}
-                                  control={control}
-                                  render={({ field }) => (
-                                    <Input {...field} placeholder="What is pending approval?" className="text-sm" />
-                                  )}
-                                />
-                              </div>
-                              <div className="space-y-1">
-                                <Label className="text-xs">Required By</Label>
-                                <Controller
-                                  name={`approvals_pending.${index}.required_by`}
-                                  control={control}
-                                  render={({ field }) => (
-                                    <Input {...field} type="date" className="text-sm" />
-                                  )}
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => approvalsArray.append({ id: generateId(), description: '', requested_date: '', required_by: '' })}
-                          className="w-full border-amber-300 text-amber-700 hover:bg-amber-50"
-                        >
-                          <Plus className="w-4 h-4 mr-2" />
-                          Add Pending Approval
-                        </Button>
-                      </div>
-                    </CardContent>
-                  )}
-                </Card>
-
-                {/* Card 11: Reporting */}
-                <Card>
-                  <CardHeader className="pb-3 cursor-pointer" onClick={() => toggleCard('reporting')}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <FileCheck className="w-5 h-5 text-gray-600" />
-                        <CardTitle className="text-base">Reporting</CardTitle>
-                      </div>
-                      {expandedCards.includes('reporting') ? (
-                        <ChevronUp className="w-5 h-5 text-gray-400" />
-                      ) : (
-                        <ChevronDown className="w-5 h-5 text-gray-400" />
-                      )}
-                    </div>
-                  </CardHeader>
-                  {expandedCards.includes('reporting') && (
-                    <CardContent className="pt-0 space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label>Weather Condition</Label>
-                          <Controller
-                            name="weather_condition"
-                            control={control}
-                            render={({ field }) => (
-                              <Select onValueChange={field.onChange} value={field.value}>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select weather" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="clear">Clear</SelectItem>
-                                  <SelectItem value="cloudy">Cloudy</SelectItem>
-                                  <SelectItem value="rainy">Rainy</SelectItem>
-                                  <SelectItem value="windy">Windy</SelectItem>
-                                  <SelectItem value="extreme">Extreme</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            )}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Temperature</Label>
-                          <Controller
-                            name="temperature"
-                            control={control}
-                            render={({ field }) => (
-                              <Input {...field} placeholder="e.g., 28°C" />
-                            )}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Working Hours Start</Label>
-                          <Controller
-                            name="working_hours_start"
-                            control={control}
-                            render={({ field }) => (
-                              <Input {...field} type="time" />
-                            )}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Working Hours End</Label>
-                          <Controller
-                            name="working_hours_end"
-                            control={control}
-                            render={({ field }) => (
-                              <Input {...field} type="time" />
-                            )}
-                          />
-                        </div>
-                      </div>
-                    </CardContent>
-                  )}
-                </Card>
-
-                {/* Card 12: Work Plan */}
-                <Card>
-                  <CardHeader className="pb-3 cursor-pointer" onClick={() => toggleCard('work-plan')}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <ClipboardList className="w-5 h-5 text-lime-600" />
-                        <CardTitle className="text-base">Work Plan - Next Day</CardTitle>
-                        <Badge variant="secondary" className="text-xs">
-                          {workPlanArray.fields.length}
-                        </Badge>
-                      </div>
-                      {expandedCards.includes('work-plan') ? (
-                        <ChevronUp className="w-5 h-5 text-gray-400" />
-                      ) : (
-                        <ChevronDown className="w-5 h-5 text-gray-400" />
-                      )}
-                    </div>
-                  </CardHeader>
-                  {expandedCards.includes('work-plan') && (
-                    <CardContent className="pt-0 space-y-4">
-                      {workPlanArray.fields.map((field, index) => (
-                        <div key={field.id} className="p-3 bg-gray-50 rounded-lg border border-gray-200 space-y-3">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium text-gray-700">Plan Item #{index + 1}</span>
-                            <button
-                              type="button"
-                              onClick={() => workPlanArray.remove(index)}
-                              className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                            <div className="space-y-1 md:col-span-2">
-                              <Label className="text-xs">Description</Label>
-                              <Controller
-                                name={`work_plan_next_day.${index}.description`}
-                                control={control}
-                                render={({ field }) => (
-                                  <Input {...field} placeholder="Work description" className="text-sm" />
-                                )}
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <Label className="text-xs">Location</Label>
-                              <Controller
-                                name={`work_plan_next_day.${index}.location`}
-                                control={control}
-                                render={({ field }) => (
-                                  <Input {...field} placeholder="Location" className="text-sm" />
-                                )}
-                              />
-                            </div>
-                            <div className="space-y-1 md:col-span-3">
-                              <Label className="text-xs">Resources Required</Label>
-                              <Controller
-                                name={`work_plan_next_day.${index}.resources_required`}
-                                control={control}
-                                render={({ field }) => (
-                                  <Input {...field} placeholder="Manpower, equipment needed..." className="text-sm" />
-                                )}
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => workPlanArray.append({ id: generateId(), description: '', location: '', resources_required: '' })}
-                        className="w-full"
-                      >
-                        <Plus className="w-4 h-4 mr-2" />
-                        Add Work Plan Item
-                      </Button>
-                    </CardContent>
-                  )}
-                </Card>
-
-                {/* Card 13: Issues */}
-                <Card>
-                  <CardHeader className="pb-3 cursor-pointer" onClick={() => toggleCard('issues')}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <AlertTriangle className="w-5 h-5 text-orange-600" />
-                        <CardTitle className="text-base">Issues</CardTitle>
-                        <Badge variant="secondary" className="text-xs">
-                          {issuesArray.fields.length}
-                        </Badge>
-                      </div>
-                      {expandedCards.includes('issues') ? (
-                        <ChevronUp className="w-5 h-5 text-gray-400" />
-                      ) : (
-                        <ChevronDown className="w-5 h-5 text-gray-400" />
-                      )}
-                    </div>
-                  </CardHeader>
-                  {expandedCards.includes('issues') && (
-                    <CardContent className="pt-0 space-y-4">
-                      {issuesArray.fields.map((field, index) => (
-                        <div key={field.id} className="p-3 bg-orange-50 rounded-lg border border-orange-200 space-y-3">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium text-orange-700">Issue #{index + 1}</span>
-                            <button
-                              type="button"
-                              onClick={() => issuesArray.remove(index)}
-                              className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                            <div className="space-y-1">
-                              <Label className="text-xs">Category</Label>
-                              <Controller
-                                name={`issues.${index}.category`}
-                                control={control}
-                                render={({ field }) => (
-                                  <Select onValueChange={field.onChange} value={field.value}>
-                                    <SelectTrigger className="text-sm">
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="delay">Delay</SelectItem>
-                                      <SelectItem value="shortage">Shortage</SelectItem>
-                                      <SelectItem value="dispute">Dispute</SelectItem>
-                                      <SelectItem value="design">Design</SelectItem>
-                                      <SelectItem value="weather">Weather</SelectItem>
-                                      <SelectItem value="safety">Safety</SelectItem>
-                                      <SelectItem value="other">Other</SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                )}
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <Label className="text-xs">Impact</Label>
-                              <Controller
-                                name={`issues.${index}.impact`}
-                                control={control}
-                                render={({ field }) => (
-                                  <Select onValueChange={field.onChange} value={field.value}>
-                                    <SelectTrigger className="text-sm">
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="low">Low</SelectItem>
-                                      <SelectItem value="medium">Medium</SelectItem>
-                                      <SelectItem value="high">High</SelectItem>
-                                      <SelectItem value="critical">Critical</SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                )}
-                              />
-                            </div>
-                            <div className="space-y-1 md:col-span-2">
-                              <Label className="text-xs">Description</Label>
-                              <Controller
-                                name={`issues.${index}.description`}
-                                control={control}
-                                render={({ field }) => (
-                                  <Input {...field} placeholder="Describe the issue" className="text-sm" />
-                                )}
-                              />
-                            </div>
-                            <div className="space-y-1 md:col-span-4">
-                              <Label className="text-xs">Mitigation Plan</Label>
-                              <Controller
-                                name={`issues.${index}.mitigation`}
-                                control={control}
-                                render={({ field }) => (
-                                  <Textarea {...field} placeholder="How will this be resolved?" className="text-sm min-h-[60px]" />
-                                )}
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => issuesArray.append({ id: generateId(), category: 'delay', description: '', impact: 'low', mitigation: '' })}
-                        className="w-full border-orange-300 text-orange-700 hover:bg-orange-50"
-                      >
-                        <Plus className="w-4 h-4 mr-2" />
-                        Add Issue
-                      </Button>
-                    </CardContent>
-                  )}
-                </Card>
-
-                {/* Card 14: Photos */}
-                <Card>
-                  <CardHeader className="pb-3 cursor-pointer" onClick={() => toggleCard('photos')}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Image className="w-5 h-5 text-pink-600" />
-                        <CardTitle className="text-base">Photos</CardTitle>
-                        <Badge variant="secondary" className="text-xs">
-                          {photosArray.fields.length}
-                        </Badge>
-                      </div>
-                      {expandedCards.includes('photos') ? (
-                        <ChevronUp className="w-5 h-5 text-gray-400" />
-                      ) : (
-                        <ChevronDown className="w-5 h-5 text-gray-400" />
-                      )}
-                    </div>
-                  </CardHeader>
-                  {expandedCards.includes('photos') && (
-                    <CardContent className="pt-0 space-y-4">
-                      {/* Photo Upload */}
-                      <div className="space-y-3">
-                        <input
-                          type="file"
-                          ref={fileInputRef}
-                          onChange={handlePhotoUpload}
-                          accept="image/*"
-                          multiple
-                          className="hidden"
-                        />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => fileInputRef.current?.click()}
-                          className="w-full border-dashed border-2 py-8"
-                        >
-                          <div className="flex flex-col items-center gap-2">
-                            <Upload className="w-8 h-8 text-gray-400" />
-                            <span className="text-sm text-gray-600">Click to upload photos</span>
-                            <span className="text-xs text-gray-400">or drag and drop</span>
-                          </div>
-                        </Button>
-                      </div>
-                      
-                      {/* Photo Grid */}
-                      {photosArray.fields.length > 0 && (
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                          {photosArray.fields.map((field, index) => (
-                            <div key={field.id} className="relative group">
-                              <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden border border-gray-200">
-                                {field.url ? (
-                                  <img 
-                                    src={field.url} 
-                                    alt={field.caption || 'Photo'}
-                                    className="w-full h-full object-cover"
-                                  />
-                                ) : (
-                                  <div className="w-full h-full flex items-center justify-center">
-                                    <Image className="w-8 h-8 text-gray-300" />
-                                  </div>
-                                )}
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => photosArray.remove(index)}
-                                className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                              >
-                                <X className="w-4 h-4" />
-                              </button>
-                              <div className="mt-2 space-y-1">
-                                <Controller
-                                  name={`photos.${index}.category`}
-                                  control={control}
-                                  render={({ field }) => (
-                                    <Select onValueChange={field.onChange} value={field.value}>
-                                      <SelectTrigger className="text-xs h-7">
-                                        <SelectValue />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="progress">Progress</SelectItem>
-                                        <SelectItem value="safety">Safety</SelectItem>
-                                        <SelectItem value="quality">Quality</SelectItem>
-                                        <SelectItem value="issue">Issue</SelectItem>
-                                        <SelectItem value="general">General</SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                  )}
-                                />
-                                <Controller
-                                  name={`photos.${index}.caption`}
-                                  control={control}
-                                  render={({ field }) => (
-                                    <Input 
-                                      {...field} 
-                                      placeholder="Caption..." 
-                                      className="text-xs h-7"
-                                    />
-                                  )}
-                                />
-                              </div>
-                            </div>
+            {/* Form Content */}
+            <form className="p-4 sm:p-6 space-y-6">
+              {/* Header Info Card */}
+              <Card>
+                <CardHeader className="py-3 px-4">
+                  <CardTitle className="text-sm font-semibold">Site Information</CardTitle>
+                </CardHeader>
+                <CardContent className="py-3 px-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <Label className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-1.5 block">
+                        Client Name
+                      </Label>
+                      <Select>
+                        <SelectTrigger className="h-9 text-sm">
+                          <SelectValue placeholder="Select client" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {clients?.map((client: any) => (
+                            <SelectItem key={client.id} value={client.id}>
+                              {client.client_name}
+                            </SelectItem>
                           ))}
-                        </div>
-                      )}
-                    </CardContent>
-                  )}
-                </Card>
-
-                {/* Card 15: Documentation */}
-                <Card>
-                  <CardHeader className="pb-3 cursor-pointer" onClick={() => toggleCard('documentation')}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <FileText className="w-5 h-5 text-violet-600" />
-                        <CardTitle className="text-base">Documentation</CardTitle>
-                      </div>
-                      {expandedCards.includes('documentation') ? (
-                        <ChevronUp className="w-5 h-5 text-gray-400" />
-                      ) : (
-                        <ChevronDown className="w-5 h-5 text-gray-400" />
-                      )}
+                        </SelectContent>
+                      </Select>
                     </div>
-                  </CardHeader>
-                  {expandedCards.includes('documentation') && (
-                    <CardContent className="pt-0 space-y-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="prepared_by">
-                            Prepared By <span className="text-red-500">*</span>
-                          </Label>
-                          <Controller
-                            name="prepared_by"
-                            control={control}
-                            render={({ field }) => (
-                              <Input 
-                                {...field} 
-                                id="prepared_by"
-                                placeholder="Name of preparer"
-                                className={errors.prepared_by ? 'border-red-500' : ''}
-                              />
-                            )}
-                          />
-                          {errors.prepared_by && (
-                            <p className="text-xs text-red-500">{errors.prepared_by.message}</p>
-                          )}
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="approved_by">Approved By</Label>
-                          <Controller
-                            name="approved_by"
-                            control={control}
-                            render={({ field }) => (
-                              <Input {...field} id="approved_by" placeholder="Name of approver" />
-                            )}
-                          />
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="remarks">General Remarks</Label>
-                        <Controller
-                          name="remarks"
-                          control={control}
-                          render={({ field }) => (
-                            <Textarea {...field} id="remarks" placeholder="Any additional remarks or notes..." />
-                          )}
-                        />
-                      </div>
-                    </CardContent>
-                  )}
-                </Card>
-              </div>
+                    <div>
+                      <Label className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-1.5 block">
+                        Project Name
+                      </Label>
+                      <Input placeholder="Enter project name" className="h-9 text-sm" />
+                    </div>
+                    <div>
+                      <Label className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-1.5 block">
+                        Report Date
+                      </Label>
+                      <Input type="date" className="h-9 text-sm" defaultValue={format(new Date(), 'yyyy-MM-dd')} />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-              {/* Footer */}
-              <div className="p-4 sm:p-6 border-t border-gray-200 bg-gray-50 flex-shrink-0">
-                <div className="flex items-center justify-between gap-3">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setIsFormOpen(false)}
-                    className="gap-2"
-                  >
-                    <X className="w-4 h-4" />
-                    Cancel
-                  </Button>
+              {/* Manpower Details Card */}
+              <Card>
+                <CardHeader className="py-3 px-4">
+                  <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                    <Users className="w-4 h-4" />
+                    Manpower Details
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="py-3 px-4 space-y-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div>
+                      <Label className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-1.5 block">
+                        Total Manpower
+                      </Label>
+                      <Input type="number" placeholder="0" className="h-9 text-sm" />
+                    </div>
+                    <div>
+                      <Label className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-1.5 block">
+                        Skilled
+                      </Label>
+                      <Input type="number" placeholder="0" className="h-9 text-sm" />
+                    </div>
+                    <div>
+                      <Label className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-1.5 block">
+                        Unskilled
+                      </Label>
+                      <Input type="number" placeholder="0" className="h-9 text-sm" />
+                    </div>
+                    <div>
+                      <Label className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-1.5 block">
+                        Work Hours
+                      </Label>
+                      <div className="flex items-center gap-2">
+                        <Input type="time" className="h-9 text-sm" />
+                        <span className="text-gray-400">-</span>
+                        <Input type="time" className="h-9 text-sm" />
+                      </div>
+                    </div>
+                  </div>
                   
+                  {/* Sub-contractors Table */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <Label className="text-[10px] font-semibold uppercase tracking-wider text-gray-600">
+                        Sub-contractors
+                      </Label>
+                      <Button type="button" variant="outline" size="sm" className="h-7 text-xs">
+                        <Plus className="w-3 h-3 mr-1" />
+                        Add Row
+                      </Button>
+                    </div>
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="h-8">
+                          <TableHead className="text-[10px] uppercase">Contractor Name</TableHead>
+                          <TableHead className="text-[10px] uppercase">Count</TableHead>
+                          <TableHead className="text-[10px] uppercase">Start Time</TableHead>
+                          <TableHead className="text-[10px] uppercase">End Time</TableHead>
+                          <TableHead className="text-[10px] uppercase w-10"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        <TableRow className="h-9">
+                          <TableCell><Input placeholder="Name" className="h-7 text-xs" /></TableCell>
+                          <TableCell><Input type="number" placeholder="0" className="h-7 text-xs w-20" /></TableCell>
+                          <TableCell><Input type="time" className="h-7 text-xs" /></TableCell>
+                          <TableCell><Input type="time" className="h-7 text-xs" /></TableCell>
+                          <TableCell>
+                            <button type="button" className="text-red-400 hover:text-red-600">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Work Carried Out Card */}
+              <Card>
+                <CardHeader className="py-3 px-4">
+                  <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                    <ClipboardCheck className="w-4 h-4" />
+                    Work Carried Out Today
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="py-3 px-4 space-y-2">
                   <div className="flex items-center gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => {
-                        // Expand all cards
-                        setExpandedCards([
-                          'basic-info', 'manpower', 'work', 'milestones', 'progress',
-                          'equipment', 'safety', 'quality', 'documents', 'client-req',
-                          'reporting', 'work-plan', 'issues', 'photos', 'documentation'
-                        ]);
-                      }}
-                      className="hidden sm:flex"
-                    >
-                      Expand All
-                    </Button>
-                    <Button
-                      type="submit"
-                      disabled={addVisitMutation.isPending || updateVisitMutation.isPending}
-                      className="gap-2"
-                    >
-                      {addVisitMutation.isPending || updateVisitMutation.isPending ? (
-                        <>
-                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                          Saving...
-                        </>
-                      ) : (
-                        <>
-                          <Save className="w-4 h-4" />
-                          {selectedVisit ? 'Update Report' : 'Save Report'}
-                        </>
-                      )}
+                    <Input placeholder="Enter work description" className="h-9 text-sm flex-1" />
+                    <Button type="button" variant="ghost" size="sm" className="h-9 w-9 p-0 text-red-500 hover:text-red-600 hover:bg-red-50">
+                      <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>
-                </div>
-              </div>
+                  <Button type="button" variant="outline" size="sm" className="h-8 text-xs">
+                    <Plus className="w-3 h-3 mr-1" />
+                    Add Work Item
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Milestones Card */}
+              <Card>
+                <CardHeader className="py-3 px-4">
+                  <CardTitle className="text-sm font-semibold">Milestones Completed</CardTitle>
+                </CardHeader>
+                <CardContent className="py-3 px-4 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Input placeholder="Enter milestone" className="h-9 text-sm flex-1" />
+                    <Button type="button" variant="ghost" size="sm" className="h-9 w-9 p-0 text-red-500 hover:text-red-600 hover:bg-red-50">
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  <Button type="button" variant="outline" size="sm" className="h-8 text-xs">
+                    <Plus className="w-3 h-3 mr-1" />
+                    Add Milestone
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Progress Tracking Card */}
+              <Card>
+                <CardHeader className="py-3 px-4">
+                  <CardTitle className="text-sm font-semibold">Progress Tracking</CardTitle>
+                </CardHeader>
+                <CardContent className="py-3 px-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <Label className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-1.5 block">
+                        Planned Progress
+                      </Label>
+                      <Input placeholder="e.g., 50%" className="h-9 text-sm" />
+                    </div>
+                    <div>
+                      <Label className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-1.5 block">
+                        Actual Progress
+                      </Label>
+                      <Input placeholder="e.g., 45%" className="h-9 text-sm" />
+                    </div>
+                    <div>
+                      <Label className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-1.5 block">
+                        Percent Complete
+                      </Label>
+                      <Input placeholder="e.g., 90%" className="h-9 text-sm" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Equipment & Safety Card */}
+              <Card>
+                <CardHeader className="py-3 px-4">
+                  <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                    <Construction className="w-4 h-4" />
+                    Equipment & Safety
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="py-3 px-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-3">
+                      <div>
+                        <Label className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-1.5 block">
+                          Equipment on Site
+                        </Label>
+                        <Textarea placeholder="List equipment on site" className="text-sm min-h-[80px]" />
+                      </div>
+                      <div>
+                        <Label className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-1.5 block">
+                          Equipment Breakdown
+                        </Label>
+                        <Textarea placeholder="Describe any breakdowns" className="text-sm min-h-[80px]" />
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Checkbox id="toolbox" />
+                        <Label htmlFor="toolbox" className="text-sm cursor-pointer">
+                          Toolbox Meeting Conducted
+                        </Label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Checkbox id="ppe" />
+                        <Label htmlFor="ppe" className="text-sm cursor-pointer">
+                          PPE Compliance Check
+                        </Label>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Quality & Rework Card */}
+              <Card>
+                <CardHeader className="py-3 px-4">
+                  <CardTitle className="text-sm font-semibold">Quality & Rework</CardTitle>
+                </CardHeader>
+                <CardContent className="py-3 px-4 space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-1.5 block">
+                        Inspection Status
+                      </Label>
+                      <Select>
+                        <SelectTrigger className="h-9 text-sm">
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Yes">Yes</SelectItem>
+                          <SelectItem value="Pending">Pending</SelectItem>
+                          <SelectItem value="Not Required">Not Required</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-1.5 block">
+                        Quality Satisfaction %
+                      </Label>
+                      <Input type="number" placeholder="e.g., 95" className="h-9 text-sm" />
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-2 pt-2">
+                    <Checkbox id="rework" />
+                    <Label htmlFor="rework" className="text-sm font-medium cursor-pointer">
+                      Rework Required
+                    </Label>
+                  </div>
+                  
+                  {/* Conditional Rework Fields */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
+                    <div>
+                      <Label className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-1.5 block">
+                        Rework Reason
+                      </Label>
+                      <Input placeholder="Reason for rework" className="h-9 text-sm" />
+                    </div>
+                    <div>
+                      <Label className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-1.5 block">
+                        Material Used
+                      </Label>
+                      <Input placeholder="Materials used" className="h-9 text-sm" />
+                    </div>
+                    <div>
+                      <Label className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-1.5 block">
+                        Rework Start
+                      </Label>
+                      <Input type="date" className="h-9 text-sm" />
+                    </div>
+                    <div>
+                      <Label className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-1.5 block">
+                        Rework End
+                      </Label>
+                      <Input type="date" className="h-9 text-sm" />
+                    </div>
+                    <div>
+                      <Label className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-1.5 block">
+                        Total Manpower
+                      </Label>
+                      <Input type="number" placeholder="0" className="h-9 text-sm" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Documents Card */}
+              <Card>
+                <CardHeader className="py-3 px-4">
+                  <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                    <FileText className="w-4 h-4" />
+                    Documents (DC/Invoice)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="py-3 px-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <Label className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-1.5 block">
+                        Document Type
+                      </Label>
+                      <Select>
+                        <SelectTrigger className="h-9 text-sm">
+                          <SelectValue placeholder="Select type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="INVOICE">Invoice</SelectItem>
+                          <SelectItem value="DC">Delivery Challan</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-1.5 block">
+                        Doc No.
+                      </Label>
+                      <Input placeholder="Document number" className="h-9 text-sm" />
+                    </div>
+                    <div>
+                      <Label className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-1.5 block">
+                        Signature Received
+                      </Label>
+                      <Select>
+                        <SelectTrigger className="h-9 text-sm">
+                          <SelectValue placeholder="Select" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Yes">Yes</SelectItem>
+                          <SelectItem value="Pending">Pending</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Client Requirements Card */}
+              <Card>
+                <CardHeader className="py-3 px-4">
+                  <CardTitle className="text-sm font-semibold">Client Requirements</CardTitle>
+                </CardHeader>
+                <CardContent className="py-3 px-4 space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Input placeholder="Enter requirement detail" className="h-9 text-sm flex-1" />
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-1">
+                          <Checkbox id="req-quote-1" />
+                          <Label htmlFor="req-quote-1" className="text-xs cursor-pointer">Quote</Label>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Checkbox id="req-mail-1" />
+                          <Label htmlFor="req-mail-1" className="text-xs cursor-pointer">Mail</Label>
+                        </div>
+                        <Button type="button" variant="ghost" size="sm" className="h-9 w-9 p-0 text-red-500 hover:text-red-600 hover:bg-red-50">
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                  <Button type="button" variant="outline" size="sm" className="h-8 text-xs">
+                    <Plus className="w-3 h-3 mr-1" />
+                    Add Requirement
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Reporting & Material Arrangement Card */}
+              <Card>
+                <CardHeader className="py-3 px-4">
+                  <CardTitle className="text-sm font-semibold">Reporting & Material Arrangement</CardTitle>
+                </CardHeader>
+                <CardContent className="py-3 px-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-1.5 block">
+                        Reporting to PM
+                      </Label>
+                      <Select>
+                        <SelectTrigger className="h-9 text-sm">
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Reported">Reported</SelectItem>
+                          <SelectItem value="Pending">Pending</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-1.5 block">
+                        Material Arrangement
+                      </Label>
+                      <Select>
+                        <SelectTrigger className="h-9 text-sm">
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Arranged">Arranged</SelectItem>
+                          <SelectItem value="Pending">Pending</SelectItem>
+                          <SelectItem value="Not Required">Not Required</SelectItem>
+                          <SelectItem value="Informed to stores">Informed to stores</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Work Plan & Special Instructions Card */}
+              <Card>
+                <CardHeader className="py-3 px-4">
+                  <CardTitle className="text-sm font-semibold">Work Plan & Special Instructions</CardTitle>
+                </CardHeader>
+                <CardContent className="py-3 px-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <Label className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-2 block">
+                        Next Day Work Plan
+                      </Label>
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Input placeholder="Plan item" className="h-9 text-sm flex-1" />
+                          <Button type="button" variant="ghost" size="sm" className="h-9 w-9 p-0 text-red-500 hover:text-red-600 hover:bg-red-50">
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                      <Button type="button" variant="outline" size="sm" className="h-8 text-xs mt-2">
+                        <Plus className="w-3 h-3 mr-1" />
+                        Add Plan Item
+                      </Button>
+                    </div>
+                    <div>
+                      <Label className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-2 block">
+                        Special Instructions
+                      </Label>
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Input placeholder="Instruction" className="h-9 text-sm flex-1" />
+                          <Button type="button" variant="ghost" size="sm" className="h-9 w-9 p-0 text-red-500 hover:text-red-600 hover:bg-red-50">
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                      <Button type="button" variant="outline" size="sm" className="h-8 text-xs mt-2">
+                        <Plus className="w-3 h-3 mr-1" />
+                        Add Instruction
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Issues Faced Card */}
+              <Card>
+                <CardHeader className="py-3 px-4">
+                  <CardTitle className="text-sm font-semibold">Issues Faced</CardTitle>
+                </CardHeader>
+                <CardContent className="py-3 px-4">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="h-8">
+                        <TableHead className="text-[10px] uppercase">Issue Description</TableHead>
+                        <TableHead className="text-[10px] uppercase">Solution/Action</TableHead>
+                        <TableHead className="text-[10px] uppercase w-10"></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      <TableRow className="h-9">
+                        <TableCell><Input placeholder="Describe issue" className="h-7 text-xs" /></TableCell>
+                        <TableCell><Input placeholder="Solution taken" className="h-7 text-xs" /></TableCell>
+                        <TableCell>
+                          <button type="button" className="text-red-400 hover:text-red-600">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                  <Button type="button" variant="outline" size="sm" className="h-8 text-xs mt-3">
+                    <Plus className="w-3 h-3 mr-1" />
+                    Add Issue
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Site Photos Card */}
+              <Card>
+                <CardHeader className="py-3 px-4">
+                  <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                    <Camera className="w-4 h-4" />
+                    Site Photos
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="py-3 px-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="aspect-square border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 transition-colors">
+                      <Upload className="w-8 h-8 text-gray-400 mb-2" />
+                      <span className="text-xs text-gray-500">Upload Photo</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Filing & Documentation Card */}
+              <Card>
+                <CardHeader className="py-3 px-4">
+                  <CardTitle className="text-sm font-semibold">Filing & Documentation</CardTitle>
+                </CardHeader>
+                <CardContent className="py-3 px-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="flex items-center gap-2">
+                      <Checkbox id="filed" />
+                      <Label htmlFor="filed" className="text-sm cursor-pointer">
+                        Documents Filed
+                      </Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Checkbox id="tools-locked" />
+                      <Label htmlFor="tools-locked" className="text-sm cursor-pointer">
+                        Tools Locked
+                      </Label>
+                    </div>
+                    <div>
+                      <Label className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-1.5 block">
+                        Site Pictures
+                      </Label>
+                      <Select>
+                        <SelectTrigger className="h-9 text-sm">
+                          <SelectValue placeholder="Select" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Taken">Taken</SelectItem>
+                          <SelectItem value="Not Allowed">Not Allowed</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Footer Card */}
+              <Card>
+                <CardHeader className="py-3 px-4">
+                  <CardTitle className="text-sm font-semibold">Sign-off</CardTitle>
+                </CardHeader>
+                <CardContent className="py-3 px-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-1.5 block">
+                        Engineer Name
+                      </Label>
+                      <Input placeholder="Enter engineer name" className="h-9 text-sm" />
+                    </div>
+                    <div>
+                      <Label className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-1.5 block">
+                        Signature Date
+                      </Label>
+                      <Input type="date" className="h-9 text-sm" defaultValue={format(new Date(), 'yyyy-MM-dd')} />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </form>
+
+            {/* Footer Actions */}
+            <div className="p-4 sm:p-6 border-t border-gray-200 bg-gray-50 sticky bottom-0 z-10">
+              <div className="flex items-center justify-between gap-3">
+                <button
+                  onClick={() => setIsFormOpen(false)}
+                  className="inline-flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-white border border-gray-300 rounded-lg transition-colors"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  <span className="text-sm font-medium">Cancel</span>
+                </button>
+
+                <button
+                  onClick={handleFormSubmit}
+                  className="inline-flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+                >
+                  <Save className="w-4 h-4" />
+                  <span className="text-sm font-medium">Save Report</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
