@@ -13,16 +13,16 @@ import {
   LayoutDashboard,
   CalendarDays,
   Search,
-  MoreVertical,
   Camera,
   FileText,
   AlertCircle,
-  Edit,
   Settings2,
   Filter,
   Trash2,
-  CalendarClock,
-  Pencil
+  Pencil,
+  ArrowLeft,
+  ArrowRight,
+  Check
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { 
@@ -42,17 +42,30 @@ import {
 
 export function SiteVisits() {
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
-  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
+  const [isFormOpen, setIsFormOpen] = useState(false);
   const [isAddClientModalOpen, setIsAddClientModalOpen] = useState(false);
   const [isAddPurposeModalOpen, setIsAddPurposeModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedVisit, setSelectedVisit] = useState<any | null>(null);
-  const [scheduleDateStr, setScheduleDateStr] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
-  const [scheduleStatus, setScheduleStatus] = useState<string>('scheduled');
-  const [updateStatus, setUpdateStatus] = useState<string>('pending');
-  const [updatePurpose, setUpdatePurpose] = useState<string>('');
   const [visitToDelete, setVisitToDelete] = useState<any | null>(null);
+  
+  // Multi-step form state
+  const [currentStep, setCurrentStep] = useState(1);
+  const [formData, setFormData] = useState({
+    client_id: '',
+    visit_date: format(new Date(), 'yyyy-MM-dd'),
+    purpose: '',
+    visited_by: '',
+    engineer: '',
+    in_time: '',
+    out_time: '',
+    site_address: '',
+    location_url: '',
+    discussion: '',
+    measurements: '',
+    status: 'pending',
+    next_step: ''
+  });
   
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -103,7 +116,6 @@ export function SiteVisits() {
     queryFn: async () => {
       const { data, error } = await supabase.from('visit_purposes').select('id, name').order('name');
       if (error) {
-        // Fallback if table doesn't exist yet
         return [
           { id: '1', name: 'Measurement' },
           { id: '2', name: 'Complaint' },
@@ -128,8 +140,8 @@ export function SiteVisits() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['site-visits'] });
-      setIsUpdateModalOpen(false);
-      setIsScheduleModalOpen(false);
+      setIsFormOpen(false);
+      resetForm();
       toast.success('Site visit saved successfully');
     },
     onError: (error: any) => {
@@ -151,8 +163,9 @@ export function SiteVisits() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['site-visits'] });
-      setIsUpdateModalOpen(false);
+      setIsFormOpen(false);
       setSelectedVisit(null);
+      resetForm();
       toast.success('Site visit updated successfully');
     },
     onError: (error: any) => {
@@ -197,7 +210,7 @@ export function SiteVisits() {
   });
 
   const addPurposeMutation = useMutation({
-    mutationFn: async (newPurpose: { name: string }) => {
+    mutationFn: async (newPurpose: any) => {
       const { data, error } = await supabase
         .from('visit_purposes')
         .insert([newPurpose])
@@ -206,9 +219,8 @@ export function SiteVisits() {
       if (error) throw error;
       return data[0];
     },
-    onSuccess: (data: any) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['visit-purposes'] });
-      setUpdatePurpose(data.name);
       setIsAddPurposeModalOpen(false);
       toast.success('Purpose added successfully');
     },
@@ -217,607 +229,749 @@ export function SiteVisits() {
     },
   });
 
-  const handleAddVisit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    const rawData = Object.fromEntries(formData.entries());
-    
-    // Clean up empty strings to null to prevent DB type errors (especially for dates/times)
-    const visitData: any = {};
-    for (const [key, value] of Object.entries(rawData)) {
-      if (value === '') {
-        visitData[key] = null;
-      } else {
-        visitData[key] = value;
-      }
-    }
-    
-    if (visitData.status !== 'postponed') {
-      visitData.postponed_reason = null;
-    }
-    
-    if (selectedVisit) {
-      updateVisitMutation.mutate({
-        ...visitData,
-        id: selectedVisit.id,
-      });
-    } else {
-      addVisitMutation.mutate({
-        ...visitData,
-        status: visitData.status || 'pending',
-        created_at: new Date().toISOString(),
-      });
-    }
-  };
-
-  const handleAddClient = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    const clientData = Object.fromEntries(formData.entries());
-    
-    addClientMutation.mutate({
-      ...clientData,
-      created_at: new Date().toISOString(),
+  const resetForm = () => {
+    setCurrentStep(1);
+    setFormData({
+      client_id: '',
+      visit_date: format(new Date(), 'yyyy-MM-dd'),
+      purpose: '',
+      visited_by: '',
+      engineer: '',
+      in_time: '',
+      out_time: '',
+      site_address: '',
+      location_url: '',
+      discussion: '',
+      measurements: '',
+      status: 'pending',
+      next_step: ''
     });
   };
 
-  const handleAddPurpose = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    const name = formData.get('name') as string;
-    
-    if (name) {
-      addPurposeMutation.mutate({ name });
+  const openFormForEdit = (visit: any) => {
+    setSelectedVisit(visit);
+    setFormData({
+      client_id: visit.client_id || '',
+      visit_date: visit.visit_date || format(new Date(), 'yyyy-MM-dd'),
+      purpose: visit.purpose || '',
+      visited_by: visit.visited_by || '',
+      engineer: visit.engineer || '',
+      in_time: visit.in_time || '',
+      out_time: visit.out_time || '',
+      site_address: visit.site_address || '',
+      location_url: visit.location_url || '',
+      discussion: visit.discussion || '',
+      measurements: visit.measurements || '',
+      status: visit.status || 'pending',
+      next_step: visit.next_step || ''
+    });
+    setCurrentStep(1);
+    setIsFormOpen(true);
+  };
+
+  const handleFormSubmit = async () => {
+    if (selectedVisit) {
+      updateVisitMutation.mutate({ id: selectedVisit.id, ...formData });
+    } else {
+      addVisitMutation.mutate(formData);
     }
   };
 
-  const statusIcons: any = {
-    pending: Clock,
-    scheduled: Clock,
-    completed: CheckCircle2,
-    cancelled: XCircle,
+  const handleAddClient = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const form = e.currentTarget;
+    const formData = new FormData(form);
+    
+    addClientMutation.mutate({
+      client_name: formData.get('client_name'),
+      contact_person: formData.get('contact_person'),
+      phone: formData.get('phone'),
+      email: formData.get('email'),
+    });
   };
 
-  const statusColors: any = {
-    pending: 'bg-amber-100 text-amber-700',
-    scheduled: 'bg-blue-100 text-blue-700',
-    completed: 'bg-emerald-100 text-emerald-700',
-    cancelled: 'bg-rose-100 text-rose-700',
-    postponed: 'bg-orange-100 text-orange-700',
+  const handleAddPurpose = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const form = e.currentTarget;
+    const formData = new FormData(form);
+    
+    addPurposeMutation.mutate({
+      name: formData.get('name'),
+    });
   };
-
-  // Dashboard Stats
-  const stats = useMemo(() => {
-    if (!visits) return { total: 0, pending: 0, completed: 0, thisMonth: 0 };
-    const now = new Date();
-    return {
-      total: visits.length,
-      pending: visits.filter((v: any) => v.status === 'pending' || v.status === 'scheduled').length,
-      completed: visits.filter((v: any) => v.status === 'completed').length,
-      thisMonth: visits.filter((v: any) => isSameMonth(parseISO(v.visit_date), now)).length,
-    };
-  }, [visits]);
 
   const filteredVisits = useMemo(() => {
     if (!visits) return [];
-    return visits.filter((v: any) => {
-      const clientName = v.clients?.client_name || '';
-      const engineerName = v.engineer || v.visited_by || '';
+    
+    return visits.filter((visit: any) => {
+      const matchesSearch = searchQuery === '' || 
+        visit.clients?.client_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        visit.engineer?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        visit.visited_by?.toLowerCase().includes(searchQuery.toLowerCase());
       
-      const matchesSearch = clientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                            engineerName.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesStatus = statusFilter === 'all' || v.status === statusFilter;
+      const matchesStatus = statusFilter === 'all' || visit.status === statusFilter;
       
       return matchesSearch && matchesStatus;
     });
   }, [visits, searchQuery, statusFilter]);
 
+  const statusColors: Record<string, string> = {
+    pending: 'bg-amber-50 text-amber-700 border border-amber-200',
+    scheduled: 'bg-blue-50 text-blue-700 border border-blue-200',
+    completed: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
+    postponed: 'bg-gray-50 text-gray-700 border border-gray-200',
+    cancelled: 'bg-red-50 text-red-700 border border-red-200',
+  };
+
+  const steps = [
+    { number: 1, title: 'Basic info', icon: FileText },
+    { number: 2, title: 'Visit details', icon: Clock },
+    { number: 3, title: 'Location', icon: MapPin },
+    { number: 4, title: 'Notes', icon: Pencil },
+    { number: 5, title: 'Review', icon: CheckCircle2 }
+  ];
+
+  const canProceedToNextStep = () => {
+    switch (currentStep) {
+      case 1:
+        return formData.client_id && formData.visit_date && formData.purpose;
+      case 2:
+      case 3:
+      case 4:
+        return true;
+      default:
+        return true;
+    }
+  };
+
   return (
-    <div className="space-y-6 p-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">Site Visit Module</h1>
-          <p className="text-slate-500">Manage, schedule and track all site inspections and client visits.</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <button className="px-4 py-2 border border-gray-300 rounded-lg flex items-center gap-2 hover:bg-gray-50">
-            <Search className="w-4 h-4" /> Search
-          </button>
-
-          {/* Schedule Site Visit Modal (Simple) */}
-          {isScheduleModalOpen && (
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-              <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
-                <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-                  <h3 className="text-xl font-bold text-slate-900">Schedule Site Visit</h3>
-                  <button onClick={() => setIsScheduleModalOpen(false)} className="text-gray-400 hover:text-gray-600">
-                    <XCircle className="w-5 h-5" />
-                  </button>
-                </div>
-                <form onSubmit={handleAddVisit} className="p-6 space-y-4">
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <label className="text-sm font-medium">Client *</label>
-                      <button 
-                        type="button" 
-                        className="text-xs text-blue-600 hover:underline"
-                        onClick={() => setIsAddClientModalOpen(true)}
-                      >
-                        + Add New Client
-                      </button>
-                    </div>
-                    <select 
-                      name="client_id" 
-                      required 
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">Select Client</option>
-                      {clients?.map((client: any) => (
-                        <option key={client.id} value={client.id}>{client.client_name}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Date of Visit *</label>
-                    <input 
-                      type="date" 
-                      name="visit_date" 
-                      required 
-                      value={scheduleDateStr}
-                      onChange={(e) => {
-                        const newDate = e.target.value;
-                        setScheduleDateStr(newDate);
-                        const isPast = new Date(newDate) < new Date(new Date().setHours(0,0,0,0));
-                        if (isPast && (scheduleStatus === 'scheduled' || scheduleStatus === 'pending')) {
-                          setScheduleStatus('completed');
-                        } else if (!isPast && (scheduleStatus === 'completed' || scheduleStatus === 'postponed')) {
-                          setScheduleStatus('scheduled');
-                        }
-                      }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Created By</label>
-                    <input type="text" name="created_by" placeholder="Your name" className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Visiting By (Engineer)</label>
-                    <select name="engineer" className="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                      <option value="">Select Engineer</option>
-                      <option value="John Doe">John Doe</option>
-                      <option value="Jane Smith">Jane Smith</option>
-                      <option value="Mike Johnson">Mike Johnson</option>
-                      <option value="Sarah Williams">Sarah Williams</option>
-                    </select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Status *</label>
-                    <select 
-                      name="status" 
-                      value={scheduleStatus} 
-                      onChange={(e) => setScheduleStatus(e.target.value)}
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    >
-                      {new Date(scheduleDateStr) < new Date(new Date().setHours(0,0,0,0)) ? (
-                        <>
-                          <option value="completed">Completed</option>
-                          <option value="postponed">Postponed</option>
-                          <option value="cancelled">Cancelled</option>
-                        </>
-                      ) : (
-                        <>
-                          <option value="scheduled">Scheduled</option>
-                          <option value="pending">Pending</option>
-                        </>
-                      )}
-                    </select>
-                  </div>
-
-                  {scheduleStatus === 'postponed' && (
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Reason for Postponement *</label>
-                      <textarea name="postponed_reason" required placeholder="Why was this visit postponed?" className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
-                    </div>
-                  )}
-
-                  <div className="flex justify-end gap-3 pt-4">
-                    <button type="button" className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50" onClick={() => setIsScheduleModalOpen(false)}>Cancel</button>
-                    <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700" disabled={addVisitMutation.isPending}>
-                      {addVisitMutation.isPending ? 'Saving...' : 'Submit'}
-                    </button>
-                  </div>
-                </form>
-              </div>
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between py-4 gap-4">
+            <div>
+              <h1 className="text-2xl font-semibold text-gray-900">Site Visits</h1>
+              <p className="text-sm text-gray-500 mt-1">Track and manage all site visits</p>
             </div>
-          )}
-
-          {/* Add New Client Quick Modal */}
-          {isAddClientModalOpen && (
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-              <div className="bg-white rounded-xl shadow-xl max-w-sm w-full mx-4">
-                <div className="p-6 border-b border-gray-200">
-                  <h3 className="text-lg font-bold">Add New Client</h3>
-                </div>
-                <form onSubmit={handleAddClient} className="p-6 space-y-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Client Name *</label>
-                    <input type="text" name="client_name" required placeholder="Enter client name" className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
-                  </div>
-                  <div className="flex justify-end gap-3">
-                    <button type="button" className="px-4 py-2 border border-gray-300 rounded-lg" onClick={() => setIsAddClientModalOpen(false)}>Cancel</button>
-                    <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg" disabled={addClientMutation.isPending}>
-                      {addClientMutation.isPending ? 'Adding...' : 'Add Client'}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          )}
-
-          <button 
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg flex items-center gap-2 hover:bg-blue-700"
-            onClick={() => {
-              setSelectedVisit(null);
-              setSelectedDate(null);
-              setIsScheduleModalOpen(true);
-            }}
-          >
-            <CalendarIcon className="w-4 h-4" /> Schedule Site Visit
-          </button>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex gap-2 bg-gray-100 p-1 rounded-lg max-w-md">
-        <button
-          onClick={() => setActiveTab('dashboard')}
-          className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
-            activeTab === 'dashboard' 
-              ? 'bg-white text-blue-600 shadow-sm' 
-              : 'text-gray-600 hover:text-gray-900'
-          }`}
-        >
-          <LayoutDashboard className="w-4 h-4" /> Dashboard
-        </button>
-        <button
-          onClick={() => setActiveTab('calendar')}
-          className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
-            activeTab === 'calendar' 
-              ? 'bg-white text-blue-600 shadow-sm' 
-              : 'text-gray-600 hover:text-gray-900'
-          }`}
-        >
-          <CalendarDays className="w-4 h-4" /> Calendar
-        </button>
-      </div>
-
-      {activeTab === 'dashboard' ? (
-        <div className="space-y-6">
-          {/* Stats Grid */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-medium text-gray-500 mb-1">Total Visits</p>
-                  <h3 className="text-2xl font-bold text-gray-900">{stats.total}</h3>
-                </div>
-                <div className="p-2 bg-blue-50 rounded-lg">
-                  <CalendarIcon className="w-4 h-4 text-blue-600" />
-                </div>
-              </div>
-            </div>
-            <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-medium text-gray-500 mb-1">Pending/Scheduled</p>
-                  <h3 className="text-2xl font-bold text-gray-900">{stats.pending}</h3>
-                </div>
-                <div className="p-2 bg-amber-50 rounded-lg">
-                  <Clock className="w-4 h-4 text-amber-600" />
-                </div>
-              </div>
-            </div>
-            <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-medium text-gray-500 mb-1">Completed</p>
-                  <h3 className="text-2xl font-bold text-gray-900">{stats.completed}</h3>
-                </div>
-                <div className="p-2 bg-emerald-50 rounded-lg">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                </div>
-              </div>
-            </div>
-            <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-medium text-gray-500 mb-1">This Month</p>
-                  <h3 className="text-2xl font-bold text-gray-900">{stats.thisMonth}</h3>
-                </div>
-                <div className="p-2 bg-gray-100 rounded-lg">
-                  <CalendarDays className="w-4 h-4 text-gray-600" />
-                </div>
-              </div>
-            </div>
+            <button
+              onClick={() => {
+                resetForm();
+                setSelectedVisit(null);
+                setIsFormOpen(true);
+              }}
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+            >
+              <Plus className="w-4 h-4" />
+              <span className="font-medium">New Visit</span>
+            </button>
           </div>
 
-          {/* Recent Visits Table */}
-          <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
-            <div className="p-4 border-b border-gray-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <h3 className="text-lg font-bold">Recent Site Visits</h3>
-              <div className="flex items-center gap-2 w-full sm:w-auto">
-                <div className="relative flex-1 sm:w-64">
-                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input 
-                    placeholder="Search clients..." 
-                    className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm"
+          {/* Tabs */}
+          <div className="flex gap-6 border-t border-gray-100 mt-2">
+            <button
+              onClick={() => setActiveTab('dashboard')}
+              className={`flex items-center gap-2 px-1 py-3 border-b-2 transition-colors ${
+                activeTab === 'dashboard'
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <LayoutDashboard className="w-4 h-4" />
+              <span className="text-sm font-medium">Dashboard</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('calendar')}
+              className={`flex items-center gap-2 px-1 py-3 border-b-2 transition-colors ${
+                activeTab === 'calendar'
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <CalendarDays className="w-4 h-4" />
+              <span className="text-sm font-medium">Calendar</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {activeTab === 'dashboard' ? (
+          <div className="space-y-6">
+            {/* Search and Filter */}
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search by client, engineer, or person..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                   />
                 </div>
-                <select 
-                  value={statusFilter} 
+                <select
+                  value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white"
                 >
                   <option value="all">All Status</option>
                   <option value="pending">Pending</option>
                   <option value="scheduled">Scheduled</option>
                   <option value="completed">Completed</option>
+                  <option value="postponed">Postponed</option>
                   <option value="cancelled">Cancelled</option>
                 </select>
               </div>
             </div>
-            
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                    {visibleColumns.date && <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">Date</th>}
-                    {visibleColumns.client && <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">Client Name</th>}
-                    {visibleColumns.visitedBy && <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">Visited By</th>}
-                    {visibleColumns.status && <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">Status</th>}
-                    {visibleColumns.nextStep && <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">Next Step</th>}
-                    {visibleColumns.actions && <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700">Actions</th>}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {isLoadingVisits ? (
-                    <tr><td colSpan={6} className="text-center py-8 text-gray-500">Loading visits...</td></tr>
-                  ) : filteredVisits.length === 0 ? (
-                    <tr><td colSpan={6} className="text-center py-8 text-gray-500">No site visits found.</td></tr>
-                  ) : (
-                    filteredVisits.slice(0, 10).map((visit: any) => (
-                      <tr 
-                        key={visit.id} 
-                        className="hover:bg-gray-50 cursor-pointer"
-                        onClick={() => {
-                          setSelectedVisit(visit);
-                          setUpdateStatus(visit.status);
-                          setIsUpdateModalOpen(true);
-                        }}
-                      >
-                        {visibleColumns.date && (
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
-                            {format(parseISO(visit.visit_date), 'MMM dd, yyyy')}
-                          </td>
-                        )}
-                        {visibleColumns.client && (
-                          <td className="px-4 py-3 font-medium text-gray-900">
+
+            {/* Visits List */}
+            {isLoadingVisits ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="text-gray-500">Loading visits...</div>
+              </div>
+            ) : filteredVisits.length === 0 ? (
+              <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
+                <CalendarDays className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-500 mb-2">No visits found</p>
+                <p className="text-sm text-gray-400">Create your first site visit to get started</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filteredVisits.map((visit: any) => (
+                  <div
+                    key={visit.id}
+                    onClick={() => openFormForEdit(visit)}
+                    className="bg-white rounded-lg border border-gray-200 p-4 hover:border-blue-300 hover:shadow-sm transition-all cursor-pointer"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                      <div className="flex-1 space-y-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="font-medium text-gray-900">
                             {visit.clients?.client_name || 'Unknown Client'}
-                          </td>
-                        )}
-                        {visibleColumns.visitedBy && (
-                          <td className="px-4 py-3 text-sm text-gray-600">
-                            {visit.visited_by || visit.engineer || '-'}
-                          </td>
-                        )}
-                        {visibleColumns.status && (
-                          <td className="px-4 py-3">
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium capitalize ${statusColors[visit.status]}`}>
-                              {visit.status}
+                          </h3>
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[visit.status]}`}>
+                            {visit.status}
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-4 text-sm text-gray-500">
+                          <span className="flex items-center gap-1">
+                            <CalendarIcon className="w-3.5 h-3.5" />
+                            {format(parseISO(visit.visit_date), 'MMM dd, yyyy')}
+                          </span>
+                          {visit.visited_by && (
+                            <span className="flex items-center gap-1">
+                              <Clock className="w-3.5 h-3.5" />
+                              {visit.visited_by}
                             </span>
-                          </td>
-                        )}
-                        {visibleColumns.nextStep && (
-                          <td className="px-4 py-3 text-sm text-gray-600">
-                            {visit.next_step || '-'}
-                          </td>
-                        )}
-                        {visibleColumns.actions && (
-                          <td className="px-4 py-3 text-right">
-                            <button 
-                              className="text-gray-400 hover:text-red-500"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setVisitToDelete(visit);
-                              }}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </td>
-                        )}
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                          )}
+                          {visit.purpose && (
+                            <span className="text-gray-600">• {visit.purpose}</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setVisitToDelete(visit);
+                          }}
+                          className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-        </div>
-      ) : (
-        <CalendarView 
-          visits={visits || []} 
-          onDateClick={(date) => {
-            setSelectedDate(date);
-            setIsScheduleModalOpen(true);
-          }}
-          onVisitClick={(visit) => {
-            setSelectedVisit(visit);
-            setUpdateStatus(visit.status);
-            setIsUpdateModalOpen(true);
-          }}
-        />
-      )}
+        ) : (
+          <CalendarView 
+            visits={visits || []} 
+            onDateClick={(date) => {
+              resetForm();
+              setFormData(prev => ({ ...prev, visit_date: format(date, 'yyyy-MM-dd') }));
+              setIsFormOpen(true);
+            }}
+            onVisitClick={(visit) => openFormForEdit(visit)}
+          />
+        )}
+      </div>
 
-      {/* Delete Confirmation */}
-      {visitToDelete && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 p-6">
-            <h3 className="text-lg font-bold mb-4">Delete Site Visit</h3>
-            <p className="text-gray-600 mb-4">Are you sure you want to delete this site visit? This action cannot be undone.</p>
-            <div className="flex justify-end gap-3">
-              <button className="px-4 py-2 border border-gray-300 rounded-lg" onClick={() => setVisitToDelete(null)}>Cancel</button>
-              <button 
-                className="px-4 py-2 bg-red-600 text-white rounded-lg"
-                onClick={() => deleteVisitMutation.mutate(visitToDelete.id)}
-                disabled={deleteVisitMutation.isPending}
-              >
-                {deleteVisitMutation.isPending ? 'Deleting...' : 'Delete'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Update Modal */}
-      {isUpdateModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 overflow-y-auto">
-          <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full mx-4 my-8">
-            <div className="p-6 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white z-10">
-              <h3 className="text-xl font-bold">
-                {selectedVisit ? 'Edit Site Visit' : 'Site Visit Update'}
-              </h3>
-              <button onClick={() => setIsUpdateModalOpen(false)} className="text-gray-400 hover:text-gray-600">
-                <XCircle className="w-5 h-5" />
-              </button>
-            </div>
-            <form onSubmit={handleAddVisit} className="p-6 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Left Column */}
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Client *</label>
-                    <select 
-                      name="client_id" 
-                      required 
-                      defaultValue={selectedVisit?.client_id || ''}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">Select Client</option>
-                      {clients?.map((client: any) => (
-                        <option key={client.id} value={client.id}>{client.client_name}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">In Time</label>
-                      <input type="time" name="in_time" defaultValue={selectedVisit?.in_time || ''} className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Out Time</label>
-                      <input type="time" name="out_time" defaultValue={selectedVisit?.out_time || ''} className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Visited By</label>
-                    <input type="text" name="visited_by" placeholder="Who visited" defaultValue={selectedVisit?.visited_by || ''} className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Site Address</label>
-                    <input type="text" name="site_address" placeholder="Site Address" defaultValue={selectedVisit?.site_address || ''} className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Measurements</label>
-                    <textarea name="measurements" placeholder="Site measurements" rows={4} defaultValue={selectedVisit?.measurements || ''} className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
-                  </div>
-                </div>
-
-                {/* Right Column */}
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Visit Date *</label>
-                    <input 
-                      type="date" 
-                      name="visit_date" 
-                      required 
-                      defaultValue={selectedVisit?.visit_date || ''} 
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Engineer</label>
-                    <input type="text" name="engineer" placeholder="Engineer name" defaultValue={selectedVisit?.engineer || ''} className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Purpose</label>
-                    <select 
-                      value={updatePurpose} 
-                      onChange={(e) => {
-                        if (e.target.value === 'ADD_NEW') {
-                          setIsAddPurposeModalOpen(true);
-                        } else {
-                          setUpdatePurpose(e.target.value);
-                        }
-                      }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                    >
-                      <option value="">Select Purpose</option>
-                      {purposes?.map((p: any) => (
-                        <option key={p.id} value={p.name}>{p.name}</option>
-                      ))}
-                      <option value="ADD_NEW">+ Add New Purpose</option>
-                    </select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Location</label>
-                    <div className="relative">
-                      <input type="text" name="location_url" placeholder="Google Maps link" defaultValue={selectedVisit?.location_url || ''} className="w-full px-3 py-2 border border-gray-300 rounded-lg pr-10" />
-                      <MapPin className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Discussion</label>
-                    <textarea name="discussion" placeholder="Discussion with client" rows={4} defaultValue={selectedVisit?.discussion || ''} className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium">Status</label>
-                    <select 
-                      name="status" 
-                      value={updateStatus} 
-                      onChange={(e) => setUpdateStatus(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="pending">Pending</option>
-                      <option value="scheduled">Scheduled</option>
-                      <option value="completed">Completed</option>
-                      <option value="postponed">Postponed</option>
-                      <option value="cancelled">Cancelled</option>
-                    </select>
-                  </div>
-                </div>
+      {/* Multi-Step Form Modal */}
+      {isFormOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl my-8">
+            {/* Header */}
+            <div className="p-4 sm:p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-gray-900">
+                  {selectedVisit ? 'Edit Site Visit' : 'New Site Visit'}
+                </h2>
+                <button
+                  onClick={() => setIsFormOpen(false)}
+                  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <XCircle className="w-5 h-5" />
+                </button>
               </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t">
-                <button type="button" className="px-4 py-2 border border-gray-300 rounded-lg" onClick={() => setIsUpdateModalOpen(false)}>Cancel</button>
-                <button type="submit" className="px-6 py-2 bg-blue-600 text-white rounded-lg" disabled={addVisitMutation.isPending || updateVisitMutation.isPending}>
-                  {addVisitMutation.isPending || updateVisitMutation.isPending ? 'Saving...' : 'Save Update'}
+              {/* Progress Steps - Mobile Optimized */}
+              <div className="relative">
+                {/* Mobile: Compact Progress Bar */}
+                <div className="sm:hidden">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-medium text-gray-600">
+                      Step {currentStep} of {steps.length}
+                    </span>
+                    <span className="text-xs text-gray-500">
+                      {steps[currentStep - 1].title}
+                    </span>
+                  </div>
+                  <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-blue-600 transition-all duration-300 ease-out rounded-full"
+                      style={{ width: `${(currentStep / steps.length) * 100}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Desktop: Full Stepper */}
+                <div className="hidden sm:flex items-center justify-between">
+                  {steps.map((step, index) => (
+                    <React.Fragment key={step.number}>
+                      <div className="flex flex-col items-center flex-1">
+                        <div
+                          className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${
+                            currentStep > step.number
+                              ? 'bg-blue-600 text-white'
+                              : currentStep === step.number
+                              ? 'bg-blue-600 text-white ring-4 ring-blue-100'
+                              : 'bg-gray-100 text-gray-400'
+                          }`}
+                        >
+                          {currentStep > step.number ? (
+                            <Check className="w-5 h-5" />
+                          ) : (
+                            <step.icon className="w-5 h-5" />
+                          )}
+                        </div>
+                        <span
+                          className={`mt-2 text-xs font-medium transition-colors ${
+                            currentStep >= step.number ? 'text-gray-900' : 'text-gray-400'
+                          }`}
+                        >
+                          {step.title}
+                        </span>
+                      </div>
+                      {index < steps.length - 1 && (
+                        <div className="flex-1 h-0.5 mx-2 mt-5 relative">
+                          <div className="absolute inset-0 bg-gray-200" />
+                          <div
+                            className="absolute inset-y-0 left-0 bg-blue-600 transition-all duration-300"
+                            style={{
+                              width: currentStep > step.number ? '100%' : '0%'
+                            }}
+                          />
+                        </div>
+                      )}
+                    </React.Fragment>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Form Content */}
+            <div className="p-4 sm:p-6">
+              <div className="min-h-[280px]">
+                {/* Step 1: Basic Info */}
+                {currentStep === 1 && (
+                  <div className="space-y-4 animate-fadeIn">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                        Client <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        value={formData.client_id}
+                        onChange={(e) => setFormData({ ...formData, client_id: e.target.value })}
+                        className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                      >
+                        <option value="">Select a client</option>
+                        {clients?.map((client: any) => (
+                          <option key={client.id} value={client.id}>
+                            {client.client_name}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        onClick={() => setIsAddClientModalOpen(true)}
+                        className="mt-2 text-xs text-blue-600 hover:text-blue-700 font-medium"
+                      >
+                        + Add new client
+                      </button>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                        Visit Date <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="date"
+                        value={formData.visit_date}
+                        onChange={(e) => setFormData({ ...formData, visit_date: e.target.value })}
+                        className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                        Purpose <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        value={formData.purpose}
+                        onChange={(e) => {
+                          if (e.target.value === 'ADD_NEW') {
+                            setIsAddPurposeModalOpen(true);
+                          } else {
+                            setFormData({ ...formData, purpose: e.target.value });
+                          }
+                        }}
+                        className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                      >
+                        <option value="">Select purpose</option>
+                        {purposes?.map((p: any) => (
+                          <option key={p.id} value={p.name}>
+                            {p.name}
+                          </option>
+                        ))}
+                        <option value="ADD_NEW">+ Add new purpose</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 2: Visit Details */}
+                {currentStep === 2 && (
+                  <div className="space-y-4 animate-fadeIn">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                        Visited By
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.visited_by}
+                        onChange={(e) => setFormData({ ...formData, visited_by: e.target.value })}
+                        placeholder="Name of person who visited"
+                        className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                        Engineer
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.engineer}
+                        onChange={(e) => setFormData({ ...formData, engineer: e.target.value })}
+                        placeholder="Engineer name"
+                        className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                          In Time
+                        </label>
+                        <input
+                          type="time"
+                          value={formData.in_time}
+                          onChange={(e) => setFormData({ ...formData, in_time: e.target.value })}
+                          className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                          Out Time
+                        </label>
+                        <input
+                          type="time"
+                          value={formData.out_time}
+                          onChange={(e) => setFormData({ ...formData, out_time: e.target.value })}
+                          className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 3: Location */}
+                {currentStep === 3 && (
+                  <div className="space-y-4 animate-fadeIn">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                        Site Address
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.site_address}
+                        onChange={(e) => setFormData({ ...formData, site_address: e.target.value })}
+                        placeholder="Full site address"
+                        className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                        Location URL
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="url"
+                          value={formData.location_url}
+                          onChange={(e) => setFormData({ ...formData, location_url: e.target.value })}
+                          placeholder="Google Maps link"
+                          className="w-full px-3 py-2.5 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                        />
+                        <MapPin className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      </div>
+                      <p className="mt-1.5 text-xs text-gray-500">
+                        Share Google Maps location for easy navigation
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 4: Notes */}
+                {currentStep === 4 && (
+                  <div className="space-y-4 animate-fadeIn">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                        Discussion
+                      </label>
+                      <textarea
+                        value={formData.discussion}
+                        onChange={(e) => setFormData({ ...formData, discussion: e.target.value })}
+                        placeholder="What was discussed with the client..."
+                        rows={4}
+                        className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm resize-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                        Measurements
+                      </label>
+                      <textarea
+                        value={formData.measurements}
+                        onChange={(e) => setFormData({ ...formData, measurements: e.target.value })}
+                        placeholder="Site measurements and observations..."
+                        rows={4}
+                        className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm resize-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                        Next Step
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.next_step}
+                        onChange={(e) => setFormData({ ...formData, next_step: e.target.value })}
+                        placeholder="What needs to happen next?"
+                        className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 5: Review */}
+                {currentStep === 5 && (
+                  <div className="space-y-4 animate-fadeIn">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                        Status <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        value={formData.status}
+                        onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                        className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                      >
+                        <option value="pending">Pending</option>
+                        <option value="scheduled">Scheduled</option>
+                        <option value="completed">Completed</option>
+                        <option value="postponed">Postponed</option>
+                        <option value="cancelled">Cancelled</option>
+                      </select>
+                    </div>
+
+                    {/* Review Summary */}
+                    <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                      <h4 className="text-sm font-medium text-gray-900 mb-3">Review Summary</h4>
+                      <dl className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <dt className="text-gray-600">Client:</dt>
+                          <dd className="font-medium text-gray-900">
+                            {clients?.find(c => c.id === formData.client_id)?.client_name || 'Not selected'}
+                          </dd>
+                        </div>
+                        <div className="flex justify-between">
+                          <dt className="text-gray-600">Date:</dt>
+                          <dd className="font-medium text-gray-900">
+                            {formData.visit_date ? format(parseISO(formData.visit_date), 'MMM dd, yyyy') : 'Not set'}
+                          </dd>
+                        </div>
+                        <div className="flex justify-between">
+                          <dt className="text-gray-600">Purpose:</dt>
+                          <dd className="font-medium text-gray-900">
+                            {formData.purpose || 'Not specified'}
+                          </dd>
+                        </div>
+                        {formData.visited_by && (
+                          <div className="flex justify-between">
+                            <dt className="text-gray-600">Visited By:</dt>
+                            <dd className="font-medium text-gray-900">{formData.visited_by}</dd>
+                          </div>
+                        )}
+                        <div className="flex justify-between">
+                          <dt className="text-gray-600">Status:</dt>
+                          <dd>
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${statusColors[formData.status]}`}>
+                              {formData.status}
+                            </span>
+                          </dd>
+                        </div>
+                      </dl>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Footer Navigation */}
+            <div className="p-4 sm:p-6 border-t border-gray-200 bg-gray-50 rounded-b-xl">
+              <div className="flex items-center justify-between gap-3">
+                <button
+                  onClick={() => {
+                    if (currentStep > 1) {
+                      setCurrentStep(currentStep - 1);
+                    } else {
+                      setIsFormOpen(false);
+                    }
+                  }}
+                  className="inline-flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-white border border-gray-300 rounded-lg transition-colors"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  <span className="text-sm font-medium">{currentStep === 1 ? 'Cancel' : 'Back'}</span>
+                </button>
+
+                <div className="flex items-center gap-2">
+                  {currentStep < steps.length ? (
+                    <button
+                      onClick={() => setCurrentStep(currentStep + 1)}
+                      disabled={!canProceedToNextStep()}
+                      className="inline-flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                    >
+                      <span className="text-sm font-medium">Next</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleFormSubmit}
+                      disabled={!canProceedToNextStep() || addVisitMutation.isPending || updateVisitMutation.isPending}
+                      className="inline-flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                    >
+                      {addVisitMutation.isPending || updateVisitMutation.isPending ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          <span className="text-sm font-medium">Saving...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Check className="w-4 h-4" />
+                          <span className="text-sm font-medium">Save Visit</span>
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Client Modal */}
+      {isAddClientModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+            <h3 className="text-lg font-semibold mb-4">Add New Client</h3>
+            <form onSubmit={handleAddClient} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Client Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="client_name"
+                  required
+                  placeholder="e.g. Acme Corporation"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Contact Person
+                </label>
+                <input
+                  type="text"
+                  name="contact_person"
+                  placeholder="e.g. John Doe"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Phone
+                </label>
+                <input
+                  type="tel"
+                  name="phone"
+                  placeholder="e.g. +91 98765 43210"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  name="email"
+                  placeholder="e.g. contact@acme.com"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                />
+              </div>
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsAddClientModalOpen(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={addClientMutation.isPending}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 text-sm"
+                >
+                  {addClientMutation.isPending ? 'Adding...' : 'Add Client'}
                 </button>
               </div>
             </form>
@@ -827,17 +981,35 @@ export function SiteVisits() {
 
       {/* Add Purpose Modal */}
       {isAddPurposeModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-xl max-w-sm w-full mx-4 p-6">
-            <h3 className="text-lg font-bold mb-4">Add New Purpose</h3>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-6">
+            <h3 className="text-lg font-semibold mb-4">Add New Purpose</h3>
             <form onSubmit={handleAddPurpose} className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Purpose Name *</label>
-                <input type="text" name="name" required placeholder="e.g. Site Survey" className="w-full px-3 py-2 border border-gray-300 rounded-lg" />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Purpose Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  name="name"
+                  required
+                  placeholder="e.g. Site Survey"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                />
               </div>
               <div className="flex justify-end gap-3">
-                <button type="button" className="px-4 py-2 border border-gray-300 rounded-lg" onClick={() => setIsAddPurposeModalOpen(false)}>Cancel</button>
-                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg" disabled={addPurposeMutation.isPending}>
+                <button
+                  type="button"
+                  onClick={() => setIsAddPurposeModalOpen(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={addPurposeMutation.isPending}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 text-sm"
+                >
                   {addPurposeMutation.isPending ? 'Adding...' : 'Add Purpose'}
                 </button>
               </div>
@@ -845,6 +1017,50 @@ export function SiteVisits() {
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation */}
+      {visitToDelete && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+            <div className="flex items-start gap-4 mb-4">
+              <div className="p-2 bg-red-100 rounded-lg">
+                <AlertCircle className="w-6 h-6 text-red-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-gray-900 mb-1">Delete Site Visit</h3>
+                <p className="text-sm text-gray-600">
+                  Are you sure you want to delete this visit? This action cannot be undone.
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setVisitToDelete(null)}
+                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => deleteVisitMutation.mutate(visitToDelete.id)}
+                disabled={deleteVisitMutation.isPending}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 text-sm"
+              >
+                {deleteVisitMutation.isPending ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(8px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fadeIn {
+          animation: fadeIn 0.3s ease-out;
+        }
+      `}</style>
     </div>
   );
 }
@@ -870,25 +1086,25 @@ function CalendarView({ visits, onDateClick, onVisitClick }: { visits: any[], on
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-      <div className="flex flex-row items-center justify-between p-6 bg-gray-50 border-b border-gray-200">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 sm:p-6 bg-gray-50 border-b border-gray-200 gap-4">
         <div className="flex items-center gap-4">
-          <h2 className="text-2xl font-bold text-gray-900">
+          <h2 className="text-xl sm:text-2xl font-semibold text-gray-900">
             {format(currentMonth, 'MMMM yyyy')}
           </h2>
-          <div className="flex items-center bg-white border border-gray-200 rounded-lg">
-            <button onClick={prevMonth} className="p-2 hover:bg-gray-100">
+          <div className="flex items-center bg-white border border-gray-200 rounded-lg shadow-sm">
+            <button onClick={prevMonth} className="p-2 hover:bg-gray-50 transition-colors rounded-l-lg">
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <button onClick={() => setCurrentMonth(new Date())} className="px-3 py-2 text-xs font-medium hover:bg-gray-100">
+            <button onClick={() => setCurrentMonth(new Date())} className="px-3 py-2 text-xs font-medium hover:bg-gray-50 transition-colors border-x border-gray-200">
               Today
             </button>
-            <button onClick={nextMonth} className="p-2 hover:bg-gray-100">
+            <button onClick={nextMonth} className="p-2 hover:bg-gray-50 transition-colors rounded-r-lg">
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-full text-xs font-medium text-gray-600">
             <div className="w-2 h-2 rounded-full bg-amber-400" /> Pending
           </div>
@@ -900,15 +1116,17 @@ function CalendarView({ visits, onDateClick, onVisitClick }: { visits: any[], on
           </div>
         </div>
       </div>
-      <div className="p-0">
+      
+      {/* Calendar Grid */}
+      <div className="hidden sm:block">
         <div className="grid grid-cols-7 border-b border-gray-200">
           {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-            <div key={day} className="py-3 text-center text-xs font-bold text-gray-400 uppercase tracking-wider bg-gray-50/50">
+            <div key={day} className="py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider bg-gray-50">
               {day}
             </div>
           ))}
         </div>
-        <div className="grid grid-cols-7 auto-rows-[minmax(120px,auto)]">
+        <div className="grid grid-cols-7 auto-rows-[minmax(100px,auto)]">
           {calendarDays.map((day, idx) => {
             const dayVisits = getVisitsForDay(day);
             const isCurrentMonth = isSameMonth(day, monthStart);
@@ -916,19 +1134,19 @@ function CalendarView({ visits, onDateClick, onVisitClick }: { visits: any[], on
             return (
               <div 
                 key={day.toString()} 
-                className={`border-r border-b border-gray-100 p-2 transition-colors hover:bg-gray-50/50 group relative cursor-pointer ${
-                  !isCurrentMonth ? 'bg-gray-50/30 text-gray-300' : ''
+                className={`border-r border-b border-gray-100 p-2 transition-colors hover:bg-gray-50 group relative cursor-pointer ${
+                  !isCurrentMonth ? 'bg-gray-50/50' : ''
                 } ${idx % 7 === 6 ? 'border-r-0' : ''}`}
                 onClick={() => onDateClick(day)}
               >
                 <div className="flex justify-between items-start mb-2">
-                  <span className={`text-sm font-bold w-7 h-7 flex items-center justify-center rounded-full transition-colors ${
-                    isToday(day) ? 'bg-blue-600 text-white shadow-md' : 'text-gray-600 group-hover:text-blue-600'
-                  } ${!isCurrentMonth ? 'text-gray-300' : ''}`}>
+                  <span className={`text-sm font-semibold w-7 h-7 flex items-center justify-center rounded-full transition-colors ${
+                    isToday(day) ? 'bg-blue-600 text-white' : isCurrentMonth ? 'text-gray-700' : 'text-gray-400'
+                  }`}>
                     {format(day, 'd')}
                   </span>
-                  <button className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-colors text-gray-400 hover:text-blue-600">
-                    <Plus className="w-3 h-3" />
+                  <button className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-blue-600">
+                    <Plus className="w-3.5 h-3.5" />
                   </button>
                 </div>
 
@@ -936,7 +1154,7 @@ function CalendarView({ visits, onDateClick, onVisitClick }: { visits: any[], on
                   {dayVisits.map((visit: any) => (
                     <div 
                       key={visit.id}
-                      className={`px-1.5 py-1 rounded-md text-[9px] font-bold border-l-2 shadow-sm transition-transform hover:scale-[1.02] cursor-pointer ${
+                      className={`px-1.5 py-1 rounded text-[10px] font-medium border-l-2 transition-all hover:shadow-sm cursor-pointer ${
                         visit.status === 'completed' ? 'bg-emerald-50 border-emerald-500 text-emerald-800' :
                         visit.status === 'scheduled' ? 'bg-blue-50 border-blue-500 text-blue-800' :
                         visit.status === 'pending' ? 'bg-amber-50 border-amber-500 text-amber-800' :
@@ -947,10 +1165,7 @@ function CalendarView({ visits, onDateClick, onVisitClick }: { visits: any[], on
                         onVisitClick(visit);
                       }}
                     >
-                      <div className="flex flex-col gap-0.5">
-                        <span className="truncate leading-tight">{visit.clients?.client_name || 'Client'}</span>
-                        <span className="truncate text-[8px] opacity-80 leading-tight font-medium">{visit.engineer || 'No Eng.'}</span>
-                      </div>
+                      <div className="truncate">{visit.clients?.client_name || 'Client'}</div>
                     </div>
                   ))}
                 </div>
@@ -958,6 +1173,58 @@ function CalendarView({ visits, onDateClick, onVisitClick }: { visits: any[], on
             );
           })}
         </div>
+      </div>
+
+      {/* Mobile Calendar View - List Style */}
+      <div className="sm:hidden divide-y divide-gray-100">
+        {calendarDays.filter(day => isSameMonth(day, monthStart)).map((day) => {
+          const dayVisits = getVisitsForDay(day);
+          
+          return (
+            <div key={day.toString()} className="p-4">
+              <div className="flex items-center gap-3 mb-3">
+                <div className={`w-12 h-12 rounded-lg flex flex-col items-center justify-center ${
+                  isToday(day) ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'
+                }`}>
+                  <span className="text-xs font-medium">{format(day, 'EEE')}</span>
+                  <span className="text-lg font-semibold">{format(day, 'd')}</span>
+                </div>
+                <button
+                  onClick={() => onDateClick(day)}
+                  className="ml-auto p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                >
+                  <Plus className="w-5 h-5" />
+                </button>
+              </div>
+
+              {dayVisits.length > 0 ? (
+                <div className="space-y-2">
+                  {dayVisits.map((visit: any) => (
+                    <div
+                      key={visit.id}
+                      onClick={() => onVisitClick(visit)}
+                      className={`p-3 rounded-lg border-l-4 cursor-pointer transition-all ${
+                        visit.status === 'completed' ? 'bg-emerald-50 border-emerald-500' :
+                        visit.status === 'scheduled' ? 'bg-blue-50 border-blue-500' :
+                        visit.status === 'pending' ? 'bg-amber-50 border-amber-500' :
+                        'bg-gray-50 border-gray-400'
+                      }`}
+                    >
+                      <div className="font-medium text-sm text-gray-900">
+                        {visit.clients?.client_name || 'Client'}
+                      </div>
+                      <div className="text-xs text-gray-600 mt-1">
+                        {visit.purpose || 'No purpose'}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-400 text-center py-2">No visits</p>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

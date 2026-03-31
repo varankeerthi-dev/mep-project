@@ -9,7 +9,7 @@ import {
   Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, NoteAdd as NoteAddIcon,
   PictureAsPdf as PdfIcon,
 } from '@mui/icons-material';
-import { useAuth } from '../../../App';
+import { useAuth } from '../../contexts/AuthContext';
 import { useDebitNotes, usePurchaseBills, useVendors, useCreateDebitNote } from '../hooks/usePurchaseQueries';
 
 const DN_TYPES = ['Purchase Return', 'Rate Difference', 'Discount', 'Rejection'];

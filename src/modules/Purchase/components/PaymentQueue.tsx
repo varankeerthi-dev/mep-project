@@ -8,7 +8,7 @@ import {
   Schedule as ScheduleIcon, Warning as WarningIcon, AccessTime as AccessTimeIcon,
   Payment as PaymentIcon, CalendarToday as CalendarIcon,
 } from '@mui/icons-material';
-import { useAuth } from '../../../App';
+import { useAuth } from '../../contexts/AuthContext';
 import { usePurchaseBills, usePaymentRequests } from '../hooks/usePurchaseQueries';
 
 export const PaymentQueue: React.FC = () => {
