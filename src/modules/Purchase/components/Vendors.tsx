@@ -33,6 +33,14 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { useVendors, useCreateVendor, useUpdateVendor } from '../hooks/usePurchaseQueries';
 import { supabase } from '../../../supabase';
 
+import { 
+  validateGSTIN, 
+  validatePAN, 
+  validatePIN, 
+  validateEmail, 
+  validateNoNumbers 
+} from '../utils/validation';
+
 const INDIAN_STATES = [
   'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh', 'Goa', 'Gujarat', 'Haryana',
   'Himachal Pradesh', 'Jharkhand', 'Karnataka', 'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur',
@@ -98,6 +106,7 @@ export const Vendors: React.FC = () => {
   const [formData, setFormData] = useState<VendorFormData>(defaultFormData);
   const [searchTerm, setSearchTerm] = useState('');
   const [docSettings, setDocSettings] = useState<any>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const { data: vendors = [], isLoading } = useVendors(organisation?.id);
   const createVendor = useCreateVendor();
@@ -121,6 +130,7 @@ export const Vendors: React.FC = () => {
   const handleAdd = () => {
     setEditMode(false);
     setFormData(defaultFormData);
+    setErrors({});
     setOpenDialog(true);
   };
 
@@ -131,6 +141,7 @@ export const Vendors: React.FC = () => {
       ...defaultFormData,
       ...vendor,
     });
+    setErrors({});
     setOpenDialog(true);
   };
 
@@ -144,7 +155,46 @@ export const Vendors: React.FC = () => {
     return `${prefix}${paddedNum}${suffix}`;
   };
 
+  const validateForm = (): boolean => {
+    const newErrors: Record<string, string> = {};
+    
+    // Company Name - No numbers
+    if (!formData.company_name.trim()) {
+      newErrors.company_name = 'Company name is required';
+    } else if (!validateNoNumbers(formData.company_name)) {
+      newErrors.company_name = 'Company name cannot contain numbers';
+    }
+    
+    // GSTIN validation
+    if (formData.gstin && !validateGSTIN(formData.gstin)) {
+      newErrors.gstin = 'Invalid GSTIN format (e.g., 27AABCU9603R1ZM)';
+    }
+    
+    // PAN validation
+    if (formData.pan && !validatePAN(formData.pan)) {
+      newErrors.pan = 'Invalid PAN format (e.g., ABCUP1234A)';
+    }
+    
+    // Email validation
+    if (formData.email && !validateEmail(formData.email)) {
+      newErrors.email = 'Invalid email format';
+    }
+    
+    // PIN validation
+    if (formData.pincode && !validatePIN(formData.pincode)) {
+      newErrors.pincode = 'PIN code must be 6 digits';
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSave = async () => {
+    // Validate form
+    if (!validateForm()) {
+      return;
+    }
+    
     try {
       if (editMode && selectedVendor) {
         await updateVendor.mutateAsync({
@@ -175,6 +225,7 @@ export const Vendors: React.FC = () => {
         }
       }
       setOpenDialog(false);
+      setErrors({});
     } catch (error) {
       console.error('Error saving vendor:', error);
       alert('Error saving vendor: ' + (error as Error).message);
@@ -427,9 +478,14 @@ export const Vendors: React.FC = () => {
                 sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
                 label="Company Name *"
                 value={formData.company_name}
-                onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
+                onChange={(e) => {
+                  setFormData({ ...formData, company_name: e.target.value });
+                  if (errors.company_name) setErrors({ ...errors, company_name: '' });
+                }}
                 size="small"
                 required
+                error={!!errors.company_name}
+                helperText={errors.company_name}
               />
               <TextField
                 sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
@@ -443,8 +499,13 @@ export const Vendors: React.FC = () => {
                 label="Email"
                 type="email"
                 value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                onChange={(e) => {
+                  setFormData({ ...formData, email: e.target.value });
+                  if (errors.email) setErrors({ ...errors, email: '' });
+                }}
                 size="small"
+                error={!!errors.email}
+                helperText={errors.email}
               />
             </Box>
             
@@ -461,15 +522,25 @@ export const Vendors: React.FC = () => {
                 sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
                 label="GSTIN"
                 value={formData.gstin}
-                onChange={(e) => setFormData({ ...formData, gstin: e.target.value.toUpperCase() })}
+                onChange={(e) => {
+                  setFormData({ ...formData, gstin: e.target.value.toUpperCase() });
+                  if (errors.gstin) setErrors({ ...errors, gstin: '' });
+                }}
                 size="small"
+                error={!!errors.gstin}
+                helperText={errors.gstin || 'Format: 27AABCU9603R1ZM'}
               />
               <TextField
                 sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
                 label="PAN"
                 value={formData.pan}
-                onChange={(e) => setFormData({ ...formData, pan: e.target.value.toUpperCase() })}
+                onChange={(e) => {
+                  setFormData({ ...formData, pan: e.target.value.toUpperCase() });
+                  if (errors.pan) setErrors({ ...errors, pan: '' });
+                }}
                 size="small"
+                error={!!errors.pan}
+                helperText={errors.pan || 'Format: ABCUP1234A'}
               />
             </Box>
             
@@ -506,8 +577,13 @@ export const Vendors: React.FC = () => {
                 sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
                 label="Pincode"
                 value={formData.pincode}
-                onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
+                onChange={(e) => {
+                  setFormData({ ...formData, pincode: e.target.value });
+                  if (errors.pincode) setErrors({ ...errors, pincode: '' });
+                }}
                 size="small"
+                error={!!errors.pincode}
+                helperText={errors.pincode || '6 digits'}
               />
               <FormControl sx={{ flex: 1 }} size="small">
                 <InputLabel sx={{ fontSize: '12px' }}>Default Currency</InputLabel>

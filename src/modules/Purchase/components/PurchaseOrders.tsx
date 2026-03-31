@@ -43,9 +43,20 @@ import {
   Print as PrintIcon,
   ShoppingCart as ShoppingCartIcon,
 } from '@mui/icons-material';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { useAuth } from '../../../contexts/AuthContext';
 import { usePurchaseOrders, useVendors, useCreatePurchaseOrder, useUpdatePOStatus } from '../hooks/usePurchaseQueries';
 import { generatePOPDF, downloadPDF, openPDFPreview } from '../utils/pdfGenerator';
+import { 
+  validateGSTIN, 
+  validatePAN, 
+  validatePIN, 
+  validateEmail, 
+  validateNoNumbers,
+  validateQuantity 
+} from '../utils/validation';
 import { supabase } from '../../../supabase';
 
 const APPROVAL_STEPS = ['Draft', 'Pending Approval', 'Approved', 'Sent', 'Acknowledged', 'Partially Received', 'Completed'];
@@ -550,79 +561,95 @@ export const PurchaseOrders: React.FC = () => {
           </Stepper>
 
           {activeStep === 0 && (
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {/* Row 1: PO Number and Vendor - Horizontal layout */}
-              <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
-                <TextField
-                  size="small"
-                  label="PO Number"
-                  value={poNumber}
-                  InputProps={{ readOnly: true }}
-                  sx={{ width: 200, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
-                />
-                <Box sx={{ flex: 1 }}>
-                  <Autocomplete
-                    options={vendors}
-                    getOptionLabel={(option) => option.company_name}
-                    onChange={(e, value) => setVendorId(value?.id || '')}
-                    renderInput={(params) => (
-                      <TextField {...params} label="Select Vendor *" size="small" fullWidth sx={{ '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }} />
-                    )}
-                    sx={{ width: '100%' }}
+            <LocalizationProvider dateAdapter={AdapterDateFns}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {/* Row 1: PO Number and Vendor - Horizontal layout */}
+                <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+                  <TextField
+                    size="small"
+                    label="PO Number"
+                    value={poNumber}
+                    InputProps={{ readOnly: true }}
+                    sx={{ width: 200, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
+                  />
+                  <Box sx={{ flex: 1 }}>
+                    <Autocomplete
+                      options={vendors}
+                      getOptionLabel={(option) => option.company_name}
+                      onChange={(e, value) => setVendorId(value?.id || '')}
+                      renderInput={(params) => (
+                        <TextField {...params} label="Select Vendor *" size="small" fullWidth sx={{ '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }} />
+                      )}
+                      sx={{ width: '100%' }}
+                    />
+                  </Box>
+                </Box>
+                
+                {/* Row 2: Dates with DatePicker */}
+                <Box sx={{ display: 'flex', gap: 2 }}>
+                  <DatePicker
+                    label="PO Date"
+                    value={poDate ? new Date(poDate) : null}
+                    onChange={(newValue) => {
+                      if (newValue) {
+                        setPoDate(newValue.toISOString().split('T')[0]);
+                      }
+                    }}
+                    slotProps={{
+                      textField: {
+                        size: 'small',
+                        fullWidth: true,
+                        sx: { flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }
+                      }
+                    }}
+                  />
+                  <DatePicker
+                    label="Delivery Date"
+                    value={deliveryDate ? new Date(deliveryDate) : null}
+                    onChange={(newValue) => {
+                      if (newValue) {
+                        setDeliveryDate(newValue.toISOString().split('T')[0]);
+                      }
+                    }}
+                    slotProps={{
+                      textField: {
+                        size: 'small',
+                        fullWidth: true,
+                        sx: { flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }
+                      }
+                    }}
+                  />
+                </Box>
+                
+                {/* Row 3: Currency, Exchange Rate, Terms */}
+                <Box sx={{ display: 'flex', gap: 2 }}>
+                  <FormControl size="small" sx={{ flex: 1 }}>
+                    <InputLabel sx={{ fontSize: '12px' }}>Currency</InputLabel>
+                    <Select value={currency} onChange={(e) => setCurrency(e.target.value)} label="Currency" sx={{ fontSize: '12px' }}>
+                      {CURRENCIES.map((c) => (
+                        <MenuItem key={c.code} value={c.code} sx={{ fontSize: '12px' }}>{c.code} ({c.symbol})</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                  <TextField
+                    label="Exchange Rate"
+                    type="number"
+                    value={exchangeRate}
+                    onChange={(e) => setExchangeRate(Number(e.target.value))}
+                    size="small"
+                    disabled={currency === 'INR'}
+                    sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
+                  />
+                  <TextField
+                    label="Payment Terms"
+                    value={terms}
+                    onChange={(e) => setTerms(e.target.value)}
+                    size="small"
+                    sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
                   />
                 </Box>
               </Box>
-              
-              {/* Row 2: Dates */}
-              <Box sx={{ display: 'flex', gap: 2 }}>
-                <TextField
-                  type="date"
-                  label="PO Date"
-                  value={poDate}
-                  onChange={(e) => setPoDate(e.target.value)}
-                  size="small"
-                  InputLabelProps={{ shrink: true }}
-                  sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
-                />
-                <TextField
-                  type="date"
-                  label="Delivery Date"
-                  value={deliveryDate}
-                  onChange={(e) => setDeliveryDate(e.target.value)}
-                  size="small"
-                  InputLabelProps={{ shrink: true }}
-                  sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
-                />
-              </Box>
-              
-              {/* Row 3: Currency, Exchange Rate, Terms */}
-              <Box sx={{ display: 'flex', gap: 2 }}>
-                <FormControl size="small" sx={{ flex: 1 }}>
-                  <InputLabel sx={{ fontSize: '12px' }}>Currency</InputLabel>
-                  <Select value={currency} onChange={(e) => setCurrency(e.target.value)} label="Currency" sx={{ fontSize: '12px' }}>
-                    {CURRENCIES.map((c) => (
-                      <MenuItem key={c.code} value={c.code} sx={{ fontSize: '12px' }}>{c.code} ({c.symbol})</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-                <TextField
-                  label="Exchange Rate"
-                  type="number"
-                  value={exchangeRate}
-                  onChange={(e) => setExchangeRate(Number(e.target.value))}
-                  size="small"
-                  disabled={currency === 'INR'}
-                  sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
-                />
-                <TextField
-                  label="Payment Terms"
-                  value={terms}
-                  onChange={(e) => setTerms(e.target.value)}
-                  size="small"
-                  sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
-                />
-              </Box>
-            </Box>
+            </LocalizationProvider>
           )}
 
           {activeStep === 1 && (
@@ -733,7 +760,13 @@ export const PurchaseOrders: React.FC = () => {
                             size="small"
                             type="number"
                             value={item.quantity}
-                            onChange={(e) => updateItem(index, 'quantity', Number(e.target.value))}
+                            onChange={(e) => {
+                              const value = Number(e.target.value);
+                              if (value > 0 && !isNaN(value)) {
+                                updateItem(index, 'quantity', value);
+                              }
+                            }}
+                            inputProps={{ min: 0.001, step: 0.001 }}
                             sx={{ '& .MuiInputBase-input': { fontSize: '12px' } }}
                           />
                         </TableCell>
