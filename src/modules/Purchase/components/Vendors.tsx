@@ -46,6 +46,7 @@ const PAYMENT_TERMS = ['Advance', 'COD', 'Net 7', 'Net 15', 'Net 30', 'Net 45', 
 
 interface VendorFormData {
   id?: string;
+  vendor_code?: string;
   company_name: string;
   contact_person: string;
   email: string;
@@ -125,14 +126,20 @@ export const Vendors: React.FC = () => {
           ...formData,
         });
       } else {
+        // Generate vendor code
+        const vendorCount = vendors.length + 1;
+        const vendorCode = `VEN-${String(vendorCount).padStart(3, '0')}`;
+        
         await createVendor.mutateAsync({
           ...formData,
+          vendor_code: vendorCode,
           organisation_id: organisation?.id,
         });
       }
       setOpenDialog(false);
     } catch (error) {
       console.error('Error saving vendor:', error);
+      alert('Error saving vendor: ' + (error as Error).message);
     }
   };
 
