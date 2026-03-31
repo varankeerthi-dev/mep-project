@@ -469,50 +469,113 @@ export function SiteReport() {
       </div>
 
       <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-3">
-        {/* Header Section */}
-        <Card className="border-slate-200 shadow-sm">
-          <CardContent className="p-3 grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div className="space-y-1">
-              <Label className="text-[10px] font-bold uppercase text-slate-500">Client</Label>
-              <Select 
-                value={form.watch('client')} 
-                onValueChange={(val) => {
-                  form.setValue('client', val);
-                  form.setValue('projectName', ''); 
-                }}
-                items={clients?.map(c => ({ value: c.id, label: c.name })) || []}
-              >
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue placeholder="Select Client" />
-                </SelectTrigger>
-                <SelectContent>
-                  {clients?.map((client) => (
-                    <SelectItem key={client.id} value={client.id}>{client.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+        {/* Header Section - Clean Entry Form UI */}
+        <Card className="border border-slate-200 shadow-sm bg-white">
+          <CardContent className="p-4">
+            {/* Row 1: 6 columns */}
+            <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-4">
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium text-slate-700">Invoice Date</Label>
+                <Input 
+                  type="date" 
+                  className="h-10 text-sm border-slate-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500" 
+                  placeholder="dd-mm-yyyy"
+                  {...form.register('date')} 
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium text-slate-700">Inward Date <span className="text-red-500">*</span></Label>
+                <Input 
+                  type="date" 
+                  className="h-10 text-sm border-slate-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500" 
+                  {...form.register('date')} 
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium text-slate-700">Received Date <span className="text-red-500">*</span></Label>
+                <Input 
+                  type="date" 
+                  className="h-10 text-sm border-slate-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500" 
+                  {...form.register('date')} 
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium text-slate-700">Client <span className="text-red-500">*</span></Label>
+                <Select 
+                  value={form.watch('client')} 
+                  onValueChange={(val) => {
+                    form.setValue('client', val);
+                    form.setValue('projectName', ''); 
+                  }}
+                >
+                  <SelectTrigger className="h-10 text-sm border-slate-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                    <SelectValue placeholder="Vendor name" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {clients?.map((client) => (
+                      <SelectItem key={client.id} value={client.id}>{client.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium text-slate-700">Invoice No <span className="text-red-500">*</span></Label>
+                <Input 
+                  type="text" 
+                  className="h-10 text-sm border-slate-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500" 
+                  placeholder="Invoice #"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium text-slate-700">Project <span className="text-red-500">*</span></Label>
+                <Select 
+                  value={form.watch('projectName')} 
+                  onValueChange={(val) => form.setValue('projectName', val)}
+                  disabled={!selectedClientId}
+                >
+                  <SelectTrigger className="h-10 text-sm border-slate-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {projects?.map((project) => (
+                      <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div className="space-y-1">
-              <Label className="text-[10px] font-bold uppercase text-slate-500">Project Name</Label>
-              <Select 
-                value={form.watch('projectName')} 
-                onValueChange={(val) => form.setValue('projectName', val)}
-                disabled={!selectedClientId}
-                items={projects?.map(p => ({ value: p.id, label: p.name })) || []}
-              >
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue placeholder={selectedClientId ? "Select Project" : "Select Client First"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {projects?.map((project) => (
-                    <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <Label className="text-[10px] font-bold uppercase text-slate-500">Date</Label>
-              <Input type="date" className="h-8 text-xs" {...form.register('date')} />
+            
+            {/* Row 2: 3 columns */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium text-slate-700">Default Variant</Label>
+                <Select>
+                  <SelectTrigger className="h-10 text-sm border-slate-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="standard">Standard</SelectItem>
+                    <SelectItem value="premium">Premium</SelectItem>
+                    <SelectItem value="custom">Custom</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium text-slate-700">Reported By <span className="text-red-500">*</span></Label>
+                <Input 
+                  type="text" 
+                  className="h-10 text-sm border-slate-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500" 
+                  placeholder="Name"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium text-slate-700">Acknowledged By</Label>
+                <Input 
+                  type="text" 
+                  className="h-10 text-sm border-slate-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500" 
+                  placeholder="Name"
+                />
+              </div>
             </div>
           </CardContent>
         </Card>
