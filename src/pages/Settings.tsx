@@ -107,19 +107,22 @@ export default function SettingsPage() {
         </p>
         
         <div style={{ marginBottom: '24px' }}>
-          <h4 style={{ marginBottom: '12px', fontSize: '16px', color: '#333' }}>Vendor Number Series</h4>
-          <div className="form-row">
-            <div className="form-group" style={{ flex: '1' }}>
+          <h4 style={{ marginBottom: '16px', fontSize: '16px', color: '#333', borderBottom: '2px solid #3498db', paddingBottom: '8px' }}>Vendor Number Series</h4>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div className="form-group" style={{ width: '100%' }}>
               <label className="form-label">Prefix</label>
               <input 
                 type="text" 
                 className="form-input" 
                 value={docSettings.vendor_prefix}
                 onChange={e => setDocSettings({...docSettings, vendor_prefix: e.target.value})}
-                placeholder="VEN"
+                placeholder="VEN (e.g., VEN, SUP, ACME)"
+                style={{ maxWidth: '300px' }}
               />
             </div>
-            <div className="form-group" style={{ flex: '1' }}>
+            
+            <div className="form-group" style={{ width: '100%' }}>
               <label className="form-label">Starting Number</label>
               <input 
                 type="number" 
@@ -127,19 +130,23 @@ export default function SettingsPage() {
                 value={docSettings.vendor_start_number}
                 onChange={e => setDocSettings({...docSettings, vendor_start_number: parseInt(e.target.value) || 1})}
                 placeholder="1"
+                style={{ maxWidth: '300px' }}
               />
             </div>
-            <div className="form-group" style={{ flex: '1' }}>
+            
+            <div className="form-group" style={{ width: '100%' }}>
               <label className="form-label">Suffix</label>
               <input 
                 type="text" 
                 className="form-input" 
                 value={docSettings.vendor_suffix}
                 onChange={e => setDocSettings({...docSettings, vendor_suffix: e.target.value})}
-                placeholder="(optional)"
+                placeholder="(optional, e.g., -M, -2024)"
+                style={{ maxWidth: '300px' }}
               />
             </div>
-            <div className="form-group" style={{ flex: '1' }}>
+            
+            <div className="form-group" style={{ width: '100%' }}>
               <label className="form-label">Padding (digits)</label>
               <input 
                 type="number" 
@@ -149,13 +156,17 @@ export default function SettingsPage() {
                 min="1"
                 max="10"
                 placeholder="3"
+                style={{ maxWidth: '300px' }}
               />
+              <small style={{ display: 'block', marginTop: '4px', color: '#666', fontSize: '12px' }}>
+                Number of digits with leading zeros (e.g., 3 = 001, 4 = 0001)
+              </small>
             </div>
           </div>
           
-          <div style={{ marginTop: '12px', padding: '12px', background: '#f8f9fa', borderRadius: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '14px', color: '#666' }}>Preview:</span>
-            <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#2c3e50', fontFamily: 'monospace' }}>
+          <div style={{ marginTop: '20px', padding: '16px', background: '#f0f8ff', borderRadius: '8px', border: '2px solid #3498db', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '14px', color: '#555' }}>Next vendor number will be:</span>
+            <span style={{ fontSize: '22px', fontWeight: 'bold', color: '#2c3e50', fontFamily: 'monospace', letterSpacing: '1px' }}>
               {generatePreview()}
             </span>
           </div>
@@ -164,7 +175,7 @@ export default function SettingsPage() {
             onClick={saveDocSettings}
             disabled={loadingDocSettings}
             className="btn btn-primary"
-            style={{ marginTop: '16px' }}
+            style={{ marginTop: '20px', padding: '12px 24px' }}
           >
             {loadingDocSettings ? 'Saving...' : 'Save Document Settings'}
           </button>
