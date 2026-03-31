@@ -9,7 +9,7 @@ import {
   Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, Receipt as ReceiptIcon,
   PictureAsPdf as PdfIcon, Warehouse as WarehouseIcon, LocalShipping as ShippingIcon,
 } from '@mui/icons-material';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../../contexts/AuthContext';
 import { usePurchaseBills, useVendors, useCreatePurchaseBill } from '../hooks/usePurchaseQueries';
 import { generateBillPDF, openPDFPreview } from '../utils/pdfGenerator';
 

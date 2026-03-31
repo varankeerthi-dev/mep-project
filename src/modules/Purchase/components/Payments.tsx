@@ -9,7 +9,7 @@ import {
   Add as AddIcon, Edit as EditIcon, AccountBalance as AccountBalanceIcon,
   CheckCircle as CheckCircleIcon, PictureAsPdf as PdfIcon,
 } from '@mui/icons-material';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../../contexts/AuthContext';
 import { usePayments, useVendors, usePurchaseBills, useCreatePayment } from '../hooks/usePurchaseQueries';
 
 const PAYMENT_MODES = ['Cash', 'Bank Transfer', 'Cheque', 'UPI', 'Card', 'NEFT', 'RTGS'];

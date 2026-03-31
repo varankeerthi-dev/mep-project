@@ -43,7 +43,7 @@ import {
   Print as PrintIcon,
   ShoppingCart as ShoppingCartIcon,
 } from '@mui/icons-material';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../../contexts/AuthContext';
 import { usePurchaseOrders, useVendors, useCreatePurchaseOrder, useUpdatePOStatus } from '../hooks/usePurchaseQueries';
 import { generatePOPDF, downloadPDF, openPDFPreview } from '../utils/pdfGenerator';
 

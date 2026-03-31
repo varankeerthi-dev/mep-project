@@ -30,7 +30,7 @@ import {
   Search as SearchIcon,
   Business as BusinessIcon,
 } from '@mui/icons-material';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../../contexts/AuthContext';
 import { useVendors, useCreateVendor, useUpdateVendor } from '../hooks/usePurchaseQueries';
 
 const INDIAN_STATES = [
