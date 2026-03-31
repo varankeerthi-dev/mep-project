@@ -78,6 +78,7 @@ const SalesReport = lazyAny(() => Reports.then(m => ({ default: m.SalesReport })
 const ProjectManagementInternal = import('./pages/ProjectManagementInternal');
 const SiteMaterials = lazyAny(() => ProjectManagementInternal.then(m => ({ default: m.SiteMaterials })));
 const ToolsList = lazyAny(() => ProjectManagementInternal.then(m => ({ default: m.ToolsList })));
+const PurchaseModule = lazyAny(() => import('./modules/Purchase/PurchaseModule'));
 const BOQ = lazyAny(() => import('./pages/BOQ'));
 const BOQList = lazyAny(() => import('./pages/BOQList'));
 const IssueList = lazyAny(() => ProjectManagementInternal.then(m => ({ default: m.IssueList })));
@@ -354,6 +355,7 @@ export default function App() {
       case '/store/transfer': return <StockTransfer onCancel={() => navigate('/store/stock')} />;
       case '/store/stock': return <StockBalance />;
       case '/tools': return <ToolsList />;
+      case '/purchase': return <PurchaseModule />;
       case '/dc/create': return <CreateDC onSuccess={() => navigate('/dc/list')} onCancel={() => navigate('/dc/list')} />;
       case '/dc/list': return <DCList />;
       case '/dc/consolidation/date': return <DateWiseConsolidation />;
