@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { ChangeEvent } from 'react';
 import { supabase } from '../supabase';
+import { useAuth } from '../App';
 
 function getCurrentQueryParams() {
   const hashQuery = window.location.hash.split('?')[1];
@@ -18,14 +19,16 @@ type CreateSubcontractorProps = {
 }
 
 export function SubcontractorDashboard({ onNavigate }: WithNavigate) {
+  const { organisation } = useAuth();
   const [subcontractors, setSubcontractors] = useState<any[]>([])
   const [filter, setFilter] = useState('all')
   const [searchTerm, setSearchTerm] = useState('')
 
-  useEffect(() => { loadData() }, [filter])
+  useEffect(() => { loadData() }, [filter, organisation?.id])
 
   const loadData = async () => {
-    let query = supabase.from('subcontractors').select('*').order('created_at', { ascending: false })
+    if (!organisation?.id) return;
+    let query = supabase.from('subcontractors').select('*').eq('organisation_id', organisation.id).order('created_at', { ascending: false })
     if (filter === 'active') query = query.eq('status', 'Active')
     else if (filter === 'inactive') query = query.eq('status', 'Inactive')
     const { data } = await query
@@ -74,6 +77,7 @@ export function SubcontractorDashboard({ onNavigate }: WithNavigate) {
 }
 
 export function CreateSubcontractor({ onSuccess, onCancel, editMode, subData }: CreateSubcontractorProps) {
+  const { organisation } = useAuth();
   const [formData, setFormData] = useState(subData || {
     company_name: '', contact_person: '', phone: '', email: '', address: '', state: '', gstin: '',
     nature_of_work: '', internal_remarks: '', nda_signed: false, contract_signed: false,
@@ -85,12 +89,16 @@ export function CreateSubcontractor({ onSuccess, onCancel, editMode, subData }: 
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    if (!organisation?.id) {
+      alert('No organization selected')
+      return
+    }
     setSaving(true)
     try {
       if (editMode && subData?.id) {
         await supabase.from('subcontractors').update(formData).eq('id', subData.id)
       } else {
-        await supabase.from('subcontractors').insert(formData)
+        await supabase.from('subcontractors').insert({ ...formData, organisation_id: organisation.id })
       }
       onSuccess()
     } catch (err) { alert('Error: ' + err.message) }
@@ -135,6 +143,7 @@ export function CreateSubcontractor({ onSuccess, onCancel, editMode, subData }: 
 }
 
 export function SubcontractorView({ onNavigate }: WithNavigate) {
+  const { organisation } = useAuth();
   const [sub, setSub] = useState(null)
   const [activeTab, setActiveTab] = useState('details')
   const [workOrders, setWorkOrders] = useState<any[]>([])
@@ -145,15 +154,15 @@ export function SubcontractorView({ onNavigate }: WithNavigate) {
 
   useEffect(() => {
     const id = getCurrentQueryParams().get('id')
-    if (id) {
-      supabase.from('subcontractors').select('*').eq('id', id).single().then(({ data }) => setSub(data))
-      supabase.from('subcontractor_work_orders').select('*').eq('subcontractor_id', id).then(({ data }) => setWorkOrders(data || []))
-      supabase.from('subcontractor_attendance').select('*').eq('subcontractor_id', id).order('attendance_date', { ascending: false }).then(({ data }) => setAttendance(data || []))
-      supabase.from('subcontractor_daily_logs').select('*').eq('subcontractor_id', id).order('log_date', { ascending: false }).then(({ data }) => setDailyLogs(data || []))
-      supabase.from('subcontractor_payments').select('*').eq('subcontractor_id', id).order('payment_date', { ascending: false }).then(({ data }) => setPayments(data || []))
-      supabase.from('subcontractor_invoices').select('*').eq('subcontractor_id', id).order('invoice_date', { ascending: false }).then(({ data }) => setInvoices(data || []))
+    if (id && organisation?.id) {
+      supabase.from('subcontractors').select('*').eq('id', id).eq('organisation_id', organisation.id).single().then(({ data }) => setSub(data))
+      supabase.from('subcontractor_work_orders').select('*').eq('subcontractor_id', id).eq('organisation_id', organisation.id).then(({ data }) => setWorkOrders(data || []))
+      supabase.from('subcontractor_attendance').select('*').eq('subcontractor_id', id).eq('organisation_id', organisation.id).order('attendance_date', { ascending: false }).then(({ data }) => setAttendance(data || []))
+      supabase.from('subcontractor_daily_logs').select('*').eq('subcontractor_id', id).eq('organisation_id', organisation.id).order('log_date', { ascending: false }).then(({ data }) => setDailyLogs(data || []))
+      supabase.from('subcontractor_payments').select('*').eq('subcontractor_id', id).eq('organisation_id', organisation.id).order('payment_date', { ascending: false }).then(({ data }) => setPayments(data || []))
+      supabase.from('subcontractor_invoices').select('*').eq('subcontractor_id', id).eq('organisation_id', organisation.id).order('invoice_date', { ascending: false }).then(({ data }) => setInvoices(data || []))
     }
-  }, [])
+  }, [organisation?.id])
 
   if (!sub) return <div style={{ padding: '20px' }}>Loading...</div>
 
@@ -206,16 +215,18 @@ export function SubcontractorView({ onNavigate }: WithNavigate) {
 }
 
 export function SubcontractorEdit({ onNavigate }: WithNavigate) {
+  const { organisation } = useAuth();
   const [sub, setSub] = useState(null)
   useEffect(() => {
     const id = getCurrentQueryParams().get('id')
-    if (id) supabase.from('subcontractors').select('*').eq('id', id).single().then(({ data }) => setSub(data))
-  }, [])
+    if (id && organisation?.id) supabase.from('subcontractors').select('*').eq('id', id).eq('organisation_id', organisation.id).single().then(({ data }) => setSub(data))
+  }, [organisation?.id])
   if (!sub) return <div>Loading...</div>
   return <CreateSubcontractor onSuccess={() => onNavigate('/subcontractors')} onCancel={() => onNavigate('/subcontractors')} editMode={true} subData={sub} />
 }
 
 export function SubcontractorAttendance({ onNavigate }: WithNavigate) {
+  const { organisation } = useAuth();
   const [subcontractors, setSubcontractors] = useState<any[]>([])
   const [subId, setSubId] = useState('')
   const [date, setDate] = useState(new Date().toISOString().split('T')[0])
@@ -224,18 +235,22 @@ export function SubcontractorAttendance({ onNavigate }: WithNavigate) {
   const [remarks, setRemarks] = useState('')
   const [records, setRecords] = useState<any[]>([])
 
-  useEffect(() => { supabase.from('subcontractors').select('*').order('company_name').then(({ data }) => setSubcontractors(data || [])) }, [])
+  useEffect(() => { 
+    if (organisation?.id) {
+      supabase.from('subcontractors').select('*').eq('organisation_id', organisation.id).order('company_name').then(({ data }) => setSubcontractors(data || [])) 
+    }
+  }, [organisation?.id])
 
   const saveAttendance = async () => {
-    if (!subId) return alert('Select Sub-Contractor')
-    await supabase.from('subcontractor_attendance').insert({ subcontractor_id: subId, attendance_date: date, workers_count: workers, supervisor_name: supervisor, remarks })
+    if (!subId || !organisation?.id) return alert('Select Sub-Contractor')
+    await supabase.from('subcontractor_attendance').insert({ organisation_id: organisation.id, subcontractor_id: subId, attendance_date: date, workers_count: workers, supervisor_name: supervisor, remarks })
     alert('Saved!')
     loadRecords()
   }
 
   const loadRecords = async () => {
-    if (subId) {
-      const { data } = await supabase.from('subcontractor_attendance').select('*').eq('subcontractor_id', subId).order('attendance_date', { ascending: false })
+    if (subId && organisation?.id) {
+      const { data } = await supabase.from('subcontractor_attendance').select('*').eq('subcontractor_id', subId).eq('organisation_id', organisation.id).order('attendance_date', { ascending: false })
       setRecords(data || [])
     }
   }
@@ -266,6 +281,7 @@ export function SubcontractorAttendance({ onNavigate }: WithNavigate) {
 }
 
 export function SubcontractorWorkOrders({ onNavigate }: WithNavigate) {
+  const { organisation } = useAuth();
   const [subcontractors, setSubcontractors] = useState<any[]>([])
   const [subId, setSubId] = useState('')
   const [woNo, setWoNo] = useState('')
@@ -275,18 +291,22 @@ export function SubcontractorWorkOrders({ onNavigate }: WithNavigate) {
   const [value, setValue] = useState('')
   const [workOrders, setWorkOrders] = useState<any[]>([])
 
-  useEffect(() => { supabase.from('subcontractors').select('*').order('company_name').then(({ data }) => setSubcontractors(data || [])) }, [])
+  useEffect(() => { 
+    if (organisation?.id) {
+      supabase.from('subcontractors').select('*').eq('organisation_id', organisation.id).order('company_name').then(({ data }) => setSubcontractors(data || [])) 
+    }
+  }, [organisation?.id])
 
   const saveWO = async () => {
-    if (!subId || !woNo) return alert('Required fields missing')
-    await supabase.from('subcontractor_work_orders').insert({ subcontractor_id: subId, work_order_no: woNo, work_description: desc, start_date: startDate, end_date: endDate, contract_value: value, status: 'Pending' })
+    if (!subId || !woNo || !organisation?.id) return alert('Required fields missing')
+    await supabase.from('subcontractor_work_orders').insert({ organisation_id: organisation.id, subcontractor_id: subId, work_order_no: woNo, work_description: desc, start_date: startDate, end_date: endDate, contract_value: value, status: 'Pending' })
     alert('Saved!')
     loadWOs()
   }
 
   const loadWOs = async () => {
-    if (subId) {
-      const { data } = await supabase.from('subcontractor_work_orders').select('*').eq('subcontractor_id', subId).order('created_at', { ascending: false })
+    if (subId && organisation?.id) {
+      const { data } = await supabase.from('subcontractor_work_orders').select('*').eq('subcontractor_id', subId).eq('organisation_id', organisation.id).order('created_at', { ascending: false })
       setWorkOrders(data || [])
     }
   }
@@ -317,6 +337,7 @@ export function SubcontractorWorkOrders({ onNavigate }: WithNavigate) {
 }
 
 export function SubcontractorDailyLogs({ onNavigate }: WithNavigate) {
+  const { organisation } = useAuth();
   const [subcontractors, setSubcontractors] = useState<any[]>([])
   const [subId, setSubId] = useState('')
   const [workOrders, setWorkOrders] = useState<any[]>([])
@@ -329,20 +350,28 @@ export function SubcontractorDailyLogs({ onNavigate }: WithNavigate) {
   const [remarks, setRemarks] = useState('')
   const [logs, setLogs] = useState<any[]>([])
 
-  useEffect(() => { supabase.from('subcontractors').select('*').order('company_name').then(({ data }) => setSubcontractors(data || [])) }, [])
+  useEffect(() => { 
+    if (organisation?.id) {
+      supabase.from('subcontractors').select('*').eq('organisation_id', organisation.id).order('company_name').then(({ data }) => setSubcontractors(data || [])) 
+    }
+  }, [organisation?.id])
 
-  useEffect(() => { if (subId) supabase.from('subcontractor_work_orders').select('*').eq('subcontractor_id', subId).then(({ data }) => setWorkOrders(data || [])) }, [subId])
+  useEffect(() => { 
+    if (subId && organisation?.id) {
+      supabase.from('subcontractor_work_orders').select('*').eq('subcontractor_id', subId).eq('organisation_id', organisation.id).then(({ data }) => setWorkOrders(data || [])) 
+    }
+  }, [subId, organisation?.id])
 
   const saveLog = async () => {
-    if (!subId || !date) return alert('Required')
-    await supabase.from('subcontractor_daily_logs').insert({ subcontractor_id: subId, work_order_id: woId || null, log_date: date, work_done: workDone, delays: delays, safety_incidents: safety, workers_count: workers, remarks })
+    if (!subId || !date || !organisation?.id) return alert('Required')
+    await supabase.from('subcontractor_daily_logs').insert({ organisation_id: organisation.id, subcontractor_id: subId, work_order_id: woId || null, log_date: date, work_done: workDone, delays: delays, safety_incidents: safety, workers_count: workers, remarks })
     alert('Saved!')
     loadLogs()
   }
 
   const loadLogs = async () => {
-    if (subId) {
-      const { data } = await supabase.from('subcontractor_daily_logs').select('*').eq('subcontractor_id', subId).order('log_date', { ascending: false })
+    if (subId && organisation?.id) {
+      const { data } = await supabase.from('subcontractor_daily_logs').select('*').eq('subcontractor_id', subId).eq('organisation_id', organisation.id).order('log_date', { ascending: false })
       setLogs(data || [])
     }
   }
@@ -377,6 +406,7 @@ export function SubcontractorDailyLogs({ onNavigate }: WithNavigate) {
 }
 
 export function SubcontractorPayments({ onNavigate }: WithNavigate) {
+  const { organisation } = useAuth();
   const [subcontractors, setSubcontractors] = useState<any[]>([])
   const [subId, setSubId] = useState('')
   const [amount, setAmount] = useState('')
@@ -386,18 +416,22 @@ export function SubcontractorPayments({ onNavigate }: WithNavigate) {
   const [desc, setDesc] = useState('')
   const [payments, setPayments] = useState<any[]>([])
 
-  useEffect(() => { supabase.from('subcontractors').select('*').order('company_name').then(({ data }) => setSubcontractors(data || [])) }, [])
+  useEffect(() => { 
+    if (organisation?.id) {
+      supabase.from('subcontractors').select('*').eq('organisation_id', organisation.id).order('company_name').then(({ data }) => setSubcontractors(data || [])) 
+    }
+  }, [organisation?.id])
 
   const savePayment = async () => {
-    if (!subId || !amount) return alert('Required')
-    await supabase.from('subcontractor_payments').insert({ subcontractor_id: subId, amount, payment_date: date, payment_mode: mode, reference_no: refNo, description: desc })
+    if (!subId || !amount || !organisation?.id) return alert('Required')
+    await supabase.from('subcontractor_payments').insert({ organisation_id: organisation.id, subcontractor_id: subId, amount, payment_date: date, payment_mode: mode, reference_no: refNo, description: desc })
     alert('Saved!')
     loadPayments()
   }
 
   const loadPayments = async () => {
-    if (subId) {
-      const { data } = await supabase.from('subcontractor_payments').select('*').eq('subcontractor_id', subId).order('payment_date', { ascending: false })
+    if (subId && organisation?.id) {
+      const { data } = await supabase.from('subcontractor_payments').select('*').eq('subcontractor_id', subId).eq('organisation_id', organisation.id).order('payment_date', { ascending: false })
       setPayments(data || [])
     }
   }
@@ -428,6 +462,7 @@ export function SubcontractorPayments({ onNavigate }: WithNavigate) {
 }
 
 export function SubcontractorInvoices({ onNavigate }: WithNavigate) {
+  const { organisation } = useAuth();
   const [subcontractors, setSubcontractors] = useState<any[]>([])
   const [subId, setSubId] = useState('')
   const [workOrders, setWorkOrders] = useState<any[]>([])
@@ -438,20 +473,28 @@ export function SubcontractorInvoices({ onNavigate }: WithNavigate) {
   const [remarks, setRemarks] = useState('')
   const [invoices, setInvoices] = useState<any[]>([])
 
-  useEffect(() => { supabase.from('subcontractors').select('*').order('company_name').then(({ data }) => setSubcontractors(data || [])) }, [])
+  useEffect(() => { 
+    if (organisation?.id) {
+      supabase.from('subcontractors').select('*').eq('organisation_id', organisation.id).order('company_name').then(({ data }) => setSubcontractors(data || [])) 
+    }
+  }, [organisation?.id])
 
-  useEffect(() => { if (subId) supabase.from('subcontractor_work_orders').select('*').eq('subcontractor_id', subId).then(({ data }) => setWorkOrders(data || [])) }, [subId])
+  useEffect(() => { 
+    if (subId && organisation?.id) {
+      supabase.from('subcontractor_work_orders').select('*').eq('subcontractor_id', subId).eq('organisation_id', organisation.id).then(({ data }) => setWorkOrders(data || [])) 
+    }
+  }, [subId, organisation?.id])
 
   const saveInvoice = async () => {
-    if (!subId || !invNo || !amount) return alert('Required')
-    await supabase.from('subcontractor_invoices').insert({ subcontractor_id: subId, work_order_id: woId || null, invoice_no: invNo, invoice_date: invDate, amount, status: 'Pending', remarks })
+    if (!subId || !invNo || !amount || !organisation?.id) return alert('Required')
+    await supabase.from('subcontractor_invoices').insert({ organisation_id: organisation.id, subcontractor_id: subId, work_order_id: woId || null, invoice_no: invNo, invoice_date: invDate, amount, status: 'Pending', remarks })
     alert('Saved!')
     loadInvoices()
   }
 
   const loadInvoices = async () => {
-    if (subId) {
-      const { data } = await supabase.from('subcontractor_invoices').select('*').eq('subcontractor_id', subId).order('invoice_date', { ascending: false })
+    if (subId && organisation?.id) {
+      const { data } = await supabase.from('subcontractor_invoices').select('*').eq('subcontractor_id', subId).eq('organisation_id', organisation.id).order('invoice_date', { ascending: false })
       setInvoices(data || [])
     }
   }
@@ -482,16 +525,21 @@ export function SubcontractorInvoices({ onNavigate }: WithNavigate) {
 }
 
 export function SubcontractorDocuments({ onNavigate }: WithNavigate) {
+  const { organisation } = useAuth();
   const [subcontractors, setSubcontractors] = useState<any[]>([])
   const [subId, setSubId] = useState('')
   const [documents, setDocuments] = useState<any[]>([])
   const [uploading, setUploading] = useState(false)
 
-  useEffect(() => { supabase.from('subcontractors').select('*').order('company_name').then(({ data }) => setSubcontractors(data || [])) }, [])
+  useEffect(() => { 
+    if (organisation?.id) {
+      supabase.from('subcontractors').select('*').eq('organisation_id', organisation.id).order('company_name').then(({ data }) => setSubcontractors(data || [])) 
+    }
+  }, [organisation?.id])
 
   const handleUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []) as File[]
-    if (!subId) return alert('Select Sub-Contractor first')
+    if (!subId || !organisation?.id) return alert('Select Sub-Contractor first')
     setUploading(true)
     
     for (const file of files) {
@@ -507,6 +555,7 @@ export function SubcontractorDocuments({ onNavigate }: WithNavigate) {
         if (!error && data) {
           const { data: urlData } = supabase.storage.from('subcontractor-documents').getPublicUrl(fileName)
           await supabase.from('subcontractor_documents').insert({
+            organisation_id: organisation.id,
             subcontractor_id: subId,
             document_name: file.name,
             document_url: urlData.publicUrl,
@@ -522,8 +571,8 @@ export function SubcontractorDocuments({ onNavigate }: WithNavigate) {
   }
 
   const loadDocuments = async () => {
-    if (subId) {
-      const { data } = await supabase.from('subcontractor_documents').select('*').eq('subcontractor_id', subId).order('created_at', { ascending: false })
+    if (subId && organisation?.id) {
+      const { data } = await supabase.from('subcontractor_documents').select('*').eq('subcontractor_id', subId).eq('organisation_id', organisation.id).order('created_at', { ascending: false })
       setDocuments(data || [])
     }
   }

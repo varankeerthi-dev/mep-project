@@ -1515,6 +1515,7 @@ body {
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-weight: 600;
 }
 
 .sidebar.collapsed .sidebar-item-label {
