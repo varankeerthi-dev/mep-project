@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Paper,
@@ -32,6 +32,7 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useVendors, useCreateVendor, useUpdateVendor } from '../hooks/usePurchaseQueries';
+import { supabase } from '../../../supabase';
 
 const INDIAN_STATES = [
   'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh', 'Goa', 'Gujarat', 'Haryana',
@@ -97,10 +98,26 @@ export const Vendors: React.FC = () => {
   const [selectedVendor, setSelectedVendor] = useState<any>(null);
   const [formData, setFormData] = useState<VendorFormData>(defaultFormData);
   const [searchTerm, setSearchTerm] = useState('');
+  const [docSettings, setDocSettings] = useState<any>(null);
 
   const { data: vendors = [], isLoading } = useVendors(organisation?.id);
   const createVendor = useCreateVendor();
   const updateVendor = useUpdateVendor();
+
+  // Load document settings on mount
+  useEffect(() => {
+    if (organisation?.id) {
+      supabase.from('document_settings')
+        .select('*')
+        .eq('organisation_id', organisation.id)
+        .single()
+        .then(({ data }) => {
+          if (data) {
+            setDocSettings(data);
+          }
+        });
+    }
+  }, [organisation?.id]);
 
   const handleAdd = () => {
     setEditMode(false);
@@ -118,6 +135,16 @@ export const Vendors: React.FC = () => {
     setOpenDialog(true);
   };
 
+  const generateVendorCode = () => {
+    const prefix = docSettings?.vendor_prefix || 'VEN';
+    const startNum = docSettings?.vendor_current_number || docSettings?.vendor_start_number || 1;
+    const suffix = docSettings?.vendor_suffix || '';
+    const padding = docSettings?.vendor_padding || 3;
+    
+    const paddedNum = String(startNum).padStart(padding, '0');
+    return `${prefix}${paddedNum}${suffix}`;
+  };
+
   const handleSave = async () => {
     try {
       if (editMode && selectedVendor) {
@@ -126,15 +153,27 @@ export const Vendors: React.FC = () => {
           ...formData,
         });
       } else {
-        // Generate vendor code
-        const vendorCount = vendors.length + 1;
-        const vendorCode = `VEN-${String(vendorCount).padStart(3, '0')}`;
+        // Generate vendor code based on settings
+        const vendorCode = generateVendorCode();
         
         await createVendor.mutateAsync({
           ...formData,
           vendor_code: vendorCode,
           organisation_id: organisation?.id,
         });
+
+        // Increment the current number in settings
+        if (docSettings && organisation?.id) {
+          const nextNum = (docSettings.vendor_current_number || docSettings.vendor_start_number || 1) + 1;
+          await supabase.from('document_settings').upsert({
+            organisation_id: organisation.id,
+            vendor_current_number: nextNum,
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'organisation_id' });
+          
+          // Update local state
+          setDocSettings({ ...docSettings, vendor_current_number: nextNum });
+        }
       }
       setOpenDialog(false);
     } catch (error) {
