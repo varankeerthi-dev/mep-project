@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -135,7 +135,17 @@ export function SiteReport() {
   const { user, organisation } = useAuth();
   const [view, setView] = useState<'list' | 'create'>('list');
   const [photos, setPhotos] = useState<File[]>([]);
+  const [photoUrls, setPhotoUrls] = useState<string[]>([]);
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const newUrls = photos.map(photo => URL.createObjectURL(photo));
+    setPhotoUrls(newUrls);
+    
+    return () => {
+      newUrls.forEach(url => URL.revokeObjectURL(url));
+    };
+  }, [photos]);
 
   // Fetch existing reports
   const { data: reports, isLoading: reportsLoading } = useQuery({
@@ -1230,9 +1240,10 @@ export function SiteReport() {
               {photos.map((photo, index) => (
                 <div key={index} className="relative aspect-square rounded overflow-hidden border border-slate-200 group">
                   <img 
-                    src={URL.createObjectURL(photo)} 
+                    src={photoUrls[index] || ''} 
                     alt={`Site photo ${index + 1}`} 
                     className="w-full h-full object-cover"
+                    loading="lazy"
                   />
                   <button 
                     type="button"

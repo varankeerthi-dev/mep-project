@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import type { ReactElement } from 'react';
 
 type OrganisationSummary = {
@@ -39,6 +39,26 @@ const icons: Record<string, ReactElement> = {
 export default function QuickAccessBar({ onQuickAction, organisation, onLogout, onMenuToggle }: QuickAccessBarProps) {
   const [showDropdown, setShowDropdown] = useState(false);
 
+  const handleQuickAction = useCallback((action: QuickAction) => {
+    onQuickAction(action);
+  }, [onQuickAction]);
+
+  const toggleDropdown = useCallback(() => {
+    setShowDropdown(prev => !prev);
+  }, []);
+
+  const handleSettingsClick = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setShowDropdown(false);
+    window.history.pushState({}, '', '/settings');
+    window.dispatchEvent(new PopStateEvent('popstate'));
+  }, []);
+
+  const handleLogoutClick = useCallback(() => {
+    onLogout();
+    setShowDropdown(false);
+  }, [onLogout]);
+
   return (
     <header className="top-navbar">
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -52,19 +72,19 @@ export default function QuickAccessBar({ onQuickAction, organisation, onLogout, 
       </div>
       
       <div className="top-navbar-actions">
-        <button className="top-nav-btn" onClick={() => onQuickAction('daily-updates')}>
+        <button className="top-nav-btn" onClick={handleQuickAction.bind(null, 'daily-updates')}>
           {icons.calendar}
           Daily Updates
         </button>
-        <button className="top-nav-btn" onClick={() => onQuickAction('approvals')}>
+        <button className="top-nav-btn" onClick={handleQuickAction.bind(null, 'approvals')}>
           {icons.check}
           Approvals
         </button>
-        <button className="top-nav-btn primary" onClick={() => onQuickAction('new-dc')}>
+        <button className="top-nav-btn primary" onClick={handleQuickAction.bind(null, 'new-dc')}>
           {icons.plus}
           Create DC
         </button>
-        <button className="top-nav-btn" onClick={() => onQuickAction('remind')}>
+        <button className="top-nav-btn" onClick={handleQuickAction.bind(null, 'remind')}>
           {icons.clock}
           Remind
         </button>
@@ -73,7 +93,7 @@ export default function QuickAccessBar({ onQuickAction, organisation, onLogout, 
       <div className="user-menu">
         <button 
           className="user-profile"
-          onClick={() => setShowDropdown(!showDropdown)}
+          onClick={toggleDropdown}
         >
           <div className="user-profile-avatar">
             {organisation?.name?.charAt(0)?.toUpperCase() || 'U'}
@@ -90,17 +110,12 @@ export default function QuickAccessBar({ onQuickAction, organisation, onLogout, 
               <span>{organisation?.name}</span>
             </div>
             <div className="user-dropdown-divider" />
-            <a href="/settings" className="user-dropdown-item" onClick={(e) => {
-              e.preventDefault();
-              setShowDropdown(false);
-              window.history.pushState({}, '', '/settings');
-              window.dispatchEvent(new PopStateEvent('popstate'));
-            }}>
+            <a href="/settings" className="user-dropdown-item" onClick={handleSettingsClick}>
               {icons.settings}
               <span>Settings</span>
             </a>
             <div className="user-dropdown-divider" />
-            <div className="user-dropdown-item" onClick={() => { onLogout(); setShowDropdown(false); }}>
+            <div className="user-dropdown-item" onClick={handleLogoutClick}>
               {icons.logout}
               <span>Sign Out</span>
             </div>

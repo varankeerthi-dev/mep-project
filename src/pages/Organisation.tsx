@@ -430,7 +430,7 @@ export function OrganisationSettings({ organisation, userId }) {
         <div style={{ display: 'flex', gap: '24px', marginBottom: '20px', alignItems: 'center' }}>
           <div style={{ position: 'relative', width: '100px', height: '100px', border: '1px dashed #ccc', borderRadius: '8px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8f9fa' }}>
             {orgDetails.logo_url ? (
-              <img src={orgDetails.logo_url} alt="Logo" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+              <img src={orgDetails.logo_url} alt="Logo" width={100} height={100} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} fetchPriority="high" />
             ) : (
               <span style={{ fontSize: '12px', color: '#666' }}>No Logo</span>
             )}
@@ -616,8 +616,8 @@ export function OrganisationSettings({ organisation, userId }) {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {orgDetails.signatures.map((sig) => (
             <div key={sig.id} style={{ border: '1px solid #e5e7eb', borderRadius: '8px', padding: '12px', background: 'white' }}>
-              <div style={{ height: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '8px', borderBottom: '1px solid #f3f4f6', pb: '8px' }}>
-                <img src={sig.url} alt={sig.name} style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain' }} />
+              <div style={{ height: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '8px', borderBottom: '1px solid #f3f4f6' }}>
+                <img src={sig.url} alt={sig.name} width={150} height={60} loading="lazy" style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain' }} />
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontWeight: 600, fontSize: '13px' }}>{sig.name}</span>

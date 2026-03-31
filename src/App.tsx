@@ -93,6 +93,8 @@ const NonBillableDCEdit = lazyAny(() => import('./pages/NonBillableDCEdit'));
 const SettingsPage = lazyAny(() => import('./pages/Settings'));
 const PrintSettings = lazyAny(() => import('./pages/PrintSettings'));
 const DatabaseSetup = lazyAny(() => import('./pages/DatabaseSetup'));
+const EmployeeCheckIn = lazyAny(() => import('./pages/EmployeeCheckIn'));
+const HRAdminDashboard = lazyAny(() => import('./pages/HRAdminDashboard'));
 
 type CreateOrganisationResult = {
   data?: Organisation | null;
@@ -266,7 +268,7 @@ export default function App() {
     routerNavigate(path || '/');
   }, [routerNavigate]);
 
-  const handleQuickAction = (action: QuickAction) => {
+  const handleQuickAction = useCallback((action: QuickAction) => {
     switch (action) {
       case 'new-dc': navigate('/dc/create'); break;
       case 'daily-updates': navigate('/projects/daily-updates'); break;
@@ -276,7 +278,20 @@ export default function App() {
       case 'export': navigate('/dc/list'); break;
       default: break;
     }
-  };
+  }, [navigate]);
+
+  const handleSidebarNavigate = useCallback((path: string) => {
+    navigate(path);
+    setMobileSidebarOpen(false);
+  }, [navigate]);
+
+  const handleSidebarToggle = useCallback(() => {
+    setSidebarCollapsed(prev => !prev);
+  }, []);
+
+  const handleMenuToggle = useCallback(() => {
+    setMobileSidebarOpen(prev => !prev);
+  }, []);
 
   const renderPage = (authUser: User | null, authOrg: Organisation | null) => {
     const pathKey = currentPath.split('?')[0]
@@ -352,6 +367,8 @@ export default function App() {
       case '/client-po': return <POList />;
       case '/client-po/create': return <CreatePO />;
       case '/client-po/details': return <PODetails />;
+      case '/employee/checkin': return <EmployeeCheckIn />;
+      case '/hr/dashboard': return <HRAdminDashboard />;
       default:
         // Handle dynamic routes
         if (pathKey.startsWith('/dc/edit/')) {
@@ -425,8 +442,8 @@ export default function App() {
   return (
     <AuthContext.Provider value={{ user, organisation, organisations, handleLogout }}>
       <div className="app-container">
-        <QuickAccessBar onQuickAction={handleQuickAction} organisation={organisation} onLogout={handleLogout} onMenuToggle={() => setMobileSidebarOpen(!mobileSidebarOpen)} />
-        <Sidebar currentPath={currentPath} onNavigate={(path) => { navigate(path); setMobileSidebarOpen(false); }} collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(!sidebarCollapsed)} mobileOpen={mobileSidebarOpen} />
+        <QuickAccessBar onQuickAction={handleQuickAction} organisation={organisation} onLogout={handleLogout} onMenuToggle={handleMenuToggle} />
+        <Sidebar currentPath={currentPath} onNavigate={handleSidebarNavigate} collapsed={sidebarCollapsed} onToggle={handleSidebarToggle} mobileOpen={mobileSidebarOpen} />
         <main className={`main-content ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
           <Suspense fallback={
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
@@ -435,6 +452,19 @@ export default function App() {
           }>
             {renderedPage}
           </Suspense>
+
+          <button onClick={() => {
+  console.log("Attempting to crash...");
+  throw new Error("Sentry Local Test Error!");
+}}>
+  Test Sentry Now
+</button>
+<button onClick={() => {
+  console.log("Triggering Sentry...");
+  throw new Error("ERP Test Error: Connection Check");
+}}>
+  Break App
+</button>
         </main>
       </div>
     </AuthContext.Provider>

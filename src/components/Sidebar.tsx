@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import {
   HomeIcon,
   FolderIcon,
@@ -292,7 +292,7 @@ function getIcon(id: string) {
 }
 
 export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, mobileOpen }: SidebarProps) {
-  const [expandedMenus, setExpandedMenus] = useState<string[]>(() => {
+  const defaultExpandedMenus = useMemo(() => {
     const defaults: string[] = [];
     menuData.forEach(section => {
       section.items.forEach(item => {
@@ -303,42 +303,48 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
       });
     });
     return defaults;
-  });
+  }, [currentPath]);
 
-  const isParentActive = (item: MenuItem) => {
-    if (item.submenu) {
-      return item.submenu.some(sub => currentPath === sub.path);
-    }
-    return item.path && currentPath === item.path;
-  };
+  const [expandedMenus, setExpandedMenus] = useState<string[]>(defaultExpandedMenus);
 
-  const isActive = (path: string) => currentPath === path;
-
-  const toggleMenu = (menuId: string) => {
+  const toggleMenu = useCallback((menuId: string) => {
     setExpandedMenus(prev => 
       prev.includes(menuId) 
         ? prev.filter(id => id !== menuId)
         : [...prev, menuId]
     );
-  };
+  }, []);
 
-  const handleClick = (item: MenuItem) => {
+  const handleClick = useCallback((item: MenuItem) => {
     if (item.submenu) {
       toggleMenu(item.id);
     } else if (item.path) {
       onNavigate(item.path);
     }
-  };
+  }, [toggleMenu, onNavigate]);
 
-  const handleSubmenuClick = (path: string) => {
+  const handleSubmenuClick = useCallback((path: string) => {
     onNavigate(path);
-  };
+  }, [onNavigate]);
+
+  const handleOverlayClick = useCallback(() => {
+    onNavigate(currentPath);
+  }, [onNavigate, currentPath]);
+
+  const isParentActive = useCallback((item: MenuItem) => {
+    if (item.submenu) {
+      return item.submenu.some(sub => currentPath === sub.path);
+    }
+    return item.path && currentPath === item.path;
+  }, [currentPath]);
+
+  const isActive = useCallback((path: string) => currentPath === path, [currentPath]);
 
   const isCollapsed = collapsed && !mobileOpen;
 
   return (
     <>
-      {mobileOpen && <div className="sidebar-overlay" onClick={() => onNavigate(currentPath)} />}
+      {mobileOpen && <div className="sidebar-overlay" onClick={handleOverlayClick} />}
       <aside
         className={cx(
           'sidebar',
@@ -367,7 +373,7 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
                         parentActive && 'active',
                         isExpanded && 'expanded'
                       )}
-                      onClick={() => handleClick(item)}
+                      onClick={handleClick.bind(null, item)}
                       type="button"
                     >
                       <span className="sidebar-item-icon">
@@ -390,7 +396,7 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
                               'sidebar-submenu-item',
                               isActive(subItem.path) && 'active'
                             )}
-                            onClick={() => handleSubmenuClick(subItem.path)}
+                            onClick={handleSubmenuClick.bind(null, subItem.path)}
                             type="button"
                           >
                             <span className="sidebar-item-label">{subItem.label}</span>

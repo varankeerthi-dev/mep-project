@@ -261,7 +261,7 @@ export default function QuotationList() {
         <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #3b82f6', paddingBottom: '20px', marginBottom: '20px' }}>
           <div style={{ width: '65%' }}>
             {organisation?.logo_url && (
-              <img src={organisation.logo_url} alt="Logo" style={{ height: '50px', marginBottom: '12px', objectFit: 'contain' }} />
+              <img src={organisation.logo_url} alt="Logo" width={150} height={50} fetchPriority="high" style={{ height: '50px', marginBottom: '12px', objectFit: 'contain' }} />
             )}
             <h1 style={{ margin: 0, fontSize: '20px', fontWeight: 800, color: '#1e3a8a', textTransform: 'uppercase' }}>
               {organisation?.name || 'ARUN PIPES & FITTINGS'}
