@@ -139,11 +139,12 @@ export const PurchaseOrders: React.FC = () => {
       const { data, error } = await supabase
         .from('materials')
         .select('id, item_code, display_name, name, hsn_code, sale_price, purchase_price, unit, gst_rate, make, item_type, uses_variant')
-        .eq('status', 'Active')
+        .eq('is_active', true)
         .order('name');
       
       if (error) throw error;
       setMaterials(data || []);
+      console.log('Loaded materials:', data?.length || 0, 'items');
     } catch (error) {
       console.error('Error loading materials:', error);
     }
