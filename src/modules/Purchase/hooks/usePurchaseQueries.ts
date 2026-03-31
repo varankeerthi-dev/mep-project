@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '../../supabase';
+import { supabase } from '../../../supabase';
 
 // ============== VENDOR QUERIES ==============
 
