@@ -2,6 +2,17 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { flexRender, getCoreRowModel, useReactTable } from '@tanstack/react-table';
 import { useLocation, useNavigate } from 'react-router-dom';
+import {
+  Box,
+  Paper,
+  Typography,
+  Button,
+  TextField,
+  Chip,
+  IconButton,
+  Tooltip,
+} from '@mui/material';
+import { Inventory as InventoryIcon, Add as AddIcon } from '@mui/icons-material';
 import { supabase } from '../supabase';
 import { formatDate, formatCurrency } from '../utils/formatters';
 import { timedSupabaseQuery } from '../utils/queryTimeout';
@@ -1410,24 +1421,56 @@ function ItemsTab() {
       itemTransactions.auditRows.length,
   };
 
-  const categoryList = ['All', ...categoryOptions];
-
   return (
-    <div>
-      <div className="page-header">
-        <h1 className="page-title">Items</h1>
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <button className="btn btn-secondary" onClick={() => setShowColumnSettings((prev) => !prev)}>
-            Columns
-          </button>
-          <button className="btn btn-secondary" onClick={openBulkPriceModal}>
-            Bulk Price Update
-          </button>
-          <button className="btn btn-primary" onClick={() => setShowForm(true)}>
-            + Add Item
-          </button>
-        </div>
-      </div>
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <Paper elevation={0} sx={{ p: 2, mb: 2, borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <InventoryIcon color="primary" sx={{ fontSize: 24 }} />
+            <Typography variant="h6" fontFamily="Inter" fontWeight={600} sx={{ fontSize: '14px' }}>
+              Materials
+            </Typography>
+            <Chip 
+              label={`${filteredMaterials.length} items`} 
+              size="small" 
+              color="primary" 
+              variant="outlined"
+              sx={{ fontSize: '11px', fontFamily: 'Inter', ml: 1 }}
+            />
+          </Box>
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
+            {MAIN_CATEGORIES.slice(0, 6).map((cat) => (
+              <Button
+                key={cat}
+                size="small"
+                variant={categoryFilter === cat ? 'contained' : 'outlined'}
+                onClick={() => setCategoryFilter(categoryFilter === cat ? 'All' : cat)}
+                sx={{ fontSize: '11px', minWidth: 'auto', textTransform: 'none', fontFamily: 'Inter' }}
+              >
+                {cat}
+              </Button>
+            ))}
+            <TextField
+              size="small"
+              placeholder="Search materials..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              sx={{ width: 200, '& .MuiInputBase-input': { fontSize: '12px' } }}
+            />
+            <Button variant="contained" size="small" startIcon={<AddIcon />} onClick={() => setShowForm(true)} sx={{ fontSize: '12px', fontFamily: 'Inter' }}>
+              Add Material
+            </Button>
+            <Tooltip title="Column Settings">
+              <Button size="small" variant="outlined" onClick={() => setShowColumnSettings((prev) => !prev)} sx={{ fontSize: '11px', fontFamily: 'Inter' }}>
+                Columns
+              </Button>
+            </Tooltip>
+            <Button size="small" variant="outlined" onClick={openBulkPriceModal} sx={{ fontSize: '11px', fontFamily: 'Inter' }}>
+              Bulk Price
+            </Button>
+          </Box>
+        </Box>
+      </Paper>
 
       {saveNotice && (
         <div className="alert alert-success">{saveNotice}</div>
@@ -1475,18 +1518,11 @@ function ItemsTab() {
             </div>
           )}
 
-          <div className="card" style={{ marginBottom: '16px' }}>
-            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
-              <input type="text" className="form-input" placeholder="Search items..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ maxWidth: '300px' }} />
-              <select className="form-select" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} style={{ maxWidth: '200px' }}>
-                {categoryList.map(cat => (<option key={cat} value={cat}>{cat === 'All' ? 'All Categories' : cat}</option>))}
-              </select>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                <input type="checkbox" checked={hideInactive} onChange={(e) => setHideInactive(e.target.checked)} />
-                Hide Inactive
-              </label>
-              <span style={{ marginLeft: 'auto', color: '#666' }}>{filteredMaterials.length} items</span>
-            </div>
+          <div className="card" style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+              <input type="checkbox" checked={hideInactive} onChange={(e) => setHideInactive(e.target.checked)} />
+              Hide Inactive Items
+            </label>
           </div>
 
           <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
@@ -2234,7 +2270,7 @@ function ItemsTab() {
           </div>
         </div>
       )}
-    </div>
+    </Box>
   );
 }
 

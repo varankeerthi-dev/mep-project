@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useDeferredValue } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../App';
 import { fetchDeliveryChallans, deleteDeliveryChallan, fetchProjects } from '../api';
@@ -6,7 +6,40 @@ import { supabase } from '../supabase';
 import { format } from 'date-fns';
 import { generateZohoTemplate } from './ZohoTemplate';
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
-import { flexRender, getCoreRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
+import {
+  Box,
+  Paper,
+  Typography,
+  Button,
+  TextField,
+  Chip,
+  IconButton,
+  Tooltip,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Menu,
+} from '@mui/material';
+import {
+  DataGrid,
+  GridColDef,
+  GridRenderCellParams,
+} from '@mui/x-data-grid';
+import {
+  LocalShipping as LocalShippingIcon,
+  Add as AddIcon,
+  Visibility as VisibilityIcon,
+  PictureAsPdf as PictureAsPdfIcon,
+  Delete as DeleteIcon,
+  FilterList as FilterListIcon,
+  Edit as EditIcon,
+  SwapHoriz as SwapHorizIcon,
+} from '@mui/icons-material';
 
 export default function DCList() {
   const navigate = useNavigate();
@@ -18,6 +51,8 @@ export default function DCList() {
   const [previewDC, setPreviewDC] = useState<any | null>(null);
   const [previewHtml, setPreviewHtml] = useState('');
   const [showPreview, setShowPreview] = useState(false);
+  const [printAnchorEl, setPrintAnchorEl] = useState<null | HTMLElement>(null);
+  const [printMenuDC, setPrintMenuDC] = useState<any | null>(null);
   const [filters, setFilters] = useState(() => ({
     projectId: '',
     startDate: '',
@@ -33,6 +68,7 @@ export default function DCList() {
     organisation_id: organisation?.id
   }));
   const [showFilters, setShowFilters] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     if (organisation?.id) {
@@ -79,16 +115,18 @@ export default function DCList() {
   const templates = templatesQuery.data || [];
   const loading = challansQuery.isLoading || projectsQuery.isLoading;
 
-  const handleFilterChange = (e) => {
+  const handleFilterChange = (e: React.ChangeEvent<{ name?: string; value: unknown }>) => {
     const { name, value } = e.target;
-    setFilters(prev => ({ ...prev, [name]: value }));
+    if (name) {
+      setFilters(prev => ({ ...prev, [name]: value }));
+    }
   };
 
   const applyFilters = () => {
     setAppliedFilters(filters);
   };
 
-  const loadDCWithItems = async (dcId) => {
+  const loadDCWithItems = async (dcId: string) => {
     const { data } = await supabase
       .from('delivery_challans')
       .select('*, items:delivery_challan_items(*)')
@@ -97,7 +135,7 @@ export default function DCList() {
     return data;
   };
 
-  const handlePrintDC = async (challan, templateId = null) => {
+  const handlePrintDC = async (challan: any, templateId: string | null = null) => {
     try {
       let template = null;
       
@@ -130,10 +168,11 @@ export default function DCList() {
       if (template.template_code === 'DC_ZOHO') {
         const zohoDoc = generateZohoTemplate(dcWithItems, organisation, template);
         const safeFileName = String(dcWithItems.dc_number || 'dc')
-          .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
+          .replace(/[<>:"\/\\|?*\x00-\x1F]/g, '_')
           .replace(/\s+/g, '_');
         zohoDoc.save(`${safeFileName}.pdf`);
         setOpenPrintMenuId(null);
+        setPrintAnchorEl(null);
         return;
       }
 
@@ -152,7 +191,7 @@ export default function DCList() {
       const optionalCols = colSettings.optional || {};
       const labels = colSettings.labels || {};
 
-      const columnConfig = [];
+      const columnConfig: any[] = [];
       if (optionalCols.sno !== false) columnConfig.push({ header: '#', key: 'sno', width: 10 });
       if (optionalCols.hsn_code) columnConfig.push({ header: labels.hsn_code || 'HSN/SAC', key: 'hsn_code', width: 20 });
       columnConfig.push({ header: labels.item || 'Item', key: 'item', width: optionalCols.description ? 50 : 70 });
@@ -166,8 +205,8 @@ export default function DCList() {
       if (optionalCols.tax) columnConfig.push({ header: labels.tax || 'Tax %', key: 'tax', width: 15 });
       if (optionalCols.amount !== false) columnConfig.push({ header: labels.amount || 'Amount', key: 'amount', width: 30 });
 
-      const tableData = (dcWithItems.items || []).map((item, index) => {
-        const row = { sno: index + 1 };
+      const tableData = (dcWithItems.items || []).map((item: any, index: number) => {
+        const row: any = { sno: index + 1 };
         if (optionalCols.sno !== false) row.sno = index + 1;
         if (optionalCols.hsn_code) row.hsn_code = item.hsn_code || '-';
         row.item = item.material_name || '-';
@@ -210,8 +249,8 @@ export default function DCList() {
 
       autoTable(doc, {
         startY: yPos,
-        head: [columnConfig.map(col => col.header)],
-        body: tableData.map(row => columnConfig.map(col => {
+        head: [columnConfig.map((col: any) => col.header)],
+        body: tableData.map((row: any) => columnConfig.map((col: any) => {
           const val = row[col.key];
           if (col.key === 'rate' || col.key === 'amount') {
             return typeof val === 'number' ? `₹${val.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` : val;
@@ -224,14 +263,14 @@ export default function DCList() {
         theme: 'grid',
         headStyles: { fillColor: [26, 26, 26], fontSize: 9 },
         styles: { fontSize: 9 },
-        columnStyles: columnConfig.reduce((acc, col, idx) => {
+        columnStyles: columnConfig.reduce((acc: any, col: any, idx: number) => {
           acc[idx] = { cellWidth: col.width };
           return acc;
         }, {})
       });
 
-      const finalY = doc.lastAutoTable.finalY + 10;
-      const totalAmount = (dcWithItems.items || []).reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+      const finalY = (doc as any).lastAutoTable.finalY + 10;
+      const totalAmount = (dcWithItems.items || []).reduce((sum: number, item: any) => sum + (parseFloat(item.amount) || 0), 0);
 
       doc.setFont('helvetica', 'bold');
       doc.text('Total Amount:', 140, finalY);
@@ -248,19 +287,20 @@ export default function DCList() {
 
       doc.save(`${challan.dc_number}.pdf`);
       setOpenPrintMenuId(null);
-    } catch (error) {
+      setPrintAnchorEl(null);
+    } catch (error: any) {
       console.error('Error generating PDF:', error);
       alert('Error generating PDF: ' + error.message);
     }
   };
 
-  const handlePreview = async (challan) => {
+  const handlePreview = async (challan: any) => {
     try {
       const dcWithItems = await loadDCWithItems(challan.id);
       
-      const totalAmount = (dcWithItems.items || []).reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+      const totalAmount = (dcWithItems.items || []).reduce((sum: number, item: any) => sum + (parseFloat(item.amount) || 0), 0);
       
-      const itemsHtml = (dcWithItems.items || []).map((item, index) => `
+      const itemsHtml = (dcWithItems.items || []).map((item: any, index: number) => `
         <tr>
           <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${index + 1}</td>
           <td style="border: 1px solid #ddd; padding: 8px;">${item.material_name || '-'}</td>
@@ -355,13 +395,13 @@ export default function DCList() {
       setPreviewDC(challan);
       setPreviewHtml(html);
       setShowPreview(true);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error generating preview:', error);
       alert('Error generating preview: ' + error.message);
     }
   };
 
-  const handleDelete = async (id, dcNumber) => {
+  const handleDelete = async (id: string, dcNumber: string) => {
     if (confirm(`Are you sure you want to delete DC ${dcNumber}?`)) {
       try {
         await deleteMutation.mutateAsync(id);
@@ -372,7 +412,7 @@ export default function DCList() {
     }
   };
 
-  const handleConvertClick = (challan) => {
+  const handleConvertClick = (challan: any) => {
     setConvertDC(challan);
     setShowConvertModal(true);
   };
@@ -420,7 +460,7 @@ export default function DCList() {
       if (error) throw error;
 
       if (dcWithItems.items && dcWithItems.items.length > 0) {
-        const itemsToInsert = dcWithItems.items.map(item => ({
+        const itemsToInsert = dcWithItems.items.map((item: any) => ({
           quotation_id: quotation.id,
           item_id: item.material_id,
           variant_id: item.variant_id,
@@ -441,7 +481,7 @@ export default function DCList() {
 
       alert('DC converted to Quotation successfully!');
       navigate(`/quotation/edit?id=${quotation.id}`);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error converting to quotation:', error);
       alert('Error converting to quotation: ' + error.message);
     }
@@ -455,459 +495,478 @@ export default function DCList() {
     setConvertDC(null);
   };
 
-  const calculateTotal = (items) => {
+  const calculateTotal = (items: any[]) => {
     if (!items || items.length === 0) return 0;
     return items.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
   };
 
-  const MemoizedActionCell = React.memo(({ row }) => {
-    const challan = row.original;
-    return (
-      <div className="actions">
-        <button 
-          className="action-btn" 
-          title="View"
-          onClick={() => handlePreview(challan)}
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-            <circle cx="12" cy="12" r="3"/>
-          </svg>
-        </button>
-        <div style={{ position: 'relative', display: 'inline-flex' }}>
-          <button 
-            className="action-btn" 
-            title="Download PDF"
-            onClick={() => setOpenPrintMenuId(challan.id)}
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-              <polyline points="14 2 14 8 20 8"/>
-              <line x1="16" y1="13" x2="8" y2="13"/>
-              <line x1="16" y1="17" x2="8" y2="17"/>
-            </svg>
-          </button>
-          {openPrintMenuId === challan.id && (
-            <div style={{
-              position: 'absolute',
-              top: '100%',
-              right: 0,
-              background: 'white',
-              border: '1px solid #e5e7eb',
-              borderRadius: '6px',
-              boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-              zIndex: 100,
-              minWidth: '180px',
-              marginTop: '4px'
-            }}>
-              <div style={{ padding: '8px 12px', fontSize: '11px', color: '#6b7280', borderBottom: '1px solid #e5e7eb' }}>
-                Select Template
-              </div>
-              {templates.length > 0 ? (
-                templates.map(t => (
-                  <button 
-                    key={t.id}
-                    style={{ display: 'block', width: '100%', padding: '10px 14px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '13px' }}
-                    onClick={() => handlePrintDC(challan, t.id)}
-                  >
-                    {t.template_name} {t.is_default && '(Default)'}
-                  </button>
-                ))
-              ) : (
-                <button 
-                  style={{ display: 'block', width: '100%', padding: '10px 14px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', fontSize: '13px', color: '#6b7280' }}
-                  onClick={() => handlePrintDC(challan)}
-                >
-                  Default Template
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-        <button 
-          className="action-btn" 
-          title="Convert"
-          onClick={() => handleConvertClick(challan)}
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-            <polyline points="17 1 21 5 17 9"/>
-            <path d="M3 11V9a4 4 0 0 1 4-4h14"/>
-            <polyline points="7 23 3 19 7 15"/>
-            <path d="M21 13v2a4 4 0 0 1-4 4H3"/>
-          </svg>
-        </button>
-        <button 
-          className="action-btn" 
-          title="Edit"
-          onClick={() => navigate(`/dc/edit/${challan.id}`)}
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-          </svg>
-        </button>
-        <button 
-          className="action-btn danger" 
-          title="Delete"
-          onClick={() => handleDelete(challan.id, challan.dc_number)}
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16">
-            <polyline points="3 6 5 6 21 6"/>
-            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-          </svg>
-        </button>
-      </div>
+  const handlePrintMenuOpen = (event: React.MouseEvent<HTMLElement>, challan: any) => {
+    setPrintAnchorEl(event.currentTarget);
+    setPrintMenuDC(challan);
+  };
+
+  const handlePrintMenuClose = () => {
+    setPrintAnchorEl(null);
+    setPrintMenuDC(null);
+  };
+
+  const filteredChallans = useMemo(() => {
+    return challans.filter((challan: any) =>
+      challan.dc_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      challan.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      challan.project?.project_name?.toLowerCase().includes(searchTerm.toLowerCase())
     );
-  });
+  }, [challans, searchTerm]);
 
-  const columns = useMemo(() => [
+  const columns: GridColDef[] = [
     {
-      header: 'DC No',
-      accessorKey: 'dc_number',
-      cell: (info) => <span className="table-number">{info.getValue()}</span>
+      field: 'dc_number',
+      headerName: 'DC No',
+      width: 120,
+      headerAlign: 'center',
+      align: 'center',
+      renderCell: (params: GridRenderCellParams) => (
+        <Typography variant="body2" fontWeight="500" fontFamily="Inter" sx={{ fontSize: '12px' }}>
+          {params.value}
+        </Typography>
+      ),
     },
     {
-      header: 'Date',
-      accessorKey: 'dc_date',
-      cell: (info) => info.getValue() ? format(new Date(info.getValue()), 'dd/MM/yyyy') : '-'
+      field: 'dc_date',
+      headerName: 'Date',
+      width: 110,
+      renderCell: (params: GridRenderCellParams) => (
+        <Typography variant="body2" fontFamily="Inter" sx={{ fontSize: '12px' }}>
+          {params.value ? format(new Date(params.value), 'dd/MM/yyyy') : '-'}
+        </Typography>
+      ),
     },
     {
-      header: 'Project',
-      accessorKey: 'project',
-      cell: (info) => info.getValue()?.project_name || info.getValue()?.name || '-'
+      field: 'project',
+      headerName: 'Project',
+      width: 180,
+      renderCell: (params: GridRenderCellParams) => (
+        <Typography variant="body2" fontFamily="Inter" sx={{ fontSize: '12px' }}>
+          {params.row.project?.project_name || params.row.project?.name || '-'}
+        </Typography>
+      ),
     },
     {
-      header: 'Client',
-      accessorKey: 'client_name',
-      cell: (info) => info.getValue() || '-'
+      field: 'client_name',
+      headerName: 'Client',
+      width: 180,
+      renderCell: (params: GridRenderCellParams) => (
+        <Typography variant="body2" fontFamily="Inter" sx={{ fontSize: '12px' }}>
+          {params.value || '-'}
+        </Typography>
+      ),
     },
     {
-      header: 'Items',
-      accessorKey: 'items',
-      cell: (info) => <span className="table-number">{info.getValue()?.length || 0}</span>
+      field: 'items',
+      headerName: 'Items',
+      width: 80,
+      headerAlign: 'center',
+      align: 'center',
+      renderCell: (params: GridRenderCellParams) => (
+        <Chip
+          label={params.value?.length || 0}
+          size="small"
+          sx={{ fontSize: '11px', fontFamily: 'Inter', minWidth: '30px' }}
+        />
+      ),
     },
     {
-      header: 'Total Amount',
-      accessorKey: 'items_total',
-      cell: ({ row }) => (
-        <span className="table-number">
-          ₹{calculateTotal(row.original.items).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-        </span>
-      )
+      field: 'items_total',
+      headerName: 'Total Amount',
+      width: 130,
+      renderCell: (params: GridRenderCellParams) => (
+        <Typography variant="body2" fontFamily="Inter" sx={{ fontSize: '12px', fontWeight: 500 }} align="right" width="100%">
+          ₹{calculateTotal(params.row.items).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+        </Typography>
+      ),
     },
     {
-      header: 'Status',
-      accessorKey: 'status',
-      cell: (info) => (
-        <span className={`badge ${
-          info.getValue() === 'active' ? 'badge-success' : 
-          info.getValue() === 'Quoted' ? 'badge-success' :
-          info.getValue() === 'Not sent' ? 'badge-warning' :
-          'badge-neutral'
-        }`}>
-          {info.getValue() === 'active' ? 'Active' : info.getValue()}
-        </span>
-      )
+      field: 'status',
+      headerName: 'Status',
+      width: 100,
+      headerAlign: 'center',
+      align: 'center',
+      renderCell: (params: GridRenderCellParams) => {
+        const status = params.value;
+        let color: 'success' | 'warning' | 'default' | 'error' = 'default';
+        let label = status;
+        
+        if (status === 'active' || status === 'Active' || status === 'Quoted') {
+          color = 'success';
+          label = status === 'active' ? 'Active' : status;
+        } else if (status === 'Not sent') {
+          color = 'warning';
+        } else if (status === 'cancelled') {
+          color = 'error';
+        }
+        
+        return (
+          <Chip
+            label={label}
+            size="small"
+            color={color}
+            sx={{ fontSize: '11px', fontFamily: 'Inter' }}
+          />
+        );
+      },
     },
     {
-      id: 'actions',
-      header: 'Actions',
-      cell: ({ row }) => <MemoizedActionCell row={row} />
-    }
-  ], [templates, openPrintMenuId, navigate, handlePreview, handlePrintDC, handleConvertClick, handleDelete]);
-
-  const table = useReactTable({
-    data: challans,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel()
-  });
+      field: 'actions',
+      headerName: 'Actions',
+      width: 200,
+      sortable: false,
+      headerAlign: 'center',
+      align: 'center',
+      renderCell: (params: GridRenderCellParams) => (
+        <Box>
+          <Tooltip title="View">
+            <IconButton
+              size="small"
+              onClick={() => handlePreview(params.row)}
+              sx={{ color: 'primary.main' }}
+            >
+              <VisibilityIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Download PDF">
+            <IconButton
+              size="small"
+              onClick={(e) => handlePrintMenuOpen(e, params.row)}
+              sx={{ color: 'primary.main' }}
+            >
+              <PictureAsPdfIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Convert">
+            <IconButton
+              size="small"
+              onClick={() => handleConvertClick(params.row)}
+              sx={{ color: 'primary.main' }}
+            >
+              <SwapHorizIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Edit">
+            <IconButton
+              size="small"
+              onClick={() => navigate(`/dc/edit/${params.row.id}`)}
+              sx={{ color: 'primary.main' }}
+            >
+              <EditIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Delete">
+            <IconButton
+              size="small"
+              onClick={() => handleDelete(params.row.id, params.row.dc_number)}
+              sx={{ color: 'error.main' }}
+            >
+              <DeleteIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      ),
+    },
+  ];
 
   return (
-    <div>
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Delivery Challan List</h1>
-          <p className="page-subtitle">View and manage all delivery challans</p>
-        </div>
-      </div>
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      {/* Header */}
+      <Paper
+        elevation={0}
+        sx={{
+          p: 2,
+          mb: 2,
+          borderRadius: 2,
+          border: '1px solid',
+          borderColor: 'divider',
+        }}
+      >
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <LocalShippingIcon color="primary" />
+            <Typography variant="h6" fontFamily="Inter" fontWeight={600} sx={{ fontSize: '18px' }}>
+              Delivery Challans
+            </Typography>
+            <Chip
+              label={`${filteredChallans.length} challans`}
+              size="small"
+              sx={{ ml: 1, fontFamily: 'Inter', fontSize: '12px' }}
+            />
+          </Box>
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            <Button
+              variant={showFilters ? 'contained' : 'outlined'}
+              size="small"
+              startIcon={<FilterListIcon />}
+              onClick={() => setShowFilters(!showFilters)}
+              sx={{ fontSize: '12px', textTransform: 'none' }}
+            >
+              Filters
+            </Button>
+            <TextField
+              size="small"
+              placeholder="Search challans..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              sx={{ width: 250, '& .MuiInputBase-input': { fontSize: '12px' } }}
+            />
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => navigate('/dc/new')}
+              sx={{ fontFamily: 'Inter', textTransform: 'none', fontSize: '12px' }}
+            >
+              Add DC
+            </Button>
+          </Box>
+        </Box>
 
-      <div className="filter-bar">
-        <div className="filter-group">
-          <label className="filter-label">Project</label>
-          <select 
-            name="projectId" 
-            className="filter-input"
-            value={filters.projectId}
-            onChange={handleFilterChange}
-          >
-            <option value="">All Projects</option>
-            {projects.map(p => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
-          </select>
-        </div>
-        
-        <div className="filter-group">
-          <label className="filter-label">From Date</label>
-          <input 
-            type="date" 
-            name="startDate"
-            className="filter-input"
-            value={filters.startDate}
-            onChange={handleFilterChange}
-          />
-        </div>
-        
-        <div className="filter-group">
-          <label className="filter-label">To Date</label>
-          <input 
-            type="date" 
-            name="endDate"
-            className="filter-input"
-            value={filters.endDate}
-            onChange={handleFilterChange}
-          />
-        </div>
-        
-        <div className="filter-group">
-          <label className="filter-label">Status</label>
-          <select 
-            name="status"
-            className="filter-input"
-            value={filters.status}
-            onChange={handleFilterChange}
-          >
-            <option value="all">All</option>
-            <option value="active">Active</option>
-            <option value="Not sent">Not sent</option>
-            <option value="Quoted">Quoted</option>
-            <option value="cancelled">Cancelled</option>
-          </select>
-        </div>
-        
-        <div className="filter-group" style={{ alignSelf: 'flex-end' }}>
-          <button className="btn btn-primary btn-sm" onClick={applyFilters}>
-            Apply Filters
-          </button>
-        </div>
-      </div>
+        {/* Filter Section */}
+        {showFilters && (
+          <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid', borderColor: 'divider' }}>
+            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+              <FormControl size="small" sx={{ minWidth: 180 }}>
+                <InputLabel sx={{ fontSize: '12px' }}>Project</InputLabel>
+                <Select
+                  name="projectId"
+                  value={filters.projectId}
+                  onChange={handleFilterChange}
+                  label="Project"
+                  sx={{ fontSize: '12px' }}
+                >
+                  <MenuItem value="" sx={{ fontSize: '12px' }}>All Projects</MenuItem>
+                  {projects.map((p: any) => (
+                    <MenuItem key={p.id} value={p.id} sx={{ fontSize: '12px' }}>{p.name}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
 
-      <div className="card">
-        {loading ? (
-          <div className="loading">
-            <div className="spinner"></div>
-          </div>
-        ) : challans.length === 0 ? (
-          <div className="empty-state">
-            <h3>No Delivery Challans Found</h3>
-            <p>Create your first delivery challan to get started.</p>
-          </div>
-        ) : (
-          <div className="table-container">
-            <table className="table">
-              <thead>
-                {table.getHeaderGroups().map(headerGroup => (
-                  <tr key={headerGroup.id}>
-                    {headerGroup.headers.map(header => (
-                      <th key={header.id}>
-                        {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
-                      </th>
-                    ))}
-                  </tr>
-                ))}
-              </thead>
-              <tbody>
-                {table.getRowModel().rows.map(row => (
-                  <tr key={row.id}>
-                    {row.getVisibleCells().map(cell => (
-                      <td key={cell.id}>
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 4px', borderTop: '1px solid #e5e7eb', fontSize: '12px', color: '#6b7280' }}>
-              <span>
-                Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{' '}
-                {Math.min((table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize, challans.length)} of{' '}
-                {challans.length} results
-              </span>
-              <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-                <button
-                  className="btn btn-sm btn-secondary"
-                  onClick={() => table.previousPage()}
-                  disabled={!table.getCanPreviousPage()}
-                  style={{ padding: '4px 10px', fontSize: '12px' }}
+              <TextField
+                size="small"
+                type="date"
+                name="startDate"
+                label="From Date"
+                value={filters.startDate}
+                onChange={handleFilterChange}
+                InputLabelProps={{ shrink: true }}
+                sx={{ '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' }, width: 150 }}
+              />
+
+              <TextField
+                size="small"
+                type="date"
+                name="endDate"
+                label="To Date"
+                value={filters.endDate}
+                onChange={handleFilterChange}
+                InputLabelProps={{ shrink: true }}
+                sx={{ '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' }, width: 150 }}
+              />
+
+              <FormControl size="small" sx={{ minWidth: 150 }}>
+                <InputLabel sx={{ fontSize: '12px' }}>Status</InputLabel>
+                <Select
+                  name="status"
+                  value={filters.status}
+                  onChange={handleFilterChange}
+                  label="Status"
+                  sx={{ fontSize: '12px' }}
                 >
-                  Prev
-                </button>
-                {Array.from({ length: table.getPageCount() }, (_, i) => i).map(pageNum => (
-                  <button
-                    key={pageNum}
-                    className={`btn btn-sm ${table.getState().pagination.pageIndex === pageNum ? 'btn-primary' : 'btn-secondary'}`}
-                    onClick={() => table.setPageIndex(pageNum)}
-                    style={{ padding: '4px 10px', fontSize: '12px', minWidth: '36px' }}
-                  >
-                    {pageNum + 1}
-                  </button>
-                ))}
-                <button
-                  className="btn btn-sm btn-secondary"
-                  onClick={() => table.nextPage()}
-                  disabled={!table.getCanNextPage()}
-                  style={{ padding: '4px 10px', fontSize: '12px' }}
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-          </div>
+                  <MenuItem value="all" sx={{ fontSize: '12px' }}>All</MenuItem>
+                  <MenuItem value="active" sx={{ fontSize: '12px' }}>Active</MenuItem>
+                  <MenuItem value="Not sent" sx={{ fontSize: '12px' }}>Not sent</MenuItem>
+                  <MenuItem value="Quoted" sx={{ fontSize: '12px' }}>Quoted</MenuItem>
+                  <MenuItem value="cancelled" sx={{ fontSize: '12px' }}>Cancelled</MenuItem>
+                </Select>
+              </FormControl>
+
+              <Button
+                variant="contained"
+                size="small"
+                onClick={applyFilters}
+                sx={{ fontSize: '12px', textTransform: 'none', alignSelf: 'flex-end' }}
+              >
+                Apply Filters
+              </Button>
+            </Box>
+          </Box>
         )}
-      </div>
+      </Paper>
+
+      {/* DataGrid */}
+      <Paper
+        elevation={0}
+        sx={{
+          flex: 1,
+          borderRadius: 2,
+          border: '1px solid',
+          borderColor: 'divider',
+          overflow: 'hidden',
+        }}
+      >
+        <DataGrid
+          rows={filteredChallans}
+          columns={columns}
+          loading={loading}
+          density="compact"
+          disableRowSelectionOnClick
+          hideFooterSelectedRowCount
+          sx={{
+            fontFamily: 'Inter, sans-serif',
+            '& .MuiDataGrid-cell': {
+              fontSize: '12px',
+              fontFamily: 'Inter, sans-serif',
+            },
+            '& .MuiDataGrid-columnHeader': {
+              fontSize: '12px',
+              fontWeight: 600,
+              fontFamily: 'Inter, sans-serif',
+              backgroundColor: 'grey.50',
+            },
+            '& .MuiDataGrid-row:hover': {
+              backgroundColor: 'action.hover',
+            },
+          }}
+          pageSizeOptions={[25, 50, 100]}
+          initialState={{
+            pagination: {
+              paginationModel: { pageSize: 25 },
+            },
+          }}
+        />
+      </Paper>
+
+      {/* Print Menu */}
+      <Menu
+        anchorEl={printAnchorEl}
+        open={Boolean(printAnchorEl)}
+        onClose={handlePrintMenuClose}
+        PaperProps={{
+          sx: { minWidth: 200 }
+        }}
+      >
+        <Box sx={{ px: 2, py: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
+          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '11px' }}>
+            Select Template
+          </Typography>
+        </Box>
+        {templates.length > 0 ? (
+          templates.map((t: any) => (
+            <MenuItem
+              key={t.id}
+              onClick={() => {
+                handlePrintDC(printMenuDC, t.id);
+                handlePrintMenuClose();
+              }}
+              sx={{ fontSize: '12px' }}
+            >
+              {t.template_name} {t.is_default && '(Default)'}
+            </MenuItem>
+          ))
+        ) : (
+          <MenuItem
+            onClick={() => {
+              handlePrintDC(printMenuDC, null);
+              handlePrintMenuClose();
+            }}
+            sx={{ fontSize: '12px' }}
+          >
+            Default Template
+          </MenuItem>
+        )}
+      </Menu>
 
       {/* Convert Modal */}
-      {showConvertModal && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0, 0, 0, 0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
-        }} onClick={() => setShowConvertModal(false)}>
-          <div style={{
-            background: 'white',
-            borderRadius: '12px',
-            padding: '24px',
-            width: '400px',
-            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)'
-          }} onClick={e => e.stopPropagation()}>
-            <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', color: '#1e293b' }}>
-              Convert DC: {convertDC?.dc_number}
-            </h3>
-            <p style={{ margin: '0 0 20px 0', fontSize: '14px', color: '#6b7280' }}>
-              Select an option to convert this Delivery Challan
-            </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <button 
-                className="btn btn-primary"
-                onClick={handleConvertToQuotation}
-                style={{ width: '100%', justifyContent: 'center' }}
-              >
-                Convert to Quotation
-              </button>
-              <button 
-                className="btn btn-secondary"
-                onClick={handleConvertToProforma}
-                style={{ width: '100%', justifyContent: 'center' }}
-              >
-                Convert to Proforma Invoice
-              </button>
-            </div>
-            <button 
-              onClick={() => setShowConvertModal(false)}
-              style={{
-                marginTop: '16px',
-                width: '100%',
-                padding: '10px',
-                background: 'none',
-                border: 'none',
-                color: '#6b7280',
-                cursor: 'pointer',
-                fontSize: '14px'
-              }}
+      <Dialog
+        open={showConvertModal}
+        onClose={() => setShowConvertModal(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ fontFamily: 'Inter', fontWeight: 600, fontSize: '16px' }}>
+          Convert DC: {convertDC?.dc_number}
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ fontSize: '12px', mb: 2 }}>
+            Select an option to convert this Delivery Challan
+          </Typography>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+            <Button
+              variant="contained"
+              onClick={handleConvertToQuotation}
+              sx={{ fontSize: '12px', textTransform: 'none' }}
             >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
+              Convert to Quotation
+            </Button>
+            <Button
+              variant="outlined"
+              onClick={handleConvertToProforma}
+              sx={{ fontSize: '12px', textTransform: 'none' }}
+            >
+              Convert to Proforma Invoice
+            </Button>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => setShowConvertModal(false)}
+            sx={{ fontSize: '12px', textTransform: 'none' }}
+          >
+            Cancel
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Preview Modal */}
-      {showPreview && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0, 0, 0, 0.7)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
-        }} onClick={() => setShowPreview(false)}>
-          <div style={{
-            background: 'white',
-            borderRadius: '12px',
-            width: '95%',
-            maxWidth: '900px',
-            maxHeight: '90vh',
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden'
-          }} onClick={e => e.stopPropagation()}>
-            <div style={{
-              padding: '16px 24px',
-              borderBottom: '1px solid #e5e7eb',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center'
-            }}>
-              <h3 style={{ margin: 0, fontSize: '18px', color: '#1e293b' }}>
-                Preview: {previewDC?.dc_number}
-              </h3>
-              <div style={{ display: 'flex', gap: '12px' }}>
-                <button 
-                  className="btn btn-primary"
-                  onClick={() => {
-                    const printWindow = window.open('', '_blank');
-                    printWindow.document.write(previewHtml);
-                    printWindow.document.close();
-                    printWindow.print();
-                  }}
-                >
-                  Print
-                </button>
-                <button 
-                  onClick={() => setShowPreview(false)}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    fontSize: '24px',
-                    cursor: 'pointer',
-                    color: '#666',
-                    lineHeight: 1
-                  }}
-                >
-                  &times;
-                </button>
-              </div>
-            </div>
-            <div style={{ flex: 1, overflow: 'auto', background: '#f3f4f6', padding: '20px' }}>
-              <iframe 
-                srcDoc={previewHtml}
-                title="Delivery Challan Preview"
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  minHeight: '600px',
-                  border: 'none',
-                  background: 'white',
-                  borderRadius: '8px'
-                }}
-              />
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+      <Dialog
+        open={showPreview}
+        onClose={() => setShowPreview(false)}
+        maxWidth="lg"
+        fullWidth
+        PaperProps={{
+          sx: { height: '90vh' }
+        }}
+      >
+        <DialogTitle sx={{ fontFamily: 'Inter', fontWeight: 600, fontSize: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span>Preview: {previewDC?.dc_number}</span>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Button
+              variant="contained"
+              size="small"
+              onClick={() => {
+                const printWindow = window.open('', '_blank');
+                printWindow?.document.write(previewHtml);
+                printWindow?.document.close();
+                printWindow?.print();
+              }}
+              sx={{ fontSize: '12px', textTransform: 'none' }}
+            >
+              Print
+            </Button>
+            <IconButton onClick={() => setShowPreview(false)} size="small">
+              <DeleteIcon fontSize="small" />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+        <DialogContent sx={{ p: 0, bgcolor: 'grey.100' }}>
+          <iframe
+            srcDoc={previewHtml}
+            title="Delivery Challan Preview"
+            style={{
+              width: '100%',
+              height: '100%',
+              border: 'none',
+              background: 'white',
+            }}
+          />
+        </DialogContent>
+      </Dialog>
+    </Box>
   );
 }

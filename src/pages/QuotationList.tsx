@@ -6,6 +6,21 @@ import { formatDate, formatCurrency } from '../utils/formatters';
 import { useAuth } from '../App';
 import { getPrintSettings } from '../utils/printSettings';
 import { timedSupabaseQuery } from '../utils/queryTimeout';
+import {
+  Box,
+  Paper,
+  Typography,
+  Button,
+  TextField,
+  Chip,
+  IconButton,
+  Tooltip,
+} from '@mui/material';
+import {
+  Add as AddIcon,
+  Description as DescriptionIcon,
+  MoreVert as MoreVertIcon,
+} from '@mui/icons-material';
 
 const QUOTATION_STATUSES = ['All', 'Draft', 'Sent', 'Under Negotiation', 'Approved', 'Rejected', 'Converted', 'Cancelled', 'Expired'];
 
@@ -63,7 +78,6 @@ export default function QuotationList() {
   const [activeTab,   setActiveTab]   = useState('details');
   const [searchTerm,  setSearchTerm]  = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
-  const [openMenu,    setOpenMenu]    = useState(false);
   const [startIndex,  setStartIndex]  = useState(0);
 
   const sidebarScrollRef = useRef<HTMLDivElement>(null);
@@ -405,47 +419,76 @@ export default function QuotationList() {
 
       {/* ── Left Sidebar ── */}
       <div style={{ width: '350px', borderRight: '1px solid #e5e7eb', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ padding: '16px', borderBottom: '1px solid #e5e7eb' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-            <div style={{ position: 'relative' }}>
-              <button
-                onClick={() => setOpenMenu(!openMenu)}
-                style={{ background: 'none', border: 'none', fontSize: '16px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}
+        {/* Material-UI Header */}
+        <Paper elevation={0} sx={{ p: 2, borderRadius: 0, borderBottom: '1px solid', borderColor: 'divider' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <DescriptionIcon color="primary" sx={{ fontSize: 20 }} />
+              <Typography variant="h6" fontFamily="Inter" fontWeight={600} fontSize="14px">
+                Quotations
+              </Typography>
+              <Chip
+                label={filteredQuotations.length}
+                size="small"
+                sx={{ fontSize: '11px', height: '20px', bgcolor: 'grey.100' }}
+              />
+            </Box>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Tooltip title="More options">
+                <IconButton size="small" sx={{ color: 'text.secondary' }}>
+                  <MoreVertIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <Button
+                variant="contained"
+                size="small"
+                startIcon={<AddIcon />}
+                onClick={() => navigate('/quotation/create')}
+                sx={{ fontSize: '12px', textTransform: 'none' }}
               >
-                All Quotes <span style={{ fontSize: '10px' }}>▼</span>
-              </button>
-              {openMenu && (
-                <div style={{ position: 'absolute', top: '100%', left: 0, zIndex: 100, background: '#fff', border: '1px solid #e5e7eb', borderRadius: '6px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', minWidth: '180px' }}>
-                  {QUOTATION_STATUSES.map(s => (
-                    <div
-                      key={s}
-                      onClick={() => { setStatusFilter(s); setOpenMenu(false); }}
-                      style={{
-                        padding: '8px 16px', fontSize: '13px', cursor: 'pointer',
-                        background: statusFilter === s ? '#eff6ff' : '#fff',
-                        fontWeight: statusFilter === s ? 600 : 400,
-                      }}
-                    >
-                      {s}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button className="btn btn-primary" style={{ padding: '4px 10px', borderRadius: '4px' }} onClick={() => navigate('/quotation/create')}>+</button>
-              <button style={{ background: 'none', border: '1px solid #e5e7eb', padding: '4px 8px', borderRadius: '4px' }}>...</button>
-            </div>
-          </div>
-          <input
-            type="text"
-            placeholder="Search quotes..."
-            className="form-input"
-            style={{ height: '32px', fontSize: '13px' }}
+                Create Quotation
+              </Button>
+            </Box>
+          </Box>
+
+          {/* Status Filter Buttons */}
+          <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
+            {QUOTATION_STATUSES.slice(0, 6).map((status) => (
+              <Button
+                key={status}
+                size="small"
+                variant={statusFilter === status ? 'contained' : 'text'}
+                onClick={() => setStatusFilter(status)}
+                sx={{
+                  fontSize: '11px',
+                  textTransform: 'none',
+                  minWidth: 'auto',
+                  px: 1.5,
+                  py: 0.5,
+                  bgcolor: statusFilter === status ? 'primary.main' : 'transparent',
+                  color: statusFilter === status ? 'primary.contrastText' : 'text.secondary',
+                  '&:hover': {
+                    bgcolor: statusFilter === status ? 'primary.dark' : 'action.hover',
+                  },
+                }}
+              >
+                {status}
+              </Button>
+            ))}
+          </Box>
+
+          {/* Search Field */}
+          <TextField
+            fullWidth
+            size="small"
+            placeholder="Search by quote number or client..."
             value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            sx={{
+              '& .MuiInputBase-input': { fontSize: '12px' },
+            }}
           />
-        </div>
+        </Paper>
 
         <div style={{ flex: 1, overflowY: 'auto' }} ref={sidebarScrollRef} onScroll={onSidebarScroll}>
           {loading ? (

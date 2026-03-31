@@ -21,7 +21,11 @@ export default function SettingsPage() {
     vendor_prefix: 'VEN',
     vendor_start_number: 1,
     vendor_suffix: '',
-    vendor_padding: 3
+    vendor_padding: 3,
+    po_prefix: 'PO',
+    po_start_number: 1,
+    po_suffix: '',
+    po_padding: 4,
   });
   const [loadingDocSettings, setLoadingDocSettings] = useState(false);
 
@@ -36,7 +40,11 @@ export default function SettingsPage() {
             vendor_prefix: data.vendor_prefix || 'VEN',
             vendor_start_number: data.vendor_start_number || 1,
             vendor_suffix: data.vendor_suffix || '',
-            vendor_padding: data.vendor_padding || 3
+            vendor_padding: data.vendor_padding || 3,
+            po_prefix: data.po_prefix || 'PO',
+            po_start_number: data.po_start_number || 1,
+            po_suffix: data.po_suffix || '',
+            po_padding: data.po_padding || 4
           });
         }
       });
@@ -62,6 +70,10 @@ export default function SettingsPage() {
         vendor_start_number: docSettings.vendor_start_number,
         vendor_suffix: docSettings.vendor_suffix,
         vendor_padding: docSettings.vendor_padding,
+        po_prefix: docSettings.po_prefix,
+        po_start_number: docSettings.po_start_number,
+        po_suffix: docSettings.po_suffix,
+        po_padding: docSettings.po_padding,
         updated_at: new Date().toISOString()
       }, { onConflict: 'organisation_id' });
       
@@ -169,6 +181,76 @@ export default function SettingsPage() {
             <span style={{ fontSize: '22px', fontWeight: 'bold', color: '#2c3e50', fontFamily: 'monospace', letterSpacing: '1px' }}>
               {generatePreview()}
             </span>
+          </div>
+          
+          <div style={{ marginTop: '24px' }}>
+            <h4 style={{ marginBottom: '16px', fontSize: '16px', color: '#333', borderBottom: '2px solid #27ae60', paddingBottom: '8px' }}>Purchase Order Number Series</h4>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div className="form-group" style={{ width: '100%' }}>
+                <label className="form-label">PO Prefix</label>
+                <input 
+                  type="text" 
+                  className="form-input" 
+                  value={docSettings.po_prefix}
+                  onChange={e => setDocSettings({...docSettings, po_prefix: e.target.value})}
+                  placeholder="PO (e.g., PO, PUR, ORDER)"
+                  style={{ maxWidth: '300px' }}
+                />
+              </div>
+              
+              <div className="form-group" style={{ width: '100%' }}>
+                <label className="form-label">PO Starting Number</label>
+                <input 
+                  type="number" 
+                  className="form-input" 
+                  value={docSettings.po_start_number}
+                  onChange={e => setDocSettings({...docSettings, po_start_number: parseInt(e.target.value) || 1})}
+                  placeholder="1"
+                  style={{ maxWidth: '300px' }}
+                />
+              </div>
+              
+              <div className="form-group" style={{ width: '100%' }}>
+                <label className="form-label">PO Suffix</label>
+                <input 
+                  type="text" 
+                  className="form-input" 
+                  value={docSettings.po_suffix}
+                  onChange={e => setDocSettings({...docSettings, po_suffix: e.target.value})}
+                  placeholder="(optional, e.g., -2024, -FY24)"
+                  style={{ maxWidth: '300px' }}
+                />
+              </div>
+              
+              <div className="form-group" style={{ width: '100%' }}>
+                <label className="form-label">PO Padding (digits)</label>
+                <input 
+                  type="number" 
+                  className="form-input" 
+                  value={docSettings.po_padding}
+                  onChange={e => setDocSettings({...docSettings, po_padding: parseInt(e.target.value) || 4})}
+                  min="1"
+                  max="10"
+                  placeholder="4"
+                  style={{ maxWidth: '300px' }}
+                />
+                <small style={{ display: 'block', marginTop: '4px', color: '#666', fontSize: '12px' }}>
+                  Number of digits with leading zeros (e.g., 4 = 0001, 5 = 00001)
+                </small>
+              </div>
+            </div>
+            
+            <div style={{ marginTop: '20px', padding: '16px', background: '#f0fff4', borderRadius: '8px', border: '2px solid #27ae60', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '14px', color: '#555' }}>Next PO number will be:</span>
+              <span style={{ fontSize: '22px', fontWeight: 'bold', color: '#2c3e50', fontFamily: 'monospace', letterSpacing: '1px' }}>
+                {(() => {
+                  const startNum = parseInt(docSettings.po_start_number) || 1;
+                  const paddedNum = String(startNum).padStart(parseInt(docSettings.po_padding) || 4, '0');
+                  return `${docSettings.po_prefix || 'PO'}${paddedNum}${docSettings.po_suffix || ''}`;
+                })()}
+              </span>
+            </div>
           </div>
           
           <button 

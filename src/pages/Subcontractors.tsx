@@ -2,6 +2,32 @@ import { useState, useEffect } from 'react';
 import type { ChangeEvent } from 'react';
 import { supabase } from '../supabase';
 import { useAuth } from '../App';
+import {
+  Box,
+  Paper,
+  Typography,
+  Button,
+  TextField,
+  Chip,
+  IconButton,
+  Tooltip,
+  Grid,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+} from '@mui/material';
+import {
+  DataGrid,
+  GridColDef,
+  GridRenderCellParams,
+} from '@mui/x-data-grid';
+import {
+  Add as AddIcon,
+  Edit as EditIcon,
+  Visibility as VisibilityIcon,
+  Business as BusinessIcon,
+} from '@mui/icons-material';
 
 function getCurrentQueryParams() {
   const hashQuery = window.location.hash.split('?')[1];
@@ -23,56 +49,236 @@ export function SubcontractorDashboard({ onNavigate }: WithNavigate) {
   const [subcontractors, setSubcontractors] = useState<any[]>([])
   const [filter, setFilter] = useState('all')
   const [searchTerm, setSearchTerm] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => { loadData() }, [filter, organisation?.id])
 
   const loadData = async () => {
     if (!organisation?.id) return;
+    setIsLoading(true)
     let query = supabase.from('subcontractors').select('*').eq('organisation_id', organisation.id).order('created_at', { ascending: false })
     if (filter === 'active') query = query.eq('status', 'Active')
     else if (filter === 'inactive') query = query.eq('status', 'Inactive')
     const { data } = await query
     setSubcontractors(data || [])
+    setIsLoading(false)
   }
 
-  const filtered = subcontractors.filter(s => s.company_name?.toLowerCase().includes(searchTerm.toLowerCase()))
+  const filtered = subcontractors.filter(s => 
+    s.company_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    s.contact_person?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    s.nature_of_work?.toLowerCase().includes(searchTerm.toLowerCase())
+  )
+
+  const columns: GridColDef[] = [
+    {
+      field: 'company_name',
+      headerName: 'Company Name',
+      width: 200,
+      renderCell: (params: GridRenderCellParams) => (
+        <Box>
+          <Typography variant="body2" fontWeight="500" fontFamily="Inter" sx={{ fontSize: '12px' }}>
+            {params.value}
+          </Typography>
+          <Typography variant="caption" color="text.secondary" fontFamily="Inter" sx={{ fontSize: '11px' }}>
+            {params.row.contact_person}
+          </Typography>
+        </Box>
+      ),
+    },
+    {
+      field: 'contact_person',
+      headerName: 'Contact Person',
+      width: 150,
+      renderCell: (params: GridRenderCellParams) => (
+        <Typography variant="body2" fontFamily="Inter" sx={{ fontSize: '12px' }}>
+          {params.value || '-'}
+        </Typography>
+      ),
+    },
+    {
+      field: 'phone',
+      headerName: 'Phone',
+      width: 120,
+      renderCell: (params: GridRenderCellParams) => (
+        <Typography variant="body2" fontFamily="Inter" sx={{ fontSize: '12px' }}>
+          {params.value || '-'}
+        </Typography>
+      ),
+    },
+    {
+      field: 'nature_of_work',
+      headerName: 'Nature of Work',
+      width: 180,
+      renderCell: (params: GridRenderCellParams) => (
+        <Tooltip title={params.value || ''} arrow>
+          <Typography
+            variant="body2"
+            fontFamily="Inter"
+            sx={{
+              fontSize: '12px',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {params.value || '-'}
+          </Typography>
+        </Tooltip>
+      ),
+    },
+    {
+      field: 'status',
+      headerName: 'Status',
+      width: 100,
+      headerAlign: 'center',
+      align: 'center',
+      renderCell: (params: GridRenderCellParams) => (
+        <Chip
+          label={params.value}
+          size="small"
+          color={params.value === 'Active' ? 'success' : 'default'}
+          sx={{ fontSize: '11px', fontFamily: 'Inter' }}
+        />
+      ),
+    },
+    {
+      field: 'actions',
+      headerName: 'Actions',
+      width: 120,
+      sortable: false,
+      headerAlign: 'center',
+      align: 'center',
+      renderCell: (params: GridRenderCellParams) => (
+        <Box>
+          <Tooltip title="View">
+            <IconButton
+              size="small"
+              onClick={() => { window.subToView = params.row; onNavigate('/subcontractors/view?id=' + params.row.id) }}
+              sx={{ color: 'primary.main' }}
+            >
+              <VisibilityIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      ),
+    },
+  ];
 
   return (
-    <div>
-      <div className="page-header">
-        <h1 className="page-title">Sub-Contractors</h1>
-        <button className="btn btn-primary" onClick={() => onNavigate('/subcontractors/new')}>+ Add Sub-Contractor</button>
-      </div>
-      <div className="card" style={{ marginBottom: '16px' }}>
-        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
-          <button className={`btn ${filter === 'all' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setFilter('all')}>All</button>
-          <button className={`btn ${filter === 'active' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setFilter('active')}>Active</button>
-          <button className={`btn ${filter === 'inactive' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setFilter('inactive')}>Inactive</button>
-          <input type="text" className="form-input" placeholder="Search..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} style={{ width: '200px', marginLeft: 'auto' }} />
-        </div>
-      </div>
-      <div className="card">
-        {filtered.length === 0 ? <div className="empty-state"><h3>No Sub-Contractors</h3></div> : (
-          <div className="table-container">
-            <table className="table">
-              <thead><tr><th>Company</th><th>Contact Person</th><th>Phone</th><th>Nature of Work</th><th>Status</th><th>Actions</th></tr></thead>
-              <tbody>{filtered.map(s => (
-                <tr key={s.id}>
-                  <td>{s.company_name}</td>
-                  <td>{s.contact_person || '-'}</td>
-                  <td>{s.phone || '-'}</td>
-                  <td>{s.nature_of_work || '-'}</td>
-                  <td><span style={{ padding: '4px 8px', borderRadius: '4px', background: s.status === 'Active' ? '#d4edda' : '#f8d7da', fontSize: '12px' }}>{s.status}</span></td>
-                  <td>
-                    <button className="btn btn-sm btn-secondary" onClick={() => { window.subToView = s; onNavigate('/subcontractors/view?id=' + s.id) }}>View</button>
-                  </td>
-                </tr>
-              ))}</tbody>
-            </table>
-          </div>
-        )}
-      </div>
-    </div>
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      {/* Header */}
+      <Paper
+        elevation={0}
+        sx={{
+          p: 2,
+          mb: 2,
+          borderRadius: 2,
+          border: '1px solid',
+          borderColor: 'divider',
+        }}
+      >
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <BusinessIcon color="primary" />
+            <Typography variant="h6" fontFamily="Inter" fontWeight={600} sx={{ fontSize: '18px' }}>
+              Sub-Contractors
+            </Typography>
+            <Chip
+              label={`${filtered.length} sub-contractors`}
+              size="small"
+              sx={{ ml: 1, fontFamily: 'Inter', fontSize: '12px' }}
+            />
+          </Box>
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Button
+                variant={filter === 'all' ? 'contained' : 'outlined'}
+                size="small"
+                onClick={() => setFilter('all')}
+                sx={{ fontSize: '12px', textTransform: 'none' }}
+              >
+                All
+              </Button>
+              <Button
+                variant={filter === 'active' ? 'contained' : 'outlined'}
+                size="small"
+                onClick={() => setFilter('active')}
+                sx={{ fontSize: '12px', textTransform: 'none' }}
+              >
+                Active
+              </Button>
+              <Button
+                variant={filter === 'inactive' ? 'contained' : 'outlined'}
+                size="small"
+                onClick={() => setFilter('inactive')}
+                sx={{ fontSize: '12px', textTransform: 'none' }}
+              >
+                Inactive
+              </Button>
+            </Box>
+            <TextField
+              size="small"
+              placeholder="Search sub-contractors..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              sx={{ width: 250, '& .MuiInputBase-input': { fontSize: '12px' } }}
+            />
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => onNavigate('/subcontractors/new')}
+              sx={{ fontFamily: 'Inter', textTransform: 'none', fontSize: '12px' }}
+            >
+              Add Sub-Contractor
+            </Button>
+          </Box>
+        </Box>
+      </Paper>
+
+      {/* DataGrid */}
+      <Paper
+        elevation={0}
+        sx={{
+          flex: 1,
+          borderRadius: 2,
+          border: '1px solid',
+          borderColor: 'divider',
+          overflow: 'hidden',
+        }}
+      >
+        <DataGrid
+          rows={filtered}
+          columns={columns}
+          loading={isLoading}
+          density="compact"
+          disableRowSelectionOnClick
+          hideFooterSelectedRowCount
+          sx={{
+            fontFamily: 'Inter, sans-serif',
+            '& .MuiDataGrid-cell': {
+              fontSize: '13px',
+              fontFamily: 'Inter, sans-serif',
+            },
+            '& .MuiDataGrid-columnHeader': {
+              fontSize: '12px',
+              fontWeight: 600,
+              fontFamily: 'Inter, sans-serif',
+              backgroundColor: 'grey.50',
+            },
+            '& .MuiDataGrid-row:hover': {
+              backgroundColor: 'action.hover',
+            },
+          }}
+          pageSizeOptions={[25, 50, 100]}
+          initialState={{
+            pagination: {
+              paginationModel: { pageSize: 25 },
+            },
+          }}
+        />
+      </Paper>
+    </Box>
   )
 }
 
@@ -87,7 +293,7 @@ export function CreateSubcontractor({ onSuccess, onCancel, editMode, subData }: 
 
   const indianStates = ['Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh', 'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka', 'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur', 'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha', 'Punjab', 'Rajasthan', 'Sikkim', 'Tamil Nadu', 'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal', 'Delhi', 'Jammu and Kashmir', 'Ladakh', 'Puducherry']
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!organisation?.id) {
       alert('No organization selected')
@@ -96,49 +302,242 @@ export function CreateSubcontractor({ onSuccess, onCancel, editMode, subData }: 
     setSaving(true)
     try {
       if (editMode && subData?.id) {
-        await supabase.from('subcontractors').update(formData).eq('id', subData.id)
+        const { error } = await supabase.from('subcontractors').update(formData).eq('id', subData.id)
+        if (error) throw error
       } else {
-        await supabase.from('subcontractors').insert({ ...formData, organisation_id: organisation.id })
+        const { error } = await supabase.from('subcontractors').insert({ ...formData, organisation_id: organisation.id })
+        if (error) throw error
       }
       onSuccess()
-    } catch (err) { alert('Error: ' + err.message) }
+    } catch (err: any) { 
+      console.error('Error saving subcontractor:', err)
+      alert('Error saving subcontractor: ' + (err?.message || err?.error?.message || 'Unknown error')) 
+    }
     setSaving(false)
   }
 
   return (
-    <div>
-      <div className="page-header"><h1 className="page-title">{editMode ? 'Edit' : 'Add'} Sub-Contractor</h1></div>
-      <div className="card" style={{ maxHeight: 'calc(100vh - 200px)', overflowY: 'auto' }}>
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <Paper
+        elevation={0}
+        sx={{
+          p: 2,
+          mb: 2,
+          borderRadius: 2,
+          border: '1px solid',
+          borderColor: 'divider',
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <BusinessIcon color="primary" />
+          <Typography variant="h6" fontFamily="Inter" fontWeight={600} sx={{ fontSize: '18px' }}>
+            {editMode ? 'Edit' : 'Add'} Sub-Contractor
+          </Typography>
+        </Box>
+      </Paper>
+
+      <Paper
+        elevation={0}
+        sx={{
+          flex: 1,
+          borderRadius: 2,
+          border: '1px solid',
+          borderColor: 'divider',
+          p: 3,
+          overflow: 'auto',
+        }}
+      >
         <form onSubmit={handleSubmit}>
-          <div className="form-row">
-            <div className="form-group"><label className="form-label">Company Name *</label><input type="text" className="form-input" value={formData.company_name} onChange={e => setFormData({...formData, company_name: e.target.value})} required /></div>
-            <div className="form-group"><label className="form-label">Contact Person</label><input type="text" className="form-input" value={formData.contact_person} onChange={e => setFormData({...formData, contact_person: e.target.value})} /></div>
-          </div>
-          <div className="form-row">
-            <div className="form-group"><label className="form-label">Phone</label><input type="text" className="form-input" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} /></div>
-            <div className="form-group"><label className="form-label">Email</label><input type="email" className="form-input" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} /></div>
-          </div>
-          <div className="form-row">
-            <div className="form-group"><label className="form-label">State</label><select className="form-select" value={formData.state} onChange={e => setFormData({...formData, state: e.target.value})}><option value="">Select</option>{indianStates.map(st => <option key={st} value={st}>{st}</option>)}</select></div>
-            <div className="form-group"><label className="form-label">GSTIN</label><input type="text" className="form-input" value={formData.gstin} onChange={e => setFormData({...formData, gstin: e.target.value.toUpperCase()})} maxLength={15} /></div>
-          </div>
-          <div className="form-group"><label className="form-label">Address</label><textarea className="form-textarea" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} rows={2} /></div>
-          <div className="form-row">
-            <div className="form-group"><label className="form-label">Nature of Work</label><input type="text" className="form-input" value={formData.nature_of_work} onChange={e => setFormData({...formData, nature_of_work: e.target.value})} placeholder="e.g., Electrical, Plumbing, HVAC" /></div>
-            <div className="form-group"><label className="form-label">Status</label><select className="form-select" value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})}><option value="Active">Active</option><option value="Inactive">Inactive</option></select></div>
-          </div>
-          <div className="form-row">
-            <div className="form-group"><label className="form-label"><input type="checkbox" checked={formData.nda_signed} onChange={e => setFormData({...formData, nda_signed: e.target.checked})} /> NDA Signed</label><input type="date" className="form-input" value={formData.nda_date} onChange={e => setFormData({...formData, nda_date: e.target.value})} /></div>
-            <div className="form-group"><label className="form-label"><input type="checkbox" checked={formData.contract_signed} onChange={e => setFormData({...formData, contract_signed: e.target.checked})} /> Contract Signed</label><input type="date" className="form-input" value={formData.contract_date} onChange={e => setFormData({...formData, contract_date: e.target.value})} /></div>
-          </div>
-          <div className="form-group"><label className="form-label">Internal Remarks</label><textarea className="form-textarea" value={formData.internal_remarks} onChange={e => setFormData({...formData, internal_remarks: e.target.value})} rows={2} /></div>
-          <div style={{ display: 'flex', gap: '12px', marginTop: '12px' }}>
-            <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Saving...' : (editMode ? 'Update' : 'Save')}</button>
-            <button type="button" className="btn btn-secondary" onClick={onCancel}>Cancel</button>
-          </div>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {/* Row 1: Company Name, Contact Person, Phone */}
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <TextField
+                sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
+                label="Company Name *"
+                value={formData.company_name}
+                onChange={(e) => setFormData({...formData, company_name: e.target.value})}
+                size="small"
+                required
+              />
+              <TextField
+                sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
+                label="Contact Person"
+                value={formData.contact_person}
+                onChange={(e) => setFormData({...formData, contact_person: e.target.value})}
+                size="small"
+              />
+              <TextField
+                sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
+                label="Phone"
+                value={formData.phone}
+                onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                size="small"
+              />
+            </Box>
+
+            {/* Row 2: Email, GSTIN, State */}
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <TextField
+                sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
+                label="Email"
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({...formData, email: e.target.value})}
+                size="small"
+              />
+              <TextField
+                sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
+                label="GSTIN"
+                value={formData.gstin}
+                onChange={(e) => setFormData({...formData, gstin: e.target.value.toUpperCase()})}
+                size="small"
+                inputProps={{ maxLength: 15 }}
+              />
+              <FormControl sx={{ flex: 1 }} size="small">
+                <InputLabel sx={{ fontSize: '12px' }}>State</InputLabel>
+                <Select
+                  value={formData.state}
+                  onChange={(e) => setFormData({...formData, state: e.target.value})}
+                  label="State"
+                  sx={{ fontSize: '12px' }}
+                >
+                  <MenuItem value="" sx={{ fontSize: '12px' }}><em>Select State</em></MenuItem>
+                  {indianStates.map(st => <MenuItem key={st} value={st} sx={{ fontSize: '12px' }}>{st}</MenuItem>)}
+                </Select>
+              </FormControl>
+            </Box>
+
+            {/* Row 3: Address (full width) */}
+            <TextField
+              fullWidth
+              label="Address"
+              multiline
+              rows={2}
+              value={formData.address}
+              onChange={(e) => setFormData({...formData, address: e.target.value})}
+              size="small"
+              sx={{ '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
+            />
+
+            {/* Row 4: Nature of Work, Status */}
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <TextField
+                sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
+                label="Nature of Work"
+                value={formData.nature_of_work}
+                onChange={(e) => setFormData({...formData, nature_of_work: e.target.value})}
+                size="small"
+                placeholder="e.g., Electrical, Plumbing, HVAC"
+              />
+              <FormControl sx={{ flex: 1 }} size="small">
+                <InputLabel sx={{ fontSize: '12px' }}>Status</InputLabel>
+                <Select
+                  value={formData.status}
+                  onChange={(e) => setFormData({...formData, status: e.target.value})}
+                  label="Status"
+                  sx={{ fontSize: '12px' }}
+                >
+                  <MenuItem value="Active" sx={{ fontSize: '12px' }}>Active</MenuItem>
+                  <MenuItem value="Inactive" sx={{ fontSize: '12px' }}>Inactive</MenuItem>
+                </Select>
+              </FormControl>
+              <Box sx={{ flex: 1 }} />
+            </Box>
+
+            {/* NDA and Contract Section */}
+            <Typography variant="subtitle2" sx={{ mt: 2, mb: 1, fontFamily: 'Inter', fontSize: '13px', fontWeight: 600 }}>
+              Documents & Agreements
+            </Typography>
+
+            {/* Row 5: NDA and Contract */}
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', gap: 2 }}>
+                <FormControl size="small">
+                  <InputLabel sx={{ fontSize: '12px' }}>NDA Signed</InputLabel>
+                  <Select
+                    value={formData.nda_signed ? 'yes' : 'no'}
+                    onChange={(e) => setFormData({...formData, nda_signed: e.target.value === 'yes'})}
+                    label="NDA Signed"
+                    sx={{ fontSize: '12px', width: 120 }}
+                  >
+                    <MenuItem value="no" sx={{ fontSize: '12px' }}>No</MenuItem>
+                    <MenuItem value="yes" sx={{ fontSize: '12px' }}>Yes</MenuItem>
+                  </Select>
+                </FormControl>
+                {formData.nda_signed && (
+                  <TextField
+                    type="date"
+                    label="NDA Date"
+                    value={formData.nda_date}
+                    onChange={(e) => setFormData({...formData, nda_date: e.target.value})}
+                    size="small"
+                    InputLabelProps={{ shrink: true }}
+                    sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
+                  />
+                )}
+              </Box>
+              <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', gap: 2 }}>
+                <FormControl size="small">
+                  <InputLabel sx={{ fontSize: '12px' }}>Contract Signed</InputLabel>
+                  <Select
+                    value={formData.contract_signed ? 'yes' : 'no'}
+                    onChange={(e) => setFormData({...formData, contract_signed: e.target.value === 'yes'})}
+                    label="Contract Signed"
+                    sx={{ fontSize: '12px', width: 120 }}
+                  >
+                    <MenuItem value="no" sx={{ fontSize: '12px' }}>No</MenuItem>
+                    <MenuItem value="yes" sx={{ fontSize: '12px' }}>Yes</MenuItem>
+                  </Select>
+                </FormControl>
+                {formData.contract_signed && (
+                  <TextField
+                    type="date"
+                    label="Contract Date"
+                    value={formData.contract_date}
+                    onChange={(e) => setFormData({...formData, contract_date: e.target.value})}
+                    size="small"
+                    InputLabelProps={{ shrink: true }}
+                    sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
+                  />
+                )}
+              </Box>
+            </Box>
+
+            {/* Row 6: Internal Remarks */}
+            <TextField
+              fullWidth
+              label="Internal Remarks"
+              multiline
+              rows={3}
+              value={formData.internal_remarks}
+              onChange={(e) => setFormData({...formData, internal_remarks: e.target.value})}
+              size="small"
+              sx={{ '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
+            />
+
+            {/* Actions */}
+            <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
+              <Button 
+                type="submit" 
+                variant="contained" 
+                disabled={saving || !formData.company_name}
+                sx={{ fontSize: '12px', textTransform: 'none' }}
+              >
+                {saving ? 'Saving...' : (editMode ? 'Update' : 'Save')}
+              </Button>
+              <Button 
+                type="button" 
+                variant="outlined" 
+                onClick={onCancel}
+                sx={{ fontSize: '12px', textTransform: 'none' }}
+              >
+                Cancel
+              </Button>
+            </Box>
+          </Box>
         </form>
-      </div>
-    </div>
+      </Paper>
+    </Box>
   )
 }
 

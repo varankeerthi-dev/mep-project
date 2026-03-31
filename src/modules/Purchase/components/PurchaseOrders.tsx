@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Paper,
@@ -9,7 +9,6 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  Grid,
   FormControl,
   InputLabel,
   Select,
@@ -46,6 +45,7 @@ import {
 import { useAuth } from '../../../contexts/AuthContext';
 import { usePurchaseOrders, useVendors, useCreatePurchaseOrder, useUpdatePOStatus } from '../hooks/usePurchaseQueries';
 import { generatePOPDF, downloadPDF, openPDFPreview } from '../utils/pdfGenerator';
+import { supabase } from '../../../supabase';
 
 const APPROVAL_STEPS = ['Draft', 'Pending Approval', 'Approved', 'Sent', 'Acknowledged', 'Partially Received', 'Completed'];
 
@@ -60,8 +60,11 @@ const GST_RATES = [0, 5, 12, 18, 28];
 
 interface POItem {
   id?: string;
+  item_id?: string;
   sr: number;
   item_name: string;
+  make: string;
+  variant: string;
   description: string;
   hsn_code: string;
   quantity: number;
@@ -85,6 +88,7 @@ export const PurchaseOrders: React.FC = () => {
   const [activeStep, setActiveStep] = useState(0);
   const [selectedPO, setSelectedPO] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [poNumber, setPoNumber] = useState('');
   const [currency, setCurrency] = useState('INR');
   const [exchangeRate, setExchangeRate] = useState(1);
   const [vendorId, setVendorId] = useState('');
@@ -92,6 +96,8 @@ export const PurchaseOrders: React.FC = () => {
   const [deliveryDate, setDeliveryDate] = useState('');
   const [terms, setTerms] = useState('Net 30');
   const [items, setItems] = useState<POItem[]>([]);
+  const [materials, setMaterials] = useState<any[]>([]);
+  const [variants, setVariants] = useState<any[]>([]);
   const [totals, setTotals] = useState({
     subtotal: 0,
     discount: 0,
@@ -108,13 +114,99 @@ export const PurchaseOrders: React.FC = () => {
   const createPO = useCreatePurchaseOrder();
   const updateStatus = useUpdatePOStatus();
 
-  const handleAdd = () => {
+  // Load materials and variants on mount
+  useEffect(() => {
+    if (organisation?.id) {
+      loadMaterials();
+      loadVariants();
+    }
+  }, [organisation?.id]);
+
+  const loadMaterials = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('materials')
+        .select('id, item_code, display_name, name, hsn_code, sale_price, purchase_price, unit, gst_rate, make, item_type, uses_variant')
+        .eq('status', 'Active')
+        .order('name');
+      
+      if (error) throw error;
+      setMaterials(data || []);
+    } catch (error) {
+      console.error('Error loading materials:', error);
+    }
+  };
+
+  const loadVariants = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('company_variants')
+        .select('id, variant_name')
+        .eq('is_active', true)
+        .order('variant_name');
+      
+      if (error) throw error;
+      setVariants(data || []);
+    } catch (error) {
+      console.error('Error loading variants:', error);
+    }
+  };
+
+  const generatePONumber = async () => {
+    if (!organisation?.id) return '';
+    
+    try {
+      // Get PO settings from document_settings
+      const { data: settings, error } = await supabase
+        .from('document_settings')
+        .select('po_prefix, po_start_number, po_suffix, po_padding, po_current_number')
+        .eq('organisation_id', organisation.id)
+        .maybeSingle();
+      
+      if (error) throw error;
+      
+      if (!settings) {
+        // No settings found, generate default
+        const timestamp = Date.now().toString(36).toUpperCase();
+        return `PO-${timestamp}`;
+      }
+      
+      const prefix = settings.po_prefix || 'PO';
+      const suffix = settings.po_suffix || '';
+      const padding = settings.po_padding || 4;
+      const currentNumber = (settings.po_current_number || settings.po_start_number || 1);
+      
+      // Format number with padding
+      const paddedNumber = currentNumber.toString().padStart(padding, '0');
+      const generatedNumber = `${prefix}${paddedNumber}${suffix}`;
+      
+      // Update current number in settings
+      await supabase
+        .from('document_settings')
+        .update({ po_current_number: currentNumber + 1 })
+        .eq('organisation_id', organisation.id);
+      
+      return generatedNumber;
+    } catch (error) {
+      console.error('Error generating PO number:', error);
+      // Fallback to timestamp-based number
+      const timestamp = Date.now().toString(36).toUpperCase();
+      return `PO-${timestamp}`;
+    }
+  };
+
+  const handleAdd = async () => {
     setActiveStep(0);
     setSelectedPO(null);
     setVendorId('');
     setItems([]);
     setCurrency('INR');
     setExchangeRate(1);
+    
+    // Generate PO number
+    const newPoNumber = await generatePONumber();
+    setPoNumber(newPoNumber);
+    
     setOpenDialog(true);
   };
 
@@ -200,6 +292,8 @@ export const PurchaseOrders: React.FC = () => {
     const newItem: POItem = {
       sr: items.length + 1,
       item_name: '',
+      make: '',
+      variant: '',
       description: '',
       hsn_code: '',
       quantity: 1,
@@ -251,6 +345,7 @@ export const PurchaseOrders: React.FC = () => {
     try {
       const poData = {
         organisation_id: organisation?.id,
+        po_number: poNumber,
         po_date: poDate,
         vendor_id: vendorId,
         currency,
@@ -269,7 +364,10 @@ export const PurchaseOrders: React.FC = () => {
 
       const itemsData = items.map((item) => ({
         organisation_id: organisation?.id,
+        item_id: item.item_id,
         item_name: item.item_name,
+        make: item.make,
+        variant: item.variant,
         description: item.description,
         hsn_code: item.hsn_code,
         quantity: item.quantity,
@@ -412,9 +510,9 @@ export const PurchaseOrders: React.FC = () => {
               placeholder="Search POs..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              sx={{ width: 250 }}
+              sx={{ width: 250, '& .MuiInputBase-input': { fontSize: '12px' } }}
             />
-            <Button variant="contained" startIcon={<AddIcon />} onClick={handleAdd}>
+            <Button variant="contained" startIcon={<AddIcon />} onClick={handleAdd} sx={{ fontSize: '12px' }}>
               Create PO
             </Button>
           </Box>
@@ -440,116 +538,176 @@ export const PurchaseOrders: React.FC = () => {
 
       {/* Create PO Dialog */}
       <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="lg" fullWidth>
-        <DialogTitle sx={{ fontFamily: 'Inter', fontWeight: 600 }}>
+        <DialogTitle sx={{ fontFamily: 'Inter', fontWeight: 600, fontSize: '16px' }}>
           Create Purchase Order
         </DialogTitle>
         <DialogContent sx={{ minHeight: 500 }}>
           <Stepper activeStep={activeStep} sx={{ mb: 3 }}>
-            <Step><StepLabel>PO Details</StepLabel></Step>
-            <Step><StepLabel>Items</StepLabel></Step>
-            <Step><StepLabel>Totals</StepLabel></Step>
+            <Step><StepLabel sx={{ '& .MuiStepLabel-label': { fontSize: '12px' } }}>PO Details</StepLabel></Step>
+            <Step><StepLabel sx={{ '& .MuiStepLabel-label': { fontSize: '12px' } }}>Items</StepLabel></Step>
+            <Step><StepLabel sx={{ '& .MuiStepLabel-label': { fontSize: '12px' } }}>Totals</StepLabel></Step>
           </Stepper>
 
           {activeStep === 0 && (
-            <Grid container spacing={2}>
-              <Grid item xs={12} md={6}>
-                <Autocomplete
-                  options={vendors}
-                  getOptionLabel={(option) => option.company_name}
-                  onChange={(e, value) => setVendorId(value?.id || '')}
-                  renderInput={(params) => (
-                    <TextField {...params} label="Select Vendor *" size="small" fullWidth />
-                  )}
-                />
-              </Grid>
-              <Grid item xs={12} md={3}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {/* Row 1: PO Number and Vendor - Horizontal layout */}
+              <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
                 <TextField
-                  fullWidth
+                  size="small"
+                  label="PO Number"
+                  value={poNumber}
+                  InputProps={{ readOnly: true }}
+                  sx={{ width: 200, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
+                />
+                <Box sx={{ flex: 1 }}>
+                  <Autocomplete
+                    options={vendors}
+                    getOptionLabel={(option) => option.company_name}
+                    onChange={(e, value) => setVendorId(value?.id || '')}
+                    renderInput={(params) => (
+                      <TextField {...params} label="Select Vendor *" size="small" fullWidth sx={{ '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }} />
+                    )}
+                    sx={{ width: '100%' }}
+                  />
+                </Box>
+              </Box>
+              
+              {/* Row 2: Dates */}
+              <Box sx={{ display: 'flex', gap: 2 }}>
+                <TextField
                   type="date"
                   label="PO Date"
                   value={poDate}
                   onChange={(e) => setPoDate(e.target.value)}
                   size="small"
                   InputLabelProps={{ shrink: true }}
+                  sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
                 />
-              </Grid>
-              <Grid item xs={12} md={3}>
                 <TextField
-                  fullWidth
                   type="date"
                   label="Delivery Date"
                   value={deliveryDate}
                   onChange={(e) => setDeliveryDate(e.target.value)}
                   size="small"
                   InputLabelProps={{ shrink: true }}
+                  sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
                 />
-              </Grid>
-              <Grid item xs={12} md={4}>
-                <FormControl fullWidth size="small">
-                  <InputLabel>Currency</InputLabel>
-                  <Select value={currency} onChange={(e) => setCurrency(e.target.value)} label="Currency">
+              </Box>
+              
+              {/* Row 3: Currency, Exchange Rate, Terms */}
+              <Box sx={{ display: 'flex', gap: 2 }}>
+                <FormControl size="small" sx={{ flex: 1 }}>
+                  <InputLabel sx={{ fontSize: '12px' }}>Currency</InputLabel>
+                  <Select value={currency} onChange={(e) => setCurrency(e.target.value)} label="Currency" sx={{ fontSize: '12px' }}>
                     {CURRENCIES.map((c) => (
-                      <MenuItem key={c.code} value={c.code}>{c.code} ({c.symbol})</MenuItem>
+                      <MenuItem key={c.code} value={c.code} sx={{ fontSize: '12px' }}>{c.code} ({c.symbol})</MenuItem>
                     ))}
                   </Select>
                 </FormControl>
-              </Grid>
-              <Grid item xs={12} md={4}>
                 <TextField
-                  fullWidth
                   label="Exchange Rate"
                   type="number"
                   value={exchangeRate}
                   onChange={(e) => setExchangeRate(Number(e.target.value))}
                   size="small"
                   disabled={currency === 'INR'}
+                  sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
                 />
-              </Grid>
-              <Grid item xs={12} md={4}>
                 <TextField
-                  fullWidth
                   label="Payment Terms"
                   value={terms}
                   onChange={(e) => setTerms(e.target.value)}
                   size="small"
+                  sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
                 />
-              </Grid>
-            </Grid>
+              </Box>
+            </Box>
           )}
 
           {activeStep === 1 && (
             <Box>
-              <Button variant="outlined" startIcon={<AddIcon />} onClick={addItem} sx={{ mb: 2 }}>
+              <Button variant="outlined" startIcon={<AddIcon />} onClick={addItem} sx={{ mb: 2, fontSize: '12px' }}>
                 Add Item
               </Button>
               <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 400 }}>
                 <Table size="small" stickyHeader>
                   <TableHead>
                     <TableRow sx={{ backgroundColor: 'grey.50' }}>
-                      <TableCell width={40}>#</TableCell>
-                      <TableCell>Item Name</TableCell>
-                      <TableCell width={90}>HSN</TableCell>
-                      <TableCell width={80}>Qty</TableCell>
-                      <TableCell width={60}>Unit</TableCell>
-                      <TableCell width={100}>Rate</TableCell>
-                      <TableCell width={60}>Disc%</TableCell>
-                      <TableCell width={60}>GST%</TableCell>
-                      <TableCell width={100} align="right">Amount</TableCell>
+                      <TableCell width={40} sx={{ fontSize: '12px', fontWeight: 600 }}>#</TableCell>
+                      <TableCell sx={{ fontSize: '12px', fontWeight: 600 }}>Item Name</TableCell>
+                      <TableCell width={100} sx={{ fontSize: '12px', fontWeight: 600 }}>Make</TableCell>
+                      <TableCell width={100} sx={{ fontSize: '12px', fontWeight: 600 }}>Variant</TableCell>
+                      <TableCell width={80} sx={{ fontSize: '12px', fontWeight: 600 }}>HSN</TableCell>
+                      <TableCell width={70} sx={{ fontSize: '12px', fontWeight: 600 }}>Qty</TableCell>
+                      <TableCell width={60} sx={{ fontSize: '12px', fontWeight: 600 }}>Unit</TableCell>
+                      <TableCell width={90} sx={{ fontSize: '12px', fontWeight: 600 }}>Rate</TableCell>
+                      <TableCell width={60} sx={{ fontSize: '12px', fontWeight: 600 }}>Disc%</TableCell>
+                      <TableCell width={60} sx={{ fontSize: '12px', fontWeight: 600 }}>GST%</TableCell>
+                      <TableCell width={90} align="right" sx={{ fontSize: '12px', fontWeight: 600 }}>Amount</TableCell>
                       <TableCell width={50}></TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {items.map((item, index) => (
                       <TableRow key={index}>
-                        <TableCell>{item.sr}</TableCell>
+                        <TableCell sx={{ fontSize: '12px' }}>{item.sr}</TableCell>
+                        <TableCell>
+                          <Autocomplete
+                            size="small"
+                            options={materials}
+                            getOptionLabel={(option) => option.display_name || option.name || ''}
+                            onChange={(e, value) => {
+                              if (value) {
+                                // Update item with selected material data
+                                updateItem(index, 'item_name', value.display_name || value.name);
+                                updateItem(index, 'item_id', value.id);
+                                updateItem(index, 'hsn_code', value.hsn_code || '');
+                                updateItem(index, 'unit', value.unit || 'Nos');
+                                updateItem(index, 'rate', value.purchase_price || value.sale_price || 0);
+                                updateItem(index, 'make', value.make || '');
+                                // Set default GST from item
+                                if (value.gst_rate) {
+                                  const gst = value.gst_rate;
+                                  updateItem(index, 'cgst_percent', gst / 2);
+                                  updateItem(index, 'sgst_percent', gst / 2);
+                                  updateItem(index, 'igst_percent', gst);
+                                }
+                              }
+                            }}
+                            renderInput={(params) => (
+                              <TextField {...params} placeholder="Select item" sx={{ '& .MuiInputBase-input': { fontSize: '12px' } }} />
+                            )}
+                            sx={{ minWidth: 200 }}
+                          />
+                        </TableCell>
                         <TableCell>
                           <TextField
                             size="small"
                             fullWidth
-                            value={item.item_name}
-                            onChange={(e) => updateItem(index, 'item_name', e.target.value)}
-                            placeholder="Item name"
+                            value={item.make}
+                            onChange={(e) => updateItem(index, 'make', e.target.value)}
+                            placeholder="Make"
+                            sx={{ '& .MuiInputBase-input': { fontSize: '12px' } }}
                           />
+                        </TableCell>
+                        <TableCell>
+                          <FormControl size="small" fullWidth>
+                            <Select
+                              value={item.variant || ''}
+                              onChange={(e) => updateItem(index, 'variant', e.target.value)}
+                              displayEmpty
+                              sx={{ fontSize: '12px' }}
+                            >
+                              <MenuItem value="" sx={{ fontSize: '12px' }}>
+                                <em>Select</em>
+                              </MenuItem>
+                              {variants.map((v) => (
+                                <MenuItem key={v.id} value={v.variant_name} sx={{ fontSize: '12px' }}>
+                                  {v.variant_name}
+                                </MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
                         </TableCell>
                         <TableCell>
                           <TextField
@@ -557,6 +715,7 @@ export const PurchaseOrders: React.FC = () => {
                             fullWidth
                             value={item.hsn_code}
                             onChange={(e) => updateItem(index, 'hsn_code', e.target.value)}
+                            sx={{ '& .MuiInputBase-input': { fontSize: '12px' } }}
                           />
                         </TableCell>
                         <TableCell>
@@ -565,6 +724,7 @@ export const PurchaseOrders: React.FC = () => {
                             type="number"
                             value={item.quantity}
                             onChange={(e) => updateItem(index, 'quantity', Number(e.target.value))}
+                            sx={{ '& .MuiInputBase-input': { fontSize: '12px' } }}
                           />
                         </TableCell>
                         <TableCell>
@@ -572,6 +732,7 @@ export const PurchaseOrders: React.FC = () => {
                             size="small"
                             value={item.unit}
                             onChange={(e) => updateItem(index, 'unit', e.target.value)}
+                            sx={{ '& .MuiInputBase-input': { fontSize: '12px' } }}
                           />
                         </TableCell>
                         <TableCell>
@@ -580,6 +741,7 @@ export const PurchaseOrders: React.FC = () => {
                             type="number"
                             value={item.rate}
                             onChange={(e) => updateItem(index, 'rate', Number(e.target.value))}
+                            sx={{ '& .MuiInputBase-input': { fontSize: '12px' } }}
                           />
                         </TableCell>
                         <TableCell>
@@ -588,6 +750,7 @@ export const PurchaseOrders: React.FC = () => {
                             type="number"
                             value={item.discount_percent}
                             onChange={(e) => updateItem(index, 'discount_percent', Number(e.target.value))}
+                            sx={{ '& .MuiInputBase-input': { fontSize: '12px' } }}
                           />
                         </TableCell>
                         <TableCell>
@@ -600,15 +763,16 @@ export const PurchaseOrders: React.FC = () => {
                                 updateItem(index, 'sgst_percent', gst / 2);
                                 updateItem(index, 'igst_percent', gst);
                               }}
+                              sx={{ fontSize: '12px' }}
                             >
                               {GST_RATES.map((rate) => (
-                                <MenuItem key={rate} value={rate}>{rate}%</MenuItem>
+                                <MenuItem key={rate} value={rate} sx={{ fontSize: '12px' }}>{rate}%</MenuItem>
                               ))}
                             </Select>
                           </FormControl>
                         </TableCell>
                         <TableCell align="right">
-                          <Typography variant="body2" fontWeight="500">
+                          <Typography variant="body2" fontWeight="500" sx={{ fontSize: '12px' }}>
                             {item.total_amount.toFixed(2)}
                           </Typography>
                         </TableCell>
@@ -628,41 +792,41 @@ export const PurchaseOrders: React.FC = () => {
           {activeStep === 2 && (
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', mt: 4 }}>
               <Paper sx={{ p: 2, minWidth: 350, border: '1px solid #ddd' }}>
-                <Typography variant="subtitle2" sx={{ mb: 2, fontFamily: 'Inter', fontWeight: 600 }}>
+                <Typography variant="subtitle2" sx={{ mb: 2, fontFamily: 'Inter', fontWeight: 600, fontSize: '14px' }}>
                   Order Summary
                 </Typography>
                 <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1 }}>
-                  <Typography variant="body2" fontFamily="Inter">Subtotal:</Typography>
-                  <Typography variant="body2" fontFamily="Inter" align="right">{totals.subtotal.toFixed(2)}</Typography>
+                  <Typography variant="body2" sx={{ fontFamily: 'Inter', fontSize: '12px' }}>Subtotal:</Typography>
+                  <Typography variant="body2" sx={{ fontFamily: 'Inter', fontSize: '12px' }} align="right">{totals.subtotal.toFixed(2)}</Typography>
                   
-                  <Typography variant="body2" fontFamily="Inter">Discount:</Typography>
-                  <Typography variant="body2" fontFamily="Inter" align="right">{totals.discount.toFixed(2)}</Typography>
+                  <Typography variant="body2" sx={{ fontFamily: 'Inter', fontSize: '12px' }}>Discount:</Typography>
+                  <Typography variant="body2" sx={{ fontFamily: 'Inter', fontSize: '12px' }} align="right">{totals.discount.toFixed(2)}</Typography>
                   
-                  <Typography variant="body2" fontFamily="Inter" fontWeight={500}>Taxable Value:</Typography>
-                  <Typography variant="body2" fontFamily="Inter" align="right" fontWeight={500}>{totals.taxable.toFixed(2)}</Typography>
+                  <Typography variant="body2" sx={{ fontFamily: 'Inter', fontWeight: 500, fontSize: '12px' }}>Taxable Value:</Typography>
+                  <Typography variant="body2" sx={{ fontFamily: 'Inter', fontSize: '12px' }} align="right" fontWeight="500">{totals.taxable.toFixed(2)}</Typography>
                   
-                  <Typography variant="body2" fontFamily="Inter">CGST:</Typography>
-                  <Typography variant="body2" fontFamily="Inter" align="right">{totals.cgst.toFixed(2)}</Typography>
+                  <Typography variant="body2" sx={{ fontFamily: 'Inter', fontSize: '12px' }}>CGST:</Typography>
+                  <Typography variant="body2" sx={{ fontFamily: 'Inter', fontSize: '12px' }} align="right">{totals.cgst.toFixed(2)}</Typography>
                   
-                  <Typography variant="body2" fontFamily="Inter">SGST:</Typography>
-                  <Typography variant="body2" fontFamily="Inter" align="right">{totals.sgst.toFixed(2)}</Typography>
+                  <Typography variant="body2" sx={{ fontFamily: 'Inter', fontSize: '12px' }}>SGST:</Typography>
+                  <Typography variant="body2" sx={{ fontFamily: 'Inter', fontSize: '12px' }} align="right">{totals.sgst.toFixed(2)}</Typography>
                   
                   {totals.igst > 0 && (
                     <>
-                      <Typography variant="body2" fontFamily="Inter">IGST:</Typography>
-                      <Typography variant="body2" fontFamily="Inter" align="right">{totals.igst.toFixed(2)}</Typography>
+                      <Typography variant="body2" sx={{ fontFamily: 'Inter', fontSize: '12px' }}>IGST:</Typography>
+                      <Typography variant="body2" sx={{ fontFamily: 'Inter', fontSize: '12px' }} align="right">{totals.igst.toFixed(2)}</Typography>
                     </>
                   )}
                   
                   <Box sx={{ gridColumn: '1 / -1', height: '1px', bgcolor: 'divider', my: 1 }} />
                   
-                  <Typography variant="body1" fontFamily="Inter" fontWeight={700}>TOTAL:</Typography>
-                  <Typography variant="body1" fontFamily="Inter" align="right" fontWeight={700}>
+                  <Typography variant="body1" sx={{ fontFamily: 'Inter', fontWeight: 700, fontSize: '14px' }}>TOTAL:</Typography>
+                  <Typography variant="body1" sx={{ fontFamily: 'Inter', fontWeight: 700, fontSize: '14px' }} align="right">
                     {CURRENCIES.find(c => c.code === currency)?.symbol} {totals.total.toFixed(2)}
                   </Typography>
                   
                   {currency !== 'INR' && (
-                    <Typography variant="body2" fontFamily="Inter" color="text.secondary" sx={{ gridColumn: '1 / -1', textAlign: 'right' }}>
+                    <Typography variant="body2" sx={{ fontFamily: 'Inter', color: 'text.secondary', fontSize: '12px', gridColumn: '1 / -1', textAlign: 'right' }}>
                       (₹{totals.totalInr.toFixed(2)})
                     </Typography>
                   )}
@@ -672,14 +836,14 @@ export const PurchaseOrders: React.FC = () => {
           )}
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
+          <Button onClick={() => setOpenDialog(false)} sx={{ fontSize: '12px' }}>Cancel</Button>
           {activeStep > 0 && (
-            <Button onClick={() => setActiveStep(activeStep - 1)}>Back</Button>
+            <Button onClick={() => setActiveStep(activeStep - 1)} sx={{ fontSize: '12px' }}>Back</Button>
           )}
           {activeStep < 2 ? (
-            <Button variant="contained" onClick={() => setActiveStep(activeStep + 1)}>Next</Button>
+            <Button variant="contained" onClick={() => setActiveStep(activeStep + 1)} sx={{ fontSize: '12px' }}>Next</Button>
           ) : (
-            <Button variant="contained" onClick={handleSave} disabled={items.length === 0 || !vendorId}>
+            <Button variant="contained" onClick={handleSave} disabled={items.length === 0 || !vendorId} sx={{ fontSize: '12px' }}>
               Save PO
             </Button>
           )}

@@ -24,6 +24,18 @@ import {
   ArrowRight,
   Check
 } from 'lucide-react';
+import { 
+  Box, 
+  Paper, 
+  Typography, 
+  Button, 
+  TextField, 
+  Chip, 
+  IconButton, 
+  Tooltip 
+} from '@mui/material';
+import MapIcon from '@mui/icons-material/Map';
+import AddIcon from '@mui/icons-material/Add';
 import { toast } from 'sonner';
 import { 
   format, 
@@ -347,86 +359,125 @@ export function SiteVisits() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between py-4 gap-4">
-            <div>
-              <h1 className="text-2xl font-semibold text-gray-900">Site Visits</h1>
-              <p className="text-sm text-gray-500 mt-1">Track and manage all site visits</p>
-            </div>
-            <button
+      <Paper elevation={1} sx={{ borderBottom: 1, borderColor: 'divider' }}>
+        <Box sx={{ maxWidth: '1280px', mx: 'auto', px: { xs: 2, sm: 3, lg: 4 } }}>
+          {/* Title Row */}
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', py: 2, gap: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <MapIcon color="primary" sx={{ fontSize: 28 }} />
+              <Box>
+                <Typography variant="h6" sx={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: '16px' }}>
+                  Site Visits
+                </Typography>
+                <Typography variant="body2" sx={{ fontSize: '12px', color: 'text.secondary' }}>
+                  Track and manage all site visits
+                </Typography>
+              </Box>
+              <Chip 
+                label={`${visits?.length || 0} visits`} 
+                size="small" 
+                color="primary" 
+                variant="outlined"
+                sx={{ fontSize: '12px', height: 24 }}
+              />
+            </Box>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
               onClick={() => {
                 resetForm();
                 setSelectedVisit(null);
                 setIsFormOpen(true);
               }}
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+              sx={{ 
+                fontSize: '12px', 
+                textTransform: 'none',
+                bgcolor: '#2563eb',
+                '&:hover': { bgcolor: '#1d4ed8' }
+              }}
             >
-              <Plus className="w-4 h-4" />
-              <span className="font-medium">New Visit</span>
-            </button>
-          </div>
+              Add Site Visit
+            </Button>
+          </Box>
 
-          {/* Tabs */}
-          <div className="flex gap-6 border-t border-gray-100 mt-2">
-            <button
-              onClick={() => setActiveTab('dashboard')}
-              className={`flex items-center gap-2 px-1 py-3 border-b-2 transition-colors ${
-                activeTab === 'dashboard'
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              <LayoutDashboard className="w-4 h-4" />
-              <span className="text-sm font-medium">Dashboard</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('calendar')}
-              className={`flex items-center gap-2 px-1 py-3 border-b-2 transition-colors ${
-                activeTab === 'calendar'
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              <CalendarDays className="w-4 h-4" />
-              <span className="text-sm font-medium">Calendar</span>
-            </button>
-          </div>
-        </div>
-      </div>
+          {/* Tabs and Filters Row */}
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2, pb: 1 }}>
+            {/* Tabs */}
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Button
+                onClick={() => setActiveTab('dashboard')}
+                variant={activeTab === 'dashboard' ? 'contained' : 'text'}
+                size="small"
+                startIcon={<LayoutDashboard className="w-4 h-4" />}
+                sx={{ 
+                  fontSize: '12px', 
+                  textTransform: 'none',
+                  bgcolor: activeTab === 'dashboard' ? '#2563eb' : 'transparent',
+                  color: activeTab === 'dashboard' ? 'white' : '#374151'
+                }}
+              >
+                Dashboard
+              </Button>
+              <Button
+                onClick={() => setActiveTab('calendar')}
+                variant={activeTab === 'calendar' ? 'contained' : 'text'}
+                size="small"
+                startIcon={<CalendarDays className="w-4 h-4" />}
+                sx={{ 
+                  fontSize: '12px', 
+                  textTransform: 'none',
+                  bgcolor: activeTab === 'calendar' ? '#2563eb' : 'transparent',
+                  color: activeTab === 'calendar' ? 'white' : '#374151'
+                }}
+              >
+                Calendar
+              </Button>
+            </Box>
+
+            {/* Search and Filters */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+              <TextField
+                placeholder="Search by client, engineer, or person..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                size="small"
+                sx={{ 
+                  minWidth: 280,
+                  '& .MuiInputBase-input': { fontSize: '12px' },
+                  '& .MuiInputBase-root': { height: 32 }
+                }}
+              />
+              <Box sx={{ display: 'flex', gap: 0.5 }}>
+                {['All', 'Pending', 'Scheduled', 'Completed', 'Postponed', 'Cancelled'].map((filter) => (
+                  <Button
+                    key={filter}
+                    onClick={() => setStatusFilter(filter.toLowerCase())}
+                    variant={statusFilter === filter.toLowerCase() ? 'contained' : 'text'}
+                    size="small"
+                    sx={{ 
+                      fontSize: '12px', 
+                      textTransform: 'none',
+                      minWidth: 'auto',
+                      px: 1.5,
+                      py: 0.5,
+                      height: 32,
+                      bgcolor: statusFilter === filter.toLowerCase() ? '#2563eb' : 'transparent',
+                      color: statusFilter === filter.toLowerCase() ? 'white' : '#6b7280'
+                    }}
+                  >
+                    {filter}
+                  </Button>
+                ))}
+              </Box>
+            </Box>
+          </Box>
+        </Box>
+      </Paper>
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {activeTab === 'dashboard' ? (
           <div className="space-y-6">
-            {/* Search and Filter */}
-            <div className="bg-white rounded-lg border border-gray-200 p-4">
-              <div className="flex flex-col sm:flex-row gap-3">
-                <div className="flex-1 relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Search by client, engineer, or person..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                  />
-                </div>
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white"
-                >
-                  <option value="all">All Status</option>
-                  <option value="pending">Pending</option>
-                  <option value="scheduled">Scheduled</option>
-                  <option value="completed">Completed</option>
-                  <option value="postponed">Postponed</option>
-                  <option value="cancelled">Cancelled</option>
-                </select>
-              </div>
-            </div>
-
             {/* Visits List */}
             {isLoadingVisits ? (
               <div className="flex items-center justify-center py-12">

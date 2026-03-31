@@ -23,7 +23,7 @@ import {
   Calendar as CalendarIcon,
   LayoutDashboard
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Button as ShadcnButton } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -33,6 +33,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 import { useAuth } from '../App';
+
+// Material-UI imports
+import { Box, Paper, Typography, Button, TextField, Chip, IconButton, Tooltip } from '@mui/material';
+import ConstructionIcon from '@mui/icons-material/Construction';
+import AddIcon from '@mui/icons-material/Add';
 
 const siteReportSchema = z.object({
   client: z.string().min(1, "Client name is required"),
@@ -383,18 +388,132 @@ export function SiteReport() {
   if (view === 'list') {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">Site Reports</h1>
-            <p className="text-sm text-slate-500">View and manage daily progress reports.</p>
-          </div>
-          <Button 
-            onClick={() => setView('create')} 
-            className="bg-blue-600 hover:bg-blue-700"
-          >
-            <Plus className="w-4 h-4 mr-2" /> New Report
-          </Button>
-        </div>
+        <Paper 
+          elevation={0} 
+          sx={{ 
+            p: 3, 
+            borderRadius: 2, 
+            backgroundColor: 'background.paper',
+            border: '1px solid',
+            borderColor: 'divider'
+          }}
+        >
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <ConstructionIcon color="primary" sx={{ fontSize: 32 }} />
+              <Box>
+                <Typography 
+                  variant="h5" 
+                  component="h1" 
+                  sx={{ 
+                    fontFamily: 'Inter, sans-serif', 
+                    fontWeight: 600,
+                    fontSize: '20px',
+                    color: 'text.primary'
+                  }}
+                >
+                  Site Reports
+                </Typography>
+                <Typography 
+                  variant="body2" 
+                  sx={{ 
+                    fontSize: '12px', 
+                    color: 'text.secondary',
+                    mt: 0.5 
+                  }}
+                >
+                  View and manage daily progress reports
+                </Typography>
+              </Box>
+              <Chip 
+                label={reports?.length || 0} 
+                size="small" 
+                color="primary" 
+                sx={{ fontSize: '12px', ml: 1 }}
+              />
+            </Box>
+            
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <Button 
+                  size="small" 
+                  variant="contained" 
+                  sx={{ 
+                    fontSize: '12px',
+                    textTransform: 'none',
+                    minWidth: 'auto',
+                    px: 2
+                  }}
+                >
+                  All
+                </Button>
+                <Button 
+                  size="small" 
+                  variant="outlined" 
+                  sx={{ 
+                    fontSize: '12px',
+                    textTransform: 'none',
+                    minWidth: 'auto',
+                    px: 2
+                  }}
+                >
+                  Draft
+                </Button>
+                <Button 
+                  size="small" 
+                  variant="outlined" 
+                  sx={{ 
+                    fontSize: '12px',
+                    textTransform: 'none',
+                    minWidth: 'auto',
+                    px: 2
+                  }}
+                >
+                  Submitted
+                </Button>
+                <Button 
+                  size="small" 
+                  variant="outlined" 
+                  sx={{ 
+                    fontSize: '12px',
+                    textTransform: 'none',
+                    minWidth: 'auto',
+                    px: 2
+                  }}
+                >
+                  Approved
+                </Button>
+              </Box>
+              
+              <TextField 
+                placeholder="Search reports..." 
+                size="small" 
+                sx={{ 
+                  width: 200,
+                  '& .MuiInputBase-input': {
+                    fontSize: '12px'
+                  }
+                }}
+              />
+              
+              <Button 
+                variant="contained" 
+                startIcon={<AddIcon />}
+                onClick={() => setView('create')}
+                sx={{ 
+                  fontSize: '12px',
+                  textTransform: 'none',
+                  bgcolor: '#2563eb',
+                  '&:hover': {
+                    bgcolor: '#1d4ed8'
+                  }
+                }}
+              >
+                Create Report
+              </Button>
+            </Box>
+          </Box>
+        </Paper>
 
         <Card className="border-slate-200">
           <CardContent className="p-0">

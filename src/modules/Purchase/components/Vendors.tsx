@@ -9,7 +9,6 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  Grid,
   FormControl,
   InputLabel,
   Select,
@@ -417,228 +416,227 @@ export const Vendors: React.FC = () => {
         maxWidth="md"
         fullWidth
       >
-        <DialogTitle sx={{ fontFamily: 'Inter', fontWeight: 600 }}>
+        <DialogTitle sx={{ fontFamily: 'Inter', fontWeight: 600, fontSize: '16px' }}>
           {editMode ? 'Edit Vendor' : 'Add New Vendor'}
         </DialogTitle>
         <DialogContent>
-          <Grid container spacing={2} sx={{ mt: 0.5 }}>
-            <Grid item xs={12} md={6}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+            {/* Row 1: Company Name, Contact Person, Email */}
+            <Box sx={{ display: 'flex', gap: 2 }}>
               <TextField
-                fullWidth
+                sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
                 label="Company Name *"
                 value={formData.company_name}
                 onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
                 size="small"
+                required
               />
-            </Grid>
-            <Grid item xs={12} md={6}>
               <TextField
-                fullWidth
+                sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
                 label="Contact Person"
                 value={formData.contact_person}
                 onChange={(e) => setFormData({ ...formData, contact_person: e.target.value })}
                 size="small"
               />
-            </Grid>
-            <Grid item xs={12} md={6}>
               <TextField
-                fullWidth
+                sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
                 label="Email"
                 type="email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 size="small"
               />
-            </Grid>
-            <Grid item xs={12} md={6}>
+            </Box>
+            
+            {/* Row 2: Phone, GSTIN, PAN */}
+            <Box sx={{ display: 'flex', gap: 2 }}>
               <TextField
-                fullWidth
+                sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
                 label="Phone"
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 size="small"
               />
-            </Grid>
-            <Grid item xs={12} md={6}>
               <TextField
-                fullWidth
+                sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
                 label="GSTIN"
                 value={formData.gstin}
                 onChange={(e) => setFormData({ ...formData, gstin: e.target.value.toUpperCase() })}
                 size="small"
               />
-            </Grid>
-            <Grid item xs={12} md={6}>
               <TextField
-                fullWidth
+                sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
                 label="PAN"
                 value={formData.pan}
                 onChange={(e) => setFormData({ ...formData, pan: e.target.value.toUpperCase() })}
                 size="small"
               />
-            </Grid>
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                label="Address"
-                multiline
-                rows={2}
-                value={formData.address}
-                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                size="small"
-              />
-            </Grid>
-            <Grid item xs={12} md={4}>
-              <FormControl fullWidth size="small">
-                <InputLabel>State</InputLabel>
+            </Box>
+            
+            {/* Row 3: Address (full width) */}
+            <TextField
+              fullWidth
+              label="Address"
+              multiline
+              rows={2}
+              value={formData.address}
+              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+              size="small"
+              sx={{ '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
+            />
+            
+            {/* Row 4: State, Pincode, Currency */}
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <FormControl sx={{ flex: 1 }} size="small">
+                <InputLabel sx={{ fontSize: '12px' }}>State</InputLabel>
                 <Select
                   value={formData.state}
                   onChange={(e) => setFormData({ ...formData, state: e.target.value })}
                   label="State"
+                  sx={{ fontSize: '12px' }}
                 >
                   {INDIAN_STATES.map((state) => (
-                    <MenuItem key={state} value={state}>
+                    <MenuItem key={state} value={state} sx={{ fontSize: '12px' }}>
                       {state}
                     </MenuItem>
                   ))}
                 </Select>
               </FormControl>
-            </Grid>
-            <Grid item xs={12} md={4}>
               <TextField
-                fullWidth
+                sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
                 label="Pincode"
                 value={formData.pincode}
                 onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
                 size="small"
               />
-            </Grid>
-            <Grid item xs={12} md={4}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Default Currency</InputLabel>
+              <FormControl sx={{ flex: 1 }} size="small">
+                <InputLabel sx={{ fontSize: '12px' }}>Default Currency</InputLabel>
                 <Select
                   value={formData.default_currency}
                   onChange={(e) => setFormData({ ...formData, default_currency: e.target.value })}
                   label="Default Currency"
+                  sx={{ fontSize: '12px' }}
                 >
                   {CURRENCIES.map((curr) => (
-                    <MenuItem key={curr} value={curr}>
+                    <MenuItem key={curr} value={curr} sx={{ fontSize: '12px' }}>
                       {curr}
                     </MenuItem>
                   ))}
                 </Select>
               </FormControl>
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Payment Terms</InputLabel>
+            </Box>
+            
+            {/* Row 5: Payment Terms, Credit Limit, Status */}
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <FormControl sx={{ flex: 1 }} size="small">
+                <InputLabel sx={{ fontSize: '12px' }}>Payment Terms</InputLabel>
                 <Select
                   value={formData.payment_terms}
                   onChange={(e) => setFormData({ ...formData, payment_terms: e.target.value })}
                   label="Payment Terms"
+                  sx={{ fontSize: '12px' }}
                 >
                   {PAYMENT_TERMS.map((term) => (
-                    <MenuItem key={term} value={term}>
+                    <MenuItem key={term} value={term} sx={{ fontSize: '12px' }}>
                       {term}
                     </MenuItem>
                   ))}
                 </Select>
               </FormControl>
-            </Grid>
-            <Grid item xs={12} md={6}>
               <TextField
-                fullWidth
+                sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
                 label="Credit Limit"
                 type="number"
                 value={formData.credit_limit}
                 onChange={(e) => setFormData({ ...formData, credit_limit: Number(e.target.value) })}
                 size="small"
               />
-            </Grid>
-            <Grid item xs={12}>
-              <Typography variant="subtitle2" sx={{ mt: 2, mb: 1, fontFamily: 'Inter' }}>
-                Bank Details
-              </Typography>
-            </Grid>
-            <Grid item xs={12} md={6}>
+              <FormControl sx={{ flex: 1 }} size="small">
+                <InputLabel sx={{ fontSize: '12px' }}>Status</InputLabel>
+                <Select
+                  value={formData.status}
+                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                  label="Status"
+                  sx={{ fontSize: '12px' }}
+                >
+                  <MenuItem value="Active" sx={{ fontSize: '12px' }}>Active</MenuItem>
+                  <MenuItem value="Inactive" sx={{ fontSize: '12px' }}>Inactive</MenuItem>
+                </Select>
+              </FormControl>
+            </Box>
+            
+            {/* Bank Details Section */}
+            <Typography variant="subtitle2" sx={{ mt: 2, mb: 1, fontFamily: 'Inter', fontSize: '13px', fontWeight: 600 }}>
+              Bank Details
+            </Typography>
+            
+            {/* Row 6: Account Number, IFSC, Bank Name */}
+            <Box sx={{ display: 'flex', gap: 2 }}>
               <TextField
-                fullWidth
+                sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
                 label="Account Number"
                 value={formData.bank_account_no}
                 onChange={(e) => setFormData({ ...formData, bank_account_no: e.target.value })}
                 size="small"
               />
-            </Grid>
-            <Grid item xs={12} md={6}>
               <TextField
-                fullWidth
+                sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
                 label="IFSC Code"
                 value={formData.bank_ifsc}
                 onChange={(e) => setFormData({ ...formData, bank_ifsc: e.target.value.toUpperCase() })}
                 size="small"
               />
-            </Grid>
-            <Grid item xs={12} md={6}>
               <TextField
-                fullWidth
+                sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
                 label="Bank Name"
                 value={formData.bank_name}
                 onChange={(e) => setFormData({ ...formData, bank_name: e.target.value })}
                 size="small"
               />
-            </Grid>
-            <Grid item xs={12} md={6}>
+            </Box>
+            
+            {/* Row 7: Branch, Opening Balance */}
+            <Box sx={{ display: 'flex', gap: 2 }}>
               <TextField
-                fullWidth
+                sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
                 label="Branch"
                 value={formData.bank_branch}
                 onChange={(e) => setFormData({ ...formData, bank_branch: e.target.value })}
                 size="small"
               />
-            </Grid>
-            <Grid item xs={12}>
-              <Typography variant="subtitle2" sx={{ mt: 2, mb: 1, fontFamily: 'Inter' }}>
-                Remarks (Material Type / About Vendor)
-              </Typography>
               <TextField
-                fullWidth
-                multiline
-                rows={3}
-                placeholder="Describe what materials this vendor supplies (e.g., Cement, Steel, Electrical items, Plumbing materials, etc.)"
-                value={formData.remarks}
-                onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
+                sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
+                label="Opening Balance"
+                type="number"
+                value={formData.opening_balance}
+                onChange={(e) => setFormData({ ...formData, opening_balance: Number(e.target.value) })}
                 size="small"
-                helperText="This helps in quickly searching vendors by material type"
               />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Status</InputLabel>
-                <Select
-                  value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                  label="Status"
-                >
-                  <MenuItem value="Active">Active</MenuItem>
-                  <MenuItem value="Inactive">Inactive</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-          </Grid>
+              <Box sx={{ flex: 1 }} />
+            </Box>
+            
+            {/* Remarks Section */}
+            <Typography variant="subtitle2" sx={{ mt: 2, mb: 1, fontFamily: 'Inter', fontSize: '13px', fontWeight: 600 }}>
+              Remarks (Material Type / About Vendor)
+            </Typography>
+            <TextField
+              fullWidth
+              multiline
+              rows={3}
+              placeholder="Describe what materials this vendor supplies (e.g., Cement, Steel, Electrical items, Plumbing materials, etc.)"
+              value={formData.remarks}
+              onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
+              size="small"
+              helperText="This helps in quickly searching vendors by material type"
+              sx={{ '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' }, '& .MuiFormHelperText-root': { fontSize: '11px' } }}
+            />
+          </Box>
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button
-            onClick={() => setOpenDialog(false)}
-            sx={{ fontFamily: 'Inter', textTransform: 'none' }}
-          >
+          <Button onClick={() => setOpenDialog(false)} sx={{ fontFamily: 'Inter', textTransform: 'none', fontSize: '12px' }}>
             Cancel
           </Button>
-          <Button
-            variant="contained"
-            onClick={handleSave}
-            disabled={!formData.company_name}
-            sx={{ fontFamily: 'Inter', textTransform: 'none' }}
-          >
+          <Button variant="contained" onClick={handleSave} disabled={!formData.company_name} sx={{ fontFamily: 'Inter', textTransform: 'none', fontSize: '12px' }}>
             {editMode ? 'Update' : 'Save'}
           </Button>
         </DialogActions>
