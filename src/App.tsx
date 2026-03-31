@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, createContext, useContext, lazy, Suspense } from 'react';
+import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
 import type { ComponentType, LazyExoticComponent } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -6,6 +6,10 @@ import Sidebar from './components/Sidebar';
 import QuickAccessBar from './components/QuickAccessBar';
 import { supabase, getUserOrganisations, createOrganisation, signOut, initStorageBuckets } from './supabase';
 import LandingPage from './pages/LandingPage';
+import { AuthContext, type AuthContextValue, type Organisation, type OrganisationMember } from './contexts/AuthContext';
+
+export { useAuth } from './contexts/AuthContext';
+export type { AuthContextValue, Organisation, OrganisationMember };
 
 const lazyAny = (
   factory: () => Promise<{ default: ComponentType<any> }>
@@ -90,28 +94,9 @@ const SettingsPage = lazyAny(() => import('./pages/Settings'));
 const PrintSettings = lazyAny(() => import('./pages/PrintSettings'));
 const DatabaseSetup = lazyAny(() => import('./pages/DatabaseSetup'));
 
-type Organisation = {
-  id?: string;
-  name?: string;
-  [key: string]: unknown;
-};
-
-type OrganisationMember = {
-  organisation?: Organisation | null;
-  organisation_id?: string | null;
-  [key: string]: unknown;
-};
-
 type CreateOrganisationResult = {
   data?: Organisation | null;
   error?: { message?: string } | null;
-};
-
-type AuthContextValue = {
-  user: User | null;
-  organisation: Organisation | null;
-  organisations: OrganisationMember[];
-  handleLogout: () => Promise<void>;
 };
 
 type QuickAction =
@@ -121,16 +106,6 @@ type QuickAction =
   | 'remind'
   | 'search'
   | 'export';
-
-const AuthContext = createContext<AuthContextValue | null>(null);
-
-export function useAuth(): AuthContextValue {
-  const ctx = useContext(AuthContext);
-  if (!ctx) {
-    throw new Error('useAuth must be used within AuthContext provider');
-  }
-  return ctx;
-}
 
 export default function App() {
   const location = useLocation();

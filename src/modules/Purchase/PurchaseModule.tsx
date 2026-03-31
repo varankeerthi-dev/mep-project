@@ -16,7 +16,7 @@ import {
   Payment as PaymentIcon,
   Schedule as ScheduleIcon,
 } from '@mui/icons-material';
-import { useAuth } from '../../../App';
+import { useAuth } from '../../contexts/AuthContext';
 import { Vendors } from './Vendors';
 import { PurchaseOrders } from './PurchaseOrders';
 import { Bills } from './Bills';
