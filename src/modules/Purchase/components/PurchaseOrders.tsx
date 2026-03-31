@@ -26,6 +26,7 @@ import {
   TableHead,
   TableRow,
   Autocomplete,
+  Popper,
 } from '@mui/material';
 import {
   DataGrid,
@@ -656,6 +657,14 @@ export const PurchaseOrders: React.FC = () => {
                             size="small"
                             options={materials}
                             getOptionLabel={(option) => option.display_name || option.name || ''}
+                            isOptionEqualToValue={(option, value) => option.id === value?.id}
+                            filterOptions={(options, state) => {
+                              // Always return all options if input is empty or show all on focus
+                              if (!state.inputValue) return options;
+                              return options.filter(option => 
+                                (option.display_name || option.name || '').toLowerCase().includes(state.inputValue.toLowerCase())
+                              );
+                            }}
                             onChange={(e, value) => {
                               if (value) {
                                 // Update item with selected material data
@@ -675,8 +684,9 @@ export const PurchaseOrders: React.FC = () => {
                               }
                             }}
                             renderInput={(params) => (
-                              <TextField {...params} placeholder="Select item" sx={{ '& .MuiInputBase-input': { fontSize: '12px' } }} />
+                              <TextField {...params} placeholder="Search item..." sx={{ '& .MuiInputBase-input': { fontSize: '12px' } }} />
                             )}
+                            PopperComponent={(props) => <Popper {...props} style={{ zIndex: 2000 }} />}
                             sx={{ minWidth: 200 }}
                           />
                         </TableCell>
