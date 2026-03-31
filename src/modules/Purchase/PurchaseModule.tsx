@@ -17,12 +17,12 @@ import {
   Schedule as ScheduleIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
-import { Vendors } from './Vendors';
-import { PurchaseOrders } from './PurchaseOrders';
-import { Bills } from './Bills';
-import { DebitNotes } from './DebitNotes';
-import { Payments } from './Payments';
-import { PaymentQueue } from './PaymentQueue';
+import { Vendors } from './components/Vendors';
+import { PurchaseOrders } from './components/PurchaseOrders';
+import { Bills } from './components/Bills';
+import { DebitNotes } from './components/DebitNotes';
+import { Payments } from './components/Payments';
+import { PaymentQueue } from './components/PaymentQueue';
 
 const StyledTab = styled(Tab)(({ theme }) => ({
   textTransform: 'none',
