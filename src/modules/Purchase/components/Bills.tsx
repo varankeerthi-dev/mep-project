@@ -251,15 +251,31 @@ export const Bills: React.FC = () => {
                 <Paper sx={{ p: 2, minWidth: 300, border: '1px solid #ddd' }}>
                   <Typography variant="subtitle2" sx={{ mb: 1.5, fontFamily: 'Inter', fontWeight: 600 }}>Bill Summary</Typography>
                   <Box sx={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 1, alignItems: 'center' }}>
-                    <Typography variant="body2" fontFamily="Inter">Subtotal:</Typography><Typography variant="body2" fontFamily="Inter" align="right">{totals.subtotal.toFixed(2)}</Typography>
-                    <Typography variant="body2" fontFamily="Inter">Freight:</Typography><Typography variant="body2" fontFamily="Inter" align="right">{totals.freight.toFixed(2)}</Typography>
-                    <Typography variant="body2" fontFamily="Inter" fontWeight={500}>Taxable Value:</Typography><Typography variant="body2" fontFamily="Inter" align="right" fontWeight={500">{totals.taxable.toFixed(2)}</Typography>
-                    <Typography variant="body2" fontFamily="Inter">CGST:</Typography><Typography variant="body2" fontFamily="Inter" align="right">{totals.cgst.toFixed(2)}</Typography>
-                    <Typography variant="body2" fontFamily="Inter">SGST:</Typography><Typography variant="body2" fontFamily="Inter" align="right">{totals.sgst.toFixed(2)}</Typography>
+                    <Typography variant="body2" fontFamily="Inter">Subtotal:</Typography>
+                    <Typography variant="body2" fontFamily="Inter" align="right">{totals.subtotal.toFixed(2)}</Typography>
+                    
+                    <Typography variant="body2" fontFamily="Inter">Freight:</Typography>
+                    <Typography variant="body2" fontFamily="Inter" align="right">{totals.freight.toFixed(2)}</Typography>
+                    
+                    <Typography variant="body2" fontFamily="Inter" fontWeight={500}>Taxable Value:</Typography>
+                    <Typography variant="body2" fontFamily="Inter" align="right" fontWeight={500}>{totals.taxable.toFixed(2)}</Typography>
+                    
+                    <Typography variant="body2" fontFamily="Inter">CGST:</Typography>
+                    <Typography variant="body2" fontFamily="Inter" align="right">{totals.cgst.toFixed(2)}</Typography>
+                    
+                    <Typography variant="body2" fontFamily="Inter">SGST:</Typography>
+                    <Typography variant="body2" fontFamily="Inter" align="right">{totals.sgst.toFixed(2)}</Typography>
+                    
                     <Box sx={{ gridColumn: '1 / -1', height: '1px', bgcolor: 'divider', my: 1 }} />
+                    
                     <Typography variant="body1" fontFamily="Inter" fontWeight={700}>TOTAL:</Typography>
                     <Typography variant="body1" fontFamily="Inter" align="right" fontWeight={700}>{currency === 'INR' ? '₹' : currency} {totals.total.toFixed(2)}</Typography>
-                    {currency !== 'INR' && <Typography variant="caption" fontFamily="Inter" color="text.secondary" sx={{ gridColumn: '1 / -1', textAlign: 'right' }}>(₹{totals.totalInr.toFixed(2)})</Typography>}
+                    
+                    {currency !== 'INR' && (
+                      <Typography variant="caption" fontFamily="Inter" color="text.secondary" sx={{ gridColumn: '1 / -1', textAlign: 'right' }}>
+                        (₹{totals.totalInr.toFixed(2)})
+                      </Typography>
+                    )}
                   </Box>
                 </Paper>
               </Box>
