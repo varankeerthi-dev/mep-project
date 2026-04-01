@@ -3,13 +3,15 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../supabase';
 import { useAuth } from '../App';
 import { toast } from 'sonner';
+import { useForm, useFieldArray, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 
 // shadcn/ui components
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Textarea } from '../components/ui/textarea';
-import { Select, SelectTrigger, SelectValue } from '../components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { Badge } from '../components/ui/badge';
@@ -28,14 +30,8 @@ import {
   CheckCircle2,
   AlertCircle,
   Briefcase,
+  User,
 } from 'lucide-react';
-
-interface CreateClientProps {
-  onSuccess: () => void;
-  onCancel: () => void;
-  editMode?: boolean;
-  clientData?: any;
-}
 
 const indianStates = [
   'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
@@ -59,35 +55,82 @@ const gstStateCodes: Record<string, string> = {
   '33': 'Telangana', '34': 'Andhra Pradesh', '35': 'Ladakh'
 };
 
+const clientSchema = z.object({
+  client_name: z.string().min(1, 'Client name is required'),
+  category: z.string().default('Active'),
+  gstin: z.string().length(15, 'GSTIN must be 15 characters').optional().or(z.literal('')),
+  vendor_no: z.string().optional(),
+  address1: z.string().min(1, 'Address Line 1 is required'),
+  address2: z.string().optional(),
+  city: z.string().min(1, 'City is required'),
+  state: z.string().min(1, 'State is required'),
+  pincode: z.string().min(6, 'Pincode must be at least 6 characters'),
+  remarks: z.string().optional(),
+  about_client: z.string().optional(),
+  discount_type: z.string().default('Special'),
+  standard_pricelist_id: z.string().optional(),
+  contacts: z.array(z.object({
+    name: z.string().min(1, 'Contact name is required'),
+    designation: z.string().optional(),
+    phone: z.string().min(1, 'Phone is required'),
+    email: z.string().email('Invalid email').optional().or(z.literal('')),
+    type: z.string().default('secondary'),
+  })).min(1, 'At least one contact is required'),
+});
+
+type ClientFormValues = z.infer<typeof clientSchema>;
+
+interface CreateClientProps {
+  onSuccess: () => void;
+  onCancel: () => void;
+  editMode?: boolean;
+  clientData?: any;
+}
+
 export function CreateClient({ onSuccess, onCancel, editMode, clientData }: CreateClientProps) {
   const { organisation, organisations } = useAuth();
   const queryClient = useQueryClient();
   const isAdmin = organisations?.find((o: any) => o.organisation?.id === organisation?.id)?.role?.toString().toLowerCase() === 'admin';
   
-  const [activeTab, setActiveTab] = useState('basic');
+  const [activeTab, setActiveTab] = useState('details');
   const [loading, setLoading] = useState(false);
-  
-  // Form State
-  const [formData, setFormData] = useState({
-    client_name: '',
-    category: 'Active',
-    gstin: '',
-    vendor_no: '',
-    address1: '',
-    address2: '',
-    city: '',
-    state: '',
-    pincode: '',
-    remarks: '',
-    about_client: '',
-    discount_type: 'Special',
-    standard_pricelist_id: '',
+
+  const {
+    register,
+    control,
+    handleSubmit,
+    setValue,
+    watch,
+    reset,
+    formState: { errors },
+  } = useForm<ClientFormValues>({
+    resolver: zodResolver(clientSchema),
+    defaultValues: {
+      client_name: '',
+      category: 'Active',
+      gstin: '',
+      vendor_no: '',
+      address1: '',
+      address2: '',
+      city: '',
+      state: '',
+      pincode: '',
+      remarks: '',
+      about_client: '',
+      discount_type: 'Special',
+      standard_pricelist_id: '',
+      contacts: [{ name: '', designation: '', phone: '', email: '', type: 'primary' }],
+    },
   });
 
-  // Contacts State
-  const [contacts, setContacts] = useState([
-    { name: '', designation: '', phone: '', email: '', type: 'primary' },
-  ]);
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: 'contacts',
+  });
+
+  const watchGstin = watch('gstin');
+  const watchState = watch('state');
+  const watchDiscountType = watch('discount_type');
 
   // Shipping Addresses State
   const [shippingAddresses, setShippingAddresses] = useState<any[]>([]);
@@ -106,7 +149,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
   // Load existing data if edit mode
   useEffect(() => {
     if (editMode && clientData) {
-      setFormData({
+      reset({
         client_name: clientData.client_name || '',
         category: clientData.category || 'Active',
         gstin: clientData.gstin || '',
@@ -120,13 +163,11 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
         about_client: clientData.about_client || '',
         discount_type: clientData.discount_type || 'Special',
         standard_pricelist_id: clientData.standard_pricelist_id || '',
+        contacts: clientData.contacts?.length > 0 ? clientData.contacts : [{ name: '', designation: '', phone: '', email: '', type: 'primary' }],
       });
-      
-      if (clientData.contacts && clientData.contacts.length > 0) {
-        setContacts(clientData.contacts);
-      }
+      if (clientData.id) fetchShippingAddresses();
     }
-  }, [editMode, clientData]);
+  }, [editMode, clientData, reset]);
 
   // Fetch pricelists
   const { data: pricelists } = useQuery({
@@ -141,13 +182,6 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
     },
   });
 
-  // Fetch shipping addresses for edit mode
-  useEffect(() => {
-    if (editMode && clientData?.id) {
-      fetchShippingAddresses();
-    }
-  }, [editMode, clientData]);
-
   const fetchShippingAddresses = async () => {
     if (!clientData?.id) return;
     const { data } = await supabase
@@ -160,37 +194,14 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
 
   // GSTIN Auto-detection
   useEffect(() => {
-    if (formData.gstin && formData.gstin.length >= 2) {
-      const stateCode = formData.gstin.substring(0, 2);
+    if (watchGstin && watchGstin.length >= 2) {
+      const stateCode = watchGstin.substring(0, 2);
       const detectedState = gstStateCodes[stateCode];
-      if (detectedState && !formData.state) {
-        setFormData(prev => ({ ...prev, state: detectedState }));
+      if (detectedState && !watchState) {
+        setValue('state', detectedState);
       }
     }
-  }, [formData.gstin]);
-
-  // Handlers
-  const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
-
-  const handleContactChange = (index: number, field: string, value: string) => {
-    setContacts(prev => {
-      const updated = [...prev];
-      updated[index] = { ...updated[index], [field]: value };
-      return updated;
-    });
-  };
-
-  const addContact = () => {
-    setContacts(prev => [...prev, { name: '', designation: '', phone: '', email: '', type: 'secondary' }]);
-  };
-
-  const removeContact = (index: number) => {
-    if (contacts.length > 1) {
-      setContacts(prev => prev.filter((_, i) => i !== index));
-    }
-  };
+  }, [watchGstin, watchState, setValue]);
 
   const addShippingAddress = async () => {
     if (!editMode || !clientData?.id) {
@@ -221,10 +232,11 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
   };
 
   const copyBillingToShipping = () => {
+    const formData = watch();
     setNewShipping({
       ...newShipping,
       address_line1: formData.address1,
-      address_line2: formData.address2,
+      address_line2: formData.address2 || '',
       city: formData.city,
       state: formData.state,
       pincode: formData.pincode,
@@ -232,45 +244,13 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
     setShowShippingForm(true);
   };
 
-  const validateForm = () => {
-    if (!formData.client_name.trim()) {
-      toast.error('Client name is required');
-      setActiveTab('basic');
-      return false;
-    }
-    if (!formData.address1.trim()) {
-      toast.error('Billing address is required');
-      setActiveTab('address');
-      return false;
-    }
-    if (!formData.city.trim() || !formData.state || !formData.pincode.trim()) {
-      toast.error('Complete address information is required');
-      setActiveTab('address');
-      return false;
-    }
-    if (formData.gstin && formData.gstin.length !== 15) {
-      toast.error('GSTIN must be exactly 15 characters');
-      setActiveTab('basic');
-      return false;
-    }
-    const validContacts = contacts.filter(c => c.name.trim() && c.phone.trim());
-    if (validContacts.length === 0) {
-      toast.error('At least one contact with name and phone is required');
-      setActiveTab('contacts');
-      return false;
-    }
-    return true;
-  };
-
-  const handleSubmit = async () => {
-    if (!validateForm()) return;
-    
+  const onSubmit = async (data: ClientFormValues) => {
     setLoading(true);
     try {
       const payload = {
-        ...formData,
+        ...data,
         organisation_id: organisation?.id,
-        contacts: contacts.filter(c => c.name.trim()),
+        contacts: data.contacts.filter(c => c.name.trim()),
         custom_discounts: {},
       };
 
@@ -301,7 +281,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
 
   const handleDelete = async () => {
     if (!editMode || !clientData?.id) return;
-    if (!confirm(`Are you sure you want to delete client "${formData.client_name}"? This action cannot be undone.`)) return;
+    if (!confirm(`Are you sure you want to delete client "${clientData.client_name}"? This action cannot be undone.`)) return;
     
     setLoading(true);
     try {
@@ -346,7 +326,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                 Cancel
               </Button>
               <Button 
-                onClick={handleSubmit}
+                onClick={handleSubmit(onSubmit)}
                 disabled={loading}
                 className="bg-blue-600 hover:bg-blue-700"
               >
@@ -361,18 +341,10 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
       {/* Main Content */}
       <div className="max-w-5xl mx-auto px-6 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4 max-w-2xl">
-            <TabsTrigger value="basic" className="text-sm">
+          <TabsList className="grid w-full grid-cols-2 max-w-md">
+            <TabsTrigger value="details" className="text-sm">
               <Building2 className="w-4 h-4 mr-2" />
-              Basic
-            </TabsTrigger>
-            <TabsTrigger value="contacts" className="text-sm">
-              <Users className="w-4 h-4 mr-2" />
-              Contacts
-            </TabsTrigger>
-            <TabsTrigger value="address" className="text-sm">
-              <MapPin className="w-4 h-4 mr-2" />
-              Address
+              Client Details
             </TabsTrigger>
             <TabsTrigger value="pricing" className="text-sm">
               <Tag className="w-4 h-4 mr-2" />
@@ -380,13 +352,14 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
             </TabsTrigger>
           </TabsList>
 
-          {/* Basic Information Tab */}
-          <TabsContent value="basic" className="space-y-6 mt-6">
+          {/* Combined Details Tab */}
+          <TabsContent value="details" className="space-y-6 mt-6">
+            {/* Basic Info & Address Combined */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
+                <CardTitle className="text-lg flex items-center gap-2 text-slate-800">
                   <Building2 className="w-5 h-5 text-blue-600" />
-                  Basic Information
+                  Basic & Billing Information
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -396,18 +369,17 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                       Client Name <span className="text-red-500">*</span>
                     </Label>
                     <Input 
-                      value={formData.client_name}
-                      onChange={(e) => handleInputChange('client_name', e.target.value)}
+                      {...register('client_name')}
                       placeholder="Enter client name"
-                      className="h-10"
+                      className={`h-10 ${errors.client_name ? 'border-red-500' : ''}`}
                     />
+                    {errors.client_name && <p className="text-xs text-red-500">{errors.client_name.message}</p>}
                   </div>
 
                   <div className="space-y-2">
                     <Label className="text-sm font-medium">Category</Label>
                     <select 
-                      value={formData.category}
-                      onChange={(e) => handleInputChange('category', e.target.value)}
+                      {...register('category')}
                       className="w-full h-10 px-3 rounded-md border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="Active">Active</option>
@@ -415,255 +387,194 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                       <option value="Prospect">Prospect</option>
                     </select>
                   </div>
-                </div>
 
-                <div className="h-px bg-slate-200" />
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <Label className="text-sm font-medium">GSTIN</Label>
                     <Input 
-                      value={formData.gstin}
-                      onChange={(e) => handleInputChange('gstin', e.target.value.toUpperCase())}
+                      {...register('gstin')}
+                      onChange={(e) => setValue('gstin', e.target.value.toUpperCase())}
                       placeholder="15 character GSTIN"
                       maxLength={15}
-                      className="h-10 font-mono uppercase"
+                      className={`h-10 font-mono uppercase ${errors.gstin ? 'border-red-500' : ''}`}
                     />
-                    {formData.gstin && formData.gstin.length !== 15 && (
-                      <p className="text-xs text-amber-600">GSTIN should be exactly 15 characters</p>
-                    )}
+                    {errors.gstin && <p className="text-xs text-red-500">{errors.gstin.message}</p>}
                   </div>
 
                   <div className="space-y-2">
                     <Label className="text-sm font-medium">Vendor Number</Label>
                     <Input 
-                      value={formData.vendor_no}
-                      onChange={(e) => handleInputChange('vendor_no', e.target.value)}
+                      {...register('vendor_no')}
                       placeholder="Vendor registration number"
                       className="h-10"
                     />
                   </div>
                 </div>
-              </CardContent>
-            </Card>
 
-            {/* Additional Info */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Briefcase className="w-5 h-5 text-blue-600" />
-                  Additional Information
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Remarks</Label>
-                    <Textarea 
-                      value={formData.remarks}
-                      onChange={(e) => handleInputChange('remarks', e.target.value)}
-                      placeholder="Any additional remarks..."
-                      className="min-h-[80px] resize-none"
-                    />
+                <div className="h-px bg-slate-200" />
+                
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">
+                        Address Line 1 <span className="text-red-500">*</span>
+                      </Label>
+                      <Input 
+                        {...register('address1')}
+                        placeholder="Street address"
+                        className={`h-10 ${errors.address1 ? 'border-red-500' : ''}`}
+                      />
+                      {errors.address1 && <p className="text-xs text-red-500">{errors.address1.message}</p>}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Address Line 2</Label>
+                      <Input 
+                        {...register('address2')}
+                        placeholder="Apartment, suite, etc. (optional)"
+                        className="h-10"
+                      />
+                    </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">About Client</Label>
-                    <Textarea 
-                      value={formData.about_client}
-                      onChange={(e) => handleInputChange('about_client', e.target.value)}
-                      placeholder="Additional information about the client..."
-                      className="min-h-[80px] resize-none"
-                    />
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">
+                        State <span className="text-red-500">*</span>
+                      </Label>
+                      <select 
+                        {...register('state')}
+                        className={`w-full h-10 px-3 rounded-md border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.state ? 'border-red-500' : ''}`}
+                      >
+                        <option value="">Select state</option>
+                        {indianStates.map((state) => (
+                          <option key={state} value={state}>
+                            {state}
+                          </option>
+                        ))}
+                      </select>
+                      {errors.state && <p className="text-xs text-red-500">{errors.state.message}</p>}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">
+                        City <span className="text-red-500">*</span>
+                      </Label>
+                      <Input 
+                        {...register('city')}
+                        placeholder="City"
+                        className={`h-10 ${errors.city ? 'border-red-500' : ''}`}
+                      />
+                      {errors.city && <p className="text-xs text-red-500">{errors.city.message}</p>}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">
+                        Pincode <span className="text-red-500">*</span>
+                      </Label>
+                      <Input 
+                        {...register('pincode')}
+                        placeholder="Pincode"
+                        maxLength={6}
+                        className={`h-10 ${errors.pincode ? 'border-red-500' : ''}`}
+                      />
+                      {errors.pincode && <p className="text-xs text-red-500">{errors.pincode.message}</p>}
+                    </div>
                   </div>
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
 
-          {/* Contacts Tab */}
-          <TabsContent value="contacts" className="space-y-6 mt-6">
+            {/* Contacts Section */}
             <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-lg flex items-center gap-2 text-slate-800">
                   <Users className="w-5 h-5 text-blue-600" />
                   Contact Persons
                 </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-4">
-                  {contacts.map((contact, index) => (
-                    <Card key={index} className="border-slate-200">
-                      <CardContent className="p-4 space-y-4">
-                        <div className="flex items-center justify-between">
-                          <Badge variant={index === 0 ? "default" : "secondary"}>
-                            {index === 0 ? 'Primary Contact' : `Contact ${index + 1}`}
-                          </Badge>
-                          {contacts.length > 1 && (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => removeContact(index)}
-                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                            >
-                              <Trash2 className="w-4 h-4 mr-1" />
-                              Remove
-                            </Button>
-                          )}
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label className="text-xs uppercase tracking-wider text-slate-500">
-                              Name *
-                            </Label>
-                            <Input 
-                              value={contact.name}
-                              onChange={(e) => handleContactChange(index, 'name', e.target.value)}
-                              placeholder="Full name"
-                            />
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label className="text-xs uppercase tracking-wider text-slate-500">
-                              Designation
-                            </Label>
-                            <Input 
-                              value={contact.designation}
-                              onChange={(e) => handleContactChange(index, 'designation', e.target.value)}
-                              placeholder="Job title"
-                            />
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label className="text-xs uppercase tracking-wider text-slate-500">
-                              Phone *
-                            </Label>
-                            <Input 
-                              value={contact.phone}
-                              onChange={(e) => handleContactChange(index, 'phone', e.target.value)}
-                              placeholder="Phone number"
-                            />
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label className="text-xs uppercase tracking-wider text-slate-500">
-                              Email
-                            </Label>
-                            <Input 
-                              value={contact.email}
-                              onChange={(e) => handleContactChange(index, 'email', e.target.value)}
-                              placeholder="Email address"
-                              type="email"
-                            />
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={addContact}
-                  className="w-full border-dashed"
+                  size="sm"
+                  onClick={() => append({ name: '', designation: '', phone: '', email: '', type: 'secondary' })}
                 >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Contact Person
+                  <Plus className="w-4 h-4 mr-1" />
+                  Add Contact
                 </Button>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Address Tab */}
-          <TabsContent value="address" className="space-y-6 mt-6">
-            {/* Billing Address */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <MapPin className="w-5 h-5 text-emerald-600" />
-                  Billing Address
-                </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">
-                      Address Line 1 <span className="text-red-500">*</span>
-                    </Label>
-                    <Input 
-                      value={formData.address1}
-                      onChange={(e) => handleInputChange('address1', e.target.value)}
-                      placeholder="Street address"
-                    />
-                  </div>
+              <CardContent className="space-y-4">
+                {fields.map((field, index) => (
+                  <Card key={field.id} className="border-slate-200 bg-slate-50/50">
+                    <CardContent className="p-4 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <User className="w-4 h-4 text-slate-400" />
+                          <span className="text-sm font-semibold text-slate-700">
+                            {index === 0 ? 'Primary Contact' : `Secondary Contact ${index}`}
+                          </span>
+                        </div>
+                        {fields.length > 1 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => remove(index)}
+                            className="text-red-500 hover:text-red-700 hover:bg-red-50 h-8"
+                          >
+                            <Trash2 className="w-4 h-4 mr-1" />
+                            Remove
+                          </Button>
+                        )}
+                      </div>
 
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Address Line 2</Label>
-                    <Input 
-                      value={formData.address2}
-                      onChange={(e) => handleInputChange('address2', e.target.value)}
-                      placeholder="Apartment, suite, etc. (optional)"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">
-                      State <span className="text-red-500">*</span>
-                    </Label>
-                    <select 
-                      value={formData.state}
-                      onChange={(e) => handleInputChange('state', e.target.value)}
-                      className="w-full h-10 px-3 rounded-md border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">Select state</option>
-                      {indianStates.map((state) => (
-                        <option key={state} value={state}>
-                          {state}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">
-                      City <span className="text-red-500">*</span>
-                    </Label>
-                    <Input 
-                      value={formData.city}
-                      onChange={(e) => handleInputChange('city', e.target.value)}
-                      placeholder="City"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">
-                      Pincode <span className="text-red-500">*</span>
-                    </Label>
-                    <Input 
-                      value={formData.pincode}
-                      onChange={(e) => handleInputChange('pincode', e.target.value)}
-                      placeholder="Pincode"
-                      maxLength={6}
-                    />
-                  </div>
-                </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-medium text-slate-500">Name *</Label>
+                          <Input 
+                            {...register(`contacts.${index}.name` as const)}
+                            placeholder="Full name"
+                            className={`h-9 text-sm ${errors.contacts?.[index]?.name ? 'border-red-500' : ''}`}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-medium text-slate-500">Designation</Label>
+                          <Input 
+                            {...register(`contacts.${index}.designation` as const)}
+                            placeholder="Job title"
+                            className="h-9 text-sm"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-medium text-slate-500">Phone *</Label>
+                          <Input 
+                            {...register(`contacts.${index}.phone` as const)}
+                            placeholder="Phone number"
+                            className={`h-9 text-sm ${errors.contacts?.[index]?.phone ? 'border-red-500' : ''}`}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-medium text-slate-500">Email</Label>
+                          <Input 
+                            {...register(`contacts.${index}.email` as const)}
+                            placeholder="Email address"
+                            type="email"
+                            className={`h-9 text-sm ${errors.contacts?.[index]?.email ? 'border-red-500' : ''}`}
+                          />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+                {errors.contacts?.root && <p className="text-sm text-red-500">{errors.contacts.root.message}</p>}
               </CardContent>
             </Card>
 
-            {/* Shipping Addresses */}
+            {/* Shipping Addresses (Collapsible or just section) */}
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                <div>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Briefcase className="w-5 h-5 text-blue-600" />
-                    Shipping Addresses
-                  </CardTitle>
-                </div>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-lg flex items-center gap-2 text-slate-800">
+                  <MapPin className="w-5 h-5 text-emerald-600" />
+                  Shipping Addresses
+                </CardTitle>
                 <Button
                   type="button"
                   variant="outline"
@@ -671,7 +582,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                   onClick={() => setShowShippingForm(!showShippingForm)}
                 >
                   <Plus className="w-4 h-4 mr-1" />
-                  Add Address
+                  Add New
                 </Button>
               </CardHeader>
               <CardContent>
@@ -679,38 +590,35 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                   <Card className="mb-4 border-blue-200 bg-blue-50/50">
                     <CardContent className="p-4 space-y-4">
                       <div className="flex justify-between items-center">
-                        <h4 className="font-medium">New Shipping Address</h4>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setShowShippingForm(false)}
-                        >
-                          Cancel
-                        </Button>
+                        <h4 className="font-medium text-blue-900">New Shipping Address</h4>
+                        <Button type="button" variant="ghost" size="sm" onClick={() => setShowShippingForm(false)}>Cancel</Button>
                       </div>
                       
                       <div className="grid grid-cols-2 gap-4">
                         <Input 
                           value={newShipping.address_name}
                           onChange={(e) => setNewShipping({...newShipping, address_name: e.target.value})}
-                          placeholder="Address Name"
+                          placeholder="Address Name (e.g., Warehouse)"
+                          className="h-10"
                         />
                         <Input 
                           value={newShipping.contact}
                           onChange={(e) => setNewShipping({...newShipping, contact: e.target.value})}
-                          placeholder="Contact"
+                          placeholder="Contact Person Name"
+                          className="h-10"
                         />
                       </div>
                       <Input 
                         value={newShipping.address_line1}
                         onChange={(e) => setNewShipping({...newShipping, address_line1: e.target.value})}
                         placeholder="Address Line 1"
+                        className="h-10"
                       />
                       <Input 
                         value={newShipping.address_line2}
                         onChange={(e) => setNewShipping({...newShipping, address_line2: e.target.value})}
                         placeholder="Address Line 2"
+                        className="h-10"
                       />
                       <div className="grid grid-cols-3 gap-4">
                         <select 
@@ -727,11 +635,13 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                           value={newShipping.city}
                           onChange={(e) => setNewShipping({...newShipping, city: e.target.value})}
                           placeholder="City"
+                          className="h-10"
                         />
                         <Input 
                           value={newShipping.pincode}
                           onChange={(e) => setNewShipping({...newShipping, pincode: e.target.value})}
                           placeholder="Pincode"
+                          className="h-10"
                         />
                       </div>
                       <div className="flex gap-2">
@@ -744,43 +654,32 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                           <Save className="w-4 h-4 mr-1" />
                           Save Address
                         </Button>
-                        <Button 
-                          type="button"
-                          variant="outline"
-                          onClick={copyBillingToShipping}
-                        >
-                          Copy Billing
-                        </Button>
+                        <Button type="button" variant="outline" onClick={copyBillingToShipping}>Copy Billing</Button>
                       </div>
                     </CardContent>
                   </Card>
                 )}
 
                 {shippingAddresses.length === 0 ? (
-                  <div className="text-center py-8 text-slate-500">
-                    <MapPin className="w-12 h-12 mx-auto mb-3 text-slate-300" />
-                    <p>No shipping addresses added yet.</p>
-                    <p className="text-sm">Billing address will be used by default.</p>
+                  <div className="text-center py-6 text-slate-400 border-2 border-dashed border-slate-100 rounded-lg">
+                    <MapPin className="w-10 h-10 mx-auto mb-2 opacity-20" />
+                    <p className="text-sm italic">No additional shipping addresses. Billing address will be used.</p>
                   </div>
                 ) : (
-                  <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {shippingAddresses.map((addr: any, index: number) => (
                       <Card key={addr.id || index} className="border-slate-200">
-                        <CardContent className="p-4">
+                        <CardContent className="p-3">
                           <div className="flex justify-between items-start">
-                            <div>
-                              <p className="font-medium">{addr.address_name || `Address ${index + 1}`}</p>
-                              <p className="text-sm text-slate-600">{addr.address_line1}</p>
-                              {addr.address_line2 && <p className="text-sm text-slate-600">{addr.address_line2}</p>}
-                              <p className="text-sm text-slate-600">
-                                {addr.city}, {addr.state} - {addr.pincode}
-                              </p>
-                              {addr.contact && <p className="text-sm text-slate-500 mt-1">Contact: {addr.contact}</p>}
+                            <div className="space-y-0.5">
+                              <p className="text-sm font-bold text-slate-800">{addr.address_name || `Address ${index + 1}`}</p>
+                              <p className="text-xs text-slate-600 line-clamp-1">{addr.address_line1}</p>
+                              <p className="text-xs text-slate-600">{addr.city}, {addr.state} - {addr.pincode}</p>
                             </div>
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="text-red-600"
+                              className="text-red-400 hover:text-red-600 h-8 w-8"
                               onClick={() => deleteShippingAddress(addr.id)}
                             >
                               <Trash2 className="w-4 h-4" />
@@ -791,6 +690,36 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                     ))}
                   </div>
                 )}
+              </CardContent>
+            </Card>
+
+            {/* Additional Remarks */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2 text-slate-800">
+                  <Briefcase className="w-5 h-5 text-blue-600" />
+                  Internal Notes
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-slate-600">Remarks</Label>
+                    <Textarea 
+                      {...register('remarks')}
+                      placeholder="General remarks about this client..."
+                      className="min-h-[80px] resize-none"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-slate-600">About Client</Label>
+                    <Textarea 
+                      {...register('about_client')}
+                      placeholder="Background, business details, etc..."
+                      className="min-h-[80px] resize-none"
+                    />
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -808,11 +737,11 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                 <div className="space-y-2">
                   <Label className="text-sm font-medium">Discount Type</Label>
                   <select 
-                    value={formData.discount_type}
+                    {...register('discount_type')}
                     onChange={(e) => {
-                      handleInputChange('discount_type', e.target.value);
+                      setValue('discount_type', e.target.value);
                       if (e.target.value !== 'Standard') {
-                        handleInputChange('standard_pricelist_id', '');
+                        setValue('standard_pricelist_id', '');
                       }
                     }}
                     className="w-full h-10 px-3 rounded-md border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -824,14 +753,13 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                   </select>
                 </div>
 
-                {formData.discount_type === 'Standard' && (
+                {watchDiscountType === 'Standard' && (
                   <div className="space-y-2">
                     <Label className="text-sm font-medium">
                       Select Standard Price List
                     </Label>
                     <select 
-                      value={formData.standard_pricelist_id}
-                      onChange={(e) => handleInputChange('standard_pricelist_id', e.target.value)}
+                      {...register('standard_pricelist_id')}
                       className="w-full h-10 px-3 rounded-md border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="">Choose a price list</option>
@@ -846,21 +774,20 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
 
                 <div className="h-px bg-slate-200" />
 
-                {/* Discount Preview */}
                 <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
                   <h4 className="text-sm font-semibold mb-3">Portfolio Preview</h4>
-                  {formData.discount_type === 'Standard' && formData.standard_pricelist_id ? (
+                  {watchDiscountType === 'Standard' ? (
                     <div className="flex items-center gap-2 text-sm text-slate-700">
                       <CheckCircle2 className="w-4 h-4 text-green-600" />
                       <span>
-                        Standard Discount: {pricelists?.find((pl: any) => pl.id === formData.standard_pricelist_id)?.discount_percent || 0}% flat on all items
+                        Standard Discount: {pricelists?.find((pl: any) => pl.id === watch('standard_pricelist_id'))?.discount_percent || 0}% flat on all items
                       </span>
                     </div>
                   ) : (
                     <div className="flex items-center gap-2 text-sm text-slate-600">
                       <AlertCircle className="w-4 h-4 text-amber-600" />
                       <span>
-                        {formData.discount_type} discount structure will be applied
+                        {watchDiscountType} discount structure will be applied
                       </span>
                     </div>
                   )}
@@ -868,7 +795,6 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
               </CardContent>
             </Card>
 
-            {/* Custom Discounts Section - Admin Only */}
             {isAdmin && (
               <Card>
                 <CardHeader>
@@ -891,7 +817,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
         </Tabs>
 
         {/* Form Actions */}
-        <div className="flex items-center justify-between pt-6 border-t border-slate-200">
+        <div className="flex items-center justify-between pt-6 border-t border-slate-200 mt-8">
           <Button
             type="button"
             variant="outline"
@@ -916,9 +842,9 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
             )}
             <Button
               type="button"
-              onClick={handleSubmit}
+              onClick={handleSubmit(onSubmit)}
               disabled={loading}
-              className="min-w-[160px] bg-blue-600 hover:bg-blue-700"
+              className="min-w-[160px] bg-blue-600 hover:bg-blue-700 shadow-md"
             >
               {loading ? (
                 <>
