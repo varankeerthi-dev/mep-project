@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../supabase';
 import { useAuth } from '../App';
 import { toast } from 'sonner';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 
@@ -12,22 +12,26 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Textarea } from '../components/ui/textarea';
-import { Card, CardContent } from '../components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { Badge } from '../components/ui/badge';
 
 // Icons
 import {
+  Building2,
+  MapPin,
+  CreditCard,
+  Users,
+  Tag,
   Plus,
   Trash2,
   ChevronLeft,
   Save,
   CheckCircle2,
   AlertCircle,
-  Phone,
-  Mail,
-  X,
-  Copy,
-  Building,
+  Briefcase,
+  User,
+  Percent,
 } from 'lucide-react';
 
 const indianStates = [
@@ -88,9 +92,9 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
   const { organisation, organisations } = useAuth();
   const queryClient = useQueryClient();
   const isAdmin = organisations?.find((o: any) => o.organisation?.id === organisation?.id)?.role?.toString().toLowerCase() === 'admin';
-
+  
+  const [activeTab, setActiveTab] = useState('details');
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'details' | 'pricing'>('details');
 
   const {
     register,
@@ -128,7 +132,6 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
   const watchGstin = watch('gstin');
   const watchState = watch('state');
   const watchDiscountType = watch('discount_type');
-  const watchClientName = watch('client_name');
 
   // Shipping Addresses State
   const [shippingAddresses, setShippingAddresses] = useState<any[]>([]);
@@ -143,6 +146,16 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
     gstin: '',
     contact: '',
   });
+
+  const fetchShippingAddresses = async () => {
+    if (!clientData?.id) return;
+    const { data } = await supabase
+      .from('client_shipping_addresses')
+      .select('*')
+      .eq('client_id', clientData.id)
+      .order('created_at', { ascending: false });
+    setShippingAddresses(data || []);
+  };
 
   // Load existing data if edit mode
   useEffect(() => {
@@ -180,15 +193,29 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
     },
   });
 
-  const fetchShippingAddresses = async () => {
-    if (!clientData?.id) return;
-    const { data } = await supabase
-      .from('client_shipping_addresses')
-      .select('*')
-      .eq('client_id', clientData.id)
-      .order('created_at', { ascending: false });
-    setShippingAddresses(data || []);
-  };
+  // Fetch Special Discounts Mapping
+  const { data: specialSettings, isLoading: loadingSpecial } = useQuery({
+    queryKey: ['special-discount-settings'],
+    queryFn: async () => {
+      const { data: structures } = await supabase
+        .from('discount_structures')
+        .select('id')
+        .eq('structure_name', 'Special')
+        .eq('is_active', true)
+        .single();
+      
+      if (!structures) return [];
+
+      const { data: settings, error } = await supabase
+        .from('discount_variant_settings')
+        .select('*, variant:company_variants(variant_name)')
+        .eq('structure_id', structures.id);
+      
+      if (error) throw error;
+      return settings || [];
+    },
+    enabled: watchDiscountType === 'Special',
+  });
 
   // GSTIN Auto-detection
   useEffect(() => {
@@ -206,12 +233,12 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
       toast.error('Please save the client first before adding shipping addresses');
       return;
     }
-
+    
     const { error } = await supabase.from('client_shipping_addresses').insert({
       client_id: clientData.id,
       ...newShipping,
     });
-
+    
     if (error) {
       toast.error('Error adding shipping address: ' + error.message);
     } else {
@@ -238,244 +265,147 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
       city: formData.city,
       state: formData.state,
       pincode: formData.pincode,
-      gstin: formData.gstin || '',
     });
+    setShowShippingForm(true);
   };
-
-  // Mutations
-  const createClient = useMutation({
-    mutationFn: async (data: ClientFormValues) => {
-      const { data: { user } } = await supabase.auth.getUser();
-
-      const { data: result, error } = await supabase
-        .from('clients')
-        .insert({
-          organisation_id: organisation?.id,
-          client_name: data.client_name,
-          category: data.category,
-          gstin: data.gstin || null,
-          vendor_no: data.vendor_no || null,
-          address1: data.address1,
-          address2: data.address2 || null,
-          city: data.city,
-          state: data.state,
-          pincode: data.pincode,
-          remarks: data.remarks || null,
-          about_client: data.about_client || null,
-          discount_type: data.discount_type,
-          standard_pricelist_id: data.standard_pricelist_id || null,
-          contacts: data.contacts,
-          created_by: user?.id,
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-      return result;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['clients'], refetchType: 'all' });
-      toast.success('Client created successfully!');
-      onSuccess();
-    },
-    onError: (error: any) => {
-      toast.error('Error creating client: ' + error.message);
-    },
-  });
-
-  const updateClient = useMutation({
-    mutationFn: async (data: ClientFormValues) => {
-      const { error } = await supabase
-        .from('clients')
-        .update({
-          client_name: data.client_name,
-          category: data.category,
-          gstin: data.gstin || null,
-          vendor_no: data.vendor_no || null,
-          address1: data.address1,
-          address2: data.address2 || null,
-          city: data.city,
-          state: data.state,
-          pincode: data.pincode,
-          remarks: data.remarks || null,
-          about_client: data.about_client || null,
-          discount_type: data.discount_type,
-          standard_pricelist_id: data.standard_pricelist_id || null,
-          contacts: data.contacts,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', clientData.id);
-
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['clients'], refetchType: 'all' });
-      queryClient.invalidateQueries({ queryKey: ['client', clientData.id], refetchType: 'all' });
-      toast.success('Client updated successfully!');
-      onSuccess();
-    },
-    onError: (error: any) => {
-      toast.error('Error updating client: ' + error.message);
-    },
-  });
-
-  const deleteClient = useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase.from('clients').delete().eq('id', clientData.id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['clients'], refetchType: 'all' });
-      toast.success('Client deleted successfully!');
-      onSuccess();
-    },
-    onError: (error: any) => {
-      toast.error('Error deleting client: ' + error.message);
-    },
-  });
 
   const onSubmit = async (data: ClientFormValues) => {
     setLoading(true);
     try {
-      if (editMode) {
-        await updateClient.mutateAsync(data);
+      const payload = {
+        ...data,
+        organisation_id: organisation?.id,
+        contacts: data.contacts.filter(c => c.name.trim()),
+        custom_discounts: {},
+      };
+
+      if (editMode && clientData?.id) {
+        const { error } = await supabase
+          .from('clients')
+          .update(payload)
+          .eq('id', clientData.id);
+        if (error) throw error;
+        toast.success('Client updated successfully');
       } else {
-        await createClient.mutateAsync(data);
+        const clientId = 'CLT-' + Date.now().toString().slice(-6);
+        const { error } = await supabase
+          .from('clients')
+          .insert({ ...payload, client_id: clientId });
+        if (error) throw error;
+        toast.success('Client created successfully');
       }
-    } catch (error) {
-      console.error('Error saving client:', error);
+      
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+      onSuccess();
+    } catch (error: any) {
+      toast.error('Error: ' + error.message);
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = async () => {
-    if (!confirm('Are you sure you want to delete this client? This action cannot be undone.')) return;
+    if (!editMode || !clientData?.id) return;
+    if (!confirm(`Are you sure you want to delete client "${clientData.client_name}"? This action cannot be undone.`)) return;
+    
     setLoading(true);
     try {
-      await deleteClient.mutateAsync();
+      const { error } = await supabase.from('clients').delete().eq('id', clientData.id);
+      if (error) throw error;
+      toast.success('Client deleted successfully');
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+      onCancel();
+    } catch (error: any) {
+      toast.error('Error deleting client: ' + error.message);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#fafafa]">
-      {/* Modal Container - Capy Design */}
-      <div className="max-w-3xl mx-auto bg-white min-h-screen shadow-[0_20px_25px_-5px_rgba(0,0,0,0.1)]">
-        {/* Header */}
-        <div className="sticky top-0 z-50 bg-white border-b border-[#e4e4e7]">
-          <div className="px-6 py-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
+    <div className="min-h-screen bg-slate-50">
+      {/* Header */}
+      <div className="bg-white border-b border-slate-200 sticky top-0 z-10">
+        <div className="max-w-5xl mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Button 
+                variant="ghost" 
+                size="icon" 
                 onClick={onCancel}
-                className="p-2 -ml-2 rounded-lg text-[#71717a] hover:text-[#18181b] hover:bg-[#f4f4f5] transition-colors"
+                className="hover:bg-slate-100"
               >
-                <ChevronLeft className="w-5 h-5" />
-              </button>
+                <ChevronLeft className="h-5 w-5 text-slate-600" />
+              </Button>
               <div>
-                <h1 className="text-lg font-semibold text-[#18181b]">
-                  {editMode ? 'Edit Client' : 'New Client'}
+                <h1 className="text-xl font-semibold text-slate-900">
+                  {editMode ? 'Edit Client' : 'Create Client'}
                 </h1>
-                <p className="text-sm text-[#71717a]">
-                  {watchClientName || 'Enter client details'}
+                <p className="text-sm text-slate-500">
+                  {editMode ? 'Update client information' : 'Add a new client to your organization'}
                 </p>
               </div>
             </div>
-
-            <div className="flex items-center gap-2">
-              {editMode && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={handleDelete}
-                  disabled={loading}
-                  className="text-[#ef4444] hover:text-[#b91c1c] hover:bg-[#fee2e2]"
-                >
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Delete
-                </Button>
-              )}
-              <Button
-                type="button"
+            <div className="flex gap-3">
+              <Button variant="outline" onClick={onCancel} disabled={loading}>
+                Cancel
+              </Button>
+              <Button 
                 onClick={handleSubmit(onSubmit)}
                 disabled={loading}
-                className="bg-[#18181b] hover:bg-[#27272a] text-white rounded-xl"
+                className="bg-blue-600 hover:bg-blue-700"
               >
-                {loading ? (
-                  <>
-                    <div className="w-4 h-4 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <Save className="w-4 h-4 mr-2" />
-                    {editMode ? 'Update' : 'Create'}
-                  </>
-                )}
+                <Save className="w-4 h-4 mr-2" />
+                {loading ? 'Saving...' : (editMode ? 'Update' : 'Create')}
               </Button>
             </div>
           </div>
-
-          {/* Button-Style Tabs - Capy */}
-          <div className="px-6 pb-3">
-            <div className="inline-flex items-center p-1 bg-[#f4f4f5] rounded-xl">
-              <button
-                type="button"
-                onClick={() => setActiveTab('details')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                  activeTab === 'details'
-                    ? 'bg-white text-[#18181b] shadow-[0_1px_3px_0_rgba(0,0,0,0.1)]'
-                    : 'text-[#71717a] hover:text-[#18181b]'
-                }`}
-              >
-                Client Details
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab('pricing')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                  activeTab === 'pricing'
-                    ? 'bg-white text-[#18181b] shadow-[0_1px_3px_0_rgba(0,0,0,0.1)]'
-                    : 'text-[#71717a] hover:text-[#18181b]'
-                }`}
-              >
-                Pricing
-              </button>
-            </div>
-          </div>
         </div>
+      </div>
 
-        {/* Content */}
-        <div className="p-6">
-          {activeTab === 'details' ? (
-            <div className="space-y-8">
-              {/* Basic Information */}
-              <section>
-                <h3 className="text-xs font-semibold text-[#71717a] uppercase tracking-wider mb-4">
-                  Basic Information
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Main Content */}
+      <div className="max-w-5xl mx-auto px-6 py-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-2 max-w-md">
+            <TabsTrigger value="details" className="text-sm">
+              <Building2 className="w-4 h-4 mr-2" />
+              Client Details
+            </TabsTrigger>
+            <TabsTrigger value="pricing" className="text-sm">
+              <Tag className="w-4 h-4 mr-2" />
+              Pricing
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Combined Details Tab */}
+          <TabsContent value="details" className="space-y-6 mt-6">
+            {/* Basic Info & Address Combined */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2 text-slate-800">
+                  <Building2 className="w-5 h-5 text-blue-600" />
+                  Basic & Billing Information
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <Label className="text-sm text-[#3f3f46]">
-                      Client Name <span className="text-[#ef4444]">*</span>
+                    <Label className="text-sm font-medium">
+                      Client Name <span className="text-red-500">*</span>
                     </Label>
-                    <Input
+                    <Input 
                       {...register('client_name')}
-                      placeholder="Enter company name"
-                      className="h-10 bg-[#fafafa] border-[#e4e4e7] rounded-xl focus:bg-white focus:border-[#d4d4d8] focus:ring-0 transition-colors"
+                      placeholder="Enter client name"
+                      className={`h-10 ${errors.client_name ? 'border-red-500' : ''}`}
                     />
-                    {errors.client_name && (
-                      <p className="text-sm text-[#ef4444]">{errors.client_name.message}</p>
-                    )}
+                    {errors.client_name && <p className="text-xs text-red-500">{errors.client_name.message}</p>}
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-sm text-[#3f3f46]">Category</Label>
-                    <select
+                    <Label className="text-sm font-medium">Category</Label>
+                    <select 
                       {...register('category')}
-                      className="w-full h-10 px-3 bg-[#fafafa] border border-[#e4e4e7] rounded-xl text-sm focus:bg-white focus:border-[#d4d4d8] focus:outline-none transition-colors"
+                      className="w-full h-10 px-3 rounded-md border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="Active">Active</option>
                       <option value="Inactive">Inactive</option>
@@ -484,493 +414,507 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-sm text-[#3f3f46]">GSTIN</Label>
-                    <Input
+                    <Label className="text-sm font-medium">GSTIN</Label>
+                    <Input 
                       {...register('gstin')}
-                      placeholder="15-character GSTIN"
+                      onChange={(e) => setValue('gstin', e.target.value.toUpperCase())}
+                      placeholder="15 character GSTIN"
                       maxLength={15}
-                      className="h-10 bg-[#fafafa] border-[#e4e4e7] rounded-xl focus:bg-white focus:border-[#d4d4d8] focus:ring-0 font-mono uppercase transition-colors"
+                      className={`h-10 font-mono uppercase ${errors.gstin ? 'border-red-500' : ''}`}
                     />
-                    {watchGstin && watchGstin.length >= 2 && gstStateCodes[watchGstin.substring(0, 2)] && (
-                      <p className="text-xs text-[#22c55e] flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3" />
-                        {gstStateCodes[watchGstin.substring(0, 2)]}
-                      </p>
-                    )}
-                    {errors.gstin && (
-                      <p className="text-sm text-[#ef4444]">{errors.gstin.message}</p>
-                    )}
+                    {errors.gstin && <p className="text-xs text-red-500">{errors.gstin.message}</p>}
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-sm text-[#3f3f46]">Vendor Number</Label>
-                    <Input
+                    <Label className="text-sm font-medium">Vendor Number</Label>
+                    <Input 
                       {...register('vendor_no')}
-                      placeholder="Internal reference"
-                      className="h-10 bg-[#fafafa] border-[#e4e4e7] rounded-xl focus:bg-white focus:border-[#d4d4d8] focus:ring-0 transition-colors"
+                      placeholder="Vendor registration number"
+                      className="h-10"
                     />
                   </div>
                 </div>
-              </section>
 
-              {/* Address */}
-              <section>
-                <h3 className="text-xs font-semibold text-[#71717a] uppercase tracking-wider mb-4">
-                  Billing Address
-                </h3>
+                <div className="h-px bg-slate-200" />
+                
                 <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label className="text-sm text-[#3f3f46]">
-                      Address Line 1 <span className="text-[#ef4444]">*</span>
-                    </Label>
-                    <Input
-                      {...register('address1')}
-                      placeholder="Street address"
-                      className="h-10 bg-[#fafafa] border-[#e4e4e7] rounded-xl focus:bg-white focus:border-[#d4d4d8] focus:ring-0 transition-colors"
-                    />
-                    {errors.address1 && (
-                      <p className="text-sm text-[#ef4444]">{errors.address1.message}</p>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="text-sm text-[#3f3f46]">Address Line 2</Label>
-                    <Input
-                      {...register('address2')}
-                      placeholder="Apartment, suite, etc. (optional)"
-                      className="h-10 bg-[#fafafa] border-[#e4e4e7] rounded-xl focus:bg-white focus:border-[#d4d4d8] focus:ring-0 transition-colors"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <Label className="text-sm text-[#3f3f46]">
-                        City <span className="text-[#ef4444]">*</span>
+                      <Label className="text-sm font-medium">
+                        Address Line 1 <span className="text-red-500">*</span>
                       </Label>
-                      <Input
-                        {...register('city')}
-                        placeholder="City"
-                        className="h-10 bg-[#fafafa] border-[#e4e4e7] rounded-xl focus:bg-white focus:border-[#d4d4d8] focus:ring-0 transition-colors"
+                      <Input 
+                        {...register('address1')}
+                        placeholder="Street address"
+                        className={`h-10 ${errors.address1 ? 'border-red-500' : ''}`}
                       />
-                      {errors.city && (
-                        <p className="text-sm text-[#ef4444]">{errors.city.message}</p>
-                      )}
+                      {errors.address1 && <p className="text-xs text-red-500">{errors.address1.message}</p>}
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-sm text-[#3f3f46]">
-                        State <span className="text-[#ef4444]">*</span>
+                      <Label className="text-sm font-medium">Address Line 2</Label>
+                      <Input 
+                        {...register('address2')}
+                        placeholder="Apartment, suite, etc. (optional)"
+                        className="h-10"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">
+                        State <span className="text-red-500">*</span>
                       </Label>
-                      <select
+                      <select 
                         {...register('state')}
-                        className="w-full h-10 px-3 bg-[#fafafa] border border-[#e4e4e7] rounded-xl text-sm focus:bg-white focus:border-[#d4d4d8] focus:outline-none transition-colors"
+                        className={`w-full h-10 px-3 rounded-md border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.state ? 'border-red-500' : ''}`}
                       >
-                        <option value="">Select State</option>
+                        <option value="">Select state</option>
                         {indianStates.map((state) => (
-                          <option key={state} value={state}>{state}</option>
+                          <option key={state} value={state}>
+                            {state}
+                          </option>
                         ))}
                       </select>
-                      {errors.state && (
-                        <p className="text-sm text-[#ef4444]">{errors.state.message}</p>
-                      )}
+                      {errors.state && <p className="text-xs text-red-500">{errors.state.message}</p>}
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-sm text-[#3f3f46]">
-                        Pincode <span className="text-[#ef4444]">*</span>
+                      <Label className="text-sm font-medium">
+                        City <span className="text-red-500">*</span>
                       </Label>
-                      <Input
-                        {...register('pincode')}
-                        placeholder="6-digit"
-                        maxLength={6}
-                        className="h-10 bg-[#fafafa] border-[#e4e4e7] rounded-xl focus:bg-white focus:border-[#d4d4d8] focus:ring-0 transition-colors"
+                      <Input 
+                        {...register('city')}
+                        placeholder="City"
+                        className={`h-10 ${errors.city ? 'border-red-500' : ''}`}
                       />
-                      {errors.pincode && (
-                        <p className="text-sm text-[#ef4444]">{errors.pincode.message}</p>
-                      )}
+                      {errors.city && <p className="text-xs text-red-500">{errors.city.message}</p>}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">
+                        Pincode <span className="text-red-500">*</span>
+                      </Label>
+                      <Input 
+                        {...register('pincode')}
+                        placeholder="Pincode"
+                        maxLength={6}
+                        className={`h-10 ${errors.pincode ? 'border-red-500' : ''}`}
+                      />
+                      {errors.pincode && <p className="text-xs text-red-500">{errors.pincode.message}</p>}
                     </div>
                   </div>
                 </div>
-              </section>
+              </CardContent>
+            </Card>
 
-              {/* Shipping Addresses */}
-              <section>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-xs font-semibold text-[#71717a] uppercase tracking-wider">
-                    Shipping Addresses
-                  </h3>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowShippingForm(!showShippingForm)}
-                    disabled={!editMode}
-                    className="border-[#e4e4e7] text-[#3f3f46] hover:bg-[#f4f4f5] rounded-xl"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Address
-                  </Button>
-                </div>
-
-                {!editMode && (
-                  <div className="bg-[#fef3c7] border border-[#fde68a] rounded-xl p-3 mb-4">
-                    <p className="text-sm text-[#b45309]">
-                      Save the client first to add shipping addresses
-                    </p>
-                  </div>
-                )}
-
-                {showShippingForm && editMode && (
-                  <Card className="mb-4 border-[#e4e4e7] rounded-xl">
+            {/* Contacts Section */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-lg flex items-center gap-2 text-slate-800">
+                  <Users className="w-5 h-5 text-blue-600" />
+                  Contact Persons
+                </CardTitle>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => append({ name: '', designation: '', phone: '', email: '', type: 'secondary' })}
+                >
+                  <Plus className="w-4 h-4 mr-1" />
+                  Add Contact
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {fields.map((field, index) => (
+                  <Card key={field.id} className="border-slate-200 bg-slate-50/50">
                     <CardContent className="p-4 space-y-4">
                       <div className="flex items-center justify-between">
-                        <h4 className="font-medium text-[#18181b]">New Shipping Address</h4>
-                        <button
-                          type="button"
-                          onClick={() => setShowShippingForm(false)}
-                          className="p-1 rounded-lg text-[#a1a1aa] hover:text-[#71717a] hover:bg-[#f4f4f5] transition-colors"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <User className="w-4 h-4 text-slate-400" />
+                          <span className="text-sm font-semibold text-slate-700">
+                            {index === 0 ? 'Primary Contact' : `Secondary Contact ${index}`}
+                          </span>
+                        </div>
+                        {fields.length > 1 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => remove(index)}
+                            className="text-red-500 hover:text-red-700 hover:bg-red-50 h-8"
+                          >
+                            <Trash2 className="w-4 h-4 mr-1" />
+                            Remove
+                          </Button>
+                        )}
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <Input
-                          placeholder="Address Name (e.g., Warehouse)"
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-medium text-slate-500">Name *</Label>
+                          <Input 
+                            {...register(`contacts.${index}.name` as const)}
+                            placeholder="Full name"
+                            className={`h-9 text-sm ${errors.contacts?.[index]?.name ? 'border-red-500' : ''}`}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-medium text-slate-500">Designation</Label>
+                          <Input 
+                            {...register(`contacts.${index}.designation` as const)}
+                            placeholder="Job title"
+                            className="h-9 text-sm"
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-medium text-slate-500">Phone *</Label>
+                          <Input 
+                            {...register(`contacts.${index}.phone` as const)}
+                            placeholder="Phone number"
+                            className={`h-9 text-sm ${errors.contacts?.[index]?.phone ? 'border-red-500' : ''}`}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-medium text-slate-500">Email</Label>
+                          <Input 
+                            {...register(`contacts.${index}.email` as const)}
+                            placeholder="Email address"
+                            type="email"
+                            className={`h-9 text-sm ${errors.contacts?.[index]?.email ? 'border-red-500' : ''}`}
+                          />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+                {errors.contacts?.root && <p className="text-sm text-red-500">{errors.contacts.root.message}</p>}
+              </CardContent>
+            </Card>
+
+            {/* Shipping Addresses */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-lg flex items-center gap-2 text-slate-800">
+                  <MapPin className="w-5 h-5 text-emerald-600" />
+                  Shipping Addresses
+                </CardTitle>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowShippingForm(!showShippingForm)}
+                >
+                  <Plus className="w-4 h-4 mr-1" />
+                  Add New
+                </Button>
+              </CardHeader>
+              <CardContent>
+                {showShippingForm && (
+                  <Card className="mb-4 border-blue-200 bg-blue-50/50">
+                    <CardContent className="p-4 space-y-4">
+                      <div className="flex justify-between items-center">
+                        <h4 className="font-medium text-blue-900">New Shipping Address</h4>
+                        <Button type="button" variant="ghost" size="sm" onClick={() => setShowShippingForm(false)}>Cancel</Button>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <Input 
                           value={newShipping.address_name}
                           onChange={(e) => setNewShipping({...newShipping, address_name: e.target.value})}
-                          className="h-10 bg-[#fafafa] border-[#e4e4e7] rounded-xl"
+                          placeholder="Address Name (e.g., Warehouse)"
+                          className="h-10"
                         />
-                        <Input
-                          placeholder="Contact Person"
+                        <Input 
                           value={newShipping.contact}
                           onChange={(e) => setNewShipping({...newShipping, contact: e.target.value})}
-                          className="h-10 bg-[#fafafa] border-[#e4e4e7] rounded-xl"
-                        />
-                        <Input
-                          placeholder="Address Line 1"
-                          value={newShipping.address_line1}
-                          onChange={(e) => setNewShipping({...newShipping, address_line1: e.target.value})}
-                          className="h-10 bg-[#fafafa] border-[#e4e4e7] rounded-xl"
-                        />
-                        <Input
-                          placeholder="Address Line 2"
-                          value={newShipping.address_line2}
-                          onChange={(e) => setNewShipping({...newShipping, address_line2: e.target.value})}
-                          className="h-10 bg-[#fafafa] border-[#e4e4e7] rounded-xl"
-                        />
-                        <Input
-                          placeholder="City"
-                          value={newShipping.city}
-                          onChange={(e) => setNewShipping({...newShipping, city: e.target.value})}
-                          className="h-10 bg-[#fafafa] border-[#e4e4e7] rounded-xl"
-                        />
-                        <select
-                          value={newShipping.state}
-                          onChange={(e) => setNewShipping({...newShipping, state: e.target.value})}
-                          className="h-10 px-3 bg-[#fafafa] border border-[#e4e4e7] rounded-xl text-sm"
-                        >
-                          <option value="">Select State</option>
-                          {indianStates.map((s) => <option key={s} value={s}>{s}</option>)}
-                        </select>
-                        <Input
-                          placeholder="Pincode"
-                          value={newShipping.pincode}
-                          onChange={(e) => setNewShipping({...newShipping, pincode: e.target.value})}
-                          className="h-10 bg-[#fafafa] border-[#e4e4e7] rounded-xl"
-                        />
-                        <Input
-                          placeholder="GSTIN (if different)"
-                          value={newShipping.gstin}
-                          onChange={(e) => setNewShipping({...newShipping, gstin: e.target.value})}
-                          className="h-10 bg-[#fafafa] border-[#e4e4e7] rounded-xl"
+                          placeholder="Contact Person Name"
+                          className="h-10"
                         />
                       </div>
-
+                      <Input 
+                        value={newShipping.address_line1}
+                        onChange={(e) => setNewShipping({...newShipping, address_line1: e.target.value})}
+                        placeholder="Address Line 1"
+                        className="h-10"
+                      />
+                      <Input 
+                        value={newShipping.address_line2}
+                        onChange={(e) => setNewShipping({...newShipping, address_line2: e.target.value})}
+                        placeholder="Address Line 2"
+                        className="h-10"
+                      />
+                      <div className="grid grid-cols-3 gap-4">
+                        <select 
+                          value={newShipping.state}
+                          onChange={(e) => setNewShipping({...newShipping, state: e.target.value})}
+                          className="w-full h-10 px-3 rounded-md border border-slate-300 bg-white text-sm"
+                        >
+                          <option value="">State</option>
+                          {indianStates.map((state) => (
+                            <option key={state} value={state}>{state}</option>
+                          ))}
+                        </select>
+                        <Input 
+                          value={newShipping.city}
+                          onChange={(e) => setNewShipping({...newShipping, city: e.target.value})}
+                          placeholder="City"
+                          className="h-10"
+                        />
+                        <Input 
+                          value={newShipping.pincode}
+                          onChange={(e) => setNewShipping({...newShipping, pincode: e.target.value})}
+                          placeholder="Pincode"
+                          className="h-10"
+                        />
+                      </div>
                       <div className="flex gap-2">
-                        <Button
+                        <Button 
                           type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={copyBillingToShipping}
-                          className="border-[#e4e4e7] text-[#3f3f46] hover:bg-[#f4f4f5] rounded-xl"
-                        >
-                          <Copy className="w-4 h-4 mr-2" />
-                          Copy from Billing
-                        </Button>
-                        <Button
-                          type="button"
-                          size="sm"
+                          className="bg-blue-600 hover:bg-blue-700"
                           onClick={addShippingAddress}
-                          className="bg-[#18181b] hover:bg-[#27272a] text-white rounded-xl"
+                          disabled={!newShipping.address_line1 || !newShipping.city}
                         >
+                          <Save className="w-4 h-4 mr-1" />
                           Save Address
                         </Button>
+                        <Button type="button" variant="outline" onClick={copyBillingToShipping}>Copy Billing</Button>
                       </div>
                     </CardContent>
                   </Card>
                 )}
 
-                {shippingAddresses.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {shippingAddresses.map((addr) => (
-                      <div
-                        key={addr.id}
-                        className="bg-[#fafafa] rounded-xl p-4 border border-[#e4e4e7]"
-                      >
-                        <div className="flex items-start justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <Building className="w-4 h-4 text-[#a1a1aa]" />
-                            <span className="font-medium text-[#18181b]">{addr.address_name}</span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => deleteShippingAddress(addr.id)}
-                            className="p-1 rounded-lg text-[#ef4444] hover:bg-[#fee2e2] transition-colors"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </button>
-                        </div>
-                        <p className="text-sm text-[#52525b]">{addr.address_line1}</p>
-                        {addr.address_line2 && <p className="text-sm text-[#52525b]">{addr.address_line2}</p>}
-                        <p className="text-sm text-[#52525b]">{addr.city}, {addr.state} - {addr.pincode}</p>
-                        {addr.gstin && <p className="text-xs text-[#71717a] mt-1">GSTIN: {addr.gstin}</p>}
-                        {addr.contact && <p className="text-xs text-[#71717a]">Contact: {addr.contact}</p>}
-                      </div>
-                    ))}
+                {shippingAddresses.length === 0 ? (
+                  <div className="text-center py-6 text-slate-400 border-2 border-dashed border-slate-100 rounded-lg">
+                    <MapPin className="w-10 h-10 mx-auto mb-2 opacity-20" />
+                    <p className="text-sm italic">No additional shipping addresses. Billing address will be used.</p>
                   </div>
-                ) : editMode && (
-                  <div className="text-center py-8 text-[#a1a1aa] bg-[#fafafa] rounded-xl border border-dashed border-[#e4e4e7]">
-                    <p className="text-sm">No shipping addresses added</p>
-                  </div>
-                )}
-              </section>
-
-              {/* Contacts */}
-              <section>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-xs font-semibold text-[#71717a] uppercase tracking-wider">
-                    Contact Persons
-                  </h3>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => append({ name: '', designation: '', phone: '', email: '', type: 'secondary' })}
-                    className="border-[#e4e4e7] text-[#3f3f46] hover:bg-[#f4f4f5] rounded-xl"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Contact
-                  </Button>
-                </div>
-
-                <div className="space-y-3">
-                  {fields.map((field, index) => (
-                    <Card key={field.id} className="border-[#e4e4e7] rounded-xl">
-                      <CardContent className="p-4">
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium text-[#18181b]">
-                              {index === 0 ? 'Primary Contact' : `Contact ${index + 1}`}
-                            </span>
-                            {index === 0 && (
-                              <Badge variant="secondary" className="bg-[#f4f4f5] text-[#71717a] rounded-lg">
-                                Main
-                              </Badge>
-                            )}
-                          </div>
-                          {index > 0 && (
-                            <button
-                              type="button"
-                              onClick={() => remove(index)}
-                              className="p-1 rounded-lg text-[#ef4444] hover:bg-[#fee2e2] transition-colors"
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {shippingAddresses.map((addr: any, index: number) => (
+                      <Card key={addr.id || index} className="border-slate-200">
+                        <CardContent className="p-3">
+                          <div className="flex justify-between items-start">
+                            <div className="space-y-0.5">
+                              <p className="text-sm font-bold text-slate-800">{addr.address_name || `Address ${index + 1}`}</p>
+                              <p className="text-xs text-slate-600 line-clamp-1">{addr.address_line1}</p>
+                              <p className="text-xs text-slate-600">{addr.city}, {addr.state} - {addr.pincode}</p>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-red-400 hover:text-red-600 h-8 w-8"
+                              onClick={() => deleteShippingAddress(addr.id)}
                             >
                               <Trash2 className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-                          <div className="space-y-1">
-                            <Label className="text-xs text-[#a1a1aa]">Name</Label>
-                            <Input
-                              {...register(`contacts.${index}.name`)}
-                              placeholder="Full name"
-                              className="h-9 bg-[#fafafa] border-[#e4e4e7] rounded-lg focus:bg-white focus:border-[#d4d4d8]"
-                            />
-                            {errors.contacts?.[index]?.name && (
-                              <p className="text-xs text-[#ef4444]">{errors.contacts[index]?.name?.message}</p>
-                            )}
+                            </Button>
                           </div>
-
-                          <div className="space-y-1">
-                            <Label className="text-xs text-[#a1a1aa]">Designation</Label>
-                            <Input
-                              {...register(`contacts.${index}.designation`)}
-                              placeholder="Job title"
-                              className="h-9 bg-[#fafafa] border-[#e4e4e7] rounded-lg focus:bg-white focus:border-[#d4d4d8]"
-                            />
-                          </div>
-
-                          <div className="space-y-1">
-                            <Label className="text-xs text-[#a1a1aa]">Phone</Label>
-                            <div className="relative">
-                              <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 text-[#a1a1aa]" />
-                              <Input
-                                {...register(`contacts.${index}.phone`)}
-                                placeholder="Phone number"
-                                className="h-9 pl-8 bg-[#fafafa] border-[#e4e4e7] rounded-lg focus:bg-white focus:border-[#d4d4d8]"
-                              />
-                            </div>
-                            {errors.contacts?.[index]?.phone && (
-                              <p className="text-xs text-[#ef4444]">{errors.contacts[index]?.phone?.message}</p>
-                            )}
-                          </div>
-
-                          <div className="space-y-1">
-                            <Label className="text-xs text-[#a1a1aa]">Email</Label>
-                            <div className="relative">
-                              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 text-[#a1a1aa]" />
-                              <Input
-                                {...register(`contacts.${index}.email`)}
-                                placeholder="Email address"
-                                className="h-9 pl-8 bg-[#fafafa] border-[#e4e4e7] rounded-lg focus:bg-white focus:border-[#d4d4d8]"
-                              />
-                            </div>
-                            {errors.contacts?.[index]?.email && (
-                              <p className="text-xs text-[#ef4444]">{errors.contacts[index]?.email?.message}</p>
-                            )}
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-
-                {errors.contacts && (
-                  <p className="text-sm text-[#ef4444] mt-3">{errors.contacts.message}</p>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
                 )}
-              </section>
+              </CardContent>
+            </Card>
 
-              {/* Internal Notes */}
-              <section>
-                <h3 className="text-xs font-semibold text-[#71717a] uppercase tracking-wide mb-4">
+            {/* Additional Remarks */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2 text-slate-800">
+                  <Briefcase className="w-5 h-5 text-blue-600" />
                   Internal Notes
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <Label className="text-sm text-[#3f3f46]">General Remarks</Label>
-                    <Textarea
+                    <Label className="text-sm font-medium text-slate-600">Remarks</Label>
+                    <Textarea 
                       {...register('remarks')}
-                      placeholder="Any general notes..."
-                      className="min-h-[80px] resize-none bg-[#fafafa] border-[#e4e4e7] rounded-xl focus:bg-white focus:border-[#d4d4d8] focus:ring-0"
+                      placeholder="General remarks about this client..."
+                      className="min-h-[80px] resize-none"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-sm text-[#3f3f46]">About Client</Label>
-                    <Textarea
+                    <Label className="text-sm font-medium text-slate-600">About Client</Label>
+                    <Textarea 
                       {...register('about_client')}
-                      placeholder="Background, business details..."
-                      className="min-h-[80px] resize-none bg-[#fafafa] border-[#e4e4e7] rounded-xl focus:bg-white focus:border-[#d4d4d8] focus:ring-0"
+                      placeholder="Background, business details, etc..."
+                      className="min-h-[80px] resize-none"
                     />
                   </div>
                 </div>
-              </section>
-            </div>
-          ) : (
-            /* Pricing Tab */
-            <div className="space-y-8">
-              <section>
-                <h3 className="text-xs font-semibold text-[#71717a] uppercase tracking-wider mb-4">
-                  Discount Configuration
-                </h3>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-                <div className="space-y-4 max-w-xl">
+          {/* Pricing Tab */}
+          <TabsContent value="pricing" className="space-y-6 mt-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Tag className="w-5 h-5 text-blue-600" />
+                  Discount Portfolio
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Discount Type</Label>
+                  <select 
+                    {...register('discount_type')}
+                    onChange={(e) => {
+                      setValue('discount_type', e.target.value);
+                      if (e.target.value !== 'Standard') {
+                        setValue('standard_pricelist_id', '');
+                      }
+                    }}
+                    className="w-full h-10 px-3 rounded-md border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="Standard">Standard (Price List Based)</option>
+                    <option value="Premium">Premium (Variant Based)</option>
+                    <option value="Bulk">Bulk (Variant Based)</option>
+                    <option value="Special">Special (Variant Based)</option>
+                  </select>
+                </div>
+
+                {watchDiscountType === 'Standard' && (
                   <div className="space-y-2">
-                    <Label className="text-sm text-[#3f3f46]">Discount Type</Label>
-                    <select
-                      {...register('discount_type')}
-                      onChange={(e) => {
-                        setValue('discount_type', e.target.value);
-                        if (e.target.value !== 'Standard') {
-                          setValue('standard_pricelist_id', '');
-                        }
-                      }}
-                      className="w-full h-10 px-3 bg-[#fafafa] border border-[#e4e4e7] rounded-xl text-sm focus:bg-white focus:border-[#d4d4d8] focus:outline-none transition-colors"
+                    <Label className="text-sm font-medium">
+                      Select Standard Price List
+                    </Label>
+                    <select 
+                      {...register('standard_pricelist_id')}
+                      className="w-full h-10 px-3 rounded-md border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
-                      <option value="Standard">Standard (Price List Based)</option>
-                      <option value="Premium">Premium (Variant Based)</option>
-                      <option value="Bulk">Bulk (Variant Based)</option>
-                      <option value="Special">Special (Variant Based)</option>
+                      <option value="">Choose a price list</option>
+                      {pricelists?.map((pl: any) => (
+                        <option key={pl.id} value={pl.id}>
+                          {pl.pricelist_name} ({pl.discount_percent}%)
+                        </option>
+                      ))}
                     </select>
                   </div>
+                )}
 
-                  {watchDiscountType === 'Standard' && (
-                    <div className="space-y-2">
-                      <Label className="text-sm text-[#3f3f46]">Price List</Label>
-                      <select
-                        {...register('standard_pricelist_id')}
-                        className="w-full h-10 px-3 bg-[#fafafa] border border-[#e4e4e7] rounded-xl text-sm focus:bg-white focus:border-[#d4d4d8] focus:outline-none transition-colors"
-                      >
-                        <option value="">Select a price list</option>
-                        {pricelists?.map((pl: any) => (
-                          <option key={pl.id} value={pl.id}>
-                            {pl.pricelist_name} ({pl.discount_percent}%)
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-                </div>
-              </section>
+                <div className="h-px bg-slate-200" />
 
-              {/* Portfolio Preview */}
-              <section>
-                <h3 className="text-xs font-semibold text-[#71717a] uppercase tracking-wider mb-4">
-                  Portfolio Preview
-                </h3>
-
-                <div className="max-w-md">
+                <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+                  <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                    <Percent className="w-4 h-4 text-blue-600" />
+                    Portfolio Preview
+                  </h4>
+                  
                   {watchDiscountType === 'Standard' ? (
-                    <div className="flex items-center gap-3 p-4 bg-[#dcfce7] rounded-xl border border-[#bbf7d0]">
-                      <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-sm">
-                        <CheckCircle2 className="w-5 h-5 text-[#22c55e]" />
+                    <div className="flex items-center gap-2 text-sm text-slate-700">
+                      <CheckCircle2 className="w-4 h-4 text-green-600" />
+                      <span>
+                        Standard Discount: {pricelists?.find((pl: any) => pl.id === watch('standard_pricelist_id'))?.discount_percent || 0}% flat on all items
+                      </span>
+                    </div>
+                  ) : watchDiscountType === 'Special' ? (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 text-sm text-blue-700 font-medium">
+                        <AlertCircle className="w-4 h-4" />
+                        <span>Special Variant-wise pricing structure:</span>
                       </div>
-                      <div>
-                        <p className="font-medium text-[#166534]">
-                          {pricelists?.find((pl: any) => pl.id === watch('standard_pricelist_id'))?.discount_percent || 0}% Standard Discount
-                        </p>
-                        <p className="text-sm text-[#22c55e]">Flat discount on all items</p>
-                      </div>
+                      
+                      {loadingSpecial ? (
+                        <div className="flex items-center gap-2 text-xs text-slate-400 italic">
+                          <div className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                          Fetching special rates...
+                        </div>
+                      ) : specialSettings && specialSettings.length > 0 ? (
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                          {specialSettings.map((s: any) => (
+                            <div key={s.id} className="bg-white p-2 rounded border border-slate-200 flex justify-between items-center">
+                              <span className="text-xs font-medium text-slate-600">{s.variant?.variant_name}</span>
+                              <Badge variant="outline" className="text-[10px] bg-blue-50 text-blue-700 border-blue-100">
+                                {s.default_discount_percent}%
+                              </Badge>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-amber-600 italic">No special rates configured in Discount Settings for "Special" structure.</p>
+                      )}
                     </div>
                   ) : (
-                    <div className="flex items-center gap-3 p-4 bg-[#fef3c7] rounded-xl border border-[#fde68a]">
-                      <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-sm">
-                        <AlertCircle className="w-5 h-5 text-[#f59e0b]" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-[#b45309]">{watchDiscountType} Structure</p>
-                        <p className="text-sm text-[#f59e0b]">Variant-based pricing applied</p>
-                      </div>
+                    <div className="flex items-center gap-2 text-sm text-slate-600">
+                      <AlertCircle className="w-4 h-4 text-amber-600" />
+                      <span>
+                        {watchDiscountType} discount structure will be applied based on system defaults.
+                      </span>
                     </div>
                   )}
                 </div>
-              </section>
+              </CardContent>
+            </Card>
 
-              {isAdmin && (
-                <section>
-                  <h3 className="text-xs font-semibold text-[#71717a] uppercase tracking-wider mb-4">
-                    Admin Options
-                  </h3>
-                  <div className="bg-[#f4f4f5] rounded-xl p-4">
-                    <p className="text-sm text-[#71717a]">
-                      Custom discount management available for admin users
-                    </p>
+            {isAdmin && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <CreditCard className="w-5 h-5 text-blue-600" />
+                    Custom Discounts (Per Variant)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                    <div className="flex items-center gap-2 text-sm text-amber-800">
+                      <AlertCircle className="w-4 h-4" />
+                      <span>Custom discount management available in full version.</span>
+                    </div>
                   </div>
-                </section>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+        </Tabs>
+
+        {/* Form Actions */}
+        <div className="flex items-center justify-between pt-6 border-t border-slate-200 mt-8">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onCancel}
+            disabled={loading}
+            className="min-w-[120px]"
+          >
+            Cancel
+          </Button>
+          
+          <div className="flex gap-3">
+            {editMode && (
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={handleDelete}
+                disabled={loading}
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete
+              </Button>
+            )}
+            <Button
+              type="button"
+              onClick={handleSubmit(onSubmit)}
+              disabled={loading}
+              className="min-w-[160px] bg-blue-600 hover:bg-blue-700 shadow-md"
+            >
+              {loading ? (
+                <>
+                  <div className="w-4 h-4 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4 mr-2" />
+                  {editMode ? 'Update Client' : 'Create Client'}
+                </>
               )}
-            </div>
-          )}
+            </Button>
+          </div>
         </div>
       </div>
     </div>
@@ -992,22 +936,14 @@ export function CreateClientEdit({ onSuccess, onCancel }: { onSuccess: () => voi
   });
 
   if (isLoading) return (
-    <div className="min-h-screen flex items-center justify-center bg-[#fafafa]">
-      <div className="flex flex-col items-center gap-4">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#18181b]"></div>
-        <p className="text-[#71717a]">Loading...</p>
-      </div>
+    <div className="flex items-center justify-center h-64">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
     </div>
   );
-
+  
   if (!clientData) return (
-    <div className="min-h-screen flex items-center justify-center bg-[#fafafa]">
-      <div className="text-center">
-        <p className="text-[#ef4444] font-medium">Error loading client</p>
-        <Button onClick={onCancel} variant="outline" className="mt-4 rounded-xl border-[#e4e4e7]">
-          Go Back
-        </Button>
-      </div>
+    <div className="flex items-center justify-center h-64 text-red-500">
+      Error loading client.
     </div>
   );
 

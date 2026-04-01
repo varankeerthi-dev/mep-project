@@ -1,25 +1,86 @@
-import type { HTMLAttributes } from 'react'
-import { cn } from '@/lib/utils'
+import React from 'react';
+import { colors, radii } from '../../design-system';
 
-type BadgeProps = HTMLAttributes<HTMLSpanElement> & {
-  variant?: 'default' | 'secondary' | 'outline'
+interface BadgeProps {
+  children: React.ReactNode;
+  variant?: 'default' | 'success' | 'warning' | 'error' | 'info' | 'neutral';
+  size?: 'sm' | 'md';
+  dot?: boolean;
+  dotColor?: string;
 }
 
-const variants: Record<NonNullable<BadgeProps['variant']>, string> = {
-  default: 'bg-indigo-600 text-white',
-  secondary: 'bg-slate-100 text-slate-700',
-  outline: 'border border-slate-300 text-slate-700 bg-white',
-}
+const variants = {
+  default: { bg: colors.primary[100], text: colors.primary[700] },
+  success: { bg: colors.success.light, text: colors.success.dark },
+  warning: { bg: colors.warning.light, text: colors.warning.dark },
+  error: { bg: colors.error.light, text: colors.error.dark },
+  info: { bg: colors.info.light, text: colors.info.dark },
+  neutral: { bg: colors.gray[200], text: colors.gray[700] },
+};
 
-export function Badge({ className, variant = 'default', ...props }: BadgeProps) {
+export function Badge({ children, variant = 'default', size = 'md', dot, dotColor }: BadgeProps) {
+  const theme = variants[variant];
+  const effectiveDotColor = dotColor || theme.text;
+  
   return (
     <span
-      className={cn(
-        'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
-        variants[variant],
-        className
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '6px',
+        padding: size === 'sm' ? '2px 8px' : '4px 10px',
+        fontSize: size === 'sm' ? '12px' : '13px',
+        fontWeight: 500,
+        borderRadius: radii.full,
+        background: theme.bg,
+        color: theme.text,
+        lineHeight: 1,
+      }}
+    >
+      {dot && (
+        <span
+          style={{
+            width: '6px',
+            height: '6px',
+            borderRadius: '50%',
+            background: effectiveDotColor,
+          }}
+        />
       )}
-      {...props}
-    />
-  )
+      {children}
+    </span>
+  );
+}
+
+// Priority Badge - uses priority colors from design system
+export function PriorityBadge({ priority }: { priority: string }) {
+  // Normalize to lowercase for lookup
+  const normalizedPriority = (priority || 'normal').toLowerCase() as keyof typeof colors.priority;
+  const theme = colors.priority[normalizedPriority] || colors.priority.normal;
+  return (
+    <Badge
+      variant="neutral"
+      dot
+      dotColor={theme.dot}
+    >
+      <span style={{ color: theme.text, textTransform: 'capitalize' }}>{priority || 'Normal'}</span>
+    </Badge>
+  );
+}
+
+// Status Badge - uses status colors from design system
+export function StatusBadge({ status }: { status: string }) {
+  // Normalize to lowercase and replace spaces with underscores for lookup
+  const normalizedStatus = (status || 'open').toLowerCase().replace(' ', '_') as keyof typeof colors.status;
+  const theme = colors.status[normalizedStatus] || colors.status.open;
+  const label = (status || 'Open').replace('_', ' ');
+  return (
+    <Badge
+      variant="neutral"
+      dot
+      dotColor={theme.dot}
+    >
+      <span style={{ color: theme.text, textTransform: 'capitalize' }}>{label}</span>
+    </Badge>
+  );
 }

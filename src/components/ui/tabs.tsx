@@ -1,74 +1,120 @@
-import React, { createContext, useContext, useMemo, useState } from 'react'
-import type { HTMLAttributes, ReactElement } from 'react'
-import { cn } from '@/lib/utils'
+import React, { useState, createContext, useContext } from 'react';
+import { colors, radii, transitions } from '../../design-system';
 
-type TabsContextValue = {
-  value: string
-  setValue: (value: string) => void
+interface TabsContextType {
+  activeTab: string;
+  setActiveTab: (value: string) => void;
 }
 
-const TabsContext = createContext<TabsContextValue | null>(null)
+const TabsContext = createContext<TabsContextType | undefined>(undefined);
 
-type TabsProps = HTMLAttributes<HTMLDivElement> & {
-  value?: string
-  defaultValue?: string
-  onValueChange?: (value: string) => void
+function useTabs() {
+  const context = useContext(TabsContext);
+  if (!context) throw new Error('Tab components must be used within Tabs');
+  return context;
 }
 
-export function Tabs({ value, defaultValue, onValueChange, className, ...props }: TabsProps) {
-  const [internalValue, setInternalValue] = useState(defaultValue ?? '')
-  const controlled = value !== undefined
-  const currentValue = controlled ? value : internalValue
+interface TabsProps {
+  defaultTab: string;
+  children: React.ReactNode;
+  onChange?: (value: string) => void;
+}
 
-  const setValue = (next: string) => {
-    if (!controlled) setInternalValue(next)
-    onValueChange?.(next)
-  }
-
-  const ctx = useMemo(() => ({ value: currentValue, setValue }), [currentValue])
+export function Tabs({ defaultTab, children, onChange }: TabsProps) {
+  const [activeTab, setActiveTab] = useState(defaultTab);
+  
+  const handleSetActiveTab = (value: string) => {
+    setActiveTab(value);
+    onChange?.(value);
+  };
+  
   return (
-    <TabsContext.Provider value={ctx}>
-      <div className={cn('w-full', className)} {...props} />
+    <TabsContext.Provider value={{ activeTab, setActiveTab: handleSetActiveTab }}>
+      {children}
     </TabsContext.Provider>
-  )
+  );
 }
 
-export function TabsList({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('inline-flex items-center gap-2', className)} {...props} />
+interface TabListProps {
+  children: React.ReactNode;
+  style?: React.CSSProperties;
 }
 
-type TabsTriggerProps = HTMLAttributes<HTMLButtonElement> & {
-  value: string
-}
-
-export function TabsTrigger({ value, className, children, ...props }: TabsTriggerProps) {
-  const ctx = useContext(TabsContext)
-  const active = ctx?.value === value
+export function TabList({ children, style }: TabListProps) {
   return (
-    <button
-      className={cn(
-        'px-3 py-2 text-sm font-medium text-slate-600',
-        active && 'text-slate-900',
-        className
-      )}
-      data-state={active ? 'active' : 'inactive'}
-      onClick={(event) => {
-        props.onClick?.(event)
-        ctx?.setValue(value)
+    <div
+      style={{
+        display: 'flex',
+        gap: '4px',
+        padding: '4px',
+        background: colors.gray[100],
+        borderRadius: radii.md,
+        ...style,
       }}
-      {...props}
     >
       {children}
+    </div>
+  );
+}
+
+interface TabProps {
+  value: string;
+  children: React.ReactNode;
+  icon?: React.ReactNode;
+}
+
+export function Tab({ value, children, icon }: TabProps) {
+  const { activeTab, setActiveTab } = useTabs();
+  const isActive = activeTab === value;
+  
+  return (
+    <button
+      onClick={() => setActiveTab(value)}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '8px',
+        padding: '8px 14px',
+        fontSize: '14px',
+        fontWeight: 500,
+        color: isActive ? colors.gray[900] : colors.gray[500],
+        background: isActive ? '#ffffff' : 'transparent',
+        border: 'none',
+        borderRadius: radii.DEFAULT,
+        cursor: 'pointer',
+        transition: transitions.DEFAULT,
+        boxShadow: isActive ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+      }}
+    >
+      {icon}
+      {children}
     </button>
-  )
+  );
 }
 
-type TabsContentProps = HTMLAttributes<HTMLDivElement> & {
-  value: string
+interface TabPanelProps {
+  value: string;
+  children: React.ReactNode;
 }
 
-export function TabsContent({ value, className, ...props }: TabsContentProps) {
-  const ctx = useContext(TabsContext)
-  if (ctx?.value !== value) return null
-  return <div className={cn('mt-4', className)} {...props} />
+export function TabPanel({ value, children }: TabPanelProps) {
+  const { activeTab } = useTabs();
+  
+  if (activeTab !== value) return null;
+  
+  return (
+    <div
+      style={{
+        animation: 'fadeIn 150ms ease-out',
+      }}
+    >
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(4px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
+      {children}
+    </div>
+  );
 }
