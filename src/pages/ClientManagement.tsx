@@ -14,27 +14,20 @@ import { Label } from '../components/ui/label';
 import { Textarea } from '../components/ui/textarea';
 import { Card, CardContent } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 
 // Icons
 import {
-  Building2,
-  MapPin,
-  CreditCard,
-  Users,
-  Tag,
   Plus,
   Trash2,
   ChevronLeft,
   Save,
   CheckCircle2,
   AlertCircle,
-  Briefcase,
-  User,
   Phone,
   Mail,
-  Crown,
-  Sparkles,
+  X,
+  Copy,
+  Building,
 } from 'lucide-react';
 
 const indianStates = [
@@ -97,6 +90,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
   const isAdmin = organisations?.find((o: any) => o.organisation?.id === organisation?.id)?.role?.toString().toLowerCase() === 'admin';
 
   const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<'details' | 'pricing'>('details');
 
   const {
     register,
@@ -136,6 +130,20 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
   const watchDiscountType = watch('discount_type');
   const watchClientName = watch('client_name');
 
+  // Shipping Addresses State
+  const [shippingAddresses, setShippingAddresses] = useState<any[]>([]);
+  const [showShippingForm, setShowShippingForm] = useState(false);
+  const [newShipping, setNewShipping] = useState({
+    address_name: '',
+    address_line1: '',
+    address_line2: '',
+    city: '',
+    state: '',
+    pincode: '',
+    gstin: '',
+    contact: '',
+  });
+
   // Load existing data if edit mode
   useEffect(() => {
     if (editMode && clientData) {
@@ -155,6 +163,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
         standard_pricelist_id: clientData.standard_pricelist_id || '',
         contacts: clientData.contacts?.length > 0 ? clientData.contacts : [{ name: '', designation: '', phone: '', email: '', type: 'primary' }],
       });
+      if (clientData.id) fetchShippingAddresses();
     }
   }, [editMode, clientData, reset]);
 
@@ -171,6 +180,16 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
     },
   });
 
+  const fetchShippingAddresses = async () => {
+    if (!clientData?.id) return;
+    const { data } = await supabase
+      .from('client_shipping_addresses')
+      .select('*')
+      .eq('client_id', clientData.id)
+      .order('created_at', { ascending: false });
+    setShippingAddresses(data || []);
+  };
+
   // GSTIN Auto-detection
   useEffect(() => {
     if (watchGstin && watchGstin.length >= 2) {
@@ -181,6 +200,47 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
       }
     }
   }, [watchGstin, watchState, setValue]);
+
+  const addShippingAddress = async () => {
+    if (!editMode || !clientData?.id) {
+      toast.error('Please save the client first before adding shipping addresses');
+      return;
+    }
+
+    const { error } = await supabase.from('client_shipping_addresses').insert({
+      client_id: clientData.id,
+      ...newShipping,
+    });
+
+    if (error) {
+      toast.error('Error adding shipping address: ' + error.message);
+    } else {
+      setNewShipping({ address_name: '', address_line1: '', address_line2: '', city: '', state: '', pincode: '', gstin: '', contact: '' });
+      setShowShippingForm(false);
+      fetchShippingAddresses();
+      toast.success('Shipping address added');
+    }
+  };
+
+  const deleteShippingAddress = async (id: string) => {
+    if (!confirm('Delete this shipping address?')) return;
+    await supabase.from('client_shipping_addresses').delete().eq('id', id);
+    fetchShippingAddresses();
+    toast.success('Address deleted');
+  };
+
+  const copyBillingToShipping = () => {
+    const formData = watch();
+    setNewShipping({
+      ...newShipping,
+      address_line1: formData.address1,
+      address_line2: formData.address2 || '',
+      city: formData.city,
+      state: formData.state,
+      pincode: formData.pincode,
+      gstin: formData.gstin || '',
+    });
+  };
 
   // Mutations
   const createClient = useMutation({
@@ -300,41 +360,38 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
-      {/* Sticky Header */}
-      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-slate-200/50">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-4">
-              <Button
+    <div className="min-h-screen bg-[#fafafa]">
+      {/* Modal Container - Capy Design */}
+      <div className="max-w-3xl mx-auto bg-white min-h-screen shadow-[0_20px_25px_-5px_rgba(0,0,0,0.1)]">
+        {/* Header */}
+        <div className="sticky top-0 z-50 bg-white border-b border-[#e4e4e7]">
+          <div className="px-6 py-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <button
                 type="button"
-                variant="ghost"
-                size="sm"
                 onClick={onCancel}
-                className="text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                className="p-2 -ml-2 rounded-lg text-[#71717a] hover:text-[#18181b] hover:bg-[#f4f4f5] transition-colors"
               >
-                <ChevronLeft className="w-4 h-4 mr-1" />
-                Back
-              </Button>
-              <div className="w-px h-6 bg-slate-200" />
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
-                  <Building2 className="w-4 h-4 text-white" />
-                </div>
-                <span className="font-semibold text-slate-900">
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              <div>
+                <h1 className="text-lg font-semibold text-[#18181b]">
                   {editMode ? 'Edit Client' : 'New Client'}
-                </span>
+                </h1>
+                <p className="text-sm text-[#71717a]">
+                  {watchClientName || 'Enter client details'}
+                </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               {editMode && (
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="ghost"
                   onClick={handleDelete}
                   disabled={loading}
-                  className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                  className="text-[#ef4444] hover:text-[#b91c1c] hover:bg-[#fee2e2]"
                 >
                   <Trash2 className="w-4 h-4 mr-2" />
                   Delete
@@ -344,7 +401,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                 type="button"
                 onClick={handleSubmit(onSubmit)}
                 disabled={loading}
-                className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg shadow-blue-500/25"
+                className="bg-[#18181b] hover:bg-[#27272a] text-white rounded-xl"
               >
                 {loading ? (
                   <>
@@ -360,79 +417,65 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
               </Button>
             </div>
           </div>
-        </div>
-      </header>
 
-      {/* Hero Section */}
-      <section className="relative bg-white border-b border-slate-200">
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-600/5 via-transparent to-purple-600/5" />
-        <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-          <div className="flex items-center gap-2 mb-3">
-            <Sparkles className="w-4 h-4 text-blue-500" />
-            <span className="text-sm font-medium text-blue-600 uppercase tracking-wider">
-              {editMode ? 'Editing Client' : 'Creating New Client'}
-            </span>
+          {/* Button-Style Tabs - Capy */}
+          <div className="px-6 pb-3">
+            <div className="inline-flex items-center p-1 bg-[#f4f4f5] rounded-xl">
+              <button
+                type="button"
+                onClick={() => setActiveTab('details')}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  activeTab === 'details'
+                    ? 'bg-white text-[#18181b] shadow-[0_1px_3px_0_rgba(0,0,0,0.1)]'
+                    : 'text-[#71717a] hover:text-[#18181b]'
+                }`}
+              >
+                Client Details
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('pricing')}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  activeTab === 'pricing'
+                    ? 'bg-white text-[#18181b] shadow-[0_1px_3px_0_rgba(0,0,0,0.1)]'
+                    : 'text-[#71717a] hover:text-[#18181b]'
+                }`}
+              >
+                Pricing
+              </button>
+            </div>
           </div>
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">
-            {watchClientName || 'New Client'}
-          </h1>
-          <p className="text-slate-500">
-            {editMode
-              ? 'Update client information and pricing details.'
-              : 'Fill in the details below to create a new client profile.'}
-          </p>
         </div>
-      </section>
 
-      {/* Main Content with Tabs */}
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Tabs defaultValue="details" className="w-full">
-          <TabsList className="grid w-full max-w-md mx-auto grid-cols-2 mb-8">
-            <TabsTrigger value="details" className="flex items-center gap-2">
-              <Building2 className="w-4 h-4" />
-              Client Details
-            </TabsTrigger>
-            <TabsTrigger value="pricing" className="flex items-center gap-2">
-              <Tag className="w-4 h-4" />
-              Pricing
-            </TabsTrigger>
-          </TabsList>
-
-          {/* Client Details Tab */}
-          <TabsContent value="details" className="space-y-6">
-            {/* Basic Info */}
-            <Card className="border-slate-200/60">
-              <CardContent className="p-6">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/25">
-                    <Building2 className="w-5 h-5 text-white" />
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-semibold text-slate-900">Basic Information</h2>
-                    <p className="text-sm text-slate-500">Client name, GSTIN, and vendor details</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Content */}
+        <div className="p-6">
+          {activeTab === 'details' ? (
+            <div className="space-y-8">
+              {/* Basic Information */}
+              <section>
+                <h3 className="text-xs font-semibold text-[#71717a] uppercase tracking-wider mb-4">
+                  Basic Information
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-slate-700">
-                      Client Name <span className="text-red-500">*</span>
+                    <Label className="text-sm text-[#3f3f46]">
+                      Client Name <span className="text-[#ef4444]">*</span>
                     </Label>
                     <Input
                       {...register('client_name')}
-                      placeholder="Enter company or client name"
-                      className="h-11 border-slate-300 focus:border-blue-500 focus:ring-blue-500/20"
+                      placeholder="Enter company name"
+                      className="h-10 bg-[#fafafa] border-[#e4e4e7] rounded-xl focus:bg-white focus:border-[#d4d4d8] focus:ring-0 transition-colors"
                     />
                     {errors.client_name && (
-                      <p className="text-sm text-red-500">{errors.client_name.message}</p>
+                      <p className="text-sm text-[#ef4444]">{errors.client_name.message}</p>
                     )}
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-slate-700">Category</Label>
+                    <Label className="text-sm text-[#3f3f46]">Category</Label>
                     <select
                       {...register('category')}
-                      className="w-full h-11 px-3 rounded-md border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                      className="w-full h-10 px-3 bg-[#fafafa] border border-[#e4e4e7] rounded-xl text-sm focus:bg-white focus:border-[#d4d4d8] focus:outline-none transition-colors"
                     >
                       <option value="Active">Active</option>
                       <option value="Inactive">Inactive</option>
@@ -441,95 +484,86 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-slate-700">GSTIN</Label>
+                    <Label className="text-sm text-[#3f3f46]">GSTIN</Label>
                     <Input
                       {...register('gstin')}
                       placeholder="15-character GSTIN"
                       maxLength={15}
-                      className="h-11 border-slate-300 focus:border-blue-500 focus:ring-blue-500/20 font-mono uppercase"
+                      className="h-10 bg-[#fafafa] border-[#e4e4e7] rounded-xl focus:bg-white focus:border-[#d4d4d8] focus:ring-0 font-mono uppercase transition-colors"
                     />
                     {watchGstin && watchGstin.length >= 2 && gstStateCodes[watchGstin.substring(0, 2)] && (
-                      <p className="text-xs text-green-600 flex items-center gap-1">
+                      <p className="text-xs text-[#22c55e] flex items-center gap-1">
                         <CheckCircle2 className="w-3 h-3" />
-                        Detected: {gstStateCodes[watchGstin.substring(0, 2)]}
+                        {gstStateCodes[watchGstin.substring(0, 2)]}
                       </p>
                     )}
                     {errors.gstin && (
-                      <p className="text-sm text-red-500">{errors.gstin.message}</p>
+                      <p className="text-sm text-[#ef4444]">{errors.gstin.message}</p>
                     )}
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-slate-700">Vendor Number</Label>
+                    <Label className="text-sm text-[#3f3f46]">Vendor Number</Label>
                     <Input
                       {...register('vendor_no')}
-                      placeholder="Internal vendor reference"
-                      className="h-11 border-slate-300 focus:border-blue-500 focus:ring-blue-500/20"
+                      placeholder="Internal reference"
+                      className="h-10 bg-[#fafafa] border-[#e4e4e7] rounded-xl focus:bg-white focus:border-[#d4d4d8] focus:ring-0 transition-colors"
                     />
                   </div>
                 </div>
-              </CardContent>
-            </Card>
+              </section>
 
-            {/* Address */}
-            <Card className="border-slate-200/60">
-              <CardContent className="p-6">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/25">
-                    <MapPin className="w-5 h-5 text-white" />
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-semibold text-slate-900">Address Details</h2>
-                    <p className="text-sm text-slate-500">Primary billing address</p>
-                  </div>
-                </div>
-
+              {/* Address */}
+              <section>
+                <h3 className="text-xs font-semibold text-[#71717a] uppercase tracking-wider mb-4">
+                  Billing Address
+                </h3>
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-slate-700">
-                      Address Line 1 <span className="text-red-500">*</span>
+                    <Label className="text-sm text-[#3f3f46]">
+                      Address Line 1 <span className="text-[#ef4444]">*</span>
                     </Label>
                     <Input
                       {...register('address1')}
-                      placeholder="Street address, building name"
-                      className="h-11 border-slate-300 focus:border-blue-500 focus:ring-blue-500/20"
+                      placeholder="Street address"
+                      className="h-10 bg-[#fafafa] border-[#e4e4e7] rounded-xl focus:bg-white focus:border-[#d4d4d8] focus:ring-0 transition-colors"
                     />
                     {errors.address1 && (
-                      <p className="text-sm text-red-500">{errors.address1.message}</p>
+                      <p className="text-sm text-[#ef4444]">{errors.address1.message}</p>
                     )}
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-slate-700">Address Line 2</Label>
+                    <Label className="text-sm text-[#3f3f46]">Address Line 2</Label>
                     <Input
                       {...register('address2')}
-                      placeholder="Apartment, floor, landmark (optional)"
-                      className="h-11 border-slate-300 focus:border-blue-500 focus:ring-blue-500/20"
+                      placeholder="Apartment, suite, etc. (optional)"
+                      className="h-10 bg-[#fafafa] border-[#e4e4e7] rounded-xl focus:bg-white focus:border-[#d4d4d8] focus:ring-0 transition-colors"
                     />
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="space-y-2">
-                      <Label className="text-sm font-medium text-slate-700">
-                        City <span className="text-red-500">*</span>
+                      <Label className="text-sm text-[#3f3f46]">
+                        City <span className="text-[#ef4444]">*</span>
                       </Label>
                       <Input
                         {...register('city')}
-                        placeholder="City name"
-                        className="h-11 border-slate-300 focus:border-blue-500 focus:ring-blue-500/20"
+                        placeholder="City"
+                        className="h-10 bg-[#fafafa] border-[#e4e4e7] rounded-xl focus:bg-white focus:border-[#d4d4d8] focus:ring-0 transition-colors"
                       />
                       {errors.city && (
-                        <p className="text-sm text-red-500">{errors.city.message}</p>
+                        <p className="text-sm text-[#ef4444]">{errors.city.message}</p>
                       )}
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-sm font-medium text-slate-700">
-                        State <span className="text-red-500">*</span>
+                      <Label className="text-sm text-[#3f3f46]">
+                        State <span className="text-[#ef4444]">*</span>
                       </Label>
                       <select
                         {...register('state')}
-                        className="w-full h-11 px-3 rounded-md border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                        className="w-full h-10 px-3 bg-[#fafafa] border border-[#e4e4e7] rounded-xl text-sm focus:bg-white focus:border-[#d4d4d8] focus:outline-none transition-colors"
                       >
                         <option value="">Select State</option>
                         {indianStates.map((state) => (
@@ -537,331 +571,408 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                         ))}
                       </select>
                       {errors.state && (
-                        <p className="text-sm text-red-500">{errors.state.message}</p>
+                        <p className="text-sm text-[#ef4444]">{errors.state.message}</p>
                       )}
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-sm font-medium text-slate-700">
-                        Pincode <span className="text-red-500">*</span>
+                      <Label className="text-sm text-[#3f3f46]">
+                        Pincode <span className="text-[#ef4444]">*</span>
                       </Label>
                       <Input
                         {...register('pincode')}
-                        placeholder="6-digit pincode"
+                        placeholder="6-digit"
                         maxLength={6}
-                        className="h-11 border-slate-300 focus:border-blue-500 focus:ring-blue-500/20"
+                        className="h-10 bg-[#fafafa] border-[#e4e4e7] rounded-xl focus:bg-white focus:border-[#d4d4d8] focus:ring-0 transition-colors"
                       />
                       {errors.pincode && (
-                        <p className="text-sm text-red-500">{errors.pincode.message}</p>
+                        <p className="text-sm text-[#ef4444]">{errors.pincode.message}</p>
                       )}
                     </div>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
+              </section>
 
-            {/* Contacts */}
-            <Card className="border-slate-200/60">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-violet-600 flex items-center justify-center shadow-lg shadow-violet-500/25">
-                      <Users className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <h2 className="text-lg font-semibold text-slate-900">Contact Persons</h2>
-                      <p className="text-sm text-slate-500">Primary and secondary contacts</p>
-                    </div>
+              {/* Shipping Addresses */}
+              <section>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-xs font-semibold text-[#71717a] uppercase tracking-wider">
+                    Shipping Addresses
+                  </h3>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowShippingForm(!showShippingForm)}
+                    disabled={!editMode}
+                    className="border-[#e4e4e7] text-[#3f3f46] hover:bg-[#f4f4f5] rounded-xl"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Address
+                  </Button>
+                </div>
+
+                {!editMode && (
+                  <div className="bg-[#fef3c7] border border-[#fde68a] rounded-xl p-3 mb-4">
+                    <p className="text-sm text-[#b45309]">
+                      Save the client first to add shipping addresses
+                    </p>
                   </div>
+                )}
+
+                {showShippingForm && editMode && (
+                  <Card className="mb-4 border-[#e4e4e7] rounded-xl">
+                    <CardContent className="p-4 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-medium text-[#18181b]">New Shipping Address</h4>
+                        <button
+                          type="button"
+                          onClick={() => setShowShippingForm(false)}
+                          className="p-1 rounded-lg text-[#a1a1aa] hover:text-[#71717a] hover:bg-[#f4f4f5] transition-colors"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <Input
+                          placeholder="Address Name (e.g., Warehouse)"
+                          value={newShipping.address_name}
+                          onChange={(e) => setNewShipping({...newShipping, address_name: e.target.value})}
+                          className="h-10 bg-[#fafafa] border-[#e4e4e7] rounded-xl"
+                        />
+                        <Input
+                          placeholder="Contact Person"
+                          value={newShipping.contact}
+                          onChange={(e) => setNewShipping({...newShipping, contact: e.target.value})}
+                          className="h-10 bg-[#fafafa] border-[#e4e4e7] rounded-xl"
+                        />
+                        <Input
+                          placeholder="Address Line 1"
+                          value={newShipping.address_line1}
+                          onChange={(e) => setNewShipping({...newShipping, address_line1: e.target.value})}
+                          className="h-10 bg-[#fafafa] border-[#e4e4e7] rounded-xl"
+                        />
+                        <Input
+                          placeholder="Address Line 2"
+                          value={newShipping.address_line2}
+                          onChange={(e) => setNewShipping({...newShipping, address_line2: e.target.value})}
+                          className="h-10 bg-[#fafafa] border-[#e4e4e7] rounded-xl"
+                        />
+                        <Input
+                          placeholder="City"
+                          value={newShipping.city}
+                          onChange={(e) => setNewShipping({...newShipping, city: e.target.value})}
+                          className="h-10 bg-[#fafafa] border-[#e4e4e7] rounded-xl"
+                        />
+                        <select
+                          value={newShipping.state}
+                          onChange={(e) => setNewShipping({...newShipping, state: e.target.value})}
+                          className="h-10 px-3 bg-[#fafafa] border border-[#e4e4e7] rounded-xl text-sm"
+                        >
+                          <option value="">Select State</option>
+                          {indianStates.map((s) => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                        <Input
+                          placeholder="Pincode"
+                          value={newShipping.pincode}
+                          onChange={(e) => setNewShipping({...newShipping, pincode: e.target.value})}
+                          className="h-10 bg-[#fafafa] border-[#e4e4e7] rounded-xl"
+                        />
+                        <Input
+                          placeholder="GSTIN (if different)"
+                          value={newShipping.gstin}
+                          onChange={(e) => setNewShipping({...newShipping, gstin: e.target.value})}
+                          className="h-10 bg-[#fafafa] border-[#e4e4e7] rounded-xl"
+                        />
+                      </div>
+
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={copyBillingToShipping}
+                          className="border-[#e4e4e7] text-[#3f3f46] hover:bg-[#f4f4f5] rounded-xl"
+                        >
+                          <Copy className="w-4 h-4 mr-2" />
+                          Copy from Billing
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={addShippingAddress}
+                          className="bg-[#18181b] hover:bg-[#27272a] text-white rounded-xl"
+                        >
+                          Save Address
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {shippingAddresses.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {shippingAddresses.map((addr) => (
+                      <div
+                        key={addr.id}
+                        className="bg-[#fafafa] rounded-xl p-4 border border-[#e4e4e7]"
+                      >
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <Building className="w-4 h-4 text-[#a1a1aa]" />
+                            <span className="font-medium text-[#18181b]">{addr.address_name}</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => deleteShippingAddress(addr.id)}
+                            className="p-1 rounded-lg text-[#ef4444] hover:bg-[#fee2e2] transition-colors"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                        <p className="text-sm text-[#52525b]">{addr.address_line1}</p>
+                        {addr.address_line2 && <p className="text-sm text-[#52525b]">{addr.address_line2}</p>}
+                        <p className="text-sm text-[#52525b]">{addr.city}, {addr.state} - {addr.pincode}</p>
+                        {addr.gstin && <p className="text-xs text-[#71717a] mt-1">GSTIN: {addr.gstin}</p>}
+                        {addr.contact && <p className="text-xs text-[#71717a]">Contact: {addr.contact}</p>}
+                      </div>
+                    ))}
+                  </div>
+                ) : editMode && (
+                  <div className="text-center py-8 text-[#a1a1aa] bg-[#fafafa] rounded-xl border border-dashed border-[#e4e4e7]">
+                    <p className="text-sm">No shipping addresses added</p>
+                  </div>
+                )}
+              </section>
+
+              {/* Contacts */}
+              <section>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-xs font-semibold text-[#71717a] uppercase tracking-wider">
+                    Contact Persons
+                  </h3>
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
                     onClick={() => append({ name: '', designation: '', phone: '', email: '', type: 'secondary' })}
-                    className="border-slate-300 hover:bg-slate-50"
+                    className="border-[#e4e4e7] text-[#3f3f46] hover:bg-[#f4f4f5] rounded-xl"
                   >
                     <Plus className="w-4 h-4 mr-2" />
                     Add Contact
                   </Button>
                 </div>
 
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {fields.map((field, index) => (
-                    <div
-                      key={field.id}
-                      className="relative bg-slate-50/50 rounded-xl p-5 border border-slate-200/60 hover:border-slate-300 transition-colors"
-                    >
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-2">
-                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                            index === 0
-                              ? 'bg-gradient-to-br from-amber-400 to-amber-500'
-                              : 'bg-gradient-to-br from-slate-400 to-slate-500'
-                          }`}>
-                            <User className="w-4 h-4 text-white" />
+                    <Card key={field.id} className="border-[#e4e4e7] rounded-xl">
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-[#18181b]">
+                              {index === 0 ? 'Primary Contact' : `Contact ${index + 1}`}
+                            </span>
+                            {index === 0 && (
+                              <Badge variant="secondary" className="bg-[#f4f4f5] text-[#71717a] rounded-lg">
+                                Main
+                              </Badge>
+                            )}
                           </div>
-                          <span className="font-medium text-slate-900">
-                            {index === 0 ? 'Primary Contact' : `Contact ${index + 1}`}
-                          </span>
-                          {index === 0 && (
-                            <Badge variant="secondary" className="bg-amber-100 text-amber-700 border-amber-200">
-                              Main
-                            </Badge>
-                          )}
-                        </div>
-                        {index > 0 && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => remove(index)}
-                            className="text-red-500 hover:text-red-700 hover:bg-red-50 h-8 w-8 p-0"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        )}
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <div className="space-y-2">
-                          <Label className="text-xs font-medium text-slate-600">Full Name</Label>
-                          <Input
-                            {...register(`contacts.${index}.name`)}
-                            placeholder="Contact name"
-                            className="h-10 border-slate-300 focus:border-blue-500"
-                          />
-                          {errors.contacts?.[index]?.name && (
-                            <p className="text-xs text-red-500">{errors.contacts[index]?.name?.message}</p>
+                          {index > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => remove(index)}
+                              className="p-1 rounded-lg text-[#ef4444] hover:bg-[#fee2e2] transition-colors"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
                           )}
                         </div>
 
-                        <div className="space-y-2">
-                          <Label className="text-xs font-medium text-slate-600">Designation</Label>
-                          <Input
-                            {...register(`contacts.${index}.designation`)}
-                            placeholder="Job title"
-                            className="h-10 border-slate-300 focus:border-blue-500"
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <Label className="text-xs font-medium text-slate-600">Phone</Label>
-                          <div className="relative">
-                            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                          <div className="space-y-1">
+                            <Label className="text-xs text-[#a1a1aa]">Name</Label>
                             <Input
-                              {...register(`contacts.${index}.phone`)}
-                              placeholder="Phone number"
-                              className="h-10 pl-10 border-slate-300 focus:border-blue-500"
+                              {...register(`contacts.${index}.name`)}
+                              placeholder="Full name"
+                              className="h-9 bg-[#fafafa] border-[#e4e4e7] rounded-lg focus:bg-white focus:border-[#d4d4d8]"
+                            />
+                            {errors.contacts?.[index]?.name && (
+                              <p className="text-xs text-[#ef4444]">{errors.contacts[index]?.name?.message}</p>
+                            )}
+                          </div>
+
+                          <div className="space-y-1">
+                            <Label className="text-xs text-[#a1a1aa]">Designation</Label>
+                            <Input
+                              {...register(`contacts.${index}.designation`)}
+                              placeholder="Job title"
+                              className="h-9 bg-[#fafafa] border-[#e4e4e7] rounded-lg focus:bg-white focus:border-[#d4d4d8]"
                             />
                           </div>
-                          {errors.contacts?.[index]?.phone && (
-                            <p className="text-xs text-red-500">{errors.contacts[index]?.phone?.message}</p>
-                          )}
-                        </div>
 
-                        <div className="space-y-2">
-                          <Label className="text-xs font-medium text-slate-600">Email</Label>
-                          <div className="relative">
-                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                            <Input
-                              {...register(`contacts.${index}.email`)}
-                              placeholder="Email address"
-                              className="h-10 pl-10 border-slate-300 focus:border-blue-500"
-                            />
+                          <div className="space-y-1">
+                            <Label className="text-xs text-[#a1a1aa]">Phone</Label>
+                            <div className="relative">
+                              <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 text-[#a1a1aa]" />
+                              <Input
+                                {...register(`contacts.${index}.phone`)}
+                                placeholder="Phone number"
+                                className="h-9 pl-8 bg-[#fafafa] border-[#e4e4e7] rounded-lg focus:bg-white focus:border-[#d4d4d8]"
+                              />
+                            </div>
+                            {errors.contacts?.[index]?.phone && (
+                              <p className="text-xs text-[#ef4444]">{errors.contacts[index]?.phone?.message}</p>
+                            )}
                           </div>
-                          {errors.contacts?.[index]?.email && (
-                            <p className="text-xs text-red-500">{errors.contacts[index]?.email?.message}</p>
-                          )}
+
+                          <div className="space-y-1">
+                            <Label className="text-xs text-[#a1a1aa]">Email</Label>
+                            <div className="relative">
+                              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 text-[#a1a1aa]" />
+                              <Input
+                                {...register(`contacts.${index}.email`)}
+                                placeholder="Email address"
+                                className="h-9 pl-8 bg-[#fafafa] border-[#e4e4e7] rounded-lg focus:bg-white focus:border-[#d4d4d8]"
+                              />
+                            </div>
+                            {errors.contacts?.[index]?.email && (
+                              <p className="text-xs text-[#ef4444]">{errors.contacts[index]?.email?.message}</p>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    </div>
+                      </CardContent>
+                    </Card>
                   ))}
                 </div>
 
                 {errors.contacts && (
-                  <p className="text-sm text-red-500 mt-4">{errors.contacts.message}</p>
+                  <p className="text-sm text-[#ef4444] mt-3">{errors.contacts.message}</p>
                 )}
-              </CardContent>
-            </Card>
+              </section>
 
-            {/* Internal Notes */}
-            <Card className="border-slate-200/60">
-              <CardContent className="p-6">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-500 to-slate-600 flex items-center justify-center shadow-lg shadow-slate-500/25">
-                    <Briefcase className="w-5 h-5 text-white" />
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-semibold text-slate-900">Internal Notes</h2>
-                    <p className="text-sm text-slate-500">Remarks and client background information</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Internal Notes */}
+              <section>
+                <h3 className="text-xs font-semibold text-[#71717a] uppercase tracking-wide mb-4">
+                  Internal Notes
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-slate-700">General Remarks</Label>
+                    <Label className="text-sm text-[#3f3f46]">General Remarks</Label>
                     <Textarea
                       {...register('remarks')}
-                      placeholder="Any general notes about this client..."
-                      className="min-h-[100px] resize-none border-slate-300 focus:border-blue-500 focus:ring-blue-500/20"
+                      placeholder="Any general notes..."
+                      className="min-h-[80px] resize-none bg-[#fafafa] border-[#e4e4e7] rounded-xl focus:bg-white focus:border-[#d4d4d8] focus:ring-0"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-slate-700">About Client</Label>
+                    <Label className="text-sm text-[#3f3f46]">About Client</Label>
                     <Textarea
                       {...register('about_client')}
-                      placeholder="Background, business details, relationship history..."
-                      className="min-h-[100px] resize-none border-slate-300 focus:border-blue-500 focus:ring-blue-500/20"
+                      placeholder="Background, business details..."
+                      className="min-h-[80px] resize-none bg-[#fafafa] border-[#e4e4e7] rounded-xl focus:bg-white focus:border-[#d4d4d8] focus:ring-0"
                     />
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+              </section>
+            </div>
+          ) : (
+            /* Pricing Tab */
+            <div className="space-y-8">
+              <section>
+                <h3 className="text-xs font-semibold text-[#71717a] uppercase tracking-wider mb-4">
+                  Discount Configuration
+                </h3>
 
-          {/* Pricing Tab */}
-          <TabsContent value="pricing" className="space-y-6">
-            <Card className="border-slate-200/60">
-              <CardContent className="p-6">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/25">
-                    <Tag className="w-5 h-5 text-white" />
+                <div className="space-y-4 max-w-xl">
+                  <div className="space-y-2">
+                    <Label className="text-sm text-[#3f3f46]">Discount Type</Label>
+                    <select
+                      {...register('discount_type')}
+                      onChange={(e) => {
+                        setValue('discount_type', e.target.value);
+                        if (e.target.value !== 'Standard') {
+                          setValue('standard_pricelist_id', '');
+                        }
+                      }}
+                      className="w-full h-10 px-3 bg-[#fafafa] border border-[#e4e4e7] rounded-xl text-sm focus:bg-white focus:border-[#d4d4d8] focus:outline-none transition-colors"
+                    >
+                      <option value="Standard">Standard (Price List Based)</option>
+                      <option value="Premium">Premium (Variant Based)</option>
+                      <option value="Bulk">Bulk (Variant Based)</option>
+                      <option value="Special">Special (Variant Based)</option>
+                    </select>
                   </div>
-                  <div>
-                    <h2 className="text-lg font-semibold text-slate-900">Pricing & Discounts</h2>
-                    <p className="text-sm text-slate-500">Discount structure and pricing tier</p>
-                  </div>
-                </div>
 
-                <div className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {watchDiscountType === 'Standard' && (
                     <div className="space-y-2">
-                      <Label className="text-sm font-medium text-slate-700">Discount Type</Label>
+                      <Label className="text-sm text-[#3f3f46]">Price List</Label>
                       <select
-                        {...register('discount_type')}
-                        onChange={(e) => {
-                          setValue('discount_type', e.target.value);
-                          if (e.target.value !== 'Standard') {
-                            setValue('standard_pricelist_id', '');
-                          }
-                        }}
-                        className="w-full h-11 px-3 rounded-md border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                        {...register('standard_pricelist_id')}
+                        className="w-full h-10 px-3 bg-[#fafafa] border border-[#e4e4e7] rounded-xl text-sm focus:bg-white focus:border-[#d4d4d8] focus:outline-none transition-colors"
                       >
-                        <option value="Standard">Standard (Price List Based)</option>
-                        <option value="Premium">Premium (Variant Based)</option>
-                        <option value="Bulk">Bulk (Variant Based)</option>
-                        <option value="Special">Special (Variant Based)</option>
+                        <option value="">Select a price list</option>
+                        {pricelists?.map((pl: any) => (
+                          <option key={pl.id} value={pl.id}>
+                            {pl.pricelist_name} ({pl.discount_percent}%)
+                          </option>
+                        ))}
                       </select>
                     </div>
+                  )}
+                </div>
+              </section>
 
-                    {watchDiscountType === 'Standard' && (
-                      <div className="space-y-2">
-                        <Label className="text-sm font-medium text-slate-700">Select Price List</Label>
-                        <select
-                          {...register('standard_pricelist_id')}
-                          className="w-full h-11 px-3 rounded-md border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                        >
-                          <option value="">Choose a price list</option>
-                          {pricelists?.map((pl: any) => (
-                            <option key={pl.id} value={pl.id}>
-                              {pl.pricelist_name} ({pl.discount_percent}%)
-                            </option>
-                          ))}
-                        </select>
+              {/* Portfolio Preview */}
+              <section>
+                <h3 className="text-xs font-semibold text-[#71717a] uppercase tracking-wider mb-4">
+                  Portfolio Preview
+                </h3>
+
+                <div className="max-w-md">
+                  {watchDiscountType === 'Standard' ? (
+                    <div className="flex items-center gap-3 p-4 bg-[#dcfce7] rounded-xl border border-[#bbf7d0]">
+                      <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-sm">
+                        <CheckCircle2 className="w-5 h-5 text-[#22c55e]" />
                       </div>
-                    )}
-                  </div>
-
-                  <div className="bg-gradient-to-r from-slate-50 to-blue-50/50 rounded-xl p-5 border border-slate-200">
-                    <div className="flex items-center gap-3 mb-3">
-                      <CreditCard className="w-5 h-5 text-blue-600" />
-                      <h4 className="font-medium text-slate-900">Portfolio Preview</h4>
+                      <div>
+                        <p className="font-medium text-[#166534]">
+                          {pricelists?.find((pl: any) => pl.id === watch('standard_pricelist_id'))?.discount_percent || 0}% Standard Discount
+                        </p>
+                        <p className="text-sm text-[#22c55e]">Flat discount on all items</p>
+                      </div>
                     </div>
-                    {watchDiscountType === 'Standard' ? (
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
-                          <CheckCircle2 className="w-5 h-5 text-green-600" />
-                        </div>
-                        <div>
-                          <p className="font-medium text-slate-900">
-                            {pricelists?.find((pl: any) => pl.id === watch('standard_pricelist_id'))?.discount_percent || 0}% Standard Discount
-                          </p>
-                          <p className="text-sm text-slate-500">Flat discount applied to all items</p>
-                        </div>
+                  ) : (
+                    <div className="flex items-center gap-3 p-4 bg-[#fef3c7] rounded-xl border border-[#fde68a]">
+                      <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-sm">
+                        <AlertCircle className="w-5 h-5 text-[#f59e0b]" />
                       </div>
-                    ) : (
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center">
-                          <AlertCircle className="w-5 h-5 text-amber-600" />
-                        </div>
-                        <div>
-                          <p className="font-medium text-slate-900">{watchDiscountType} Structure</p>
-                          <p className="text-sm text-slate-500">Variant-based pricing will be applied</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {isAdmin && (
-                    <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
-                      <div className="flex items-center gap-2 text-sm text-slate-600">
-                        <Crown className="w-4 h-4 text-amber-500" />
-                        <span>Custom discount management available for admin users</span>
+                      <div>
+                        <p className="font-medium text-[#b45309]">{watchDiscountType} Structure</p>
+                        <p className="text-sm text-[#f59e0b]">Variant-based pricing applied</p>
                       </div>
                     </div>
                   )}
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+              </section>
 
-        {/* Bottom Actions */}
-        <div className="flex items-center justify-between pt-8 mt-8 border-t border-slate-200">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onCancel}
-            disabled={loading}
-            className="min-w-[120px] border-slate-300"
-          >
-            Cancel
-          </Button>
-
-          <div className="flex gap-3">
-            {editMode && (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleDelete}
-                disabled={loading}
-                className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
-              >
-                <Trash2 className="w-4 h-4 mr-2" />
-                Delete Client
-              </Button>
-            )}
-            <Button
-              type="button"
-              onClick={handleSubmit(onSubmit)}
-              disabled={loading}
-              className="min-w-[160px] bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg shadow-blue-500/25"
-            >
-              {loading ? (
-                <>
-                  <div className="w-4 h-4 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Save className="w-4 h-4 mr-2" />
-                  {editMode ? 'Update Client' : 'Create Client'}
-                </>
+              {isAdmin && (
+                <section>
+                  <h3 className="text-xs font-semibold text-[#71717a] uppercase tracking-wider mb-4">
+                    Admin Options
+                  </h3>
+                  <div className="bg-[#f4f4f5] rounded-xl p-4">
+                    <p className="text-sm text-[#71717a]">
+                      Custom discount management available for admin users
+                    </p>
+                  </div>
+                </section>
               )}
-            </Button>
-          </div>
+            </div>
+          )}
         </div>
-      </main>
+      </div>
     </div>
   );
 }
@@ -881,20 +992,19 @@ export function CreateClientEdit({ onSuccess, onCancel }: { onSuccess: () => voi
   });
 
   if (isLoading) return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50">
+    <div className="min-h-screen flex items-center justify-center bg-[#fafafa]">
       <div className="flex flex-col items-center gap-4">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        <p className="text-slate-600">Loading client data...</p>
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#18181b]"></div>
+        <p className="text-[#71717a]">Loading...</p>
       </div>
     </div>
   );
 
   if (!clientData) return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50">
+    <div className="min-h-screen flex items-center justify-center bg-[#fafafa]">
       <div className="text-center">
-        <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-        <p className="text-red-600 font-medium">Error loading client data</p>
-        <Button onClick={onCancel} variant="outline" className="mt-4">
+        <p className="text-[#ef4444] font-medium">Error loading client</p>
+        <Button onClick={onCancel} variant="outline" className="mt-4 rounded-xl border-[#e4e4e7]">
           Go Back
         </Button>
       </div>
