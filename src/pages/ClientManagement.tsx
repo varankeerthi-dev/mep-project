@@ -1,990 +1,70 @@
-import { useState, useEffect } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useState, useEffect, useMemo } from 'react';
+import type { ChangeEvent, FormEvent } from 'react';
 import { supabase } from '../supabase';
 import { useAuth } from '../App';
-import { toast } from 'sonner';
-import { useForm, useFieldArray } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-
-// shadcn/ui components
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  Card, CardContent, CardHeader, CardTitle, CardDescription,
   Button,
   Input,
   Label,
-  Textarea,
-  Card,
-  CardContent,
   Badge,
-} from '../components/ui';
+  Tabs, TabsList, TabsTrigger, TabsContent,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  Separator,
+  Skeleton,
+} from '@/components/ui';
+import { Textarea } from '@/components/ui/textarea';
+import { cn } from '@/lib/utils';
 
-// Icons
-import {
-  Plus,
-  Trash2,
-  ChevronLeft,
-  Save,
-  CheckCircle2,
-  AlertCircle,
-  Phone,
-  Mail,
-  X,
-  Copy,
-  Building,
-} from 'lucide-react';
-
-const indianStates = [
-  'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
-  'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand',
-  'Karnataka', 'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur',
-  'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha', 'Punjab',
-  'Rajasthan', 'Sikkim', 'Tamil Nadu', 'Telangana', 'Tripura',
-  'Uttar Pradesh', 'Uttarakhand', 'West Bengal',
-  'Delhi', 'Jammu and Kashmir', 'Ladakh', 'Puducherry'
-];
-
-const gstStateCodes: Record<string, string> = {
-  '01': 'Jammu and Kashmir', '02': 'Himachal Pradesh', '03': 'Punjab', '04': 'Chandigarh',
-  '05': 'Uttarakhand', '06': 'Haryana', '07': 'Delhi', '08': 'Rajasthan',
-  '09': 'Uttar Pradesh', '10': 'Bihar', '11': 'Sikkim', '12': 'Arunachal Pradesh',
-  '13': 'Nagaland', '14': 'Manipur', '15': 'Mizoram', '16': 'Tripura',
-  '17': 'Meghalaya', '18': 'Assam', '19': 'West Bengal', '20': 'Jharkhand',
-  '21': 'Odisha', '22': 'Chhattisgarh', '23': 'Madhya Pradesh', '24': 'Gujarat',
-  '25': 'Maharashtra', '26': 'Karnataka', '27': 'Goa', '28': 'Lakshadweep',
-  '29': 'Kerala', '30': 'Tamil Nadu', '31': 'Puducherry', '32': 'Andaman and Nicobar Islands',
-  '33': 'Telangana', '34': 'Andhra Pradesh', '35': 'Ladakh'
-};
-
-const clientSchema = z.object({
-  client_name: z.string().min(1, 'Client name is required'),
-  category: z.string().default('Active'),
-  gstin: z.string().length(15, 'GSTIN must be 15 characters').optional().or(z.literal('')),
-  vendor_no: z.string().optional(),
-  address1: z.string().min(1, 'Address Line 1 is required'),
-  address2: z.string().optional(),
-  city: z.string().min(1, 'City is required'),
-  state: z.string().min(1, 'State is required'),
-  pincode: z.string().min(6, 'Pincode must be at least 6 characters'),
-  remarks: z.string().optional(),
-  about_client: z.string().optional(),
-  discount_type: z.string().default('Special'),
-  standard_pricelist_id: z.string().optional(),
-  contacts: z.array(z.object({
-    name: z.string().min(1, 'Contact name is required'),
-    designation: z.string().optional(),
-    phone: z.string().min(1, 'Phone is required'),
-    email: z.string().email('Invalid email').optional().or(z.literal('')),
-    type: z.string().default('secondary'),
-  })).min(1, 'At least one contact is required'),
-});
-
-type ClientFormValues = z.infer<typeof clientSchema>;
-
-interface CreateClientProps {
-  onSuccess: () => void;
-  onCancel: () => void;
-  editMode?: boolean;
-  clientData?: any;
+function getCurrentQueryParams() {
+  const hashQuery = window.location.hash.split('?')[1];
+  const searchQuery = window.location.search.slice(1);
+  return new URLSearchParams(hashQuery || searchQuery || '');
 }
 
-export function CreateClient({ onSuccess, onCancel, editMode, clientData }: CreateClientProps) {
-  const { organisation, organisations } = useAuth();
-  const queryClient = useQueryClient();
-  const isAdmin = organisations?.find((o: any) => o.organisation?.id === organisation?.id)?.role?.toString().toLowerCase() === 'admin';
-
-  const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'details' | 'pricing'>('details');
-
-  const {
-    register,
-    control,
-    handleSubmit,
-    setValue,
-    watch,
-    reset,
-    formState: { errors },
-  } = useForm<ClientFormValues>({
-    resolver: zodResolver(clientSchema),
-    defaultValues: {
-      client_name: '',
-      category: 'Active',
-      gstin: '',
-      vendor_no: '',
-      address1: '',
-      address2: '',
-      city: '',
-      state: '',
-      pincode: '',
-      remarks: '',
-      about_client: '',
-      discount_type: 'Special',
-      standard_pricelist_id: '',
-      contacts: [{ name: '', designation: '', phone: '', email: '', type: 'primary' }],
-    },
-  });
-
-  const { fields, append, remove } = useFieldArray({
-    control,
-    name: 'contacts',
-  });
-
-  const watchGstin = watch('gstin');
-  const watchState = watch('state');
-  const watchDiscountType = watch('discount_type');
-  const watchClientName = watch('client_name');
-
-  // Shipping Addresses State
-  const [shippingAddresses, setShippingAddresses] = useState<any[]>([]);
-  const [showShippingForm, setShowShippingForm] = useState(false);
-  const [newShipping, setNewShipping] = useState({
-    address_name: '',
-    address_line1: '',
-    address_line2: '',
-    city: '',
-    state: '',
-    pincode: '',
-    gstin: '',
-    contact: '',
-  });
-
-  // Load existing data if edit mode
-  useEffect(() => {
-    if (editMode && clientData) {
-      reset({
-        client_name: clientData.client_name || '',
-        category: clientData.category || 'Active',
-        gstin: clientData.gstin || '',
-        vendor_no: clientData.vendor_no || '',
-        address1: clientData.address1 || '',
-        address2: clientData.address2 || '',
-        city: clientData.city || '',
-        state: clientData.state || '',
-        pincode: clientData.pincode || '',
-        remarks: clientData.remarks || '',
-        about_client: clientData.about_client || '',
-        discount_type: clientData.discount_type || 'Special',
-        standard_pricelist_id: clientData.standard_pricelist_id || '',
-        contacts: clientData.contacts?.length > 0 ? clientData.contacts : [{ name: '', designation: '', phone: '', email: '', type: 'primary' }],
-      });
-      if (clientData.id) fetchShippingAddresses();
-    }
-  }, [editMode, clientData, reset]);
-
-  // Fetch pricelists
-  const { data: pricelists } = useQuery({
-    queryKey: ['pricelists'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('standard_discount_pricelists')
-        .select('*')
-        .eq('is_active', true);
-      if (error) throw error;
-      return data || [];
-    },
-  });
-
-  const fetchShippingAddresses = async () => {
-    if (!clientData?.id) return;
-    const { data } = await supabase
-      .from('client_shipping_addresses')
-      .select('*')
-      .eq('client_id', clientData.id)
-      .order('created_at', { ascending: false });
-    setShippingAddresses(data || []);
-  };
-
-  // GSTIN Auto-detection
-  useEffect(() => {
-    if (watchGstin && watchGstin.length >= 2) {
-      const stateCode = watchGstin.substring(0, 2);
-      const detectedState = gstStateCodes[stateCode];
-      if (detectedState && !watchState) {
-        setValue('state', detectedState);
-      }
-    }
-  }, [watchGstin, watchState, setValue]);
-
-  const addShippingAddress = async () => {
-    if (!editMode || !clientData?.id) {
-      toast.error('Please save the client first before adding shipping addresses');
-      return;
-    }
-
-    const { error } = await supabase.from('client_shipping_addresses').insert({
-      client_id: clientData.id,
-      ...newShipping,
-    });
-
-    if (error) {
-      toast.error('Error adding shipping address: ' + error.message);
-    } else {
-      setNewShipping({ address_name: '', address_line1: '', address_line2: '', city: '', state: '', pincode: '', gstin: '', contact: '' });
-      setShowShippingForm(false);
-      fetchShippingAddresses();
-      toast.success('Shipping address added');
-    }
-  };
-
-  const deleteShippingAddress = async (id: string) => {
-    if (!confirm('Delete this shipping address?')) return;
-    await supabase.from('client_shipping_addresses').delete().eq('id', id);
-    fetchShippingAddresses();
-    toast.success('Address deleted');
-  };
-
-  const copyBillingToShipping = () => {
-    const formData = watch();
-    setNewShipping({
-      ...newShipping,
-      address_line1: formData.address1,
-      address_line2: formData.address2 || '',
-      city: formData.city,
-      state: formData.state,
-      pincode: formData.pincode,
-      gstin: formData.gstin || '',
-    });
-  };
-
-  // Mutations
-  const createClient = useMutation({
-    mutationFn: async (data: ClientFormValues) => {
-      const { data: { user } } = await supabase.auth.getUser();
-
-      const { data: result, error } = await supabase
-        .from('clients')
-        .insert({
-          organisation_id: organisation?.id || null,
-          client_name: data.client_name,
-          category: data.category,
-          gstin: data.gstin || null,
-          vendor_no: data.vendor_no || null,
-          address1: data.address1,
-          address2: data.address2 || null,
-          city: data.city,
-          state: data.state,
-          pincode: data.pincode,
-          remarks: data.remarks || null,
-          about_client: data.about_client || null,
-          discount_type: data.discount_type,
-          standard_pricelist_id: data.standard_pricelist_id || null,
-          contacts: data.contacts,
-          created_by: user?.id,
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-      return result;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['clients'], refetchType: 'all' });
-      toast.success('Client created successfully!');
-      onSuccess();
-    },
-    onError: (error: any) => {
-      toast.error('Error creating client: ' + error.message);
-    },
-  });
-
-  const updateClient = useMutation({
-    mutationFn: async (data: ClientFormValues) => {
-      const { error } = await supabase
-        .from('clients')
-        .update({
-          client_name: data.client_name,
-          category: data.category,
-          gstin: data.gstin || null,
-          vendor_no: data.vendor_no || null,
-          address1: data.address1,
-          address2: data.address2 || null,
-          city: data.city,
-          state: data.state,
-          pincode: data.pincode,
-          remarks: data.remarks || null,
-          about_client: data.about_client || null,
-          discount_type: data.discount_type,
-          standard_pricelist_id: data.standard_pricelist_id || null,
-          contacts: data.contacts,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', clientData.id);
-
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['clients'], refetchType: 'all' });
-      queryClient.invalidateQueries({ queryKey: ['client', clientData.id], refetchType: 'all' });
-      toast.success('Client updated successfully!');
-      onSuccess();
-    },
-    onError: (error: any) => {
-      toast.error('Error updating client: ' + error.message);
-    },
-  });
-
-  const deleteClient = useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase.from('clients').delete().eq('id', clientData.id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['clients'], refetchType: 'all' });
-      toast.success('Client deleted successfully!');
-      onSuccess();
-    },
-    onError: (error: any) => {
-      toast.error('Error deleting client: ' + error.message);
-    },
-  });
-
-  const onSubmit = async (data: ClientFormValues) => {
-    setLoading(true);
-    try {
-      if (editMode) {
-        await updateClient.mutateAsync(data);
-      } else {
-        await createClient.mutateAsync(data);
-      }
-    } catch (error) {
-      console.error('Error saving client:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!confirm('Are you sure you want to delete this client? This action cannot be undone.')) return;
-    setLoading(true);
-    try {
-      await deleteClient.mutateAsync();
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-[#fafafa]">
-      {/* Modal Container - Capy Design */}
-      <div className="max-w-3xl mx-auto bg-white min-h-screen shadow-[0_20px_25px_-5px_rgba(0,0,0,0.1)]">
-        {/* Header */}
-        <div className="sticky top-0 z-50 bg-white border-b border-[#e4e4e7]">
-          <div className="px-6 py-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={onCancel}
-                className="p-2 -ml-2 rounded-lg text-[#71717a] hover:text-[#18181b] hover:bg-[#f4f4f5] transition-colors"
-              >
-                <ChevronLeft className="w-5 h-5" />
-              </button>
-              <div>
-                <h1 className="text-lg font-semibold text-[#18181b]">
-                  {editMode ? 'Edit Client' : 'New Client'}
-                </h1>
-                <p className="text-sm text-[#71717a]">
-                  {watchClientName || 'Enter client details'}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              {editMode && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={handleDelete}
-                  disabled={loading}
-                  className="text-[#ef4444] hover:text-[#b91c1c] hover:bg-[#fee2e2]"
-                >
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Delete
-                </Button>
-              )}
-              <Button
-                type="button"
-                onClick={handleSubmit(onSubmit)}
-                disabled={loading}
-                className="bg-[#18181b] hover:bg-[#27272a] text-white rounded-xl"
-              >
-                {loading ? (
-                  <>
-                    <div className="w-4 h-4 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <Save className="w-4 h-4 mr-2" />
-                    {editMode ? 'Update' : 'Create'}
-                  </>
-                )}
-              </Button>
-            </div>
-          </div>
-
-          {/* Button-Style Tabs - Capy */}
-          <div className="px-6 pb-3">
-            <div className="inline-flex items-center p-1 bg-[#f4f4f5] rounded-xl">
-              <button
-                type="button"
-                onClick={() => setActiveTab('details')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                  activeTab === 'details'
-                    ? 'bg-white text-[#18181b] shadow-[0_1px_3px_0_rgba(0,0,0,0.1)]'
-                    : 'text-[#71717a] hover:text-[#18181b]'
-                }`}
-              >
-                Client Details
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab('pricing')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                  activeTab === 'pricing'
-                    ? 'bg-white text-[#18181b] shadow-[0_1px_3px_0_rgba(0,0,0,0.1)]'
-                    : 'text-[#71717a] hover:text-[#18181b]'
-                }`}
-              >
-                Pricing
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Content */}
-        <div className="p-6">
-          {activeTab === 'details' ? (
-            <div className="space-y-8">
-              {/* Basic Information */}
-              <section>
-                <h3 className="text-xs font-semibold text-[#71717a] uppercase tracking-wider mb-4">
-                  Basic Information
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-sm text-[#3f3f46]">
-                      Client Name <span className="text-[#ef4444]">*</span>
-                    </Label>
-                    <Input
-                      {...register('client_name')}
-                      placeholder="Enter company name"
-                      className="h-10 bg-[#fafafa] border-[#e4e4e7] rounded-xl focus:bg-white focus:border-[#d4d4d8] focus:ring-0 transition-colors"
-                    />
-                    {errors.client_name && (
-                      <p className="text-sm text-[#ef4444]">{errors.client_name.message}</p>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="text-sm text-[#3f3f46]">Category</Label>
-                    <select
-                      {...register('category')}
-                      className="w-full h-10 px-3 bg-[#fafafa] border border-[#e4e4e7] rounded-xl text-sm focus:bg-white focus:border-[#d4d4d8] focus:outline-none transition-colors"
-                    >
-                      <option value="Active">Active</option>
-                      <option value="Inactive">Inactive</option>
-                      <option value="Prospect">Prospect</option>
-                    </select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="text-sm text-[#3f3f46]">GSTIN</Label>
-                    <Input
-                      {...register('gstin')}
-                      placeholder="15-character GSTIN"
-                      maxLength={15}
-                      className="h-10 bg-[#fafafa] border-[#e4e4e7] rounded-xl focus:bg-white focus:border-[#d4d4d8] focus:ring-0 font-mono uppercase transition-colors"
-                    />
-                    {watchGstin && watchGstin.length >= 2 && gstStateCodes[watchGstin.substring(0, 2)] && (
-                      <p className="text-xs text-[#22c55e] flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3" />
-                        {gstStateCodes[watchGstin.substring(0, 2)]}
-                      </p>
-                    )}
-                    {errors.gstin && (
-                      <p className="text-sm text-[#ef4444]">{errors.gstin.message}</p>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="text-sm text-[#3f3f46]">Vendor Number</Label>
-                    <Input
-                      {...register('vendor_no')}
-                      placeholder="Internal reference"
-                      className="h-10 bg-[#fafafa] border-[#e4e4e7] rounded-xl focus:bg-white focus:border-[#d4d4d8] focus:ring-0 transition-colors"
-                    />
-                  </div>
-                </div>
-              </section>
-
-              {/* Address */}
-              <section>
-                <h3 className="text-xs font-semibold text-[#71717a] uppercase tracking-wider mb-4">
-                  Billing Address
-                </h3>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label className="text-sm text-[#3f3f46]">
-                      Address Line 1 <span className="text-[#ef4444]">*</span>
-                    </Label>
-                    <Input
-                      {...register('address1')}
-                      placeholder="Street address"
-                      className="h-10 bg-[#fafafa] border-[#e4e4e7] rounded-xl focus:bg-white focus:border-[#d4d4d8] focus:ring-0 transition-colors"
-                    />
-                    {errors.address1 && (
-                      <p className="text-sm text-[#ef4444]">{errors.address1.message}</p>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="text-sm text-[#3f3f46]">Address Line 2</Label>
-                    <Input
-                      {...register('address2')}
-                      placeholder="Apartment, suite, etc. (optional)"
-                      className="h-10 bg-[#fafafa] border-[#e4e4e7] rounded-xl focus:bg-white focus:border-[#d4d4d8] focus:ring-0 transition-colors"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <Label className="text-sm text-[#3f3f46]">
-                        City <span className="text-[#ef4444]">*</span>
-                      </Label>
-                      <Input
-                        {...register('city')}
-                        placeholder="City"
-                        className="h-10 bg-[#fafafa] border-[#e4e4e7] rounded-xl focus:bg-white focus:border-[#d4d4d8] focus:ring-0 transition-colors"
-                      />
-                      {errors.city && (
-                        <p className="text-sm text-[#ef4444]">{errors.city.message}</p>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label className="text-sm text-[#3f3f46]">
-                        State <span className="text-[#ef4444]">*</span>
-                      </Label>
-                      <select
-                        {...register('state')}
-                        className="w-full h-10 px-3 bg-[#fafafa] border border-[#e4e4e7] rounded-xl text-sm focus:bg-white focus:border-[#d4d4d8] focus:outline-none transition-colors"
-                      >
-                        <option value="">Select State</option>
-                        {indianStates.map((state) => (
-                          <option key={state} value={state}>{state}</option>
-                        ))}
-                      </select>
-                      {errors.state && (
-                        <p className="text-sm text-[#ef4444]">{errors.state.message}</p>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label className="text-sm text-[#3f3f46]">
-                        Pincode <span className="text-[#ef4444]">*</span>
-                      </Label>
-                      <Input
-                        {...register('pincode')}
-                        placeholder="6-digit"
-                        maxLength={6}
-                        className="h-10 bg-[#fafafa] border-[#e4e4e7] rounded-xl focus:bg-white focus:border-[#d4d4d8] focus:ring-0 transition-colors"
-                      />
-                      {errors.pincode && (
-                        <p className="text-sm text-[#ef4444]">{errors.pincode.message}</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </section>
-
-              {/* Shipping Addresses */}
-              <section>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-xs font-semibold text-[#71717a] uppercase tracking-wider">
-                    Shipping Addresses
-                  </h3>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowShippingForm(!showShippingForm)}
-                    disabled={!editMode}
-                    className="border-[#e4e4e7] text-[#3f3f46] hover:bg-[#f4f4f5] rounded-xl"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Address
-                  </Button>
-                </div>
-
-                {!editMode && (
-                  <div className="bg-[#fef3c7] border border-[#fde68a] rounded-xl p-3 mb-4">
-                    <p className="text-sm text-[#b45309]">
-                      Save the client first to add shipping addresses
-                    </p>
-                  </div>
-                )}
-
-                {showShippingForm && editMode && (
-                  <Card className="mb-4 border-[#e4e4e7] rounded-xl">
-                    <CardContent className="p-4 space-y-4">
-                      <div className="flex items-center justify-between">
-                        <h4 className="font-medium text-[#18181b]">New Shipping Address</h4>
-                        <button
-                          type="button"
-                          onClick={() => setShowShippingForm(false)}
-                          className="p-1 rounded-lg text-[#a1a1aa] hover:text-[#71717a] hover:bg-[#f4f4f5] transition-colors"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <Input
-                          placeholder="Address Name (e.g., Warehouse)"
-                          value={newShipping.address_name}
-                          onChange={(e) => setNewShipping({...newShipping, address_name: e.target.value})}
-                          className="h-10 bg-[#fafafa] border-[#e4e4e7] rounded-xl"
-                        />
-                        <Input
-                          placeholder="Contact Person"
-                          value={newShipping.contact}
-                          onChange={(e) => setNewShipping({...newShipping, contact: e.target.value})}
-                          className="h-10 bg-[#fafafa] border-[#e4e4e7] rounded-xl"
-                        />
-                        <Input
-                          placeholder="Address Line 1"
-                          value={newShipping.address_line1}
-                          onChange={(e) => setNewShipping({...newShipping, address_line1: e.target.value})}
-                          className="h-10 bg-[#fafafa] border-[#e4e4e7] rounded-xl"
-                        />
-                        <Input
-                          placeholder="Address Line 2"
-                          value={newShipping.address_line2}
-                          onChange={(e) => setNewShipping({...newShipping, address_line2: e.target.value})}
-                          className="h-10 bg-[#fafafa] border-[#e4e4e7] rounded-xl"
-                        />
-                        <Input
-                          placeholder="City"
-                          value={newShipping.city}
-                          onChange={(e) => setNewShipping({...newShipping, city: e.target.value})}
-                          className="h-10 bg-[#fafafa] border-[#e4e4e7] rounded-xl"
-                        />
-                        <select
-                          value={newShipping.state}
-                          onChange={(e) => setNewShipping({...newShipping, state: e.target.value})}
-                          className="h-10 px-3 bg-[#fafafa] border border-[#e4e4e7] rounded-xl text-sm"
-                        >
-                          <option value="">Select State</option>
-                          {indianStates.map((s) => <option key={s} value={s}>{s}</option>)}
-                        </select>
-                        <Input
-                          placeholder="Pincode"
-                          value={newShipping.pincode}
-                          onChange={(e) => setNewShipping({...newShipping, pincode: e.target.value})}
-                          className="h-10 bg-[#fafafa] border-[#e4e4e7] rounded-xl"
-                        />
-                        <Input
-                          placeholder="GSTIN (if different)"
-                          value={newShipping.gstin}
-                          onChange={(e) => setNewShipping({...newShipping, gstin: e.target.value})}
-                          className="h-10 bg-[#fafafa] border-[#e4e4e7] rounded-xl"
-                        />
-                      </div>
-
-                      <div className="flex gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={copyBillingToShipping}
-                          className="border-[#e4e4e7] text-[#3f3f46] hover:bg-[#f4f4f5] rounded-xl"
-                        >
-                          <Copy className="w-4 h-4 mr-2" />
-                          Copy from Billing
-                        </Button>
-                        <Button
-                          type="button"
-                          size="sm"
-                          onClick={addShippingAddress}
-                          className="bg-[#18181b] hover:bg-[#27272a] text-white rounded-xl"
-                        >
-                          Save Address
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {shippingAddresses.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {shippingAddresses.map((addr) => (
-                      <div
-                        key={addr.id}
-                        className="bg-[#fafafa] rounded-xl p-4 border border-[#e4e4e7]"
-                      >
-                        <div className="flex items-start justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <Building className="w-4 h-4 text-[#a1a1aa]" />
-                            <span className="font-medium text-[#18181b]">{addr.address_name}</span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => deleteShippingAddress(addr.id)}
-                            className="p-1 rounded-lg text-[#ef4444] hover:bg-[#fee2e2] transition-colors"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </button>
-                        </div>
-                        <p className="text-sm text-[#52525b]">{addr.address_line1}</p>
-                        {addr.address_line2 && <p className="text-sm text-[#52525b]">{addr.address_line2}</p>}
-                        <p className="text-sm text-[#52525b]">{addr.city}, {addr.state} - {addr.pincode}</p>
-                        {addr.gstin && <p className="text-xs text-[#71717a] mt-1">GSTIN: {addr.gstin}</p>}
-                        {addr.contact && <p className="text-xs text-[#71717a]">Contact: {addr.contact}</p>}
-                      </div>
-                    ))}
-                  </div>
-                ) : editMode && (
-                  <div className="text-center py-8 text-[#a1a1aa] bg-[#fafafa] rounded-xl border border-dashed border-[#e4e4e7]">
-                    <p className="text-sm">No shipping addresses added</p>
-                  </div>
-                )}
-              </section>
-
-              {/* Contacts */}
-              <section>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-xs font-semibold text-[#71717a] uppercase tracking-wider">
-                    Contact Persons
-                  </h3>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => append({ name: '', designation: '', phone: '', email: '', type: 'secondary' })}
-                    className="border-[#e4e4e7] text-[#3f3f46] hover:bg-[#f4f4f5] rounded-xl"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Contact
-                  </Button>
-                </div>
-
-                <div className="space-y-3">
-                  {fields.map((field, index) => (
-                    <Card key={field.id} className="border-[#e4e4e7] rounded-xl">
-                      <CardContent className="p-4">
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium text-[#18181b]">
-                              {index === 0 ? 'Primary Contact' : `Contact ${index + 1}`}
-                            </span>
-                            {index === 0 && (
-                              <Badge variant="secondary" className="bg-[#f4f4f5] text-[#71717a] rounded-lg">
-                                Main
-                              </Badge>
-                            )}
-                          </div>
-                          {index > 0 && (
-                            <button
-                              type="button"
-                              onClick={() => remove(index)}
-                              className="p-1 rounded-lg text-[#ef4444] hover:bg-[#fee2e2] transition-colors"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-                          <div className="space-y-1">
-                            <Label className="text-xs text-[#a1a1aa]">Name</Label>
-                            <Input
-                              {...register(`contacts.${index}.name`)}
-                              placeholder="Full name"
-                              className="h-9 bg-[#fafafa] border-[#e4e4e7] rounded-lg focus:bg-white focus:border-[#d4d4d8]"
-                            />
-                            {errors.contacts?.[index]?.name && (
-                              <p className="text-xs text-[#ef4444]">{errors.contacts[index]?.name?.message}</p>
-                            )}
-                          </div>
-
-                          <div className="space-y-1">
-                            <Label className="text-xs text-[#a1a1aa]">Designation</Label>
-                            <Input
-                              {...register(`contacts.${index}.designation`)}
-                              placeholder="Job title"
-                              className="h-9 bg-[#fafafa] border-[#e4e4e7] rounded-lg focus:bg-white focus:border-[#d4d4d8]"
-                            />
-                          </div>
-
-                          <div className="space-y-1">
-                            <Label className="text-xs text-[#a1a1aa]">Phone</Label>
-                            <div className="relative">
-                              <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 text-[#a1a1aa]" />
-                              <Input
-                                {...register(`contacts.${index}.phone`)}
-                                placeholder="Phone number"
-                                className="h-9 pl-8 bg-[#fafafa] border-[#e4e4e7] rounded-lg focus:bg-white focus:border-[#d4d4d8]"
-                              />
-                            </div>
-                            {errors.contacts?.[index]?.phone && (
-                              <p className="text-xs text-[#ef4444]">{errors.contacts[index]?.phone?.message}</p>
-                            )}
-                          </div>
-
-                          <div className="space-y-1">
-                            <Label className="text-xs text-[#a1a1aa]">Email</Label>
-                            <div className="relative">
-                              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 text-[#a1a1aa]" />
-                              <Input
-                                {...register(`contacts.${index}.email`)}
-                                placeholder="Email address"
-                                className="h-9 pl-8 bg-[#fafafa] border-[#e4e4e7] rounded-lg focus:bg-white focus:border-[#d4d4d8]"
-                              />
-                            </div>
-                            {errors.contacts?.[index]?.email && (
-                              <p className="text-xs text-[#ef4444]">{errors.contacts[index]?.email?.message}</p>
-                            )}
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-
-                {errors.contacts && (
-                  <p className="text-sm text-[#ef4444] mt-3">{errors.contacts.message}</p>
-                )}
-              </section>
-
-              {/* Internal Notes */}
-              <section>
-                <h3 className="text-xs font-semibold text-[#71717a] uppercase tracking-wide mb-4">
-                  Internal Notes
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-sm text-[#3f3f46]">General Remarks</Label>
-                    <Textarea
-                      {...register('remarks')}
-                      placeholder="Any general notes..."
-                      className="min-h-[80px] resize-none bg-[#fafafa] border-[#e4e4e7] rounded-xl focus:bg-white focus:border-[#d4d4d8] focus:ring-0"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm text-[#3f3f46]">About Client</Label>
-                    <Textarea
-                      {...register('about_client')}
-                      placeholder="Background, business details..."
-                      className="min-h-[80px] resize-none bg-[#fafafa] border-[#e4e4e7] rounded-xl focus:bg-white focus:border-[#d4d4d8] focus:ring-0"
-                    />
-                  </div>
-                </div>
-              </section>
-            </div>
-          ) : (
-            /* Pricing Tab */
-            <div className="space-y-8">
-              <section>
-                <h3 className="text-xs font-semibold text-[#71717a] uppercase tracking-wider mb-4">
-                  Discount Configuration
-                </h3>
-
-                <div className="space-y-4 max-w-xl">
-                  <div className="space-y-2">
-                    <Label className="text-sm text-[#3f3f46]">Discount Type</Label>
-                    <select
-                      {...register('discount_type')}
-                      onChange={(e) => {
-                        setValue('discount_type', e.target.value);
-                        if (e.target.value !== 'Standard') {
-                          setValue('standard_pricelist_id', '');
-                        }
-                      }}
-                      className="w-full h-10 px-3 bg-[#fafafa] border border-[#e4e4e7] rounded-xl text-sm focus:bg-white focus:border-[#d4d4d8] focus:outline-none transition-colors"
-                    >
-                      <option value="Standard">Standard (Price List Based)</option>
-                      <option value="Premium">Premium (Variant Based)</option>
-                      <option value="Bulk">Bulk (Variant Based)</option>
-                      <option value="Special">Special (Variant Based)</option>
-                    </select>
-                  </div>
-
-                  {watchDiscountType === 'Standard' && (
-                    <div className="space-y-2">
-                      <Label className="text-sm text-[#3f3f46]">Price List</Label>
-                      <select
-                        {...register('standard_pricelist_id')}
-                        className="w-full h-10 px-3 bg-[#fafafa] border border-[#e4e4e7] rounded-xl text-sm focus:bg-white focus:border-[#d4d4d8] focus:outline-none transition-colors"
-                      >
-                        <option value="">Select a price list</option>
-                        {pricelists?.map((pl: any) => (
-                          <option key={pl.id} value={pl.id}>
-                            {pl.pricelist_name} ({pl.discount_percent}%)
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-                </div>
-              </section>
-
-              {/* Portfolio Preview */}
-              <section>
-                <h3 className="text-xs font-semibold text-[#71717a] uppercase tracking-wider mb-4">
-                  Portfolio Preview
-                </h3>
-
-                <div className="max-w-md">
-                  {watchDiscountType === 'Standard' ? (
-                    <div className="flex items-center gap-3 p-4 bg-[#dcfce7] rounded-xl border border-[#bbf7d0]">
-                      <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-sm">
-                        <CheckCircle2 className="w-5 h-5 text-[#22c55e]" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-[#166534]">
-                          {pricelists?.find((pl: any) => pl.id === watch('standard_pricelist_id'))?.discount_percent || 0}% Standard Discount
-                        </p>
-                        <p className="text-sm text-[#22c55e]">Flat discount on all items</p>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-3 p-4 bg-[#fef3c7] rounded-xl border border-[#fde68a]">
-                      <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-sm">
-                        <AlertCircle className="w-5 h-5 text-[#f59e0b]" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-[#b45309]">{watchDiscountType} Structure</p>
-                        <p className="text-sm text-[#f59e0b]">Variant-based pricing applied</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </section>
-
-              {isAdmin && (
-                <section>
-                  <h3 className="text-xs font-semibold text-[#71717a] uppercase tracking-wider mb-4">
-                    Admin Options
-                  </h3>
-                  <div className="bg-[#f4f4f5] rounded-xl p-4">
-                    <p className="text-sm text-[#71717a]">
-                      Custom discount management available for admin users
-                    </p>
-                  </div>
-                </section>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
+type CreateClientEditProps = {
+  onSuccess: () => void
+  onCancel: () => void
 }
 
-export function CreateClientEdit({ onSuccess, onCancel }: { onSuccess: () => void; onCancel: () => void }) {
-  const params = new URLSearchParams(window.location.hash.split('?')[1] || window.location.search.slice(1) || '');
+type ClientDiscountPortfolioProps = {
+  formData: any
+  setFormData: (updater: any) => void
+  isAdmin: boolean
+}
+
+type CreateClientProps = {
+  onSuccess: () => void
+  onCancel: () => void
+  editMode?: boolean
+  clientData?: any
+}
+
+const selectCn = 'h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition-colors focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 disabled:cursor-not-allowed disabled:opacity-50';
+
+const SectionHeading = ({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) => (
+  <div className="flex items-center gap-2.5 pb-1">
+    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">{icon}</span>
+    <h3 className="text-sm font-semibold text-slate-800 tracking-wide">{children}</h3>
+  </div>
+);
+
+const FieldGroup = ({ label, required, error, children }: { label: string; required?: boolean; error?: string; children: React.ReactNode }) => (
+  <div className="space-y-1.5">
+    <Label className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+      {label}{required && <span className="text-red-500 ml-0.5">*</span>}
+    </Label>
+    {children}
+    {error && <p className="text-xs text-red-500">{error}</p>}
+  </div>
+);
+
+export function CreateClientEdit({ onSuccess, onCancel }: CreateClientEditProps) {
+  const params = getCurrentQueryParams();
   const clientId = params.get('id');
 
-  const { data: clientData, isLoading } = useQuery({
+  const clientQuery = useQuery({
     queryKey: ['client', clientId],
     queryFn: async () => {
       const { data, error } = await supabase.from('clients').select('*').eq('id', clientId).single();
@@ -994,25 +74,736 @@ export function CreateClientEdit({ onSuccess, onCancel }: { onSuccess: () => voi
     enabled: !!clientId
   });
 
-  if (isLoading) return (
-    <div className="min-h-screen flex items-center justify-center bg-[#fafafa]">
-      <div className="flex flex-col items-center gap-4">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#18181b]"></div>
-        <p className="text-[#71717a]">Loading...</p>
+  if (clientQuery.isLoading) {
+    return (
+      <div className="min-h-screen bg-slate-50/80 p-6 md:p-10">
+        <div className="mx-auto max-w-4xl space-y-5">
+          <Skeleton className="h-8 w-56 rounded-lg" />
+          <Skeleton className="h-4 w-80 rounded" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-4">
+            <Skeleton className="h-12 w-full rounded-lg" />
+            <Skeleton className="h-12 w-full rounded-lg" />
+            <Skeleton className="h-12 w-full rounded-lg" />
+            <Skeleton className="h-12 w-full rounded-lg" />
+          </div>
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
 
-  if (!clientData) return (
-    <div className="min-h-screen flex items-center justify-center bg-[#fafafa]">
-      <div className="text-center">
-        <p className="text-[#ef4444] font-medium">Error loading client</p>
-        <Button onClick={onCancel} variant="outline" className="mt-4 rounded-xl border-[#e4e4e7]">
-          Go Back
-        </Button>
+  if (clientQuery.isError) {
+    return (
+      <div className="min-h-screen bg-slate-50/80 p-6 md:p-10">
+        <div className="mx-auto max-w-4xl">
+          <Card>
+            <CardContent className="p-8 text-center">
+              <p className="text-sm text-red-600">Error loading client. Please try again.</p>
+              <Button variant="secondary" size="sm" onClick={onCancel} style={{ marginTop: '16px' }}>Go Back</Button>
+            </CardContent>
+          </Card>
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
 
-  return <CreateClient editMode={true} clientData={clientData} onSuccess={onSuccess} onCancel={onCancel} />;
+  return <CreateClient editMode={true} clientData={clientQuery.data} onSuccess={onSuccess} onCancel={onCancel} />;
 }
+
+function ClientDiscountPortfolio({ formData, setFormData, isAdmin }: ClientDiscountPortfolioProps) {
+  const [customDiscounts, setCustomDiscounts] = useState<Record<string, number>>({});
+  const [saving, setSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState<{ type: string; text: string }>({ type: '', text: '' });
+
+  const pricelistsQuery = useQuery({
+    queryKey: ['discountPricelists'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('standard_discount_pricelists').select('*').eq('is_active', true);
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 10 * 60 * 1000
+  });
+
+  const structuresQuery = useQuery({
+    queryKey: ['discountStructures'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('discount_structures')
+        .select('*')
+        .eq('is_active', true)
+        .neq('structure_name', 'Standard');
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 10 * 60 * 1000
+  });
+
+  const variantsQuery = useQuery({
+    queryKey: ['companyVariants'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('company_variants')
+        .select('*')
+        .eq('is_active', true)
+        .order('variant_name');
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 10 * 60 * 1000
+  });
+
+  const pricelists = pricelistsQuery.data || [];
+  const structures = structuresQuery.data || [];
+  const variants = variantsQuery.data || [];
+
+  useEffect(() => {
+    if (formData.custom_discounts && typeof formData.custom_discounts === 'object') {
+      setCustomDiscounts(formData.custom_discounts);
+    } else {
+      setCustomDiscounts({});
+    }
+  }, [formData.custom_discounts]);
+
+  const selectedStructureId = useMemo(() => {
+    if (formData.discount_type === 'Standard' || !formData.discount_type) return null;
+    const struct = structures.find((s: any) => s.structure_name === formData.discount_type);
+    return struct?.id || null;
+  }, [formData.discount_type, structures]);
+
+  const previewQuery = useQuery({
+    queryKey: ['discountVariantSettings', selectedStructureId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('discount_variant_settings')
+        .select('*, variant:company_variants(variant_name)')
+        .eq('structure_id', selectedStructureId);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!selectedStructureId
+  });
+
+  const previewSettings = previewQuery.data || [];
+  const loading = previewQuery.isFetching;
+
+  const handleCustomDiscountChange = (variantId: string | number, value: string) => {
+    setCustomDiscounts((prev: any) => ({
+      ...prev,
+      [variantId]: parseFloat(value) || 0
+    }));
+  };
+
+  const handleSaveCustomDiscounts = async () => {
+    if (!formData.id) {
+      setSaveMessage({ type: 'error', text: 'Please save the client first before saving discounts.' });
+      return;
+    }
+    setSaving(true);
+    setSaveMessage({ type: '', text: '' });
+    try {
+      const { error } = await supabase
+        .from('clients')
+        .update({ custom_discounts: customDiscounts })
+        .eq('id', formData.id);
+      if (error) throw error;
+      setFormData((prev: any) => ({ ...prev, custom_discounts: customDiscounts }));
+      setSaveMessage({ type: 'success', text: 'Discounts saved successfully!' });
+    } catch (err: any) {
+      setSaveMessage({ type: 'error', text: 'Error saving discounts: ' + (err?.message || err) });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle style={{ fontSize: '16px' }}>Discount Portfolio</CardTitle>
+          <CardDescription>Choose the pricing strategy for this client.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <FieldGroup label="Discount Type" required>
+              <select
+                className={selectCn}
+                value={formData.discount_type || 'Special'}
+                onChange={e => setFormData({ ...formData, discount_type: e.target.value, standard_pricelist_id: e.target.value === 'Standard' ? formData.standard_pricelist_id : null })}
+                disabled={!isAdmin}
+              >
+                <option value="Standard">Standard (Price List Based)</option>
+                <option value="Premium">Premium (Variant Based)</option>
+                <option value="Bulk">Bulk (Variant Based)</option>
+                <option value="Special">Special (Variant Based)</option>
+              </select>
+            </FieldGroup>
+            {formData.discount_type === 'Standard' && (
+              <FieldGroup label="Standard Price List" required>
+                <select
+                  className={selectCn}
+                  value={formData.standard_pricelist_id || ''}
+                  onChange={e => setFormData({ ...formData, standard_pricelist_id: e.target.value })}
+                  required
+                  disabled={!isAdmin}
+                >
+                  <option value="">-- Select Price List --</option>
+                  {pricelists.map((pl: any) => (
+                    <option key={pl.id} value={pl.id}>{pl.pricelist_name} ({pl.discount_percent}%)</option>
+                  ))}
+                </select>
+              </FieldGroup>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <CardTitle style={{ fontSize: '16px' }}>Custom Discounts</CardTitle>
+              <CardDescription>Override discount percentages per variant.</CardDescription>
+            </div>
+            <Button variant="primary" size="sm" onClick={handleSaveCustomDiscounts} disabled={saving || !formData.id}>
+              {saving ? 'Saving...' : 'Save Discounts'}
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {saveMessage.text && (
+            <div className={cn(
+              'mb-5 rounded-lg px-4 py-3 text-sm font-medium',
+              saveMessage.type === 'success' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-600 border border-red-200'
+            )}>
+              {saveMessage.text}
+            </div>
+          )}
+          <div className="max-h-56 overflow-auto rounded-lg border border-slate-200">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead style={{ width: '60%' }}>Variant</TableHead>
+                  <TableHead style={{ width: '40%' }}>Discount %</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {variants.length === 0 ? (
+                  <TableRow><td colSpan={2} className="px-4 py-4 text-center text-sm text-slate-400">No variants found</td></TableRow>
+                ) : (
+                  variants.map((v: any) => (
+                    <TableRow key={v.id}>
+                      <TableCell className="font-medium text-slate-700">{v.variant_name}</TableCell>
+                      <TableCell>
+                        <input
+                          type="number"
+                          className="h-9 w-24 rounded-lg border border-slate-200 bg-white px-3 text-right text-sm outline-none transition-colors focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                          value={customDiscounts[v.id] || 0}
+                          onChange={(e) => handleCustomDiscountChange(v.id, e.target.value)}
+                          min="0"
+                          max="100"
+                          step="0.01"
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle style={{ fontSize: '16px' }}>Portfolio Preview</CardTitle>
+          <CardDescription>How discounts will apply for this client.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {formData.discount_type === 'Standard' ? (
+            <div className="rounded-lg bg-slate-50 border border-slate-100 px-5 py-4">
+              <p className="text-sm text-slate-600">
+                <span className="font-semibold text-slate-800">Standard Discount:</span>{' '}
+                {pricelists.find((pl: any) => pl.id === formData.standard_pricelist_id)?.discount_percent || 0}% flat on all items.
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-auto rounded-lg border border-slate-200">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead style={{ width: '40%' }}>Variant</TableHead>
+                    <TableHead style={{ width: '20%' }}>Default %</TableHead>
+                    <TableHead style={{ width: '20%' }}>Min %</TableHead>
+                    <TableHead style={{ width: '20%' }}>Max %</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {loading ? (
+                    <TableRow><td colSpan={4} className="px-4 py-4 text-center text-sm text-slate-400">Loading...</td></TableRow>
+                  ) : previewSettings.length === 0 ? (
+                    <TableRow><td colSpan={4} className="px-4 py-4 text-center text-sm text-slate-400">No settings found.</td></TableRow>
+                  ) : (
+                    previewSettings.map((s: any) => (
+                      <TableRow key={s.id}>
+                        <TableCell className="font-medium text-slate-700">{s.variant?.variant_name}</TableCell>
+                        <TableCell>{s.default_discount_percent}%</TableCell>
+                        <TableCell>{s.min_discount_percent}%</TableCell>
+                        <TableCell>{s.max_discount_percent}%</TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+export function CreateClient({ onSuccess, onCancel, editMode, clientData }: CreateClientProps) {
+  const { organisation, organisations } = useAuth();
+  const queryClient = useQueryClient();
+  const isAdmin = organisations?.find((o: any) => o.organisation.id === organisation?.id)?.role?.toLowerCase() === 'admin';
+
+  const [activeTab, setActiveTab] = useState('general');
+  const [formData, setFormData] = useState<any>({
+    client_name: '', address1: '', address2: '', state: '', city: '', pincode: '',
+    gstin: '', contact: '', email: '', vendor_no: '', remarks: '', category: 'Active',
+    contact_person: '', contact_designation: '', contact_person_email: '',
+    contact_person_2: '', contact_designation_2: '', contact_person_2_contact: '', contact_person_2_email: '',
+    purchase_person: '', purchase_designation: '', purchase_contact: '', purchase_email: '',
+    about_client: '', discount_type: 'Special', standard_pricelist_id: null
+  });
+  const [isDirty, setIsDirty] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (clientData) {
+      setFormData(clientData);
+      setTimeout(() => setIsDirty(false), 100);
+    }
+  }, [clientData]);
+
+  useEffect(() => {
+    if (formData.client_name) {
+      setIsDirty(true);
+    }
+  }, [formData]);
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirty && !saving) {
+        e.preventDefault();
+        e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+        return e.returnValue;
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isDirty, saving]);
+
+  const [gstError, setGstError] = useState('');
+  const [showShippingForm, setShowShippingForm] = useState(false);
+  const [newShipping, setNewShipping] = useState({
+    address_name: '', address_line1: '', address_line2: '', city: '', state: '',
+    pincode: '', gstin: '', contact: '', is_default: false
+  });
+
+  const indianStates = [
+    'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
+    'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand',
+    'Karnataka', 'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur',
+    'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha', 'Punjab',
+    'Rajasthan', 'Sikkim', 'Tamil Nadu', 'Telangana', 'Tripura',
+    'Uttar Pradesh', 'Uttarakhand', 'West Bengal',
+    'Delhi', 'Jammu and Kashmir', 'Ladakh', 'Puducherry'
+  ];
+
+  const gstStateCodes: Record<string, string> = {
+    '01': 'Jammu and Kashmir', '02': 'Himachal Pradesh', '03': 'Punjab', '04': 'Chandigarh',
+    '05': 'Uttarakhand', '06': 'Haryana', '07': 'Delhi', '08': 'Rajasthan',
+    '09': 'Uttar Pradesh', '10': 'Bihar', '11': 'Sikkim', '12': 'Arunachal Pradesh',
+    '13': 'Nagaland', '14': 'Manipur', '15': 'Mizoram', '16': 'Tripura',
+    '17': 'Meghalaya', '18': 'Assam', '19': 'West Bengal', '20': 'Jharkhand',
+    '21': 'Odisha', '22': 'Chhattisgarh', '23': 'Madhya Pradesh', '24': 'Gujarat',
+    '25': 'Maharashtra', '26': 'Karnataka', '27': 'Goa', '28': 'Lakshadweep',
+    '29': 'Kerala', '30': 'Tamil Nadu', '31': 'Puducherry', '32': 'Andaman and Nicobar Islands',
+    '33': 'Telangana', '34': 'Andhra Pradesh', '35': 'Ladakh'
+  };
+
+  const shippingQuery = useQuery({
+    queryKey: ['clientShipping', clientData?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('client_shipping_addresses')
+        .select('*')
+        .eq('client_id', clientData?.id)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: editMode && !!clientData?.id
+  });
+
+  const shippingAddresses = shippingQuery.data || [];
+
+  const handleGstChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.toUpperCase();
+    if (value.length <= 15) {
+      setFormData({ ...formData, gstin: value });
+      if (value.length >= 2) {
+        const stateCode = value.substring(0, 2);
+        const detectedState = gstStateCodes[stateCode];
+        if (detectedState) setFormData((prev: any) => ({ ...prev, gstin: value, state: detectedState }));
+      }
+      if (value.length > 0 && value.length < 15) setGstError('GSTIN must be exactly 15 characters');
+      else setGstError('');
+    }
+  };
+
+  const copyBillingToShipping = () => {
+    setNewShipping({
+      ...newShipping,
+      address_line1: formData.address1 || '',
+      address_line2: formData.address2 || '',
+      city: formData.city || '',
+      state: formData.state || '',
+      pincode: formData.pincode || ''
+    });
+    setShowShippingForm(true);
+  };
+
+  const addShippingAddress = async () => {
+    if (!editMode || !clientData?.id) {
+      alert('Please save client first before adding shipping addresses');
+      return;
+    }
+    const { error } = await supabase.from('client_shipping_addresses').insert({
+      client_id: clientData.id,
+      ...newShipping
+    });
+    if (error) {
+      alert('Error: ' + error.message);
+    } else {
+      setNewShipping({ address_name: '', address_line1: '', address_line2: '', city: '', state: '', pincode: '', gstin: '', contact: '', is_default: false });
+      setShowShippingForm(false);
+      queryClient.invalidateQueries({ queryKey: ['clientShipping', clientData.id] });
+    }
+  };
+
+  const deleteShippingAddress = async (id: string) => {
+    if (!confirm('Delete this shipping address?')) return;
+    await supabase.from('client_shipping_addresses').delete().eq('id', id);
+    queryClient.invalidateQueries({ queryKey: ['clientShipping', clientData.id] });
+  };
+
+  const deleteClient = async () => {
+    if (!editMode || !clientData?.id) return;
+    if (!confirm(`Are you sure you want to delete client "${formData.client_name}"? This action cannot be undone.`)) return;
+    setSaving(true);
+    try {
+      const { error } = await supabase.from('clients').delete().eq('id', clientData.id);
+      if (error) throw error;
+      alert('Client deleted successfully!');
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+      setIsDirty(false);
+      onCancel();
+    } catch (err: any) {
+      alert('Error deleting client: ' + (err?.message || err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSubmit = async (e?: FormEvent<HTMLFormElement>) => {
+    if (e) e.preventDefault();
+    if (formData.gstin && formData.gstin.length !== 15) {
+      alert('GSTIN must be exactly 15 characters');
+      return;
+    }
+    setSaving(true);
+    try {
+      if (editMode && clientData?.id) {
+        const { error } = await supabase.from('clients').update(formData).eq('id', clientData.id);
+        if (error) throw error;
+        alert('Client updated successfully!');
+      } else {
+        const clientId = 'CLT-' + Date.now().toString().slice(-6);
+        const { error } = await supabase.from('clients').insert({ ...formData, client_id: clientId });
+        if (error) throw error;
+        alert('Client saved successfully!');
+      }
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+      setIsDirty(false);
+      onSuccess();
+    } catch (error) {
+      alert('Error: ' + (error as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const val = (field: string) => formData[field] || '';
+  const set = (field: string) => (e: any) => setFormData({ ...formData, [field]: (e.target as HTMLInputElement).value });
+
+  return (
+    <div className="min-h-screen bg-slate-50/80 px-4 py-6 md:px-8 md:py-10">
+      <div className="mx-auto max-w-[960px]">
+
+        {/* Page header */}
+        <div className="mb-8">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-white">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-slate-900">{editMode ? 'Edit Client' : 'New Client'}</h1>
+              <p className="text-sm text-slate-500">{editMode ? 'Update client information and pricing' : 'Add a new client to your organization'}</p>
+            </div>
+          </div>
+        </div>
+
+        <Tabs defaultValue="general" value={activeTab} onValueChange={setActiveTab}>
+          <TabsList style={{ marginBottom: '24px' }}>
+            <TabsTrigger value="general">General</TabsTrigger>
+            <TabsTrigger value="pricing">Pricing</TabsTrigger>
+          </TabsList>
+
+          {/* ─── GENERAL TAB ─── */}
+          <TabsContent value="general">
+            <form onSubmit={handleSubmit}>
+              <div className="space-y-6">
+
+                {/* Client info */}
+                <Card>
+                  <CardHeader>
+                    <SectionHeading icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>}>
+                      Client Information
+                    </SectionHeading>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
+                      <FieldGroup label="Client Name" required>
+                        <Input value={val('client_name')} onChange={set('client_name')} required placeholder="Enter client name" />
+                      </FieldGroup>
+                      <FieldGroup label="Category">
+                        <select className={selectCn} value={val('category') || 'Active'} onChange={e => setFormData({ ...formData, category: e.target.value })}>
+                          <option value="Active">Active</option>
+                          <option value="Inactive">Inactive</option>
+                          <option value="Prospect">Prospect</option>
+                        </select>
+                      </FieldGroup>
+                      <FieldGroup label="GST IN" error={gstError}>
+                        <Input value={val('gstin')} onChange={handleGstChange} placeholder="15 character GSTIN" maxLength={15} />
+                      </FieldGroup>
+                      <FieldGroup label="Vendor No">
+                        <Input value={val('vendor_no')} onChange={set('vendor_no')} placeholder="Vendor reference number" />
+                      </FieldGroup>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Contact persons */}
+                <Card>
+                  <CardHeader>
+                    <SectionHeading icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>}>
+                      Contact Persons
+                    </SectionHeading>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-5">
+                      <div>
+                        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Primary Contact</p>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                          <Input value={val('contact_person')} onChange={set('contact_person')} placeholder="Full name" />
+                          <Input value={val('contact_designation')} onChange={set('contact_designation')} placeholder="Designation" />
+                          <Input value={val('contact')} onChange={set('contact')} placeholder="Phone" />
+                          <Input type="email" value={val('contact_person_email')} onChange={set('contact_person_email')} placeholder="Email" />
+                        </div>
+                      </div>
+                      <Separator />
+                      <div>
+                        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Secondary Contact</p>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                          <Input value={val('contact_person_2')} onChange={set('contact_person_2')} placeholder="Full name" />
+                          <Input value={val('contact_designation_2')} onChange={set('contact_designation_2')} placeholder="Designation" />
+                          <Input value={val('contact_person_2_contact')} onChange={set('contact_person_2_contact')} placeholder="Phone" />
+                          <Input type="email" value={val('contact_person_2_email')} onChange={set('contact_person_2_email')} placeholder="Email" />
+                        </div>
+                      </div>
+                      <Separator />
+                      <div>
+                        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Purchase Contact</p>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                          <Input value={val('purchase_person')} onChange={set('purchase_person')} placeholder="Full name" />
+                          <Input value={val('purchase_designation')} onChange={set('purchase_designation')} placeholder="Designation" />
+                          <Input value={val('purchase_contact')} onChange={set('purchase_contact')} placeholder="Phone" />
+                          <Input type="email" value={val('purchase_email')} onChange={set('purchase_email')} placeholder="Email" />
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Addresses */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+                  {/* Billing */}
+                  <Card>
+                    <CardHeader>
+                      <SectionHeading icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>}>
+                        Billing Address
+                      </SectionHeading>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        <Input value={val('address1')} onChange={set('address1')} placeholder="Address Line 1" />
+                        <Input value={val('address2')} onChange={set('address2')} placeholder="Address Line 2" />
+                        <div className="grid grid-cols-3 gap-3">
+                          <FieldGroup label="State">
+                            <select className={cn(selectCn, 'text-xs')} value={val('state')} onChange={e => setFormData({ ...formData, state: e.target.value })}>
+                              <option value="">Select</option>
+                              {indianStates.map(state => (<option key={state} value={state}>{state}</option>))}
+                            </select>
+                          </FieldGroup>
+                          <FieldGroup label="City">
+                            <Input value={val('city')} onChange={set('city')} placeholder="City" />
+                          </FieldGroup>
+                          <FieldGroup label="Pincode">
+                            <Input value={val('pincode')} onChange={set('pincode')} placeholder="Pincode" />
+                          </FieldGroup>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Shipping */}
+                  <Card>
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <SectionHeading icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>}>
+                          Shipping Addresses
+                        </SectionHeading>
+                        <Button variant="ghost" size="sm" onClick={copyBillingToShipping}>Copy Billing</Button>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {shippingAddresses.map((addr: any) => (
+                          <div key={addr.id} className="flex items-start justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3.5 transition-shadow hover:shadow-sm">
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+                                <span className="truncate">{addr.address_name || 'Address'}</span>
+                                {addr.is_default && <Badge variant="default" size="sm">Default</Badge>}
+                              </div>
+                              <p className="mt-1 text-xs text-slate-500 leading-relaxed">{addr.address_line1} {addr.address_line2}</p>
+                              <p className="text-xs text-slate-500">{addr.city}, {addr.state} - {addr.pincode}</p>
+                            </div>
+                            <button type="button" onClick={() => deleteShippingAddress(addr.id)} className="shrink-0 rounded-md p-1.5 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                          </div>
+                        ))}
+
+                        {showShippingForm && (
+                          <div className="rounded-lg border border-indigo-200 bg-indigo-50/50 p-4 space-y-3">
+                            <p className="text-xs font-semibold text-indigo-700 uppercase tracking-wider">New Shipping Address</p>
+                            <div className="grid grid-cols-2 gap-3">
+                              <Input value={newShipping.address_name} onChange={e => setNewShipping({ ...newShipping, address_name: (e.target as HTMLInputElement).value })} placeholder="Address Name" />
+                              <Input value={newShipping.contact} onChange={e => setNewShipping({ ...newShipping, contact: (e.target as HTMLInputElement).value })} placeholder="Contact" />
+                            </div>
+                            <Input value={newShipping.address_line1} onChange={e => setNewShipping({ ...newShipping, address_line1: (e.target as HTMLInputElement).value })} placeholder="Address Line 1" />
+                            <Input value={newShipping.address_line2} onChange={e => setNewShipping({ ...newShipping, address_line2: (e.target as HTMLInputElement).value })} placeholder="Address Line 2" />
+                            <div className="grid grid-cols-3 gap-3">
+                              <select className={cn(selectCn, 'text-xs')} value={newShipping.state} onChange={e => setNewShipping({ ...newShipping, state: e.target.value })}>
+                                <option value="">State</option>
+                                {indianStates.map(state => (<option key={state} value={state}>{state}</option>))}
+                              </select>
+                              <Input value={newShipping.city} onChange={e => setNewShipping({ ...newShipping, city: (e.target as HTMLInputElement).value })} placeholder="City" />
+                              <Input value={newShipping.pincode} onChange={e => setNewShipping({ ...newShipping, pincode: (e.target as HTMLInputElement).value })} placeholder="Pincode" />
+                            </div>
+                            <div className="flex gap-2 pt-1">
+                              <Button variant="primary" size="sm" onClick={addShippingAddress}>Save Address</Button>
+                              <Button variant="secondary" size="sm" onClick={() => setShowShippingForm(false)}>Cancel</Button>
+                            </div>
+                          </div>
+                        )}
+
+                        {!showShippingForm && shippingAddresses.length === 0 && (
+                          <button
+                            type="button"
+                            className="w-full rounded-lg border-2 border-dashed border-slate-200 py-5 text-sm text-slate-400 transition-colors hover:border-indigo-300 hover:text-indigo-500 hover:bg-indigo-50/30"
+                            onClick={() => setShowShippingForm(true)}
+                          >
+                            <span className="flex items-center justify-center gap-2">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
+                              Add Shipping Address
+                            </span>
+                          </button>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Notes */}
+                <Card>
+                  <CardHeader>
+                    <SectionHeading icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>}>
+                      Notes
+                    </SectionHeading>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <FieldGroup label="Remarks">
+                        <Textarea rows={3} value={val('remarks')} onChange={e => setFormData({ ...formData, remarks: e.target.value })} placeholder="Internal remarks..." />
+                      </FieldGroup>
+                      <FieldGroup label="About Client">
+                        <Textarea rows={3} value={val('about_client')} onChange={e => setFormData({ ...formData, about_client: e.target.value })} placeholder="Additional information..." />
+                      </FieldGroup>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Footer actions */}
+                <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-6 py-4">
+                  <p className="text-sm text-slate-400">{isDirty ? 'Unsaved changes' : 'No changes'}</p>
+                  <div className="flex flex-wrap gap-3">
+                    <Button variant="secondary" type="button" onClick={onCancel} disabled={saving}>Cancel</Button>
+                    {editMode && (
+                      <Button variant="danger" type="button" onClick={deleteClient} disabled={saving}>Delete</Button>
+                    )}
+                    <Button variant="primary" type="submit" disabled={saving}>
+                      {saving ? 'Saving...' : editMode ? 'Update Client' : 'Create Client'}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </form>
+          </TabsContent>
+
+          {/* ─── PRICING TAB ─── */}
+          <TabsContent value="pricing">
+            <div className="space-y-6">
+              <ClientDiscountPortfolio formData={formData} setFormData={setFormData} isAdmin={isAdmin} />
+              <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-6 py-4">
+                <p className="text-sm text-slate-400">Pricing configuration</p>
+                <div className="flex gap-3">
+                  <Button variant="secondary" onClick={onCancel}>Cancel</Button>
+                  <Button variant="primary" onClick={() => handleSubmit()}>
+                    {editMode ? 'Update Pricing' : 'Submit'}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </TabsContent>
+        </Tabs>
+
+      </div>
+    </div>
+  );
+}
+
+export default CreateClient;
