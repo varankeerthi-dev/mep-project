@@ -274,7 +274,7 @@ export function SiteVisits() {
     return visits.filter((v: any) => {
       const matchesSearch = !searchQuery ||
         v.clients?.client_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        v.enginee?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        v.engineer?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         v.visited_by?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         v.purpose?.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesStatus = statusFilter === 'all' || v.status === statusFilter;
@@ -508,7 +508,7 @@ export function SiteVisits() {
                             )}
                             {visibleCols.visitedBy && (
                               <td className="px-6 py-4">
-                                <p className="text-sm text-zinc-600">{visit.visited_by || visit.enginee || '—'}</p>
+                                <p className="text-sm text-zinc-600">{visit.visited_by || visit.engineer || '—'}</p>
                               </td>
                             )}
                             {visibleCols.purpose && (
@@ -801,7 +801,7 @@ export function SiteVisits() {
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Engineer *</Label>
-                <Input name="enginee" required className="rounded-xl bg-white border-gray-200 h-10 text-sm focus:border-teal-300 focus:ring-2 focus:ring-teal-300/20 focus:outline-none" placeholder="Engineer name" defaultValue={selectedVisit?.enginee || ''} />
+                <Input name="engineer" required className="rounded-xl bg-white border-gray-200 h-10 text-sm focus:border-teal-300 focus:ring-2 focus:ring-teal-300/20 focus:outline-none" placeholder="Engineer name" defaultValue={selectedVisit?.engineer || ''} />
               </div>
             </div>
 
@@ -916,7 +916,7 @@ export function SiteVisits() {
 
                 <div className="space-y-1.5">
                   <Label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Engineer *</Label>
-                  <Input name="enginee" required className="rounded-xl bg-white border-gray-200 h-10 text-sm focus:border-teal-300 focus:ring-2 focus:ring-teal-300/20 focus:outline-none" placeholder="Engineer name" defaultValue={selectedVisit?.enginee || ''} />
+                  <Input name="engineer" required className="rounded-xl bg-white border-gray-200 h-10 text-sm focus:border-teal-300 focus:ring-2 focus:ring-teal-300/20 focus:outline-none" placeholder="Engineer name" defaultValue={selectedVisit?.engineer || ''} />
                 </div>
 
                 <div className="space-y-1.5">
@@ -999,8 +999,8 @@ export function SiteVisits() {
                 {[
                   { label: 'Client',     value: selectedVisit.clients?.client_name },
                   { label: 'Date',       value: format(parseISO(selectedVisit.visit_date), 'dd MMM yyyy') },
-                  { label: 'Visited By', value: selectedVisit.visited_by || selectedVisit.enginee },
-                  { label: 'Engineer',   value: selectedVisit.enginee },
+                  { label: 'Visited By', value: selectedVisit.visited_by || selectedVisit.engineer },
+                  { label: 'Engineer',   value: selectedVisit.engineer },
                   { label: 'Purpose',    value: selectedVisit.purpose },
                   { label: 'Next Step',  value: selectedVisit.next_step },
                 ].map(({ label, value }) => (

@@ -7,7 +7,7 @@ export type SiteVisit = {
   visit_date: string
   in_time?: string | null
   out_time?: string | null
-  enginee?: string | null
+  engineer?: string | null
   visited_by?: string | null
   purpose?: string | null
   site_address?: string | null
