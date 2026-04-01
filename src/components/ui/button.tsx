@@ -57,8 +57,8 @@ export function Button({
   style,
   ...props
 }: ButtonProps) {
-  const theme = variants[variant];
-  const sizeStyles = sizes[size];
+  const theme = variants[variant] || variants.primary;
+  const sizeStyles = sizes[size] || sizes.md;
   
   return (
     <button
@@ -87,7 +87,9 @@ export function Button({
         }
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.background = theme.background;
+        if (!disabled && !isLoading) {
+          e.currentTarget.style.background = theme.background;
+        }
       }}
       {...props}
     >
@@ -146,12 +148,14 @@ export function IconButton({
     lg: { width: '44px', height: '44px' },
   };
   
+  const currentSize = sizeStyles[size] || sizeStyles.md;
+  
   return (
     <Button
       variant={variant}
       size={size}
       style={{
-        ...sizeStyles[size],
+        ...currentSize,
         padding: 0,
         borderRadius: radii.md,
       }}

@@ -3,13 +3,23 @@ import { useAuth } from '../contexts/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../supabase';
 import { colors, radii, shadows, spacing } from '../design-system';
-import { Card } from '../components/ui/Card';
-import { Button, IconButton } from '../components/ui/Button';
-import { Badge, PriorityBadge, StatusBadge } from '../components/ui/Badge';
-import { Input, Select, TextArea } from '../components/ui/Input';
-import { Modal } from '../components/ui/Modal';
-import { Tabs, TabList, Tab, TabPanel } from '../components/ui/Tabs';
-import { Calendar } from '../components/ui/Calendar';
+import {
+  Card,
+  Button,
+  IconButton,
+  Badge,
+  PriorityBadge,
+  StatusBadge,
+  Input,
+  Select,
+  TextArea,
+  Modal,
+  Tabs,
+  TabList,
+  Tab,
+  TabPanel,
+  Calendar,
+} from '../components/ui';
 import {
   Plus,
   Phone,
