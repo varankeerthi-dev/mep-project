@@ -38,6 +38,7 @@
     "react-hook-form": "^7.51.0",
     "react-router-dom": "^7.13.0",
     "sonner": "^1.4.0",
+    "tailwindcss-animate": "^1.0.7",
     "xlsx": "^0.18.5",
     "zod": "^3.22.4"
   },

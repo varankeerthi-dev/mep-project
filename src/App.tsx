@@ -455,19 +455,7 @@ export default function App() {
             {renderedPage}
           </Suspense>
 
-          <button onClick={() => {
-  console.log("Attempting to crash...");
-  throw new Error("Sentry Local Test Error!");
-}}>
-  Test Sentry Now
-</button>
-<button onClick={() => {
-  console.log("Triggering Sentry...");
-  throw new Error("ERP Test Error: Connection Check");
-}}>
-  Break App
-</button>
-        </main>
+                  </main>
       </div>
     </AuthContext.Provider>
   );
