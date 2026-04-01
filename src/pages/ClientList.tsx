@@ -231,7 +231,9 @@ export default function ClientList() {
       if (error) throw error;
       return data || [];
     },
-    staleTime: 5 * 60 * 1000
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true
   });
 
   const clients = clientsQuery.data || [];

@@ -274,7 +274,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
       return result;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['clients'] });
+      queryClient.invalidateQueries({ queryKey: ['clients'], refetchType: 'all' });
       toast.success('Client created successfully!');
       onSuccess();
     },
@@ -309,8 +309,8 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['clients'] });
-      queryClient.invalidateQueries({ queryKey: ['client', clientData.id] });
+      queryClient.invalidateQueries({ queryKey: ['clients'], refetchType: 'all' });
+      queryClient.invalidateQueries({ queryKey: ['client', clientData.id], refetchType: 'all' });
       toast.success('Client updated successfully!');
       onSuccess();
     },
@@ -325,7 +325,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['clients'] });
+      queryClient.invalidateQueries({ queryKey: ['clients'], refetchType: 'all' });
       toast.success('Client deleted successfully!');
       onSuccess();
     },
