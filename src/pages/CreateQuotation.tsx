@@ -314,22 +314,20 @@ useEffect(() => {
   return () => window.removeEventListener('beforeunload', handleBeforeUnload);
 }, [isDirty, saving]);
 
-const safeNavigate = useCallback((path) => {
-  if (isDirty && !saving) {
-    if (window.confirm('You have unsaved changes. Do you want to save them before leaving?')) {
-      handleSave(false);
-      return;
-    }
-  }
-  navigate(path);
-}, [isDirty, saving, navigate, handleSave]);
-
 const getQuoteSeriesNumber = useCallback((seriesRow) => {
   const cfg = seriesRow?.configs?.quote;
   if (cfg && cfg.enabled) {
     return parseInt(cfg.start_number || 1, 10);
   }
   return parseInt(seriesRow?.current_number || 1, 10);
+}, []);
+
+const getFyPrefix = useCallback(() => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  if (month < 3) return `${year - 1}-${String(year).slice(-2)}`;
+  return `${year}-${String(year + 1).slice(-2)}`;
 }, []);
 
 const buildQuoteNoFromSeries = useCallback((seriesRow) => {
