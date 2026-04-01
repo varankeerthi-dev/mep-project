@@ -309,6 +309,8 @@ export function ClientCommunication() {
     email: '',
   });
 
+  const [addClientTab, setAddClientTab] = useState('details');
+
   const [siteVisitData, setSiteVisitData] = useState({
     client_id: '',
     project_id: '',
@@ -1141,135 +1143,161 @@ export function ClientCommunication() {
           </>
         }
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {/* Basic Info Section */}
-          <div>
-            <h4 style={{ 
-              fontSize: '13px', 
-              fontWeight: 600, 
-              color: colors.gray[700], 
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px',
-              marginBottom: '12px',
+        {/* Tabs Container */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {/* Tab Navigation */}
+          <div
+            style={{
               display: 'flex',
-              alignItems: 'center',
-              gap: '6px'
-            }}>
+              gap: '4px',
+              padding: '4px',
+              background: colors.gray[100],
+              borderRadius: radii.md,
+            }}
+          >
+            <button
+              onClick={() => setAddClientTab('details')}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '8px 14px',
+                fontSize: '13px',
+                fontWeight: 500,
+                color: addClientTab === 'details' ? colors.gray[900] : colors.gray[500],
+                background: addClientTab === 'details' ? '#ffffff' : 'transparent',
+                border: 'none',
+                borderRadius: radii.DEFAULT,
+                cursor: 'pointer',
+                transition: 'all 150ms ease',
+                boxShadow: addClientTab === 'details' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+              }}
+            >
               <Building size={14} />
-              Basic Information
-            </h4>
-            <div style={{ 
-              display: 'grid', 
-              gridTemplateColumns: '1fr 1fr', 
-              gap: '12px' 
-            }}>
-              <Input
-                label="Client Name *"
-                value={newClientData.client_name}
-                onChange={(e) => setNewClientData({ ...newClientData, client_name: e.target.value })}
-                placeholder="Enter client name"
-              />
-              <Input
-                label="Client ID (optional)"
-                value={newClientData.client_id}
-                onChange={(e) => setNewClientData({ ...newClientData, client_id: e.target.value })}
-                placeholder="Auto-generated if empty"
-              />
-              <Input
-                label="Client Type"
-                value={newClientData.client_type}
-                onChange={(e) => setNewClientData({ ...newClientData, client_type: e.target.value })}
-                placeholder="e.g., Corporate, Individual"
-              />
-            </div>
+              Client Details
+            </button>
+            <button
+              onClick={() => setAddClientTab('contact')}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '8px 14px',
+                fontSize: '13px',
+                fontWeight: 500,
+                color: addClientTab === 'contact' ? colors.gray[900] : colors.gray[500],
+                background: addClientTab === 'contact' ? '#ffffff' : 'transparent',
+                border: 'none',
+                borderRadius: radii.DEFAULT,
+                cursor: 'pointer',
+                transition: 'all 150ms ease',
+                boxShadow: addClientTab === 'contact' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+              }}
+            >
+              <User size={14} />
+              Contact
+            </button>
+            <button
+              onClick={() => setAddClientTab('location')}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '8px 14px',
+                fontSize: '13px',
+                fontWeight: 500,
+                color: addClientTab === 'location' ? colors.gray[900] : colors.gray[500],
+                background: addClientTab === 'location' ? '#ffffff' : 'transparent',
+                border: 'none',
+                borderRadius: radii.DEFAULT,
+                cursor: 'pointer',
+                transition: 'all 150ms ease',
+                boxShadow: addClientTab === 'location' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+              }}
+            >
+              <MapPin size={14} />
+              Location
+            </button>
           </div>
 
-          {/* Contact Section */}
-          <div>
-            <h4 style={{ 
-              fontSize: '13px', 
-              fontWeight: 600, 
-              color: colors.gray[700], 
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px',
-              marginBottom: '12px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px'
-            }}>
-              <User size={14} />
-              Contact Details
-            </h4>
-            <div style={{ 
-              display: 'grid', 
-              gridTemplateColumns: '1fr 1fr', 
-              gap: '12px' 
-            }}>
+          {/* Tab Content */}
+          {addClientTab === 'details' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', animation: 'fadeIn 150ms ease-out' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <Input
+                  label="Client Name *"
+                  value={newClientData.client_name}
+                  onChange={(e) => setNewClientData({ ...newClientData, client_name: e.target.value })}
+                  placeholder="Enter client name"
+                />
+                <Input
+                  label="Client Type"
+                  value={newClientData.client_type}
+                  onChange={(e) => setNewClientData({ ...newClientData, client_type: e.target.value })}
+                  placeholder="e.g., Corporate, Individual"
+                />
+              </div>
               <Input
-                label="Contact Person"
-                value={newClientData.contact}
-                onChange={(e) => setNewClientData({ ...newClientData, contact: e.target.value })}
-                placeholder="Primary contact person"
+                label="Client ID (optional)"
+                hint="Leave empty to auto-generate"
+                value={newClientData.client_id}
+                onChange={(e) => setNewClientData({ ...newClientData, client_id: e.target.value })}
+                placeholder="e.g., CL-001"
               />
-              <Input
-                label="Phone"
-                value={newClientData.phone}
-                onChange={(e) => setNewClientData({ ...newClientData, phone: e.target.value })}
-                placeholder="Contact number"
-              />
+            </div>
+          )}
+
+          {addClientTab === 'contact' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', animation: 'fadeIn 150ms ease-out' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <Input
+                  label="Contact Person"
+                  value={newClientData.contact}
+                  onChange={(e) => setNewClientData({ ...newClientData, contact: e.target.value })}
+                  placeholder="Primary contact person"
+                />
+                <Input
+                  label="Phone"
+                  value={newClientData.phone}
+                  onChange={(e) => setNewClientData({ ...newClientData, phone: e.target.value })}
+                  placeholder="Contact number"
+                />
+              </div>
               <Input
                 label="Email"
                 type="email"
                 value={newClientData.email}
                 onChange={(e) => setNewClientData({ ...newClientData, email: e.target.value })}
                 placeholder="Email address"
-                style={{ gridColumn: 'span 2' }}
               />
             </div>
-          </div>
+          )}
 
-          {/* Location Section */}
-          <div>
-            <h4 style={{ 
-              fontSize: '13px', 
-              fontWeight: 600, 
-              color: colors.gray[700], 
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px',
-              marginBottom: '12px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px'
-            }}>
-              <MapPin size={14} />
-              Location
-            </h4>
-            <div style={{ 
-              display: 'grid', 
-              gridTemplateColumns: '1fr 1fr', 
-              gap: '12px',
-              marginBottom: '12px'
-            }}>
-              <Input
-                label="City"
-                value={newClientData.city}
-                onChange={(e) => setNewClientData({ ...newClientData, city: e.target.value })}
-                placeholder="City"
-              />
-              <Input
-                label="State"
-                value={newClientData.state}
-                onChange={(e) => setNewClientData({ ...newClientData, state: e.target.value })}
-                placeholder="State"
+          {addClientTab === 'location' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', animation: 'fadeIn 150ms ease-out' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <Input
+                  label="City"
+                  value={newClientData.city}
+                  onChange={(e) => setNewClientData({ ...newClientData, city: e.target.value })}
+                  placeholder="City"
+                />
+                <Input
+                  label="State"
+                  value={newClientData.state}
+                  onChange={(e) => setNewClientData({ ...newClientData, state: e.target.value })}
+                  placeholder="State"
+                />
+              </div>
+              <TextArea
+                label="Address"
+                value={newClientData.address1}
+                onChange={(e) => setNewClientData({ ...newClientData, address1: e.target.value })}
+                placeholder="Full address"
+                style={{ minHeight: '80px' }}
               />
             </div>
-            <TextArea
-              label="Address"
-              value={newClientData.address1}
-              onChange={(e) => setNewClientData({ ...newClientData, address1: e.target.value })}
-              placeholder="Full address"
-            />
-          </div>
+          )}
         </div>
       </Modal>
 
