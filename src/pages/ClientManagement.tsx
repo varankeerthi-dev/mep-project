@@ -282,7 +282,8 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
     try {
       const payload = {
         ...data,
-        organisation_id: organisation?.id,
+        organisation_id: organisation?.id || null,
+        standard_pricelist_id: data.standard_pricelist_id || null,
         contacts: data.contacts.filter(c => c.name.trim()),
         custom_discounts: {},
       };
