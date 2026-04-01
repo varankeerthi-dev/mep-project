@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../supabase';
 import { colors, radii, shadows, spacing } from '../design-system';
-import { Card, StatCard } from '../components/ui/Card';
+import { Card } from '../components/ui/Card';
 import { Button, IconButton } from '../components/ui/Button';
 import { Badge, PriorityBadge, StatusBadge } from '../components/ui/Badge';
 import { Input, Select, TextArea } from '../components/ui/Input';
@@ -417,7 +417,7 @@ export function ClientCommunication() {
                 margin: 0,
                 display: 'flex',
                 alignItems: 'center',
-                gap: '12px',
+                gap: '8px',
               }}
             >
               <div
@@ -465,7 +465,7 @@ export function ClientCommunication() {
         {/* Content Area - Now on Left */}
         <div>
           <Tabs defaultTab="dashboard" onChange={setActiveTab}>
-            <TabList style={{ marginBottom: '24px' }}>
+            <TabList style={{ marginBottom: '12px' }}>
               <Tab value="dashboard" icon={<LayoutDashboard size={16} />}>
                 Dashboard
               </Tab>
@@ -475,43 +475,39 @@ export function ClientCommunication() {
             </TabList>
 
             <TabPanel value="dashboard">
-              {/* Stats */}
+              {/* Compact Stats */}
               <div
                 style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(4, 1fr)',
-                  gap: '16px',
-                  marginBottom: '24px',
+                  display: 'flex',
+                  gap: '8px',
+                  marginBottom: '12px',
+                  flexWrap: 'wrap',
                 }}
               >
-                <StatCard
-                  icon={<MessageSquare size={22} />}
-                  label="Total Communications"
-                  value={stats.total}
-                  color="blue"
-                />
-                <StatCard
-                  icon={<Clock size={22} />}
-                  label="Today's Activity"
-                  value={stats.today}
-                  color="green"
-                />
-                <StatCard
-                  icon={<AlertCircle size={22} />}
-                  label="Open Items"
-                  value={stats.open}
-                  color="amber"
-                />
-                <StatCard
-                  icon={<XCircle size={22} />}
-                  label="Urgent Priority"
-                  value={stats.urgent}
-                  color="red"
-                />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 10px', background: colors.primary[50], borderRadius: radii.md }}>
+                  <MessageSquare size={14} color={colors.primary[600]} />
+                  <span style={{ fontSize: '12px', fontWeight: 600, color: colors.gray[900] }}>{stats.total}</span>
+                  <span style={{ fontSize: '10px', color: colors.gray[500] }}>Total</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 10px', background: colors.success.light, borderRadius: radii.md }}>
+                  <Clock size={14} color={colors.success.DEFAULT} />
+                  <span style={{ fontSize: '12px', fontWeight: 600, color: colors.gray[900] }}>{stats.today}</span>
+                  <span style={{ fontSize: '10px', color: colors.gray[500] }}>Today</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 10px', background: colors.warning.light, borderRadius: radii.md }}>
+                  <AlertCircle size={14} color={colors.warning.DEFAULT} />
+                  <span style={{ fontSize: '12px', fontWeight: 600, color: colors.gray[900] }}>{stats.open}</span>
+                  <span style={{ fontSize: '10px', color: colors.gray[500] }}>Open</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 10px', background: colors.error.light, borderRadius: radii.md }}>
+                  <XCircle size={14} color={colors.error.DEFAULT} />
+                  <span style={{ fontSize: '12px', fontWeight: 600, color: colors.gray[900] }}>{stats.urgent}</span>
+                  <span style={{ fontSize: '10px', color: colors.gray[500] }}>Urgent</span>
+                </div>
               </div>
 
               {/* Calendar and Recent */}
-              <div style={{ display: 'grid', gridTemplateColumns: '380px 1fr', gap: '24px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: '16px' }}>
                 <Calendar
                   currentMonth={currentMonth}
                   onMonthChange={setCurrentMonth}
@@ -526,7 +522,7 @@ export function ClientCommunication() {
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
-                      marginBottom: '20px',
+                      marginBottom: '12px',
                     }}
                   >
                     <h3 style={{ fontSize: '16px', fontWeight: 600, color: colors.gray[900], margin: 0 }}>
@@ -541,7 +537,7 @@ export function ClientCommunication() {
                     )}
                   </div>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     {(selectedDate ? getCommForDay(selectedDate) : communications.slice(0, 5)).map(
                       (comm) => {
                         const Icon = CATEGORY_ICONS[comm.call_category as keyof typeof CATEGORY_ICONS] || MessageSquare;
@@ -552,8 +548,8 @@ export function ClientCommunication() {
                             style={{
                               display: 'flex',
                               alignItems: 'flex-start',
-                              gap: '12px',
-                              padding: '16px',
+                              gap: '8px',
+                              padding: '8px 12px',
                               background: colors.gray[50],
                               borderRadius: radii.md,
                               cursor: 'pointer',
@@ -573,9 +569,9 @@ export function ClientCommunication() {
                           >
                             <div
                               style={{
-                                width: '40px',
-                                height: '40px',
-                                borderRadius: radii.DEFAULT,
+                                width: '32px',
+                                height: '32px',
+                                borderRadius: radii.sm,
                                 background: colors.primary[50],
                                 display: 'flex',
                                 alignItems: 'center',
@@ -584,7 +580,7 @@ export function ClientCommunication() {
                                 flexShrink: 0,
                               }}
                             >
-                              <Icon size={20} />
+                              <Icon size={16} />
                             </div>
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <div
@@ -625,7 +621,7 @@ export function ClientCommunication() {
                                 style={{
                                   display: 'flex',
                                   alignItems: 'center',
-                                  gap: '12px',
+                                  gap: '8px',
                                   marginTop: '8px',
                                   fontSize: '12px',
                                   color: colors.gray[500],
@@ -783,7 +779,7 @@ export function ClientCommunication() {
                         >
                           <td
                             style={{
-                              padding: '16px',
+                              padding: '8px 12px',
                               borderBottom: `1px solid ${colors.gray[100]}`,
                             }}
                           >
@@ -816,7 +812,7 @@ export function ClientCommunication() {
                           </td>
                           <td
                             style={{
-                              padding: '16px',
+                              padding: '8px 12px',
                               borderBottom: `1px solid ${colors.gray[100]}`,
                             }}
                           >
@@ -826,7 +822,7 @@ export function ClientCommunication() {
                           </td>
                           <td
                             style={{
-                              padding: '16px',
+                              padding: '8px 12px',
                               borderBottom: `1px solid ${colors.gray[100]}`,
                               maxWidth: '300px',
                             }}
@@ -858,15 +854,15 @@ export function ClientCommunication() {
                               </p>
                             )}
                           </td>
-                          <td style={{ padding: '16px', borderBottom: `1px solid ${colors.gray[100]}` }}>
+                          <td style={{ padding: '8px 12px', borderBottom: `1px solid ${colors.gray[100]}` }}>
                             <PriorityBadge priority={comm.priority} />
                           </td>
-                          <td style={{ padding: '16px', borderBottom: `1px solid ${colors.gray[100]}` }}>
+                          <td style={{ padding: '8px 12px', borderBottom: `1px solid ${colors.gray[100]}` }}>
                             <StatusBadge status={comm.status} />
                           </td>
                           <td
                             style={{
-                              padding: '16px',
+                              padding: '8px 12px',
                               fontSize: '13px',
                               color: colors.gray[600],
                               borderBottom: `1px solid ${colors.gray[100]}`,
@@ -884,7 +880,7 @@ export function ClientCommunication() {
 
                   {communications.length === 0 && (
                     <div style={{ textAlign: 'center', padding: '60px', color: colors.gray[500] }}>
-                      <MessageSquare size={64} style={{ marginBottom: '20px', opacity: 0.3 }} />
+                      <MessageSquare size={64} style={{ marginBottom: '12px', opacity: 0.3 }} />
                       <h3 style={{ fontSize: '18px', fontWeight: 600, color: colors.gray[700], margin: 0 }}>
                         No communications found
                       </h3>
@@ -931,7 +927,7 @@ export function ClientCommunication() {
             </div>
 
             {!sidebarCollapsed && (
-              <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <Input
                   placeholder="Search..."
                   value={filters.search}
@@ -1285,7 +1281,7 @@ export function ClientCommunication() {
               </label>
               <div
                 style={{
-                  padding: '16px',
+                  padding: '8px 12px',
                   background: colors.gray[50],
                   borderRadius: radii.md,
                   fontSize: '14px',
@@ -1304,7 +1300,7 @@ export function ClientCommunication() {
                 </label>
                 <div
                   style={{
-                    padding: '16px',
+                    padding: '8px 12px',
                     background: colors.primary[50],
                     borderRadius: radii.md,
                     fontSize: '14px',
