@@ -111,7 +111,7 @@ export function ClientCommunication() {
         .from('client_communication')
         .select(`
           *,
-          client:clients(client_name, client_type),
+          client:clients(client_name),
           call_received_by_user:auth!client_communication_call_received_by_fkey(email),
           call_entered_by_user:auth!client_communication_call_entered_by_fkey(email)
         `)
@@ -140,7 +140,7 @@ export function ClientCommunication() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('clients')
-        .select('id, client_name, client_type, address, contact_name, phone')
+        .select('id, client_name, address1, city, state, contact, email')
         .order('client_name');
       if (error) {
         console.error('Error fetching clients:', error);
@@ -872,9 +872,7 @@ export function ClientCommunication() {
                                 <div style={{ fontSize: '14px', fontWeight: 500, color: colors.gray[900] }}>
                                   {comm.client?.client_name}
                                 </div>
-                                <div style={{ fontSize: '12px', color: colors.gray[500] }}>
-                                  {comm.client?.client_type}
-                                </div>
+                                {/* client_type removed — column does not exist on clients table */}
                               </div>
                             </div>
                           </td>
@@ -1097,7 +1095,14 @@ export function ClientCommunication() {
               variant="primary"
               onClick={() =>
                 createClientMutation.mutate({
-                  ...newClientData,
+                  client_name: newClientData.client_name,
+                  address1: newClientData.address1,
+                  city: newClientData.city,
+                  state: newClientData.state,
+                  pincode: newClientData.pincode,
+                  contact_person: newClientData.contact,
+                  contact: newClientData.phone,
+                  email: newClientData.email,
                   created_at: new Date().toISOString(),
                 })
               }
