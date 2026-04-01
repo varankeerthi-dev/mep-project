@@ -151,7 +151,7 @@ export function TabsContent({ value, children, className, style }: TabsContentPr
   );
 }
 
-// Keep old names for backward compatibility if needed, but the main goal is to match shadcn
+// Keep old names for backward compatibility
 export const TabList = TabsList;
 export const Tab = TabsTrigger;
 export const TabPanel = TabsContent;

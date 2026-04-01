@@ -140,7 +140,7 @@ const colorMap = {
 };
 
 export function StatCard({ icon, label, value, trend, color = 'blue' }: StatCardProps) {
-  const theme = colorMap[color];
+  const theme = colorMap[color] || colorMap.blue;
   
   return (
     <Card hover padding="lg">
