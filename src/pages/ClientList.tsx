@@ -4,7 +4,6 @@ import { useQueries, useQuery } from '@tanstack/react-query';
 import { flexRender, getCoreRowModel, getSortedRowModel, getFilteredRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
 import { ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { withTimeout } from '../utils/queryTimeout';
 
 type TransactionsTableProps = {
   rows: any[]
@@ -250,15 +249,17 @@ export default function ClientList() {
     () => clients.find(c => c.id === activeClientId) || null,
     [clients, activeClientId]
   );
+// Only load transaction data when Reports tab is active
 const txQueries = useQueries({
-  queries: (activeClient ? [
+  queries: (activeClient && activeTab === 'reports' ? [
     {
       queryKey: ['clientTx', 'quotation', activeClientId],
       queryFn: async () => {
-        const { data, error } = await withTimeout(
-          supabase.from('quotation_header').select('id, quotation_no, date, grand_total, status, created_at').eq('client_id', activeClient.id),
-          15000, 'Quotation'
-        );
+        const { data, error } = await supabase
+          .from('quotation_header')
+          .select('id, quotation_no, date, grand_total, status, created_at')
+          .eq('client_id', activeClient.id)
+          .limit(100);
         if (error) throw error;
         return data || [];
       },
@@ -268,10 +269,11 @@ const txQueries = useQueries({
     {
       queryKey: ['clientTx', 'client_po', activeClientId],
       queryFn: async () => {
-        const { data, error } = await withTimeout(
-          supabase.from('client_purchase_orders').select('id, po_number, po_date, po_total_value, status, created_at').eq('client_id', activeClient.id),
-          15000, 'Client PO'
-        );
+        const { data, error } = await supabase
+          .from('client_purchase_orders')
+          .select('id, po_number, po_date, po_total_value, status, created_at')
+          .eq('client_id', activeClient.id)
+          .limit(100);
         if (error) throw error;
         return data || [];
       },
@@ -281,10 +283,11 @@ const txQueries = useQueries({
     {
       queryKey: ['clientTx', 'project', activeClientId],
       queryFn: async () => {
-        const { data, error } = await withTimeout(
-          supabase.from('projects').select('id, project_code, project_name, status, created_at').eq('client_id', activeClient.id),
-          15000, 'Projects'
-        );
+        const { data, error } = await supabase
+          .from('projects')
+          .select('id, project_code, project_name, status, created_at')
+          .eq('client_id', activeClient.id)
+          .limit(100);
         if (error) throw error;
         return data || [];
       },
@@ -294,10 +297,11 @@ const txQueries = useQueries({
     {
       queryKey: ['clientTx', 'site_visit', activeClientId],
       queryFn: async () => {
-        const { data, error } = await withTimeout(
-          supabase.from('site_visits').select('id, visit_date, purpose, status, created_at').eq('client_id', activeClient.id),
-          15000, 'Site Visits'
-        );
+        const { data, error } = await supabase
+          .from('site_visits')
+          .select('id, visit_date, purpose, status, created_at')
+          .eq('client_id', activeClient.id)
+          .limit(100);
         if (error) throw error;
         return data || [];
       },
@@ -307,10 +311,11 @@ const txQueries = useQueries({
     {
       queryKey: ['clientTx', 'delivery_challan', activeClientId],
       queryFn: async () => {
-        const { data, error } = await withTimeout(
-          supabase.from('delivery_challans').select('id, dc_number, dc_date, status, created_at').eq('client_name', activeClient.client_name),
-          15000, 'Delivery Challans'
-        );
+        const { data, error } = await supabase
+          .from('delivery_challans')
+          .select('id, dc_number, dc_date, status, created_at')
+          .eq('client_name', activeClient.client_name)
+          .limit(100);
         if (error) throw error;
         return data || [];
       },
@@ -320,10 +325,11 @@ const txQueries = useQueries({
     {
       queryKey: ['clientTx', 'meeting', activeClientId],
       queryFn: async () => {
-        const { data, error } = await withTimeout(
-          supabase.from('meetings').select('id, meeting_date, agenda, status, created_at').eq('client_id', activeClient.id),
-          15000, 'Meetings'
-        );
+        const { data, error } = await supabase
+          .from('meetings')
+          .select('id, meeting_date, agenda, status, created_at')
+          .eq('client_id', activeClient.id)
+          .limit(100);
         if (error) throw error;
         return data || [];
       },
