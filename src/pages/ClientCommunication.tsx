@@ -3,23 +3,13 @@ import { useAuth } from '../contexts/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../supabase';
 import { colors, radii, shadows, spacing } from '../design-system';
-import {
-  Card,
-  Button,
-  IconButton,
-  Badge,
-  PriorityBadge,
-  StatusBadge,
-  Input,
-  Select,
-  TextArea,
-  Modal,
-  Tabs,
-  TabList,
-  Tab,
-  TabPanel,
-  Calendar,
-} from '../components/ui';
+import { Card } from '../components/ui/Card';
+import { Button, IconButton } from '../components/ui/Button';
+import { Badge, PriorityBadge, StatusBadge } from '../components/ui/Badge';
+import { Input, Select, TextArea } from '../components/ui/Input';
+import { Modal } from '../components/ui/Modal';
+import { Tabs, TabList, Tab, TabPanel } from '../components/ui/Tabs';
+import { Calendar } from '../components/ui/Calendar';
 import {
   Plus,
   Phone,
@@ -231,10 +221,11 @@ export function ClientCommunication() {
   // Create client
   const createClientMutation = useMutation({
     mutationFn: async (clientData: any) => {
-      // Auto-generate client_id if not provided
+      // Auto-generate client_id if not provided, and handle empty string
+      const { client_id, ...rest } = clientData;
       const dataToInsert = {
-        ...clientData,
-        client_id: clientData.client_id || `CL-${Date.now()}`,
+        ...rest,
+        client_id: client_id && client_id.trim() !== '' ? client_id : `CL-${Date.now()}`,
         created_at: new Date().toISOString(),
       };
       console.log('Creating client with data:', dataToInsert);
