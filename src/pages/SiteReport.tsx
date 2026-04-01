@@ -150,26 +150,6 @@ export function SiteReport() {
     };
   }, [photos]);
 
-  // Fetch existing reports
-  const { data: reports, isLoading: reportsLoading } = useQuery({
-    queryKey: ['site-reports', organisation?.id],
-    queryFn: async () => {
-      let query = supabase
-        .from('site_reports')
-        .select('*, clients(client_name), projects(project_name)')
-        .order('report_date', { ascending: false });
-      
-      if (organisation?.id) {
-        query = query.eq('organization_id', organisation?.id);
-      }
-      
-      const { data, error } = await query;
-      if (error) throw error;
-      return data;
-    },
-    enabled: view === 'list'
-  });
-
   const form = useForm<SiteReportFormValues>({
     resolver: zodResolver(siteReportSchema),
     defaultValues: {
@@ -195,6 +175,75 @@ export function SiteReport() {
       issues: [{ issue: '', solution: '' }],
       documentation: { filed: false, toolsLocked: false, sitePictures: 'Taken' },
       footer: { engineer: '', signatureDate: new Date().toISOString().split('T')[0] }
+    }
+  });
+
+  const { errors } = form.formState;
+  const selectedClientId = form.watch('client');
+
+  // Fetch existing reports
+  const { data: reports, isLoading: reportsLoading } = useQuery({
+    queryKey: ['site-reports', organisation?.id],
+    queryFn: async () => {
+      console.log('Fetching reports for org:', organisation?.id);
+      let query = supabase
+        .from('site_reports')
+        .select('*, clients(client_name), projects(project_name)')
+        .order('report_date', { ascending: false });
+      
+      if (organisation?.id) {
+        query = query.eq('organization_id', organisation?.id);
+      }
+      
+      const { data, error } = await query;
+      if (error) {
+        console.error('Reports fetch error:', error);
+        throw error;
+      }
+      return data || [];
+    },
+    enabled: view === 'list'
+  });
+
+  // Fetch Clients
+  const { data: clients, isLoading: clientsLoading, error: clientsError } = useQuery({
+    queryKey: ['site-report-clients'],
+    staleTime: 1000 * 60 * 5, 
+    queryFn: async () => {
+      console.log('Fetching all clients for site report');
+      const { data, error } = await supabase
+        .from('clients')
+        .select('id, client_name')
+        .order('client_name');
+      
+      if (error) {
+        console.error('Clients fetch error:', error);
+        throw error;
+      }
+      console.log('Clients fetched:', data?.length);
+      return data || [];
+    }
+  });
+
+  // Fetch Projects
+  const { data: projects, isLoading: projectsLoading, error: projectsError } = useQuery({
+    queryKey: ['site-report-projects', selectedClientId],
+    enabled: !!selectedClientId,
+    staleTime: 1000 * 60 * 5,
+    queryFn: async () => {
+      console.log('Fetching projects for client:', selectedClientId);
+      const { data, error } = await supabase
+        .from('projects')
+        .select('id, project_name')
+        .eq('client_id', selectedClientId)
+        .order('project_name');
+      
+      if (error) {
+        console.error('Projects fetch error:', error);
+        throw error;
+      }
+      console.log('Projects fetched:', data?.length);
+      return data || [];
     }
   });
 
@@ -231,39 +280,6 @@ export function SiteReport() {
   const { fields: clientReqFields, append: appendClientReq, remove: removeClientReq } = useFieldArray({
     control: form.control,
     name: "clientRequirements.details"
-  });
-
-  const { errors } = form.formState;
-
-  // Fetch Clients and Projects from system - REMOVED org filter to ensure they load
-  const { data: clients, isLoading: clientsLoading } = useQuery({
-    queryKey: ['site-report-clients'],
-    staleTime: 1000 * 60 * 5, 
-    queryFn: async () => {
-      // Removing filter because clients table might use organisation_id or might not have it
-      // CreateProject.tsx also loads them without filter
-      const { data, error } = await supabase.from('clients').select('id, client_name').order('client_name');
-      if (error) throw error;
-      return data || [];
-    }
-  });
-
-  const selectedClientId = form.watch('client');
-
-  const { data: projects, isLoading: projectsLoading } = useQuery({
-    queryKey: ['site-report-projects', selectedClientId],
-    enabled: !!selectedClientId,
-    staleTime: 1000 * 60 * 5,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('projects')
-        .select('id, project_name')
-        .eq('client_id', selectedClientId)
-        .order('project_name');
-      
-      if (error) throw error;
-      return data || [];
-    }
   });
 
   const saveMutation = useMutation({
@@ -596,16 +612,20 @@ export function SiteReport() {
                       form.setValue('projectName', ''); 
                     }}
                   >
-                    <SelectTrigger className={cn("h-9 text-sm bg-white", errors.client && "border-red-500")}>
-                      <SelectValue placeholder={clientsLoading ? "Loading..." : "Select Client"} />
+                    <SelectTrigger className={cn("h-9 text-sm bg-white", (errors.client || clientsError) && "border-red-500")}>
+                      <SelectValue placeholder={clientsLoading ? "Loading clients..." : "Select Client"} />
                     </SelectTrigger>
                     <SelectContent>
                       {clients?.map((client: any) => (
                         <SelectItem key={client.id} value={client.id}>{client.client_name}</SelectItem>
                       ))}
+                      {clients?.length === 0 && !clientsLoading && (
+                        <SelectItem value="_empty" disabled>No clients found</SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                   {errors.client && <p className="text-[10px] text-red-500 font-medium">{errors.client.message}</p>}
+                  {clientsError && <p className="text-[10px] text-red-500 font-medium">Error loading clients</p>}
                 </div>
 
                 <div className="space-y-1.5">
@@ -615,16 +635,20 @@ export function SiteReport() {
                     onValueChange={(val) => form.setValue('projectName', val)}
                     disabled={!selectedClientId}
                   >
-                    <SelectTrigger className={cn("h-9 text-sm bg-white", errors.projectName && "border-red-500")}>
-                      <SelectValue placeholder={!selectedClientId ? "Select client first" : projectsLoading ? "Loading..." : "Select Project"} />
+                    <SelectTrigger className={cn("h-9 text-sm bg-white", (errors.projectName || projectsError) && "border-red-500")}>
+                      <SelectValue placeholder={!selectedClientId ? "Select client first" : projectsLoading ? "Fetching projects..." : "Select Project"} />
                     </SelectTrigger>
                     <SelectContent>
                       {projects?.map((project: any) => (
                         <SelectItem key={project.id} value={project.id}>{project.project_name}</SelectItem>
                       ))}
+                      {projects?.length === 0 && !projectsLoading && (
+                        <SelectItem value="_empty" disabled>No projects for this client</SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                   {errors.projectName && <p className="text-[10px] text-red-500 font-medium">{errors.projectName.message}</p>}
+                  {projectsError && <p className="text-[10px] text-red-500 font-medium">Error loading projects</p>}
                 </div>
 
                 <div className="space-y-1.5">
