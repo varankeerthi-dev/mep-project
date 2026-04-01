@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../supabase';
 import { colors, radii, shadows, spacing } from '../design-system';
@@ -165,13 +166,29 @@ export function ClientCommunication() {
   // Create communication
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
-      const { error } = await supabase.from('client_communication').insert(data);
-      if (error) throw error;
+      // Transform data to match database schema (title case for status/priority)
+      const dbData = {
+        ...data,
+        status: data.status === 'open' ? 'Open' : data.status === 'in_progress' ? 'In Progress' : data.status === 'resolved' ? 'Resolved' : data.status === 'closed' ? 'Closed' : data.status,
+        priority: data.priority === 'low' ? 'Low' : data.priority === 'normal' ? 'Normal' : data.priority === 'high' ? 'High' : data.priority === 'urgent' ? 'Urgent' : data.priority,
+        call_category: data.call_category === 'incoming' ? 'Incoming' : data.call_category === 'outgoing' ? 'Outgoing' : data.call_category,
+      };
+
+      const { data: result, error } = await supabase.from('client_communication').insert(dbData).select().single();
+      if (error) {
+        console.error('Create communication error:', error);
+        throw error;
+      }
+      return result;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['client-communications'] });
       setShowCreateModal(false);
       resetForm();
+    },
+    onError: (error: any) => {
+      console.error('Mutation error:', error);
+      alert('Failed to save communication: ' + (error?.message || 'Unknown error'));
     },
   });
 
@@ -246,10 +263,12 @@ export function ClientCommunication() {
     },
   });
 
+  const { user } = useAuth();
+
   const [formData, setFormData] = useState({
     client_id: '',
-    call_received_by: '',
-    call_entered_by: '',
+    call_received_by: user?.id || '',
+    call_entered_by: user?.id || '',
     call_type: 'Incoming',
     call_category: 'incoming',
     call_regarding: '',
@@ -285,8 +304,8 @@ export function ClientCommunication() {
   const resetForm = () => {
     setFormData({
       client_id: '',
-      call_received_by: '',
-      call_entered_by: '',
+      call_received_by: user?.id || '',
+      call_entered_by: user?.id || '',
       call_type: 'Incoming',
       call_category: 'incoming',
       call_regarding: '',
