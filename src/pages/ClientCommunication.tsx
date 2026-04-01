@@ -104,18 +104,13 @@ export function ClientCommunication() {
     dateTo: '',
   });
 
-  // Fetch communications
+  // Fetch communications - simplified without complex joins
   const { data: communications = [], isLoading } = useQuery({
     queryKey: ['client-communications', filters],
     queryFn: async () => {
       let query = supabase
         .from('client_communication')
-        .select(`
-          *,
-          client:clients(client_name, client_type),
-          call_received_by_user:auth!client_communication_call_received_by_fkey(email),
-          call_entered_by_user:auth!client_communication_call_entered_by_fkey(email)
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (filters.clientId) query = query.eq('client_id', filters.clientId);
@@ -130,18 +125,29 @@ export function ClientCommunication() {
       if (filters.dateTo) query = query.lte('created_at', filters.dateTo + 'T23:59:59');
 
       const { data, error } = await query;
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching communications:', error);
+        throw error;
+      }
       return data || [];
     },
+    staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
-  // Fetch clients
+  // Create a client lookup map
+  const clientMap = useMemo(() => {
+    const map = new Map<string, any>();
+    clients.forEach(c => map.set(c.id, c));
+    return map;
+  }, [clients]);
+
+  // Fetch clients - simplified query like SiteVisits
   const { data: clients = [], isLoading: isClientsLoading, error: clientsError } = useQuery({
-    queryKey: ['clients-list'],
+    queryKey: ['clients'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('clients')
-        .select('id, client_name, client_type, address1, city, state, contact, phone, client_id')
+        .select('id, client_name')
         .order('client_name');
       if (error) {
         console.error('Error fetching clients:', error);
@@ -150,17 +156,19 @@ export function ClientCommunication() {
       console.log('Fetched clients:', data?.length || 0, 'clients');
       return data || [];
     },
+    staleTime: 1000 * 60 * 30, // 30 minutes cache like SiteVisits
     retry: 1,
   });
 
-  // Fetch users
+  // Fetch users - simplified
   const { data: users = [] } = useQuery({
-    queryKey: ['users-list'],
+    queryKey: ['users'],
     queryFn: async () => {
       const { data, error } = await supabase.from('users').select('id, email, full_name');
       if (error) throw error;
       return data || [];
     },
+    staleTime: 1000 * 60 * 30,
   });
 
   // Create communication
@@ -231,7 +239,7 @@ export function ClientCommunication() {
     },
     onSuccess: (result) => {
       console.log('Client mutation success, invalidating cache...');
-      queryClient.invalidateQueries({ queryKey: ['clients-list'] });
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
       setShowAddClientModal(false);
       // Auto-select the newly created client in the form
       if (result?.id) {
@@ -693,7 +701,7 @@ export function ClientCommunication() {
                                     color: colors.gray[900],
                                   }}
                                 >
-                                  {comm.client?.client_name || 'Unknown Client'}
+                                  {clientMap.get(comm.client_id)?.client_name || 'Unknown Client'}
                                 </span>
                                 <PriorityBadge priority={comm.priority} />
                                 <StatusBadge status={comm.status} />
@@ -893,14 +901,14 @@ export function ClientCommunication() {
                                   fontWeight: 600,
                                 }}
                               >
-                                {comm.client?.client_name?.charAt(0) || '?'}
+                                {clientMap.get(comm.client_id)?.client_name?.charAt(0) || '?'}
                               </div>
                               <div>
                                 <div style={{ fontSize: '14px', fontWeight: 500, color: colors.gray[900] }}>
-                                  {comm.client?.client_name}
+                                  {clientMap.get(comm.client_id)?.client_name}
                                 </div>
                                 <div style={{ fontSize: '12px', color: colors.gray[500] }}>
-                                  {comm.client?.client_type}
+                                  {clientMap.get(comm.client_id)?.client_type}
                                 </div>
                               </div>
                             </div>
@@ -1232,7 +1240,7 @@ export function ClientCommunication() {
                   Client
                 </label>
                 <p style={{ fontSize: '15px', fontWeight: 600, color: colors.gray[900], margin: 0 }}>
-                  {selectedCommunication.client?.client_name}
+                  {clientMap.get(selectedCommunication.client_id)?.client_name || 'Unknown Client'}
                 </p>
               </div>
               <div>
@@ -1315,7 +1323,7 @@ export function ClientCommunication() {
                   Received By
                 </label>
                 <p style={{ fontSize: '14px', color: colors.gray[700], margin: 0 }}>
-                  {selectedCommunication.call_received_by_user?.email || 'N/A'}
+{users.find(u => u.id === selectedCommunication.call_received_by)?.email || 'N/A'}
                 </p>
               </div>
               <div>
@@ -1323,7 +1331,7 @@ export function ClientCommunication() {
                   Entered By
                 </label>
                 <p style={{ fontSize: '14px', color: colors.gray[700], margin: 0 }}>
-                  {selectedCommunication.call_entered_by_user?.email || 'N/A'}
+{users.find(u => u.id === selectedCommunication.call_entered_by)?.email || 'N/A'}
                 </p>
               </div>
             </div>
