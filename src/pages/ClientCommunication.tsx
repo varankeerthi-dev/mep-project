@@ -135,16 +135,21 @@ export function ClientCommunication() {
   });
 
   // Fetch clients
-  const { data: clients = [] } = useQuery({
+  const { data: clients = [], isLoading: isClientsLoading, error: clientsError } = useQuery({
     queryKey: ['clients-list'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('clients')
         .select('id, client_name, client_type, address, contact_name, phone')
         .order('client_name');
-      if (error) return [];
+      if (error) {
+        console.error('Error fetching clients:', error);
+        throw error;
+      }
+      console.log('Fetched clients:', data?.length || 0, 'clients');
       return data || [];
     },
+    retry: 1,
   });
 
   // Fetch users
@@ -187,13 +192,42 @@ export function ClientCommunication() {
 
   // Create client
   const createClientMutation = useMutation({
-    mutationFn: async (data: any) => {
-      const { error } = await supabase.from('clients').insert(data);
-      if (error) throw error;
+    mutationFn: async (clientData: any) => {
+      console.log('Creating client with data:', clientData);
+      const { data: result, error } = await supabase
+        .from('clients')
+        .insert(clientData)
+        .select('id, client_name')
+        .single();
+      if (error) {
+        console.error('Create client error:', error);
+        throw error;
+      }
+      console.log('Client created:', result);
+      return result;
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
+      console.log('Client mutation success, invalidating cache...');
       queryClient.invalidateQueries({ queryKey: ['clients-list'] });
       setShowAddClientModal(false);
+      // Auto-select the newly created client in the form
+      if (result?.id) {
+        console.log('Auto-selecting new client:', result.id);
+        setFormData((prev) => ({ ...prev, client_id: result.id }));
+      }
+      // Reset new client form
+      setNewClientData({
+        client_name: '',
+        client_type: '',
+        address: '',
+        contact_name: '',
+        phone: '',
+        email: '',
+      });
+    },
+    onError: (error: any) => {
+      console.error('Client mutation error:', error);
+      alert('Failed to create client: ' + (error?.message || 'Unknown error'));
     },
   });
 
@@ -962,29 +996,24 @@ export function ClientCommunication() {
               Client *
             </label>
             <div style={{ display: 'flex', gap: '8px' }}>
-              <select
+              <Select
                 value={formData.client_id}
                 onChange={(e) => setFormData({ ...formData, client_id: e.target.value })}
-                style={{
-                  flex: 1,
-                  padding: '10px 12px',
-                  fontSize: '14px',
-                  border: `1px solid ${colors.gray[300]}`,
-                  borderRadius: radii.md,
-                  background: '#ffffff',
-                }}
-              >
-                <option value="">Select a client</option>
-                {clients.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.client_name}
-                  </option>
-                ))}
-              </select>
+                options={[
+                  { value: '', label: 'Select a client' },
+                  ...clients.map((c) => ({ value: c.id, label: c.client_name }))
+                ]}
+                style={{ flex: 1 }}
+              />
               <Button variant="secondary" onClick={() => setShowAddClientModal(true)}>
                 <Plus size={18} />
               </Button>
             </div>
+            {clients.length === 0 && (
+              <p style={{ fontSize: '12px', color: colors.warning.DEFAULT, marginTop: '6px' }}>
+                No clients found. Please add a client first.
+              </p>
+            )}
           </div>
 
           <Select
