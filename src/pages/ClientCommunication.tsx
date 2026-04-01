@@ -219,8 +219,11 @@ export function ClientCommunication() {
       setNewClientData({
         client_name: '',
         client_type: '',
-        address: '',
-        contact_name: '',
+        address1: '',
+        city: '',
+        state: '',
+        pincode: '',
+        contact: '',
         phone: '',
         email: '',
       });
@@ -260,8 +263,11 @@ export function ClientCommunication() {
   const [newClientData, setNewClientData] = useState({
     client_name: '',
     client_type: '',
-    address: '',
-    contact_name: '',
+    address1: '',
+    city: '',
+    state: '',
+    pincode: '',
+    contact: '',
     phone: '',
     email: '',
   });
@@ -660,7 +666,7 @@ export function ClientCommunication() {
                                     color: colors.gray[900],
                                   }}
                                 >
-                                  {comm.client?.client_name}
+                                  {comm.client?.client_name || 'Unknown Client'}
                                 </span>
                                 <PriorityBadge priority={comm.priority} />
                                 <StatusBadge status={comm.status} />
@@ -1117,9 +1123,9 @@ export function ClientCommunication() {
             placeholder="e.g., Corporate, Individual"
           />
           <Input
-            label="Contact Name"
-            value={newClientData.contact_name}
-            onChange={(e) => setNewClientData({ ...newClientData, contact_name: e.target.value })}
+            label="Contact Person"
+            value={newClientData.contact}
+            onChange={(e) => setNewClientData({ ...newClientData, contact: e.target.value })}
             placeholder="Primary contact person"
           />
           <Input
@@ -1135,10 +1141,22 @@ export function ClientCommunication() {
             onChange={(e) => setNewClientData({ ...newClientData, email: e.target.value })}
             placeholder="Email address"
           />
+          <Input
+            label="City"
+            value={newClientData.city}
+            onChange={(e) => setNewClientData({ ...newClientData, city: e.target.value })}
+            placeholder="City"
+          />
+          <Input
+            label="State"
+            value={newClientData.state}
+            onChange={(e) => setNewClientData({ ...newClientData, state: e.target.value })}
+            placeholder="State"
+          />
           <TextArea
             label="Address"
-            value={newClientData.address}
-            onChange={(e) => setNewClientData({ ...newClientData, address: e.target.value })}
+            value={newClientData.address1}
+            onChange={(e) => setNewClientData({ ...newClientData, address1: e.target.value })}
             placeholder="Full address"
           />
         </div>
