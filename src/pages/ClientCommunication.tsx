@@ -104,6 +104,32 @@ export function ClientCommunication() {
     dateTo: '',
   });
 
+  // Fetch clients - simplified query like SiteVisits (MUST be before clientMap)
+  const { data: clients = [], isLoading: isClientsLoading, error: clientsError } = useQuery({
+    queryKey: ['clients'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('clients')
+        .select('id, client_name')
+        .order('client_name');
+      if (error) {
+        console.error('Error fetching clients:', error);
+        throw error;
+      }
+      console.log('Fetched clients:', data?.length || 0, 'clients');
+      return data || [];
+    },
+    staleTime: 1000 * 60 * 30, // 30 minutes cache like SiteVisits
+    retry: 1,
+  });
+
+  // Create a client lookup map (must be after clients query)
+  const clientMap = useMemo(() => {
+    const map = new Map<string, any>();
+    clients.forEach(c => map.set(c.id, c));
+    return map;
+  }, [clients]);
+
   // Fetch communications - simplified without complex joins
   const { data: communications = [], isLoading } = useQuery({
     queryKey: ['client-communications', filters],
@@ -132,32 +158,6 @@ export function ClientCommunication() {
       return data || [];
     },
     staleTime: 1000 * 60 * 5, // 5 minutes
-  });
-
-  // Create a client lookup map
-  const clientMap = useMemo(() => {
-    const map = new Map<string, any>();
-    clients.forEach(c => map.set(c.id, c));
-    return map;
-  }, [clients]);
-
-  // Fetch clients - simplified query like SiteVisits
-  const { data: clients = [], isLoading: isClientsLoading, error: clientsError } = useQuery({
-    queryKey: ['clients'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('clients')
-        .select('id, client_name')
-        .order('client_name');
-      if (error) {
-        console.error('Error fetching clients:', error);
-        throw error;
-      }
-      console.log('Fetched clients:', data?.length || 0, 'clients');
-      return data || [];
-    },
-    staleTime: 1000 * 60 * 30, // 30 minutes cache like SiteVisits
-    retry: 1,
   });
 
   // Fetch users - simplified
