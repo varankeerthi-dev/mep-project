@@ -37,6 +37,7 @@ import {
   ArrowDownLeft,
   Smartphone,
   Users,
+  UsersRound,
 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, parseISO, isSameDay, isToday } from 'date-fns';
 
@@ -1117,11 +1118,11 @@ export function ClientCommunication() {
         </div>
       </Modal>
 
-      {/* Add Client Modal - Refactored Design */}
+      {/* Add Client Modal - Professional Design */}
       <Modal
         isOpen={showAddClientModal}
         onClose={() => !createClientMutation.isPending && setShowAddClientModal(false)}
-        title="Add New Client"
+        title="Create New Client"
         size="lg"
         footer={
           <>
@@ -1138,166 +1139,145 @@ export function ClientCommunication() {
               isLoading={createClientMutation.isPending}
               disabled={!newClientData.client_name || createClientMutation.isPending}
             >
-              {createClientMutation.isPending ? 'Creating...' : 'Add Client'}
+              {createClientMutation.isPending ? 'Creating...' : 'Create Client'}
             </Button>
           </>
         }
       >
-        {/* Tabs Container */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {/* Tab Navigation */}
-          <div
-            style={{
-              display: 'flex',
-              gap: '4px',
-              padding: '4px',
-              background: colors.gray[100],
-              borderRadius: radii.md,
-            }}
-          >
-            <button
-              onClick={() => setAddClientTab('details')}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '8px 14px',
-                fontSize: '13px',
-                fontWeight: 500,
-                color: addClientTab === 'details' ? colors.gray[900] : colors.gray[500],
-                background: addClientTab === 'details' ? '#ffffff' : 'transparent',
-                border: 'none',
-                borderRadius: radii.DEFAULT,
-                cursor: 'pointer',
-                transition: 'all 150ms ease',
-                boxShadow: addClientTab === 'details' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-              }}
-            >
-              <Building size={14} />
-              Client Details
-            </button>
-            <button
-              onClick={() => setAddClientTab('contact')}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '8px 14px',
-                fontSize: '13px',
-                fontWeight: 500,
-                color: addClientTab === 'contact' ? colors.gray[900] : colors.gray[500],
-                background: addClientTab === 'contact' ? '#ffffff' : 'transparent',
-                border: 'none',
-                borderRadius: radii.DEFAULT,
-                cursor: 'pointer',
-                transition: 'all 150ms ease',
-                boxShadow: addClientTab === 'contact' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-              }}
-            >
-              <User size={14} />
-              Contact
-            </button>
-            <button
-              onClick={() => setAddClientTab('location')}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '8px 14px',
-                fontSize: '13px',
-                fontWeight: 500,
-                color: addClientTab === 'location' ? colors.gray[900] : colors.gray[500],
-                background: addClientTab === 'location' ? '#ffffff' : 'transparent',
-                border: 'none',
-                borderRadius: radii.DEFAULT,
-                cursor: 'pointer',
-                transition: 'all 150ms ease',
-                boxShadow: addClientTab === 'location' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-              }}
-            >
-              <MapPin size={14} />
-              Location
-            </button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          {/* Client Name - Hero Field */}
+          <div>
+            <Input
+              label="Client Name *"
+              value={newClientData.client_name}
+              onChange={(e) => setNewClientData({ ...newClientData, client_name: e.target.value })}
+              placeholder="Enter company or individual name"
+              style={{ fontSize: '16px', fontWeight: 500 }}
+            />
           </div>
 
-          {/* Tab Content */}
-          {addClientTab === 'details' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', animation: 'fadeIn 150ms ease-out' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                <Input
-                  label="Client Name *"
-                  value={newClientData.client_name}
-                  onChange={(e) => setNewClientData({ ...newClientData, client_name: e.target.value })}
-                  placeholder="Enter client name"
-                />
-                <Input
-                  label="Client Type"
-                  value={newClientData.client_type}
-                  onChange={(e) => setNewClientData({ ...newClientData, client_type: e.target.value })}
-                  placeholder="e.g., Corporate, Individual"
-                />
-              </div>
+          {/* Two Column Layout */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+            {/* Left Column - Business Info */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <h4 style={{ 
+                fontSize: '12px', 
+                fontWeight: 600, 
+                color: colors.gray[500], 
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                marginBottom: '4px'
+              }}>
+                <Building2 size={14} />
+                Business Information
+              </h4>
+              
               <Input
-                label="Client ID (optional)"
-                hint="Leave empty to auto-generate"
+                label="Client Type"
+                value={newClientData.client_type}
+                onChange={(e) => setNewClientData({ ...newClientData, client_type: e.target.value })}
+                placeholder="e.g., Corporate, Individual, Retail"
+              />
+              
+              <Input
+                label="Client ID"
+                hint="Auto-generated if empty"
                 value={newClientData.client_id}
                 onChange={(e) => setNewClientData({ ...newClientData, client_id: e.target.value })}
                 placeholder="e.g., CL-001"
               />
             </div>
-          )}
 
-          {addClientTab === 'contact' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', animation: 'fadeIn 150ms ease-out' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                <Input
-                  label="Contact Person"
-                  value={newClientData.contact}
-                  onChange={(e) => setNewClientData({ ...newClientData, contact: e.target.value })}
-                  placeholder="Primary contact person"
-                />
+            {/* Right Column - Contact */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <h4 style={{ 
+                fontSize: '12px', 
+                fontWeight: 600, 
+                color: colors.gray[500], 
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                marginBottom: '4px'
+              }}>
+                <Users size={14} />
+                Contact Information
+              </h4>
+              
+              <Input
+                label="Contact Person"
+                value={newClientData.contact}
+                onChange={(e) => setNewClientData({ ...newClientData, contact: e.target.value })}
+                placeholder="Primary contact name"
+              />
+              
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <Input
                   label="Phone"
                   value={newClientData.phone}
                   onChange={(e) => setNewClientData({ ...newClientData, phone: e.target.value })}
-                  placeholder="Contact number"
+                  placeholder="Phone number"
+                />
+                <Input
+                  label="Email"
+                  type="email"
+                  value={newClientData.email}
+                  onChange={(e) => setNewClientData({ ...newClientData, email: e.target.value })}
+                  placeholder="Email address"
                 />
               </div>
-              <Input
-                label="Email"
-                type="email"
-                value={newClientData.email}
-                onChange={(e) => setNewClientData({ ...newClientData, email: e.target.value })}
-                placeholder="Email address"
-              />
             </div>
-          )}
+          </div>
 
-          {addClientTab === 'location' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', animation: 'fadeIn 150ms ease-out' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                <Input
-                  label="City"
-                  value={newClientData.city}
-                  onChange={(e) => setNewClientData({ ...newClientData, city: e.target.value })}
-                  placeholder="City"
-                />
-                <Input
-                  label="State"
-                  value={newClientData.state}
-                  onChange={(e) => setNewClientData({ ...newClientData, state: e.target.value })}
-                  placeholder="State"
-                />
-              </div>
-              <TextArea
-                label="Address"
-                value={newClientData.address1}
-                onChange={(e) => setNewClientData({ ...newClientData, address1: e.target.value })}
-                placeholder="Full address"
-                style={{ minHeight: '80px' }}
+          {/* Address Section - Full Width */}
+          <div style={{ 
+            padding: '16px',
+            background: colors.gray[50],
+            borderRadius: radii.md,
+            border: `1px solid ${colors.gray[200]}`
+          }}>
+            <h4 style={{ 
+              fontSize: '12px', 
+              fontWeight: 600, 
+              color: colors.gray[500], 
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              marginBottom: '12px'
+            }}>
+              <MapPin size={14} />
+              Address
+            </h4>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+              <Input
+                label="City"
+                value={newClientData.city}
+                onChange={(e) => setNewClientData({ ...newClientData, city: e.target.value })}
+                placeholder="City"
+              />
+              <Input
+                label="State"
+                value={newClientData.state}
+                onChange={(e) => setNewClientData({ ...newClientData, state: e.target.value })}
+                placeholder="State"
               />
             </div>
-          )}
+            
+            <TextArea
+              label="Full Address"
+              value={newClientData.address1}
+              onChange={(e) => setNewClientData({ ...newClientData, address1: e.target.value })}
+              placeholder="Street address, building, landmark..."
+              style={{ minHeight: '60px', background: '#ffffff' }}
+            />
+          </div>
         </div>
       </Modal>
 
