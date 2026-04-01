@@ -1,11 +1,9 @@
 import React from 'react';
 import { shadows, radii, colors, transitions } from '../../design-system';
 
-interface CardProps {
+interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode;
-  className?: string;
   hover?: boolean;
-  onClick?: () => void;
   padding?: 'none' | 'sm' | 'md' | 'lg';
 }
 
@@ -16,7 +14,7 @@ const paddingMap = {
   lg: '24px',
 };
 
-export function Card({ children, className, hover = false, onClick, padding = 'md' }: CardProps) {
+export function Card({ children, className, hover = false, onClick, padding = 'md', style, ...props }: CardProps) {
   return (
     <div
       onClick={onClick}
@@ -29,13 +27,96 @@ export function Card({ children, className, hover = false, onClick, padding = 'm
         transition: transitions.DEFAULT,
         cursor: onClick ? 'pointer' : 'default',
         border: '1px solid ' + colors.gray[200],
-        ...(hover && {
-          ':hover': {
-            boxShadow: shadows.md,
-            transform: 'translateY(-2px)',
-          },
-        }),
+        ...style,
       }}
+      {...props}
+    >
+      {children}
+    </div>
+  );
+}
+
+export function CardHeader({ children, className, style, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div
+      className={className}
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '6px',
+        padding: '16px 20px',
+        borderBottom: `1px solid ${colors.gray[100]}`,
+        ...style,
+      }}
+      {...props}
+    >
+      {children}
+    </div>
+  );
+}
+
+export function CardTitle({ children, className, style, ...props }: React.HTMLAttributes<HTMLHeadingElement>) {
+  return (
+    <h3
+      className={className}
+      style={{
+        fontSize: '18px',
+        fontWeight: 600,
+        color: colors.gray[900],
+        margin: 0,
+        ...style,
+      }}
+      {...props}
+    >
+      {children}
+    </h3>
+  );
+}
+
+export function CardDescription({ children, className, style, ...props }: React.HTMLAttributes<HTMLParagraphElement>) {
+  return (
+    <p
+      className={className}
+      style={{
+        fontSize: '14px',
+        color: colors.gray[500],
+        margin: 0,
+        ...style,
+      }}
+      {...props}
+    >
+      {children}
+    </p>
+  );
+}
+
+export function CardContent({ children, className, style, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div
+      className={className}
+      style={{
+        padding: '20px',
+        ...style,
+      }}
+      {...props}
+    >
+      {children}
+    </div>
+  );
+}
+
+export function CardFooter({ children, className, style, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div
+      className={className}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        padding: '16px 20px',
+        borderTop: `1px solid ${colors.gray[100]}`,
+        ...style,
+      }}
+      {...props}
     >
       {children}
     </div>
