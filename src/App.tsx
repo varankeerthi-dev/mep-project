@@ -296,8 +296,10 @@ export default function App() {
   const renderPage = (authUser: User | null, authOrg: Organisation | null) => {
     const pathKey = currentPath.split('?')[0]
     switch (pathKey) {
-      case '/': return <LandingPage />;
-      case '/login': return <Login onLogin={() => {}} onSwitch={() => setAuthView('signup')} />;
+      case '/': 
+        return authUser ? <Dashboard onNavigate={navigate} /> : <LandingPage />;
+      case '/login': 
+        return authUser ? <Dashboard onNavigate={navigate} /> : <Login onLogin={() => {}} onSwitch={() => setAuthView('signup')} />;
       case '/projects/new': return <CreateProject onSuccess={() => navigate('/projects')} onCancel={() => navigate('/projects')} />;
       case '/projects/edit': return <CreateProject />;
       case '/projects': return <ProjectList />;
