@@ -21,7 +21,10 @@ import {
   Wrench,
   ClipboardCheck,
   Calendar as CalendarIcon,
-  LayoutDashboard
+  LayoutDashboard,
+  Building2,
+  FileSearch,
+  ArrowLeft
 } from 'lucide-react';
 import { Button as ShadcnButton } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -100,7 +103,7 @@ const siteReportSchema = z.object({
   
   clientRequirements: z.object({
     details: z.array(z.object({ value: z.string() })),
-    quoteToBeSent: z.boolean(),
+    quoteToBe_sent: z.boolean().optional(),
     mailReceived: z.boolean()
   }),
   
@@ -153,7 +156,7 @@ export function SiteReport() {
     queryFn: async () => {
       let query = supabase
         .from('site_reports')
-        .select('*, clients(name), projects(name)')
+        .select('*, clients(client_name), projects(project_name)')
         .order('report_date', { ascending: false });
       
       if (organisation?.id) {
@@ -166,6 +169,7 @@ export function SiteReport() {
     },
     enabled: view === 'list'
   });
+
   const form = useForm<SiteReportFormValues>({
     resolver: zodResolver(siteReportSchema),
     defaultValues: {
@@ -184,13 +188,13 @@ export function SiteReport() {
       quality: { inspection: 'Pending', satisfiedPercent: '', reworkRequiredReason: '' },
       rework: { isRework: false, reason: '', start: '', end: '', materialUsed: '', totalManpower: '' },
       documents: { type: 'DC', docNo: '', receivedSignature: 'Pending' },
-      clientRequirements: { details: [{ value: '' }], quoteToBeSent: false, mailReceived: false },
+      clientRequirements: { details: [{ value: '' }], quoteToBe_sent: false, mailReceived: false },
       reporting: { pmStatus: 'Pending', materialArrangement: 'Pending' },
       workPlanNextDay: [{ value: '' }],
       specialInstructions: [{ value: '' }],
       issues: [{ issue: '', solution: '' }],
       documentation: { filed: false, toolsLocked: false, sitePictures: 'Taken' },
-      footer: { engineer: '', signatureDate: '' }
+      footer: { engineer: '', signatureDate: new Date().toISOString().split('T')[0] }
     }
   });
 
@@ -229,40 +233,36 @@ export function SiteReport() {
     name: "clientRequirements.details"
   });
 
-  // Fetch Clients and Projects from system
-  const { data: clients } = useQuery({
-    queryKey: ['clients', organisation?.id],
-    staleTime: 1000 * 60 * 5, // 5 minutes
+  const { errors } = form.formState;
+
+  // Fetch Clients and Projects from system - REMOVED org filter to ensure they load
+  const { data: clients, isLoading: clientsLoading } = useQuery({
+    queryKey: ['site-report-clients'],
+    staleTime: 1000 * 60 * 5, 
     queryFn: async () => {
-      let query = supabase.from('clients').select('id, name');
-      if (organisation?.id) {
-        query = query.eq('organization_id', organisation?.id);
-      }
-      const { data, error } = await query;
+      // Removing filter because clients table might use organisation_id or might not have it
+      // CreateProject.tsx also loads them without filter
+      const { data, error } = await supabase.from('clients').select('id, client_name').order('client_name');
       if (error) throw error;
-      return data;
+      return data || [];
     }
   });
 
   const selectedClientId = form.watch('client');
 
-  const { data: projects } = useQuery({
-    queryKey: ['projects', selectedClientId, organisation?.id],
+  const { data: projects, isLoading: projectsLoading } = useQuery({
+    queryKey: ['site-report-projects', selectedClientId],
     enabled: !!selectedClientId,
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: 1000 * 60 * 5,
     queryFn: async () => {
-      let query = supabase
+      const { data, error } = await supabase
         .from('projects')
-        .select('id, name')
-        .eq('client_id', selectedClientId);
+        .select('id, project_name')
+        .eq('client_id', selectedClientId)
+        .order('project_name');
       
-      if (organisation?.id) {
-        query = query.eq('organization_id', organisation?.id);
-      }
-      
-      const { data, error } = await query;
       if (error) throw error;
-      return data;
+      return data || [];
     }
   });
 
@@ -279,8 +279,8 @@ export function SiteReport() {
           total_manpower: values.manpower.total,
           skilled_manpower: values.manpower.skilled,
           unskilled_manpower: values.manpower.unskilled,
-          start_time: values.manpower.startTime,
-          end_time: values.manpower.endTime,
+          start_time: values.manpower.startTime || null,
+          end_time: values.manpower.endTime || null,
           planned_progress: values.progress.planned,
           actual_progress: values.progress.actual,
           percent_complete: values.progress.percentComplete,
@@ -293,15 +293,15 @@ export function SiteReport() {
           rework_required_reason: values.quality.reworkRequiredReason,
           is_rework: values.rework.isRework,
           rework_reason: values.rework.reason,
-          rework_start: values.rework.start,
-          rework_end: values.rework.end,
+          rework_start: values.rework.start || null,
+          rework_end: values.rework.end || null,
           rework_material_used: values.rework.materialUsed,
           rework_total_manpower: values.rework.totalManpower,
           doc_type: values.documents.type,
           doc_no: values.documents.docNo,
           received_signature: values.documents.receivedSignature,
           client_req_details: JSON.stringify(values.clientRequirements.details),
-          quote_to_be_sent: values.clientRequirements.quoteToBeSent,
+          quote_to_be_sent: values.clientRequirements.quoteToBe_sent,
           mail_received: values.clientRequirements.mailReceived,
           pm_status: values.reporting.pmStatus,
           material_arrangement: values.reporting.materialArrangement,
@@ -328,8 +328,8 @@ export function SiteReport() {
             report_id: report.id,
             name: s.name,
             count: s.count,
-            start_time: s.start,
-            end_time: s.end
+            start_time: s.start || null,
+            end_time: s.end || null
           }));
         if (subs.length > 0) {
           const { error } = await supabase.from('sub_contractors').insert(subs);
@@ -444,57 +444,6 @@ export function SiteReport() {
             </Box>
             
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Box sx={{ display: 'flex', gap: 1 }}>
-                <Button 
-                  size="small" 
-                  variant="contained" 
-                  sx={{ 
-                    fontSize: '12px',
-                    textTransform: 'none',
-                    minWidth: 'auto',
-                    px: 2
-                  }}
-                >
-                  All
-                </Button>
-                <Button 
-                  size="small" 
-                  variant="outlined" 
-                  sx={{ 
-                    fontSize: '12px',
-                    textTransform: 'none',
-                    minWidth: 'auto',
-                    px: 2
-                  }}
-                >
-                  Draft
-                </Button>
-                <Button 
-                  size="small" 
-                  variant="outlined" 
-                  sx={{ 
-                    fontSize: '12px',
-                    textTransform: 'none',
-                    minWidth: 'auto',
-                    px: 2
-                  }}
-                >
-                  Submitted
-                </Button>
-                <Button 
-                  size="small" 
-                  variant="outlined" 
-                  sx={{ 
-                    fontSize: '12px',
-                    textTransform: 'none',
-                    minWidth: 'auto',
-                    px: 2
-                  }}
-                >
-                  Approved
-                </Button>
-              </Box>
-              
               <TextField 
                 placeholder="Search reports..." 
                 size="small" 
@@ -509,7 +458,10 @@ export function SiteReport() {
               <Button 
                 variant="contained" 
                 startIcon={<AddIcon />}
-                onClick={() => setView('create')}
+                onClick={() => {
+                  form.reset();
+                  setView('create');
+                }}
                 sx={{ 
                   fontSize: '12px',
                   textTransform: 'none',
@@ -551,8 +503,8 @@ export function SiteReport() {
                   reports?.map((report: any) => (
                     <TableRow key={report.id} className="hover:bg-slate-50/50 cursor-pointer">
                       <TableCell className="font-medium">{new Date(report.report_date).toLocaleDateString()}</TableCell>
-                      <TableCell>{report.clients?.name}</TableCell>
-                      <TableCell>{report.projects?.name}</TableCell>
+                      <TableCell>{report.clients?.client_name}</TableCell>
+                      <TableCell>{report.projects?.project_name}</TableCell>
                       <TableCell>{report.engineer_name}</TableCell>
                       <TableCell>
                         <Badge variant={report.pm_status === 'Reported' ? 'default' : 'secondary'}>
@@ -560,7 +512,7 @@ export function SiteReport() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button variant="ghost" size="sm">View</Button>
+                        <ShadcnButton variant="ghost" size="sm">View</ShadcnButton>
                       </TableCell>
                     </TableRow>
                   ))
@@ -574,760 +526,589 @@ export function SiteReport() {
   }
 
   return (
-    <div className="space-y-4 pb-10">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={() => setView('list')}>
-            <ChevronRight className="w-4 h-4 rotate-180 mr-1" /> Back
-          </Button>
-          <div>
-            <h1 className="text-xl font-bold tracking-tight text-slate-900">New Daily Site Report</h1>
+    <div className="min-h-screen bg-slate-50/50 pb-20">
+      {/* Sticky Top Header */}
+      <div className="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-20 shadow-sm">
+        <div className="max-w-6xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <ShadcnButton 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => setView('list')}
+              className="text-slate-600 hover:bg-slate-100"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" /> Back
+            </ShadcnButton>
+            <div className="h-6 w-px bg-slate-200" />
+            <div>
+              <h1 className="text-lg font-bold text-slate-900 leading-none">Daily Site Report</h1>
+              <p className="text-[11px] text-slate-500 mt-1 font-medium">Capturing progress for site operations</p>
+            </div>
           </div>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => setView('list')}>Cancel</Button>
-          <Button 
-            size="sm"
-            onClick={form.handleSubmit(onSubmit, onInvalid)} 
-            className="bg-blue-600 hover:bg-blue-700"
-            disabled={saveMutation.isPending}
-          >
-            {saveMutation.isPending ? 'Saving...' : <><Save className="w-4 h-4 mr-2" /> Save Report</>}
-          </Button>
+          <div className="flex items-center gap-3">
+            <ShadcnButton 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setView('list')}
+              className="h-9 px-4 border-slate-300"
+            >
+              Cancel
+            </ShadcnButton>
+            <ShadcnButton 
+              size="sm"
+              onClick={form.handleSubmit(onSubmit, onInvalid)} 
+              className="bg-blue-600 hover:bg-blue-700 h-9 px-6 font-semibold"
+              disabled={saveMutation.isPending}
+            >
+              {saveMutation.isPending ? (
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Saving...
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Save className="w-4 h-4" /> Save Report
+                </div>
+              )}
+            </ShadcnButton>
+          </div>
         </div>
       </div>
 
-      <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-3">
-        {/* Header Section - Clean Entry Form UI */}
-        <Card className="border border-slate-200 shadow-sm bg-white">
-          <CardContent className="p-4">
-            {/* Row 1: 6 columns */}
-            <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-4">
-              <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-slate-700">Invoice Date</Label>
-                <Input 
-                  type="date" 
-                  className="h-10 text-sm border-slate-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500" 
-                  placeholder="dd-mm-yyyy"
-                  {...form.register('date')} 
-                />
+      <div className="max-w-6xl mx-auto px-6 mt-6">
+        <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-6">
+          {/* 1. Identification Section */}
+          <Card className="border-slate-200 shadow-sm overflow-hidden bg-white">
+            <CardHeader className="bg-slate-50/80 border-b border-slate-100 py-3 px-5">
+              <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-2">
+                <Building2 className="w-4 h-4 text-blue-500" />
+                Report Identification
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-5">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-slate-700">Client <span className="text-red-500">*</span></Label>
+                  <Select 
+                    value={form.watch('client')} 
+                    onValueChange={(val) => {
+                      form.setValue('client', val);
+                      form.setValue('projectName', ''); 
+                    }}
+                  >
+                    <SelectTrigger className={cn("h-9 text-sm bg-white", errors.client && "border-red-500")}>
+                      <SelectValue placeholder={clientsLoading ? "Loading..." : "Select Client"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {clients?.map((client: any) => (
+                        <SelectItem key={client.id} value={client.id}>{client.client_name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {errors.client && <p className="text-[10px] text-red-500 font-medium">{errors.client.message}</p>}
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-slate-700">Project <span className="text-red-500">*</span></Label>
+                  <Select 
+                    value={form.watch('projectName')} 
+                    onValueChange={(val) => form.setValue('projectName', val)}
+                    disabled={!selectedClientId}
+                  >
+                    <SelectTrigger className={cn("h-9 text-sm bg-white", errors.projectName && "border-red-500")}>
+                      <SelectValue placeholder={!selectedClientId ? "Select client first" : projectsLoading ? "Loading..." : "Select Project"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {projects?.map((project: any) => (
+                        <SelectItem key={project.id} value={project.id}>{project.project_name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {errors.projectName && <p className="text-[10px] text-red-500 font-medium">{errors.projectName.message}</p>}
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-slate-700">Report Date <span className="text-red-500">*</span></Label>
+                  <Input 
+                    type="date" 
+                    className={cn("h-9 text-sm bg-white", errors.date && "border-red-500")}
+                    {...form.register('date')} 
+                  />
+                  {errors.date && <p className="text-[10px] text-red-500 font-medium">{errors.date.message}</p>}
+                </div>
               </div>
-              <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-slate-700">Inward Date <span className="text-red-500">*</span></Label>
-                <Input 
-                  type="date" 
-                  className="h-10 text-sm border-slate-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500" 
-                  {...form.register('date')} 
-                />
+            </CardContent>
+          </Card>
+
+          {/* 2. Manpower Section */}
+          <Card className="border-slate-200 shadow-sm overflow-hidden bg-white">
+            <CardHeader className="bg-slate-50/80 border-b border-slate-100 py-3 px-5">
+              <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-2">
+                <Users className="w-4 h-4 text-indigo-500" />
+                Manpower Details
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-5 space-y-6">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">Skilled Force</Label>
+                  <Input className="h-9 bg-white text-sm" {...form.register('manpower.skilled')} placeholder="0" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">Unskilled Force</Label>
+                  <Input className="h-9 bg-white text-sm" {...form.register('manpower.unskilled')} placeholder="0" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">Total Force</Label>
+                  <Input className="h-9 bg-slate-50 font-bold text-sm" {...form.register('manpower.total')} placeholder="0" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">In Time</Label>
+                  <Input className="h-9 bg-white text-sm" type="time" {...form.register('manpower.startTime')} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">Out Time</Label>
+                  <Input className="h-9 bg-white text-sm" type="time" {...form.register('manpower.endTime')} />
+                </div>
               </div>
-              <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-slate-700">Received Date <span className="text-red-500">*</span></Label>
-                <Input 
-                  type="date" 
-                  className="h-10 text-sm border-slate-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500" 
-                  {...form.register('date')} 
-                />
+
+              <div className="space-y-3 pt-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-[11px] font-bold uppercase text-indigo-600 tracking-wide">Sub-Contractors on Site</Label>
+                  <ShadcnButton 
+                    type="button" 
+                    variant="outline" 
+                    size="sm" 
+                    className="h-7 text-[10px] px-3 font-bold border-indigo-100 text-indigo-600 hover:bg-indigo-50"
+                    onClick={() => appendSubContractor({ name: '', count: '', start: '', end: '' })}
+                  >
+                    <Plus className="w-3 h-3 mr-1" /> Add Entry
+                  </ShadcnButton>
+                </div>
+                
+                <div className="border border-slate-100 rounded-lg overflow-hidden shadow-inner bg-slate-50/20">
+                  <Table>
+                    <TableHeader className="bg-slate-50/50">
+                      <TableRow className="hover:bg-transparent">
+                        <TableHead className="text-[10px] h-8 font-bold text-slate-500">Company/Vendor Name</TableHead>
+                        <TableHead className="text-[10px] h-8 font-bold text-slate-500 w-[100px]">Count</TableHead>
+                        <TableHead className="text-[10px] h-8 font-bold text-slate-500 w-[120px]">In</TableHead>
+                        <TableHead className="text-[10px] h-8 font-bold text-slate-500 w-[120px]">Out</TableHead>
+                        <TableHead className="w-[40px] h-8"></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {subContractorFields.map((field, index) => (
+                        <TableRow key={field.id} className="bg-white border-b-slate-50 last:border-0 hover:bg-transparent">
+                          <TableCell className="p-1">
+                            <Input className="h-8 text-xs border-transparent focus:border-indigo-200 focus:ring-0 shadow-none bg-transparent" {...form.register(`manpower.subContractors.${index}.name`)} placeholder="Enter vendor name..." />
+                          </TableCell>
+                          <TableCell className="p-1">
+                            <Input className="h-8 text-xs border-transparent focus:border-indigo-200 focus:ring-0 shadow-none bg-transparent" {...form.register(`manpower.subContractors.${index}.count`)} placeholder="0" />
+                          </TableCell>
+                          <TableCell className="p-1">
+                            <Input className="h-8 text-xs border-transparent focus:border-indigo-200 focus:ring-0 shadow-none bg-transparent" type="time" {...form.register(`manpower.subContractors.${index}.start`)} />
+                          </TableCell>
+                          <TableCell className="p-1">
+                            <Input className="h-8 text-xs border-transparent focus:border-indigo-200 focus:ring-0 shadow-none bg-transparent" type="time" {...form.register(`manpower.subContractors.${index}.end`)} />
+                          </TableCell>
+                          <TableCell className="p-1 text-center">
+                            <ShadcnButton 
+                              type="button" 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-7 w-7 text-slate-300 hover:text-red-500"
+                              onClick={() => removeSubContractor(index)}
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </ShadcnButton>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      {subContractorFields.length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={5} className="h-12 text-center text-[11px] text-slate-400 italic">No sub-contractors added</TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
-              <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-slate-700">Client <span className="text-red-500">*</span></Label>
-                <Select 
-                  value={form.watch('client')} 
-                  onValueChange={(val) => {
-                    form.setValue('client', val);
-                    form.setValue('projectName', ''); 
-                  }}
+            </CardContent>
+          </Card>
+
+          {/* 3. Work Carried Out & Milestones */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card className="border-slate-200 shadow-sm bg-white">
+              <CardHeader className="bg-slate-50/80 border-b border-slate-100 py-3 px-5">
+                <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-2">
+                  <HardHat className="w-4 h-4 text-blue-500" />
+                  Work Done Today
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-4 space-y-3">
+                {workFields.map((field, index) => (
+                  <div key={field.id} className="flex gap-2 items-start group">
+                    <div className="flex-1">
+                      <Input className="h-9 text-sm bg-white" {...form.register(`workCarriedOut.${index}.value`)} placeholder="Describe activity..." />
+                    </div>
+                    <ShadcnButton 
+                      type="button" 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-9 w-9 text-slate-200 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => removeWork(index)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </ShadcnButton>
+                  </div>
+                ))}
+                <ShadcnButton 
+                  type="button" 
+                  variant="ghost" 
+                  size="sm" 
+                  className="w-full h-8 text-[10px] font-bold text-blue-600 bg-blue-50/50 hover:bg-blue-50 border-dashed border border-blue-100" 
+                  onClick={() => appendWork({ value: '' })}
                 >
-                  <SelectTrigger className="h-10 text-sm border-slate-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
-                    <SelectValue placeholder="Vendor name" />
-                  </SelectTrigger>
+                  <Plus className="w-3 h-3 mr-1" /> Add Activity
+                </ShadcnButton>
+              </CardContent>
+            </Card>
+
+            <Card className="border-slate-200 shadow-sm bg-white">
+              <CardHeader className="bg-slate-50/80 border-b border-slate-100 py-3 px-5">
+                <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                  Milestones Hit
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-4 space-y-3">
+                {milestoneFields.map((field, index) => (
+                  <div key={field.id} className="flex gap-2 items-start group">
+                    <div className="flex-1">
+                      <Input className="h-9 text-sm bg-white" {...form.register(`milestonesCompleted.${index}.value`)} placeholder="Milestone description..." />
+                    </div>
+                    <ShadcnButton 
+                      type="button" 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-9 w-9 text-slate-200 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => removeMilestone(index)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </ShadcnButton>
+                  </div>
+                ))}
+                <ShadcnButton 
+                  type="button" 
+                  variant="ghost" 
+                  size="sm" 
+                  className="w-full h-8 text-[10px] font-bold text-emerald-600 bg-emerald-50/50 hover:bg-emerald-50 border-dashed border border-emerald-100" 
+                  onClick={() => appendMilestone({ value: '' })}
+                >
+                  <Plus className="w-3 h-3 mr-1" /> Add Milestone
+                </ShadcnButton>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* 4. Progress, Equipment, Safety (Three Columns) */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Progress Tracking */}
+            <Card className="border-slate-200 shadow-sm bg-white">
+              <CardHeader className="bg-slate-50/80 border-b border-slate-100 py-3 px-5">
+                <CardTitle className="text-xs font-bold uppercase text-slate-600">Progress Monitoring</CardTitle>
+              </CardHeader>
+              <CardContent className="p-4 space-y-4">
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Planned for Today</Label>
+                  <Textarea className="min-h-[60px] text-xs bg-white" {...form.register('progress.planned')} placeholder="..." />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Actual Progress</Label>
+                  <Textarea className="min-h-[60px] text-xs bg-white" {...form.register('progress.actual')} placeholder="..." />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">% Complete</Label>
+                  <div className="relative">
+                    <Input className="h-9 text-xs pr-8 font-bold" {...form.register('progress.percentComplete')} placeholder="0" />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-[10px]">%</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Equipment Status */}
+            <Card className="border-slate-200 shadow-sm bg-white">
+              <CardHeader className="bg-slate-50/80 border-b border-slate-100 py-3 px-5">
+                <CardTitle className="text-xs font-bold uppercase text-slate-600 flex items-center gap-2">
+                  <Wrench className="w-4 h-4 text-orange-500" />
+                  Equipment
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-4 space-y-4">
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Machines on Site</Label>
+                  <Textarea className="min-h-[100px] text-xs bg-white" {...form.register('equipment.onSite')} placeholder="List tools/machinery..." />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-bold text-red-500 uppercase tracking-tight">Issues/Breakdowns</Label>
+                  <Textarea className="min-h-[100px] text-xs bg-white border-red-50" {...form.register('equipment.breakdown')} placeholder="Report mechanical issues..." />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Safety & Quality */}
+            <Card className="border-slate-200 shadow-sm bg-white">
+              <CardHeader className="bg-slate-50/80 border-b border-slate-100 py-3 px-5">
+                <CardTitle className="text-xs font-bold uppercase text-slate-600 flex items-center gap-2">
+                  <ClipboardCheck className="w-4 h-4 text-emerald-500" />
+                  Safety & Quality
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-4 space-y-5">
+                <div className="grid grid-cols-1 gap-4">
+                  <div className="flex items-center justify-between p-2 bg-slate-50 rounded border border-slate-100">
+                    <Label className="text-[11px] font-medium text-slate-700">Toolbox Meeting Conducted</Label>
+                    <Checkbox checked={form.watch('safety.toolboxMeeting')} onCheckedChange={(c) => form.setValue('safety.toolboxMeeting', !!c)} />
+                  </div>
+                  <div className="flex items-center justify-between p-2 bg-slate-50 rounded border border-slate-100">
+                    <Label className="text-[11px] font-medium text-slate-700">PPE Protocols Followed</Label>
+                    <Checkbox checked={form.watch('safety.ppe')} onCheckedChange={(c) => form.setValue('safety.ppe', !!c)} />
+                  </div>
+                </div>
+                
+                <div className="h-px bg-slate-100 my-2" />
+                
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <Label className="text-[10px] font-bold text-slate-500 uppercase">Site Inspection</Label>
+                    <Select value={form.watch('quality.inspection')} onValueChange={(val: any) => form.setValue('quality.inspection', val)}>
+                      <SelectTrigger className="h-8 text-xs bg-white"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Yes">Yes</SelectItem>
+                        <SelectItem value="Pending">Pending</SelectItem>
+                        <SelectItem value="Not Required">Not Required</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] font-bold text-slate-500 uppercase">Satisfied %</Label>
+                    <Input className="h-8 text-xs bg-white" {...form.register('quality.satisfiedPercent')} placeholder="0%" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* 5. Reporting, Logistics & Logistics (Clean Aligned Row) */}
+          <Card className="border-slate-200 shadow-sm bg-white overflow-hidden">
+            <CardHeader className="bg-slate-50/80 border-b border-slate-100 py-2 px-5">
+              <CardTitle className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Logistics & Internal Reporting</CardTitle>
+            </CardHeader>
+            <CardContent className="p-5 grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div className="space-y-1.5">
+                <Label className="text-[10px] font-bold text-slate-500 uppercase">Reported to PM</Label>
+                <Select value={form.watch('reporting.pmStatus')} onValueChange={(v: any) => form.setValue('reporting.pmStatus', v)}>
+                  <SelectTrigger className="h-9 text-xs bg-white"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {clients?.map((client) => (
-                      <SelectItem key={client.id} value={client.id}>{client.name}</SelectItem>
-                    ))}
+                    <SelectItem value="Reported">Reported</SelectItem>
+                    <SelectItem value="Pending">Pending</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-slate-700">Invoice No <span className="text-red-500">*</span></Label>
-                <Input 
-                  type="text" 
-                  className="h-10 text-sm border-slate-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500" 
-                  placeholder="Invoice #"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-slate-700">Project <span className="text-red-500">*</span></Label>
-                <Select 
-                  value={form.watch('projectName')} 
-                  onValueChange={(val) => form.setValue('projectName', val)}
-                  disabled={!selectedClientId}
-                >
-                  <SelectTrigger className="h-10 text-sm border-slate-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
-                    <SelectValue placeholder="Select" />
-                  </SelectTrigger>
+                <Label className="text-[10px] font-bold text-slate-500 uppercase">Material Arrangement</Label>
+                <Select value={form.watch('reporting.materialArrangement')} onValueChange={(v: any) => form.setValue('reporting.materialArrangement', v)}>
+                  <SelectTrigger className="h-9 text-xs bg-white"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {projects?.map((project) => (
-                      <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>
-                    ))}
+                    <SelectItem value="Arranged">Arranged</SelectItem>
+                    <SelectItem value="Pending">Pending</SelectItem>
+                    <SelectItem value="Not Required">Not Required</SelectItem>
+                    <SelectItem value="Informed to stores">Informed to stores</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-[10px] font-bold text-slate-500 uppercase">Site Photo Status</Label>
+                <Select value={form.watch('documentation.sitePictures')} onValueChange={(v: any) => form.setValue('documentation.sitePictures', v)}>
+                  <SelectTrigger className="h-9 text-xs bg-white"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Taken">Taken</SelectItem>
+                    <SelectItem value="Not Allowed">Not Allowed</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex flex-col justify-end space-y-3">
+                <div className="flex items-center gap-3">
+                  <Checkbox checked={form.watch('documentation.filed')} onCheckedChange={(c) => form.setValue('documentation.filed', !!c)} />
+                  <Label className="text-xs font-medium text-slate-700">Hardcopy Filed</Label>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Checkbox checked={form.watch('documentation.toolsLocked')} onCheckedChange={(c) => form.setValue('documentation.toolsLocked', !!c)} />
+                  <Label className="text-xs font-medium text-slate-700">Tools/Materials Secured</Label>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 6. Issues, Plan, Instructions (Dynamic Lists) */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Issues */}
+            <Card className="border-slate-200 shadow-sm bg-white">
+              <CardHeader className="bg-red-50/50 border-b border-red-100 py-3 px-5">
+                <CardTitle className="text-xs font-bold uppercase text-red-700 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4" /> Issues Encountered
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-4 space-y-3">
+                {issueFields.map((field, index) => (
+                  <div key={field.id} className="space-y-2 p-2 bg-red-50/20 rounded border border-red-50 group relative">
+                    <Input className="h-8 text-xs bg-white" {...form.register(`issues.${index}.issue`)} placeholder="Issue..." />
+                    <Input className="h-8 text-xs bg-white" {...form.register(`issues.${index}.solution`)} placeholder="Action Taken..." />
+                    <ShadcnButton 
+                      type="button" 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-6 w-6 text-red-300 absolute -top-2 -right-2 bg-white border border-red-50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" 
+                      onClick={() => removeIssue(index)}
+                    >
+                      <Plus className="w-3 h-3 rotate-45" />
+                    </ShadcnButton>
+                  </div>
+                ))}
+                <ShadcnButton type="button" variant="outline" size="sm" className="w-full h-8 text-[10px] border-red-100 text-red-600" onClick={() => appendIssue({ issue: '', solution: '' })}>
+                  <Plus className="w-3 h-3 mr-1" /> Log Issue
+                </ShadcnButton>
+              </CardContent>
+            </Card>
+
+            {/* Next Day Plan */}
+            <Card className="border-slate-200 shadow-sm bg-white">
+              <CardHeader className="bg-slate-50/80 border-b border-slate-100 py-3 px-5">
+                <CardTitle className="text-xs font-bold uppercase text-slate-600 flex items-center gap-2">
+                  <CalendarIcon className="w-4 h-4 text-blue-500" /> Work Plan (Next Day)
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-4 space-y-3">
+                {planFields.map((field, index) => (
+                  <div key={field.id} className="flex gap-2 group">
+                    <Input className="h-9 text-xs bg-white flex-1" {...form.register(`workPlanNextDay.${index}.value`)} placeholder="Planned task..." />
+                    <ShadcnButton type="button" variant="ghost" size="icon" className="h-9 w-9 text-slate-200 hover:text-red-500" onClick={() => removePlan(index)}>
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </ShadcnButton>
+                  </div>
+                ))}
+                <ShadcnButton type="button" variant="ghost" size="sm" className="w-full h-8 text-[10px] font-bold text-slate-500 bg-slate-50 hover:bg-slate-100 border-dashed border border-slate-200" onClick={() => appendPlan({ value: '' })}>
+                  <Plus className="w-3 h-3 mr-1" /> Add Task
+                </ShadcnButton>
+              </CardContent>
+            </Card>
+
+            {/* Client Req */}
+            <Card className="border-slate-200 shadow-sm bg-white">
+              <CardHeader className="bg-amber-50/50 border-b border-amber-100 py-3 px-5">
+                <CardTitle className="text-xs font-bold uppercase text-amber-700">Client Side Requirements</CardTitle>
+              </CardHeader>
+              <CardContent className="p-4 space-y-4">
+                <div className="space-y-2">
+                  {clientReqFields.map((field, index) => (
+                    <div key={field.id} className="flex gap-2 group">
+                      <Input className="h-9 text-xs bg-white flex-1" {...form.register(`clientRequirements.details.${index}.value`)} placeholder="Deviation/Req..." />
+                      <ShadcnButton type="button" variant="ghost" size="icon" className="h-9 w-9 text-slate-200 hover:text-red-500" onClick={() => removeClientReq(index)}>
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </ShadcnButton>
+                    </div>
+                  ))}
+                  <ShadcnButton type="button" variant="outline" size="sm" className="w-full h-8 text-[10px] border-amber-100 text-amber-600" onClick={() => appendClientReq({ value: '' })}>
+                    <Plus className="w-3 h-3 mr-1" /> Add Entry
+                  </ShadcnButton>
+                </div>
+                <div className="pt-2 flex flex-col gap-2">
+                  <div className="flex items-center gap-3">
+                    <Checkbox checked={form.watch('clientRequirements.quoteToBe_sent')} onCheckedChange={(c) => form.setValue('clientRequirements.quoteToBe_sent', !!c)} />
+                    <Label className="text-xs font-medium text-slate-700">Quote to be sent</Label>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Checkbox checked={form.watch('clientRequirements.mailReceived')} onCheckedChange={(c) => form.setValue('clientRequirements.mailReceived', !!c)} />
+                    <Label className="text-xs font-medium text-slate-700">Mail Received from client</Label>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* 7. Photos Section */}
+          <Card className="border-slate-200 shadow-sm bg-white">
+            <CardHeader className="bg-slate-50/80 border-b border-slate-100 py-3 px-5 flex flex-row items-center justify-between">
+              <CardTitle className="text-xs font-bold uppercase text-slate-600 flex items-center gap-2">
+                <Camera className="w-4 h-4 text-blue-500" /> Visual Documentation (Site Photos)
+              </CardTitle>
+              <Label className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-[10px] font-bold">{photos.length} Selected</Label>
+            </CardHeader>
+            <CardContent className="p-5">
+              <div className="grid grid-cols-3 sm:grid-cols-6 md:grid-cols-8 gap-4">
+                {photos.map((photo, index) => (
+                  <div key={index} className="relative aspect-square rounded-md overflow-hidden border border-slate-100 shadow-sm bg-slate-50 group">
+                    <img src={photoUrls[index] || ''} alt="" className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <ShadcnButton type="button" variant="destructive" size="icon" className="h-7 w-7 rounded-full" onClick={() => setPhotos(prev => prev.filter((_, i) => i !== index))}>
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </ShadcnButton>
+                    </div>
+                  </div>
+                ))}
+                <label className="flex flex-col items-center justify-center aspect-square rounded-md border-2 border-dashed border-slate-200 hover:border-blue-400 hover:bg-blue-50 transition-all cursor-pointer bg-slate-50/30">
+                  <Upload className="w-5 h-5 text-slate-400 mb-1" />
+                  <span className="text-[9px] font-bold text-slate-500 uppercase">Upload</span>
+                  <input type="file" className="hidden" accept="image/*" multiple onChange={handlePhotoUpload} />
+                </label>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 8. Submission Footer */}
+          <div className="flex flex-col items-end gap-4 pt-10 border-t border-slate-200">
+            <div className="flex items-center gap-6 w-full max-w-2xl">
+              <div className="flex-1 space-y-1.5">
+                <Label className="text-[10px] font-bold text-slate-500 uppercase">Engineer/Supervisor Name</Label>
+                <Input className="h-10 bg-white font-semibold" {...form.register('footer.engineer')} placeholder="Enter your name" />
+              </div>
+              <div className="flex-1 space-y-1.5">
+                <Label className="text-[10px] font-bold text-slate-500 uppercase">Signature Date</Label>
+                <Input type="date" className="h-10 bg-white" {...form.register('footer.signatureDate')} />
               </div>
             </div>
             
-            {/* Row 2: 3 columns */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-slate-700">Default Variant</Label>
-                <Select>
-                  <SelectTrigger className="h-10 text-sm border-slate-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
-                    <SelectValue placeholder="Select" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="standard">Standard</SelectItem>
-                    <SelectItem value="premium">Premium</SelectItem>
-                    <SelectItem value="custom">Custom</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-slate-700">Reported By <span className="text-red-500">*</span></Label>
-                <Input 
-                  type="text" 
-                  className="h-10 text-sm border-slate-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500" 
-                  placeholder="Name"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-slate-700">Acknowledged By</Label>
-                <Input 
-                  type="text" 
-                  className="h-10 text-sm border-slate-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500" 
-                  placeholder="Name"
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Manpower Details */}
-        <Card className="border-slate-200 shadow-sm">
-          <CardHeader className="bg-slate-50/50 border-b border-slate-100 py-1.5 px-3">
-            <CardTitle className="text-xs font-bold flex items-center gap-2">
-              <Users className="w-3.5 h-3.5 text-blue-600" />
-              Manpower Details
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-2 space-y-3">
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-              <div className="space-y-0.5">
-                <Label className="text-[10px] uppercase font-bold text-slate-500">Total</Label>
-                <Input className="h-7 text-xs" {...form.register('manpower.total')} placeholder="0" />
-              </div>
-              <div className="space-y-0.5">
-                <Label className="text-[10px] uppercase font-bold text-slate-500">Skilled</Label>
-                <Input className="h-7 text-xs" {...form.register('manpower.skilled')} placeholder="0" />
-              </div>
-              <div className="space-y-0.5">
-                <Label className="text-[10px] uppercase font-bold text-slate-500">Unskilled</Label>
-                <Input className="h-7 text-xs" {...form.register('manpower.unskilled')} placeholder="0" />
-              </div>
-              <div className="space-y-0.5">
-                <Label className="text-[10px] uppercase font-bold text-slate-500">Start</Label>
-                <Input className="h-7 text-xs" type="time" {...form.register('manpower.startTime')} />
-              </div>
-              <div className="space-y-0.5">
-                <Label className="text-[10px] uppercase font-bold text-slate-500">End</Label>
-                <Input className="h-7 text-xs" type="time" {...form.register('manpower.endTime')} />
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <Label className="text-[10px] font-bold uppercase text-slate-500">Sub-Contractors</Label>
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  size="xs" 
-                  className="h-6 text-[10px]"
-                  onClick={() => appendSubContractor({ name: '', count: '', start: '', end: '' })}
-                >
-                  <Plus className="w-3 h-3 mr-1" /> Add
-                </Button>
-              </div>
-              <Table>
-                <TableHeader>
-                  <TableRow className="h-7">
-                    <TableHead className="text-[10px] h-7 px-1">Name</TableHead>
-                    <TableHead className="text-[10px] h-7 px-1">Count</TableHead>
-                    <TableHead className="text-[10px] h-7 px-1">Start</TableHead>
-                    <TableHead className="text-[10px] h-7 px-1">End</TableHead>
-                    <TableHead className="w-[30px] h-7 px-1"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {subContractorFields.map((field, index) => (
-                    <TableRow key={field.id} className="h-8">
-                      <TableCell className="p-0.5">
-                        <Input className="h-7 text-xs" {...form.register(`manpower.subContractors.${index}.name`)} />
-                      </TableCell>
-                      <TableCell className="p-0.5">
-                        <Input className="h-7 text-xs" {...form.register(`manpower.subContractors.${index}.count`)} />
-                      </TableCell>
-                      <TableCell className="p-0.5">
-                        <Input className="h-7 text-xs" type="time" {...form.register(`manpower.subContractors.${index}.start`)} />
-                      </TableCell>
-                      <TableCell className="p-0.5">
-                        <Input className="h-7 text-xs" type="time" {...form.register(`manpower.subContractors.${index}.end`)} />
-                      </TableCell>
-                      <TableCell className="p-0.5">
-                        <Button 
-                          type="button" 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-7 w-7 text-red-500"
-                          onClick={() => removeSubContractor(index)}
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Work Carried Out & Milestones */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <Card className="border-slate-200 shadow-sm">
-            <CardHeader className="bg-slate-50/50 border-b border-slate-100 py-1.5 px-3">
-              <CardTitle className="text-xs font-bold flex items-center gap-2">
-                <HardHat className="w-3.5 h-3.5 text-blue-600" />
-                Work Carried Out
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-2 space-y-1.5">
-              {workFields.map((field, index) => (
-                <div key={field.id} className="flex gap-1">
-                  <Input className="h-7 text-xs" {...form.register(`workCarriedOut.${index}.value`)} placeholder="Describe work..." />
-                  <Button 
-                    type="button" 
-                    variant="ghost" 
-                    size="icon" 
-                    className="h-7 w-7 text-red-500 shrink-0"
-                    onClick={() => removeWork(index)}
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </Button>
-                </div>
-              ))}
-              <Button type="button" variant="outline" size="xs" className="w-full h-7 text-[10px]" onClick={() => appendWork({ value: '' })}>
-                <Plus className="w-3 h-3 mr-1" /> Add
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="border-slate-200 shadow-sm">
-            <CardHeader className="bg-slate-50/50 border-b border-slate-100 py-1.5 px-3">
-              <CardTitle className="text-xs font-bold flex items-center gap-2">
-                <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />
-                Milestones
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-2 space-y-1.5">
-              {milestoneFields.map((field, index) => (
-                <div key={field.id} className="flex gap-1">
-                  <Input className="h-7 text-xs" {...form.register(`milestonesCompleted.${index}.value`)} placeholder="Milestone..." />
-                  <Button 
-                    type="button" 
-                    variant="ghost" 
-                    size="icon" 
-                    className="h-7 w-7 text-red-500 shrink-0"
-                    onClick={() => removeMilestone(index)}
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </Button>
-                </div>
-              ))}
-              <Button type="button" variant="outline" size="xs" className="w-full h-7 text-[10px]" onClick={() => appendMilestone({ value: '' })}>
-                <Plus className="w-3 h-3 mr-1" /> Add
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Progress Tracking */}
-        <Card className="border-slate-200 shadow-sm">
-          <CardHeader className="bg-slate-50/50 border-b border-slate-100 py-1.5 px-3">
-            <CardTitle className="text-xs font-bold">Progress Tracking</CardTitle>
-          </CardHeader>
-          <CardContent className="p-2 grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div className="space-y-0.5">
-              <Label className="text-[10px] uppercase font-bold text-slate-500">Planned</Label>
-              <Textarea className="min-h-[40px] text-xs py-1" {...form.register('progress.planned')} placeholder="Planned work..." />
-            </div>
-            <div className="space-y-0.5">
-              <Label className="text-[10px] uppercase font-bold text-slate-500">Actual</Label>
-              <Textarea className="min-h-[40px] text-xs py-1" {...form.register('progress.actual')} placeholder="Actual progress..." />
-            </div>
-            <div className="space-y-0.5">
-              <Label className="text-[10px] uppercase font-bold text-slate-500">% Complete</Label>
-              <Input className="h-7 text-xs" {...form.register('progress.percentComplete')} placeholder="0%" />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Equipment & Safety */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <Card className="md:col-span-2 border-slate-200 shadow-sm">
-            <CardHeader className="bg-slate-50/50 border-b border-slate-100 py-1.5 px-3">
-              <CardTitle className="text-xs font-bold flex items-center gap-2">
-                <Wrench className="w-3.5 h-3.5 text-slate-600" />
-                Equipment Status
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-2 space-y-2">
-              <div className="space-y-0.5">
-                <Label className="text-[10px] uppercase font-bold text-slate-500">Equipment on Site</Label>
-                <Input className="h-7 text-xs" {...form.register('equipment.onSite')} placeholder="List equipment..." />
-              </div>
-              <div className="space-y-0.5">
-                <Label className="text-[10px] uppercase font-bold text-slate-500">Breakdown/Issues</Label>
-                <Input className="h-7 text-xs" {...form.register('equipment.breakdown')} placeholder="Any issues?" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-slate-200 shadow-sm">
-            <CardHeader className="bg-slate-50/50 border-b border-slate-100 py-1.5 px-3">
-              <CardTitle className="text-xs font-bold flex items-center gap-2">
-                <HardHat className="w-3.5 h-3.5 text-orange-600" />
-                Safety
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-2 space-y-3">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs">Tool box meeting</Label>
-                <Checkbox 
-                  checked={form.watch('safety.toolboxMeeting')}
-                  onCheckedChange={(checked) => form.setValue('safety.toolboxMeeting', checked as boolean)}
-                />
-              </div>
-              <div className="flex items-center justify-between">
-                <Label className="text-xs">PPE Followed</Label>
-                <Checkbox 
-                  checked={form.watch('safety.ppe')}
-                  onCheckedChange={(checked) => form.setValue('safety.ppe', checked as boolean)}
-                />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Quality & Rework */}
-        <Card className="border-slate-200 shadow-sm">
-          <CardHeader className="bg-slate-50/50 border-b border-slate-100 py-1.5 px-3">
-            <CardTitle className="text-xs font-bold flex items-center gap-2">
-              <ClipboardCheck className="w-3.5 h-3.5 text-blue-600" />
-              Quality & Rework
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-2 space-y-3">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div className="space-y-0.5">
-                <Label className="text-[10px] uppercase font-bold text-slate-500">Visual Inspection</Label>
-                <Select 
-                  value={form.watch('quality.inspection')} 
-                  onValueChange={(val: any) => form.setValue('quality.inspection', val)}
-                >
-                  <SelectTrigger className="h-7 text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Yes">Yes</SelectItem>
-                    <SelectItem value="Pending">Pending</SelectItem>
-                    <SelectItem value="Not Required">Not Required</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-0.5">
-                <Label className="text-[10px] uppercase font-bold text-slate-500">Satisfied %</Label>
-                <Input className="h-7 text-xs" {...form.register('quality.satisfiedPercent')} placeholder="0%" />
-              </div>
-              <div className="space-y-0.5">
-                <Label className="text-[10px] uppercase font-bold text-slate-500">Rework Reason</Label>
-                <Input className="h-7 text-xs" {...form.register('quality.reworkRequiredReason')} placeholder="Reason if any" />
-              </div>
-            </div>
-
-            <div className="pt-2 border-t border-slate-100">
-              <div className="flex items-center gap-4 mb-2">
-                <Label className="text-[10px] font-bold uppercase text-slate-500">REWORK</Label>
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-1">
-                    <Checkbox 
-                      id="rework-yes"
-                      checked={form.watch('rework.isRework')} 
-                      onCheckedChange={(checked) => form.setValue('rework.isRework', checked as boolean)} 
-                    />
-                    <Label htmlFor="rework-yes" className="text-xs">Yes</Label>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Checkbox 
-                      id="rework-no"
-                      checked={!form.watch('rework.isRework')} 
-                      onCheckedChange={(checked) => form.setValue('rework.isRework', !checked as boolean)} 
-                    />
-                    <Label htmlFor="rework-no" className="text-xs">No</Label>
-                  </div>
-                </div>
-              </div>
-
-              {form.watch('rework.isRework') && (
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-                  <div className="space-y-0.5 col-span-2">
-                    <Label className="text-[10px] uppercase font-bold text-slate-500">Reason</Label>
-                    <Input className="h-7 text-xs" {...form.register('rework.reason')} />
-                  </div>
-                  <div className="space-y-0.5">
-                    <Label className="text-[10px] uppercase font-bold text-slate-500">Start</Label>
-                    <Input className="h-7 text-xs" type="time" {...form.register('rework.start')} />
-                  </div>
-                  <div className="space-y-0.5">
-                    <Label className="text-[10px] uppercase font-bold text-slate-500">End</Label>
-                    <Input className="h-7 text-xs" type="time" {...form.register('rework.end')} />
-                  </div>
-                  <div className="space-y-0.5">
-                    <Label className="text-[10px] uppercase font-bold text-slate-500">Manpower</Label>
-                    <Input className="h-7 text-xs" {...form.register('rework.totalManpower')} />
-                  </div>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Site Pictures / Documents */}
-        <Card className="border-slate-200 shadow-sm">
-          <CardHeader className="bg-slate-50/50 border-b border-slate-100 py-1.5 px-3">
-            <CardTitle className="text-xs font-bold">Documents (DC/Invoice)</CardTitle>
-          </CardHeader>
-          <CardContent className="p-2 grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div className="space-y-0.5">
-              <Label className="text-[10px] uppercase font-bold text-slate-500">Type</Label>
-              <Select 
-                value={form.watch('documents.type')} 
-                onValueChange={(val: any) => form.setValue('documents.type', val)}
+            <div className="flex gap-4 w-full justify-end mt-4">
+              <ShadcnButton 
+                type="button" 
+                variant="outline" 
+                className="h-12 px-10 border-slate-300 text-slate-600 font-bold"
+                onClick={() => { if(confirm('Discard all entered data?')) form.reset(); }}
               >
-                <SelectTrigger className="h-7 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="INVOICE">INVOICE</SelectItem>
-                  <SelectItem value="DC">DC</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-0.5">
-              <Label className="text-[10px] uppercase font-bold text-slate-500">Document No.</Label>
-              <Input className="h-7 text-xs" {...form.register('documents.docNo')} />
-            </div>
-            <div className="space-y-0.5">
-              <Label className="text-[10px] uppercase font-bold text-slate-500">Signature & Gate Entry</Label>
-              <Select 
-                value={form.watch('documents.receivedSignature')} 
-                onValueChange={(val: any) => form.setValue('documents.receivedSignature', val)}
+                Discard Form
+              </ShadcnButton>
+              <ShadcnButton 
+                type="submit" 
+                className="bg-blue-600 hover:bg-blue-700 h-12 px-16 text-base font-bold shadow-xl shadow-blue-600/30"
+                disabled={saveMutation.isPending}
               >
-                <SelectTrigger className="h-7 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Yes">Yes</SelectItem>
-                  <SelectItem value="Pending">Pending</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Client Requirements */}
-        <Card className="border-slate-200 shadow-sm">
-          <CardHeader className="bg-slate-50/50 border-b border-slate-100 py-1.5 px-3">
-            <CardTitle className="text-xs font-bold flex items-center gap-2">
-              <ClipboardCheck className="w-3.5 h-3.5 text-blue-600" />
-              Client Side New Requirement/Deviation
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-2 space-y-3">
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between mb-1">
-                <Label className="text-[10px] font-bold uppercase text-slate-500">Details (Bulletin Entry)</Label>
-                <Button type="button" variant="outline" size="xs" className="h-6 text-[10px]" onClick={() => appendClientReq({ value: '' })}>
-                  <Plus className="w-3 h-3 mr-1" /> Add Point
-                </Button>
-              </div>
-              <div className="space-y-1.5">
-                {clientReqFields.map((field, index) => (
-                  <div key={field.id} className="flex gap-1 items-start">
-                    <div className="mt-2.5 w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
-                    <Input className="h-8 text-xs" {...form.register(`clientRequirements.details.${index}.value`)} placeholder="Enter requirement or deviation..." />
-                    <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-red-500 shrink-0" onClick={() => removeClientReq(index)}>
-                      <Trash2 className="w-3 h-3" />
-                    </Button>
+                {saveMutation.isPending ? (
+                  <div className="flex items-center gap-3">
+                    <div className="w-5 h-5 border-3 border-white border-t-transparent rounded-full animate-spin" />
+                    Finalizing...
                   </div>
-                ))}
-              </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <Save className="w-5 h-5" /> Submit Site Report
+                  </div>
+                )}
+              </ShadcnButton>
             </div>
-            <div className="flex flex-wrap gap-4 pt-2 border-t border-slate-100">
-              <div className="flex items-center gap-2">
-                <Checkbox 
-                  id="quote-sent"
-                  checked={form.watch('clientRequirements.quoteToBeSent')} 
-                  onCheckedChange={(checked) => form.setValue('clientRequirements.quoteToBeSent', checked as boolean)} 
-                />
-                <Label htmlFor="quote-sent" className="text-xs font-medium">Quote to be sent</Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <Checkbox 
-                  id="mail-received"
-                  checked={form.watch('clientRequirements.mailReceived')} 
-                  onCheckedChange={(checked) => form.setValue('clientRequirements.mailReceived', checked as boolean)} 
-                />
-                <Label htmlFor="mail-received" className="text-xs font-medium">Mail Received</Label>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Reporting & Material Arrangement - Compact Card */}
-        <Card className="border-slate-200 shadow-sm">
-          <CardHeader className="bg-slate-50/50 border-b border-slate-100 py-1.5 px-3">
-            <CardTitle className="text-xs font-bold flex items-center gap-2">
-              <LayoutDashboard className="w-3.5 h-3.5 text-slate-600" />
-              Reporting & Logistics
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-2 grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <Label className="text-slate-500 text-[10px] uppercase font-bold tracking-wider">Report to PM</Label>
-              <Select 
-                value={form.watch('reporting.pmStatus')} 
-                onValueChange={(val: any) => form.setValue('reporting.pmStatus', val)}
-              >
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Reported">Reported</SelectItem>
-                  <SelectItem value="Pending">Pending</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-slate-500 text-[10px] uppercase font-bold tracking-wider">Material Arrangement</Label>
-              <Select 
-                value={form.watch('reporting.materialArrangement')} 
-                onValueChange={(val: any) => form.setValue('reporting.materialArrangement', val)}
-              >
-                <SelectTrigger className="h-8 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Arranged">Arranged</SelectItem>
-                  <SelectItem value="Pending">Pending</SelectItem>
-                  <SelectItem value="Not Required">Not Required</SelectItem>
-                  <SelectItem value="Informed to stores">Informed to stores</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Work Plan & Instructions */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <Card className="border-slate-200 shadow-sm">
-            <CardHeader className="bg-slate-50/50 border-b border-slate-100 py-1.5 px-3">
-              <CardTitle className="text-xs font-bold">Work Plan (Next Day)</CardTitle>
-            </CardHeader>
-            <CardContent className="p-2 space-y-1.5">
-              {planFields.map((field, index) => (
-                <div key={field.id} className="flex gap-1">
-                  <Input className="h-7 text-xs" {...form.register(`workPlanNextDay.${index}.value`)} />
-                  <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-red-500" onClick={() => removePlan(index)}>
-                    <Trash2 className="w-3 h-3" />
-                  </Button>
-                </div>
-              ))}
-              <Button type="button" variant="outline" size="xs" className="w-full h-7 text-[10px]" onClick={() => appendPlan({ value: '' })}>
-                <Plus className="w-3 h-3 mr-1" /> Add
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="border-slate-200 shadow-sm">
-            <CardHeader className="bg-slate-50/50 border-b border-slate-100 py-1.5 px-3">
-              <CardTitle className="text-xs font-bold">Special Instructions</CardTitle>
-            </CardHeader>
-            <CardContent className="p-2 space-y-1.5">
-              {instructionFields.map((field, index) => (
-                <div key={field.id} className="flex gap-1">
-                  <Input className="h-7 text-xs" {...form.register(`specialInstructions.${index}.value`)} />
-                  <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-red-500" onClick={() => removeInstruction(index)}>
-                    <Trash2 className="w-3 h-3" />
-                  </Button>
-                </div>
-              ))}
-              <Button type="button" variant="outline" size="xs" className="w-full h-7 text-[10px]" onClick={() => appendInstruction({ value: '' })}>
-                <Plus className="w-3 h-3 mr-1" /> Add
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Issues Faced */}
-        <Card className="border-slate-200 shadow-sm">
-          <CardHeader className="bg-slate-50/50 border-b border-slate-100 py-1.5 px-3">
-            <CardTitle className="text-xs font-bold flex items-center gap-2">
-              <AlertCircle className="w-3.5 h-3.5 text-red-600" />
-              Issues Faced
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-2 space-y-2">
-            <Table>
-              <TableHeader>
-                <TableRow className="h-7">
-                  <TableHead className="text-[10px] h-7 px-1">Issue</TableHead>
-                  <TableHead className="text-[10px] h-7 px-1">Remarks</TableHead>
-                  <TableHead className="w-[30px] h-7 px-1"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {issueFields.map((field, index) => (
-                  <TableRow key={field.id} className="h-8">
-                    <TableCell className="p-0.5">
-                      <Input className="h-7 text-xs" {...form.register(`issues.${index}.issue`)} />
-                    </TableCell>
-                    <TableCell className="p-0.5">
-                      <Input className="h-7 text-xs" {...form.register(`issues.${index}.solution`)} />
-                    </TableCell>
-                    <TableCell className="p-0.5">
-                      <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-red-500" onClick={() => removeIssue(index)}>
-                        <Trash2 className="w-3 h-3" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-            <Button type="button" variant="outline" size="xs" className="w-full h-7 text-[10px]" onClick={() => appendIssue({ issue: '', solution: '' })}>
-              <Plus className="w-3 h-3 mr-1" /> Add Issue
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Photo Upload Section */}
-        <Card className="border-slate-200 shadow-sm">
-          <CardHeader className="bg-slate-50/50 border-b border-slate-100 py-1.5 px-3">
-            <CardTitle className="text-xs font-bold flex items-center gap-2">
-              <Camera className="w-3.5 h-3.5 text-blue-600" />
-              Site Photos
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-2">
-            <div className="grid grid-cols-4 md:grid-cols-8 gap-2 mb-2">
-              {photos.map((photo, index) => (
-                <div key={index} className="relative aspect-square rounded overflow-hidden border border-slate-200 group">
-                  <img 
-                    src={photoUrls[index] || ''} 
-                    alt={`Site photo ${index + 1}`} 
-                    className="w-full h-full object-cover"
-                    loading="lazy"
-                  />
-                  <button 
-                    type="button"
-                    className="absolute top-1 right-1 bg-red-500 text-white p-0.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={() => setPhotos(prev => prev.filter((_, i) => i !== index))}
-                  >
-                    <Trash2 className="w-2 h-2" />
-                  </button>
-                </div>
-              ))}
-              <label className="flex flex-col items-center justify-center aspect-square rounded border-2 border-dashed border-slate-200 hover:border-blue-400 hover:bg-blue-50 transition-all cursor-pointer">
-                <Upload className="w-3.5 h-3.5 text-slate-400 mb-0.5" />
-                <span className="text-[9px] font-medium text-slate-500 text-center">Upload</span>
-                <input type="file" className="hidden" accept="image/*" multiple onChange={handlePhotoUpload} />
-              </label>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Proper Documentation */}
-        <Card className="border-slate-200 shadow-sm">
-          <CardHeader className="bg-slate-50/50 border-b border-slate-100 py-1.5 px-3">
-            <CardTitle className="text-xs font-bold">Filing & Documentation</CardTitle>
-          </CardHeader>
-          <CardContent className="p-2 flex flex-wrap gap-4">
-            <div className="flex items-center gap-2">
-              <Checkbox 
-                id="doc-filed"
-                checked={form.watch('documentation.filed')} 
-                onCheckedChange={(checked) => form.setValue('documentation.filed', checked as boolean)} 
-              />
-              <Label htmlFor="doc-filed" className="text-xs">Report Filed</Label>
-            </div>
-            <div className="flex items-center gap-2">
-              <Checkbox 
-                id="tools-locked"
-                checked={form.watch('documentation.toolsLocked')} 
-                onCheckedChange={(checked) => form.setValue('documentation.toolsLocked', checked as boolean)} 
-              />
-              <Label htmlFor="tools-locked" className="text-xs">Tools/Materials Locked</Label>
-            </div>
-            <div className="flex items-center gap-2">
-              <Label className="text-xs">SITE PICTURES:</Label>
-              <Select 
-                value={form.watch('documentation.sitePictures')} 
-                onValueChange={(val: any) => form.setValue('documentation.sitePictures', val)}
-              >
-                <SelectTrigger className="h-7 text-xs w-[100px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Taken">Taken</SelectItem>
-                  <SelectItem value="Not Allowed">Not Allowed</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Footer */}
-        <Card className="border-slate-200 shadow-sm">
-          <CardContent className="p-2 grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div className="space-y-0.5">
-              <Label className="text-[10px] uppercase font-bold text-slate-500">Engineer/Supervisor</Label>
-              <Input className="h-7 text-xs" {...form.register('footer.engineer')} />
-            </div>
-            <div className="space-y-0.5">
-              <Label className="text-[10px] uppercase font-bold text-slate-500">Signature & Date</Label>
-              <Input className="h-7 text-xs" {...form.register('footer.signatureDate')} placeholder="Digital signature or name" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <div className="flex justify-end gap-4 pt-6">
-          <Button type="button" variant="outline" onClick={() => form.reset()}>Reset Form</Button>
-          <Button 
-            type="submit" 
-            className="bg-blue-600 hover:bg-blue-700 px-8 h-11 text-base font-bold shadow-xl shadow-blue-600/20"
-            disabled={saveMutation.isPending}
-          >
-            {saveMutation.isPending ? 'Saving...' : <><Save className="w-5 h-5 mr-2" /> Save Daily Report</>}
-          </Button>
-        </div>
-      </form>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
