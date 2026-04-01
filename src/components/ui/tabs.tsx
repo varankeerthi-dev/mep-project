@@ -15,40 +15,57 @@ function useTabs() {
 }
 
 interface TabsProps {
-  defaultTab: string;
+  defaultValue?: string;
+  defaultTab?: string; // Backward compatibility
+  value?: string;
+  onValueChange?: (value: string) => void;
+  onChange?: (value: string) => void; // Backward compatibility
   children: React.ReactNode;
-  onChange?: (value: string) => void;
+  className?: string;
+  style?: React.CSSProperties;
 }
 
-export function Tabs({ defaultTab, children, onChange }: TabsProps) {
-  const [activeTab, setActiveTab] = useState(defaultTab);
+export function Tabs({ defaultValue, defaultTab, value, onValueChange, onChange, children, className, style }: TabsProps) {
+  const initialValue = value || defaultValue || defaultTab || '';
+  const [internalValue, setInternalValue] = useState(initialValue);
   
-  const handleSetActiveTab = (value: string) => {
-    setActiveTab(value);
-    onChange?.(value);
+  const activeTab = value !== undefined ? value : internalValue;
+  
+  const setActiveTab = (newValue: string) => {
+    if (value === undefined) {
+      setInternalValue(newValue);
+    }
+    onValueChange?.(newValue);
+    onChange?.(newValue);
   };
   
   return (
-    <TabsContext.Provider value={{ activeTab, setActiveTab: handleSetActiveTab }}>
-      {children}
+    <TabsContext.Provider value={{ activeTab, setActiveTab }}>
+      <div className={className} style={style}>
+        {children}
+      </div>
     </TabsContext.Provider>
   );
 }
 
-interface TabListProps {
+interface TabsListProps {
   children: React.ReactNode;
+  className?: string;
   style?: React.CSSProperties;
 }
 
-export function TabList({ children, style }: TabListProps) {
+export function TabsList({ children, className, style }: TabsListProps) {
   return (
     <div
+      className={className}
       style={{
-        display: 'flex',
-        gap: '4px',
-        padding: '4px',
-        background: colors.gray[100],
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
         borderRadius: radii.md,
+        backgroundColor: colors.gray[100],
+        padding: '4px',
+        color: colors.gray[500],
         ...style,
       }}
     >
@@ -57,60 +74,75 @@ export function TabList({ children, style }: TabListProps) {
   );
 }
 
-interface TabProps {
+interface TabsTriggerProps {
   value: string;
   children: React.ReactNode;
-  icon?: React.ReactNode;
+  className?: string;
+  style?: React.CSSProperties;
+  disabled?: boolean;
 }
 
-export function Tab({ value, children, icon }: TabProps) {
+export function TabsTrigger({ value, children, className, style, disabled }: TabsTriggerProps) {
   const { activeTab, setActiveTab } = useTabs();
   const isActive = activeTab === value;
   
   return (
     <button
+      type="button"
+      role="tab"
+      aria-selected={isActive}
+      disabled={disabled}
       onClick={() => setActiveTab(value)}
+      className={className}
       style={{
         display: 'inline-flex',
         alignItems: 'center',
-        gap: '8px',
-        padding: '8px 14px',
+        justifyContent: 'center',
+        whiteSpace: 'nowrap',
+        borderRadius: radii.sm,
+        padding: '6px 12px',
         fontSize: '14px',
         fontWeight: 500,
-        color: isActive ? colors.gray[900] : colors.gray[500],
-        background: isActive ? '#ffffff' : 'transparent',
-        border: 'none',
-        borderRadius: radii.DEFAULT,
-        cursor: 'pointer',
         transition: transitions.DEFAULT,
-        boxShadow: isActive ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        opacity: disabled ? 0.5 : 1,
+        backgroundColor: isActive ? '#ffffff' : 'transparent',
+        color: isActive ? colors.gray[900] : colors.gray[500],
+        boxShadow: isActive ? '0 1px 2px 0 rgba(0, 0, 0, 0.05)' : 'none',
+        border: 'none',
+        ...style,
       }}
     >
-      {icon}
       {children}
     </button>
   );
 }
 
-interface TabPanelProps {
+interface TabsContentProps {
   value: string;
   children: React.ReactNode;
+  className?: string;
+  style?: React.CSSProperties;
 }
 
-export function TabPanel({ value, children }: TabPanelProps) {
+export function TabsContent({ value, children, className, style }: TabsContentProps) {
   const { activeTab } = useTabs();
   
   if (activeTab !== value) return null;
   
   return (
     <div
+      role="tabpanel"
+      className={className}
       style={{
-        animation: 'fadeIn 150ms ease-out',
+        marginTop: '8px',
+        animation: 'tabs-fade-in 150ms ease-out',
+        ...style,
       }}
     >
       <style>{`
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(4px); }
+        @keyframes tabs-fade-in {
+          from { opacity: 0; transform: translateY(2px); }
           to { opacity: 1; transform: translateY(0); }
         }
       `}</style>
@@ -118,3 +150,8 @@ export function TabPanel({ value, children }: TabPanelProps) {
     </div>
   );
 }
+
+// Keep old names for backward compatibility if needed, but the main goal is to match shadcn
+export const TabList = TabsList;
+export const Tab = TabsTrigger;
+export const TabPanel = TabsContent;
