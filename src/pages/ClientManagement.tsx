@@ -41,6 +41,25 @@ type CreateClientProps = {
   clientData?: any
 }
 
+const selectCn = 'h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition-colors focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 disabled:cursor-not-allowed disabled:opacity-50';
+
+const SectionHeading = ({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) => (
+  <div className="flex items-center gap-2.5 pb-1">
+    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">{icon}</span>
+    <h3 className="text-sm font-semibold text-slate-800 tracking-wide">{children}</h3>
+  </div>
+);
+
+const FieldGroup = ({ label, required, error, children }: { label: string; required?: boolean; error?: string; children: React.ReactNode }) => (
+  <div className="space-y-1.5">
+    <Label className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+      {label}{required && <span className="text-red-500 ml-0.5">*</span>}
+    </Label>
+    {children}
+    {error && <p className="text-xs text-red-500">{error}</p>}
+  </div>
+);
+
 export function CreateClientEdit({ onSuccess, onCancel }: CreateClientEditProps) {
   const params = getCurrentQueryParams();
   const clientId = params.get('id');
@@ -57,12 +76,16 @@ export function CreateClientEdit({ onSuccess, onCancel }: CreateClientEditProps)
 
   if (clientQuery.isLoading) {
     return (
-      <div className="p-6 md:p-8 space-y-4">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-4 w-72" />
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-10 w-full" />
+      <div className="min-h-screen bg-slate-50/80 p-6 md:p-10">
+        <div className="mx-auto max-w-4xl space-y-5">
+          <Skeleton className="h-8 w-56 rounded-lg" />
+          <Skeleton className="h-4 w-80 rounded" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-4">
+            <Skeleton className="h-12 w-full rounded-lg" />
+            <Skeleton className="h-12 w-full rounded-lg" />
+            <Skeleton className="h-12 w-full rounded-lg" />
+            <Skeleton className="h-12 w-full rounded-lg" />
+          </div>
         </div>
       </div>
     );
@@ -70,12 +93,15 @@ export function CreateClientEdit({ onSuccess, onCancel }: CreateClientEditProps)
 
   if (clientQuery.isError) {
     return (
-      <div className="p-6 md:p-8">
-        <Card>
-          <CardContent style={{ padding: '24px' }}>
-            <p className="text-sm text-red-600">Error loading client. Please try again.</p>
-          </CardContent>
-        </Card>
+      <div className="min-h-screen bg-slate-50/80 p-6 md:p-10">
+        <div className="mx-auto max-w-4xl">
+          <Card>
+            <CardContent className="p-8 text-center">
+              <p className="text-sm text-red-600">Error loading client. Please try again.</p>
+              <Button variant="secondary" size="sm" onClick={onCancel} style={{ marginTop: '16px' }}>Go Back</Button>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     );
   }
@@ -190,18 +216,17 @@ function ClientDiscountPortfolio({ formData, setFormData, isAdmin }: ClientDisco
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Discount Portfolio</CardTitle>
+          <CardTitle style={{ fontSize: '16px' }}>Discount Portfolio</CardTitle>
           <CardDescription>Choose the pricing strategy for this client.</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4" style={{ maxWidth: '480px' }}>
-            <div className="space-y-2">
-              <Label>Discount Type *</Label>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <FieldGroup label="Discount Type" required>
               <select
-                className="h-9 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className={selectCn}
                 value={formData.discount_type || 'Special'}
                 onChange={e => setFormData({ ...formData, discount_type: e.target.value, standard_pricelist_id: e.target.value === 'Standard' ? formData.standard_pricelist_id : null })}
                 disabled={!isAdmin}
@@ -211,12 +236,11 @@ function ClientDiscountPortfolio({ formData, setFormData, isAdmin }: ClientDisco
                 <option value="Bulk">Bulk (Variant Based)</option>
                 <option value="Special">Special (Variant Based)</option>
               </select>
-            </div>
+            </FieldGroup>
             {formData.discount_type === 'Standard' && (
-              <div className="space-y-2">
-                <Label>Select Standard Price List *</Label>
+              <FieldGroup label="Standard Price List" required>
                 <select
-                  className="h-9 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className={selectCn}
                   value={formData.standard_pricelist_id || ''}
                   onChange={e => setFormData({ ...formData, standard_pricelist_id: e.target.value })}
                   required
@@ -227,7 +251,7 @@ function ClientDiscountPortfolio({ formData, setFormData, isAdmin }: ClientDisco
                     <option key={pl.id} value={pl.id}>{pl.pricelist_name} ({pl.discount_percent}%)</option>
                   ))}
                 </select>
-              </div>
+              </FieldGroup>
             )}
           </div>
         </CardContent>
@@ -235,17 +259,12 @@ function ClientDiscountPortfolio({ formData, setFormData, isAdmin }: ClientDisco
 
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-4">
             <div>
-              <CardTitle style={{ fontSize: '15px' }}>Custom Discounts (Per Variant)</CardTitle>
-              <CardDescription>Override discount percentages for individual variants.</CardDescription>
+              <CardTitle style={{ fontSize: '16px' }}>Custom Discounts</CardTitle>
+              <CardDescription>Override discount percentages per variant.</CardDescription>
             </div>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={handleSaveCustomDiscounts}
-              disabled={saving || !formData.id}
-            >
+            <Button variant="primary" size="sm" onClick={handleSaveCustomDiscounts} disabled={saving || !formData.id}>
               {saving ? 'Saving...' : 'Save Discounts'}
             </Button>
           </div>
@@ -253,15 +272,13 @@ function ClientDiscountPortfolio({ formData, setFormData, isAdmin }: ClientDisco
         <CardContent>
           {saveMessage.text && (
             <div className={cn(
-              'mb-4 rounded-lg px-4 py-3 text-sm font-medium',
-              saveMessage.type === 'success'
-                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                : 'bg-red-50 text-red-600 border border-red-200'
+              'mb-5 rounded-lg px-4 py-3 text-sm font-medium',
+              saveMessage.type === 'success' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-600 border border-red-200'
             )}>
               {saveMessage.text}
             </div>
           )}
-          <div className="max-h-[220px] overflow-auto rounded-lg border border-slate-200">
+          <div className="max-h-56 overflow-auto rounded-lg border border-slate-200">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -271,15 +288,15 @@ function ClientDiscountPortfolio({ formData, setFormData, isAdmin }: ClientDisco
               </TableHeader>
               <TableBody>
                 {variants.length === 0 ? (
-                  <TableRow><td colSpan={2} className="px-4 py-3 text-center text-slate-500">No variants found</td></TableRow>
+                  <TableRow><td colSpan={2} className="px-4 py-4 text-center text-sm text-slate-400">No variants found</td></TableRow>
                 ) : (
                   variants.map((v: any) => (
                     <TableRow key={v.id}>
-                      <TableCell className="font-medium">{v.variant_name}</TableCell>
+                      <TableCell className="font-medium text-slate-700">{v.variant_name}</TableCell>
                       <TableCell>
                         <input
                           type="number"
-                          className="h-8 w-20 rounded-md border border-slate-300 bg-white px-2 text-right text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          className="h-9 w-24 rounded-lg border border-slate-200 bg-white px-3 text-right text-sm outline-none transition-colors focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
                           value={customDiscounts[v.id] || 0}
                           onChange={(e) => handleCustomDiscountChange(v.id, e.target.value)}
                           min="0"
@@ -298,14 +315,15 @@ function ClientDiscountPortfolio({ formData, setFormData, isAdmin }: ClientDisco
 
       <Card>
         <CardHeader>
-          <CardTitle style={{ fontSize: '15px' }}>Portfolio Preview</CardTitle>
+          <CardTitle style={{ fontSize: '16px' }}>Portfolio Preview</CardTitle>
           <CardDescription>How discounts will apply for this client.</CardDescription>
         </CardHeader>
         <CardContent>
           {formData.discount_type === 'Standard' ? (
-            <div className="rounded-lg bg-slate-50 border border-slate-200 px-5 py-4">
-              <p className="text-sm text-slate-700">
-                <strong>Standard Discount:</strong> {pricelists.find((pl: any) => pl.id === formData.standard_pricelist_id)?.discount_percent || 0}% flat on all items.
+            <div className="rounded-lg bg-slate-50 border border-slate-100 px-5 py-4">
+              <p className="text-sm text-slate-600">
+                <span className="font-semibold text-slate-800">Standard Discount:</span>{' '}
+                {pricelists.find((pl: any) => pl.id === formData.standard_pricelist_id)?.discount_percent || 0}% flat on all items.
               </p>
             </div>
           ) : (
@@ -321,13 +339,13 @@ function ClientDiscountPortfolio({ formData, setFormData, isAdmin }: ClientDisco
                 </TableHeader>
                 <TableBody>
                   {loading ? (
-                    <TableRow><td colSpan={4} className="px-4 py-3 text-center text-slate-500">Loading...</td></TableRow>
+                    <TableRow><td colSpan={4} className="px-4 py-4 text-center text-sm text-slate-400">Loading...</td></TableRow>
                   ) : previewSettings.length === 0 ? (
-                    <TableRow><td colSpan={4} className="px-4 py-3 text-center text-slate-500">No settings found.</td></TableRow>
+                    <TableRow><td colSpan={4} className="px-4 py-4 text-center text-sm text-slate-400">No settings found.</td></TableRow>
                   ) : (
                     previewSettings.map((s: any) => (
                       <TableRow key={s.id}>
-                        <TableCell className="font-medium">{s.variant?.variant_name}</TableCell>
+                        <TableCell className="font-medium text-slate-700">{s.variant?.variant_name}</TableCell>
                         <TableCell>{s.default_discount_percent}%</TableCell>
                         <TableCell>{s.min_discount_percent}%</TableCell>
                         <TableCell>{s.max_discount_percent}%</TableCell>
@@ -527,240 +545,262 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
     }
   };
 
-  const inputCn = 'h-9 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500';
-  const selectCn = inputCn;
+  const val = (field: string) => formData[field] || '';
+  const set = (field: string) => (e: any) => setFormData({ ...formData, [field]: (e.target as HTMLInputElement).value });
 
   return (
-    <div className="min-h-screen bg-slate-50 p-5 md:p-8">
-      <div className="mx-auto max-w-4xl space-y-6">
+    <div className="min-h-screen bg-slate-50/80 px-4 py-6 md:px-8 md:py-10">
+      <div className="mx-auto max-w-[960px]">
 
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">{editMode ? 'Edit Client' : 'Create Client'}</h1>
-          <p className="mt-1 text-sm text-slate-500">{editMode ? 'Update client information' : 'Add a new client to your organization'}</p>
+        {/* Page header */}
+        <div className="mb-8">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-white">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-slate-900">{editMode ? 'Edit Client' : 'New Client'}</h1>
+              <p className="text-sm text-slate-500">{editMode ? 'Update client information and pricing' : 'Add a new client to your organization'}</p>
+            </div>
+          </div>
         </div>
 
         <Tabs defaultValue="general" value={activeTab} onValueChange={setActiveTab}>
-          <TabsList>
+          <TabsList style={{ marginBottom: '24px' }}>
             <TabsTrigger value="general">General</TabsTrigger>
             <TabsTrigger value="pricing">Pricing</TabsTrigger>
           </TabsList>
 
+          {/* ─── GENERAL TAB ─── */}
           <TabsContent value="general">
-            <Card>
-              <CardContent>
-                <form onSubmit={handleSubmit} className="space-y-6 pt-6">
+            <form onSubmit={handleSubmit}>
+              <div className="space-y-6">
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <div className="space-y-2">
-                      <Label>Client Name *</Label>
-                      <Input value={formData.client_name} onChange={e => setFormData({ ...formData, client_name: (e.target as HTMLInputElement).value })} required placeholder="Client name" />
+                {/* Client info */}
+                <Card>
+                  <CardHeader>
+                    <SectionHeading icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>}>
+                      Client Information
+                    </SectionHeading>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
+                      <FieldGroup label="Client Name" required>
+                        <Input value={val('client_name')} onChange={set('client_name')} required placeholder="Enter client name" />
+                      </FieldGroup>
+                      <FieldGroup label="Category">
+                        <select className={selectCn} value={val('category') || 'Active'} onChange={e => setFormData({ ...formData, category: e.target.value })}>
+                          <option value="Active">Active</option>
+                          <option value="Inactive">Inactive</option>
+                          <option value="Prospect">Prospect</option>
+                        </select>
+                      </FieldGroup>
+                      <FieldGroup label="GST IN" error={gstError}>
+                        <Input value={val('gstin')} onChange={handleGstChange} placeholder="15 character GSTIN" maxLength={15} />
+                      </FieldGroup>
+                      <FieldGroup label="Vendor No">
+                        <Input value={val('vendor_no')} onChange={set('vendor_no')} placeholder="Vendor reference number" />
+                      </FieldGroup>
                     </div>
-                    <div className="space-y-2">
-                      <Label>Category</Label>
-                      <select className={selectCn} value={formData.category || 'Active'} onChange={e => setFormData({ ...formData, category: e.target.value })}>
-                        <option value="Active">Active</option>
-                        <option value="Inactive">Inactive</option>
-                        <option value="Prospect">Prospect</option>
-                      </select>
-                    </div>
-                  </div>
+                  </CardContent>
+                </Card>
 
-                  <Separator />
-
-                  <div>
-                    <div className="flex items-center gap-2 mb-4">
-                      <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-                      <span className="text-sm font-semibold text-slate-700">Contact Persons</span>
-                    </div>
-                    <div className="space-y-3">
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                        <Input value={formData.contact_person || ''} onChange={e => setFormData({ ...formData, contact_person: (e.target as HTMLInputElement).value })} placeholder="Contact 1" />
-                        <Input value={formData.contact_designation || ''} onChange={e => setFormData({ ...formData, contact_designation: (e.target as HTMLInputElement).value })} placeholder="Designation" />
-                        <Input value={formData.contact || ''} onChange={e => setFormData({ ...formData, contact: (e.target as HTMLInputElement).value })} placeholder="Phone" />
-                        <Input type="email" value={formData.contact_person_email || ''} onChange={e => setFormData({ ...formData, contact_person_email: (e.target as HTMLInputElement).value })} placeholder="Email" />
-                      </div>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                        <Input value={formData.contact_person_2 || ''} onChange={e => setFormData({ ...formData, contact_person_2: (e.target as HTMLInputElement).value })} placeholder="Contact 2" />
-                        <Input value={formData.contact_designation_2 || ''} onChange={e => setFormData({ ...formData, contact_designation_2: (e.target as HTMLInputElement).value })} placeholder="Designation" />
-                        <Input value={formData.contact_person_2_contact || ''} onChange={e => setFormData({ ...formData, contact_person_2_contact: (e.target as HTMLInputElement).value })} placeholder="Phone" />
-                        <Input type="email" value={formData.contact_person_2_email || ''} onChange={e => setFormData({ ...formData, contact_person_2_email: (e.target as HTMLInputElement).value })} placeholder="Email" />
-                      </div>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                        <Input value={formData.purchase_person || ''} onChange={e => setFormData({ ...formData, purchase_person: (e.target as HTMLInputElement).value })} placeholder="Purchase Person" />
-                        <Input value={formData.purchase_designation || ''} onChange={e => setFormData({ ...formData, purchase_designation: (e.target as HTMLInputElement).value })} placeholder="Designation" />
-                        <Input value={formData.purchase_contact || ''} onChange={e => setFormData({ ...formData, purchase_contact: (e.target as HTMLInputElement).value })} placeholder="Phone" />
-                        <Input type="email" value={formData.purchase_email || ''} onChange={e => setFormData({ ...formData, purchase_email: (e.target as HTMLInputElement).value })} placeholder="Email" />
-                      </div>
-                    </div>
-                  </div>
-
-                  <Separator />
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <div className="space-y-2">
-                      <Label>GST IN</Label>
-                      <Input value={formData.gstin || ''} onChange={handleGstChange} placeholder="15 characters" maxLength={15} />
-                      {gstError && <p className="text-xs text-red-500 mt-1">{gstError}</p>}
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Vendor No</Label>
-                      <Input value={formData.vendor_no || ''} onChange={e => setFormData({ ...formData, vendor_no: (e.target as HTMLInputElement).value })} />
-                    </div>
-                  </div>
-
-                  <Separator />
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <Card className="border-emerald-200 bg-emerald-50/40">
-                      <CardHeader style={{ padding: '16px 20px 12px' }}>
-                        <div className="flex items-center gap-2">
-                          <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                          <CardTitle style={{ fontSize: '14px', color: '#047857' }}>Billing Address</CardTitle>
+                {/* Contact persons */}
+                <Card>
+                  <CardHeader>
+                    <SectionHeading icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>}>
+                      Contact Persons
+                    </SectionHeading>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-5">
+                      <div>
+                        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Primary Contact</p>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                          <Input value={val('contact_person')} onChange={set('contact_person')} placeholder="Full name" />
+                          <Input value={val('contact_designation')} onChange={set('contact_designation')} placeholder="Designation" />
+                          <Input value={val('contact')} onChange={set('contact')} placeholder="Phone" />
+                          <Input type="email" value={val('contact_person_email')} onChange={set('contact_person_email')} placeholder="Email" />
                         </div>
-                      </CardHeader>
-                      <CardContent style={{ padding: '0 20px 20px' }}>
-                        <div className="space-y-3">
-                          <Input value={formData.address1 || ''} onChange={e => setFormData({ ...formData, address1: (e.target as HTMLInputElement).value })} placeholder="Address Line 1" />
-                          <Input value={formData.address2 || ''} onChange={e => setFormData({ ...formData, address2: (e.target as HTMLInputElement).value })} placeholder="Address Line 2" />
-                          <div className="grid grid-cols-3 gap-2">
-                            <select className={cn(selectCn, 'text-xs')} value={formData.state || ''} onChange={e => setFormData({ ...formData, state: e.target.value })}>
-                              <option value="">State</option>
+                      </div>
+                      <Separator />
+                      <div>
+                        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Secondary Contact</p>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                          <Input value={val('contact_person_2')} onChange={set('contact_person_2')} placeholder="Full name" />
+                          <Input value={val('contact_designation_2')} onChange={set('contact_designation_2')} placeholder="Designation" />
+                          <Input value={val('contact_person_2_contact')} onChange={set('contact_person_2_contact')} placeholder="Phone" />
+                          <Input type="email" value={val('contact_person_2_email')} onChange={set('contact_person_2_email')} placeholder="Email" />
+                        </div>
+                      </div>
+                      <Separator />
+                      <div>
+                        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Purchase Contact</p>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                          <Input value={val('purchase_person')} onChange={set('purchase_person')} placeholder="Full name" />
+                          <Input value={val('purchase_designation')} onChange={set('purchase_designation')} placeholder="Designation" />
+                          <Input value={val('purchase_contact')} onChange={set('purchase_contact')} placeholder="Phone" />
+                          <Input type="email" value={val('purchase_email')} onChange={set('purchase_email')} placeholder="Email" />
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Addresses */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+                  {/* Billing */}
+                  <Card>
+                    <CardHeader>
+                      <SectionHeading icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>}>
+                        Billing Address
+                      </SectionHeading>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        <Input value={val('address1')} onChange={set('address1')} placeholder="Address Line 1" />
+                        <Input value={val('address2')} onChange={set('address2')} placeholder="Address Line 2" />
+                        <div className="grid grid-cols-3 gap-3">
+                          <FieldGroup label="State">
+                            <select className={cn(selectCn, 'text-xs')} value={val('state')} onChange={e => setFormData({ ...formData, state: e.target.value })}>
+                              <option value="">Select</option>
                               {indianStates.map(state => (<option key={state} value={state}>{state}</option>))}
                             </select>
-                            <Input value={formData.city || ''} onChange={e => setFormData({ ...formData, city: (e.target as HTMLInputElement).value })} placeholder="City" style={{ fontSize: '13px' }} />
-                            <Input value={formData.pincode || ''} onChange={e => setFormData({ ...formData, pincode: (e.target as HTMLInputElement).value })} placeholder="Pincode" style={{ fontSize: '13px' }} />
-                          </div>
+                          </FieldGroup>
+                          <FieldGroup label="City">
+                            <Input value={val('city')} onChange={set('city')} placeholder="City" />
+                          </FieldGroup>
+                          <FieldGroup label="Pincode">
+                            <Input value={val('pincode')} onChange={set('pincode')} placeholder="Pincode" />
+                          </FieldGroup>
                         </div>
-                      </CardContent>
-                    </Card>
-
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-center">
-                        <div className="flex items-center gap-2">
-                          <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>
-                          <span className="text-sm font-semibold text-slate-700">Shipping Addresses</span>
-                        </div>
-                        <Button variant="ghost" size="sm" onClick={copyBillingToShipping}>
-                          Copy Billing
-                        </Button>
                       </div>
+                    </CardContent>
+                  </Card>
 
-                      {shippingAddresses.map((addr: any) => (
-                        <Card key={addr.id} hover>
-                          <CardContent style={{ padding: '12px 16px' }}>
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <div className="text-sm font-semibold text-slate-800">
-                                  {addr.address_name || 'Address'}
-                                  {addr.is_default && <span className="ml-2"><Badge variant="default" size="sm">Default</Badge></span>}
-                                </div>
-                                <div className="text-xs text-slate-500 mt-1">{addr.address_line1} {addr.address_line2}</div>
-                                <div className="text-xs text-slate-500">{addr.city}, {addr.state} - {addr.pincode}</div>
+                  {/* Shipping */}
+                  <Card>
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <SectionHeading icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>}>
+                          Shipping Addresses
+                        </SectionHeading>
+                        <Button variant="ghost" size="sm" onClick={copyBillingToShipping}>Copy Billing</Button>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {shippingAddresses.map((addr: any) => (
+                          <div key={addr.id} className="flex items-start justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3.5 transition-shadow hover:shadow-sm">
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+                                <span className="truncate">{addr.address_name || 'Address'}</span>
+                                {addr.is_default && <Badge variant="default" size="sm">Default</Badge>}
                               </div>
-                              <Button variant="ghost" size="sm" onClick={() => deleteShippingAddress(addr.id)} style={{ color: '#94a3b8' }}>
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                              </Button>
+                              <p className="mt-1 text-xs text-slate-500 leading-relaxed">{addr.address_line1} {addr.address_line2}</p>
+                              <p className="text-xs text-slate-500">{addr.city}, {addr.state} - {addr.pincode}</p>
                             </div>
-                          </CardContent>
-                        </Card>
-                      ))}
+                            <button type="button" onClick={() => deleteShippingAddress(addr.id)} className="shrink-0 rounded-md p-1.5 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                          </div>
+                        ))}
 
-                      {showShippingForm && (
-                        <Card className="border-indigo-200 bg-indigo-50/40">
-                          <CardHeader style={{ padding: '12px 16px 8px' }}>
-                            <div className="flex items-center gap-2">
-                              <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
-                              <CardTitle style={{ fontSize: '13px', color: '#4338ca' }}>Add Shipping Address</CardTitle>
+                        {showShippingForm && (
+                          <div className="rounded-lg border border-indigo-200 bg-indigo-50/50 p-4 space-y-3">
+                            <p className="text-xs font-semibold text-indigo-700 uppercase tracking-wider">New Shipping Address</p>
+                            <div className="grid grid-cols-2 gap-3">
+                              <Input value={newShipping.address_name} onChange={e => setNewShipping({ ...newShipping, address_name: (e.target as HTMLInputElement).value })} placeholder="Address Name" />
+                              <Input value={newShipping.contact} onChange={e => setNewShipping({ ...newShipping, contact: (e.target as HTMLInputElement).value })} placeholder="Contact" />
                             </div>
-                          </CardHeader>
-                          <CardContent style={{ padding: '0 16px 16px' }}>
-                            <div className="space-y-2">
-                              <div className="grid grid-cols-2 gap-2">
-                                <Input value={newShipping.address_name} onChange={e => setNewShipping({ ...newShipping, address_name: (e.target as HTMLInputElement).value })} placeholder="Address Name" />
-                                <Input value={newShipping.contact} onChange={e => setNewShipping({ ...newShipping, contact: (e.target as HTMLInputElement).value })} placeholder="Contact" />
-                              </div>
-                              <Input value={newShipping.address_line1} onChange={e => setNewShipping({ ...newShipping, address_line1: (e.target as HTMLInputElement).value })} placeholder="Address Line 1" />
-                              <Input value={newShipping.address_line2} onChange={e => setNewShipping({ ...newShipping, address_line2: (e.target as HTMLInputElement).value })} placeholder="Address Line 2" />
-                              <div className="grid grid-cols-3 gap-2">
-                                <select className={cn(selectCn, 'text-xs')} value={newShipping.state} onChange={e => setNewShipping({ ...newShipping, state: e.target.value })}>
-                                  <option value="">State</option>
-                                  {indianStates.map(state => (<option key={state} value={state}>{state}</option>))}
-                                </select>
-                                <Input value={newShipping.city} onChange={e => setNewShipping({ ...newShipping, city: (e.target as HTMLInputElement).value })} placeholder="City" style={{ fontSize: '13px' }} />
-                                <Input value={newShipping.pincode} onChange={e => setNewShipping({ ...newShipping, pincode: (e.target as HTMLInputElement).value })} placeholder="Pincode" style={{ fontSize: '13px' }} />
-                              </div>
-                              <div className="flex gap-2 pt-1">
-                                <Button variant="primary" size="sm" onClick={addShippingAddress}>Save</Button>
-                                <Button variant="secondary" size="sm" onClick={() => setShowShippingForm(false)}>Cancel</Button>
-                              </div>
+                            <Input value={newShipping.address_line1} onChange={e => setNewShipping({ ...newShipping, address_line1: (e.target as HTMLInputElement).value })} placeholder="Address Line 1" />
+                            <Input value={newShipping.address_line2} onChange={e => setNewShipping({ ...newShipping, address_line2: (e.target as HTMLInputElement).value })} placeholder="Address Line 2" />
+                            <div className="grid grid-cols-3 gap-3">
+                              <select className={cn(selectCn, 'text-xs')} value={newShipping.state} onChange={e => setNewShipping({ ...newShipping, state: e.target.value })}>
+                                <option value="">State</option>
+                                {indianStates.map(state => (<option key={state} value={state}>{state}</option>))}
+                              </select>
+                              <Input value={newShipping.city} onChange={e => setNewShipping({ ...newShipping, city: (e.target as HTMLInputElement).value })} placeholder="City" />
+                              <Input value={newShipping.pincode} onChange={e => setNewShipping({ ...newShipping, pincode: (e.target as HTMLInputElement).value })} placeholder="Pincode" />
                             </div>
-                          </CardContent>
-                        </Card>
-                      )}
+                            <div className="flex gap-2 pt-1">
+                              <Button variant="primary" size="sm" onClick={addShippingAddress}>Save Address</Button>
+                              <Button variant="secondary" size="sm" onClick={() => setShowShippingForm(false)}>Cancel</Button>
+                            </div>
+                          </div>
+                        )}
 
-                      {!showShippingForm && shippingAddresses.length === 0 && (
-                        <button
-                          type="button"
-                          className="w-full rounded-lg border-2 border-dashed border-slate-300 py-4 text-sm text-slate-500 transition hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50/50"
-                          onClick={() => setShowShippingForm(true)}
-                        >
-                          <span className="flex items-center justify-center gap-2">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
-                            Add Shipping Address
-                          </span>
-                        </button>
-                      )}
+                        {!showShippingForm && shippingAddresses.length === 0 && (
+                          <button
+                            type="button"
+                            className="w-full rounded-lg border-2 border-dashed border-slate-200 py-5 text-sm text-slate-400 transition-colors hover:border-indigo-300 hover:text-indigo-500 hover:bg-indigo-50/30"
+                            onClick={() => setShowShippingForm(true)}
+                          >
+                            <span className="flex items-center justify-center gap-2">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
+                              Add Shipping Address
+                            </span>
+                          </button>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Notes */}
+                <Card>
+                  <CardHeader>
+                    <SectionHeading icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>}>
+                      Notes
+                    </SectionHeading>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <FieldGroup label="Remarks">
+                        <Textarea rows={3} value={val('remarks')} onChange={e => setFormData({ ...formData, remarks: e.target.value })} placeholder="Internal remarks..." />
+                      </FieldGroup>
+                      <FieldGroup label="About Client">
+                        <Textarea rows={3} value={val('about_client')} onChange={e => setFormData({ ...formData, about_client: e.target.value })} placeholder="Additional information..." />
+                      </FieldGroup>
                     </div>
-                  </div>
+                  </CardContent>
+                </Card>
 
-                  <Separator />
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <div className="space-y-2">
-                      <Label>Remarks</Label>
-                      <Textarea rows={3} value={formData.remarks || ''} onChange={e => setFormData({ ...formData, remarks: e.target.value })} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>About Client</Label>
-                      <Textarea rows={3} value={formData.about_client || ''} onChange={e => setFormData({ ...formData, about_client: e.target.value })} placeholder="Additional information..." />
-                    </div>
-                  </div>
-
-                  <Separator />
-
+                {/* Footer actions */}
+                <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-6 py-4">
+                  <p className="text-sm text-slate-400">{isDirty ? 'Unsaved changes' : 'No changes'}</p>
                   <div className="flex flex-wrap gap-3">
-                    <Button variant="primary" type="submit" disabled={saving}>
-                      {editMode ? 'Update Client' : 'Submit'}
-                    </Button>
+                    <Button variant="secondary" type="button" onClick={onCancel} disabled={saving}>Cancel</Button>
                     {editMode && (
-                      <Button variant="danger" type="button" onClick={deleteClient} disabled={saving}>
-                        Delete
-                      </Button>
+                      <Button variant="danger" type="button" onClick={deleteClient} disabled={saving}>Delete</Button>
                     )}
-                    <Button variant="secondary" type="button" onClick={onCancel} disabled={saving}>
-                      Cancel
+                    <Button variant="primary" type="submit" disabled={saving}>
+                      {saving ? 'Saving...' : editMode ? 'Update Client' : 'Create Client'}
                     </Button>
                   </div>
-                </form>
-              </CardContent>
-            </Card>
+                </div>
+              </div>
+            </form>
           </TabsContent>
 
+          {/* ─── PRICING TAB ─── */}
           <TabsContent value="pricing">
-            <div className="space-y-5">
+            <div className="space-y-6">
               <ClientDiscountPortfolio formData={formData} setFormData={setFormData} isAdmin={isAdmin} />
-              <Separator />
-              <div className="flex gap-3">
-                <Button variant="primary" onClick={() => handleSubmit()}>
-                  {editMode ? 'Update Pricing' : 'Submit'}
-                </Button>
-                <Button variant="secondary" onClick={onCancel}>
-                  Cancel
-                </Button>
+              <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-6 py-4">
+                <p className="text-sm text-slate-400">Pricing configuration</p>
+                <div className="flex gap-3">
+                  <Button variant="secondary" onClick={onCancel}>Cancel</Button>
+                  <Button variant="primary" onClick={() => handleSubmit()}>
+                    {editMode ? 'Update Pricing' : 'Submit'}
+                  </Button>
+                </div>
               </div>
             </div>
           </TabsContent>
         </Tabs>
+
       </div>
     </div>
   );
