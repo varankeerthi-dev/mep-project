@@ -1,67 +1,51 @@
-import React, { useState, useMemo, useEffect } from 'react';
+'use client';
+
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useForm, useFieldArray } from 'react-hook-form';
+import { useForm, useFieldArray, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
+import { z } from 'zod';
 import { supabase } from '../supabase';
-import { 
-  Plus, 
-  MapPin, 
-  Calendar as CalendarIcon, 
-  CheckCircle2, 
-  Clock, 
-  XCircle, 
-  ChevronLeft, 
-  ChevronRight,
-  LayoutDashboard,
-  CalendarDays,
-  Search,
-  Camera,
-  FileText,
-  AlertCircle,
-  Settings2,
-  Filter,
-  Trash2,
-  Pencil,
-  ArrowLeft,
-  ArrowRight,
-  Check,
-  Save,
-  Upload,
-  HardHat,
-  Users,
-  Wrench,
-  ClipboardCheck,
-  Construction,
-  ChevronRight as ChevronRightIcon
-} from 'lucide-react';
-import { 
-  Box, 
-  Paper, 
-  Typography, 
-  Button as MuiButton, 
-  TextField, 
-  Chip, 
-  IconButton, 
-  Tooltip 
-} from '@mui/material';
-import MapIcon from '@mui/icons-material/Map';
-import AddIcon from '@mui/icons-material/Add';
+import {
+  DndContext,
+  DragOverlay,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragStartEvent,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import {
+  useReactTable,
+  getCoreRowModel,
+  getFilteredRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
+  flexRender,
+  createColumnHelper,
+  type SortingState,
+  type ColumnDef,
+} from '@tanstack/react-table';
+import { format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, startOfWeek, endOfWeek, addMonths, subMonths, isSameMonth, isSameDay, isToday } from 'date-fns';
 import { toast } from 'sonner';
-import { 
-  format, 
-  startOfMonth, 
-  endOfMonth, 
-  startOfWeek, 
-  endOfWeek, 
-  eachDayOfInterval, 
-  isSameMonth, 
-  isSameDay, 
-  addMonths, 
-  subMonths,
-  parseISO,
-  isToday
-} from 'date-fns';
+import {
+  MapPin, Calendar as CalendarIcon, Clock, XCircle, ChevronLeft,
+  ChevronRight, LayoutDashboard, CalendarDays, Search, Camera, FileText,
+  AlertCircle, Trash2, Pencil, ArrowLeft, ArrowRight, Check, Save,
+  Upload, HardHat, Users, Wrench, ClipboardCheck, Construction,
+  Plus, GripVertical, Eye, Edit2, MoreHorizontal, Filter, List,
+  ChevronDown, ArrowUpDown, ArrowUp, ArrowDown, X, CheckCircle2
+} from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -70,53 +54,50 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const siteReportSchema = z.object({
-  client: z.string().min(1, "Client name is required"),
-  projectName: z.string().min(1, "Project name is required"),
+  client: z.string().min(1, "Client is required"),
+  projectName: z.string().min(1, "Project is required"),
   date: z.string().min(1, "Date is required"),
-  
   manpower: z.object({
-    total: z.string().min(1, "Total manpower is required"),
-    skilled: z.string().min(1, "Skilled manpower is required"),
-    unskilled: z.string().min(1, "Unskilled manpower is required"),
-    startTime: z.string().min(1, "Start time is required"),
-    endTime: z.string().min(1, "End time is required"),
+    total: z.string().min(1, "Required"),
+    skilled: z.string(),
+    unskilled: z.string(),
+    startTime: z.string(),
+    endTime: z.string(),
     subContractors: z.array(z.object({
+      id: z.string(),
       name: z.string(),
       count: z.string(),
       start: z.string(),
       end: z.string()
     }))
   }),
-  
-  workCarriedOut: z.array(z.object({ value: z.string().min(1, "Work description is required") })).min(1, "At least one work item is required"),
-  milestonesCompleted: z.array(z.object({ value: z.string() })),
-  
+  workCarriedOut: z.array(z.object({ id: z.string(), value: z.string() })),
+  milestonesCompleted: z.array(z.object({ id: z.string(), value: z.string() })),
   progress: z.object({
-    planned: z.string().min(1, "Planned progress is required"),
-    actual: z.string().min(1, "Actual progress is required"),
-    percentComplete: z.string().min(1, "Percent complete is required")
+    planned: z.string(),
+    actual: z.string(),
+    percentComplete: z.string()
   }),
-  
   equipment: z.object({
     onSite: z.string(),
     breakdown: z.string()
   }),
-  
   safety: z.object({
     toolboxMeeting: z.boolean(),
     ppe: z.boolean()
   }),
-  
   quality: z.object({
     inspection: z.enum(['Yes', 'Pending', 'Not Required']),
-    satisfiedPercent: z.string().min(1, "Satisfied percentage is required"),
+    satisfiedPercent: z.string(),
     reworkRequiredReason: z.string()
   }),
-  
   rework: z.object({
     isRework: z.boolean(),
     reason: z.string(),
@@ -125,1429 +106,1025 @@ const siteReportSchema = z.object({
     materialUsed: z.string(),
     totalManpower: z.string()
   }),
-  
   documents: z.object({
     type: z.enum(['INVOICE', 'DC']),
     docNo: z.string(),
     receivedSignature: z.enum(['Yes', 'Pending'])
   }),
-  
   clientRequirements: z.object({
-    details: z.array(z.object({ value: z.string() })),
+    details: z.array(z.object({ id: z.string(), value: z.string() })),
     quoteToBeSent: z.boolean(),
     mailReceived: z.boolean()
   }),
-  
   reporting: z.object({
     pmStatus: z.enum(['Reported', 'Pending']),
     materialArrangement: z.enum(['Arranged', 'Pending', 'Not Required', 'Informed to stores'])
   }),
-  
-  workPlanNextDay: z.array(z.object({ value: z.string().min(1, "Next day plan is required") })).min(1, "At least one plan item is required"),
-  specialInstructions: z.array(z.object({ value: z.string() })),
-  
+  workPlanNextDay: z.array(z.object({ id: z.string(), value: z.string() })),
+  specialInstructions: z.array(z.object({ id: z.string(), value: z.string() })),
   issues: z.array(z.object({
+    id: z.string(),
     issue: z.string(),
     solution: z.string()
   })),
-  
   documentation: z.object({
     filed: z.boolean(),
     toolsLocked: z.boolean(),
     sitePictures: z.enum(['Taken', 'Not Allowed'])
   }),
-  
   footer: z.object({
-    engineer: z.string().min(1, "Engineer name is required"),
-    signatureDate: z.string().min(1, "Signature date is required")
+    engineer: z.string(),
+    signatureDate: z.string()
   })
 });
 
 type SiteReportFormValues = z.infer<typeof siteReportSchema>;
 
+const generateId = () => Math.random().toString(36).substr(2, 9);
+
+const defaultFormValues: SiteReportFormValues = {
+  client: '',
+  projectName: '',
+  date: format(new Date(), 'yyyy-MM-dd'),
+  manpower: {
+    total: '', skilled: '', unskilled: '', startTime: '', endTime: '',
+    subContractors: []
+  },
+  workCarriedOut: [{ id: generateId(), value: '' }],
+  milestonesCompleted: [{ id: generateId(), value: '' }],
+  progress: { planned: '', actual: '', percentComplete: '' },
+  equipment: { onSite: '', breakdown: '' },
+  safety: { toolboxMeeting: false, ppe: false },
+  quality: { inspection: 'Pending', satisfiedPercent: '', reworkRequiredReason: '' },
+  rework: { isRework: false, reason: '', start: '', end: '', materialUsed: '', totalManpower: '' },
+  documents: { type: 'DC', docNo: '', receivedSignature: 'Pending' },
+  clientRequirements: { details: [{ id: generateId(), value: '' }], quoteToBeSent: false, mailReceived: false },
+  reporting: { pmStatus: 'Pending', materialArrangement: 'Pending' },
+  workPlanNextDay: [{ id: generateId(), value: '' }],
+  specialInstructions: [{ id: generateId(), value: '' }],
+  issues: [{ id: generateId(), issue: '', solution: '' }],
+  documentation: { filed: false, toolsLocked: false, sitePictures: 'Taken' },
+  footer: { engineer: '', signatureDate: '' }
+};
+
+const statusOptions = ['all', 'pending', 'scheduled', 'completed', 'postponed', 'cancelled'];
+
+function SortableVisitItem({ visit, onEdit, onDelete }: { visit: any; onEdit: () => void; onDelete: () => void }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: visit.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  const statusColors: Record<string, string> = {
+    pending: 'bg-amber-100 text-amber-800 border-amber-200',
+    scheduled: 'bg-blue-100 text-blue-800 border-blue-200',
+    completed: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+    postponed: 'bg-gray-100 text-gray-800 border-gray-200',
+    cancelled: 'bg-red-100 text-red-800 border-red-200',
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className="flex items-center gap-3 bg-white border border-slate-200 rounded-lg p-3 hover:border-slate-300 transition-colors group">
+      <button {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing p-1 text-slate-400 hover:text-slate-600">
+        <GripVertical className="w-4 h-4" />
+      </button>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <h4 className="font-medium text-slate-900 truncate">{visit.clients?.client_name || 'Unknown Client'}</h4>
+          <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${statusColors[visit.status]}`}>
+            {visit.status}
+          </Badge>
+        </div>
+        <div className="flex items-center gap-3 mt-1 text-xs text-slate-500">
+          <span className="flex items-center gap-1">
+            <CalendarIcon className="w-3 h-3" />
+            {format(parseISO(visit.visit_date), 'MMM dd')}
+          </span>
+          {visit.visited_by && (
+            <span className="flex items-center gap-1">
+              <Users className="w-3 h-3" />
+              {visit.visited_by}
+            </span>
+          )}
+          {visit.purpose && <span>• {visit.purpose}</span>}
+        </div>
+      </div>
+      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onEdit}>
+          <Edit2 className="w-4 h-4" />
+        </Button>
+        <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50" onClick={onDelete}>
+          <Trash2 className="w-4 h-4" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function VisitCard({ visit, onEdit, onDelete }: { visit: any; onEdit: () => void; onDelete: () => void }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: visit.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  const statusColors: Record<string, string> = {
+    pending: 'bg-amber-100 text-amber-800 border-amber-200',
+    scheduled: 'bg-blue-100 text-blue-800 border-blue-200',
+    completed: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+    postponed: 'bg-gray-100 text-gray-800 border-gray-200',
+    cancelled: 'bg-red-100 text-red-800 border-red-200',
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className="flex items-center gap-3 bg-white border border-slate-200 rounded-lg p-3 hover:border-slate-300 transition-colors group">
+      <button {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing p-1 text-slate-400 hover:text-slate-600">
+        <GripVertical className="w-4 h-4" />
+      </button>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <h4 className="font-medium text-slate-900 truncate">{visit.clients?.client_name || 'Unknown Client'}</h4>
+          <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${statusColors[visit.status]}`}>
+            {visit.status}
+          </Badge>
+        </div>
+        <div className="flex items-center gap-3 mt-1 text-xs text-slate-500">
+          <span className="flex items-center gap-1">
+            <CalendarIcon className="w-3 h-3" />
+            {format(parseISO(visit.visit_date), 'MMM dd')}
+          </span>
+          {visit.visited_by && (
+            <span className="flex items-center gap-1">
+              <Users className="w-3 h-3" />
+              {visit.visited_by}
+            </span>
+          )}
+          {visit.purpose && <span>• {visit.purpose}</span>}
+        </div>
+      </div>
+      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onEdit}>
+          <Edit2 className="w-4 h-4" />
+        </Button>
+        <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50" onClick={onDelete}>
+          <Trash2 className="w-4 h-4" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export function SiteVisits() {
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const queryClient = useQueryClient();
+  const [activeView, setActiveView] = useState<'list' | 'calendar'>('list');
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [isAddClientModalOpen, setIsAddClientModalOpen] = useState(false);
-  const [isAddPurposeModalOpen, setIsAddPurposeModalOpen] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [selectedVisit, setSelectedVisit] = useState<any | null>(null);
-  const [visitToDelete, setVisitToDelete] = useState<any | null>(null);
-  
-  // Multi-step form state
-  const [currentStep, setCurrentStep] = useState(1);
-  const [formData, setFormData] = useState({
-    client_id: '',
-    visit_date: format(new Date(), 'yyyy-MM-dd'),
-    purpose: '',
-    visited_by: '',
-    engineer: '',
-    in_time: '',
-    out_time: '',
-    site_address: '',
-    location_url: '',
-    discussion: '',
-    measurements: '',
-    status: 'pending',
-    next_step: ''
-  });
-  
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [selectedVisit, setSelectedVisit] = useState<any>(null);
+  const [visitToDelete, setVisitToDelete] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  
-  const defaultColumns = { date: true, client: true, visitedBy: true, status: true, nextStep: true, actions: true };
-  const [visibleColumns, setVisibleColumns] = useState<Record<string, boolean>>(() => {
-    try {
-      const saved = localStorage.getItem('siteVisitColumns');
-      return saved ? JSON.parse(saved) : defaultColumns;
-    } catch {
-      return defaultColumns;
-    }
-  });
+  const [sorting, setSorting] = useState<SortingState>([{ id: 'visit_date', desc: true }]);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [currentMonth, setCurrentMonth] = useState(new Date());
 
-  useEffect(() => {
-    localStorage.setItem('siteVisitColumns', JSON.stringify(visibleColumns));
-  }, [visibleColumns]);
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
 
-  const queryClient = useQueryClient();
-
-  const { data: visits, isLoading: isLoadingVisits } = useQuery({
+  const { data: visits = [], isLoading: visitsLoading, isFetching } = useQuery({
     queryKey: ['site-visits'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('site_visits')
-        .select(`
-          *,
-          clients (client_name)
-        `)
+        .select('*, clients(client_name)')
         .order('visit_date', { ascending: false });
-      
       if (error) throw error;
       return data;
     },
+    staleTime: 1000 * 60 * 5,
+    refetchOnWindowFocus: false,
   });
 
-  const { data: clients } = useQuery({
+  const { data: clients = [] } = useQuery({
     queryKey: ['clients'],
     queryFn: async () => {
-      const { data, error } = await supabase.from('clients').select('id, client_name');
+      const { data, error } = await supabase.from('clients').select('id, client_name').order('client_name');
       if (error) throw error;
       return data;
     },
+    staleTime: 1000 * 60 * 30,
   });
 
-  const { data: purposes } = useQuery({
-    queryKey: ['visit-purposes'],
-    queryFn: async () => {
-      const { data, error } = await supabase.from('visit_purposes').select('id, name').order('name');
-      if (error) {
-        return [
-          { id: '1', name: 'Measurement' },
-          { id: '2', name: 'Complaint' },
-          { id: '3', name: 'Friendly Call' },
-          { id: '4', name: 'Bill Submission' },
-          { id: '5', name: 'Meeting' }
-        ];
+  const form = useForm<SiteReportFormValues>({
+    resolver: zodResolver(siteReportSchema),
+    defaultValues: defaultFormValues,
+  });
+
+  const { fields: workFields, append: appendWork, remove: removeWork } = useFieldArray({
+    control: form.control,
+    name: 'workCarriedOut',
+  });
+
+  const { fields: milestoneFields, append: appendMilestone, remove: removeMilestone } = useFieldArray({
+    control: form.control,
+    name: 'milestonesCompleted',
+  });
+
+  const { fields: subContractorFields, append: appendSubContractor, remove: removeSubContractor } = useFieldArray({
+    control: form.control,
+    name: 'manpower.subContractors',
+  });
+
+  const { fields: planFields, append: appendPlan, remove: removePlan } = useFieldArray({
+    control: form.control,
+    name: 'workPlanNextDay',
+  });
+
+  const { fields: instructionFields, append: appendInstruction, remove: removeInstruction } = useFieldArray({
+    control: form.control,
+    name: 'specialInstructions',
+  });
+
+  const { fields: issueFields, append: appendIssue, remove: removeIssue } = useFieldArray({
+    control: form.control,
+    name: 'issues',
+  });
+
+  const { fields: clientReqFields, append: appendClientReq, remove: removeClientReq } = useFieldArray({
+    control: form.control,
+    name: 'clientRequirements.details',
+  });
+
+  const saveMutation = useMutation({
+    mutationFn: async (values: SiteReportFormValues) => {
+      if (selectedVisit) {
+        const { error } = await supabase
+          .from('site_visits')
+          .update({
+            client_id: values.client,
+            visit_date: values.date,
+            purpose: values.workCarriedOut.map(w => w.value).filter(Boolean).join(', '),
+            visited_by: values.footer.engineer,
+            engineer: values.footer.engineer,
+            status: 'completed',
+          })
+          .eq('id', selectedVisit.id);
+        if (error) throw error;
+        return selectedVisit;
+      } else {
+        const { data, error } = await supabase
+          .from('site_visits')
+          .insert([{
+            client_id: values.client,
+            visit_date: values.date,
+            purpose: values.workCarriedOut.map(w => w.value).filter(Boolean).join(', '),
+            visited_by: values.footer.engineer,
+            engineer: values.footer.engineer,
+            status: 'pending',
+          }])
+          .select()
+          .single();
+        if (error) throw error;
+        return data;
       }
-      return data;
-    },
-  });
-
-  const addVisitMutation = useMutation({
-    mutationFn: async (newVisit: any) => {
-      const { data, error } = await supabase
-        .from('site_visits')
-        .insert([newVisit])
-        .select();
-      
-      if (error) throw error;
-      return data[0];
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['site-visits'] });
-      setIsFormOpen(false);
-      resetForm();
-      toast.success('Site visit saved successfully');
+      toast.success(selectedVisit ? 'Report updated successfully' : 'Report created successfully');
+      closeForm();
     },
-    onError: (error: any) => {
-      toast.error(`Error saving visit: ${error.message}`);
-    },
-  });
-
-  const updateVisitMutation = useMutation({
-    mutationFn: async (updatedVisit: any) => {
-      const { id, ...updateData } = updatedVisit;
-      const { data, error } = await supabase
-        .from('site_visits')
-        .update(updateData)
-        .eq('id', id)
-        .select();
-      
-      if (error) throw error;
-      return data[0];
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['site-visits'] });
-      setIsFormOpen(false);
-      setSelectedVisit(null);
-      resetForm();
-      toast.success('Site visit updated successfully');
-    },
-    onError: (error: any) => {
-      toast.error(`Error updating visit: ${error.message}`);
+    onError: (error) => {
+      toast.error(`Error: ${error.message}`);
     },
   });
 
-  const deleteVisitMutation = useMutation({
+  const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from('site_visits').delete().eq('id', id);
       if (error) throw error;
-      return id;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['site-visits'] });
+      toast.success('Visit deleted successfully');
+      setIsDeleteOpen(false);
       setVisitToDelete(null);
-      toast.success('Site visit deleted successfully');
     },
-    onError: (error: any) => {
-      toast.error(`Error deleting visit: ${error.message}`);
-    },
-  });
-
-  const addClientMutation = useMutation({
-    mutationFn: async (newClient: any) => {
-      const { data, error } = await supabase
-        .from('clients')
-        .insert([newClient])
-        .select();
-      
-      if (error) throw error;
-      return data[0];
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['clients'] });
-      setIsAddClientModalOpen(false);
-      toast.success('Client added successfully');
-    },
-    onError: (error: any) => {
-      toast.error(`Error adding client: ${error.message}`);
+    onError: (error) => {
+      toast.error(`Error: ${error.message}`);
     },
   });
-
-  const addPurposeMutation = useMutation({
-    mutationFn: async (newPurpose: any) => {
-      const { data, error } = await supabase
-        .from('visit_purposes')
-        .insert([newPurpose])
-        .select();
-      
-      if (error) throw error;
-      return data[0];
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['visit-purposes'] });
-      setIsAddPurposeModalOpen(false);
-      toast.success('Purpose added successfully');
-    },
-    onError: (error: any) => {
-      toast.error(`Error adding purpose: ${error.message}`);
-    },
-  });
-
-  const resetForm = () => {
-    setCurrentStep(1);
-    setFormData({
-      client_id: '',
-      visit_date: format(new Date(), 'yyyy-MM-dd'),
-      purpose: '',
-      visited_by: '',
-      engineer: '',
-      in_time: '',
-      out_time: '',
-      site_address: '',
-      location_url: '',
-      discussion: '',
-      measurements: '',
-      status: 'pending',
-      next_step: ''
-    });
-  };
-
-  const openFormForEdit = (visit: any) => {
-    setSelectedVisit(visit);
-    setFormData({
-      client_id: visit.client_id || '',
-      visit_date: visit.visit_date || format(new Date(), 'yyyy-MM-dd'),
-      purpose: visit.purpose || '',
-      visited_by: visit.visited_by || '',
-      engineer: visit.engineer || '',
-      in_time: visit.in_time || '',
-      out_time: visit.out_time || '',
-      site_address: visit.site_address || '',
-      location_url: visit.location_url || '',
-      discussion: visit.discussion || '',
-      measurements: visit.measurements || '',
-      status: visit.status || 'pending',
-      next_step: visit.next_step || ''
-    });
-    setCurrentStep(1);
-    setIsFormOpen(true);
-  };
-
-  const handleFormSubmit = async () => {
-    if (selectedVisit) {
-      updateVisitMutation.mutate({ id: selectedVisit.id, ...formData });
-    } else {
-      addVisitMutation.mutate(formData);
-    }
-  };
-
-  const handleAddClient = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const form = e.currentTarget;
-    const formData = new FormData(form);
-    
-    addClientMutation.mutate({
-      client_name: formData.get('client_name'),
-      contact_person: formData.get('contact_person'),
-      phone: formData.get('phone'),
-      email: formData.get('email'),
-    });
-  };
-
-  const handleAddPurpose = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const form = e.currentTarget;
-    const formData = new FormData(form);
-    
-    addPurposeMutation.mutate({
-      name: formData.get('name'),
-    });
-  };
 
   const filteredVisits = useMemo(() => {
-    if (!visits) return [];
-    
     return visits.filter((visit: any) => {
-      const matchesSearch = searchQuery === '' || 
+      const matchesSearch = !searchQuery ||
         visit.clients?.client_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         visit.engineer?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        visit.visited_by?.toLowerCase().includes(searchQuery.toLowerCase());
-      
+        visit.visited_by?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        visit.purpose?.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesStatus = statusFilter === 'all' || visit.status === statusFilter;
-      
       return matchesSearch && matchesStatus;
     });
   }, [visits, searchQuery, statusFilter]);
 
-  const statusColors: Record<string, string> = {
-    pending: 'bg-amber-50 text-amber-700 border border-amber-200',
-    scheduled: 'bg-blue-50 text-blue-700 border border-blue-200',
-    completed: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
-    postponed: 'bg-gray-50 text-gray-700 border border-gray-200',
-    cancelled: 'bg-red-50 text-red-700 border border-red-200',
+  const calendarDays = useMemo(() => {
+    const start = startOfWeek(startOfMonth(currentMonth));
+    const end = endOfWeek(endOfMonth(currentMonth));
+    return eachDayOfInterval({ start, end });
+  }, [currentMonth]);
+
+  const getVisitsForDay = useCallback((day: Date) => {
+    return filteredVisits.filter((visit: any) =>
+      isSameDay(parseISO(visit.visit_date), day)
+    );
+  }, [filteredVisits]);
+
+  const openForm = (visit?: any) => {
+    if (visit) {
+      setSelectedVisit(visit);
+      form.reset({
+        client: visit.client_id || '',
+        projectName: visit.project_id || '',
+        date: visit.visit_date || format(new Date(), 'yyyy-MM-dd'),
+        ...defaultFormValues,
+        footer: {
+          engineer: visit.engineer || '',
+          signatureDate: visit.signature_date || '',
+        },
+      });
+    } else {
+      setSelectedVisit(null);
+      form.reset(defaultFormValues);
+    }
+    setIsFormOpen(true);
   };
 
-  const steps = [
-    { number: 1, title: 'Basic info', icon: FileText },
-    { number: 2, title: 'Visit details', icon: Clock },
-    { number: 3, title: 'Location', icon: MapPin },
-    { number: 4, title: 'Notes', icon: Pencil },
-    { number: 5, title: 'Review', icon: CheckCircle2 }
-  ];
+  const closeForm = () => {
+    setIsFormOpen(false);
+    setSelectedVisit(null);
+    form.reset(defaultFormValues);
+  };
 
-  const canProceedToNextStep = () => {
-    switch (currentStep) {
-      case 1:
-        return formData.client_id && formData.visit_date && formData.purpose;
-      case 2:
-      case 3:
-      case 4:
-        return true;
-      default:
-        return true;
+  const confirmDelete = (visit: any) => {
+    setVisitToDelete(visit);
+    setIsDeleteOpen(true);
+  };
+
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveId(null);
+    if (over && active.id !== over.id) {
+      const oldIndex = filteredVisits.findIndex((v: any) => v.id === active.id);
+      const newIndex = filteredVisits.findIndex((v: any) => v.id === over.id);
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const newOrder = arrayMove([...filteredVisits], oldIndex, newIndex);
+        queryClient.setQueryData(['site-visits'], newOrder);
+      }
     }
   };
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <Paper elevation={1} sx={{ borderBottom: 1, borderColor: 'divider' }}>
-        <Box sx={{ maxWidth: '1280px', mx: 'auto', px: { xs: 2, sm: 3, lg: 4 } }}>
-          {/* Title Row */}
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', py: 2, gap: 2 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <MapIcon color="primary" sx={{ fontSize: 28 }} />
-              <Box>
-                <Typography variant="h6" sx={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: '16px' }}>
-                  Site Visits
-                </Typography>
-                <Typography variant="body2" sx={{ fontSize: '12px', color: 'text.secondary' }}>
-                  Track and manage all site visits
-                </Typography>
-              </Box>
-              <Chip 
-                label={`${visits?.length || 0} visits`} 
-                size="small" 
-                color="primary" 
-                variant="outlined"
-                sx={{ fontSize: '12px', height: 24 }}
-              />
-            </Box>
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={() => {
-                resetForm();
-                setSelectedVisit(null);
-                setIsFormOpen(true);
-              }}
-              sx={{ 
-                fontSize: '12px', 
-                textTransform: 'none',
-                bgcolor: '#2563eb',
-                '&:hover': { bgcolor: '#1d4ed8' }
-              }}
-            >
-              Add Site Visit
+  const onSubmit = (values: SiteReportFormValues) => {
+    saveMutation.mutate(values);
+  };
+
+  const columnHelper = createColumnHelper<any>();
+
+  const columns: ColumnDef<any, any>[] = useMemo(() => [
+    columnHelper.accessor('visit_date', {
+      header: ({ column }) => (
+        <Button variant="ghost" size="sm" className="h-8 -ml-3" onClick={() => column.toggleSorting()}>
+          Date
+          {column.getIsSorted() === 'asc' ? <ArrowUp className="ml-2 w-4 h-4" /> :
+           column.getIsSorted() === 'desc' ? <ArrowDown className="ml-2 w-4 h-4" /> :
+           <ArrowUpDown className="ml-2 w-4 h-4 opacity-50" />}
+        </Button>
+      ),
+      cell: ({ row }) => format(parseISO(row.original.visit_date), 'MMM dd, yyyy'),
+    }),
+    columnHelper.accessor((row) => row.clients?.client_name, {
+      id: 'client',
+      header: 'Client',
+      cell: ({ row }) => row.original.clients?.client_name || 'Unknown',
+    }),
+    columnHelper.accessor('visited_by', {
+      header: 'Visited By',
+      cell: ({ row }) => row.original.visited_by || '-',
+    }),
+    columnHelper.accessor('purpose', {
+      header: 'Purpose',
+      cell: ({ row }) => row.original.purpose || '-',
+    }),
+    columnHelper.accessor('status', {
+      header: 'Status',
+      cell: ({ row }) => {
+        const colors: Record<string, string> = {
+          pending: 'bg-amber-100 text-amber-800',
+          scheduled: 'bg-blue-100 text-blue-800',
+          completed: 'bg-emerald-100 text-emerald-800',
+          postponed: 'bg-gray-100 text-gray-800',
+          cancelled: 'bg-red-100 text-red-800',
+        };
+        return <Badge className={colors[row.original.status]}>{row.original.status}</Badge>;
+      },
+    }),
+    columnHelper.display({
+      id: 'actions',
+      cell: ({ row }) => (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-8 w-8">
+              <MoreHorizontal className="w-4 h-4" />
             </Button>
-          </Box>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => openForm(row.original)}>
+              <Eye className="mr-2 w-4 h-4" /> View/Edit
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => confirmDelete(row.original)} className="text-red-600">
+              <Trash2 className="mr-2 w-4 h-4" /> Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ),
+    }),
+  ], []);
 
-          {/* Tabs and Filters Row */}
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2, pb: 1 }}>
-            {/* Tabs */}
-            <Box sx={{ display: 'flex', gap: 1 }}>
-              <Button
-                onClick={() => setActiveTab('dashboard')}
-                variant={activeTab === 'dashboard' ? 'contained' : 'text'}
-                size="small"
-                startIcon={<LayoutDashboard className="w-4 h-4" />}
-                sx={{ 
-                  fontSize: '12px', 
-                  textTransform: 'none',
-                  bgcolor: activeTab === 'dashboard' ? '#2563eb' : 'transparent',
-                  color: activeTab === 'dashboard' ? 'white' : '#374151'
-                }}
-              >
-                Dashboard
-              </Button>
-              <Button
-                onClick={() => setActiveTab('calendar')}
-                variant={activeTab === 'calendar' ? 'contained' : 'text'}
-                size="small"
-                startIcon={<CalendarDays className="w-4 h-4" />}
-                sx={{ 
-                  fontSize: '12px', 
-                  textTransform: 'none',
-                  bgcolor: activeTab === 'calendar' ? '#2563eb' : 'transparent',
-                  color: activeTab === 'calendar' ? 'white' : '#374151'
-                }}
-              >
-                Calendar
-              </Button>
-            </Box>
+  const table = useReactTable({
+    data: filteredVisits,
+    columns,
+    state: { sorting },
+    onSortingChange: setSorting,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+  });
 
-            {/* Search and Filters */}
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
-              <TextField
-                placeholder="Search by client, engineer, or person..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                size="small"
-                sx={{ 
-                  minWidth: 280,
-                  '& .MuiInputBase-input': { fontSize: '12px' },
-                  '& .MuiInputBase-root': { height: 32 }
-                }}
-              />
-              <Box sx={{ display: 'flex', gap: 0.5 }}>
-                {['All', 'Pending', 'Scheduled', 'Completed', 'Postponed', 'Cancelled'].map((filter) => (
-                  <Button
-                    key={filter}
-                    onClick={() => setStatusFilter(filter.toLowerCase())}
-                    variant={statusFilter === filter.toLowerCase() ? 'contained' : 'text'}
-                    size="small"
-                    sx={{ 
-                      fontSize: '12px', 
-                      textTransform: 'none',
-                      minWidth: 'auto',
-                      px: 1.5,
-                      py: 0.5,
-                      height: 32,
-                      bgcolor: statusFilter === filter.toLowerCase() ? '#2563eb' : 'transparent',
-                      color: statusFilter === filter.toLowerCase() ? 'white' : '#6b7280'
-                    }}
-                  >
-                    {filter}
-                  </Button>
-                ))}
-              </Box>
-            </Box>
-          </Box>
-        </Box>
-      </Paper>
+  const activeVisit = activeId ? filteredVisits.find((v: any) => v.id === activeId) : null;
 
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {activeTab === 'dashboard' ? (
-          <div className="space-y-6">
-            {/* Visits List */}
-            {isLoadingVisits ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="text-gray-500">Loading visits...</div>
-              </div>
-            ) : filteredVisits.length === 0 ? (
-              <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
-                <CalendarDays className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-500 mb-2">No visits found</p>
-                <p className="text-sm text-gray-400">Create your first site visit to get started</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {filteredVisits.map((visit: any) => (
-                  <div
-                    key={visit.id}
-                    onClick={() => openFormForEdit(visit)}
-                    className="bg-white rounded-lg border border-gray-200 p-4 hover:border-blue-300 hover:shadow-sm transition-all cursor-pointer"
-                  >
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                      <div className="flex-1 space-y-2">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="font-medium text-gray-900">
-                            {visit.clients?.client_name || 'Unknown Client'}
-                          </h3>
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[visit.status]}`}>
-                            {visit.status}
-                          </span>
-                        </div>
-                        <div className="flex flex-wrap gap-4 text-sm text-gray-500">
-                          <span className="flex items-center gap-1">
-                            <CalendarIcon className="w-3.5 h-3.5" />
-                            {format(parseISO(visit.visit_date), 'MMM dd, yyyy')}
-                          </span>
-                          {visit.visited_by && (
-                            <span className="flex items-center gap-1">
-                              <Clock className="w-3.5 h-3.5" />
-                              {visit.visited_by}
-                            </span>
-                          )}
-                          {visit.purpose && (
-                            <span className="text-gray-600">• {visit.purpose}</span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setVisitToDelete(visit);
-                          }}
-                          className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+  return (
+    <div className="min-h-screen bg-slate-50">
+      <div className="max-w-7xl mx-auto px-4 py-6">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-blue-100 rounded-lg">
+              <MapPin className="w-5 h-5 text-blue-600" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-slate-900">Site Visits</h1>
+              <p className="text-sm text-slate-500">Track and manage site visits</p>
+            </div>
+            <Badge variant="outline" className="ml-2">{filteredVisits.length} visits</Badge>
           </div>
-        ) : (
-          <CalendarView 
-            visits={visits || []} 
-            onDateClick={(date) => {
-              resetForm();
-              setFormData(prev => ({ ...prev, visit_date: format(date, 'yyyy-MM-dd') }));
-              setIsFormOpen(true);
-            }}
-            onVisitClick={(visit) => openFormForEdit(visit)}
-          />
-        )}
-      </div>
+          <Button onClick={() => openForm()} className="bg-blue-600 hover:bg-blue-700">
+            <Plus className="w-4 h-4 mr-2" /> New Visit
+          </Button>
+        </div>
 
-      {/* Comprehensive Site Report Form Modal */}
-      {isFormOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl my-4 max-h-[95vh] overflow-y-auto">
-            {/* Modal Header */}
-            <div className="sticky top-0 bg-white z-10 border-b border-slate-200">
-              <div className="flex items-center justify-between p-4">
-                <div className="flex items-center gap-4">
-                  <button
-                    onClick={() => setIsFormOpen(false)}
-                    className="inline-flex items-center gap-2 px-3 py-1.5 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors text-sm"
-                  >
-                    <ChevronRightIcon className="w-4 h-4 rotate-180" />
-                    Back
-                  </button>
-                  <div>
-                    <h2 className="text-lg font-bold text-slate-900">
-                      {selectedVisit ? 'Edit Site Report' : 'New Daily Site Report'}
-                    </h2>
-                    <p className="text-xs text-slate-500">Complete all fields for comprehensive site reporting</p>
-                  </div>
+        <Card className="border-slate-200">
+          <CardHeader className="pb-3 border-b border-slate-100 bg-slate-50/50">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <Tabs value={activeView} onValueChange={(v) => setActiveView(v as 'list' | 'calendar')} className="w-full sm:w-auto">
+                <TabsList className="grid w-full sm:w-[200px] grid-cols-2">
+                  <TabsTrigger value="list" className="text-xs">
+                    <List className="w-3 h-3 mr-1.5" /> List
+                  </TabsTrigger>
+                  <TabsTrigger value="calendar" className="text-xs">
+                    <CalendarDays className="w-3 h-3 mr-1.5" /> Calendar
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <Input
+                    placeholder="Search..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9 h-9 w-full sm:w-[250px] text-sm"
+                  />
                 </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => setIsFormOpen(false)}>Cancel</Button>
-                  <Button size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={handleFormSubmit}>
-                    <Save className="w-4 h-4 mr-2" /> Save Report
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="h-9 w-full sm:w-[150px]">
+                    <Filter className="w-3 h-3 mr-1.5" />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {statusOptions.map((status) => (
+                      <SelectItem key={status} value={status} className="text-xs">
+                        {status.charAt(0).toUpperCase() + status.slice(1)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </CardHeader>
+
+          <CardContent className="p-0">
+            <div className={activeView === 'list' ? '' : 'hidden'}>
+              {visitsLoading ? (
+                <div className="p-4 space-y-3">
+                  {[...Array(5)].map((_, i) => (
+                    <Skeleton key={i} className="h-16 w-full" />
+                  ))}
+                </div>
+              ) : filteredVisits.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <CalendarDays className="w-12 h-12 text-slate-300 mb-3" />
+                  <p className="text-slate-500 mb-1">No visits found</p>
+                  <p className="text-sm text-slate-400">Create your first site visit</p>
+                </div>
+              ) : (
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragStart={handleDragStart}
+                  onDragEnd={handleDragEnd}
+                >
+                  <SortableContext items={filteredVisits.map((v: any) => v.id)} strategy={verticalListSortingStrategy}>
+                    <div className="p-4 space-y-2">
+                      {filteredVisits.map((visit: any) => (
+                        <VisitCard
+                          key={visit.id}
+                          visit={visit}
+                          onEdit={() => openForm(visit)}
+                          onDelete={() => confirmDelete(visit)}
+                        />
+                      ))}
+                    </div>
+                  </SortableContext>
+                  <DragOverlay>
+                    {activeVisit && (
+                      <div className="flex items-center gap-3 bg-white border border-blue-300 rounded-lg p-3 shadow-xl">
+                        <GripVertical className="w-4 h-4 text-slate-400" />
+                        <div className="flex-1">
+                          <h4 className="font-medium text-slate-900">{activeVisit.clients?.client_name}</h4>
+                          <p className="text-xs text-slate-500">{format(parseISO(activeVisit.visit_date), 'MMM dd, yyyy')}</p>
+                        </div>
+                      </div>
+                    )}
+                  </DragOverlay>
+                </DndContext>
+              )}
+            </div>
+
+            <div className={activeView === 'calendar' ? '' : 'hidden'}>
+              <div className="p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <Button variant="outline" size="icon" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}>
+                    <ChevronLeft className="w-4 h-4" />
                   </Button>
+                  <h3 className="font-semibold text-slate-900">{format(currentMonth, 'MMMM yyyy')}</h3>
+                  <Button variant="outline" size="icon" onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}>
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </div>
+
+                <div className="grid grid-cols-7 gap-px bg-slate-200 rounded-lg overflow-hidden">
+                  {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+                    <div key={day} className="bg-slate-100 p-2 text-center text-xs font-semibold text-slate-600">
+                      {day}
+                    </div>
+                  ))}
+                  {calendarDays.map((day, idx) => {
+                    const dayVisits = getVisitsForDay(day);
+                    const isCurrentMonth = isSameMonth(day, currentMonth);
+                    return (
+                      <div
+                        key={idx}
+                        className={`bg-white min-h-[100px] p-1.5 ${!isCurrentMonth && 'bg-slate-50'}`}
+                        onClick={() => {
+                          form.setValue('date', format(day, 'yyyy-MM-dd'));
+                          openForm();
+                        }}
+                      >
+                        <span className={`inline-flex items-center justify-center w-6 h-6 text-xs font-medium rounded-full ${
+                          isToday(day) ? 'bg-blue-600 text-white' : isCurrentMonth ? 'text-slate-700' : 'text-slate-400'
+                        }`}>
+                          {format(day, 'd')}
+                        </span>
+                        <div className="mt-1 space-y-1">
+                          {dayVisits.slice(0, 2).map((visit: any) => (
+                            <div
+                              key={visit.id}
+                              className="text-[10px] px-1 py-0.5 rounded bg-blue-100 text-blue-800 truncate cursor-pointer hover:bg-blue-200"
+                              onClick={(e) => { e.stopPropagation(); openForm(visit); }}
+                            >
+                              {visit.clients?.client_name}
+                            </div>
+                          ))}
+                          {dayVisits.length > 2 && (
+                            <p className="text-[10px] text-slate-500 pl-1">+{dayVisits.length - 2} more</p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
+          </CardContent>
+        </Card>
+      </div>
 
-            {/* Form Content - Compact Style */}
-            <div className="p-4 space-y-3 pb-10">
-              {/* Header Info Card */}
-              <Card className="border-slate-200 shadow-sm">
-                <CardContent className="p-3 grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <div className="space-y-1">
-                    <Label className="text-[10px] font-bold uppercase text-slate-500">Client</Label>
-                    <Select>
-                      <SelectTrigger className="h-8 text-xs">
-                        <SelectValue placeholder="Select Client" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {clients?.map((client: any) => (
-                          <SelectItem key={client.id} value={client.id}>
-                            {client.client_name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-[10px] font-bold uppercase text-slate-500">Project Name</Label>
-                    <Input className="h-8 text-xs" placeholder="Enter project name" />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-[10px] font-bold uppercase text-slate-500">Date</Label>
-                    <Input type="date" className="h-8 text-xs" defaultValue={format(new Date(), 'yyyy-MM-dd')} />
-                  </div>
-                </CardContent>
-              </Card>
+      <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{selectedVisit ? 'Edit Site Report' : 'New Site Report'}</DialogTitle>
+            <DialogDescription>Complete all fields for comprehensive site reporting</DialogDescription>
+          </DialogHeader>
 
-              {/* Manpower Details */}
-              <Card className="border-slate-200 shadow-sm">
-                <CardHeader className="bg-slate-50/50 border-b border-slate-100 py-1.5 px-3">
-                  <CardTitle className="text-xs font-bold flex items-center gap-2">
-                    <Users className="w-3.5 h-3.5 text-blue-600" />
-                    Manpower Details
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-2 space-y-3">
-                  <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-                    <div className="space-y-0.5">
-                      <Label className="text-[10px] uppercase font-bold text-slate-500">Total</Label>
-                      <Input className="h-7 text-xs" placeholder="0" />
-                    </div>
-                    <div className="space-y-0.5">
-                      <Label className="text-[10px] uppercase font-bold text-slate-500">Skilled</Label>
-                      <Input className="h-7 text-xs" placeholder="0" />
-                    </div>
-                    <div className="space-y-0.5">
-                      <Label className="text-[10px] uppercase font-bold text-slate-500">Unskilled</Label>
-                      <Input className="h-7 text-xs" placeholder="0" />
-                    </div>
-                    <div className="space-y-0.5">
-                      <Label className="text-[10px] uppercase font-bold text-slate-500">Start</Label>
-                      <Input className="h-7 text-xs" type="time" />
-                    </div>
-                    <div className="space-y-0.5">
-                      <Label className="text-[10px] uppercase font-bold text-slate-500">End</Label>
-                      <Input className="h-7 text-xs" type="time" />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-[10px] font-bold uppercase text-slate-500">Sub-Contractors</Label>
-                      <Button type="button" variant="outline" size="sm" className="h-6 text-[10px]">
-                        <Plus className="w-3 h-3 mr-1" /> Add
-                      </Button>
-                    </div>
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="h-7">
-                          <TableHead className="text-[10px] h-7 px-1">Name</TableHead>
-                          <TableHead className="text-[10px] h-7 px-1">Count</TableHead>
-                          <TableHead className="text-[10px] h-7 px-1">Start</TableHead>
-                          <TableHead className="text-[10px] h-7 px-1">End</TableHead>
-                          <TableHead className="w-[30px] h-7 px-1"></TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        <TableRow className="h-8">
-                          <TableCell className="p-0.5"><Input className="h-7 text-xs" /></TableCell>
-                          <TableCell className="p-0.5"><Input className="h-7 text-xs" /></TableCell>
-                          <TableCell className="p-0.5"><Input className="h-7 text-xs" type="time" /></TableCell>
-                          <TableCell className="p-0.5"><Input className="h-7 text-xs" type="time" /></TableCell>
-                          <TableCell className="p-0.5">
-                            <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-red-500">
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      </TableBody>
-                    </Table>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Work Carried Out & Milestones */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <Card className="border-slate-200 shadow-sm">
-                  <CardHeader className="bg-slate-50/50 border-b border-slate-100 py-1.5 px-3">
-                    <CardTitle className="text-xs font-bold flex items-center gap-2">
-                      <HardHat className="w-3.5 h-3.5 text-blue-600" />
-                      Work Carried Out
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-2 space-y-1.5">
-                    <div className="flex gap-1">
-                      <Input className="h-7 text-xs" placeholder="Describe work..." />
-                      <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-red-500 shrink-0">
-                        <Trash2 className="w-3 h-3" />
-                      </Button>
-                    </div>
-                    <Button type="button" variant="outline" size="sm" className="w-full h-7 text-[10px]">
-                      <Plus className="w-3 h-3 mr-1" /> Add
-                    </Button>
-                  </CardContent>
-                </Card>
-
-                <Card className="border-slate-200 shadow-sm">
-                  <CardHeader className="bg-slate-50/50 border-b border-slate-100 py-1.5 px-3">
-                    <CardTitle className="text-xs font-bold flex items-center gap-2">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />
-                      Milestones
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-2 space-y-1.5">
-                    <div className="flex gap-1">
-                      <Input className="h-7 text-xs" placeholder="Milestone..." />
-                      <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-red-500 shrink-0">
-                        <Trash2 className="w-3 h-3" />
-                      </Button>
-                    </div>
-                    <Button type="button" variant="outline" size="sm" className="w-full h-7 text-[10px]">
-                      <Plus className="w-3 h-3 mr-1" /> Add
-                    </Button>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Progress Tracking */}
-              <Card className="border-slate-200 shadow-sm">
-                <CardHeader className="bg-slate-50/50 border-b border-slate-100 py-1.5 px-3">
-                  <CardTitle className="text-xs font-bold">Progress Tracking</CardTitle>
-                </CardHeader>
-                <CardContent className="p-2 grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <div className="space-y-0.5">
-                    <Label className="text-[10px] uppercase font-bold text-slate-500">Planned</Label>
-                    <Textarea className="min-h-[40px] text-xs py-1" placeholder="Planned work..." />
-                  </div>
-                  <div className="space-y-0.5">
-                    <Label className="text-[10px] uppercase font-bold text-slate-500">Actual</Label>
-                    <Textarea className="min-h-[40px] text-xs py-1" placeholder="Actual progress..." />
-                  </div>
-                  <div className="space-y-0.5">
-                    <Label className="text-[10px] uppercase font-bold text-slate-500">% Complete</Label>
-                    <Input className="h-7 text-xs" placeholder="0%" />
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Equipment & Safety */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <Card className="md:col-span-2 border-slate-200 shadow-sm">
-                  <CardHeader className="bg-slate-50/50 border-b border-slate-100 py-1.5 px-3">
-                    <CardTitle className="text-xs font-bold flex items-center gap-2">
-                      <Wrench className="w-3.5 h-3.5 text-slate-600" />
-                      Equipment Status
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-2 space-y-2">
-                    <div className="space-y-0.5">
-                      <Label className="text-[10px] uppercase font-bold text-slate-500">Equipment on Site</Label>
-                      <Input className="h-7 text-xs" placeholder="List equipment..." />
-                    </div>
-                    <div className="space-y-0.5">
-                      <Label className="text-[10px] uppercase font-bold text-slate-500">Breakdown/Issues</Label>
-                      <Input className="h-7 text-xs" placeholder="Any issues?" />
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="border-slate-200 shadow-sm">
-                  <CardHeader className="bg-slate-50/50 border-b border-slate-100 py-1.5 px-3">
-                    <CardTitle className="text-xs font-bold flex items-center gap-2">
-                      <HardHat className="w-3.5 h-3.5 text-orange-600" />
-                      Safety
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-2 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-xs">Tool box meeting</Label>
-                      <Checkbox id="toolbox" />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <Label className="text-xs">PPE Followed</Label>
-                      <Checkbox id="ppe" />
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Quality & Rework */}
-              <Card className="border-slate-200 shadow-sm">
-                <CardHeader className="bg-slate-50/50 border-b border-slate-100 py-1.5 px-3">
-                  <CardTitle className="text-xs font-bold flex items-center gap-2">
-                    <ClipboardCheck className="w-3.5 h-3.5 text-blue-600" />
-                    Quality & Rework
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-2 space-y-3">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <div className="space-y-0.5">
-                      <Label className="text-[10px] uppercase font-bold text-slate-500">Visual Inspection</Label>
-                      <Select>
-                        <SelectTrigger className="h-7 text-xs">
-                          <SelectValue placeholder="Select" />
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <Card className="border-slate-200">
+              <CardHeader className="py-2 px-3 bg-slate-50/50 border-b border-slate-100">
+                <CardTitle className="text-xs font-semibold">Site Information</CardTitle>
+              </CardHeader>
+              <CardContent className="p-3 grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-[10px] font-bold uppercase text-slate-500">Client</Label>
+                  <Controller
+                    control={form.control}
+                    name="client"
+                    render={({ field }) => (
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue placeholder="Select client" />
                         </SelectTrigger>
+                        <SelectContent>
+                          {clients.map((client: any) => (
+                            <SelectItem key={client.id} value={client.id}>{client.client_name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] font-bold uppercase text-slate-500">Project</Label>
+                  <Controller
+                    control={form.control}
+                    name="projectName"
+                    render={({ field }) => (
+                      <Input {...field} className="h-8 text-xs" placeholder="Project name" />
+                    )}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] font-bold uppercase text-slate-500">Date</Label>
+                  <Controller
+                    control={form.control}
+                    name="date"
+                    render={({ field }) => (
+                      <Input type="date" {...field} className="h-8 text-xs" />
+                    )}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-slate-200">
+              <CardHeader className="py-2 px-3 bg-slate-50/50 border-b border-slate-100">
+                <CardTitle className="text-xs font-semibold flex items-center gap-2">
+                  <Users className="w-3.5 h-3.5 text-blue-600" /> Manpower Details
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-3 space-y-3">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+                  <div className="space-y-0.5">
+                    <Label className="text-[10px] font-bold uppercase text-slate-500">Total</Label>
+                    <Controller control={form.control} name="manpower.total" render={({ field }) => (
+                      <Input {...field} className="h-7 text-xs" />
+                    )} />
+                  </div>
+                  <div className="space-y-0.5">
+                    <Label className="text-[10px] font-bold uppercase text-slate-500">Skilled</Label>
+                    <Controller control={form.control} name="manpower.skilled" render={({ field }) => (
+                      <Input {...field} className="h-7 text-xs" />
+                    )} />
+                  </div>
+                  <div className="space-y-0.5">
+                    <Label className="text-[10px] font-bold uppercase text-slate-500">Unskilled</Label>
+                    <Controller control={form.control} name="manpower.unskilled" render={({ field }) => (
+                      <Input {...field} className="h-7 text-xs" />
+                    )} />
+                  </div>
+                  <div className="space-y-0.5">
+                    <Label className="text-[10px] font-bold uppercase text-slate-500">Start</Label>
+                    <Controller control={form.control} name="manpower.startTime" render={({ field }) => (
+                      <Input type="time" {...field} className="h-7 text-xs" />
+                    )} />
+                  </div>
+                  <div className="space-y-0.5">
+                    <Label className="text-[10px] font-bold uppercase text-slate-500">End</Label>
+                    <Controller control={form.control} name="manpower.endTime" render={({ field }) => (
+                      <Input type="time" {...field} className="h-7 text-xs" />
+                    )} />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-[10px] font-bold uppercase text-slate-500">Sub-Contractors</Label>
+                    <Button type="button" variant="outline" size="sm" className="h-6 text-[10px]" onClick={() => appendSubContractor({ id: generateId(), name: '', count: '', start: '', end: '' })}>
+                      <Plus className="w-3 h-3 mr-1" /> Add
+                    </Button>
+                  </div>
+                  <div className="space-y-1">
+                    {subContractorFields.map((field, index) => (
+                      <div key={field.id} className="flex gap-2 items-center">
+                        <Input {...form.register(`manpower.subContractors.${index}.name`)} className="h-7 text-xs flex-1" placeholder="Name" />
+                        <Input {...form.register(`manpower.subContractors.${index}.count`)} className="h-7 text-xs w-16" placeholder="Count" />
+                        <Input type="time" {...form.register(`manpower.subContractors.${index}.start`)} className="h-7 text-xs w-24" />
+                        <Input type="time" {...form.register(`manpower.subContractors.${index}.end`)} className="h-7 text-xs w-24" />
+                        <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-red-500 shrink-0" onClick={() => removeSubContractor(index)}>
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <Card className="border-slate-200">
+                <CardHeader className="py-2 px-3 bg-slate-50/50 border-b border-slate-100">
+                  <CardTitle className="text-xs font-semibold flex items-center gap-2">
+                    <HardHat className="w-3.5 h-3.5 text-blue-600" /> Work Carried Out
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-3 space-y-1.5">
+                  {workFields.map((field, index) => (
+                    <div key={field.id} className="flex gap-1">
+                      <Input {...form.register(`workCarriedOut.${index}.value`)} className="h-7 text-xs" placeholder="Describe work..." />
+                      <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-red-500 shrink-0" onClick={() => removeWork(index)}>
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  ))}
+                  <Button type="button" variant="outline" size="sm" className="w-full h-7 text-[10px]" onClick={() => appendWork({ id: generateId(), value: '' })}>
+                    <Plus className="w-3 h-3 mr-1" /> Add
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card className="border-slate-200">
+                <CardHeader className="py-2 px-3 bg-slate-50/50 border-b border-slate-100">
+                  <CardTitle className="text-xs font-semibold flex items-center gap-2">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-green-600" /> Milestones
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-3 space-y-1.5">
+                  {milestoneFields.map((field, index) => (
+                    <div key={field.id} className="flex gap-1">
+                      <Input {...form.register(`milestonesCompleted.${index}.value`)} className="h-7 text-xs" placeholder="Milestone..." />
+                      <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-red-500 shrink-0" onClick={() => removeMilestone(index)}>
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  ))}
+                  <Button type="button" variant="outline" size="sm" className="w-full h-7 text-[10px]" onClick={() => appendMilestone({ id: generateId(), value: '' })}>
+                    <Plus className="w-3 h-3 mr-1" /> Add
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card className="border-slate-200">
+              <CardHeader className="py-2 px-3 bg-slate-50/50 border-b border-slate-100">
+                <CardTitle className="text-xs font-semibold">Progress Tracking</CardTitle>
+              </CardHeader>
+              <CardContent className="p-3 grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="space-y-0.5">
+                  <Label className="text-[10px] font-bold uppercase text-slate-500">Planned</Label>
+                  <Controller control={form.control} name="progress.planned" render={({ field }) => (
+                    <Textarea {...field} className="min-h-[40px] text-xs py-1" />
+                  )} />
+                </div>
+                <div className="space-y-0.5">
+                  <Label className="text-[10px] font-bold uppercase text-slate-500">Actual</Label>
+                  <Controller control={form.control} name="progress.actual" render={({ field }) => (
+                    <Textarea {...field} className="min-h-[40px] text-xs py-1" />
+                  )} />
+                </div>
+                <div className="space-y-0.5">
+                  <Label className="text-[10px] font-bold uppercase text-slate-500">% Complete</Label>
+                  <Controller control={form.control} name="progress.percentComplete" render={({ field }) => (
+                    <Input {...field} className="h-7 text-xs" />
+                  )} />
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <Card className="md:col-span-2 border-slate-200">
+                <CardHeader className="py-2 px-3 bg-slate-50/50 border-b border-slate-100">
+                  <CardTitle className="text-xs font-semibold flex items-center gap-2">
+                    <Wrench className="w-3.5 h-3.5 text-slate-600" /> Equipment
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-3 space-y-2">
+                  <div className="space-y-0.5">
+                    <Label className="text-[10px] font-bold uppercase text-slate-500">On Site</Label>
+                    <Controller control={form.control} name="equipment.onSite" render={({ field }) => (
+                      <Input {...field} className="h-7 text-xs" />
+                    )} />
+                  </div>
+                  <div className="space-y-0.5">
+                    <Label className="text-[10px] font-bold uppercase text-slate-500">Breakdown</Label>
+                    <Controller control={form.control} name="equipment.breakdown" render={({ field }) => (
+                      <Input {...field} className="h-7 text-xs" />
+                    )} />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-slate-200">
+                <CardHeader className="py-2 px-3 bg-slate-50/50 border-b border-slate-100">
+                  <CardTitle className="text-xs font-semibold flex items-center gap-2">
+                    <HardHat className="w-3.5 h-3.5 text-orange-600" /> Safety
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-3 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs">Toolbox</Label>
+                    <Controller control={form.control} name="safety.toolboxMeeting" render={({ field }) => (
+                      <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                    )} />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs">PPE</Label>
+                    <Controller control={form.control} name="safety.ppe" render={({ field }) => (
+                      <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                    )} />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card className="border-slate-200">
+              <CardHeader className="py-2 px-3 bg-slate-50/50 border-b border-slate-100">
+                <CardTitle className="text-xs font-semibold flex items-center gap-2">
+                  <ClipboardCheck className="w-3.5 h-3.5 text-blue-600" /> Quality & Rework
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-3 space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="space-y-0.5">
+                    <Label className="text-[10px] font-bold uppercase text-slate-500">Inspection</Label>
+                    <Controller control={form.control} name="quality.inspection" render={({ field }) => (
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="Yes">Yes</SelectItem>
                           <SelectItem value="Pending">Pending</SelectItem>
                           <SelectItem value="Not Required">Not Required</SelectItem>
                         </SelectContent>
                       </Select>
-                    </div>
-                    <div className="space-y-0.5">
-                      <Label className="text-[10px] uppercase font-bold text-slate-500">Satisfied %</Label>
-                      <Input className="h-7 text-xs" placeholder="0%" />
-                    </div>
-                    <div className="space-y-0.5">
-                      <Label className="text-[10px] uppercase font-bold text-slate-500">Rework Reason</Label>
-                      <Input className="h-7 text-xs" placeholder="Reason if any" />
-                    </div>
-                  </div>
-
-                  <div className="pt-2 border-t border-slate-100">
-                    <div className="flex items-center gap-4 mb-2">
-                      <Label className="text-[10px] font-bold uppercase text-slate-500">REWORK</Label>
-                      <div className="flex items-center gap-1">
-                        <Checkbox id="rework-yes" />
-                        <Label htmlFor="rework-yes" className="text-xs">Yes</Label>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Checkbox id="rework-no" />
-                        <Label htmlFor="rework-no" className="text-xs">No</Label>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-                      <div className="space-y-0.5 col-span-2">
-                        <Label className="text-[10px] uppercase font-bold text-slate-500">Reason</Label>
-                        <Input className="h-7 text-xs" />
-                      </div>
-                      <div className="space-y-0.5">
-                        <Label className="text-[10px] uppercase font-bold text-slate-500">Start</Label>
-                        <Input className="h-7 text-xs" type="time" />
-                      </div>
-                      <div className="space-y-0.5">
-                        <Label className="text-[10px] uppercase font-bold text-slate-500">End</Label>
-                        <Input className="h-7 text-xs" type="time" />
-                      </div>
-                      <div className="space-y-0.5">
-                        <Label className="text-[10px] uppercase font-bold text-slate-500">Manpower</Label>
-                        <Input className="h-7 text-xs" />
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Site Pictures / Documents */}
-              <Card className="border-slate-200 shadow-sm">
-                <CardHeader className="bg-slate-50/50 border-b border-slate-100 py-1.5 px-3">
-                  <CardTitle className="text-xs font-bold">Documents (DC/Invoice)</CardTitle>
-                </CardHeader>
-                <CardContent className="p-2 grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <div className="space-y-0.5">
-                    <Label className="text-[10px] uppercase font-bold text-slate-500">Type</Label>
-                    <Select>
-                      <SelectTrigger className="h-7 text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="INVOICE">INVOICE</SelectItem>
-                        <SelectItem value="DC">DC</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    )} />
                   </div>
                   <div className="space-y-0.5">
-                    <Label className="text-[10px] uppercase font-bold text-slate-500">Document No.</Label>
-                    <Input className="h-7 text-xs" />
+                    <Label className="text-[10px] font-bold uppercase text-slate-500">Satisfied %</Label>
+                    <Controller control={form.control} name="quality.satisfiedPercent" render={({ field }) => (
+                      <Input {...field} className="h-7 text-xs" />
+                    )} />
                   </div>
                   <div className="space-y-0.5">
-                    <Label className="text-[10px] uppercase font-bold text-slate-500">Signature & Gate Entry</Label>
-                    <Select>
-                      <SelectTrigger className="h-7 text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Yes">Yes</SelectItem>
-                        <SelectItem value="Pending">Pending</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Label className="text-[10px] font-bold uppercase text-slate-500">Rework Reason</Label>
+                    <Controller control={form.control} name="quality.reworkRequiredReason" render={({ field }) => (
+                      <Input {...field} className="h-7 text-xs" />
+                    )} />
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+                <div className="flex items-center gap-4 pt-2 border-t border-slate-100">
+                  <Label className="text-[10px] font-bold uppercase text-slate-500">Rework</Label>
+                  <div className="flex items-center gap-1">
+                    <Controller control={form.control} name="rework.isRework" render={({ field }) => (
+                      <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                    )} />
+                    <Label className="text-xs">Yes</Label>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
-              {/* Client Requirements */}
-              <Card className="border-slate-200 shadow-sm">
-                <CardHeader className="bg-slate-50/50 border-b border-slate-100 py-1.5 px-3">
-                  <CardTitle className="text-xs font-bold flex items-center gap-2">
-                    <ClipboardCheck className="w-3.5 h-3.5 text-blue-600" />
-                    Client Side New Requirement/Deviation
-                  </CardTitle>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <Card className="border-slate-200">
+                <CardHeader className="py-2 px-3 bg-slate-50/50 border-b border-slate-100">
+                  <CardTitle className="text-xs font-semibold">Work Plan (Next Day)</CardTitle>
                 </CardHeader>
-                <CardContent className="p-2 space-y-3">
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between mb-1">
-                      <Label className="text-[10px] font-bold uppercase text-slate-500">Details (Bulletin Entry)</Label>
-                      <Button type="button" variant="outline" size="sm" className="h-6 text-[10px]">
-                        <Plus className="w-3 h-3 mr-1" /> Add Point
-                      </Button>
-                    </div>
-                    <div className="space-y-1.5">
-                      <div className="flex gap-1 items-start">
-                        <div className="mt-2.5 w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
-                        <Input className="h-8 text-xs" placeholder="Enter requirement or deviation..." />
-                        <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-red-500 shrink-0">
-                          <Trash2 className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap gap-4 pt-2 border-t border-slate-100">
-                    <div className="flex items-center gap-2">
-                      <Checkbox id="quote-sent" />
-                      <Label htmlFor="quote-sent" className="text-xs font-medium">Quote to be sent</Label>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Checkbox id="mail-received" />
-                      <Label htmlFor="mail-received" className="text-xs font-medium">Mail Received</Label>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Reporting & Material Arrangement */}
-              <Card className="border-slate-200 shadow-sm">
-                <CardHeader className="bg-slate-50/50 border-b border-slate-100 py-1.5 px-3">
-                  <CardTitle className="text-xs font-bold flex items-center gap-2">
-                    <LayoutDashboard className="w-3.5 h-3.5 text-slate-600" />
-                    Reporting & Logistics
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-2 grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <Label className="text-slate-500 text-[10px] uppercase font-bold tracking-wider">Report to PM</Label>
-                    <Select>
-                      <SelectTrigger className="h-8 text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Reported">Reported</SelectItem>
-                        <SelectItem value="Pending">Pending</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-1">
-                    <Label className="text-slate-500 text-[10px] uppercase font-bold tracking-wider">Material Arrangement</Label>
-                    <Select>
-                      <SelectTrigger className="h-8 text-xs">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Arranged">Arranged</SelectItem>
-                        <SelectItem value="Pending">Pending</SelectItem>
-                        <SelectItem value="Not Required">Not Required</SelectItem>
-                        <SelectItem value="Informed to stores">Informed to stores</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Work Plan & Instructions */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <Card className="border-slate-200 shadow-sm">
-                  <CardHeader className="bg-slate-50/50 border-b border-slate-100 py-1.5 px-3">
-                    <CardTitle className="text-xs font-bold">Work Plan (Next Day)</CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-2 space-y-1.5">
-                    <div className="flex gap-1">
-                      <Input className="h-7 text-xs" />
-                      <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-red-500">
+                <CardContent className="p-3 space-y-1.5">
+                  {planFields.map((field, index) => (
+                    <div key={field.id} className="flex gap-1">
+                      <Input {...form.register(`workPlanNextDay.${index}.value`)} className="h-7 text-xs" />
+                      <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-red-500" onClick={() => removePlan(index)}>
                         <Trash2 className="w-3 h-3" />
                       </Button>
                     </div>
-                    <Button type="button" variant="outline" size="sm" className="w-full h-7 text-[10px]">
-                      <Plus className="w-3 h-3 mr-1" /> Add
-                    </Button>
-                  </CardContent>
-                </Card>
-
-                <Card className="border-slate-200 shadow-sm">
-                  <CardHeader className="bg-slate-50/50 border-b border-slate-100 py-1.5 px-3">
-                    <CardTitle className="text-xs font-bold">Special Instructions</CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-2 space-y-1.5">
-                    <div className="flex gap-1">
-                      <Input className="h-7 text-xs" />
-                      <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-red-500">
-                        <Trash2 className="w-3 h-3" />
-                      </Button>
-                    </div>
-                    <Button type="button" variant="outline" size="sm" className="w-full h-7 text-[10px]">
-                      <Plus className="w-3 h-3 mr-1" /> Add
-                    </Button>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Issues Faced */}
-              <Card className="border-slate-200 shadow-sm">
-                <CardHeader className="bg-slate-50/50 border-b border-slate-100 py-1.5 px-3">
-                  <CardTitle className="text-xs font-bold flex items-center gap-2">
-                    <AlertCircle className="w-3.5 h-3.5 text-red-600" />
-                    Issues Faced
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="p-2 space-y-2">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="h-7">
-                        <TableHead className="text-[10px] h-7 px-1">Issue</TableHead>
-                        <TableHead className="text-[10px] h-7 px-1">Remarks</TableHead>
-                        <TableHead className="w-[30px] h-7 px-1"></TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      <TableRow className="h-8">
-                        <TableCell className="p-0.5"><Input className="h-7 text-xs" /></TableCell>
-                        <TableCell className="p-0.5"><Input className="h-7 text-xs" /></TableCell>
-                        <TableCell className="p-0.5">
-                          <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-red-500">
-                            <Trash2 className="w-3 h-3" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    </TableBody>
-                  </Table>
-                  <Button type="button" variant="outline" size="sm" className="w-full h-7 text-[10px]">
-                    <Plus className="w-3 h-3 mr-1" /> Add Issue
+                  ))}
+                  <Button type="button" variant="outline" size="sm" className="w-full h-7 text-[10px]" onClick={() => appendPlan({ id: generateId(), value: '' })}>
+                    <Plus className="w-3 h-3 mr-1" /> Add
                   </Button>
                 </CardContent>
               </Card>
 
-              {/* Photo Upload Section */}
-              <Card className="border-slate-200 shadow-sm">
-                <CardHeader className="bg-slate-50/50 border-b border-slate-100 py-1.5 px-3">
-                  <CardTitle className="text-xs font-bold flex items-center gap-2">
-                    <Camera className="w-3.5 h-3.5 text-blue-600" />
-                    Site Photos
-                  </CardTitle>
+              <Card className="border-slate-200">
+                <CardHeader className="py-2 px-3 bg-slate-50/50 border-b border-slate-100">
+                  <CardTitle className="text-xs font-semibold">Special Instructions</CardTitle>
                 </CardHeader>
-                <CardContent className="p-2">
-                  <div className="grid grid-cols-4 md:grid-cols-8 gap-2">
-                    <label className="flex flex-col items-center justify-center aspect-square rounded border-2 border-dashed border-slate-200 hover:border-blue-400 hover:bg-blue-50 transition-all cursor-pointer">
-                      <Upload className="w-3.5 h-3.5 text-slate-400 mb-0.5" />
-                      <span className="text-[9px] font-medium text-slate-500 text-center">Upload</span>
-                      <input type="file" className="hidden" accept="image/*" multiple />
-                    </label>
-                  </div>
+                <CardContent className="p-3 space-y-1.5">
+                  {instructionFields.map((field, index) => (
+                    <div key={field.id} className="flex gap-1">
+                      <Input {...form.register(`specialInstructions.${index}.value`)} className="h-7 text-xs" />
+                      <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-red-500" onClick={() => removeInstruction(index)}>
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  ))}
+                  <Button type="button" variant="outline" size="sm" className="w-full h-7 text-[10px]" onClick={() => appendInstruction({ id: generateId(), value: '' })}>
+                    <Plus className="w-3 h-3 mr-1" /> Add
+                  </Button>
                 </CardContent>
               </Card>
+            </div>
 
-              {/* Proper Documentation */}
-              <Card className="border-slate-200 shadow-sm">
-                <CardHeader className="bg-slate-50/50 border-b border-slate-100 py-1.5 px-3">
-                  <CardTitle className="text-xs font-bold">Filing & Documentation</CardTitle>
-                </CardHeader>
-                <CardContent className="p-2 flex flex-wrap gap-4">
-                  <div className="flex items-center gap-2">
-                    <Checkbox id="doc-filed" />
-                    <Label htmlFor="doc-filed" className="text-xs">Report Filed</Label>
+            <Card className="border-slate-200">
+              <CardHeader className="py-2 px-3 bg-slate-50/50 border-b border-slate-100">
+                <CardTitle className="text-xs font-semibold flex items-center gap-2">
+                  <AlertCircle className="w-3.5 h-3.5 text-red-600" /> Issues Faced
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-3 space-y-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <Label className="text-[10px] font-bold uppercase text-slate-500">Issue</Label>
+                  <Label className="text-[10px] font-bold uppercase text-slate-500">Solution</Label>
+                </div>
+                {issueFields.map((field, index) => (
+                  <div key={field.id} className="flex gap-2 items-center">
+                    <Input {...form.register(`issues.${index}.issue`)} className="h-7 text-xs" />
+                    <Input {...form.register(`issues.${index}.solution`)} className="h-7 text-xs" />
+                    <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-red-500 shrink-0" onClick={() => removeIssue(index)}>
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Checkbox id="tools-locked" />
-                    <Label htmlFor="tools-locked" className="text-xs">Tools/Materials Locked</Label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs">SITE PICTURES:</Label>
-                    <Select>
-                      <SelectTrigger className="h-7 text-xs w-[100px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Taken">Taken</SelectItem>
-                        <SelectItem value="Not Allowed">Not Allowed</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Footer */}
-              <Card className="border-slate-200 shadow-sm">
-                <CardContent className="p-2 grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div className="space-y-0.5">
-                    <Label className="text-[10px] uppercase font-bold text-slate-500">Engineer/Supervisor</Label>
-                    <Input className="h-7 text-xs" />
-                  </div>
-                  <div className="space-y-0.5">
-                    <Label className="text-[10px] uppercase font-bold text-slate-500">Signature & Date</Label>
-                    <Input className="h-7 text-xs" placeholder="Digital signature or name" />
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Submit Button */}
-              <div className="flex justify-end gap-4 pt-6">
-                <Button variant="outline">Reset Form</Button>
-                <Button className="bg-blue-600 hover:bg-blue-700 px-8 h-11 text-base font-bold shadow-xl shadow-blue-600/20" onClick={handleFormSubmit}>
-                  <Save className="w-5 h-5 mr-2" /> Save Daily Report
+                ))}
+                <Button type="button" variant="outline" size="sm" className="w-full h-7 text-[10px]" onClick={() => appendIssue({ id: generateId(), issue: '', solution: '' })}>
+                  <Plus className="w-3 h-3 mr-1" /> Add Issue
                 </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+              </CardContent>
+            </Card>
 
-      {/* Add Client Modal */}
-      {isAddClientModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
-            <h3 className="text-lg font-semibold mb-4">Add New Client</h3>
-            <form onSubmit={handleAddClient} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Client Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  name="client_name"
-                  required
-                  placeholder="e.g. Acme Corporation"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Contact Person
-                </label>
-                <input
-                  type="text"
-                  name="contact_person"
-                  placeholder="e.g. John Doe"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Phone
-                </label>
-                <input
-                  type="tel"
-                  name="phone"
-                  placeholder="e.g. +91 98765 43210"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  name="email"
-                  placeholder="e.g. contact@acme.com"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                />
-              </div>
-              <div className="flex justify-end gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setIsAddClientModalOpen(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={addClientMutation.isPending}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 text-sm"
-                >
-                  {addClientMutation.isPending ? 'Adding...' : 'Add Client'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Add Purpose Modal */}
-      {isAddPurposeModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-6">
-            <h3 className="text-lg font-semibold mb-4">Add New Purpose</h3>
-            <form onSubmit={handleAddPurpose} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Purpose Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  name="name"
-                  required
-                  placeholder="e.g. Site Survey"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                />
-              </div>
-              <div className="flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setIsAddPurposeModalOpen(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={addPurposeMutation.isPending}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 text-sm"
-                >
-                  {addPurposeMutation.isPending ? 'Adding...' : 'Add Purpose'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Delete Confirmation */}
-      {visitToDelete && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
-            <div className="flex items-start gap-4 mb-4">
-              <div className="p-2 bg-red-100 rounded-lg">
-                <AlertCircle className="w-6 h-6 text-red-600" />
-              </div>
-              <div className="flex-1">
-                <h3 className="text-lg font-semibold text-gray-900 mb-1">Delete Site Visit</h3>
-                <p className="text-sm text-gray-600">
-                  Are you sure you want to delete this visit? This action cannot be undone.
-                </p>
-              </div>
-            </div>
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={() => setVisitToDelete(null)}
-                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => deleteVisitMutation.mutate(visitToDelete.id)}
-                disabled={deleteVisitMutation.isPending}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 text-sm"
-              >
-                {deleteVisitMutation.isPending ? 'Deleting...' : 'Delete'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <style>{`
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(8px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fadeIn {
-          animation: fadeIn 0.3s ease-out;
-        }
-      `}</style>
-    </div>
-  );
-}
-
-function CalendarView({ visits, onDateClick, onVisitClick }: { visits: any[], onDateClick: (date: Date) => void, onVisitClick: (visit: any) => void }) {
-  const [currentMonth, setCurrentMonth] = useState(new Date());
-
-  const monthStart = startOfMonth(currentMonth);
-  const monthEnd = endOfMonth(monthStart);
-  const startDate = startOfWeek(monthStart);
-  const endDate = endOfWeek(monthEnd);
-
-  const calendarDays = eachDayOfInterval({
-    start: startDate,
-    end: endDate,
-  });
-
-  const nextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
-  const prevMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
-
-  const getVisitsForDay = (day: Date) => {
-    return visits.filter((visit: any) => isSameDay(parseISO(visit.visit_date), day));
-  };
-
-  return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 sm:p-6 bg-gray-50 border-b border-gray-200 gap-4">
-        <div className="flex items-center gap-4">
-          <h2 className="text-xl sm:text-2xl font-semibold text-gray-900">
-            {format(currentMonth, 'MMMM yyyy')}
-          </h2>
-          <div className="flex items-center bg-white border border-gray-200 rounded-lg shadow-sm">
-            <button onClick={prevMonth} className="p-2 hover:bg-gray-50 transition-colors rounded-l-lg">
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <button onClick={() => setCurrentMonth(new Date())} className="px-3 py-2 text-xs font-medium hover:bg-gray-50 transition-colors border-x border-gray-200">
-              Today
-            </button>
-            <button onClick={nextMonth} className="p-2 hover:bg-gray-50 transition-colors rounded-r-lg">
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-full text-xs font-medium text-gray-600">
-            <div className="w-2 h-2 rounded-full bg-amber-400" /> Pending
-          </div>
-          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-full text-xs font-medium text-gray-600">
-            <div className="w-2 h-2 rounded-full bg-blue-500" /> Scheduled
-          </div>
-          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-full text-xs font-medium text-gray-600">
-            <div className="w-2 h-2 rounded-full bg-emerald-500" /> Completed
-          </div>
-        </div>
-      </div>
-      
-      {/* Calendar Grid */}
-      <div className="hidden sm:block">
-        <div className="grid grid-cols-7 border-b border-gray-200">
-          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-            <div key={day} className="py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider bg-gray-50">
-              {day}
-            </div>
-          ))}
-        </div>
-        <div className="grid grid-cols-7 auto-rows-[minmax(100px,auto)]">
-          {calendarDays.map((day, idx) => {
-            const dayVisits = getVisitsForDay(day);
-            const isCurrentMonth = isSameMonth(day, monthStart);
-            
-            return (
-              <div 
-                key={day.toString()} 
-                className={`border-r border-b border-gray-100 p-2 transition-colors hover:bg-gray-50 group relative cursor-pointer ${
-                  !isCurrentMonth ? 'bg-gray-50/50' : ''
-                } ${idx % 7 === 6 ? 'border-r-0' : ''}`}
-                onClick={() => onDateClick(day)}
-              >
-                <div className="flex justify-between items-start mb-2">
-                  <span className={`text-sm font-semibold w-7 h-7 flex items-center justify-center rounded-full transition-colors ${
-                    isToday(day) ? 'bg-blue-600 text-white' : isCurrentMonth ? 'text-gray-700' : 'text-gray-400'
-                  }`}>
-                    {format(day, 'd')}
-                  </span>
-                  <button className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-blue-600">
-                    <Plus className="w-3.5 h-3.5" />
-                  </button>
+            <Card className="border-slate-200">
+              <CardContent className="p-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="space-y-0.5">
+                  <Label className="text-[10px] font-bold uppercase text-slate-500">Engineer/Supervisor</Label>
+                  <Controller control={form.control} name="footer.engineer" render={({ field }) => (
+                    <Input {...field} className="h-7 text-xs" />
+                  )} />
                 </div>
-
-                <div className="space-y-1">
-                  {dayVisits.map((visit: any) => (
-                    <div 
-                      key={visit.id}
-                      className={`px-1.5 py-1 rounded text-[10px] font-medium border-l-2 transition-all hover:shadow-sm cursor-pointer ${
-                        visit.status === 'completed' ? 'bg-emerald-50 border-emerald-500 text-emerald-800' :
-                        visit.status === 'scheduled' ? 'bg-blue-50 border-blue-500 text-blue-800' :
-                        visit.status === 'pending' ? 'bg-amber-50 border-amber-500 text-amber-800' :
-                        'bg-gray-50 border-gray-400 text-gray-800'
-                      }`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onVisitClick(visit);
-                      }}
-                    >
-                      <div className="truncate">{visit.clients?.client_name || 'Client'}</div>
-                    </div>
-                  ))}
+                <div className="space-y-0.5">
+                  <Label className="text-[10px] font-bold uppercase text-slate-500">Signature & Date</Label>
+                  <Controller control={form.control} name="footer.signatureDate" render={({ field }) => (
+                    <Input {...field} className="h-7 text-xs" />
+                  )} />
                 </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
+              </CardContent>
+            </Card>
 
-      {/* Mobile Calendar View - List Style */}
-      <div className="sm:hidden divide-y divide-gray-100">
-        {calendarDays.filter(day => isSameMonth(day, monthStart)).map((day) => {
-          const dayVisits = getVisitsForDay(day);
-          
-          return (
-            <div key={day.toString()} className="p-4">
-              <div className="flex items-center gap-3 mb-3">
-                <div className={`w-12 h-12 rounded-lg flex flex-col items-center justify-center ${
-                  isToday(day) ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'
-                }`}>
-                  <span className="text-xs font-medium">{format(day, 'EEE')}</span>
-                  <span className="text-lg font-semibold">{format(day, 'd')}</span>
-                </div>
-                <button
-                  onClick={() => onDateClick(day)}
-                  className="ml-auto p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                >
-                  <Plus className="w-5 h-5" />
-                </button>
-              </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={closeForm}>Cancel</Button>
+              <Button type="submit" className="bg-blue-600 hover:bg-blue-700" disabled={saveMutation.isPending}>
+                {saveMutation.isPending ? 'Saving...' : <><Save className="w-4 h-4 mr-2" /> Save Report</>}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
-              {dayVisits.length > 0 ? (
-                <div className="space-y-2">
-                  {dayVisits.map((visit: any) => (
-                    <div
-                      key={visit.id}
-                      onClick={() => onVisitClick(visit)}
-                      className={`p-3 rounded-lg border-l-4 cursor-pointer transition-all ${
-                        visit.status === 'completed' ? 'bg-emerald-50 border-emerald-500' :
-                        visit.status === 'scheduled' ? 'bg-blue-50 border-blue-500' :
-                        visit.status === 'pending' ? 'bg-amber-50 border-amber-500' :
-                        'bg-gray-50 border-gray-400'
-                      }`}
-                    >
-                      <div className="font-medium text-sm text-gray-900">
-                        {visit.clients?.client_name || 'Client'}
-                      </div>
-                      <div className="text-xs text-gray-600 mt-1">
-                        {visit.purpose || 'No purpose'}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-gray-400 text-center py-2">No visits</p>
-              )}
-            </div>
-          );
-        })}
-      </div>
+      <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Visit</DialogTitle>
+            <DialogDescription>Are you sure you want to delete this visit? This action cannot be undone.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDeleteOpen(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={() => visitToDelete && deleteMutation.mutate(visitToDelete.id)} disabled={deleteMutation.isPending}>
+              {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

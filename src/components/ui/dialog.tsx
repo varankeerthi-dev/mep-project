@@ -82,3 +82,7 @@ export function DialogTitle({ className, ...props }: HTMLAttributes<HTMLHeadingE
 export function DialogFooter({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
   return <div className={cn('mt-4 flex justify-end gap-2', className)} {...props} />
 }
+
+export function DialogDescription({ className, ...props }: HTMLAttributes<HTMLParagraphElement>) {
+  return <p className={cn('text-sm text-slate-500', className)} {...props} />
+}

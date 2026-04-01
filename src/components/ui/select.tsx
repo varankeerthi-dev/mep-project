@@ -9,6 +9,8 @@ type SelectProps = Omit<SelectHTMLAttributes<HTMLSelectElement>, 'onChange'> & {
   onValueChange?: (value: string) => void
 }
 
+type SelectItemProps = { children?: React.ReactNode; value?: string }
+
 function extractTriggerClass(children: React.ReactNode) {
   let className: string | undefined
   React.Children.forEach(children, (child) => {
@@ -48,7 +50,7 @@ function extractItems(children: React.ReactNode): SelectItemOption[] {
           typeof childProps?.children === 'string'
             ? childProps.children
             : String(childProps?.children ?? value)
-        items.push({ value, label })
+        if (value) items.push({ value, label })
       }
       const childProps = (child as React.ReactElement<any>).props
       if (childProps?.children) walk(childProps.children)
@@ -112,7 +114,7 @@ export function SelectContent({ children }: { children?: React.ReactNode }) {
 }
 SelectContent.displayName = 'SelectContent'
 
-export function SelectItem({ children }: { children?: React.ReactNode }) {
-  return <>{children}</>
+export function SelectItem({ children, value }: SelectItemProps) {
+  return null
 }
 SelectItem.displayName = 'SelectItem'
