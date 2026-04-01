@@ -117,22 +117,22 @@ export function Select({
   )
 }
 
-export function SelectTrigger({ children }: { children?: React.ReactNode }) {
+export function SelectTrigger({ children, className }: { children?: React.ReactNode; className?: string }) {
   return <>{children}</>
 }
 SelectTrigger.displayName = 'SelectTrigger'
 
-export function SelectValue({ children }: { children?: React.ReactNode }) {
+export function SelectValue({ children, placeholder }: { children?: React.ReactNode; placeholder?: string }) {
   return <>{children}</>
 }
 SelectValue.displayName = 'SelectValue'
 
-export function SelectContent({ children }: { children?: React.ReactNode }) {
+export function SelectContent({ children, className }: { children?: React.ReactNode; className?: string }) {
   return <>{children}</>
 }
 SelectContent.displayName = 'SelectContent'
 
-export function SelectItem({ children, value }: SelectItemProps) {
+export function SelectItem({ children, value, className }: SelectItemProps & { className?: string }) {
   return null
 }
 SelectItem.displayName = 'SelectItem'
