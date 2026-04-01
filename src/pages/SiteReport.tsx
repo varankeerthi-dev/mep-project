@@ -5,7 +5,29 @@ import * as z from 'zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
-import { Badge } from '@/components/ui/badge';
+import {
+  Badge,
+  Button as ShadcnButton,
+  Input,
+  Label,
+  Textarea,
+  Checkbox,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from '@/components/ui';
 import { 
   Plus, 
   Trash2, 
@@ -26,14 +48,6 @@ import {
   FileSearch,
   ArrowLeft
 } from 'lucide-react';
-import { Button as ShadcnButton } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 import { useAuth } from '../App';
 

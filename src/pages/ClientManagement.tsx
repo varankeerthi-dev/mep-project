@@ -20,9 +20,9 @@ import {
   TabsList,
   TabsTrigger,
   Badge,
+  Label,
+  Textarea,
 } from '../components/ui';
-import { Label } from '../components/ui/label';
-import { Textarea } from '../components/ui/textarea';
 
 // Icons
 import {

@@ -9,10 +9,7 @@ import {
   type Site,
   type Attendance
 } from '../supabase'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Textarea } from '@/components/ui/textarea'
-import { Badge } from '@/components/ui/badge'
+import { Button, Card, CardContent, CardHeader, CardTitle, Textarea, Badge } from '@/components/ui'
 import { MapPin, Mic, MicOff, LogIn, LogOut, Clock, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react'
 
 interface SpeechRecognitionEvent extends Event {
