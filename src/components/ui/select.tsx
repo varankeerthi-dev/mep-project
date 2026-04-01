@@ -6,7 +6,11 @@ type SelectItemOption = { value: string; label: string }
 
 type SelectProps = Omit<SelectHTMLAttributes<HTMLSelectElement>, 'onChange'> & {
   items?: SelectItemOption[]
+  options?: SelectItemOption[]
+  label?: string
+  error?: string
   onValueChange?: (value: string) => void
+  onChange?: (e: React.ChangeEvent<HTMLSelectElement>) => void
 }
 
 type SelectItemProps = { children?: React.ReactNode; value?: string }
@@ -63,39 +67,53 @@ function extractItems(children: React.ReactNode): SelectItemOption[] {
 export function Select({
   className,
   items,
+  options,
+  label,
+  error,
   onValueChange,
+  onChange,
   children,
   value,
   defaultValue,
   ...props
 }: SelectProps) {
-  const extractedItems = items ?? extractItems(children)
+  const resolvedItems = items ?? options ?? extractItems(children)
   const triggerClass = extractTriggerClass(children)
   const placeholder = extractPlaceholder(children)
 
   return (
-    <select
-      className={cn(
-        'h-9 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500',
-        triggerClass,
-        className
+    <div style={{ width: '100%' }}>
+      {label && (
+        <label className="block text-sm font-medium text-slate-700 mb-1.5">{label}</label>
       )}
-      value={value}
-      defaultValue={value === undefined ? defaultValue : undefined}
-      onChange={(event) => onValueChange?.(event.target.value)}
-      {...props}
-    >
-      {placeholder && (
-        <option value="" disabled={!!props.required}>
-          {placeholder}
-        </option>
-      )}
-      {extractedItems.map((item) => (
-        <option key={item.value} value={item.value}>
-          {item.label}
-        </option>
-      ))}
-    </select>
+      <select
+        className={cn(
+          'h-9 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-50',
+          error && 'border-red-400 focus:ring-red-500',
+          triggerClass,
+          className
+        )}
+        value={value}
+        defaultValue={value === undefined ? defaultValue : undefined}
+        onChange={(event) => {
+          onChange?.(event)
+          onValueChange?.(event.target.value)
+        }}
+        {...props}
+      >
+        {placeholder && (
+          <option value="" disabled={!!props.required}>
+            {placeholder}
+          </option>
+        )}
+        {resolvedItems.map((item) => (
+          <option key={item.value} value={item.value}>
+            {item.label}
+          </option>
+        ))}
+      </select>
+      {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
+    </div>
   )
 }
 
