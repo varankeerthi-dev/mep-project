@@ -8,12 +8,15 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 
 // shadcn/ui components
-import { Button } from '../components/ui/button';
-import { Input } from '../components/ui/input';
-import { Label } from '../components/ui/label';
-import { Textarea } from '../components/ui/textarea';
-import { Card, CardContent } from '../components/ui/card';
-import { Badge } from '../components/ui/badge';
+import {
+  Button,
+  Input,
+  Label,
+  Textarea,
+  Card,
+  CardContent,
+  Badge,
+} from '../components/ui';
 
 // Icons
 import {
