@@ -1,15 +1,44 @@
 import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../supabase';
-import { 
-  Plus, Phone, Search, Filter, Calendar, LayoutDashboard, 
-  List, ChevronLeft, ChevronRight, User, Building, Clock,
-  AlertCircle, CheckCircle, XCircle, MessageSquare, CalendarPlus
+import { colors, radii, shadows, spacing } from '../design-system';
+import { Card, StatCard } from '../components/ui/Card';
+import { Button, IconButton } from '../components/ui/Button';
+import { Badge, PriorityBadge, StatusBadge } from '../components/ui/Badge';
+import { Input, Select, TextArea } from '../components/ui/Input';
+import { Modal } from '../components/ui/Modal';
+import { Tabs, TabList, Tab, TabPanel } from '../components/ui/Tabs';
+import { Calendar } from '../components/ui/Calendar';
+import {
+  Plus,
+  Phone,
+  Search,
+  Filter,
+  Calendar as CalendarIcon,
+  LayoutDashboard,
+  List,
+  ChevronLeft,
+  ChevronRight,
+  User,
+  Building,
+  Clock,
+  AlertCircle,
+  CheckCircle,
+  XCircle,
+  MessageSquare,
+  CalendarPlus,
+  MoreHorizontal,
+  RefreshCw,
+  Mail,
+  ArrowUpRight,
+  ArrowDownLeft,
+  Smartphone,
+  Users,
 } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, 
-  eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, parseISO } from 'date-fns';
+import { format, startOfMonth, endOfMonth, parseISO, isSameDay, isToday } from 'date-fns';
 
 const CALL_CATEGORIES = [
+  { value: '', label: 'All Types' },
   { value: 'incoming', label: 'Incoming Call' },
   { value: 'outgoing', label: 'Outgoing Call' },
   { value: 'whatsapp', label: 'WhatsApp' },
@@ -18,6 +47,7 @@ const CALL_CATEGORIES = [
 ];
 
 const CALL_REGARDING = [
+  { value: '', label: 'All Topics' },
   { value: 'quotation', label: 'Quotation' },
   { value: 'project', label: 'Project' },
   { value: 'issue', label: 'Issue/Complaint' },
@@ -28,30 +58,39 @@ const CALL_REGARDING = [
   { value: 'other', label: 'Other' },
 ];
 
-const PRIORITIES = [
-  { value: 'low', label: 'Low', color: '#22c55e' },
-  { value: 'normal', label: 'Normal', color: '#3b82f6' },
-  { value: 'high', label: 'High', color: '#f59e0b' },
-  { value: 'urgent', label: 'Urgent', color: '#ef4444' },
+const PRIORITY_OPTIONS = [
+  { value: 'low', label: 'Low' },
+  { value: 'normal', label: 'Normal' },
+  { value: 'high', label: 'High' },
+  { value: 'urgent', label: 'Urgent' },
 ];
 
-const STATUSES = [
-  { value: 'open', label: 'Open', color: '#f59e0b' },
-  { value: 'in_progress', label: 'In Progress', color: '#3b82f6' },
-  { value: 'resolved', label: 'Resolved', color: '#22c55e' },
-  { value: 'closed', label: 'Closed', color: '#6b7280' },
+const STATUS_OPTIONS = [
+  { value: 'open', label: 'Open' },
+  { value: 'in_progress', label: 'In Progress' },
+  { value: 'resolved', label: 'Resolved' },
+  { value: 'closed', label: 'Closed' },
 ];
+
+const CATEGORY_ICONS = {
+  incoming: ArrowDownLeft,
+  outgoing: ArrowUpRight,
+  whatsapp: Smartphone,
+  email: Mail,
+  meeting: Users,
+};
 
 export function ClientCommunication() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showAddClientModal, setShowAddClientModal] = useState(false);
-  const [showAddRegardingModal, setShowAddRegardingModal] = useState(false);
   const [showSiteVisitModal, setShowSiteVisitModal] = useState(false);
   const [selectedCommunication, setSelectedCommunication] = useState<any>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+
   // Filters
   const [filters, setFilters] = useState({
     clientId: '',
@@ -92,39 +131,33 @@ export function ClientCommunication() {
       const { data, error } = await query;
       if (error) throw error;
       return data || [];
-    }
+    },
   });
 
-  // Fetch clients for dropdown
-  const { data: clients = [], isLoading: clientsLoading } = useQuery({
+  // Fetch clients
+  const { data: clients = [] } = useQuery({
     queryKey: ['clients-list'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('clients')
         .select('id, client_name, client_type, address, contact_name, phone')
         .order('client_name');
-      if (error) {
-        console.error('Error fetching clients:', error);
-        return [];
-      }
+      if (error) return [];
       return data || [];
     },
-    enabled: true
   });
 
-  // Fetch users for dropdown
+  // Fetch users
   const { data: users = [] } = useQuery({
     queryKey: ['users-list'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('users')
-        .select('id, email, full_name');
+      const { data, error } = await supabase.from('users').select('id, email, full_name');
       if (error) throw error;
       return data || [];
-    }
+    },
   });
 
-  // Create communication mutation
+  // Create communication
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
       const { error } = await supabase.from('client_communication').insert(data);
@@ -134,10 +167,10 @@ export function ClientCommunication() {
       queryClient.invalidateQueries({ queryKey: ['client-communications'] });
       setShowCreateModal(false);
       resetForm();
-    }
+    },
   });
 
-  // Update communication mutation
+  // Update communication
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: any }) => {
       const { error } = await supabase
@@ -149,10 +182,10 @@ export function ClientCommunication() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['client-communications'] });
       setSelectedCommunication(null);
-    }
+    },
   });
 
-  // Create client mutation
+  // Create client
   const createClientMutation = useMutation({
     mutationFn: async (data: any) => {
       const { error } = await supabase.from('clients').insert(data);
@@ -161,10 +194,10 @@ export function ClientCommunication() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['clients-list'] });
       setShowAddClientModal(false);
-    }
+    },
   });
 
-  // Create site visit mutation
+  // Create site visit
   const createSiteVisitMutation = useMutation({
     mutationFn: async (data: any) => {
       const { error } = await supabase.from('site_visits').insert(data);
@@ -173,7 +206,7 @@ export function ClientCommunication() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['site-visits'] });
       setShowSiteVisitModal(false);
-    }
+    },
   });
 
   const [formData, setFormData] = useState({
@@ -225,749 +258,1048 @@ export function ClientCommunication() {
     });
   };
 
-  // Stats calculation
+  // Stats
   const stats = useMemo(() => {
     const today = new Date();
-    const thisWeek = new Date(today.setDate(today.getDate() - today.getDay()));
-    
     return {
       total: communications.length,
-      today: communications.filter(c => isSameDay(parseISO(c.created_at), new Date())).length,
-      open: communications.filter(c => c.status === 'open').length,
-      urgent: communications.filter(c => c.priority === 'urgent').length,
+      today: communications.filter((c) => isSameDay(parseISO(c.created_at), today)).length,
+      open: communications.filter((c) => c.status === 'open').length,
+      urgent: communications.filter((c) => c.priority === 'urgent').length,
     };
   }, [communications]);
 
-  // Calendar days
-  const calendarDays = useMemo(() => {
-    const monthStart = startOfMonth(currentMonth);
-    const monthEnd = endOfMonth(monthStart);
-    const startDate = startOfWeek(monthStart);
-    const endDate = endOfWeek(monthEnd);
-    return eachDayOfInterval({ start: startDate, end: endDate });
-  }, [currentMonth]);
+  // Calendar events
+  const calendarEvents = useMemo(() => {
+    const eventMap = new Map<string, number>();
+    communications.forEach((c) => {
+      const date = parseISO(c.created_at);
+      const key = format(date, 'yyyy-MM-dd');
+      eventMap.set(key, (eventMap.get(key) || 0) + 1);
+    });
+    return Array.from(eventMap.entries()).map(([date, count]) => ({
+      date: parseISO(date),
+      count,
+    }));
+  }, [communications]);
 
   const getCommForDay = (day: Date) => {
-    return communications.filter(c => isSameDay(parseISO(c.created_at), day));
-  };
-
-  const handleSubmit = () => {
-    const data = {
-      ...formData,
-      call_regarding: formData.call_regarding === 'other' ? formData.call_regarding_other : formData.call_regarding,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-    createMutation.mutate(data);
+    return communications.filter((c) => isSameDay(parseISO(c.created_at), day));
   };
 
   const handleCreateSiteVisit = () => {
-    const comm = selectedCommunication;
-    const data = {
-      client_id: comm.client_id,
-      scheduled_date: siteVisitData.visit_date,
-      scheduled_time: siteVisitData.visit_time,
-      purpose: siteVisitData.purpose || comm.call_brief,
-      assigned_to: siteVisitData.assigned_to,
-      notes: siteVisitData.notes || comm.next_action,
-      status: 'Scheduled',
-    };
-    createSiteVisitMutation.mutate(data);
+    if (!selectedCommunication || !siteVisitData.visit_date) return;
+    createSiteVisitMutation.mutate({
+      ...siteVisitData,
+      client_id: selectedCommunication.client_id,
+      created_at: new Date().toISOString(),
+    });
   };
 
+  const clearFilters = () => {
+    setFilters({
+      clientId: '',
+      callCategory: '',
+      callRegarding: '',
+      status: '',
+      priority: '',
+      search: '',
+      dateFrom: '',
+      dateTo: '',
+    });
+  };
+
+  const hasActiveFilters = Object.values(filters).some((v) => v !== '');
+
   return (
-    <div style={{ padding: '24px', background: '#f8fafc', minHeight: '100vh' }}>
+    <div style={{ minHeight: '100vh', background: colors.gray[50] }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-        <div>
-          <h1 style={{ fontSize: '24px', fontWeight: 700, color: '#1e293b', margin: 0 }}>Client Communication</h1>
-          <p style={{ color: '#64748b', margin: '4px 0 0' }}>Track and manage all client communications</p>
-        </div>
-        <button
-          onClick={() => setShowCreateModal(true)}
+      <div
+        style={{
+          background: '#ffffff',
+          borderBottom: `1px solid ${colors.gray[200]}`,
+          padding: '20px 24px',
+          position: 'sticky',
+          top: 0,
+          zIndex: 10,
+        }}
+      >
+        <div
           style={{
-            display: 'flex', alignItems: 'center', gap: '8px',
-            padding: '12px 20px', background: '#3b82f6', color: '#fff',
-            border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 600,
-            cursor: 'pointer'
+            maxWidth: '1400px',
+            margin: '0 auto',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
           }}
         >
-          <Plus size={18} /> New Communication
-        </button>
-      </div>
-
-      {/* Tabs */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', borderBottom: '1px solid #e2e8f0', paddingBottom: '12px' }}>
-        {[
-          { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-          { id: 'list', label: 'List View', icon: List },
-          { id: 'calendar', label: 'Calendar', icon: Calendar },
-        ].map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '8px',
-              padding: '10px 16px', borderRadius: '8px', border: 'none',
-              background: activeTab === tab.id ? '#3b82f6' : 'transparent',
-              color: activeTab === tab.id ? '#fff' : '#64748b',
-              fontSize: '14px', fontWeight: 500, cursor: 'pointer',
-              transition: 'all 0.2s'
-            }}
-          >
-            <tab.icon size={16} /> {tab.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Filters */}
-      <div style={{ 
-        background: '#fff', borderRadius: '12px', padding: '20px', marginBottom: '24px',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
-      }}>
-        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
-          <div style={{ position: 'relative', flex: '1', minWidth: '200px' }}>
-            <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
-            <input
-              type="text"
-              placeholder="Search communications..."
-              value={filters.search}
-              onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+          <div>
+            <h1
               style={{
-                width: '100%', padding: '10px 12px 10px 40px', borderRadius: '8px',
-                border: '1px solid #e2e8f0', fontSize: '14px', outline: 'none'
+                fontSize: '24px',
+                fontWeight: 700,
+                color: colors.gray[900],
+                margin: 0,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
               }}
-            />
+            >
+              <div
+                style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: radii.md,
+                  background: colors.primary[50],
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: colors.primary[600],
+                }}
+              >
+                <MessageSquare size={20} />
+              </div>
+              Client Communication
+            </h1>
+            <p style={{ fontSize: '14px', color: colors.gray[500], margin: '4px 0 0 52px' }}>
+              Track and manage all client interactions in one place
+            </p>
           </div>
-          
-          <select
-            value={filters.clientId}
-            onChange={(e) => setFilters({ ...filters, clientId: e.target.value })}
-            style={{ padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px', minWidth: '180px' }}
+          <Button
+            variant="primary"
+            leftIcon={<Plus size={18} />}
+            onClick={() => setShowCreateModal(true)}
           >
-            <option value="">All Clients</option>
-            {clients.map(c => <option key={c.id} value={c.id}>{c.client_name}</option>)}
-          </select>
-
-          <select
-            value={filters.callCategory}
-            onChange={(e) => setFilters({ ...filters, callCategory: e.target.value })}
-            style={{ padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px', minWidth: '150px' }}
-          >
-            <option value="">All Types</option>
-            {CALL_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-          </select>
-
-          <select
-            value={filters.callRegarding}
-            onChange={(e) => setFilters({ ...filters, callRegarding: e.target.value })}
-            style={{ padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px', minWidth: '150px' }}
-          >
-            <option value="">All Regarding</option>
-            {CALL_REGARDING.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-          </select>
-
-          <select
-            value={filters.status}
-            onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-            style={{ padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px', minWidth: '130px' }}
-          >
-            <option value="">All Status</option>
-            {STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-          </select>
-
-          <input
-            type="date"
-            value={filters.dateFrom}
-            onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
-            style={{ padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px' }}
-          />
-          <span style={{ color: '#94a3b8' }}>to</span>
-          <input
-            type="date"
-            value={filters.dateTo}
-            onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
-            style={{ padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px' }}
-          />
-
-          <button
-            onClick={() => setFilters({ clientId: '', callCategory: '', callRegarding: '', status: '', priority: '', search: '', dateFrom: '', dateTo: '' })}
-            style={{ padding: '10px 16px', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#fff', color: '#64748b', fontSize: '14px', cursor: 'pointer' }}
-          >
-            Clear
-          </button>
+            New Communication
+          </Button>
         </div>
       </div>
 
-      {/* Dashboard View */}
-      {activeTab === 'dashboard' && (
+      {/* Main Content */}
+      <div
+        style={{
+          maxWidth: '1400px',
+          margin: '0 auto',
+          padding: '24px',
+          display: 'grid',
+          gridTemplateColumns: sidebarCollapsed ? '60px 1fr' : '280px 1fr',
+          gap: '24px',
+          transition: 'grid-template-columns 200ms ease',
+        }}
+      >
+        {/* Sidebar */}
         <div>
-          {/* Stats Cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '24px' }}>
-            {[
-              { label: 'Total Communications', value: stats.total, color: '#3b82f6', icon: Phone },
-              { label: 'Today', value: stats.today, color: '#8b5cf6', icon: Clock },
-              { label: 'Open Issues', value: stats.open, color: '#f59e0b', icon: AlertCircle },
-              { label: 'Urgent', value: stats.urgent, color: '#ef4444', icon: XCircle },
-            ].map((stat, i) => (
-              <div key={i} style={{ background: '#fff', borderRadius: '12px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div>
-                    <p style={{ color: '#64748b', fontSize: '13px', margin: '0 0 8px' }}>{stat.label}</p>
-                    <p style={{ fontSize: '28px', fontWeight: 700, color: stat.color, margin: 0 }}>{stat.value}</p>
-                  </div>
-                  <stat.icon size={24} style={{ color: stat.color, opacity: 0.5 }} />
-                </div>
-              </div>
-            ))}
-          </div>
+          <Card padding="none">
+            <div
+              style={{
+                padding: '16px 20px',
+                borderBottom: `1px solid ${colors.gray[200]}`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              {!sidebarCollapsed && (
+                <span style={{ fontSize: '14px', fontWeight: 600, color: colors.gray[700] }}>
+                  <Filter size={16} style={{ display: 'inline', marginRight: '8px' }} />
+                  Filters
+                </span>
+              )}
+              <IconButton
+                icon={sidebarCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+                variant="ghost"
+                size="sm"
+                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              />
+            </div>
 
-          {/* Recent Communications */}
-          <div style={{ background: '#fff', borderRadius: '12px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-            <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#1e293b', marginBottom: '16px' }}>Recent Communications</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {communications.slice(0, 10).map(comm => (
-                <div
-                  key={comm.id}
-                  onClick={() => setSelectedCommunication(comm)}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '16px', padding: '16px',
-                    background: '#f8fafc', borderRadius: '8px', cursor: 'pointer',
-                    border: '1px solid transparent', transition: 'all 0.2s'
-                  }}
-                >
-                  <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#e0e7ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <Phone size={18} color="#4f46e5" />
+            {!sidebarCollapsed && (
+              <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <Input
+                  placeholder="Search..."
+                  value={filters.search}
+                  onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+                  leftIcon={<Search size={16} />}
+                />
+
+                <Select
+                  label="Client"
+                  value={filters.clientId}
+                  onChange={(e) => setFilters({ ...filters, clientId: e.target.value })}
+                  options={[{ value: '', label: 'All Clients' }, ...clients.map((c) => ({ value: c.id, label: c.client_name }))]}
+                />
+
+                <Select
+                  label="Communication Type"
+                  value={filters.callCategory}
+                  onChange={(e) => setFilters({ ...filters, callCategory: e.target.value })}
+                  options={CALL_CATEGORIES}
+                />
+
+                <Select
+                  label="Regarding"
+                  value={filters.callRegarding}
+                  onChange={(e) => setFilters({ ...filters, callRegarding: e.target.value })}
+                  options={CALL_REGARDING}
+                />
+
+                <Select
+                  label="Status"
+                  value={filters.status}
+                  onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+                  options={[{ value: '', label: 'All Statuses' }, ...STATUS_OPTIONS]}
+                />
+
+                <Select
+                  label="Priority"
+                  value={filters.priority}
+                  onChange={(e) => setFilters({ ...filters, priority: e.target.value })}
+                  options={[{ value: '', label: 'All Priorities' }, ...PRIORITY_OPTIONS]}
+                />
+
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <div style={{ flex: 1 }}>
+                    <Input
+                      type="date"
+                      label="From"
+                      value={filters.dateFrom}
+                      onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
+                    />
                   </div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontWeight: 600, color: '#1e293b' }}>{comm.client?.client_name || 'Unknown Client'}</span>
-                      <span style={{ 
-                        padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 600,
-                        background: PRIORITIES.find(p => p.value === comm.priority)?.color + '20',
-                        color: PRIORITIES.find(p => p.value === comm.priority)?.color
-                      }}>
-                        {PRIORITIES.find(p => p.value === comm.priority)?.label}
-                      </span>
-                      <span style={{ 
-                        padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 600,
-                        background: STATUSES.find(s => s.value === comm.status)?.color + '20',
-                        color: STATUSES.find(s => s.value === comm.status)?.color
-                      }}>
-                        {STATUSES.find(s => s.value === comm.status)?.label}
-                      </span>
-                    </div>
-                    <p style={{ color: '#64748b', fontSize: '13px', margin: '4px 0 0' }}>
-                      {CALL_REGARDING.find(r => r.value === comm.call_regarding)?.label || comm.call_regarding} • {comm.call_brief?.substring(0, 60)}...
-                    </p>
-                  </div>
-                  <span style={{ color: '#94a3b8', fontSize: '12px' }}>
-                    {format(parseISO(comm.created_at), 'MMM d, h:mm a')}
-                  </span>
-                </div>
-              ))}
-              {communications.length === 0 && (
-                <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
-                  No communications found
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* List View */}
-      {activeTab === 'list' && (
-        <div style={{ background: '#fff', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: 600, color: '#64748b' }}>Date</th>
-                <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: 600, color: '#64748b' }}>Client</th>
-                <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: 600, color: '#64748b' }}>Type</th>
-                <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: 600, color: '#64748b' }}>Regarding</th>
-                <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: 600, color: '#64748b' }}>Brief</th>
-                <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: 600, color: '#64748b' }}>Status</th>
-                <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '12px', fontWeight: 600, color: '#64748b' }}>Priority</th>
-              </tr>
-            </thead>
-            <tbody>
-              {communications.map(comm => (
-                <tr
-                  key={comm.id}
-                  onClick={() => setSelectedCommunication(comm)}
-                  style={{ borderBottom: '1px solid #f1f5f9', cursor: 'pointer' }}
-                >
-                  <td style={{ padding: '12px 16px', fontSize: '13px', color: '#64748b' }}>
-                    {format(parseISO(comm.created_at), 'MMM d, h:mm a')}
-                  </td>
-                  <td style={{ padding: '12px 16px', fontSize: '13px', fontWeight: 500, color: '#1e293b' }}>
-                    {comm.client?.client_name || 'Unknown'}
-                  </td>
-                  <td style={{ padding: '12px 16px', fontSize: '13px', color: '#64748b' }}>
-                    {CALL_CATEGORIES.find(c => c.value === comm.call_category)?.label}
-                  </td>
-                  <td style={{ padding: '12px 16px', fontSize: '13px', color: '#64748b' }}>
-                    {CALL_REGARDING.find(r => r.value === comm.call_regarding)?.label}
-                  </td>
-                  <td style={{ padding: '12px 16px', fontSize: '13px', color: '#64748b', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {comm.call_brief}
-                  </td>
-                  <td style={{ padding: '12px 16px' }}>
-                    <span style={{ 
-                      padding: '4px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 600,
-                      background: STATUSES.find(s => s.value === comm.status)?.color + '20',
-                      color: STATUSES.find(s => s.value === comm.status)?.color
-                    }}>
-                      {STATUSES.find(s => s.value === comm.status)?.label}
-                    </span>
-                  </td>
-                  <td style={{ padding: '12px 16px' }}>
-                    <span style={{ 
-                      padding: '4px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 600,
-                      background: PRIORITIES.find(p => p.value === comm.priority)?.color + '20',
-                      color: PRIORITIES.find(p => p.value === comm.priority)?.color
-                    }}>
-                      {PRIORITIES.find(p => p.value === comm.priority)?.label}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* Calendar View */}
-      {activeTab === 'calendar' && (
-        <div style={{ background: '#fff', borderRadius: '12px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-            <h3 style={{ fontSize: '18px', fontWeight: 600, color: '#1e293b' }}>
-              {format(currentMonth, 'MMMM yyyy')}
-            </h3>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button onClick={() => setCurrentMonth(subMonths(currentMonth, 1))} style={{ padding: '8px', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer' }}>
-                <ChevronLeft size={18} />
-              </button>
-              <button onClick={() => setCurrentMonth(new Date())} style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#fff', fontSize: '13px', cursor: 'pointer' }}>Today</button>
-              <button onClick={() => setCurrentMonth(addMonths(currentMonth, 1))} style={{ padding: '8px', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer' }}>
-                <ChevronRight size={18} />
-              </button>
-            </div>
-          </div>
-          
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '1px', background: '#e2e8f0' }}>
-            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-              <div key={day} style={{ padding: '12px', background: '#f8fafc', textAlign: 'center', fontSize: '12px', fontWeight: 600, color: '#64748b' }}>{day}</div>
-            ))}
-            {calendarDays.map((day, i) => {
-              const dayComms = getCommForDay(day);
-              return (
-                <div
-                  key={i}
-                  style={{
-                    minHeight: '100px', padding: '8px', background: '#fff',
-                    border: isSameMonth(day, currentMonth) ? 'none' : '#f1f5f9'
-                  }}
-                >
-                  <span style={{ 
-                    display: 'inline-block', width: '28px', height: '28px', lineHeight: '28px', textAlign: 'center',
-                    borderRadius: '50%', fontSize: '13px',
-                    background: isSameDay(day, new Date()) ? '#3b82f6' : 'transparent',
-                    color: isSameDay(day, new Date()) ? '#fff' : isSameMonth(day, currentMonth) ? '#1e293b' : '#cbd5e1'
-                  }}>
-                    {format(day, 'd')}
-                  </span>
-                  <div style={{ marginTop: '4px' }}>
-                    {dayComms.slice(0, 2).map((c, j) => (
-                      <div key={j} style={{ 
-                        padding: '2px 6px', borderRadius: '4px', fontSize: '10px', marginBottom: '2px',
-                        background: '#e0e7ff', color: '#4f46e5', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
-                      }}>
-                        {c.client?.client_name}
-                      </div>
-                    ))}
-                    {dayComms.length > 2 && <span style={{ fontSize: '10px', color: '#94a3b8' }}>+{dayComms.length - 2} more</span>}
+                    <Input
+                      type="date"
+                      label="To"
+                      value={filters.dateTo}
+                      onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
+                    />
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
-      {/* Create Modal */}
-      {showCreateModal && (
-        <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
-        }}>
-          <div style={{ background: '#fff', borderRadius: '16px', width: '600px', maxHeight: '90vh', overflow: 'auto' }}>
-            <div style={{ padding: '20px 24px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h2 style={{ fontSize: '18px', fontWeight: 600, margin: 0 }}>New Communication</h2>
-              <button onClick={() => { setShowCreateModal(false); resetForm(); }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}>✕</button>
-            </div>
-            
-            <div style={{ padding: '24px' }}>
-              {/* Client Selection with Add */}
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#374151', marginBottom: '6px' }}>Client *</label>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <select
-                    value={formData.client_id}
-                    onChange={(e) => setFormData({ ...formData, client_id: e.target.value })}
-                    style={{ flex: 1, padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px' }}
-                    disabled={clientsLoading}
-                  >
-                    <option value="">{clientsLoading ? 'Loading...' : 'Select Client'}</option>
-                    {clients.map(c => <option key={c.id} value={c.id}>{c.client_name}</option>)}
-                  </select>
-                  <button
-                    onClick={() => setShowAddClientModal(true)}
-                    style={{ padding: '10px 16px', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
-                  >
-                    <Plus size={16} /> Add
-                  </button>
-                </div>
-              </div>
-
-              {/* Call Type & Category */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#374151', marginBottom: '6px' }}>Call Type</label>
-                  <select
-                    value={formData.call_type}
-                    onChange={(e) => setFormData({ ...formData, call_type: e.target.value })}
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px' }}
-                  >
-                    <option value="Incoming">Incoming</option>
-                    <option value="Outgoing">Outgoing</option>
-                  </select>
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#374151', marginBottom: '6px' }}>Category</label>
-                  <select
-                    value={formData.call_category}
-                    onChange={(e) => setFormData({ ...formData, call_category: e.target.value })}
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px' }}
-                  >
-                    {CALL_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-                  </select>
-                </div>
-              </div>
-
-              {/* Call Received By & Entered By */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#374151', marginBottom: '6px' }}>Call Received By</label>
-                  <select
-                    value={formData.call_received_by}
-                    onChange={(e) => setFormData({ ...formData, call_received_by: e.target.value })}
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px' }}
-                  >
-                    <option value="">Select User</option>
-                    {users.map(u => <option key={u.id} value={u.id}>{u.full_name || u.email}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#374151', marginBottom: '6px' }}>Call Entered By</label>
-                  <select
-                    value={formData.call_entered_by}
-                    onChange={(e) => setFormData({ ...formData, call_entered_by: e.target.value })}
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px' }}
-                  >
-                    <option value="">Select User</option>
-                    {users.map(u => <option key={u.id} value={u.id}>{u.full_name || u.email}</option>)}
-                  </select>
-                </div>
-              </div>
-
-              {/* Call Regarding with Add */}
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#374151', marginBottom: '6px' }}>Call Regarding *</label>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <select
-                    value={formData.call_regarding}
-                    onChange={(e) => setFormData({ ...formData, call_regarding: e.target.value })}
-                    style={{ flex: 1, padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px' }}
-                  >
-                    <option value="">Select</option>
-                    {CALL_REGARDING.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-                  </select>
-                </div>
-                {formData.call_regarding === 'other' && (
-                  <input
-                    type="text"
-                    placeholder="Specify other..."
-                    value={formData.call_regarding_other}
-                    onChange={(e) => setFormData({ ...formData, call_regarding_other: e.target.value })}
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px', marginTop: '8px' }}
-                  />
+                {hasActiveFilters && (
+                  <Button variant="ghost" leftIcon={<RefreshCw size={16} />} onClick={clearFilters}>
+                    Clear Filters
+                  </Button>
                 )}
               </div>
+            )}
+          </Card>
+        </div>
 
-              {/* Call Brief */}
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#374151', marginBottom: '6px' }}>Call Brief *</label>
-                <textarea
-                  value={formData.call_brief}
-                  onChange={(e) => setFormData({ ...formData, call_brief: e.target.value })}
-                  placeholder="What was discussed in the call..."
-                  rows={4}
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px', resize: 'vertical' }}
+        {/* Content Area */}
+        <div>
+          <Tabs defaultTab="dashboard" onChange={setActiveTab}>
+            <TabList style={{ marginBottom: '24px' }}>
+              <Tab value="dashboard" icon={<LayoutDashboard size={16} />}>
+                Dashboard
+              </Tab>
+              <Tab value="list" icon={<List size={16} />}>
+                All Communications
+              </Tab>
+            </TabList>
+
+            <TabPanel value="dashboard">
+              {/* Stats */}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(4, 1fr)',
+                  gap: '16px',
+                  marginBottom: '24px',
+                }}
+              >
+                <StatCard
+                  icon={<MessageSquare size={22} />}
+                  label="Total Communications"
+                  value={stats.total}
+                  color="blue"
+                />
+                <StatCard
+                  icon={<Clock size={22} />}
+                  label="Today's Activity"
+                  value={stats.today}
+                  color="green"
+                />
+                <StatCard
+                  icon={<AlertCircle size={22} />}
+                  label="Open Items"
+                  value={stats.open}
+                  color="amber"
+                />
+                <StatCard
+                  icon={<XCircle size={22} />}
+                  label="Urgent Priority"
+                  value={stats.urgent}
+                  color="red"
                 />
               </div>
 
-              {/* Next Action */}
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#374151', marginBottom: '6px' }}>Next Action</label>
-                <textarea
-                  value={formData.next_action}
-                  onChange={(e) => setFormData({ ...formData, next_action: e.target.value })}
-                  placeholder="What needs to be done next..."
-                  rows={3}
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px', resize: 'vertical' }}
+              {/* Calendar and Recent */}
+              <div style={{ display: 'grid', gridTemplateColumns: '380px 1fr', gap: '24px' }}>
+                <Calendar
+                  currentMonth={currentMonth}
+                  onMonthChange={setCurrentMonth}
+                  selectedDate={selectedDate}
+                  onSelectDate={setSelectedDate}
+                  events={calendarEvents}
                 />
-              </div>
 
-              {/* Priority & Status */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#374151', marginBottom: '6px' }}>Priority</label>
-                  <select
-                    value={formData.priority}
-                    onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px' }}
+                <Card>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      marginBottom: '20px',
+                    }}
                   >
-                    {PRIORITIES.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#374151', marginBottom: '6px' }}>Status</label>
-                  <select
-                    value={formData.status}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px' }}
-                  >
-                    {STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-                  </select>
-                </div>
-              </div>
+                    <h3 style={{ fontSize: '16px', fontWeight: 600, color: colors.gray[900], margin: 0 }}>
+                      {selectedDate
+                        ? `Communications for ${format(selectedDate, 'MMM d, yyyy')}`
+                        : 'Recent Communications'}
+                    </h3>
+                    {selectedDate && (
+                      <Button variant="ghost" size="sm" onClick={() => setSelectedDate(undefined)}>
+                        View All
+                      </Button>
+                    )}
+                  </div>
 
-              {/* Actions */}
-              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-                <button
-                  onClick={() => { setShowCreateModal(false); resetForm(); }}
-                  style={{ padding: '10px 20px', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#fff', fontSize: '14px', cursor: 'pointer' }}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSubmit}
-                  disabled={!formData.client_id || !formData.call_regarding || !formData.call_brief || createMutation.isPending}
-                  style={{ padding: '10px 20px', borderRadius: '8px', border: 'none', background: '#3b82f6', color: '#fff', fontSize: '14px', fontWeight: 600, cursor: 'pointer', opacity: createMutation.isPending ? 0.7 : 1 }}
-                >
-                  {createMutation.isPending ? 'Saving...' : 'Save Communication'}
-                </button>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {(selectedDate ? getCommForDay(selectedDate) : communications.slice(0, 5)).map(
+                      (comm) => {
+                        const Icon = CATEGORY_ICONS[comm.call_category as keyof typeof CATEGORY_ICONS] || MessageSquare;
+                        return (
+                          <div
+                            key={comm.id}
+                            onClick={() => setSelectedCommunication(comm)}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'flex-start',
+                              gap: '12px',
+                              padding: '16px',
+                              background: colors.gray[50],
+                              borderRadius: radii.md,
+                              cursor: 'pointer',
+                              transition: 'all 150ms ease',
+                              border: '1px solid transparent',
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = '#ffffff';
+                              e.currentTarget.style.borderColor = colors.gray[200];
+                              e.currentTarget.style.boxShadow = shadows.sm;
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = colors.gray[50];
+                              e.currentTarget.style.borderColor = 'transparent';
+                              e.currentTarget.style.boxShadow = 'none';
+                            }}
+                          >
+                            <div
+                              style={{
+                                width: '40px',
+                                height: '40px',
+                                borderRadius: radii.DEFAULT,
+                                background: colors.primary[50],
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: colors.primary[600],
+                                flexShrink: 0,
+                              }}
+                            >
+                              <Icon size={20} />
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '8px',
+                                  marginBottom: '4px',
+                                }}
+                              >
+                                <span
+                                  style={{
+                                    fontSize: '14px',
+                                    fontWeight: 600,
+                                    color: colors.gray[900],
+                                  }}
+                                >
+                                  {comm.client?.client_name}
+                                </span>
+                                <PriorityBadge priority={comm.priority} />
+                                <StatusBadge status={comm.status} />
+                              </div>
+                              <p
+                                style={{
+                                  fontSize: '13px',
+                                  color: colors.gray[600],
+                                  margin: 0,
+                                  lineHeight: 1.5,
+                                  display: '-webkit-box',
+                                  WebkitLineClamp: 2,
+                                  WebkitBoxOrient: 'vertical',
+                                  overflow: 'hidden',
+                                }}
+                              >
+                                {comm.call_brief}
+                              </p>
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '12px',
+                                  marginTop: '8px',
+                                  fontSize: '12px',
+                                  color: colors.gray[500],
+                                }}
+                              >
+                                <span>{format(parseISO(comm.created_at), 'MMM d, h:mm a')}</span>
+                                {comm.call_regarding && (
+                                  <Badge variant="neutral" size="sm">
+                                    {CALL_REGARDING.find((r) => r.value === comm.call_regarding)?.label}
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      }
+                    )}
+
+                    {(selectedDate ? getCommForDay(selectedDate) : communications.slice(0, 5)).length === 0 && (
+                      <div style={{ textAlign: 'center', padding: '40px', color: colors.gray[500] }}>
+                        <MessageSquare size={48} style={{ marginBottom: '16px', opacity: 0.5 }} />
+                        <p>No communications found</p>
+                      </div>
+                    )}
+                  </div>
+                </Card>
               </div>
+            </TabPanel>
+
+            <TabPanel value="list">
+              <Card>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '16px 20px',
+                    borderBottom: `1px solid ${colors.gray[200]}`,
+                  }}
+                >
+                  <h3 style={{ fontSize: '16px', fontWeight: 600, color: colors.gray[900], margin: 0 }}>
+                    All Communications ({communications.length})
+                  </h3>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <IconButton icon={<RefreshCw size={16} />} variant="ghost" size="sm" />
+                  </div>
+                </div>
+
+                <div style={{ overflow: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ background: colors.gray[50] }}>
+                        <th
+                          style={{
+                            padding: '12px 16px',
+                            textAlign: 'left',
+                            fontSize: '12px',
+                            fontWeight: 600,
+                            color: colors.gray[600],
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.05em',
+                            borderBottom: `1px solid ${colors.gray[200]}`,
+                          }}
+                        >
+                          Client
+                        </th>
+                        <th
+                          style={{
+                            padding: '12px 16px',
+                            textAlign: 'left',
+                            fontSize: '12px',
+                            fontWeight: 600,
+                            color: colors.gray[600],
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.05em',
+                            borderBottom: `1px solid ${colors.gray[200]}`,
+                          }}
+                        >
+                          Type
+                        </th>
+                        <th
+                          style={{
+                            padding: '12px 16px',
+                            textAlign: 'left',
+                            fontSize: '12px',
+                            fontWeight: 600,
+                            color: colors.gray[600],
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.05em',
+                            borderBottom: `1px solid ${colors.gray[200]}`,
+                          }}
+                        >
+                          Brief
+                        </th>
+                        <th
+                          style={{
+                            padding: '12px 16px',
+                            textAlign: 'left',
+                            fontSize: '12px',
+                            fontWeight: 600,
+                            color: colors.gray[600],
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.05em',
+                            borderBottom: `1px solid ${colors.gray[200]}`,
+                          }}
+                        >
+                          Priority
+                        </th>
+                        <th
+                          style={{
+                            padding: '12px 16px',
+                            textAlign: 'left',
+                            fontSize: '12px',
+                            fontWeight: 600,
+                            color: colors.gray[600],
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.05em',
+                            borderBottom: `1px solid ${colors.gray[200]}`,
+                          }}
+                        >
+                          Status
+                        </th>
+                        <th
+                          style={{
+                            padding: '12px 16px',
+                            textAlign: 'left',
+                            fontSize: '12px',
+                            fontWeight: 600,
+                            color: colors.gray[600],
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.05em',
+                            borderBottom: `1px solid ${colors.gray[200]}`,
+                          }}
+                        >
+                          Date
+                        </th>
+                        <th style={{ width: '48px', borderBottom: `1px solid ${colors.gray[200]}` }} />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {communications.map((comm) => (
+                        <tr
+                          key={comm.id}
+                          onClick={() => setSelectedCommunication(comm)}
+                          style={{
+                            cursor: 'pointer',
+                            transition: 'background 150ms ease',
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = colors.gray[50];
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = 'transparent';
+                          }}
+                        >
+                          <td
+                            style={{
+                              padding: '16px',
+                              borderBottom: `1px solid ${colors.gray[100]}`,
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                              <div
+                                style={{
+                                  width: '36px',
+                                  height: '36px',
+                                  borderRadius: radii.DEFAULT,
+                                  background: colors.primary[50],
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  color: colors.primary[600],
+                                  fontSize: '14px',
+                                  fontWeight: 600,
+                                }}
+                              >
+                                {comm.client?.client_name?.charAt(0) || '?'}
+                              </div>
+                              <div>
+                                <div style={{ fontSize: '14px', fontWeight: 500, color: colors.gray[900] }}>
+                                  {comm.client?.client_name}
+                                </div>
+                                <div style={{ fontSize: '12px', color: colors.gray[500] }}>
+                                  {comm.client?.client_type}
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                          <td
+                            style={{
+                              padding: '16px',
+                              borderBottom: `1px solid ${colors.gray[100]}`,
+                            }}
+                          >
+                            <Badge variant="neutral" size="sm">
+                              {CALL_CATEGORIES.find((c) => c.value === comm.call_category)?.label}
+                            </Badge>
+                          </td>
+                          <td
+                            style={{
+                              padding: '16px',
+                              borderBottom: `1px solid ${colors.gray[100]}`,
+                              maxWidth: '300px',
+                            }}
+                          >
+                            <p
+                              style={{
+                                fontSize: '14px',
+                                color: colors.gray[700],
+                                margin: 0,
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {comm.call_brief}
+                            </p>
+                            {comm.next_action && (
+                              <p
+                                style={{
+                                  fontSize: '12px',
+                                  color: colors.gray[500],
+                                  margin: '4px 0 0',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                Next: {comm.next_action}
+                              </p>
+                            )}
+                          </td>
+                          <td style={{ padding: '16px', borderBottom: `1px solid ${colors.gray[100]}` }}>
+                            <PriorityBadge priority={comm.priority} />
+                          </td>
+                          <td style={{ padding: '16px', borderBottom: `1px solid ${colors.gray[100]}` }}>
+                            <StatusBadge status={comm.status} />
+                          </td>
+                          <td
+                            style={{
+                              padding: '16px',
+                              fontSize: '13px',
+                              color: colors.gray[600],
+                              borderBottom: `1px solid ${colors.gray[100]}`,
+                            }}
+                          >
+                            {format(parseISO(comm.created_at), 'MMM d, yyyy')}
+                          </td>
+                          <td style={{ padding: '8px', borderBottom: `1px solid ${colors.gray[100]}` }}>
+                            <IconButton icon={<MoreHorizontal size={16} />} variant="ghost" size="sm" />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+
+                  {communications.length === 0 && (
+                    <div style={{ textAlign: 'center', padding: '60px', color: colors.gray[500] }}>
+                      <MessageSquare size={64} style={{ marginBottom: '20px', opacity: 0.3 }} />
+                      <h3 style={{ fontSize: '18px', fontWeight: 600, color: colors.gray[700], margin: 0 }}>
+                        No communications found
+                      </h3>
+                      <p style={{ fontSize: '14px', marginTop: '8px' }}>
+                        {hasActiveFilters ? 'Try adjusting your filters' : 'Start by creating a new communication'}
+                      </p>
+                      {hasActiveFilters && (
+                        <Button variant="secondary" onClick={clearFilters} style={{ marginTop: '16px' }}>
+                          Clear Filters
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </Card>
+            </TabPanel>
+          </Tabs>
+        </div>
+      </div>
+
+      {/* Create Communication Modal */}
+      <Modal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        title="New Communication"
+        size="lg"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowCreateModal(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() =>
+                createMutation.mutate({
+                  ...formData,
+                  created_at: new Date().toISOString(),
+                })
+              }
+              isLoading={createMutation.isPending}
+              disabled={!formData.client_id || !formData.call_brief}
+            >
+              Create Communication
+            </Button>
+          </>
+        }
+      >
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          <div style={{ gridColumn: 'span 2' }}>
+            <label style={{ fontSize: '13px', fontWeight: 500, color: colors.gray[700], marginBottom: '6px', display: 'block' }}>
+              Client *
+            </label>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <select
+                value={formData.client_id}
+                onChange={(e) => setFormData({ ...formData, client_id: e.target.value })}
+                style={{
+                  flex: 1,
+                  padding: '10px 12px',
+                  fontSize: '14px',
+                  border: `1px solid ${colors.gray[300]}`,
+                  borderRadius: radii.md,
+                  background: '#ffffff',
+                }}
+              >
+                <option value="">Select a client</option>
+                {clients.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.client_name}
+                  </option>
+                ))}
+              </select>
+              <Button variant="secondary" onClick={() => setShowAddClientModal(true)}>
+                <Plus size={18} />
+              </Button>
             </div>
           </div>
+
+          <Select
+            label="Communication Type"
+            value={formData.call_category}
+            onChange={(e) => setFormData({ ...formData, call_category: e.target.value })}
+            options={CALL_CATEGORIES.filter((c) => c.value !== '')}
+          />
+
+          <Select
+            label="Regarding"
+            value={formData.call_regarding}
+            onChange={(e) => setFormData({ ...formData, call_regarding: e.target.value })}
+            options={CALL_REGARDING.filter((r) => r.value !== '')}
+          />
+
+          <TextArea
+            label="Call Brief *"
+            value={formData.call_brief}
+            onChange={(e) => setFormData({ ...formData, call_brief: e.target.value })}
+            placeholder="Describe the conversation..."
+            style={{ gridColumn: 'span 2' }}
+          />
+
+          <TextArea
+            label="Next Action"
+            value={formData.next_action}
+            onChange={(e) => setFormData({ ...formData, next_action: e.target.value })}
+            placeholder="What needs to be done next?"
+            style={{ gridColumn: 'span 2' }}
+          />
+
+          <Select
+            label="Priority"
+            value={formData.priority}
+            onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
+            options={PRIORITY_OPTIONS}
+          />
+
+          <Select
+            label="Status"
+            value={formData.status}
+            onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+            options={STATUS_OPTIONS}
+          />
+
+          <Select
+            label="Call Received By"
+            value={formData.call_received_by}
+            onChange={(e) => setFormData({ ...formData, call_received_by: e.target.value })}
+            options={[{ value: '', label: 'Select user' }, ...users.map((u) => ({ value: u.id, label: u.full_name || u.email }))]}
+          />
+
+          <Select
+            label="Call Entered By"
+            value={formData.call_entered_by}
+            onChange={(e) => setFormData({ ...formData, call_entered_by: e.target.value })}
+            options={[{ value: '', label: 'Select user' }, ...users.map((u) => ({ value: u.id, label: u.full_name || u.email }))]}
+          />
         </div>
-      )}
+      </Modal>
 
       {/* Add Client Modal */}
-      {showAddClientModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }}>
-          <div style={{ background: '#fff', borderRadius: '16px', width: '450px' }}>
-            <div style={{ padding: '20px 24px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h2 style={{ fontSize: '16px', fontWeight: 600, margin: 0 }}>Add New Client</h2>
-              <button onClick={() => setShowAddClientModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
-            </div>
-            <div style={{ padding: '24px' }}>
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '6px' }}>Client Name *</label>
-                <input
-                  type="text"
-                  value={newClientData.client_name}
-                  onChange={(e) => setNewClientData({ ...newClientData, client_name: e.target.value })}
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px' }}
-                />
-              </div>
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '6px' }}>Client Type</label>
-                <select
-                  value={newClientData.client_type}
-                  onChange={(e) => setNewClientData({ ...newClientData, client_type: e.target.value })}
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px' }}
-                >
-                  <option value="">Select Type</option>
-                  <option value="Corporate">Corporate</option>
-                  <option value="Government">Government</option>
-                  <option value="Individual">Individual</option>
-                  <option value="Other">Other</option>
-                </select>
-              </div>
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '6px' }}>Contact Name</label>
-                <input
-                  type="text"
-                  value={newClientData.contact_name}
-                  onChange={(e) => setNewClientData({ ...newClientData, contact_name: e.target.value })}
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px' }}
-                />
-              </div>
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '6px' }}>Phone</label>
-                <input
-                  type="text"
-                  value={newClientData.phone}
-                  onChange={(e) => setNewClientData({ ...newClientData, phone: e.target.value })}
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px' }}
-                />
-              </div>
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '6px' }}>Address</label>
-                <textarea
-                  value={newClientData.address}
-                  onChange={(e) => setNewClientData({ ...newClientData, address: e.target.value })}
-                  rows={2}
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px', resize: 'vertical' }}
-                />
-              </div>
-              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-                <button onClick={() => setShowAddClientModal(false)} style={{ padding: '10px 20px', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer' }}>Cancel</button>
-                <button
-                  onClick={() => createClientMutation.mutate({ ...newClientData, created_at: new Date().toISOString() })}
-                  disabled={!newClientData.client_name || createClientMutation.isPending}
-                  style={{ padding: '10px 20px', borderRadius: '8px', border: 'none', background: '#3b82f6', color: '#fff', fontWeight: 600, cursor: 'pointer', opacity: createClientMutation.isPending ? 0.7 : 1 }}
-                >
-                  {createClientMutation.isPending ? 'Saving...' : 'Add Client'}
-                </button>
-              </div>
-            </div>
-          </div>
+      <Modal
+        isOpen={showAddClientModal}
+        onClose={() => setShowAddClientModal(false)}
+        title="Add New Client"
+        size="md"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowAddClientModal(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() =>
+                createClientMutation.mutate({
+                  ...newClientData,
+                  created_at: new Date().toISOString(),
+                })
+              }
+              isLoading={createClientMutation.isPending}
+              disabled={!newClientData.client_name}
+            >
+              Add Client
+            </Button>
+          </>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <Input
+            label="Client Name *"
+            value={newClientData.client_name}
+            onChange={(e) => setNewClientData({ ...newClientData, client_name: e.target.value })}
+            placeholder="Enter client name"
+          />
+          <Input
+            label="Client Type"
+            value={newClientData.client_type}
+            onChange={(e) => setNewClientData({ ...newClientData, client_type: e.target.value })}
+            placeholder="e.g., Corporate, Individual"
+          />
+          <Input
+            label="Contact Name"
+            value={newClientData.contact_name}
+            onChange={(e) => setNewClientData({ ...newClientData, contact_name: e.target.value })}
+            placeholder="Primary contact person"
+          />
+          <Input
+            label="Phone"
+            value={newClientData.phone}
+            onChange={(e) => setNewClientData({ ...newClientData, phone: e.target.value })}
+            placeholder="Contact number"
+          />
+          <Input
+            label="Email"
+            type="email"
+            value={newClientData.email}
+            onChange={(e) => setNewClientData({ ...newClientData, email: e.target.value })}
+            placeholder="Email address"
+          />
+          <TextArea
+            label="Address"
+            value={newClientData.address}
+            onChange={(e) => setNewClientData({ ...newClientData, address: e.target.value })}
+            placeholder="Full address"
+          />
         </div>
-      )}
+      </Modal>
 
       {/* Detail Modal */}
-      {selectedCommunication && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: '#fff', borderRadius: '16px', width: '600px', maxHeight: '90vh', overflow: 'auto' }}>
-            <div style={{ padding: '20px 24px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h2 style={{ fontSize: '18px', fontWeight: 600, margin: 0 }}>Communication Details</h2>
-              <button onClick={() => setSelectedCommunication(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}>✕</button>
+      <Modal
+        isOpen={!!selectedCommunication}
+        onClose={() => setSelectedCommunication(null)}
+        title="Communication Details"
+        size="md"
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              leftIcon={<CalendarPlus size={16} />}
+              onClick={() => setShowSiteVisitModal(true)}
+            >
+              Add Site Visit
+            </Button>
+            <Button
+              variant={selectedCommunication?.status === 'resolved' ? 'secondary' : 'primary'}
+              onClick={() =>
+                updateMutation.mutate({
+                  id: selectedCommunication.id,
+                  data: { status: selectedCommunication.status === 'resolved' ? 'open' : 'resolved' },
+                })
+              }
+            >
+              {selectedCommunication?.status === 'resolved' ? 'Reopen' : 'Mark Resolved'}
+            </Button>
+          </>
+        }
+      >
+        {selectedCommunication && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <div>
+                <label style={{ fontSize: '12px', color: colors.gray[500], marginBottom: '4px', display: 'block' }}>
+                  Client
+                </label>
+                <p style={{ fontSize: '15px', fontWeight: 600, color: colors.gray[900], margin: 0 }}>
+                  {selectedCommunication.client?.client_name}
+                </p>
+              </div>
+              <div>
+                <label style={{ fontSize: '12px', color: colors.gray[500], marginBottom: '4px', display: 'block' }}>
+                  Date & Time
+                </label>
+                <p style={{ fontSize: '15px', fontWeight: 500, color: colors.gray[900], margin: 0 }}>
+                  {format(parseISO(selectedCommunication.created_at), 'MMM d, yyyy h:mm a')}
+                </p>
+              </div>
+              <div>
+                <label style={{ fontSize: '12px', color: colors.gray[500], marginBottom: '4px', display: 'block' }}>
+                  Type
+                </label>
+                <p style={{ fontSize: '15px', fontWeight: 500, color: colors.gray[900], margin: 0 }}>
+                  {CALL_CATEGORIES.find((c) => c.value === selectedCommunication.call_category)?.label}
+                </p>
+              </div>
+              <div>
+                <label style={{ fontSize: '12px', color: colors.gray[500], marginBottom: '4px', display: 'block' }}>
+                  Regarding
+                </label>
+                <p style={{ fontSize: '15px', fontWeight: 500, color: colors.gray[900], margin: 0 }}>
+                  {CALL_REGARDING.find((r) => r.value === selectedCommunication.call_regarding)?.label}
+                </p>
+              </div>
             </div>
-            <div style={{ padding: '24px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
-                <div>
-                  <label style={{ fontSize: '12px', color: '#64748b' }}>Client</label>
-                  <p style={{ fontSize: '14px', fontWeight: 500, margin: '4px 0 0' }}>{selectedCommunication.client?.client_name}</p>
-                </div>
-                <div>
-                  <label style={{ fontSize: '12px', color: '#64748b' }}>Date</label>
-                  <p style={{ fontSize: '14px', fontWeight: 500, margin: '4px 0 0' }}>{format(parseISO(selectedCommunication.created_at), 'MMM d, yyyy h:mm a')}</p>
-                </div>
-                <div>
-                  <label style={{ fontSize: '12px', color: '#64748b' }}>Type</label>
-                  <p style={{ fontSize: '14px', fontWeight: 500, margin: '4px 0 0' }}>{CALL_CATEGORIES.find(c => c.value === selectedCommunication.call_category)?.label}</p>
-                </div>
-                <div>
-                  <label style={{ fontSize: '12px', color: '#64748b' }}>Regarding</label>
-                  <p style={{ fontSize: '14px', fontWeight: 500, margin: '4px 0 0' }}>{CALL_REGARDING.find(r => r.value === selectedCommunication.call_regarding)?.label}</p>
-                </div>
-              </div>
-              
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{ fontSize: '12px', color: '#64748b' }}>Call Brief</label>
-                <p style={{ fontSize: '14px', margin: '4px 0 0', padding: '12px', background: '#f8fafc', borderRadius: '8px' }}>{selectedCommunication.call_brief}</p>
-              </div>
-              
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{ fontSize: '12px', color: '#64748b' }}>Next Action</label>
-                <p style={{ fontSize: '14px', margin: '4px 0 0', padding: '12px', background: '#f8fafc', borderRadius: '8px' }}>{selectedCommunication.next_action || 'No action specified'}</p>
-              </div>
 
-              <div style={{ display: 'flex', gap: '12px' }}>
-                <button
-                  onClick={() => setShowSiteVisitModal(true)}
-                  style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#fff', fontSize: '14px', cursor: 'pointer' }}
-                >
-                  <CalendarPlus size={16} /> Add Site Visit
-                </button>
-                <button
-                  onClick={() => {
-                    updateMutation.mutate({ id: selectedCommunication.id, data: { status: selectedCommunication.status === 'resolved' ? 'open' : 'resolved' } });
+            <div>
+              <label style={{ fontSize: '12px', color: colors.gray[500], marginBottom: '8px', display: 'block' }}>
+                Priority & Status
+              </label>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <PriorityBadge priority={selectedCommunication.priority} />
+                <StatusBadge status={selectedCommunication.status} />
+              </div>
+            </div>
+
+            <div>
+              <label style={{ fontSize: '12px', color: colors.gray[500], marginBottom: '8px', display: 'block' }}>
+                Call Brief
+              </label>
+              <div
+                style={{
+                  padding: '16px',
+                  background: colors.gray[50],
+                  borderRadius: radii.md,
+                  fontSize: '14px',
+                  color: colors.gray[700],
+                  lineHeight: 1.6,
+                }}
+              >
+                {selectedCommunication.call_brief}
+              </div>
+            </div>
+
+            {selectedCommunication.next_action && (
+              <div>
+                <label style={{ fontSize: '12px', color: colors.gray[500], marginBottom: '8px', display: 'block' }}>
+                  Next Action
+                </label>
+                <div
+                  style={{
+                    padding: '16px',
+                    background: colors.primary[50],
+                    borderRadius: radii.md,
+                    fontSize: '14px',
+                    color: colors.primary[900],
+                    lineHeight: 1.6,
                   }}
-                  style={{ padding: '10px 16px', borderRadius: '8px', border: 'none', background: selectedCommunication.status === 'resolved' ? '#f59e0b' : '#22c55e', color: '#fff', fontSize: '14px', fontWeight: 500, cursor: 'pointer' }}
                 >
-                  {selectedCommunication.status === 'resolved' ? 'Reopen' : 'Mark Resolved'}
-                </button>
+                  {selectedCommunication.next_action}
+                </div>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
+            )}
 
-      {/* Add Site Visit Modal */}
-      {showSiteVisitModal && selectedCommunication && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200 }}>
-          <div style={{ background: '#fff', borderRadius: '16px', width: '450px' }}>
-            <div style={{ padding: '20px 24px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h2 style={{ fontSize: '16px', fontWeight: 600, margin: 0 }}>Schedule Site Visit</h2>
-              <button onClick={() => setShowSiteVisitModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
-            </div>
-            <div style={{ padding: '24px' }}>
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '6px' }}>Visit Date</label>
-                <input
-                  type="date"
-                  value={siteVisitData.visit_date}
-                  onChange={(e) => setSiteVisitData({ ...siteVisitData, visit_date: e.target.value })}
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px' }}
-                />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <div>
+                <label style={{ fontSize: '12px', color: colors.gray[500], marginBottom: '4px', display: 'block' }}>
+                  Received By
+                </label>
+                <p style={{ fontSize: '14px', color: colors.gray[700], margin: 0 }}>
+                  {selectedCommunication.call_received_by_user?.email || 'N/A'}
+                </p>
               </div>
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '6px' }}>Visit Time</label>
-                <input
-                  type="time"
-                  value={siteVisitData.visit_time}
-                  onChange={(e) => setSiteVisitData({ ...siteVisitData, visit_time: e.target.value })}
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px' }}
-                />
-              </div>
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '6px' }}>Assigned To</label>
-                <select
-                  value={siteVisitData.assigned_to}
-                  onChange={(e) => setSiteVisitData({ ...siteVisitData, assigned_to: e.target.value })}
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px' }}
-                >
-                  <option value="">Select User</option>
-                  {users.map(u => <option key={u.id} value={u.id}>{u.full_name || u.email}</option>)}
-                </select>
-              </div>
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '6px' }}>Notes</label>
-                <textarea
-                  value={siteVisitData.notes}
-                  onChange={(e) => setSiteVisitData({ ...siteVisitData, notes: e.target.value })}
-                  rows={3}
-                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px', resize: 'vertical' }}
-                />
-              </div>
-              <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-                <button onClick={() => setShowSiteVisitModal(false)} style={{ padding: '10px 20px', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer' }}>Cancel</button>
-                <button
-                  onClick={handleCreateSiteVisit}
-                  disabled={!siteVisitData.visit_date || createSiteVisitMutation.isPending}
-                  style={{ padding: '10px 20px', borderRadius: '8px', border: 'none', background: '#3b82f6', color: '#fff', fontWeight: 600, cursor: 'pointer', opacity: createSiteVisitMutation.isPending ? 0.7 : 1 }}
-                >
-                  {createSiteVisitMutation.isPending ? 'Saving...' : 'Schedule Visit'}
-                </button>
+              <div>
+                <label style={{ fontSize: '12px', color: colors.gray[500], marginBottom: '4px', display: 'block' }}>
+                  Entered By
+                </label>
+                <p style={{ fontSize: '14px', color: colors.gray[700], margin: 0 }}>
+                  {selectedCommunication.call_entered_by_user?.email || 'N/A'}
+                </p>
               </div>
             </div>
           </div>
+        )}
+      </Modal>
+
+      {/* Site Visit Modal */}
+      <Modal
+        isOpen={showSiteVisitModal && !!selectedCommunication}
+        onClose={() => setShowSiteVisitModal(false)}
+        title="Schedule Site Visit"
+        size="sm"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowSiteVisitModal(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              onClick={handleCreateSiteVisit}
+              isLoading={createSiteVisitMutation.isPending}
+              disabled={!siteVisitData.visit_date}
+            >
+              Schedule Visit
+            </Button>
+          </>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <Input
+            type="date"
+            label="Visit Date *"
+            value={siteVisitData.visit_date}
+            onChange={(e) => setSiteVisitData({ ...siteVisitData, visit_date: e.target.value })}
+          />
+          <Input
+            type="time"
+            label="Visit Time"
+            value={siteVisitData.visit_time}
+            onChange={(e) => setSiteVisitData({ ...siteVisitData, visit_time: e.target.value })}
+          />
+          <Select
+            label="Assigned To"
+            value={siteVisitData.assigned_to}
+            onChange={(e) => setSiteVisitData({ ...siteVisitData, assigned_to: e.target.value })}
+            options={[{ value: '', label: 'Select User' }, ...users.map((u) => ({ value: u.id, label: u.full_name || u.email }))]}
+          />
+          <TextArea
+            label="Notes"
+            value={siteVisitData.notes}
+            onChange={(e) => setSiteVisitData({ ...siteVisitData, notes: e.target.value })}
+            placeholder="Additional notes for the site visit"
+          />
         </div>
-      )}
+      </Modal>
     </div>
   );
 }
