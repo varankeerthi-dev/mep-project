@@ -12,8 +12,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Textarea } from '../components/ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
+import { Card, CardContent } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 
 // Icons
@@ -31,6 +30,14 @@ import {
   AlertCircle,
   Briefcase,
   User,
+  Phone,
+  Mail,
+  Crown,
+  Package,
+  Sparkles,
+  ArrowRight,
+  X,
+  Building,
 } from 'lucide-react';
 
 const indianStates = [
@@ -91,9 +98,9 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
   const { organisation, organisations } = useAuth();
   const queryClient = useQueryClient();
   const isAdmin = organisations?.find((o: any) => o.organisation?.id === organisation?.id)?.role?.toString().toLowerCase() === 'admin';
-  
-  const [activeTab, setActiveTab] = useState('details');
+
   const [loading, setLoading] = useState(false);
+  const [activeSection, setActiveSection] = useState('basic');
 
   const {
     register,
@@ -131,6 +138,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
   const watchGstin = watch('gstin');
   const watchState = watch('state');
   const watchDiscountType = watch('discount_type');
+  const watchClientName = watch('client_name');
 
   // Shipping Addresses State
   const [shippingAddresses, setShippingAddresses] = useState<any[]>([]);
@@ -208,12 +216,12 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
       toast.error('Please save the client first before adding shipping addresses');
       return;
     }
-    
+
     const { error } = await supabase.from('client_shipping_addresses').insert({
       client_id: clientData.id,
       ...newShipping,
     });
-    
+
     if (error) {
       toast.error('Error adding shipping address: ' + error.message);
     } else {
@@ -240,627 +248,911 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
       city: formData.city,
       state: formData.state,
       pincode: formData.pincode,
+      gstin: formData.gstin || '',
     });
-    setShowShippingForm(true);
   };
+
+  // Mutations
+  const createClient = useMutation({
+    mutationFn: async (data: ClientFormValues) => {
+      const { data: { user } } = await supabase.auth.getUser();
+
+      const { data: result, error } = await supabase
+        .from('clients')
+        .insert({
+          organisation_id: organisation?.id,
+          client_name: data.client_name,
+          category: data.category,
+          gstin: data.gstin || null,
+          vendor_no: data.vendor_no || null,
+          address1: data.address1,
+          address2: data.address2 || null,
+          city: data.city,
+          state: data.state,
+          pincode: data.pincode,
+          remarks: data.remarks || null,
+          about_client: data.about_client || null,
+          discount_type: data.discount_type,
+          standard_pricelist_id: data.standard_pricelist_id || null,
+          contacts: data.contacts,
+          created_by: user?.id,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return result;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+      toast.success('Client created successfully!');
+      onSuccess();
+    },
+    onError: (error: any) => {
+      toast.error('Error creating client: ' + error.message);
+    },
+  });
+
+  const updateClient = useMutation({
+    mutationFn: async (data: ClientFormValues) => {
+      const { error } = await supabase
+        .from('clients')
+        .update({
+          client_name: data.client_name,
+          category: data.category,
+          gstin: data.gstin || null,
+          vendor_no: data.vendor_no || null,
+          address1: data.address1,
+          address2: data.address2 || null,
+          city: data.city,
+          state: data.state,
+          pincode: data.pincode,
+          remarks: data.remarks || null,
+          about_client: data.about_client || null,
+          discount_type: data.discount_type,
+          standard_pricelist_id: data.standard_pricelist_id || null,
+          contacts: data.contacts,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', clientData.id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+      queryClient.invalidateQueries({ queryKey: ['client', clientData.id] });
+      toast.success('Client updated successfully!');
+      onSuccess();
+    },
+    onError: (error: any) => {
+      toast.error('Error updating client: ' + error.message);
+    },
+  });
+
+  const deleteClient = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from('clients').delete().eq('id', clientData.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+      toast.success('Client deleted successfully!');
+      onSuccess();
+    },
+    onError: (error: any) => {
+      toast.error('Error deleting client: ' + error.message);
+    },
+  });
 
   const onSubmit = async (data: ClientFormValues) => {
     setLoading(true);
     try {
-      const payload = {
-        ...data,
-        organisation_id: organisation?.id,
-        contacts: data.contacts.filter(c => c.name.trim()),
-        custom_discounts: {},
-      };
-
-      if (editMode && clientData?.id) {
-        const { error } = await supabase
-          .from('clients')
-          .update(payload)
-          .eq('id', clientData.id);
-        if (error) throw error;
-        toast.success('Client updated successfully');
+      if (editMode) {
+        await updateClient.mutateAsync(data);
       } else {
-        const clientId = 'CLT-' + Date.now().toString().slice(-6);
-        const { error } = await supabase
-          .from('clients')
-          .insert({ ...payload, client_id: clientId });
-        if (error) throw error;
-        toast.success('Client created successfully');
+        await createClient.mutateAsync(data);
       }
-      
-      queryClient.invalidateQueries({ queryKey: ['clients'] });
-      onSuccess();
-    } catch (error: any) {
-      toast.error('Error: ' + error.message);
+    } catch (error) {
+      console.error('Error saving client:', error);
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = async () => {
-    if (!editMode || !clientData?.id) return;
-    if (!confirm(`Are you sure you want to delete client "${clientData.client_name}"? This action cannot be undone.`)) return;
-    
+    if (!confirm('Are you sure you want to delete this client? This action cannot be undone.')) return;
     setLoading(true);
     try {
-      const { error } = await supabase.from('clients').delete().eq('id', clientData.id);
-      if (error) throw error;
-      toast.success('Client deleted successfully');
-      queryClient.invalidateQueries({ queryKey: ['clients'] });
-      onCancel();
-    } catch (error: any) {
-      toast.error('Error deleting client: ' + error.message);
+      await deleteClient.mutateAsync();
     } finally {
       setLoading(false);
     }
   };
 
+  const scrollToSection = (section: string) => {
+    setActiveSection(section);
+    const element = document.getElementById(section);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Header */}
-      <div className="bg-white border-b border-slate-200 sticky top-0 z-10">
-        <div className="max-w-5xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
+      {/* Sticky Navigation Header */}
+      <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-slate-200/50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-4">
-              <Button 
-                variant="ghost" 
-                size="icon" 
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
                 onClick={onCancel}
-                className="hover:bg-slate-100"
+                className="text-slate-600 hover:text-slate-900 hover:bg-slate-100"
               >
-                <ChevronLeft className="h-5 w-5 text-slate-600" />
+                <ChevronLeft className="w-4 h-4 mr-1" />
+                Back
               </Button>
-              <div>
-                <h1 className="text-xl font-semibold text-slate-900">
-                  {editMode ? 'Edit Client' : 'Create Client'}
-                </h1>
-                <p className="text-sm text-slate-500">
-                  {editMode ? 'Update client information' : 'Add a new client to your organization'}
-                </p>
+              <div className="w-px h-6 bg-slate-200" />
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
+                  <Building2 className="w-4 h-4 text-white" />
+                </div>
+                <span className="font-semibold text-slate-900">
+                  {editMode ? 'Edit Client' : 'New Client'}
+                </span>
               </div>
             </div>
-            <div className="flex gap-3">
-              <Button variant="outline" onClick={onCancel} disabled={loading}>
-                Cancel
-              </Button>
-              <Button 
+
+            <div className="flex items-center gap-3">
+              {editMode && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleDelete}
+                  disabled={loading}
+                  className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete
+                </Button>
+              )}
+              <Button
+                type="button"
                 onClick={handleSubmit(onSubmit)}
                 disabled={loading}
-                className="bg-blue-600 hover:bg-blue-700"
+                className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg shadow-blue-500/25"
               >
-                <Save className="w-4 h-4 mr-2" />
-                {loading ? 'Saving...' : (editMode ? 'Update' : 'Create')}
+                {loading ? (
+                  <>
+                    <div className="w-4 h-4 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4 mr-2" />
+                    {editMode ? 'Update Client' : 'Create Client'}
+                  </>
+                )}
               </Button>
             </div>
           </div>
         </div>
-      </div>
+      </header>
+
+      {/* Hero Section - Client Name */}
+      <section className="relative bg-white border-b border-slate-200">
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-600/5 via-transparent to-purple-600/5" />
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <div className="max-w-3xl">
+            <div className="flex items-center gap-2 mb-4">
+              <Sparkles className="w-4 h-4 text-blue-500" />
+              <span className="text-sm font-medium text-blue-600 uppercase tracking-wider">
+                {editMode ? 'Editing Existing Client' : 'Creating New Client'}
+              </span>
+            </div>
+            <h1 className="text-4xl font-bold text-slate-900 mb-2">
+              {watchClientName || 'New Client'}
+            </h1>
+            <p className="text-slate-500">
+              {editMode
+                ? 'Update client information, contacts, and preferences.'
+                : 'Fill in the details below to create a new client profile.'}
+            </p>
+          </div>
+        </div>
+      </section>
 
       {/* Main Content */}
-      <div className="max-w-5xl mx-auto px-6 py-6">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 max-w-md">
-            <TabsTrigger value="details" className="text-sm">
-              <Building2 className="w-4 h-4 mr-2" />
-              Client Details
-            </TabsTrigger>
-            <TabsTrigger value="pricing" className="text-sm">
-              <Tag className="w-4 h-4 mr-2" />
-              Pricing
-            </TabsTrigger>
-          </TabsList>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          {/* Left Sidebar - Navigation */}
+          <div className="lg:col-span-3">
+            <div className="sticky top-24 space-y-2">
+              <nav className="space-y-1">
+                {[
+                  { id: 'basic', label: 'Basic Information', icon: Building2 },
+                  { id: 'address', label: 'Address Details', icon: MapPin },
+                  { id: 'contacts', label: 'Contact Persons', icon: Users },
+                  { id: 'shipping', label: 'Shipping Addresses', icon: Package },
+                  { id: 'pricing', label: 'Pricing & Discounts', icon: Tag },
+                  { id: 'notes', label: 'Internal Notes', icon: Briefcase },
+                ].map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => scrollToSection(item.id)}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
+                      activeSection === item.id
+                        ? 'bg-blue-50 text-blue-700 shadow-sm'
+                        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                    }`}
+                  >
+                    <item.icon className={`w-4 h-4 ${activeSection === item.id ? 'text-blue-600' : 'text-slate-400'}`} />
+                    {item.label}
+                  </button>
+                ))}
+              </nav>
 
-          {/* Combined Details Tab */}
-          <TabsContent value="details" className="space-y-6 mt-6">
-            {/* Basic Info & Address Combined */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2 text-slate-800">
-                  <Building2 className="w-5 h-5 text-blue-600" />
-                  Basic & Billing Information
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">
-                      Client Name <span className="text-red-500">*</span>
-                    </Label>
-                    <Input 
-                      {...register('client_name')}
-                      placeholder="Enter client name"
-                      className={`h-10 ${errors.client_name ? 'border-red-500' : ''}`}
-                    />
-                    {errors.client_name && <p className="text-xs text-red-500">{errors.client_name.message}</p>}
+              {/* Quick Summary Card */}
+              <Card className="mt-6 bg-gradient-to-br from-slate-900 to-slate-800 text-white border-0">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Crown className="w-4 h-4 text-amber-400" />
+                    <span className="text-sm font-medium text-slate-200">Pricing Tier</span>
+                  </div>
+                  <Badge className={`${
+                    watchDiscountType === 'Standard' ? 'bg-green-500/20 text-green-300 border-green-500/30' :
+                    watchDiscountType === 'Premium' ? 'bg-purple-500/20 text-purple-300 border-purple-500/30' :
+                    watchDiscountType === 'Bulk' ? 'bg-blue-500/20 text-blue-300 border-blue-500/30' :
+                    'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                  }`}>
+                    {watchDiscountType}
+                  </Badge>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
+          {/* Main Form Content */}
+          <div className="lg:col-span-9 space-y-8">
+            {/* Basic Information Section */}
+            <section id="basic" className="scroll-mt-24">
+              <Card className="border-slate-200/60 shadow-sm hover:shadow-md transition-shadow">
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/25">
+                      <Building2 className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-semibold text-slate-900">Basic Information</h2>
+                      <p className="text-sm text-slate-500">Client name, GSTIN, and vendor details</p>
+                    </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Category</Label>
-                    <select 
-                      {...register('category')}
-                      className="w-full h-10 px-3 rounded-md border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="Active">Active</option>
-                      <option value="Inactive">Inactive</option>
-                      <option value="Prospect">Prospect</option>
-                    </select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">GSTIN</Label>
-                    <Input 
-                      {...register('gstin')}
-                      onChange={(e) => setValue('gstin', e.target.value.toUpperCase())}
-                      placeholder="15 character GSTIN"
-                      maxLength={15}
-                      className={`h-10 font-mono uppercase ${errors.gstin ? 'border-red-500' : ''}`}
-                    />
-                    {errors.gstin && <p className="text-xs text-red-500">{errors.gstin.message}</p>}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Vendor Number</Label>
-                    <Input 
-                      {...register('vendor_no')}
-                      placeholder="Vendor registration number"
-                      className="h-10"
-                    />
-                  </div>
-                </div>
-
-                <div className="h-px bg-slate-200" />
-                
-                <div className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
-                      <Label className="text-sm font-medium">
-                        Address Line 1 <span className="text-red-500">*</span>
+                      <Label className="text-sm font-medium text-slate-700">
+                        Client Name <span className="text-red-500">*</span>
                       </Label>
-                      <Input 
-                        {...register('address1')}
-                        placeholder="Street address"
-                        className={`h-10 ${errors.address1 ? 'border-red-500' : ''}`}
+                      <Input
+                        {...register('client_name')}
+                        placeholder="Enter company or client name"
+                        className="h-11 border-slate-300 focus:border-blue-500 focus:ring-blue-500/20"
                       />
-                      {errors.address1 && <p className="text-xs text-red-500">{errors.address1.message}</p>}
+                      {errors.client_name && (
+                        <p className="text-sm text-red-500">{errors.client_name.message}</p>
+                      )}
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-sm font-medium">Address Line 2</Label>
-                      <Input 
-                        {...register('address2')}
-                        placeholder="Apartment, suite, etc. (optional)"
-                        className="h-10"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">
-                        State <span className="text-red-500">*</span>
-                      </Label>
-                      <select 
-                        {...register('state')}
-                        className={`w-full h-10 px-3 rounded-md border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.state ? 'border-red-500' : ''}`}
+                      <Label className="text-sm font-medium text-slate-700">Category</Label>
+                      <select
+                        {...register('category')}
+                        className="w-full h-11 px-3 rounded-md border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                       >
-                        <option value="">Select state</option>
-                        {indianStates.map((state) => (
-                          <option key={state} value={state}>
-                            {state}
-                          </option>
-                        ))}
+                        <option value="Active">Active</option>
+                        <option value="Inactive">Inactive</option>
+                        <option value="Prospect">Prospect</option>
                       </select>
-                      {errors.state && <p className="text-xs text-red-500">{errors.state.message}</p>}
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-sm font-medium">
-                        City <span className="text-red-500">*</span>
-                      </Label>
-                      <Input 
-                        {...register('city')}
-                        placeholder="City"
-                        className={`h-10 ${errors.city ? 'border-red-500' : ''}`}
+                      <Label className="text-sm font-medium text-slate-700">GSTIN</Label>
+                      <Input
+                        {...register('gstin')}
+                        placeholder="15-character GSTIN"
+                        maxLength={15}
+                        className="h-11 border-slate-300 focus:border-blue-500 focus:ring-blue-500/20 font-mono uppercase"
                       />
-                      {errors.city && <p className="text-xs text-red-500">{errors.city.message}</p>}
+                      {watchGstin && watchGstin.length >= 2 && gstStateCodes[watchGstin.substring(0, 2)] && (
+                        <p className="text-xs text-green-600 flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" />
+                          Detected: {gstStateCodes[watchGstin.substring(0, 2)]}
+                        </p>
+                      )}
+                      {errors.gstin && (
+                        <p className="text-sm text-red-500">{errors.gstin.message}</p>
+                      )}
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-sm font-medium">
-                        Pincode <span className="text-red-500">*</span>
-                      </Label>
-                      <Input 
-                        {...register('pincode')}
-                        placeholder="Pincode"
-                        maxLength={6}
-                        className={`h-10 ${errors.pincode ? 'border-red-500' : ''}`}
+                      <Label className="text-sm font-medium text-slate-700">Vendor Number</Label>
+                      <Input
+                        {...register('vendor_no')}
+                        placeholder="Internal vendor reference"
+                        className="h-11 border-slate-300 focus:border-blue-500 focus:ring-blue-500/20"
                       />
-                      {errors.pincode && <p className="text-xs text-red-500">{errors.pincode.message}</p>}
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Contacts Section */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="text-lg flex items-center gap-2 text-slate-800">
-                  <Users className="w-5 h-5 text-blue-600" />
-                  Contact Persons
-                </CardTitle>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => append({ name: '', designation: '', phone: '', email: '', type: 'secondary' })}
-                >
-                  <Plus className="w-4 h-4 mr-1" />
-                  Add Contact
-                </Button>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {fields.map((field, index) => (
-                  <Card key={field.id} className="border-slate-200 bg-slate-50/50">
-                    <CardContent className="p-4 space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <User className="w-4 h-4 text-slate-400" />
-                          <span className="text-sm font-semibold text-slate-700">
-                            {index === 0 ? 'Primary Contact' : `Secondary Contact ${index}`}
-                          </span>
-                        </div>
-                        {fields.length > 1 && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => remove(index)}
-                            className="text-red-500 hover:text-red-700 hover:bg-red-50 h-8"
-                          >
-                            <Trash2 className="w-4 h-4 mr-1" />
-                            Remove
-                          </Button>
-                        )}
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                          <Label className="text-xs font-medium text-slate-500">Name *</Label>
-                          <Input 
-                            {...register(`contacts.${index}.name` as const)}
-                            placeholder="Full name"
-                            className={`h-9 text-sm ${errors.contacts?.[index]?.name ? 'border-red-500' : ''}`}
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-xs font-medium text-slate-500">Designation</Label>
-                          <Input 
-                            {...register(`contacts.${index}.designation` as const)}
-                            placeholder="Job title"
-                            className="h-9 text-sm"
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-xs font-medium text-slate-500">Phone *</Label>
-                          <Input 
-                            {...register(`contacts.${index}.phone` as const)}
-                            placeholder="Phone number"
-                            className={`h-9 text-sm ${errors.contacts?.[index]?.phone ? 'border-red-500' : ''}`}
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-xs font-medium text-slate-500">Email</Label>
-                          <Input 
-                            {...register(`contacts.${index}.email` as const)}
-                            placeholder="Email address"
-                            type="email"
-                            className={`h-9 text-sm ${errors.contacts?.[index]?.email ? 'border-red-500' : ''}`}
-                          />
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-                {errors.contacts?.root && <p className="text-sm text-red-500">{errors.contacts.root.message}</p>}
-              </CardContent>
-            </Card>
-
-            {/* Shipping Addresses (Collapsible or just section) */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="text-lg flex items-center gap-2 text-slate-800">
-                  <MapPin className="w-5 h-5 text-emerald-600" />
-                  Shipping Addresses
-                </CardTitle>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowShippingForm(!showShippingForm)}
-                >
-                  <Plus className="w-4 h-4 mr-1" />
-                  Add New
-                </Button>
-              </CardHeader>
-              <CardContent>
-                {showShippingForm && (
-                  <Card className="mb-4 border-blue-200 bg-blue-50/50">
-                    <CardContent className="p-4 space-y-4">
-                      <div className="flex justify-between items-center">
-                        <h4 className="font-medium text-blue-900">New Shipping Address</h4>
-                        <Button type="button" variant="ghost" size="sm" onClick={() => setShowShippingForm(false)}>Cancel</Button>
-                      </div>
-                      
-                      <div className="grid grid-cols-2 gap-4">
-                        <Input 
-                          value={newShipping.address_name}
-                          onChange={(e) => setNewShipping({...newShipping, address_name: e.target.value})}
-                          placeholder="Address Name (e.g., Warehouse)"
-                          className="h-10"
-                        />
-                        <Input 
-                          value={newShipping.contact}
-                          onChange={(e) => setNewShipping({...newShipping, contact: e.target.value})}
-                          placeholder="Contact Person Name"
-                          className="h-10"
-                        />
-                      </div>
-                      <Input 
-                        value={newShipping.address_line1}
-                        onChange={(e) => setNewShipping({...newShipping, address_line1: e.target.value})}
-                        placeholder="Address Line 1"
-                        className="h-10"
-                      />
-                      <Input 
-                        value={newShipping.address_line2}
-                        onChange={(e) => setNewShipping({...newShipping, address_line2: e.target.value})}
-                        placeholder="Address Line 2"
-                        className="h-10"
-                      />
-                      <div className="grid grid-cols-3 gap-4">
-                        <select 
-                          value={newShipping.state}
-                          onChange={(e) => setNewShipping({...newShipping, state: e.target.value})}
-                          className="w-full h-10 px-3 rounded-md border border-slate-300 bg-white text-sm"
-                        >
-                          <option value="">State</option>
-                          {indianStates.map((state) => (
-                            <option key={state} value={state}>{state}</option>
-                          ))}
-                        </select>
-                        <Input 
-                          value={newShipping.city}
-                          onChange={(e) => setNewShipping({...newShipping, city: e.target.value})}
-                          placeholder="City"
-                          className="h-10"
-                        />
-                        <Input 
-                          value={newShipping.pincode}
-                          onChange={(e) => setNewShipping({...newShipping, pincode: e.target.value})}
-                          placeholder="Pincode"
-                          className="h-10"
-                        />
-                      </div>
-                      <div className="flex gap-2">
-                        <Button 
-                          type="button"
-                          className="bg-blue-600 hover:bg-blue-700"
-                          onClick={addShippingAddress}
-                          disabled={!newShipping.address_line1 || !newShipping.city}
-                        >
-                          <Save className="w-4 h-4 mr-1" />
-                          Save Address
-                        </Button>
-                        <Button type="button" variant="outline" onClick={copyBillingToShipping}>Copy Billing</Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {shippingAddresses.length === 0 ? (
-                  <div className="text-center py-6 text-slate-400 border-2 border-dashed border-slate-100 rounded-lg">
-                    <MapPin className="w-10 h-10 mx-auto mb-2 opacity-20" />
-                    <p className="text-sm italic">No additional shipping addresses. Billing address will be used.</p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {shippingAddresses.map((addr: any, index: number) => (
-                      <Card key={addr.id || index} className="border-slate-200">
-                        <CardContent className="p-3">
-                          <div className="flex justify-between items-start">
-                            <div className="space-y-0.5">
-                              <p className="text-sm font-bold text-slate-800">{addr.address_name || `Address ${index + 1}`}</p>
-                              <p className="text-xs text-slate-600 line-clamp-1">{addr.address_line1}</p>
-                              <p className="text-xs text-slate-600">{addr.city}, {addr.state} - {addr.pincode}</p>
-                            </div>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="text-red-400 hover:text-red-600 h-8 w-8"
-                              onClick={() => deleteShippingAddress(addr.id)}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Additional Remarks */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2 text-slate-800">
-                  <Briefcase className="w-5 h-5 text-blue-600" />
-                  Internal Notes
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-slate-600">Remarks</Label>
-                    <Textarea 
-                      {...register('remarks')}
-                      placeholder="General remarks about this client..."
-                      className="min-h-[80px] resize-none"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-slate-600">About Client</Label>
-                    <Textarea 
-                      {...register('about_client')}
-                      placeholder="Background, business details, etc..."
-                      className="min-h-[80px] resize-none"
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Pricing Tab */}
-          <TabsContent value="pricing" className="space-y-6 mt-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Tag className="w-5 h-5 text-blue-600" />
-                  Discount Portfolio
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">Discount Type</Label>
-                  <select 
-                    {...register('discount_type')}
-                    onChange={(e) => {
-                      setValue('discount_type', e.target.value);
-                      if (e.target.value !== 'Standard') {
-                        setValue('standard_pricelist_id', '');
-                      }
-                    }}
-                    className="w-full h-10 px-3 rounded-md border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="Standard">Standard (Price List Based)</option>
-                    <option value="Premium">Premium (Variant Based)</option>
-                    <option value="Bulk">Bulk (Variant Based)</option>
-                    <option value="Special">Special (Variant Based)</option>
-                  </select>
-                </div>
-
-                {watchDiscountType === 'Standard' && (
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">
-                      Select Standard Price List
-                    </Label>
-                    <select 
-                      {...register('standard_pricelist_id')}
-                      className="w-full h-10 px-3 rounded-md border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">Choose a price list</option>
-                      {pricelists?.map((pl: any) => (
-                        <option key={pl.id} value={pl.id}>
-                          {pl.pricelist_name} ({pl.discount_percent}%)
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                <div className="h-px bg-slate-200" />
-
-                <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                  <h4 className="text-sm font-semibold mb-3">Portfolio Preview</h4>
-                  {watchDiscountType === 'Standard' ? (
-                    <div className="flex items-center gap-2 text-sm text-slate-700">
-                      <CheckCircle2 className="w-4 h-4 text-green-600" />
-                      <span>
-                        Standard Discount: {pricelists?.find((pl: any) => pl.id === watch('standard_pricelist_id'))?.discount_percent || 0}% flat on all items
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2 text-sm text-slate-600">
-                      <AlertCircle className="w-4 h-4 text-amber-600" />
-                      <span>
-                        {watchDiscountType} discount structure will be applied
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            {isAdmin && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <CreditCard className="w-5 h-5 text-blue-600" />
-                    Custom Discounts (Per Variant)
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                    <div className="flex items-center gap-2 text-sm text-amber-800">
-                      <AlertCircle className="w-4 h-4" />
-                      <span>Custom discount management available in full version.</span>
                     </div>
                   </div>
                 </CardContent>
               </Card>
-            )}
-          </TabsContent>
-        </Tabs>
+            </section>
 
-        {/* Form Actions */}
-        <div className="flex items-center justify-between pt-6 border-t border-slate-200 mt-8">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onCancel}
-            disabled={loading}
-            className="min-w-[120px]"
-          >
-            Cancel
-          </Button>
-          
-          <div className="flex gap-3">
-            {editMode && (
+            {/* Address Section */}
+            <section id="address" className="scroll-mt-24">
+              <Card className="border-slate-200/60 shadow-sm hover:shadow-md transition-shadow">
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/25">
+                      <MapPin className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-semibold text-slate-900">Address Details</h2>
+                      <p className="text-sm text-slate-500">Primary billing address</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2 md:col-span-2">
+                        <Label className="text-sm font-medium text-slate-700">
+                          Address Line 1 <span className="text-red-500">*</span>
+                        </Label>
+                        <Input
+                          {...register('address1')}
+                          placeholder="Street address, building name"
+                          className="h-11 border-slate-300 focus:border-blue-500 focus:ring-blue-500/20"
+                        />
+                        {errors.address1 && (
+                          <p className="text-sm text-red-500">{errors.address1.message}</p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2 md:col-span-2">
+                        <Label className="text-sm font-medium text-slate-700">Address Line 2</Label>
+                        <Input
+                          {...register('address2')}
+                          placeholder="Apartment, floor, landmark (optional)"
+                          className="h-11 border-slate-300 focus:border-blue-500 focus:ring-blue-500/20"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium text-slate-700">
+                          City <span className="text-red-500">*</span>
+                        </Label>
+                        <Input
+                          {...register('city')}
+                          placeholder="City name"
+                          className="h-11 border-slate-300 focus:border-blue-500 focus:ring-blue-500/20"
+                        />
+                        {errors.city && (
+                          <p className="text-sm text-red-500">{errors.city.message}</p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium text-slate-700">
+                          State <span className="text-red-500">*</span>
+                        </Label>
+                        <select
+                          {...register('state')}
+                          className="w-full h-11 px-3 rounded-md border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                        >
+                          <option value="">Select State</option>
+                          {indianStates.map((state) => (
+                            <option key={state} value={state}>{state}</option>
+                          ))}
+                        </select>
+                        {errors.state && (
+                          <p className="text-sm text-red-500">{errors.state.message}</p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium text-slate-700">
+                          Pincode <span className="text-red-500">*</span>
+                        </Label>
+                        <Input
+                          {...register('pincode')}
+                          placeholder="6-digit pincode"
+                          maxLength={6}
+                          className="h-11 border-slate-300 focus:border-blue-500 focus:ring-blue-500/20"
+                        />
+                        {errors.pincode && (
+                          <p className="text-sm text-red-500">{errors.pincode.message}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </section>
+
+            {/* Contacts Section */}
+            <section id="contacts" className="scroll-mt-24">
+              <Card className="border-slate-200/60 shadow-sm hover:shadow-md transition-shadow">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-violet-600 flex items-center justify-center shadow-lg shadow-violet-500/25">
+                        <Users className="w-5 h-5 text-white" />
+                      </div>
+                      <div>
+                        <h2 className="text-lg font-semibold text-slate-900">Contact Persons</h2>
+                        <p className="text-sm text-slate-500">Primary and secondary contacts</p>
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => append({ name: '', designation: '', phone: '', email: '', type: 'secondary' })}
+                      className="border-slate-300 hover:bg-slate-50"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Contact
+                    </Button>
+                  </div>
+
+                  <div className="space-y-4">
+                    {fields.map((field, index) => (
+                      <div
+                        key={field.id}
+                        className="relative bg-slate-50/50 rounded-xl p-5 border border-slate-200/60 hover:border-slate-300 transition-colors"
+                      >
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                              index === 0
+                                ? 'bg-gradient-to-br from-amber-400 to-amber-500'
+                                : 'bg-gradient-to-br from-slate-400 to-slate-500'
+                            }`}>
+                              <User className="w-4 h-4 text-white" />
+                            </div>
+                            <span className="font-medium text-slate-900">
+                              {index === 0 ? 'Primary Contact' : `Contact ${index + 1}`}
+                            </span>
+                            {index === 0 && (
+                              <Badge variant="secondary" className="bg-amber-100 text-amber-700 border-amber-200">
+                                Main
+                              </Badge>
+                            )}
+                          </div>
+                          {index > 0 && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => remove(index)}
+                              className="text-red-500 hover:text-red-700 hover:bg-red-50 h-8 w-8 p-0"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                          <div className="space-y-2">
+                            <Label className="text-xs font-medium text-slate-600">Full Name</Label>
+                            <Input
+                              {...register(`contacts.${index}.name`)}
+                              placeholder="Contact name"
+                              className="h-10 border-slate-300 focus:border-blue-500"
+                            />
+                            {errors.contacts?.[index]?.name && (
+                              <p className="text-xs text-red-500">{errors.contacts[index]?.name?.message}</p>
+                            )}
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label className="text-xs font-medium text-slate-600">Designation</Label>
+                            <Input
+                              {...register(`contacts.${index}.designation`)}
+                              placeholder="Job title"
+                              className="h-10 border-slate-300 focus:border-blue-500"
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label className="text-xs font-medium text-slate-600">Phone</Label>
+                            <div className="relative">
+                              <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                              <Input
+                                {...register(`contacts.${index}.phone`)}
+                                placeholder="Phone number"
+                                className="h-10 pl-10 border-slate-300 focus:border-blue-500"
+                              />
+                            </div>
+                            {errors.contacts?.[index]?.phone && (
+                              <p className="text-xs text-red-500">{errors.contacts[index]?.phone?.message}</p>
+                            )}
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label className="text-xs font-medium text-slate-600">Email</Label>
+                            <div className="relative">
+                              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                              <Input
+                                {...register(`contacts.${index}.email`)}
+                                placeholder="Email address"
+                                className="h-10 pl-10 border-slate-300 focus:border-blue-500"
+                              />
+                            </div>
+                            {errors.contacts?.[index]?.email && (
+                              <p className="text-xs text-red-500">{errors.contacts[index]?.email?.message}</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {errors.contacts && (
+                    <p className="text-sm text-red-500 mt-4">{errors.contacts.message}</p>
+                  )}
+                </CardContent>
+              </Card>
+            </section>
+
+            {/* Shipping Addresses Section */}
+            <section id="shipping" className="scroll-mt-24">
+              <Card className="border-slate-200/60 shadow-sm hover:shadow-md transition-shadow">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-cyan-600 flex items-center justify-center shadow-lg shadow-cyan-500/25">
+                        <Package className="w-5 h-5 text-white" />
+                      </div>
+                      <div>
+                        <h2 className="text-lg font-semibold text-slate-900">Shipping Addresses</h2>
+                        <p className="text-sm text-slate-500">Additional delivery locations</p>
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowShippingForm(!showShippingForm)}
+                      disabled={!editMode}
+                      className="border-slate-300 hover:bg-slate-50"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Address
+                    </Button>
+                  </div>
+
+                  {!editMode && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
+                      <div className="flex items-center gap-2 text-sm text-amber-800">
+                        <AlertCircle className="w-4 h-4" />
+                        <span>Save the client first to add shipping addresses</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {showShippingForm && editMode && (
+                    <div className="bg-slate-50 rounded-xl p-5 border border-slate-200 mb-4">
+                      <div className="flex items-center justify-between mb-4">
+                        <h4 className="font-medium text-slate-900">New Shipping Address</h4>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setShowShippingForm(false)}
+                          className="h-8 w-8 p-0"
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <Input
+                          placeholder="Address Name (e.g., Warehouse)"
+                          value={newShipping.address_name}
+                          onChange={(e) => setNewShipping({...newShipping, address_name: e.target.value})}
+                          className="h-10"
+                        />
+                        <Input
+                          placeholder="Contact Person"
+                          value={newShipping.contact}
+                          onChange={(e) => setNewShipping({...newShipping, contact: e.target.value})}
+                          className="h-10"
+                        />
+                        <Input
+                          placeholder="Address Line 1"
+                          value={newShipping.address_line1}
+                          onChange={(e) => setNewShipping({...newShipping, address_line1: e.target.value})}
+                          className="h-10"
+                        />
+                        <Input
+                          placeholder="Address Line 2"
+                          value={newShipping.address_line2}
+                          onChange={(e) => setNewShipping({...newShipping, address_line2: e.target.value})}
+                          className="h-10"
+                        />
+                        <Input
+                          placeholder="City"
+                          value={newShipping.city}
+                          onChange={(e) => setNewShipping({...newShipping, city: e.target.value})}
+                          className="h-10"
+                        />
+                        <select
+                          value={newShipping.state}
+                          onChange={(e) => setNewShipping({...newShipping, state: e.target.value})}
+                          className="h-10 px-3 rounded-md border border-slate-300 bg-white text-sm"
+                        >
+                          <option value="">Select State</option>
+                          {indianStates.map((s) => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                        <Input
+                          placeholder="Pincode"
+                          value={newShipping.pincode}
+                          onChange={(e) => setNewShipping({...newShipping, pincode: e.target.value})}
+                          className="h-10"
+                        />
+                        <Input
+                          placeholder="GSTIN (if different)"
+                          value={newShipping.gstin}
+                          onChange={(e) => setNewShipping({...newShipping, gstin: e.target.value})}
+                          className="h-10"
+                        />
+                      </div>
+
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={copyBillingToShipping}
+                        >
+                          Copy from Billing
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={addShippingAddress}
+                          className="bg-blue-600 hover:bg-blue-700"
+                        >
+                          Save Address
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {shippingAddresses.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {shippingAddresses.map((addr) => (
+                        <div
+                          key={addr.id}
+                          className="bg-white rounded-xl p-4 border border-slate-200 hover:border-slate-300 transition-colors"
+                        >
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <Building className="w-4 h-4 text-slate-400" />
+                              <span className="font-medium text-slate-900">{addr.address_name}</span>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => deleteShippingAddress(addr.id)}
+                              className="text-red-500 hover:text-red-700 hover:bg-red-50 h-7 w-7 p-0"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </div>
+                          <p className="text-sm text-slate-600">{addr.address_line1}</p>
+                          {addr.address_line2 && <p className="text-sm text-slate-600">{addr.address_line2}</p>}
+                          <p className="text-sm text-slate-600">{addr.city}, {addr.state} - {addr.pincode}</p>
+                          {addr.gstin && <p className="text-xs text-slate-500 mt-1">GSTIN: {addr.gstin}</p>}
+                          {addr.contact && <p className="text-xs text-slate-500">Contact: {addr.contact}</p>}
+                        </div>
+                      ))}
+                    </div>
+                  ) : editMode && (
+                    <div className="text-center py-8 text-slate-500">
+                      <Package className="w-12 h-12 mx-auto mb-3 text-slate-300" />
+                      <p>No shipping addresses added yet</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </section>
+
+            {/* Pricing Section */}
+            <section id="pricing" className="scroll-mt-24">
+              <Card className="border-slate-200/60 shadow-sm hover:shadow-md transition-shadow">
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/25">
+                      <Tag className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-semibold text-slate-900">Pricing & Discounts</h2>
+                      <p className="text-sm text-slate-500">Discount structure and pricing tier</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium text-slate-700">Discount Type</Label>
+                        <select
+                          {...register('discount_type')}
+                          onChange={(e) => {
+                            setValue('discount_type', e.target.value);
+                            if (e.target.value !== 'Standard') {
+                              setValue('standard_pricelist_id', '');
+                            }
+                          }}
+                          className="w-full h-11 px-3 rounded-md border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                        >
+                          <option value="Standard">Standard (Price List Based)</option>
+                          <option value="Premium">Premium (Variant Based)</option>
+                          <option value="Bulk">Bulk (Variant Based)</option>
+                          <option value="Special">Special (Variant Based)</option>
+                        </select>
+                      </div>
+
+                      {watchDiscountType === 'Standard' && (
+                        <div className="space-y-2">
+                          <Label className="text-sm font-medium text-slate-700">Select Price List</Label>
+                          <select
+                            {...register('standard_pricelist_id')}
+                            className="w-full h-11 px-3 rounded-md border border-slate-300 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                          >
+                            <option value="">Choose a price list</option>
+                            {pricelists?.map((pl: any) => (
+                              <option key={pl.id} value={pl.id}>
+                                {pl.pricelist_name} ({pl.discount_percent}%)
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="bg-gradient-to-r from-slate-50 to-blue-50/50 rounded-xl p-5 border border-slate-200">
+                      <div className="flex items-center gap-3 mb-3">
+                        <CreditCard className="w-5 h-5 text-blue-600" />
+                        <h4 className="font-medium text-slate-900">Portfolio Preview</h4>
+                      </div>
+                      {watchDiscountType === 'Standard' ? (
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
+                            <CheckCircle2 className="w-5 h-5 text-green-600" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-slate-900">
+                              {pricelists?.find((pl: any) => pl.id === watch('standard_pricelist_id'))?.discount_percent || 0}% Standard Discount
+                            </p>
+                            <p className="text-sm text-slate-500">Flat discount applied to all items</p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center">
+                            <AlertCircle className="w-5 h-5 text-amber-600" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-slate-900">{watchDiscountType} Structure</p>
+                            <p className="text-sm text-slate-500">Variant-based pricing will be applied</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {isAdmin && (
+                      <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
+                        <div className="flex items-center gap-2 text-sm text-slate-600">
+                          <Crown className="w-4 h-4 text-amber-500" />
+                          <span>Custom discount management available for admin users</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </section>
+
+            {/* Notes Section */}
+            <section id="notes" className="scroll-mt-24">
+              <Card className="border-slate-200/60 shadow-sm hover:shadow-md transition-shadow">
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-500 to-slate-600 flex items-center justify-center shadow-lg shadow-slate-500/25">
+                      <Briefcase className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-semibold text-slate-900">Internal Notes</h2>
+                      <p className="text-sm text-slate-500">Remarks and client background information</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-slate-700">General Remarks</Label>
+                      <Textarea
+                        {...register('remarks')}
+                        placeholder="Any general notes about this client..."
+                        className="min-h-[120px] resize-none border-slate-300 focus:border-blue-500 focus:ring-blue-500/20"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-slate-700">About Client</Label>
+                      <Textarea
+                        {...register('about_client')}
+                        placeholder="Background, business details, relationship history..."
+                        className="min-h-[120px] resize-none border-slate-300 focus:border-blue-500 focus:ring-blue-500/20"
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </section>
+
+            {/* Bottom Actions */}
+            <div className="flex items-center justify-between pt-4">
               <Button
                 type="button"
-                variant="destructive"
-                onClick={handleDelete}
+                variant="outline"
+                onClick={onCancel}
                 disabled={loading}
+                className="min-w-[120px] border-slate-300"
               >
-                <Trash2 className="w-4 h-4 mr-2" />
-                Delete
+                Cancel
               </Button>
-            )}
-            <Button
-              type="button"
-              onClick={handleSubmit(onSubmit)}
-              disabled={loading}
-              className="min-w-[160px] bg-blue-600 hover:bg-blue-700 shadow-md"
-            >
-              {loading ? (
-                <>
-                  <div className="w-4 h-4 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Save className="w-4 h-4 mr-2" />
-                  {editMode ? 'Update Client' : 'Create Client'}
-                </>
-              )}
-            </Button>
+
+              <div className="flex gap-3">
+                {editMode && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleDelete}
+                    disabled={loading}
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete Client
+                  </Button>
+                )}
+                <Button
+                  type="button"
+                  onClick={handleSubmit(onSubmit)}
+                  disabled={loading}
+                  className="min-w-[160px] bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg shadow-blue-500/25"
+                >
+                  {loading ? (
+                    <>
+                      <div className="w-4 h-4 mr-2 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4 mr-2" />
+                      {editMode ? 'Update Client' : 'Create Client'}
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 }
@@ -880,14 +1172,23 @@ export function CreateClientEdit({ onSuccess, onCancel }: { onSuccess: () => voi
   });
 
   if (isLoading) return (
-    <div className="flex items-center justify-center h-64">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+    <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="flex flex-col items-center gap-4">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <p className="text-slate-600">Loading client data...</p>
+      </div>
     </div>
   );
-  
+
   if (!clientData) return (
-    <div className="flex items-center justify-center h-64 text-red-500">
-      Error loading client.
+    <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="text-center">
+        <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+        <p className="text-red-600 font-medium">Error loading client data</p>
+        <Button onClick={onCancel} variant="outline" className="mt-4">
+          Go Back
+        </Button>
+      </div>
     </div>
   );
 
