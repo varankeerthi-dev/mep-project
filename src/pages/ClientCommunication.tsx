@@ -141,7 +141,7 @@ export function ClientCommunication() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('clients')
-        .select('id, client_name, client_type, address, contact_name, phone')
+        .select('id, client_name, client_type, address1, city, state, contact, phone, client_id')
         .order('client_name');
       if (error) {
         console.error('Error fetching clients:', error);
@@ -210,10 +210,16 @@ export function ClientCommunication() {
   // Create client
   const createClientMutation = useMutation({
     mutationFn: async (clientData: any) => {
-      console.log('Creating client with data:', clientData);
+      // Auto-generate client_id if not provided
+      const dataToInsert = {
+        ...clientData,
+        client_id: clientData.client_id || `CL-${Date.now()}`,
+        created_at: new Date().toISOString(),
+      };
+      console.log('Creating client with data:', dataToInsert);
       const { data: result, error } = await supabase
         .from('clients')
-        .insert(clientData)
+        .insert(dataToInsert)
         .select('id, client_name')
         .single();
       if (error) {
@@ -235,6 +241,7 @@ export function ClientCommunication() {
       // Reset new client form
       setNewClientData({
         client_name: '',
+        client_id: '',
         client_type: '',
         address1: '',
         city: '',
@@ -281,6 +288,7 @@ export function ClientCommunication() {
 
   const [newClientData, setNewClientData] = useState({
     client_name: '',
+    client_id: '',
     client_type: '',
     address1: '',
     city: '',
@@ -323,8 +331,8 @@ export function ClientCommunication() {
     return {
       total: communications.length,
       today: communications.filter((c) => isSameDay(parseISO(c.created_at), today)).length,
-      open: communications.filter((c) => c.status === 'open').length,
-      urgent: communications.filter((c) => c.priority === 'urgent').length,
+      open: communications.filter((c) => c.status?.toLowerCase() === 'open').length,
+      urgent: communications.filter((c) => c.priority?.toLowerCase() === 'urgent').length,
     };
   }, [communications]);
 
@@ -1134,6 +1142,12 @@ export function ClientCommunication() {
             value={newClientData.client_name}
             onChange={(e) => setNewClientData({ ...newClientData, client_name: e.target.value })}
             placeholder="Enter client name"
+          />
+          <Input
+            label="Client ID (optional)"
+            value={newClientData.client_id}
+            onChange={(e) => setNewClientData({ ...newClientData, client_id: e.target.value })}
+            placeholder="Auto-generated if empty"
           />
           <Input
             label="Client Type"
