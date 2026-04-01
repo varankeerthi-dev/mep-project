@@ -19,7 +19,7 @@ const variants = {
 };
 
 export function Badge({ children, variant = 'default', size = 'md', dot, dotColor }: BadgeProps) {
-  const theme = variants[variant];
+  const theme = variants[variant] || variants.default;
   const effectiveDotColor = dotColor || theme.text;
   
   return (
@@ -53,10 +53,12 @@ export function Badge({ children, variant = 'default', size = 'md', dot, dotColo
 }
 
 // Priority Badge - uses priority colors from design system
-export function PriorityBadge({ priority }: { priority: string }) {
+export function PriorityBadge({ priority }: { priority?: string }) {
   // Normalize to lowercase for lookup
-  const normalizedPriority = (priority || 'normal').toLowerCase() as keyof typeof colors.priority;
-  const theme = colors.priority[normalizedPriority] || colors.priority.normal;
+  const val = (priority || 'normal').toLowerCase();
+  const priorityKey = (val in colors.priority ? val : 'normal') as keyof typeof colors.priority;
+  const theme = colors.priority[priorityKey];
+  
   return (
     <Badge
       variant="neutral"
@@ -69,10 +71,12 @@ export function PriorityBadge({ priority }: { priority: string }) {
 }
 
 // Status Badge - uses status colors from design system
-export function StatusBadge({ status }: { status: string }) {
+export function StatusBadge({ status }: { status?: string }) {
   // Normalize to lowercase and replace spaces with underscores for lookup
-  const normalizedStatus = (status || 'open').toLowerCase().replace(' ', '_') as keyof typeof colors.status;
-  const theme = colors.status[normalizedStatus] || colors.status.open;
+  const val = (status || 'open').toLowerCase().replace(' ', '_');
+  const statusKey = (val in colors.status ? val : 'open') as keyof typeof colors.status;
+  const theme = colors.status[statusKey];
+  
   const label = (status || 'Open').replace('_', ' ');
   return (
     <Badge
