@@ -457,111 +457,12 @@ export function ClientCommunication() {
           margin: '0 auto',
           padding: '24px',
           display: 'grid',
-          gridTemplateColumns: sidebarCollapsed ? '60px 1fr' : '280px 1fr',
+          gridTemplateColumns: sidebarCollapsed ? '1fr 60px' : '1fr 280px',
           gap: '24px',
           transition: 'grid-template-columns 200ms ease',
         }}
       >
-        {/* Sidebar */}
-        <div>
-          <Card padding="none">
-            <div
-              style={{
-                padding: '16px 20px',
-                borderBottom: `1px solid ${colors.gray[200]}`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-              }}
-            >
-              {!sidebarCollapsed && (
-                <span style={{ fontSize: '14px', fontWeight: 600, color: colors.gray[700] }}>
-                  <Filter size={16} style={{ display: 'inline', marginRight: '8px' }} />
-                  Filters
-                </span>
-              )}
-              <IconButton
-                icon={sidebarCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
-                variant="ghost"
-                size="sm"
-                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              />
-            </div>
-
-            {!sidebarCollapsed && (
-              <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <Input
-                  placeholder="Search..."
-                  value={filters.search}
-                  onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-                  leftIcon={<Search size={16} />}
-                />
-
-                <Select
-                  label="Client"
-                  value={filters.clientId}
-                  onChange={(e) => setFilters({ ...filters, clientId: e.target.value })}
-                  options={[{ value: '', label: 'All Clients' }, ...clients.map((c) => ({ value: c.id, label: c.client_name }))]}
-                />
-
-                <Select
-                  label="Communication Type"
-                  value={filters.callCategory}
-                  onChange={(e) => setFilters({ ...filters, callCategory: e.target.value })}
-                  options={CALL_CATEGORIES}
-                />
-
-                <Select
-                  label="Regarding"
-                  value={filters.callRegarding}
-                  onChange={(e) => setFilters({ ...filters, callRegarding: e.target.value })}
-                  options={CALL_REGARDING}
-                />
-
-                <Select
-                  label="Status"
-                  value={filters.status}
-                  onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-                  options={[{ value: '', label: 'All Statuses' }, ...STATUS_OPTIONS]}
-                />
-
-                <Select
-                  label="Priority"
-                  value={filters.priority}
-                  onChange={(e) => setFilters({ ...filters, priority: e.target.value })}
-                  options={[{ value: '', label: 'All Priorities' }, ...PRIORITY_OPTIONS]}
-                />
-
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <div style={{ flex: 1 }}>
-                    <Input
-                      type="date"
-                      label="From"
-                      value={filters.dateFrom}
-                      onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
-                    />
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <Input
-                      type="date"
-                      label="To"
-                      value={filters.dateTo}
-                      onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
-                    />
-                  </div>
-                </div>
-
-                {hasActiveFilters && (
-                  <Button variant="ghost" leftIcon={<RefreshCw size={16} />} onClick={clearFilters}>
-                    Clear Filters
-                  </Button>
-                )}
-              </div>
-            )}
-          </Card>
-        </div>
-
-        {/* Content Area */}
+        {/* Content Area - Now on Left */}
         <div>
           <Tabs defaultTab="dashboard" onChange={setActiveTab}>
             <TabList style={{ marginBottom: '24px' }}>
@@ -1001,6 +902,105 @@ export function ClientCommunication() {
               </Card>
             </TabPanel>
           </Tabs>
+        </div>
+
+        {/* Sidebar with Filters - Now on Right */}
+        <div>
+          <Card padding="none">
+            <div
+              style={{
+                padding: '16px 20px',
+                borderBottom: `1px solid ${colors.gray[200]}`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              {!sidebarCollapsed && (
+                <span style={{ fontSize: '14px', fontWeight: 600, color: colors.gray[700] }}>
+                  <Filter size={16} style={{ display: 'inline', marginRight: '8px' }} />
+                  Filters
+                </span>
+              )}
+              <IconButton
+                icon={sidebarCollapsed ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
+                variant="ghost"
+                size="sm"
+                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              />
+            </div>
+
+            {!sidebarCollapsed && (
+              <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <Input
+                  placeholder="Search..."
+                  value={filters.search}
+                  onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+                  leftIcon={<Search size={16} />}
+                />
+
+                <Select
+                  label="Client"
+                  value={filters.clientId}
+                  onChange={(e) => setFilters({ ...filters, clientId: e.target.value })}
+                  options={[{ value: '', label: 'All Clients' }, ...clients.map((c) => ({ value: c.id, label: c.client_name }))]}
+                />
+
+                <Select
+                  label="Communication Type"
+                  value={filters.callCategory}
+                  onChange={(e) => setFilters({ ...filters, callCategory: e.target.value })}
+                  options={CALL_CATEGORIES}
+                />
+
+                <Select
+                  label="Regarding"
+                  value={filters.callRegarding}
+                  onChange={(e) => setFilters({ ...filters, callRegarding: e.target.value })}
+                  options={CALL_REGARDING}
+                />
+
+                <Select
+                  label="Status"
+                  value={filters.status}
+                  onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+                  options={[{ value: '', label: 'All Statuses' }, ...STATUS_OPTIONS]}
+                />
+
+                <Select
+                  label="Priority"
+                  value={filters.priority}
+                  onChange={(e) => setFilters({ ...filters, priority: e.target.value })}
+                  options={[{ value: '', label: 'All Priorities' }, ...PRIORITY_OPTIONS]}
+                />
+
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <div style={{ flex: 1 }}>
+                    <Input
+                      type="date"
+                      label="From"
+                      value={filters.dateFrom}
+                      onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
+                    />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <Input
+                      type="date"
+                      label="To"
+                      value={filters.dateTo}
+                      onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                {hasActiveFilters && (
+                  <Button variant="ghost" leftIcon={<RefreshCw size={16} />} onClick={clearFilters}>
+                    Clear Filters
+                  </Button>
+                )}
+              </div>
+            )}
+          </Card>
         </div>
       </div>
 
