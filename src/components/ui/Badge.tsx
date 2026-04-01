@@ -53,23 +53,27 @@ export function Badge({ children, variant = 'default', size = 'md', dot, dotColo
 }
 
 // Priority Badge - uses priority colors from design system
-export function PriorityBadge({ priority }: { priority: 'low' | 'normal' | 'high' | 'urgent' }) {
-  const theme = colors.priority[priority];
+export function PriorityBadge({ priority }: { priority: string }) {
+  // Normalize to lowercase for lookup
+  const normalizedPriority = (priority || 'normal').toLowerCase() as keyof typeof colors.priority;
+  const theme = colors.priority[normalizedPriority] || colors.priority.normal;
   return (
     <Badge
       variant="neutral"
       dot
       dotColor={theme.dot}
     >
-      <span style={{ color: theme.text, textTransform: 'capitalize' }}>{priority}</span>
+      <span style={{ color: theme.text, textTransform: 'capitalize' }}>{priority || 'Normal'}</span>
     </Badge>
   );
 }
 
 // Status Badge - uses status colors from design system
-export function StatusBadge({ status }: { status: 'open' | 'in_progress' | 'resolved' | 'closed' }) {
-  const theme = colors.status[status];
-  const label = status.replace('_', ' ');
+export function StatusBadge({ status }: { status: string }) {
+  // Normalize to lowercase and replace spaces with underscores for lookup
+  const normalizedStatus = (status || 'open').toLowerCase().replace(' ', '_') as keyof typeof colors.status;
+  const theme = colors.status[normalizedStatus] || colors.status.open;
+  const label = (status || 'Open').replace('_', ' ');
   return (
     <Badge
       variant="neutral"
