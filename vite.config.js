@@ -3,18 +3,17 @@ import react from '@vitejs/plugin-react'
 import path from 'path'
 import { sentryVitePlugin } from "@sentry/vite-plugin";
 
+import { cloudflare } from "@cloudflare/vite-plugin";
+
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [
-    react(),
-    sentryVitePlugin({
-      org: "sss-q1", 
-      project: "javascript-react",
-      // If you're running local, make sure you've run `vercel env pull` 
-      // or set this token in your terminal.
-      authToken: process.env.SENTRY_AUTH_TOKEN, 
-    }),
-  ],
+  plugins: [react(), sentryVitePlugin({
+    org: "sss-q1", 
+    project: "javascript-react",
+    // If you're running local, make sure you've run `vercel env pull` 
+    // or set this token in your terminal.
+    authToken: process.env.SENTRY_AUTH_TOKEN, 
+  }), cloudflare()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),
