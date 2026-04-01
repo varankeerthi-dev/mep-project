@@ -28,19 +28,11 @@ import { cn } from '@/lib/utils';
 const STATUS_OPTIONS = ['all', 'pending', 'scheduled', 'completed', 'postponed', 'cancelled'];
 
 const STATUS_COLORS: Record<string, { bg: string; text: string; border: string; dot: string }> = {
-  pending:   { bg: 'bg-amber-50',   text: 'text-amber-700',   border: 'border-amber-200',  dot: 'bg-amber-500'  },
-  scheduled: { bg: 'bg-blue-50',    text: 'text-blue-700',    border: 'border-blue-200',   dot: 'bg-blue-500'   },
-  completed: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200',dot: 'bg-emerald-500'},
-  postponed: { bg: 'bg-slate-100',  text: 'text-slate-700',   border: 'border-slate-300',  dot: 'bg-slate-500'  },
-  cancelled: { bg: 'bg-red-50',     text: 'text-red-700',     border: 'border-red-200',    dot: 'bg-red-500'    },
-};
-
-const STATUS_GRADIENT: Record<string, string> = {
-  pending:   'from-amber-500/10 to-amber-500/5',
-  scheduled: 'from-blue-500/10 to-blue-500/5',
-  completed: 'from-emerald-500/10 to-emerald-500/5',
-  postponed: 'from-slate-500/10 to-slate-500/5',
-  cancelled: 'from-red-500/10 to-red-500/5',
+  pending:   { bg: 'bg-gray-100', text: 'text-zinc-700', border: 'border-gray-200', dot: 'bg-amber-500'  },
+  scheduled: { bg: 'bg-gray-100', text: 'text-zinc-700', border: 'border-gray-200', dot: 'bg-teal-500'   },
+  completed: { bg: 'bg-gray-100', text: 'text-zinc-700', border: 'border-gray-200', dot: 'bg-emerald-500'},
+  postponed: { bg: 'bg-gray-100', text: 'text-zinc-700', border: 'border-gray-200', dot: 'bg-zinc-400'   },
+  cancelled: { bg: 'bg-gray-100', text: 'text-zinc-700', border: 'border-gray-200', dot: 'bg-red-500'    },
 };
 
 const NEXT_STEPS = ['Quote to be Sent', 'Follow up call', 'Second Visit', 'Order Confirmation'];
@@ -340,35 +332,32 @@ export function SiteVisits() {
   // ─── Render ──────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
+    <div className="min-h-screen bg-[#fafafa]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
 
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="relative">
-              <div className="w-14 h-14 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center shadow-xl shadow-blue-600/30">
-                <MapPin className="w-7 h-7 text-white" />
-              </div>
-              <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl -z-10 opacity-30 blur-lg" />
+            <div className="w-12 h-12 rounded-2xl bg-teal-300 flex items-center justify-center">
+              <MapPin className="w-6 h-6 text-zinc-900" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
+              <h1 className="text-xl font-extrabold tracking-tight text-zinc-900">
                 Site Visits
               </h1>
-              <p className="text-sm text-slate-500">Track and manage all site activities</p>
+              <p className="text-[13px] text-zinc-500">Track and manage all site activities</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <Button
               variant="secondary"
-              className="gap-2 h-11 rounded-xl"
+              className="gap-2 h-11 rounded-full border border-gray-200 bg-white text-zinc-700 hover:bg-gray-50"
               onClick={() => openUpdate()}
             >
               <Edit2 className="w-4 h-4" /> Site Visit Update
             </Button>
             <Button
-              className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-xl shadow-blue-600/25 text-white font-semibold h-11 px-5 rounded-xl gap-2"
+              className="bg-zinc-900 hover:bg-zinc-800 text-white font-semibold h-11 px-5 rounded-full gap-2"
               onClick={() => openSchedule()}
             >
               <CalendarIcon className="w-4 h-4" /> Schedule Visit
@@ -379,39 +368,35 @@ export function SiteVisits() {
         {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
-            { label: 'Total Visits',  value: stats.total,     color: 'blue',    icon: CalendarDays,  badge: 'Total'     },
-            { label: 'Completed',     value: stats.completed, color: 'emerald', icon: CheckCircle2,  badge: 'Done'      },
-            { label: 'Pending',       value: stats.pending,   color: 'amber',   icon: Clock,         badge: 'Pending'   },
-            { label: "Today's Visits",value: stats.today,     color: 'purple',  icon: CalendarCheck, badge: 'Today'     },
-          ].map(({ label, value, color, icon: Icon, badge }) => (
-            <div key={label} className={`group relative bg-white rounded-2xl p-5 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl hover:shadow-${color}-500/10 transition-all duration-300 hover:-translate-y-1 overflow-hidden`}>
-              <div className={`absolute inset-0 bg-gradient-to-br from-${color}-500/5 to-transparent`} />
-              <div className="relative">
-                <div className="flex items-center justify-between mb-3">
-                  <div className={`w-11 h-11 rounded-xl bg-gradient-to-br from-${color}-500 to-${color}-600 flex items-center justify-center shadow-lg shadow-${color}-500/30`}>
-                    <Icon className="w-5 h-5 text-white" />
-                  </div>
-                  <span className={`text-xs font-medium text-${color}-600 bg-${color}-50 px-2.5 py-1 rounded-full`}>{badge}</span>
+            { label: 'Total Visits',  value: stats.total,     icon: CalendarDays  },
+            { label: 'Completed',     value: stats.completed, icon: CheckCircle2  },
+            { label: 'Pending',       value: stats.pending,   icon: Clock         },
+            { label: "Today's Visits",value: stats.today,     icon: CalendarCheck },
+          ].map(({ label, value, icon: Icon }) => (
+            <div key={label} className="bg-white rounded-2xl p-5 border border-gray-200 shadow-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">{label}</span>
+                <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center text-zinc-700">
+                  <Icon className="w-5 h-5" />
                 </div>
-                <p className="text-3xl font-bold text-slate-900">{value}</p>
-                <p className="text-sm text-slate-500 mt-1">{label}</p>
               </div>
+              <p className="text-2xl font-extrabold text-zinc-900 mt-3">{value}</p>
             </div>
           ))}
         </div>
 
         {/* Main Card */}
-        <div className="bg-white rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
 
           {/* Card header: tabs + filters + column toggle */}
-          <div className="px-6 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
+          <div className="px-6 py-4 border-b border-gray-200 bg-white">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
               <Tabs value={activeView} onValueChange={(v) => setActiveView(v as 'list' | 'calendar')}>
-                <TabsList className="grid w-[200px] grid-cols-2 h-10 bg-slate-100/80 p-1 rounded-xl">
-                  <TabsTrigger value="list" className="rounded-lg text-xs font-medium data-[state=active]:bg-white data-[state=active]:shadow data-[state=active]:text-blue-600">
+                <TabsList className="grid w-[200px] grid-cols-2 h-9 bg-gray-100 p-1 rounded-full">
+                  <TabsTrigger value="list" className="rounded-full text-[11px] font-semibold uppercase tracking-wide text-zinc-500 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-zinc-900">
                     <LayoutDashboard className="w-3.5 h-3.5 mr-1.5" /> List
                   </TabsTrigger>
-                  <TabsTrigger value="calendar" className="rounded-lg text-xs font-medium data-[state=active]:bg-white data-[state=active]:shadow data-[state=active]:text-blue-600">
+                  <TabsTrigger value="calendar" className="rounded-full text-[11px] font-semibold uppercase tracking-wide text-zinc-500 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-zinc-900">
                     <CalendarDays className="w-3.5 h-3.5 mr-1.5" /> Calendar
                   </TabsTrigger>
                 </TabsList>
@@ -419,17 +404,17 @@ export function SiteVisits() {
 
               <div className="flex items-center gap-2">
                 <div className="relative">
-                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
                   <Input
                     placeholder="Search client, engineer..."
                     value={searchQuery}
                     onChange={(e) => { setSearchQuery(e.target.value); setPageIndex(0); }}
-                    className="pl-10 h-10 w-[240px] bg-slate-50 border-slate-200 rounded-xl text-sm focus:bg-white"
+                    className="pl-10 h-10 w-[240px] bg-white border-gray-200 rounded-xl text-sm focus:border-teal-300 focus:ring-2 focus:ring-teal-300/20 focus:outline-none"
                   />
                 </div>
                 <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPageIndex(0); }}>
-                  <SelectTrigger className="h-10 w-[150px] bg-slate-50 border-slate-200 rounded-xl text-sm">
-                    <Filter className="w-3.5 h-3.5 mr-2 text-slate-400" />
+                  <SelectTrigger className="h-10 w-[150px] bg-white border-gray-200 rounded-xl text-sm focus:border-teal-300 focus:ring-2 focus:ring-teal-300/20 focus:outline-none">
+                    <Filter className="w-3.5 h-3.5 mr-2 text-zinc-400" />
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="rounded-xl">
@@ -440,12 +425,12 @@ export function SiteVisits() {
                 </Select>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="secondary" size="sm" className="h-10 gap-2 rounded-xl text-sm">
+                    <Button variant="secondary" size="sm" className="h-10 gap-2 rounded-full border border-gray-200 bg-white text-sm text-zinc-700 hover:bg-gray-50">
                       <Settings2 className="w-4 h-4" /> Columns
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="rounded-xl">
-                    <DropdownMenuLabel className="text-xs uppercase tracking-wide text-slate-500">Toggle Columns</DropdownMenuLabel>
+                    <DropdownMenuLabel className="text-xs uppercase tracking-wide text-zinc-500">Toggle Columns</DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     {Object.keys(DEFAULT_COLUMNS).filter(c => c !== 'actions').map(col => (
                       <DropdownMenuCheckboxItem
@@ -470,12 +455,12 @@ export function SiteVisits() {
                 <div className="p-6 space-y-3">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-16 w-full rounded-xl" />)}</div>
               ) : filteredVisits.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-20">
-                  <div className="w-20 h-20 bg-slate-100 rounded-3xl flex items-center justify-center mb-6">
-                    <CalendarDays className="w-10 h-10 text-slate-400" />
+                  <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mb-5">
+                    <CalendarDays className="w-8 h-8 text-zinc-400" />
                   </div>
-                  <h3 className="text-lg font-semibold text-slate-700 mb-2">No visits found</h3>
-                  <p className="text-sm text-slate-500 mb-6">Schedule your first site visit to get started</p>
-                  <Button onClick={() => openSchedule()} className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl shadow-lg gap-2">
+                  <h3 className="text-base font-bold text-zinc-800 mb-2">No visits found</h3>
+                  <p className="text-sm text-zinc-500 mb-6">Schedule your first site visit to get started</p>
+                  <Button onClick={() => openSchedule()} className="bg-zinc-900 text-white rounded-full gap-2 px-5">
                     <Plus className="w-4 h-4" /> Schedule Visit
                   </Button>
                 </div>
@@ -484,58 +469,57 @@ export function SiteVisits() {
                   <div className="overflow-x-auto">
                     <table className="w-full">
                       <thead>
-                        <tr className="bg-gradient-to-r from-slate-50 to-blue-50/30">
-                          {visibleCols.date && <th className="text-left px-6 py-4 text-xs font-bold text-slate-600 uppercase tracking-wider whitespace-nowrap">Date</th>}
-                          {visibleCols.client && <th className="text-left px-6 py-4 text-xs font-bold text-slate-600 uppercase tracking-wider">Client</th>}
-                          {visibleCols.visitedBy && <th className="text-left px-6 py-4 text-xs font-bold text-slate-600 uppercase tracking-wider whitespace-nowrap">Visited By</th>}
-                          {visibleCols.purpose && <th className="text-left px-6 py-4 text-xs font-bold text-slate-600 uppercase tracking-wider">Purpose</th>}
-                          {visibleCols.status && <th className="text-left px-6 py-4 text-xs font-bold text-slate-600 uppercase tracking-wider">Status</th>}
-                          {visibleCols.nextStep && <th className="text-left px-6 py-4 text-xs font-bold text-slate-600 uppercase tracking-wider whitespace-nowrap">Next Step</th>}
-                          {visibleCols.actions && <th className="text-right px-6 py-4 text-xs font-bold text-slate-600 uppercase tracking-wider">Actions</th>}
+                        <tr className="border-b border-gray-200">
+                          {visibleCols.date && <th className="text-left px-6 py-3 text-[11px] font-semibold text-zinc-500 uppercase tracking-wide whitespace-nowrap">Date</th>}
+                          {visibleCols.client && <th className="text-left px-6 py-3 text-[11px] font-semibold text-zinc-500 uppercase tracking-wide">Client</th>}
+                          {visibleCols.visitedBy && <th className="text-left px-6 py-3 text-[11px] font-semibold text-zinc-500 uppercase tracking-wide whitespace-nowrap">Visited By</th>}
+                          {visibleCols.purpose && <th className="text-left px-6 py-3 text-[11px] font-semibold text-zinc-500 uppercase tracking-wide">Purpose</th>}
+                          {visibleCols.status && <th className="text-left px-6 py-3 text-[11px] font-semibold text-zinc-500 uppercase tracking-wide">Status</th>}
+                          {visibleCols.nextStep && <th className="text-left px-6 py-3 text-[11px] font-semibold text-zinc-500 uppercase tracking-wide whitespace-nowrap">Next Step</th>}
+                          {visibleCols.actions && <th className="text-right px-6 py-3 text-[11px] font-semibold text-zinc-500 uppercase tracking-wide">Actions</th>}
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {paginatedVisits.map((visit: any, idx: number) => (
+                      <tbody>
+                        {paginatedVisits.map((visit: any) => (
                           <tr
                             key={visit.id}
                             className={cn(
-                              'group hover:bg-gradient-to-r hover:from-blue-50/50 hover:to-indigo-50/30 transition-all duration-200 cursor-pointer',
-                              idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'
+                              'group border-b border-gray-50 hover:bg-gray-50/50 transition-colors cursor-pointer'
                             )}
                             onClick={() => openView(visit)}
                           >
                             {visibleCols.date && (
                               <td className="px-6 py-4 whitespace-nowrap">
                                 <div className="flex items-center gap-3">
-                                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-100 to-blue-50 flex items-center justify-center text-blue-700 font-bold text-sm">
+                                  <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center text-zinc-700 font-bold text-sm">
                                     {format(parseISO(visit.visit_date), 'dd')}
                                   </div>
                                   <div>
-                                    <p className="font-semibold text-slate-800 text-sm">{format(parseISO(visit.visit_date), 'MMM')}</p>
-                                    <p className="text-xs text-slate-400">{format(parseISO(visit.visit_date), 'yyyy')}</p>
+                                    <p className="font-semibold text-zinc-800 text-sm">{format(parseISO(visit.visit_date), 'MMM')}</p>
+                                    <p className="text-xs text-zinc-400">{format(parseISO(visit.visit_date), 'yyyy')}</p>
                                   </div>
                                 </div>
                               </td>
                             )}
                             {visibleCols.client && (
                               <td className="px-6 py-4">
-                                <p className="font-semibold text-slate-900 text-sm">{visit.clients?.client_name || '—'}</p>
+                                <p className="font-semibold text-zinc-900 text-sm">{visit.clients?.client_name || '—'}</p>
                               </td>
                             )}
                             {visibleCols.visitedBy && (
                               <td className="px-6 py-4">
-                                <p className="text-sm text-slate-600">{visit.visited_by || visit.engineer || '—'}</p>
+                                <p className="text-sm text-zinc-600">{visit.visited_by || visit.engineer || '—'}</p>
                               </td>
                             )}
                             {visibleCols.purpose && (
                               <td className="px-6 py-4">
-                                <p className="text-sm text-slate-600 max-w-[160px] truncate">{visit.purpose || '—'}</p>
+                                <p className="text-sm text-zinc-600 max-w-[160px] truncate">{visit.purpose || '—'}</p>
                               </td>
                             )}
                             {visibleCols.status && (
                               <td className="px-6 py-4">
                                 <div className={cn(
-                                  'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border',
+                                  'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border',
                                   STATUS_COLORS[visit.status]?.bg,
                                   STATUS_COLORS[visit.status]?.text,
                                   STATUS_COLORS[visit.status]?.border
@@ -547,22 +531,22 @@ export function SiteVisits() {
                             )}
                             {visibleCols.nextStep && (
                               <td className="px-6 py-4">
-                                <p className="text-sm text-slate-600 max-w-[140px] truncate">{visit.next_step || '—'}</p>
+                                <p className="text-sm text-zinc-600 max-w-[140px] truncate">{visit.next_step || '—'}</p>
                               </td>
                             )}
                             {visibleCols.actions && (
                               <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
                                 <div className="flex items-center justify-end gap-1">
-                                  <Button variant="ghost" size="sm" className="h-8 w-8 rounded-lg hover:bg-blue-50 hover:text-blue-600" onClick={() => openView(visit)} title="View">
+                                  <Button variant="ghost" size="sm" className="h-8 w-8 rounded-full text-zinc-500 hover:bg-gray-100 hover:text-zinc-700" onClick={() => openView(visit)} title="View">
                                     <Eye className="w-4 h-4" />
                                   </Button>
-                                  <Button variant="ghost" size="sm" className="h-8 w-8 rounded-lg hover:bg-emerald-50 hover:text-emerald-600" onClick={() => openUpdate(visit)} title="Update">
+                                  <Button variant="ghost" size="sm" className="h-8 w-8 rounded-full text-zinc-500 hover:bg-gray-100 hover:text-zinc-700" onClick={() => openUpdate(visit)} title="Update">
                                     <Edit2 className="w-4 h-4" />
                                   </Button>
-                                  <Button variant="ghost" size="sm" className="h-8 w-8 rounded-lg hover:bg-amber-50 hover:text-amber-600" onClick={() => openSchedule(visit)} title="Reschedule">
+                                  <Button variant="ghost" size="sm" className="h-8 w-8 rounded-full text-zinc-500 hover:bg-gray-100 hover:text-zinc-700" onClick={() => openSchedule(visit)} title="Reschedule">
                                     <CalendarClock className="w-4 h-4" />
                                   </Button>
-                                  <Button variant="ghost" size="sm" className="h-8 w-8 rounded-lg hover:bg-red-50 hover:text-red-600" onClick={() => confirmDelete(visit)} title="Delete">
+                                  <Button variant="ghost" size="sm" className="h-8 w-8 rounded-full text-zinc-500 hover:bg-gray-100 hover:text-zinc-700" onClick={() => confirmDelete(visit)} title="Delete">
                                     <Trash2 className="w-4 h-4" />
                                   </Button>
                                 </div>
@@ -576,16 +560,16 @@ export function SiteVisits() {
 
                   {/* Pagination */}
                   {totalPages > 1 && (
-                    <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-gradient-to-r from-slate-50 to-white">
-                      <p className="text-sm text-slate-600">
-                        Showing <span className="font-semibold text-slate-900">{pageIndex * PAGE_SIZE + 1}</span> – <span className="font-semibold text-slate-900">{Math.min((pageIndex + 1) * PAGE_SIZE, filteredVisits.length)}</span> of <span className="font-semibold text-slate-900">{filteredVisits.length}</span>
+                    <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 bg-white">
+                      <p className="text-sm text-zinc-600">
+                        Showing <span className="font-semibold text-zinc-900">{pageIndex * PAGE_SIZE + 1}</span> – <span className="font-semibold text-zinc-900">{Math.min((pageIndex + 1) * PAGE_SIZE, filteredVisits.length)}</span> of <span className="font-semibold text-zinc-900">{filteredVisits.length}</span>
                       </p>
                       <div className="flex items-center gap-2">
-                        <Button variant="secondary" size="sm" className="h-9 w-9 p-0 rounded-lg" onClick={() => setPageIndex(p => Math.max(0, p - 1))} disabled={pageIndex === 0}>
+                        <Button variant="secondary" size="sm" className="h-9 w-9 p-0 rounded-full border border-gray-200 bg-white text-zinc-600 hover:bg-gray-50" onClick={() => setPageIndex(p => Math.max(0, p - 1))} disabled={pageIndex === 0}>
                           <ChevronLeft className="w-4 h-4" />
                         </Button>
-                        <span className="text-sm px-3 py-1 bg-slate-100 rounded-lg font-semibold text-slate-800">{pageIndex + 1} / {totalPages}</span>
-                        <Button variant="secondary" size="sm" className="h-9 w-9 p-0 rounded-lg" onClick={() => setPageIndex(p => Math.min(totalPages - 1, p + 1))} disabled={pageIndex >= totalPages - 1}>
+                        <span className="text-sm px-3 py-1 bg-gray-100 rounded-full font-semibold text-zinc-800">{pageIndex + 1} / {totalPages}</span>
+                        <Button variant="secondary" size="sm" className="h-9 w-9 p-0 rounded-full border border-gray-200 bg-white text-zinc-600 hover:bg-gray-50" onClick={() => setPageIndex(p => Math.min(totalPages - 1, p + 1))} disabled={pageIndex >= totalPages - 1}>
                           <ChevronRight className="w-4 h-4" />
                         </Button>
                       </div>
@@ -599,44 +583,59 @@ export function SiteVisits() {
           {/* CALENDAR VIEW */}
           {activeView === 'calendar' && (
             <div>
-              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-white">
                 <div className="flex items-center gap-3">
-                  <Button variant="secondary" size="sm" className="h-9 w-9 rounded-xl" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="h-9 w-9 rounded-full border border-gray-200 bg-white text-zinc-600 hover:bg-gray-50"
+                    onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
+                  >
                     <ChevronLeft className="w-4 h-4" />
                   </Button>
                   <div className="flex items-center gap-2">
-                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-md">
-                      <CalendarIcon className="w-4 h-4 text-white" />
+                    <div className="w-9 h-9 rounded-xl bg-teal-300 flex items-center justify-center">
+                      <CalendarIcon className="w-4 h-4 text-zinc-900" />
                     </div>
                     <div>
-                      <p className="font-bold text-slate-900 leading-tight">{format(currentMonth, 'MMMM')}</p>
-                      <p className="text-xs text-slate-500">{format(currentMonth, 'yyyy')}</p>
+                      <p className="text-sm font-bold text-zinc-900 leading-tight">{format(currentMonth, 'MMMM')}</p>
+                      <p className="text-xs text-zinc-400">{format(currentMonth, 'yyyy')}</p>
                     </div>
                   </div>
-                  <Button variant="secondary" size="sm" className="h-9 w-9 rounded-xl" onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="h-9 w-9 rounded-full border border-gray-200 bg-white text-zinc-600 hover:bg-gray-50"
+                    onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
+                  >
                     <ChevronRight className="w-4 h-4" />
                   </Button>
                 </div>
                 <div className="flex items-center gap-3">
                   {[
-                    { label: 'Pending',   color: 'bg-amber-400'   },
-                    { label: 'Scheduled', color: 'bg-blue-500'    },
-                    { label: 'Completed', color: 'bg-emerald-500' },
-                  ].map(({ label, color }) => (
-                    <div key={label} className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-full text-xs font-medium text-slate-600">
-                      <div className={cn('w-2 h-2 rounded-full', color)} />
+                    { label: 'Pending', status: 'pending' },
+                    { label: 'Scheduled', status: 'scheduled' },
+                    { label: 'Completed', status: 'completed' },
+                  ].map(({ label, status }) => (
+                    <div key={label} className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-full text-xs font-medium text-zinc-600">
+                      <div className={cn('w-2 h-2 rounded-full', STATUS_COLORS[status]?.dot)} />
                       {label}
                     </div>
                   ))}
-                  <Button variant="secondary" size="sm" className="h-9 px-4 rounded-lg text-blue-600 border-blue-200 hover:bg-blue-50" onClick={() => setCurrentMonth(new Date())}>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="h-9 px-4 rounded-full border border-gray-200 bg-white text-zinc-700 hover:bg-gray-50"
+                    onClick={() => setCurrentMonth(new Date())}
+                  >
                     Today
                   </Button>
                 </div>
               </div>
 
-              <div className="grid grid-cols-7 border-b border-slate-100">
+              <div className="grid grid-cols-7 border-b border-gray-200 bg-[#fafafa]">
                 {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
-                  <div key={d} className="py-3 text-center text-xs font-bold text-slate-400 uppercase tracking-wider bg-slate-50/50">{d}</div>
+                  <div key={d} className="py-3 text-center text-[11px] font-semibold text-zinc-500 uppercase tracking-wide bg-[#fafafa]">{d}</div>
                 ))}
               </div>
 
@@ -648,23 +647,23 @@ export function SiteVisits() {
                     <div
                       key={idx}
                       className={cn(
-                        'min-h-[140px] border-b border-r border-slate-100 p-2 transition-colors hover:bg-slate-50/50 cursor-pointer group relative',
-                        !isCurrentMonth && 'bg-slate-50/30',
+                        'min-h-[140px] border-b border-r border-gray-200 p-2 transition-colors hover:bg-gray-50/60 cursor-pointer group relative',
+                        !isCurrentMonth && 'bg-[#fafafa]',
                         idx % 7 === 6 && 'border-r-0'
                       )}
                       onClick={() => openSchedule(undefined, day)}
                     >
                       <div className="flex items-center justify-between mb-2">
                         <span className={cn(
-                          'inline-flex items-center justify-center w-7 h-7 text-sm font-bold rounded-xl transition-colors',
-                          isToday(day) && 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-md',
-                          !isToday(day) && isCurrentMonth && 'text-slate-700 group-hover:bg-slate-100',
-                          !isCurrentMonth && 'text-slate-300'
+                          'inline-flex items-center justify-center w-7 h-7 text-xs font-semibold rounded-full transition-colors',
+                          isToday(day) && 'bg-teal-300 text-zinc-900',
+                          !isToday(day) && isCurrentMonth && 'text-zinc-700 group-hover:bg-gray-100',
+                          !isCurrentMonth && 'text-zinc-400'
                         )}>
                           {format(day, 'd')}
                         </span>
                         {dayVisits.length > 0 && (
-                          <span className="w-5 h-5 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-[9px] font-bold flex items-center justify-center">
+                          <span className="w-5 h-5 rounded-full bg-zinc-900 text-white text-[9px] font-bold flex items-center justify-center">
                             {dayVisits.length}
                           </span>
                         )}
@@ -673,24 +672,20 @@ export function SiteVisits() {
                         {dayVisits.slice(0, 3).map((v: any) => (
                           <div
                             key={v.id}
-                            className={cn(
-                              'px-2 py-1 rounded-lg text-[10px] font-semibold truncate cursor-pointer hover:scale-[1.02] transition-transform border-l-2 shadow-sm',
-                              STATUS_COLORS[v.status]?.bg,
-                              STATUS_COLORS[v.status]?.text,
-                              STATUS_COLORS[v.status]?.border
-                            )}
+                            className="flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-semibold truncate cursor-pointer border border-gray-200 bg-white text-zinc-700 hover:bg-gray-50"
                             onClick={(e) => { e.stopPropagation(); openView(v); }}
                             title={v.clients?.client_name}
                           >
-                            {v.clients?.client_name || 'Visit'}
+                            <span className={cn('w-1.5 h-1.5 rounded-full', STATUS_COLORS[v.status]?.dot)} />
+                            <span className="truncate">{v.clients?.client_name || 'Visit'}</span>
                           </div>
                         ))}
                         {dayVisits.length > 3 && (
-                          <div className="text-[9px] text-slate-400 font-medium text-center py-0.5 bg-slate-100 rounded">+{dayVisits.length - 3} more</div>
+                          <div className="text-[9px] text-zinc-400 font-medium text-center py-0.5 bg-gray-100 rounded-full">+{dayVisits.length - 3} more</div>
                         )}
                         {isCurrentMonth && dayVisits.length === 0 && (
                           <div className="hidden group-hover:block absolute inset-x-2 bottom-2">
-                            <div className="text-[10px] text-slate-400 text-center py-1.5 border border-dashed border-slate-200 rounded-lg">Click to schedule</div>
+                            <div className="text-[10px] text-zinc-400 text-center py-1.5 border border-dashed border-gray-200 rounded-full">Click to schedule</div>
                           </div>
                         )}
                       </div>
@@ -704,23 +699,31 @@ export function SiteVisits() {
 
         {/* Follow-ups panel */}
         {visits.filter((v: any) => v.follow_up_date && v.status !== 'completed').length > 0 && (
-          <Card className="border-slate-200 shadow-sm">
+          <Card className="border-gray-200 shadow-sm">
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-bold flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-amber-500" /> Follow-ups Required
+              <CardTitle className="text-sm font-bold flex items-center gap-2 text-zinc-900">
+                <AlertCircle className="w-4 h-4 text-zinc-500" /> Follow-ups Required
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 {visits.filter((v: any) => v.follow_up_date && v.status !== 'completed').slice(0, 4).map((v: any) => (
-                  <div key={v.id} className="p-3 rounded-xl bg-amber-50/60 border border-amber-100 hover:shadow-md transition-shadow cursor-pointer" onClick={() => openUpdate(v)}>
-                    <p className="font-bold text-slate-900 text-sm truncate">{v.clients?.client_name || '—'}</p>
-                    <p className="text-xs text-slate-500 mt-0.5 truncate">{v.next_step || 'No next step'}</p>
+                  <div key={v.id} className="p-3 rounded-2xl bg-white border border-gray-200 hover:bg-gray-50/50 transition-colors cursor-pointer" onClick={() => openUpdate(v)}>
+                    <p className="font-bold text-zinc-900 text-sm truncate">{v.clients?.client_name || '—'}</p>
+                    <p className="text-xs text-zinc-500 mt-0.5 truncate">{v.next_step || 'No next step'}</p>
                     <div className="flex items-center justify-between mt-2">
-                      <span className="text-[10px] font-medium text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
+                      <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-zinc-700 bg-gray-100 px-2 py-0.5 rounded-full">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
                         Due: {format(parseISO(v.follow_up_date), 'dd MMM')}
                       </span>
-                      <Button variant="ghost" size="sm" className="h-6 text-xs text-indigo-600 px-2 py-0" onClick={(e) => { e.stopPropagation(); openUpdate(v); }}>Edit</Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs text-zinc-600 px-2 py-0 rounded-full hover:bg-gray-100 hover:text-zinc-800"
+                        onClick={(e) => { e.stopPropagation(); openUpdate(v); }}
+                      >
+                        Edit
+                      </Button>
                     </div>
                   </div>
                 ))}
@@ -732,9 +735,9 @@ export function SiteVisits() {
 
       {/* ─── SCHEDULE MODAL (Simple) ─────────────────────────────────────────── */}
       <Dialog open={isScheduleOpen} onOpenChange={(o) => { setIsScheduleOpen(o); if (!o) setSelectedVisit(null); }}>
-        <DialogContent className="max-w-md rounded-2xl shadow-2xl">
-          <DialogHeader className="pb-2 border-b border-slate-100">
-            <DialogTitle className="text-lg font-bold text-slate-900">
+        <DialogContent className="max-w-lg rounded-2xl border border-gray-200 shadow-lg">
+          <DialogHeader className="pb-3 border-b border-gray-200">
+            <DialogTitle className="text-lg font-bold text-zinc-900">
               {selectedVisit ? 'Reschedule Visit' : 'Schedule Site Visit'}
             </DialogTitle>
           </DialogHeader>
@@ -742,11 +745,11 @@ export function SiteVisits() {
 
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Client *</Label>
-                <button type="button" className="text-xs text-indigo-600 hover:text-indigo-700 font-medium" onClick={() => setIsAddClientOpen(true)}>+ Add New</button>
+                <Label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Client *</Label>
+                <button type="button" className="text-xs text-teal-700 hover:text-teal-800 font-medium" onClick={() => setIsAddClientOpen(true)}>+ Add New</button>
               </div>
               <Select name="client_id" required defaultValue={selectedVisit?.client_id || undefined}>
-                <SelectTrigger className="rounded-xl border-slate-200 bg-slate-50 focus:bg-white h-10">
+                <SelectTrigger className="rounded-xl border-gray-200 bg-white h-10 focus:border-teal-300 focus:ring-2 focus:ring-teal-300/20 focus:outline-none">
                   <SelectValue placeholder="Select Client" />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl">
@@ -759,13 +762,13 @@ export function SiteVisits() {
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Date *</Label>
+                <Label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Date *</Label>
                 <Input
                   name="visit_date"
                   type="date"
                   required
                   value={scheduleDateStr}
-                  className="rounded-xl bg-slate-50 border-slate-200 focus:bg-white h-10 text-sm"
+                  className="rounded-xl bg-white border-gray-200 h-10 text-sm focus:border-teal-300 focus:ring-2 focus:ring-teal-300/20 focus:outline-none"
                   onChange={(e) => {
                     const d = e.target.value;
                     setScheduleDateStr(d);
@@ -775,9 +778,9 @@ export function SiteVisits() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Status *</Label>
+                <Label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Status *</Label>
                 <Select name="status" value={scheduleStatus} onValueChange={setScheduleStatus} required>
-                  <SelectTrigger className="rounded-xl border-slate-200 bg-slate-50 focus:bg-white h-10">
+                  <SelectTrigger className="rounded-xl border-gray-200 bg-white h-10 focus:border-teal-300 focus:ring-2 focus:ring-teal-300/20 focus:outline-none">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="rounded-xl">
@@ -793,25 +796,25 @@ export function SiteVisits() {
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Created By</Label>
-                <Input name="created_by" className="rounded-xl bg-slate-50 border-slate-200 focus:bg-white h-10 text-sm" placeholder="Your name" defaultValue={selectedVisit?.created_by || ''} />
+                <Label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Created By</Label>
+                <Input name="created_by" className="rounded-xl bg-white border-gray-200 h-10 text-sm focus:border-teal-300 focus:ring-2 focus:ring-teal-300/20 focus:outline-none" placeholder="Your name" defaultValue={selectedVisit?.created_by || ''} />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Engineer</Label>
-                <Input name="engineer" className="rounded-xl bg-slate-50 border-slate-200 focus:bg-white h-10 text-sm" placeholder="Engineer name" defaultValue={selectedVisit?.engineer || ''} />
+                <Label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Engineer</Label>
+                <Input name="engineer" className="rounded-xl bg-white border-gray-200 h-10 text-sm focus:border-teal-300 focus:ring-2 focus:ring-teal-300/20 focus:outline-none" placeholder="Engineer name" defaultValue={selectedVisit?.engineer || ''} />
               </div>
             </div>
 
             {scheduleStatus === 'postponed' && (
               <div className="space-y-1.5">
-                <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Reason for Postponement *</Label>
-                <Textarea name="postponed_reason" required placeholder="Why was this visit postponed?" className="rounded-xl border-slate-200 text-sm" defaultValue={selectedVisit?.postponed_reason || ''} />
+                <Label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Reason for Postponement *</Label>
+                <Textarea name="postponed_reason" required placeholder="Why was this visit postponed?" className="rounded-xl border-gray-200 text-sm focus:border-teal-300 focus:ring-2 focus:ring-teal-300/20 focus:outline-none" defaultValue={selectedVisit?.postponed_reason || ''} />
               </div>
             )}
 
-            <DialogFooter className="pt-2 gap-2">
-              <Button type="button" variant="secondary" className="rounded-xl" onClick={() => setIsScheduleOpen(false)}>Cancel</Button>
-              <Button type="submit" disabled={isPending} className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl shadow-lg shadow-blue-500/25">
+            <DialogFooter className="pt-2 gap-2 border-t border-gray-200">
+              <Button type="button" variant="secondary" className="rounded-full border border-gray-200 bg-white text-zinc-700 hover:bg-gray-50" onClick={() => setIsScheduleOpen(false)}>Cancel</Button>
+              <Button type="submit" disabled={isPending} className="rounded-full bg-zinc-900 text-white hover:bg-zinc-800 px-6">
                 {isPending ? 'Saving...' : selectedVisit ? 'Update' : 'Schedule'}
               </Button>
             </DialogFooter>
@@ -821,33 +824,33 @@ export function SiteVisits() {
 
       {/* ─── UPDATE MODAL (Detailed) ──────────────────────────────────────────── */}
       <Dialog open={isUpdateOpen} onOpenChange={(o) => { setIsUpdateOpen(o); if (!o) setSelectedVisit(null); }}>
-        <DialogContent className="w-screen h-screen max-w-none m-0 rounded-none overflow-y-auto">
-          <DialogHeader className="pb-4 border-b border-slate-100">
-            <div className="flex items-center gap-3 max-w-5xl mx-auto w-full">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg">
-                <MapPin className="w-5 h-5 text-white" />
+        <DialogContent className="w-[95vw] max-w-6xl max-h-[90vh] overflow-y-auto rounded-2xl border border-gray-200 p-0">
+          <DialogHeader className="border-b border-gray-200 bg-white">
+            <div className="flex items-center gap-3 max-w-5xl mx-auto w-full px-6 py-4">
+              <div className="w-10 h-10 rounded-xl bg-teal-300 flex items-center justify-center">
+                <MapPin className="w-5 h-5 text-zinc-900" />
               </div>
               <div>
-                <DialogTitle className="text-xl font-bold text-slate-900">
+                <DialogTitle className="text-xl font-extrabold text-zinc-900">
                   {selectedVisit ? 'Edit Site Visit' : 'New Site Visit'}
                 </DialogTitle>
-                <p className="text-sm text-slate-500">{selectedVisit ? 'Update visit details' : 'Record a site visit'}</p>
+                <p className="text-[13px] text-zinc-500">{selectedVisit ? 'Update visit details' : 'Record a site visit'}</p>
               </div>
             </div>
           </DialogHeader>
 
-          <form key={`update-${selectedVisit?.id || 'new'}`} onSubmit={handleUpdateSubmit} className="max-w-5xl mx-auto w-full py-6 space-y-6">
+          <form key={`update-${selectedVisit?.id || 'new'}`} onSubmit={handleUpdateSubmit} className="max-w-5xl mx-auto w-full px-6 pb-6 pt-5 space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
               {/* LEFT */}
               <div className="space-y-4">
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Client *</Label>
-                    <button type="button" className="text-xs text-indigo-600 font-medium hover:text-indigo-700" onClick={() => setIsAddClientOpen(true)}>+ Add New</button>
+                    <Label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Client *</Label>
+                    <button type="button" className="text-xs text-teal-700 font-medium hover:text-teal-800" onClick={() => setIsAddClientOpen(true)}>+ Add New</button>
                   </div>
                   <Select name="client_id" required defaultValue={selectedVisit?.client_id || undefined}>
-                    <SelectTrigger className="rounded-xl border-slate-200 bg-slate-50 focus:bg-white h-10">
+                    <SelectTrigger className="rounded-xl border-gray-200 bg-white h-10 focus:border-teal-300 focus:ring-2 focus:ring-teal-300/20 focus:outline-none">
                       <SelectValue placeholder="Select Client" />
                     </SelectTrigger>
                     <SelectContent className="rounded-xl">
@@ -858,46 +861,46 @@ export function SiteVisits() {
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">In Time</Label>
-                    <Input name="in_time" type="time" className="rounded-xl bg-slate-50 border-slate-200 focus:bg-white h-10 text-sm" defaultValue={selectedVisit?.in_time || ''} />
+                    <Label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">In Time</Label>
+                    <Input name="in_time" type="time" className="rounded-xl bg-white border-gray-200 h-10 text-sm focus:border-teal-300 focus:ring-2 focus:ring-teal-300/20 focus:outline-none" defaultValue={selectedVisit?.in_time || ''} />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Out Time</Label>
-                    <Input name="out_time" type="time" className="rounded-xl bg-slate-50 border-slate-200 focus:bg-white h-10 text-sm" defaultValue={selectedVisit?.out_time || ''} />
+                    <Label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Out Time</Label>
+                    <Input name="out_time" type="time" className="rounded-xl bg-white border-gray-200 h-10 text-sm focus:border-teal-300 focus:ring-2 focus:ring-teal-300/20 focus:outline-none" defaultValue={selectedVisit?.out_time || ''} />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Created By</Label>
-                    <Input name="created_by" className="rounded-xl bg-slate-50 border-slate-200 focus:bg-white h-10 text-sm" placeholder="Your name" defaultValue={selectedVisit?.created_by || ''} />
+                    <Label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Created By</Label>
+                    <Input name="created_by" className="rounded-xl bg-white border-gray-200 h-10 text-sm focus:border-teal-300 focus:ring-2 focus:ring-teal-300/20 focus:outline-none" placeholder="Your name" defaultValue={selectedVisit?.created_by || ''} />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Visited By</Label>
-                    <Input name="visited_by" className="rounded-xl bg-slate-50 border-slate-200 focus:bg-white h-10 text-sm" placeholder="Who visited" defaultValue={selectedVisit?.visited_by || ''} />
+                    <Label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Visited By</Label>
+                    <Input name="visited_by" className="rounded-xl bg-white border-gray-200 h-10 text-sm focus:border-teal-300 focus:ring-2 focus:ring-teal-300/20 focus:outline-none" placeholder="Who visited" defaultValue={selectedVisit?.visited_by || ''} />
                   </div>
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Site Address</Label>
-                  <Input name="site_address" className="rounded-xl bg-slate-50 border-slate-200 focus:bg-white h-10 text-sm" placeholder="Site address" defaultValue={selectedVisit?.site_address || ''} />
+                  <Label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Site Address</Label>
+                  <Input name="site_address" className="rounded-xl bg-white border-gray-200 h-10 text-sm focus:border-teal-300 focus:ring-2 focus:ring-teal-300/20 focus:outline-none" placeholder="Site address" defaultValue={selectedVisit?.site_address || ''} />
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Discussion</Label>
-                  <Textarea name="discussion" className="rounded-xl border-slate-200 text-sm min-h-[80px]" placeholder="Discussion with client" defaultValue={selectedVisit?.discussion || ''} />
+                  <Label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Discussion</Label>
+                  <Textarea name="discussion" className="rounded-xl border-gray-200 text-sm min-h-[80px] focus:border-teal-300 focus:ring-2 focus:ring-teal-300/20 focus:outline-none" placeholder="Discussion with client" defaultValue={selectedVisit?.discussion || ''} />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Follow Up Date</Label>
-                    <Input name="follow_up_date" type="date" className="rounded-xl bg-slate-50 border-slate-200 focus:bg-white h-10 text-sm" defaultValue={selectedVisit?.follow_up_date || ''} />
+                    <Label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Follow Up Date</Label>
+                    <Input name="follow_up_date" type="date" className="rounded-xl bg-white border-gray-200 h-10 text-sm focus:border-teal-300 focus:ring-2 focus:ring-teal-300/20 focus:outline-none" defaultValue={selectedVisit?.follow_up_date || ''} />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Location URL</Label>
+                    <Label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Location URL</Label>
                     <div className="relative">
-                      <Input name="location_url" className="rounded-xl bg-slate-50 border-slate-200 focus:bg-white h-10 text-sm pr-9" placeholder="Google Maps link" defaultValue={selectedVisit?.location_url || ''} />
-                      <MapPin className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <Input name="location_url" className="rounded-xl bg-white border-gray-200 h-10 text-sm pr-9 focus:border-teal-300 focus:ring-2 focus:ring-teal-300/20 focus:outline-none" placeholder="Google Maps link" defaultValue={selectedVisit?.location_url || ''} />
+                      <MapPin className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
                     </div>
                   </div>
                 </div>
@@ -906,38 +909,38 @@ export function SiteVisits() {
               {/* RIGHT */}
               <div className="space-y-4">
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Visit Date *</Label>
-                  <Input name="visit_date" type="date" required className="rounded-xl bg-slate-50 border-slate-200 focus:bg-white h-10 text-sm"
+                  <Label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Visit Date *</Label>
+                  <Input name="visit_date" type="date" required className="rounded-xl bg-white border-gray-200 h-10 text-sm focus:border-teal-300 focus:ring-2 focus:ring-teal-300/20 focus:outline-none"
                     defaultValue={selectedVisit?.visit_date || (selectedDate ? format(selectedDate, 'yyyy-MM-dd') : '')} />
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Engineer</Label>
-                  <Input name="engineer" className="rounded-xl bg-slate-50 border-slate-200 focus:bg-white h-10 text-sm" placeholder="Engineer name" defaultValue={selectedVisit?.engineer || ''} />
+                  <Label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Engineer</Label>
+                  <Input name="engineer" className="rounded-xl bg-white border-gray-200 h-10 text-sm focus:border-teal-300 focus:ring-2 focus:ring-teal-300/20 focus:outline-none" placeholder="Engineer name" defaultValue={selectedVisit?.engineer || ''} />
                 </div>
 
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Purpose</Label>
-                    <button type="button" className="text-xs text-indigo-600 font-medium hover:text-indigo-700" onClick={() => setIsAddPurposeOpen(true)}>+ Add New</button>
+                    <Label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Purpose</Label>
+                    <button type="button" className="text-xs text-teal-700 font-medium hover:text-teal-800" onClick={() => setIsAddPurposeOpen(true)}>+ Add New</button>
                   </div>
                   <input type="hidden" name="purpose" value={updatePurpose} />
                   <Select value={updatePurpose} onValueChange={(v) => v === '__NEW__' ? setIsAddPurposeOpen(true) : setUpdatePurpose(v)}>
-                    <SelectTrigger className="rounded-xl border-slate-200 bg-slate-50 focus:bg-white h-10">
+                    <SelectTrigger className="rounded-xl border-gray-200 bg-white h-10 focus:border-teal-300 focus:ring-2 focus:ring-teal-300/20 focus:outline-none">
                       <SelectValue placeholder="Select Purpose" />
                     </SelectTrigger>
                     <SelectContent className="rounded-xl">
                       {purposes.map((p: any) => <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>)}
-                      <SelectItem value="__NEW__" className="text-indigo-600 font-medium">+ Add New Purpose</SelectItem>
+                      <SelectItem value="__NEW__" className="text-teal-700 font-medium">+ Add New Purpose</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Next Step</Label>
+                    <Label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Next Step</Label>
                     <Select name="next_step" defaultValue={selectedVisit?.next_step || undefined}>
-                      <SelectTrigger className="rounded-xl border-slate-200 bg-slate-50 focus:bg-white h-10">
+                      <SelectTrigger className="rounded-xl border-gray-200 bg-white h-10 focus:border-teal-300 focus:ring-2 focus:ring-teal-300/20 focus:outline-none">
                         <SelectValue placeholder="Select" />
                       </SelectTrigger>
                       <SelectContent className="rounded-xl">
@@ -946,9 +949,9 @@ export function SiteVisits() {
                     </Select>
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Status *</Label>
+                    <Label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Status *</Label>
                     <Select name="status" value={updateStatus} onValueChange={setUpdateStatus} required>
-                      <SelectTrigger className="rounded-xl border-slate-200 bg-slate-50 focus:bg-white h-10">
+                      <SelectTrigger className="rounded-xl border-gray-200 bg-white h-10 focus:border-teal-300 focus:ring-2 focus:ring-teal-300/20 focus:outline-none">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="rounded-xl">
@@ -962,21 +965,21 @@ export function SiteVisits() {
 
                 {updateStatus === 'postponed' && (
                   <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Postponement Reason *</Label>
-                    <Textarea name="postponed_reason" required className="rounded-xl border-slate-200 text-sm" placeholder="Why was this visit postponed?" defaultValue={selectedVisit?.postponed_reason || ''} />
+                    <Label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Postponement Reason *</Label>
+                    <Textarea name="postponed_reason" required className="rounded-xl border-gray-200 text-sm focus:border-teal-300 focus:ring-2 focus:ring-teal-300/20 focus:outline-none" placeholder="Why was this visit postponed?" defaultValue={selectedVisit?.postponed_reason || ''} />
                   </div>
                 )}
 
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Measurements</Label>
-                  <Textarea name="measurements" className="rounded-xl border-slate-200 text-sm min-h-[80px]" placeholder="Site measurements" defaultValue={selectedVisit?.measurements || ''} />
+                  <Label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Measurements</Label>
+                  <Textarea name="measurements" className="rounded-xl border-gray-200 text-sm min-h-[80px] focus:border-teal-300 focus:ring-2 focus:ring-teal-300/20 focus:outline-none" placeholder="Site measurements" defaultValue={selectedVisit?.measurements || ''} />
                 </div>
               </div>
             </div>
 
-            <DialogFooter className="pt-4 border-t border-slate-100 gap-2">
-              <Button type="button" variant="secondary" className="rounded-xl" onClick={() => setIsUpdateOpen(false)}>Cancel</Button>
-              <Button type="submit" disabled={isPending} className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl shadow-lg shadow-blue-500/25 px-8">
+            <DialogFooter className="pt-4 border-t border-gray-200 gap-2">
+              <Button type="button" variant="secondary" className="rounded-full border border-gray-200 bg-white text-zinc-700 hover:bg-gray-50" onClick={() => setIsUpdateOpen(false)}>Cancel</Button>
+              <Button type="submit" disabled={isPending} className="rounded-full bg-zinc-900 text-white hover:bg-zinc-800 px-8">
                 {isPending ? 'Saving...' : selectedVisit ? 'Update Visit' : 'Save Visit'}
               </Button>
             </DialogFooter>
@@ -986,9 +989,9 @@ export function SiteVisits() {
 
       {/* ─── VIEW MODAL ──────────────────────────────────────────────────────── */}
       <Dialog open={isViewOpen} onOpenChange={setIsViewOpen}>
-        <DialogContent className="max-w-lg rounded-2xl shadow-2xl">
-          <DialogHeader className="pb-4 border-b border-slate-100">
-            <DialogTitle className="text-lg font-bold">Visit Details</DialogTitle>
+        <DialogContent className="max-w-lg rounded-2xl border border-gray-200 shadow-lg">
+          <DialogHeader className="pb-4 border-b border-gray-200">
+            <DialogTitle className="text-lg font-bold text-zinc-900">Visit Details</DialogTitle>
           </DialogHeader>
           {selectedVisit && (
             <div className="py-4 space-y-3">
@@ -1001,14 +1004,14 @@ export function SiteVisits() {
                   { label: 'Purpose',    value: selectedVisit.purpose },
                   { label: 'Next Step',  value: selectedVisit.next_step },
                 ].map(({ label, value }) => (
-                  <div key={label} className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{label}</p>
-                    <p className="text-sm font-semibold text-slate-800 mt-0.5">{value || '—'}</p>
+                  <div key={label} className="p-3 bg-white rounded-xl border border-gray-200">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">{label}</p>
+                    <p className="text-sm font-semibold text-zinc-800 mt-0.5">{value || '—'}</p>
                   </div>
                 ))}
               </div>
-              <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-xl border border-slate-100">
-                <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400 mr-2">Status</p>
+              <div className="flex items-center gap-2 p-3 bg-white rounded-xl border border-gray-200">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 mr-2">Status</p>
                 <div className={cn('inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border',
                   STATUS_COLORS[selectedVisit.status]?.bg,
                   STATUS_COLORS[selectedVisit.status]?.text,
@@ -1019,16 +1022,16 @@ export function SiteVisits() {
                 </div>
               </div>
               {selectedVisit.discussion && (
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                  <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400 mb-1">Discussion</p>
-                  <p className="text-sm text-slate-700">{selectedVisit.discussion}</p>
+                <div className="p-3 bg-white rounded-xl border border-gray-200">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 mb-1">Discussion</p>
+                  <p className="text-sm text-zinc-700">{selectedVisit.discussion}</p>
                 </div>
               )}
             </div>
           )}
           <DialogFooter className="gap-2">
-            <Button variant="secondary" className="rounded-xl" onClick={() => setIsViewOpen(false)}>Close</Button>
-            <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl" onClick={() => { setIsViewOpen(false); openUpdate(selectedVisit); }}>
+            <Button variant="secondary" className="rounded-full border border-gray-200 bg-white text-zinc-700 hover:bg-gray-50" onClick={() => setIsViewOpen(false)}>Close</Button>
+            <Button className="bg-zinc-900 text-white rounded-full hover:bg-zinc-800" onClick={() => { setIsViewOpen(false); openUpdate(selectedVisit); }}>
               <Edit2 className="w-4 h-4 mr-2" /> Edit
             </Button>
           </DialogFooter>
@@ -1037,19 +1040,19 @@ export function SiteVisits() {
 
       {/* ─── DELETE CONFIRM ───────────────────────────────────────────────────── */}
       <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
-        <DialogContent className="max-w-md rounded-2xl shadow-2xl">
+        <DialogContent className="max-w-md rounded-2xl border border-gray-200 shadow-lg">
           <DialogHeader className="space-y-3 pb-4">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-red-500 to-rose-600 flex items-center justify-center shadow-lg mx-auto">
-              <Trash2 className="w-7 h-7 text-white" />
+            <div className="w-12 h-12 rounded-2xl bg-white border border-gray-200 flex items-center justify-center mx-auto">
+              <Trash2 className="w-6 h-6 text-red-600" />
             </div>
-            <DialogTitle className="text-center text-xl font-bold">Delete Visit</DialogTitle>
-            <DialogDescription className="text-center text-sm text-slate-500">
+            <DialogTitle className="text-center text-lg font-bold text-zinc-900">Delete Visit</DialogTitle>
+            <DialogDescription className="text-center text-sm text-zinc-500">
               This action cannot be undone. The visit will be permanently removed.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
-            <Button variant="secondary" className="flex-1 rounded-xl" onClick={() => setIsDeleteOpen(false)}>Cancel</Button>
-            <Button variant="danger" className="flex-1 rounded-xl" disabled={deleteMutation.isPending}
+            <Button variant="secondary" className="flex-1 rounded-full border border-gray-200 bg-white text-zinc-700 hover:bg-gray-50" onClick={() => setIsDeleteOpen(false)}>Cancel</Button>
+            <Button variant="danger" className="flex-1 rounded-full" disabled={deleteMutation.isPending}
               onClick={() => visitToDelete && deleteMutation.mutate(visitToDelete.id)}>
               {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
             </Button>
@@ -1059,18 +1062,18 @@ export function SiteVisits() {
 
       {/* ─── ADD CLIENT MODAL ────────────────────────────────────────────────── */}
       <Dialog open={isAddClientOpen} onOpenChange={setIsAddClientOpen}>
-        <DialogContent className="max-w-sm rounded-2xl shadow-2xl">
+        <DialogContent className="max-w-sm rounded-2xl border border-gray-200 shadow-lg">
           <DialogHeader>
-            <DialogTitle className="font-bold">Add New Client</DialogTitle>
+            <DialogTitle className="font-bold text-zinc-900">Add New Client</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleAddClient} className="space-y-4 pt-2">
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Client Name *</Label>
-              <Input name="name" required placeholder="Enter client name" className="rounded-xl bg-slate-50 border-slate-200 h-10" />
+              <Label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Client Name *</Label>
+              <Input name="name" required placeholder="Enter client name" className="rounded-xl bg-white border-gray-200 h-10 focus:border-teal-300 focus:ring-2 focus:ring-teal-300/20 focus:outline-none" />
             </div>
             <DialogFooter className="gap-2">
-              <Button type="button" variant="secondary" className="rounded-xl" onClick={() => setIsAddClientOpen(false)}>Cancel</Button>
-              <Button type="submit" disabled={addClientMutation.isPending} className="rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white">
+              <Button type="button" variant="secondary" className="rounded-full border border-gray-200 bg-white text-zinc-700 hover:bg-gray-50" onClick={() => setIsAddClientOpen(false)}>Cancel</Button>
+              <Button type="submit" disabled={addClientMutation.isPending} className="rounded-full bg-zinc-900 hover:bg-zinc-800 text-white">
                 {addClientMutation.isPending ? 'Adding...' : 'Add Client'}
               </Button>
             </DialogFooter>
@@ -1080,18 +1083,18 @@ export function SiteVisits() {
 
       {/* ─── ADD PURPOSE MODAL ───────────────────────────────────────────────── */}
       <Dialog open={isAddPurposeOpen} onOpenChange={setIsAddPurposeOpen}>
-        <DialogContent className="max-w-sm rounded-2xl shadow-2xl">
+        <DialogContent className="max-w-sm rounded-2xl border border-gray-200 shadow-lg">
           <DialogHeader>
-            <DialogTitle className="font-bold">Add New Purpose</DialogTitle>
+            <DialogTitle className="font-bold text-zinc-900">Add New Purpose</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleAddPurpose} className="space-y-4 pt-2">
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase tracking-wide text-slate-500">Purpose Name *</Label>
-              <Input name="name" required placeholder="e.g. Site Survey" className="rounded-xl bg-slate-50 border-slate-200 h-10" />
+              <Label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Purpose Name *</Label>
+              <Input name="name" required placeholder="e.g. Site Survey" className="rounded-xl bg-white border-gray-200 h-10 focus:border-teal-300 focus:ring-2 focus:ring-teal-300/20 focus:outline-none" />
             </div>
             <DialogFooter className="gap-2">
-              <Button type="button" variant="secondary" className="rounded-xl" onClick={() => setIsAddPurposeOpen(false)}>Cancel</Button>
-              <Button type="submit" disabled={addPurposeMutation.isPending} className="rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white">
+              <Button type="button" variant="secondary" className="rounded-full border border-gray-200 bg-white text-zinc-700 hover:bg-gray-50" onClick={() => setIsAddPurposeOpen(false)}>Cancel</Button>
+              <Button type="submit" disabled={addPurposeMutation.isPending} className="rounded-full bg-zinc-900 hover:bg-zinc-800 text-white">
                 {addPurposeMutation.isPending ? 'Adding...' : 'Add Purpose'}
               </Button>
             </DialogFooter>
