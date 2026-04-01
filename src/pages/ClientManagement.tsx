@@ -3,6 +3,19 @@ import type { ChangeEvent, FormEvent } from 'react';
 import { supabase } from '../supabase';
 import { useAuth } from '../App';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  Card, CardContent, CardHeader, CardTitle, CardDescription,
+  Button,
+  Input,
+  Label,
+  Badge,
+  Tabs, TabsList, TabsTrigger, TabsContent,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  Separator,
+  Skeleton,
+} from '@/components/ui';
+import { Textarea } from '@/components/ui/textarea';
+import { cn } from '@/lib/utils';
 
 function getCurrentQueryParams() {
   const hashQuery = window.location.hash.split('?')[1];
@@ -42,8 +55,30 @@ export function CreateClientEdit({ onSuccess, onCancel }: CreateClientEditProps)
     enabled: !!clientId
   });
 
-  if (clientQuery.isLoading) return <div>Loading...</div>;
-  if (clientQuery.isError) return <div>Error loading client.</div>;
+  if (clientQuery.isLoading) {
+    return (
+      <div className="p-6 md:p-8 space-y-4">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-4 w-72" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+        </div>
+      </div>
+    );
+  }
+
+  if (clientQuery.isError) {
+    return (
+      <div className="p-6 md:p-8">
+        <Card>
+          <CardContent style={{ padding: '24px' }}>
+            <p className="text-sm text-red-600">Error loading client. Please try again.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return <CreateClient editMode={true} clientData={clientQuery.data} onSuccess={onSuccess} onCancel={onCancel} />;
 }
@@ -155,130 +190,156 @@ function ClientDiscountPortfolio({ formData, setFormData, isAdmin }: ClientDisco
   };
 
   return (
-    <div className="pricing-control">
-      <div className="card" style={{ maxWidth: '600px', marginBottom: '12px' }}>
-        <h3 style={{ fontSize: '16px', marginBottom: '8px', fontFamily: 'Inter, sans-serif' }}>Discount Portfolio</h3>
-        <div className="form-group">
-          <label className="form-label">Discount Type *</label>
-          <select
-            className="form-select"
-            value={formData.discount_type || 'Special'}
-            onChange={e => setFormData({ ...formData, discount_type: e.target.value, standard_pricelist_id: e.target.value === 'Standard' ? formData.standard_pricelist_id : null })}
-            disabled={!isAdmin}
-          >
-            <option value="Standard">Standard (Price List Based)</option>
-            <option value="Premium">Premium (Variant Based)</option>
-            <option value="Bulk">Bulk (Variant Based)</option>
-            <option value="Special">Special (Variant Based)</option>
-          </select>
-        </div>
-        {formData.discount_type === 'Standard' && (
-          <div className="form-group" style={{ marginTop: '8px' }}>
-            <label className="form-label">Select Standard Price List *</label>
-            <select
-              className="form-select"
-              value={formData.standard_pricelist_id || ''}
-              onChange={e => setFormData({ ...formData, standard_pricelist_id: e.target.value })}
-              required
-              disabled={!isAdmin}
+    <div className="space-y-5">
+      <Card>
+        <CardHeader>
+          <CardTitle>Discount Portfolio</CardTitle>
+          <CardDescription>Choose the pricing strategy for this client.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4" style={{ maxWidth: '480px' }}>
+            <div className="space-y-2">
+              <Label>Discount Type *</Label>
+              <select
+                className="h-9 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                value={formData.discount_type || 'Special'}
+                onChange={e => setFormData({ ...formData, discount_type: e.target.value, standard_pricelist_id: e.target.value === 'Standard' ? formData.standard_pricelist_id : null })}
+                disabled={!isAdmin}
+              >
+                <option value="Standard">Standard (Price List Based)</option>
+                <option value="Premium">Premium (Variant Based)</option>
+                <option value="Bulk">Bulk (Variant Based)</option>
+                <option value="Special">Special (Variant Based)</option>
+              </select>
+            </div>
+            {formData.discount_type === 'Standard' && (
+              <div className="space-y-2">
+                <Label>Select Standard Price List *</Label>
+                <select
+                  className="h-9 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  value={formData.standard_pricelist_id || ''}
+                  onChange={e => setFormData({ ...formData, standard_pricelist_id: e.target.value })}
+                  required
+                  disabled={!isAdmin}
+                >
+                  <option value="">-- Select Price List --</option>
+                  {pricelists.map((pl: any) => (
+                    <option key={pl.id} value={pl.id}>{pl.pricelist_name} ({pl.discount_percent}%)</option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle style={{ fontSize: '15px' }}>Custom Discounts (Per Variant)</CardTitle>
+              <CardDescription>Override discount percentages for individual variants.</CardDescription>
+            </div>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={handleSaveCustomDiscounts}
+              disabled={saving || !formData.id}
             >
-              <option value="">-- Select Price List --</option>
-              {pricelists.map((pl: any) => (
-                <option key={pl.id} value={pl.id}>{pl.pricelist_name} ({pl.discount_percent}%)</option>
-              ))}
-            </select>
+              {saving ? 'Saving...' : 'Save Discounts'}
+            </Button>
           </div>
-        )}
-      </div>
+        </CardHeader>
+        <CardContent>
+          {saveMessage.text && (
+            <div className={cn(
+              'mb-4 rounded-lg px-4 py-3 text-sm font-medium',
+              saveMessage.type === 'success'
+                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                : 'bg-red-50 text-red-600 border border-red-200'
+            )}>
+              {saveMessage.text}
+            </div>
+          )}
+          <div className="max-h-[220px] overflow-auto rounded-lg border border-slate-200">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead style={{ width: '60%' }}>Variant</TableHead>
+                  <TableHead style={{ width: '40%' }}>Discount %</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {variants.length === 0 ? (
+                  <TableRow><td colSpan={2} className="px-4 py-3 text-center text-slate-500">No variants found</td></TableRow>
+                ) : (
+                  variants.map((v: any) => (
+                    <TableRow key={v.id}>
+                      <TableCell className="font-medium">{v.variant_name}</TableCell>
+                      <TableCell>
+                        <input
+                          type="number"
+                          className="h-8 w-20 rounded-md border border-slate-300 bg-white px-2 text-right text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          value={customDiscounts[v.id] || 0}
+                          onChange={(e) => handleCustomDiscountChange(v.id, e.target.value)}
+                          min="0"
+                          max="100"
+                          step="0.01"
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
 
-      <div className="card" style={{ marginBottom: '12px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-          <h3 style={{ fontSize: '14px', margin: 0, fontFamily: 'Inter, sans-serif' }}>Custom Discounts (Per Variant)</h3>
-          <button
-            className="btn btn-primary btn-sm"
-            onClick={handleSaveCustomDiscounts}
-            disabled={saving || !formData.id}
-            style={{ padding: '4px 12px', fontSize: '12px' }}
-          >
-            {saving ? 'Saving...' : 'Save Discounts'}
-          </button>
-        </div>
-        {saveMessage.text && (
-          <div style={{
-            padding: '8px 12px',
-            marginBottom: '8px',
-            borderRadius: '4px',
-            fontSize: '12px',
-            background: saveMessage.type === 'success' ? '#dcfce7' : '#fee2e2',
-            color: saveMessage.type === 'success' ? '#166534' : '#dc2626'
-          }}>
-            {saveMessage.text}
-          </div>
-        )}
-        <div className="table-container" style={{ maxHeight: '200px', overflow: 'auto' }}>
-          <table className="table" style={{ fontSize: '12px' }}>
-            <thead>
-              <tr>
-                <th style={{ width: '60%' }}>Variant</th>
-                <th style={{ width: '40%' }}>Discount %</th>
-              </tr>
-            </thead>
-            <tbody>
-              {variants.length === 0 ? (
-                <tr><td colSpan={2} style={{ textAlign: 'center' }}>No variants found</td></tr>
-              ) : (
-                variants.map((v: any) => (
-                  <tr key={v.id}>
-                    <td>{v.variant_name}</td>
-                    <td>
-                      <input
-                        type="number"
-                        className="form-input"
-                        style={{ width: '80px', textAlign: 'right', padding: '4px 8px', fontSize: '12px' }}
-                        value={customDiscounts[v.id] || 0}
-                        onChange={(e) => handleCustomDiscountChange(v.id, e.target.value)}
-                        min="0"
-                        max="100"
-                        step="0.01"
-                      />
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div className="card">
-        <h3 style={{ fontSize: '14px', marginBottom: '6px', fontFamily: 'Inter, sans-serif' }}>Portfolio Preview</h3>
-        {formData.discount_type === 'Standard' ? (
-          <div style={{ padding: '12px', background: '#f8fafc', borderRadius: '6px' }}>
-            <p style={{ fontSize: '13px', margin: 0 }}>
-              <strong>Standard Discount:</strong> {pricelists.find((pl: any) => pl.id === formData.standard_pricelist_id)?.discount_percent || 0}% flat on all items.
-            </p>
-          </div>
-        ) : (
-          <div className="table-container">
-            <table className="table" style={{ fontSize: '12px' }}>
-              <thead><tr><th style={{ width: '40%' }}>Variant</th><th style={{ width: '20%' }}>Default %</th><th style={{ width: '20%' }}>Min %</th><th style={{ width: '20%' }}>Max %</th></tr></thead>
-              <tbody>
-                {loading ? <tr><td colSpan={4} style={{ textAlign: 'center' }}>Loading...</td></tr> :
-                  previewSettings.length === 0 ? <tr><td colSpan={4} style={{ textAlign: 'center' }}>No settings found.</td></tr> :
+      <Card>
+        <CardHeader>
+          <CardTitle style={{ fontSize: '15px' }}>Portfolio Preview</CardTitle>
+          <CardDescription>How discounts will apply for this client.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {formData.discount_type === 'Standard' ? (
+            <div className="rounded-lg bg-slate-50 border border-slate-200 px-5 py-4">
+              <p className="text-sm text-slate-700">
+                <strong>Standard Discount:</strong> {pricelists.find((pl: any) => pl.id === formData.standard_pricelist_id)?.discount_percent || 0}% flat on all items.
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-auto rounded-lg border border-slate-200">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead style={{ width: '40%' }}>Variant</TableHead>
+                    <TableHead style={{ width: '20%' }}>Default %</TableHead>
+                    <TableHead style={{ width: '20%' }}>Min %</TableHead>
+                    <TableHead style={{ width: '20%' }}>Max %</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {loading ? (
+                    <TableRow><td colSpan={4} className="px-4 py-3 text-center text-slate-500">Loading...</td></TableRow>
+                  ) : previewSettings.length === 0 ? (
+                    <TableRow><td colSpan={4} className="px-4 py-3 text-center text-slate-500">No settings found.</td></TableRow>
+                  ) : (
                     previewSettings.map((s: any) => (
-                      <tr key={s.id}>
-                        <td>{s.variant?.variant_name}</td>
-                        <td>{s.default_discount_percent}%</td>
-                        <td>{s.min_discount_percent}%</td>
-                        <td>{s.max_discount_percent}%</td>
-                      </tr>
+                      <TableRow key={s.id}>
+                        <TableCell className="font-medium">{s.variant?.variant_name}</TableCell>
+                        <TableCell>{s.default_discount_percent}%</TableCell>
+                        <TableCell>{s.min_discount_percent}%</TableCell>
+                        <TableCell>{s.max_discount_percent}%</TableCell>
+                      </TableRow>
                     ))
-                }
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -466,202 +527,243 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
     }
   };
 
+  const inputCn = 'h-9 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500';
+  const selectCn = inputCn;
+
   return (
-    <div className="min-h-screen bg-slate-50 p-4 md:p-6 font-inter">
-      <div className="max-w-4xl mx-auto">
-        <div className="mb-5">
-          <h1 className="text-2xl font-bold text-slate-800">{editMode ? 'Edit Client' : 'Create Client'}</h1>
-          <p className="text-sm text-slate-500">{editMode ? 'Update client information' : 'Add a new client to your organization'}</p>
+    <div className="min-h-screen bg-slate-50 p-5 md:p-8">
+      <div className="mx-auto max-w-4xl space-y-6">
+
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">{editMode ? 'Edit Client' : 'Create Client'}</h1>
+          <p className="mt-1 text-sm text-slate-500">{editMode ? 'Update client information' : 'Add a new client to your organization'}</p>
         </div>
 
-        <div className="flex gap-1 p-1 bg-slate-200/50 rounded-xl mb-5 backdrop-blur-sm">
-          <button
-            type="button"
-            onClick={() => setActiveTab('general')}
-            className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${activeTab === 'general' ? 'bg-white text-indigo-600 shadow-lg shadow-indigo-500/20' : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'}`}
-          >
-            General
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('pricing')}
-            className={`px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${activeTab === 'pricing' ? 'bg-white text-indigo-600 shadow-lg shadow-indigo-500/20' : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'}`}
-          >
-            Pricing
-          </button>
-        </div>
+        <Tabs defaultValue="general" value={activeTab} onValueChange={setActiveTab}>
+          <TabsList>
+            <TabsTrigger value="general">General</TabsTrigger>
+            <TabsTrigger value="pricing">Pricing</TabsTrigger>
+          </TabsList>
 
-        <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100 p-5 md:p-6">
-          {activeTab === 'general' ? (
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide">Client Name <span className="text-red-500">*</span></label>
-                  <input type="text" className="w-full px-4 py-2.5 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all text-sm" value={formData.client_name} onChange={e => setFormData({ ...formData, client_name: e.target.value })} required />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide">Category</label>
-                  <select className="w-full px-4 py-2.5 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all text-sm" value={formData.category || 'Active'} onChange={e => setFormData({ ...formData, category: e.target.value })}>
-                    <option value="Active">Active</option>
-                    <option value="Inactive">Inactive</option>
-                    <option value="Prospect">Prospect</option>
-                  </select>
-                </div>
-              </div>
+          <TabsContent value="general">
+            <Card>
+              <CardContent>
+                <form onSubmit={handleSubmit} className="space-y-6 pt-6">
 
-              <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl p-4 border border-slate-200/50">
-                <div className="flex items-center gap-2 mb-3">
-                  <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-                  <span className="text-xs font-bold text-slate-600 uppercase tracking-wide">Contact Persons</span>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
-                  <input type="text" className="px-3 py-2 bg-white border border-slate-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs" value={formData.contact_person || ''} onChange={e => setFormData({ ...formData, contact_person: e.target.value })} placeholder="Contact 1" />
-                  <input type="text" className="px-3 py-2 bg-white border border-slate-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs" value={formData.contact_designation || ''} onChange={e => setFormData({ ...formData, contact_designation: e.target.value })} placeholder="Designation" />
-                  <input type="text" className="px-3 py-2 bg-white border border-slate-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs" value={formData.contact || ''} onChange={e => setFormData({ ...formData, contact: e.target.value })} placeholder="Phone" />
-                  <input type="email" className="px-3 py-2 bg-white border border-slate-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs" value={formData.contact_person_email || ''} onChange={e => setFormData({ ...formData, contact_person_email: e.target.value })} placeholder="Email" />
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
-                  <input type="text" className="px-3 py-2 bg-white border border-slate-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs" value={formData.contact_person_2 || ''} onChange={e => setFormData({ ...formData, contact_person_2: e.target.value })} placeholder="Contact 2" />
-                  <input type="text" className="px-3 py-2 bg-white border border-slate-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs" value={formData.contact_designation_2 || ''} onChange={e => setFormData({ ...formData, contact_designation_2: e.target.value })} placeholder="Designation" />
-                  <input type="text" className="px-3 py-2 bg-white border border-slate-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs" value={formData.contact_person_2_contact || ''} onChange={e => setFormData({ ...formData, contact_person_2_contact: e.target.value })} placeholder="Phone" />
-                  <input type="email" className="px-3 py-2 bg-white border border-slate-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs" value={formData.contact_person_2_email || ''} onChange={e => setFormData({ ...formData, contact_person_2_email: e.target.value })} placeholder="Email" />
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                  <input type="text" className="px-3 py-2 bg-white border border-slate-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs" value={formData.purchase_person || ''} onChange={e => setFormData({ ...formData, purchase_person: e.target.value })} placeholder="Purchase Person" />
-                  <input type="text" className="px-3 py-2 bg-white border border-slate-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs" value={formData.purchase_designation || ''} onChange={e => setFormData({ ...formData, purchase_designation: e.target.value })} placeholder="Designation" />
-                  <input type="text" className="px-3 py-2 bg-white border border-slate-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs" value={formData.purchase_contact || ''} onChange={e => setFormData({ ...formData, purchase_contact: e.target.value })} placeholder="Phone" />
-                  <input type="email" className="px-3 py-2 bg-white border border-slate-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs" value={formData.purchase_email || ''} onChange={e => setFormData({ ...formData, purchase_email: e.target.value })} placeholder="Email" />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide">GST IN</label>
-                  <input type="text" className="w-full px-4 py-2.5 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all text-sm" value={formData.gstin || ''} onChange={handleGstChange} placeholder="15 characters" maxLength={15} />
-                  {gstError && <span className="text-red-500 text-xs">{gstError}</span>}
-                </div>
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide">Vendor No</label>
-                  <input type="text" className="w-full px-4 py-2.5 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all text-sm" value={formData.vendor_no || ''} onChange={e => setFormData({ ...formData, vendor_no: e.target.value })} />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-gradient-to-br from-emerald-50 to-emerald-100/50 rounded-xl p-4 border border-emerald-200/50">
-                  <div className="flex items-center gap-2 mb-3">
-                    <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-                    <div className="text-xs font-bold text-emerald-700 uppercase tracking-wide">Billing Address</div>
-                  </div>
-                  <div className="space-y-2">
-                    <input type="text" className="w-full px-3 py-2 bg-white/80 border border-emerald-200 rounded-lg focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all text-sm" value={formData.address1 || ''} onChange={e => setFormData({ ...formData, address1: e.target.value })} placeholder="Address Line 1" />
-                    <input type="text" className="w-full px-3 py-2 bg-white/80 border border-emerald-200 rounded-lg focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all text-sm" value={formData.address2 || ''} onChange={e => setFormData({ ...formData, address2: e.target.value })} placeholder="Address Line 2" />
-                    <div className="grid grid-cols-3 gap-2">
-                      <select className="px-2 py-2 bg-white/80 border border-emerald-200 rounded-lg focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all text-xs" value={formData.state || ''} onChange={e => setFormData({ ...formData, state: e.target.value })}>
-                        <option value="">State</option>
-                        {indianStates.map(state => (<option key={state} value={state}>{state}</option>))}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div className="space-y-2">
+                      <Label>Client Name *</Label>
+                      <Input value={formData.client_name} onChange={e => setFormData({ ...formData, client_name: (e.target as HTMLInputElement).value })} required placeholder="Client name" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Category</Label>
+                      <select className={selectCn} value={formData.category || 'Active'} onChange={e => setFormData({ ...formData, category: e.target.value })}>
+                        <option value="Active">Active</option>
+                        <option value="Inactive">Inactive</option>
+                        <option value="Prospect">Prospect</option>
                       </select>
-                      <input type="text" className="px-2 py-2 bg-white/80 border border-emerald-200 rounded-lg focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all text-xs" value={formData.city || ''} onChange={e => setFormData({ ...formData, city: e.target.value })} placeholder="City" />
-                      <input type="text" className="px-2 py-2 bg-white/80 border border-emerald-200 rounded-lg focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all text-xs" value={formData.pincode || ''} onChange={e => setFormData({ ...formData, pincode: e.target.value })} placeholder="Pincode" />
                     </div>
                   </div>
-                </div>
 
-                <div>
-                  <div className="flex justify-between items-center mb-3">
-                    <div className="flex items-center gap-2">
-                      <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>
-                      <div className="text-xs font-bold text-slate-600 uppercase tracking-wide">Shipping Addresses</div>
+                  <Separator />
+
+                  <div>
+                    <div className="flex items-center gap-2 mb-4">
+                      <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                      <span className="text-sm font-semibold text-slate-700">Contact Persons</span>
                     </div>
-                    <button type="button" className="text-xs font-medium text-indigo-600 hover:text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition-all" onClick={copyBillingToShipping}>Copy Billing</button>
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <Input value={formData.contact_person || ''} onChange={e => setFormData({ ...formData, contact_person: (e.target as HTMLInputElement).value })} placeholder="Contact 1" />
+                        <Input value={formData.contact_designation || ''} onChange={e => setFormData({ ...formData, contact_designation: (e.target as HTMLInputElement).value })} placeholder="Designation" />
+                        <Input value={formData.contact || ''} onChange={e => setFormData({ ...formData, contact: (e.target as HTMLInputElement).value })} placeholder="Phone" />
+                        <Input type="email" value={formData.contact_person_email || ''} onChange={e => setFormData({ ...formData, contact_person_email: (e.target as HTMLInputElement).value })} placeholder="Email" />
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <Input value={formData.contact_person_2 || ''} onChange={e => setFormData({ ...formData, contact_person_2: (e.target as HTMLInputElement).value })} placeholder="Contact 2" />
+                        <Input value={formData.contact_designation_2 || ''} onChange={e => setFormData({ ...formData, contact_designation_2: (e.target as HTMLInputElement).value })} placeholder="Designation" />
+                        <Input value={formData.contact_person_2_contact || ''} onChange={e => setFormData({ ...formData, contact_person_2_contact: (e.target as HTMLInputElement).value })} placeholder="Phone" />
+                        <Input type="email" value={formData.contact_person_2_email || ''} onChange={e => setFormData({ ...formData, contact_person_2_email: (e.target as HTMLInputElement).value })} placeholder="Email" />
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <Input value={formData.purchase_person || ''} onChange={e => setFormData({ ...formData, purchase_person: (e.target as HTMLInputElement).value })} placeholder="Purchase Person" />
+                        <Input value={formData.purchase_designation || ''} onChange={e => setFormData({ ...formData, purchase_designation: (e.target as HTMLInputElement).value })} placeholder="Designation" />
+                        <Input value={formData.purchase_contact || ''} onChange={e => setFormData({ ...formData, purchase_contact: (e.target as HTMLInputElement).value })} placeholder="Phone" />
+                        <Input type="email" value={formData.purchase_email || ''} onChange={e => setFormData({ ...formData, purchase_email: (e.target as HTMLInputElement).value })} placeholder="Email" />
+                      </div>
+                    </div>
                   </div>
 
-                  {shippingAddresses.map((addr: any) => (
-                    <div key={addr.id} className="bg-slate-50 border border-slate-200 rounded-xl p-3 mb-2 hover:shadow-md transition-all">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <div className="text-sm font-semibold text-slate-800">{addr.address_name || 'Address'}{addr.is_default && <span className="ml-2 px-2 py-0.5 bg-indigo-100 text-indigo-700 text-xs font-medium rounded-full">Default</span>}</div>
-                          <div className="text-xs text-slate-500 mt-1">{addr.address_line1} {addr.address_line2}</div>
-                          <div className="text-xs text-slate-500">{addr.city}, {addr.state} - {addr.pincode}</div>
+                  <Separator />
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div className="space-y-2">
+                      <Label>GST IN</Label>
+                      <Input value={formData.gstin || ''} onChange={handleGstChange} placeholder="15 characters" maxLength={15} />
+                      {gstError && <p className="text-xs text-red-500 mt-1">{gstError}</p>}
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Vendor No</Label>
+                      <Input value={formData.vendor_no || ''} onChange={e => setFormData({ ...formData, vendor_no: (e.target as HTMLInputElement).value })} />
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <Card className="border-emerald-200 bg-emerald-50/40">
+                      <CardHeader style={{ padding: '16px 20px 12px' }}>
+                        <div className="flex items-center gap-2">
+                          <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                          <CardTitle style={{ fontSize: '14px', color: '#047857' }}>Billing Address</CardTitle>
                         </div>
-                        <button type="button" onClick={() => deleteShippingAddress(addr.id)} className="text-slate-400 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition-all">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                      </CardHeader>
+                      <CardContent style={{ padding: '0 20px 20px' }}>
+                        <div className="space-y-3">
+                          <Input value={formData.address1 || ''} onChange={e => setFormData({ ...formData, address1: (e.target as HTMLInputElement).value })} placeholder="Address Line 1" />
+                          <Input value={formData.address2 || ''} onChange={e => setFormData({ ...formData, address2: (e.target as HTMLInputElement).value })} placeholder="Address Line 2" />
+                          <div className="grid grid-cols-3 gap-2">
+                            <select className={cn(selectCn, 'text-xs')} value={formData.state || ''} onChange={e => setFormData({ ...formData, state: e.target.value })}>
+                              <option value="">State</option>
+                              {indianStates.map(state => (<option key={state} value={state}>{state}</option>))}
+                            </select>
+                            <Input value={formData.city || ''} onChange={e => setFormData({ ...formData, city: (e.target as HTMLInputElement).value })} placeholder="City" style={{ fontSize: '13px' }} />
+                            <Input value={formData.pincode || ''} onChange={e => setFormData({ ...formData, pincode: (e.target as HTMLInputElement).value })} placeholder="Pincode" style={{ fontSize: '13px' }} />
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-2">
+                          <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>
+                          <span className="text-sm font-semibold text-slate-700">Shipping Addresses</span>
+                        </div>
+                        <Button variant="ghost" size="sm" onClick={copyBillingToShipping}>
+                          Copy Billing
+                        </Button>
+                      </div>
+
+                      {shippingAddresses.map((addr: any) => (
+                        <Card key={addr.id} hover>
+                          <CardContent style={{ padding: '12px 16px' }}>
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <div className="text-sm font-semibold text-slate-800">
+                                  {addr.address_name || 'Address'}
+                                  {addr.is_default && <span className="ml-2"><Badge variant="default" size="sm">Default</Badge></span>}
+                                </div>
+                                <div className="text-xs text-slate-500 mt-1">{addr.address_line1} {addr.address_line2}</div>
+                                <div className="text-xs text-slate-500">{addr.city}, {addr.state} - {addr.pincode}</div>
+                              </div>
+                              <Button variant="ghost" size="sm" onClick={() => deleteShippingAddress(addr.id)} style={{ color: '#94a3b8' }}>
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+
+                      {showShippingForm && (
+                        <Card className="border-indigo-200 bg-indigo-50/40">
+                          <CardHeader style={{ padding: '12px 16px 8px' }}>
+                            <div className="flex items-center gap-2">
+                              <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
+                              <CardTitle style={{ fontSize: '13px', color: '#4338ca' }}>Add Shipping Address</CardTitle>
+                            </div>
+                          </CardHeader>
+                          <CardContent style={{ padding: '0 16px 16px' }}>
+                            <div className="space-y-2">
+                              <div className="grid grid-cols-2 gap-2">
+                                <Input value={newShipping.address_name} onChange={e => setNewShipping({ ...newShipping, address_name: (e.target as HTMLInputElement).value })} placeholder="Address Name" />
+                                <Input value={newShipping.contact} onChange={e => setNewShipping({ ...newShipping, contact: (e.target as HTMLInputElement).value })} placeholder="Contact" />
+                              </div>
+                              <Input value={newShipping.address_line1} onChange={e => setNewShipping({ ...newShipping, address_line1: (e.target as HTMLInputElement).value })} placeholder="Address Line 1" />
+                              <Input value={newShipping.address_line2} onChange={e => setNewShipping({ ...newShipping, address_line2: (e.target as HTMLInputElement).value })} placeholder="Address Line 2" />
+                              <div className="grid grid-cols-3 gap-2">
+                                <select className={cn(selectCn, 'text-xs')} value={newShipping.state} onChange={e => setNewShipping({ ...newShipping, state: e.target.value })}>
+                                  <option value="">State</option>
+                                  {indianStates.map(state => (<option key={state} value={state}>{state}</option>))}
+                                </select>
+                                <Input value={newShipping.city} onChange={e => setNewShipping({ ...newShipping, city: (e.target as HTMLInputElement).value })} placeholder="City" style={{ fontSize: '13px' }} />
+                                <Input value={newShipping.pincode} onChange={e => setNewShipping({ ...newShipping, pincode: (e.target as HTMLInputElement).value })} placeholder="Pincode" style={{ fontSize: '13px' }} />
+                              </div>
+                              <div className="flex gap-2 pt-1">
+                                <Button variant="primary" size="sm" onClick={addShippingAddress}>Save</Button>
+                                <Button variant="secondary" size="sm" onClick={() => setShowShippingForm(false)}>Cancel</Button>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+
+                      {!showShippingForm && shippingAddresses.length === 0 && (
+                        <button
+                          type="button"
+                          className="w-full rounded-lg border-2 border-dashed border-slate-300 py-4 text-sm text-slate-500 transition hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50/50"
+                          onClick={() => setShowShippingForm(true)}
+                        >
+                          <span className="flex items-center justify-center gap-2">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
+                            Add Shipping Address
+                          </span>
                         </button>
-                      </div>
+                      )}
                     </div>
-                  ))}
+                  </div>
 
-                  {showShippingForm && (
-                    <div className="bg-gradient-to-br from-indigo-50 to-indigo-100/50 rounded-xl p-4 border border-indigo-200/50">
-                      <div className="flex items-center gap-2 mb-3">
-                        <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
-                        <div className="text-xs font-bold text-indigo-700 uppercase tracking-wide">Add Shipping Address</div>
-                      </div>
-                      <div className="space-y-2">
-                        <div className="grid grid-cols-2 gap-2">
-                          <input type="text" className="px-3 py-2 bg-white border border-indigo-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs" value={newShipping.address_name} onChange={e => setNewShipping({ ...newShipping, address_name: e.target.value })} placeholder="Address Name" />
-                          <input type="text" className="px-3 py-2 bg-white border border-indigo-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs" value={newShipping.contact} onChange={e => setNewShipping({ ...newShipping, contact: e.target.value })} placeholder="Contact" />
-                        </div>
-                        <input type="text" className="w-full px-3 py-2 bg-white border border-indigo-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs" value={newShipping.address_line1} onChange={e => setNewShipping({ ...newShipping, address_line1: e.target.value })} placeholder="Address Line 1" />
-                        <input type="text" className="w-full px-3 py-2 bg-white border border-indigo-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs" value={newShipping.address_line2} onChange={e => setNewShipping({ ...newShipping, address_line2: e.target.value })} placeholder="Address Line 2" />
-                        <div className="grid grid-cols-3 gap-2">
-                          <select className="px-2 py-2 bg-white border border-indigo-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs" value={newShipping.state} onChange={e => setNewShipping({ ...newShipping, state: e.target.value })}>
-                            <option value="">State</option>
-                            {indianStates.map(state => (<option key={state} value={state}>{state}</option>))}
-                          </select>
-                          <input type="text" className="px-2 py-2 bg-white border border-indigo-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs" value={newShipping.city} onChange={e => setNewShipping({ ...newShipping, city: e.target.value })} placeholder="City" />
-                          <input type="text" className="px-2 py-2 bg-white border border-indigo-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all text-xs" value={newShipping.pincode} onChange={e => setNewShipping({ ...newShipping, pincode: e.target.value })} placeholder="Pincode" />
-                        </div>
-                        <div className="flex gap-2">
-                          <button type="button" className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-xs font-semibold hover:bg-indigo-700 shadow-lg shadow-indigo-500/30 transition-all" onClick={addShippingAddress}>Save</button>
-                          <button type="button" className="px-4 py-2 bg-white text-slate-600 border border-slate-200 rounded-lg text-xs font-semibold hover:bg-slate-50 transition-all" onClick={() => setShowShippingForm(false)}>Cancel</button>
-                        </div>
-                      </div>
+                  <Separator />
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div className="space-y-2">
+                      <Label>Remarks</Label>
+                      <Textarea rows={3} value={formData.remarks || ''} onChange={e => setFormData({ ...formData, remarks: e.target.value })} />
                     </div>
-                  )}
+                    <div className="space-y-2">
+                      <Label>About Client</Label>
+                      <Textarea rows={3} value={formData.about_client || ''} onChange={e => setFormData({ ...formData, about_client: e.target.value })} placeholder="Additional information..." />
+                    </div>
+                  </div>
 
-                  {!showShippingForm && shippingAddresses.length === 0 && (
-                    <button type="button" className="w-full py-3 border-2 border-dashed border-slate-300 rounded-xl text-sm text-slate-500 hover:border-indigo-400 hover:text-indigo-500 hover:bg-indigo-50/50 transition-all" onClick={() => setShowShippingForm(true)}>
-                      <span className="flex items-center justify-center gap-2">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
-                        Add Shipping Address
-                      </span>
-                    </button>
-                  )}
-                </div>
-              </div>
+                  <Separator />
 
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide">Remarks</label>
-                <textarea className="w-full px-4 py-2.5 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all text-sm" rows={2} value={formData.remarks || ''} onChange={e => setFormData({ ...formData, remarks: e.target.value })} />
-              </div>
-              <div className="space-y-1.5">
-                <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide">About Client</label>
-                <textarea className="w-full px-4 py-2.5 bg-slate-50 border-2 border-slate-100 rounded-xl focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 transition-all text-sm" rows={2} value={formData.about_client || ''} onChange={e => setFormData({ ...formData, about_client: e.target.value })} placeholder="Additional information..." />
-              </div>
+                  <div className="flex flex-wrap gap-3">
+                    <Button variant="primary" type="submit" disabled={saving}>
+                      {editMode ? 'Update Client' : 'Submit'}
+                    </Button>
+                    {editMode && (
+                      <Button variant="danger" type="button" onClick={deleteClient} disabled={saving}>
+                        Delete
+                      </Button>
+                    )}
+                    <Button variant="secondary" type="button" onClick={onCancel} disabled={saving}>
+                      Cancel
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-              <div className="flex gap-3 pt-2">
-                <button type="submit" className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 shadow-lg shadow-indigo-500/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all" disabled={saving}>
-                  {editMode ? 'Update Client' : 'Submit'}
-                </button>
-                {editMode && (
-                  <button type="button" className="px-6 py-2.5 bg-red-50 text-red-600 border border-red-200 rounded-xl text-sm font-semibold hover:bg-red-100 transition-all" onClick={deleteClient} disabled={saving}>
-                    Delete
-                  </button>
-                )}
-                <button type="button" className="px-6 py-2.5 bg-white text-slate-600 border-2 border-slate-200 rounded-xl text-sm font-semibold hover:bg-slate-50 hover:border-slate-300 transition-all" onClick={onCancel} disabled={saving}>Cancel</button>
-              </div>
-            </form>
-          ) : (
-            <div>
+          <TabsContent value="pricing">
+            <div className="space-y-5">
               <ClientDiscountPortfolio formData={formData} setFormData={setFormData} isAdmin={isAdmin} />
-              <div className="flex gap-3 pt-4 mt-4 border-t border-gray-200">
-                <button type="button" className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700" onClick={() => handleSubmit()}>{editMode ? 'Update Pricing' : 'Submit'}</button>
-                <button type="button" className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200" onClick={onCancel}>Cancel</button>
+              <Separator />
+              <div className="flex gap-3">
+                <Button variant="primary" onClick={() => handleSubmit()}>
+                  {editMode ? 'Update Pricing' : 'Submit'}
+                </Button>
+                <Button variant="secondary" onClick={onCancel}>
+                  Cancel
+                </Button>
               </div>
             </div>
-          )}
-        </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
 }
+
+export default CreateClient;
