@@ -32,7 +32,8 @@ import {
   Users,
   Wrench,
   ClipboardCheck,
-  Construction
+  Construction,
+  ChevronRight as ChevronRightIcon
 } from 'lucide-react';
 import { 
   Box, 
@@ -62,7 +63,6 @@ import {
   isToday
 } from 'date-fns';
 
-// shadcn/ui imports for the form
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -73,7 +73,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 
-// Zod Schema from your code
 const siteReportSchema = z.object({
   client: z.string().min(1, "Client name is required"),
   projectName: z.string().min(1, "Project name is required"),
@@ -669,137 +668,125 @@ export function SiteVisits() {
 
       {/* Comprehensive Site Report Form Modal */}
       {isFormOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl my-8 max-h-[90vh] overflow-y-auto">
-            {/* Header */}
-            <div className="p-4 sm:p-6 border-b border-gray-200 sticky top-0 bg-white z-10">
-              <div className="flex items-center justify-between mb-2">
-                <h2 className="text-xl font-semibold text-gray-900">
-                  {selectedVisit ? 'Edit Site Report' : 'New Site Report'}
-                </h2>
-                <button
-                  onClick={() => setIsFormOpen(false)}
-                  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                  <XCircle className="w-5 h-5" />
-                </button>
+        <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl my-4 max-h-[95vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="sticky top-0 bg-white z-10 border-b border-slate-200">
+              <div className="flex items-center justify-between p-4">
+                <div className="flex items-center gap-4">
+                  <button
+                    onClick={() => setIsFormOpen(false)}
+                    className="inline-flex items-center gap-2 px-3 py-1.5 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors text-sm"
+                  >
+                    <ChevronRightIcon className="w-4 h-4 rotate-180" />
+                    Back
+                  </button>
+                  <div>
+                    <h2 className="text-lg font-bold text-slate-900">
+                      {selectedVisit ? 'Edit Site Report' : 'New Daily Site Report'}
+                    </h2>
+                    <p className="text-xs text-slate-500">Complete all fields for comprehensive site reporting</p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setIsFormOpen(false)}>Cancel</Button>
+                  <Button size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={handleFormSubmit}>
+                    <Save className="w-4 h-4 mr-2" /> Save Report
+                  </Button>
+                </div>
               </div>
-              <p className="text-sm text-gray-500">Complete all fields below for comprehensive site reporting</p>
             </div>
 
-            {/* Form Content */}
-            <form className="p-4 sm:p-6 space-y-6">
+            {/* Form Content - Compact Style */}
+            <div className="p-4 space-y-3 pb-10">
               {/* Header Info Card */}
-              <Card>
-                <CardHeader className="py-3 px-4">
-                  <CardTitle className="text-sm font-semibold">Site Information</CardTitle>
-                </CardHeader>
-                <CardContent className="py-3 px-4">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <Label className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-1.5 block">
-                        Client Name
-                      </Label>
-                      <Select>
-                        <SelectTrigger className="h-9 text-sm">
-                          <SelectValue placeholder="Select client" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {clients?.map((client: any) => (
-                            <SelectItem key={client.id} value={client.id}>
-                              {client.client_name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-1.5 block">
-                        Project Name
-                      </Label>
-                      <Input placeholder="Enter project name" className="h-9 text-sm" />
-                    </div>
-                    <div>
-                      <Label className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-1.5 block">
-                        Report Date
-                      </Label>
-                      <Input type="date" className="h-9 text-sm" defaultValue={format(new Date(), 'yyyy-MM-dd')} />
-                    </div>
+              <Card className="border-slate-200 shadow-sm">
+                <CardContent className="p-3 grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-[10px] font-bold uppercase text-slate-500">Client</Label>
+                    <Select>
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="Select Client" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {clients?.map((client: any) => (
+                          <SelectItem key={client.id} value={client.id}>
+                            {client.client_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] font-bold uppercase text-slate-500">Project Name</Label>
+                    <Input className="h-8 text-xs" placeholder="Enter project name" />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] font-bold uppercase text-slate-500">Date</Label>
+                    <Input type="date" className="h-8 text-xs" defaultValue={format(new Date(), 'yyyy-MM-dd')} />
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Manpower Details Card */}
-              <Card>
-                <CardHeader className="py-3 px-4">
-                  <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                    <Users className="w-4 h-4" />
+              {/* Manpower Details */}
+              <Card className="border-slate-200 shadow-sm">
+                <CardHeader className="bg-slate-50/50 border-b border-slate-100 py-1.5 px-3">
+                  <CardTitle className="text-xs font-bold flex items-center gap-2">
+                    <Users className="w-3.5 h-3.5 text-blue-600" />
                     Manpower Details
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="py-3 px-4 space-y-4">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div>
-                      <Label className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-1.5 block">
-                        Total Manpower
-                      </Label>
-                      <Input type="number" placeholder="0" className="h-9 text-sm" />
+                <CardContent className="p-2 space-y-3">
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+                    <div className="space-y-0.5">
+                      <Label className="text-[10px] uppercase font-bold text-slate-500">Total</Label>
+                      <Input className="h-7 text-xs" placeholder="0" />
                     </div>
-                    <div>
-                      <Label className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-1.5 block">
-                        Skilled
-                      </Label>
-                      <Input type="number" placeholder="0" className="h-9 text-sm" />
+                    <div className="space-y-0.5">
+                      <Label className="text-[10px] uppercase font-bold text-slate-500">Skilled</Label>
+                      <Input className="h-7 text-xs" placeholder="0" />
                     </div>
-                    <div>
-                      <Label className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-1.5 block">
-                        Unskilled
-                      </Label>
-                      <Input type="number" placeholder="0" className="h-9 text-sm" />
+                    <div className="space-y-0.5">
+                      <Label className="text-[10px] uppercase font-bold text-slate-500">Unskilled</Label>
+                      <Input className="h-7 text-xs" placeholder="0" />
                     </div>
-                    <div>
-                      <Label className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-1.5 block">
-                        Work Hours
-                      </Label>
-                      <div className="flex items-center gap-2">
-                        <Input type="time" className="h-9 text-sm" />
-                        <span className="text-gray-400">-</span>
-                        <Input type="time" className="h-9 text-sm" />
-                      </div>
+                    <div className="space-y-0.5">
+                      <Label className="text-[10px] uppercase font-bold text-slate-500">Start</Label>
+                      <Input className="h-7 text-xs" type="time" />
+                    </div>
+                    <div className="space-y-0.5">
+                      <Label className="text-[10px] uppercase font-bold text-slate-500">End</Label>
+                      <Input className="h-7 text-xs" type="time" />
                     </div>
                   </div>
-                  
-                  {/* Sub-contractors Table */}
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <Label className="text-[10px] font-semibold uppercase tracking-wider text-gray-600">
-                        Sub-contractors
-                      </Label>
-                      <Button type="button" variant="outline" size="sm" className="h-7 text-xs">
-                        <Plus className="w-3 h-3 mr-1" />
-                        Add Row
+
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-[10px] font-bold uppercase text-slate-500">Sub-Contractors</Label>
+                      <Button type="button" variant="outline" size="sm" className="h-6 text-[10px]">
+                        <Plus className="w-3 h-3 mr-1" /> Add
                       </Button>
                     </div>
                     <Table>
                       <TableHeader>
-                        <TableRow className="h-8">
-                          <TableHead className="text-[10px] uppercase">Contractor Name</TableHead>
-                          <TableHead className="text-[10px] uppercase">Count</TableHead>
-                          <TableHead className="text-[10px] uppercase">Start Time</TableHead>
-                          <TableHead className="text-[10px] uppercase">End Time</TableHead>
-                          <TableHead className="text-[10px] uppercase w-10"></TableHead>
+                        <TableRow className="h-7">
+                          <TableHead className="text-[10px] h-7 px-1">Name</TableHead>
+                          <TableHead className="text-[10px] h-7 px-1">Count</TableHead>
+                          <TableHead className="text-[10px] h-7 px-1">Start</TableHead>
+                          <TableHead className="text-[10px] h-7 px-1">End</TableHead>
+                          <TableHead className="w-[30px] h-7 px-1"></TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        <TableRow className="h-9">
-                          <TableCell><Input placeholder="Name" className="h-7 text-xs" /></TableCell>
-                          <TableCell><Input type="number" placeholder="0" className="h-7 text-xs w-20" /></TableCell>
-                          <TableCell><Input type="time" className="h-7 text-xs" /></TableCell>
-                          <TableCell><Input type="time" className="h-7 text-xs" /></TableCell>
-                          <TableCell>
-                            <button type="button" className="text-red-400 hover:text-red-600">
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                        <TableRow className="h-8">
+                          <TableCell className="p-0.5"><Input className="h-7 text-xs" /></TableCell>
+                          <TableCell className="p-0.5"><Input className="h-7 text-xs" /></TableCell>
+                          <TableCell className="p-0.5"><Input className="h-7 text-xs" type="time" /></TableCell>
+                          <TableCell className="p-0.5"><Input className="h-7 text-xs" type="time" /></TableCell>
+                          <TableCell className="p-0.5">
+                            <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-red-500">
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
                           </TableCell>
                         </TableRow>
                       </TableBody>
@@ -808,132 +795,126 @@ export function SiteVisits() {
                 </CardContent>
               </Card>
 
-              {/* Work Carried Out Card */}
-              <Card>
-                <CardHeader className="py-3 px-4">
-                  <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                    <ClipboardCheck className="w-4 h-4" />
-                    Work Carried Out Today
+              {/* Work Carried Out & Milestones */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <Card className="border-slate-200 shadow-sm">
+                  <CardHeader className="bg-slate-50/50 border-b border-slate-100 py-1.5 px-3">
+                    <CardTitle className="text-xs font-bold flex items-center gap-2">
+                      <HardHat className="w-3.5 h-3.5 text-blue-600" />
+                      Work Carried Out
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-2 space-y-1.5">
+                    <div className="flex gap-1">
+                      <Input className="h-7 text-xs" placeholder="Describe work..." />
+                      <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-red-500 shrink-0">
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </div>
+                    <Button type="button" variant="outline" size="sm" className="w-full h-7 text-[10px]">
+                      <Plus className="w-3 h-3 mr-1" /> Add
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-slate-200 shadow-sm">
+                  <CardHeader className="bg-slate-50/50 border-b border-slate-100 py-1.5 px-3">
+                    <CardTitle className="text-xs font-bold flex items-center gap-2">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />
+                      Milestones
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-2 space-y-1.5">
+                    <div className="flex gap-1">
+                      <Input className="h-7 text-xs" placeholder="Milestone..." />
+                      <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-red-500 shrink-0">
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </div>
+                    <Button type="button" variant="outline" size="sm" className="w-full h-7 text-[10px]">
+                      <Plus className="w-3 h-3 mr-1" /> Add
+                    </Button>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Progress Tracking */}
+              <Card className="border-slate-200 shadow-sm">
+                <CardHeader className="bg-slate-50/50 border-b border-slate-100 py-1.5 px-3">
+                  <CardTitle className="text-xs font-bold">Progress Tracking</CardTitle>
+                </CardHeader>
+                <CardContent className="p-2 grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="space-y-0.5">
+                    <Label className="text-[10px] uppercase font-bold text-slate-500">Planned</Label>
+                    <Textarea className="min-h-[40px] text-xs py-1" placeholder="Planned work..." />
+                  </div>
+                  <div className="space-y-0.5">
+                    <Label className="text-[10px] uppercase font-bold text-slate-500">Actual</Label>
+                    <Textarea className="min-h-[40px] text-xs py-1" placeholder="Actual progress..." />
+                  </div>
+                  <div className="space-y-0.5">
+                    <Label className="text-[10px] uppercase font-bold text-slate-500">% Complete</Label>
+                    <Input className="h-7 text-xs" placeholder="0%" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Equipment & Safety */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <Card className="md:col-span-2 border-slate-200 shadow-sm">
+                  <CardHeader className="bg-slate-50/50 border-b border-slate-100 py-1.5 px-3">
+                    <CardTitle className="text-xs font-bold flex items-center gap-2">
+                      <Wrench className="w-3.5 h-3.5 text-slate-600" />
+                      Equipment Status
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-2 space-y-2">
+                    <div className="space-y-0.5">
+                      <Label className="text-[10px] uppercase font-bold text-slate-500">Equipment on Site</Label>
+                      <Input className="h-7 text-xs" placeholder="List equipment..." />
+                    </div>
+                    <div className="space-y-0.5">
+                      <Label className="text-[10px] uppercase font-bold text-slate-500">Breakdown/Issues</Label>
+                      <Input className="h-7 text-xs" placeholder="Any issues?" />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-slate-200 shadow-sm">
+                  <CardHeader className="bg-slate-50/50 border-b border-slate-100 py-1.5 px-3">
+                    <CardTitle className="text-xs font-bold flex items-center gap-2">
+                      <HardHat className="w-3.5 h-3.5 text-orange-600" />
+                      Safety
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-2 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs">Tool box meeting</Label>
+                      <Checkbox id="toolbox" />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs">PPE Followed</Label>
+                      <Checkbox id="ppe" />
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Quality & Rework */}
+              <Card className="border-slate-200 shadow-sm">
+                <CardHeader className="bg-slate-50/50 border-b border-slate-100 py-1.5 px-3">
+                  <CardTitle className="text-xs font-bold flex items-center gap-2">
+                    <ClipboardCheck className="w-3.5 h-3.5 text-blue-600" />
+                    Quality & Rework
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="py-3 px-4 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Input placeholder="Enter work description" className="h-9 text-sm flex-1" />
-                    <Button type="button" variant="ghost" size="sm" className="h-9 w-9 p-0 text-red-500 hover:text-red-600 hover:bg-red-50">
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                  <Button type="button" variant="outline" size="sm" className="h-8 text-xs">
-                    <Plus className="w-3 h-3 mr-1" />
-                    Add Work Item
-                  </Button>
-                </CardContent>
-              </Card>
-
-              {/* Milestones Card */}
-              <Card>
-                <CardHeader className="py-3 px-4">
-                  <CardTitle className="text-sm font-semibold">Milestones Completed</CardTitle>
-                </CardHeader>
-                <CardContent className="py-3 px-4 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Input placeholder="Enter milestone" className="h-9 text-sm flex-1" />
-                    <Button type="button" variant="ghost" size="sm" className="h-9 w-9 p-0 text-red-500 hover:text-red-600 hover:bg-red-50">
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                  <Button type="button" variant="outline" size="sm" className="h-8 text-xs">
-                    <Plus className="w-3 h-3 mr-1" />
-                    Add Milestone
-                  </Button>
-                </CardContent>
-              </Card>
-
-              {/* Progress Tracking Card */}
-              <Card>
-                <CardHeader className="py-3 px-4">
-                  <CardTitle className="text-sm font-semibold">Progress Tracking</CardTitle>
-                </CardHeader>
-                <CardContent className="py-3 px-4">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <Label className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-1.5 block">
-                        Planned Progress
-                      </Label>
-                      <Input placeholder="e.g., 50%" className="h-9 text-sm" />
-                    </div>
-                    <div>
-                      <Label className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-1.5 block">
-                        Actual Progress
-                      </Label>
-                      <Input placeholder="e.g., 45%" className="h-9 text-sm" />
-                    </div>
-                    <div>
-                      <Label className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-1.5 block">
-                        Percent Complete
-                      </Label>
-                      <Input placeholder="e.g., 90%" className="h-9 text-sm" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Equipment & Safety Card */}
-              <Card>
-                <CardHeader className="py-3 px-4">
-                  <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                    <Construction className="w-4 h-4" />
-                    Equipment & Safety
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="py-3 px-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-3">
-                      <div>
-                        <Label className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-1.5 block">
-                          Equipment on Site
-                        </Label>
-                        <Textarea placeholder="List equipment on site" className="text-sm min-h-[80px]" />
-                      </div>
-                      <div>
-                        <Label className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-1.5 block">
-                          Equipment Breakdown
-                        </Label>
-                        <Textarea placeholder="Describe any breakdowns" className="text-sm min-h-[80px]" />
-                      </div>
-                    </div>
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-2">
-                        <Checkbox id="toolbox" />
-                        <Label htmlFor="toolbox" className="text-sm cursor-pointer">
-                          Toolbox Meeting Conducted
-                        </Label>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Checkbox id="ppe" />
-                        <Label htmlFor="ppe" className="text-sm cursor-pointer">
-                          PPE Compliance Check
-                        </Label>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Quality & Rework Card */}
-              <Card>
-                <CardHeader className="py-3 px-4">
-                  <CardTitle className="text-sm font-semibold">Quality & Rework</CardTitle>
-                </CardHeader>
-                <CardContent className="py-3 px-4 space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-1.5 block">
-                        Inspection Status
-                      </Label>
+                <CardContent className="p-2 space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="space-y-0.5">
+                      <Label className="text-[10px] uppercase font-bold text-slate-500">Visual Inspection</Label>
                       <Select>
-                        <SelectTrigger className="h-9 text-sm">
-                          <SelectValue placeholder="Select status" />
+                        <SelectTrigger className="h-7 text-xs">
+                          <SelectValue placeholder="Select" />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="Yes">Yes</SelectItem>
@@ -942,352 +923,306 @@ export function SiteVisits() {
                         </SelectContent>
                       </Select>
                     </div>
-                    <div>
-                      <Label className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-1.5 block">
-                        Quality Satisfaction %
-                      </Label>
-                      <Input type="number" placeholder="e.g., 95" className="h-9 text-sm" />
+                    <div className="space-y-0.5">
+                      <Label className="text-[10px] uppercase font-bold text-slate-500">Satisfied %</Label>
+                      <Input className="h-7 text-xs" placeholder="0%" />
+                    </div>
+                    <div className="space-y-0.5">
+                      <Label className="text-[10px] uppercase font-bold text-slate-500">Rework Reason</Label>
+                      <Input className="h-7 text-xs" placeholder="Reason if any" />
                     </div>
                   </div>
-                  
-                  <div className="flex items-center gap-2 pt-2">
-                    <Checkbox id="rework" />
-                    <Label htmlFor="rework" className="text-sm font-medium cursor-pointer">
-                      Rework Required
-                    </Label>
-                  </div>
-                  
-                  {/* Conditional Rework Fields */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
-                    <div>
-                      <Label className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-1.5 block">
-                        Rework Reason
-                      </Label>
-                      <Input placeholder="Reason for rework" className="h-9 text-sm" />
+
+                  <div className="pt-2 border-t border-slate-100">
+                    <div className="flex items-center gap-4 mb-2">
+                      <Label className="text-[10px] font-bold uppercase text-slate-500">REWORK</Label>
+                      <div className="flex items-center gap-1">
+                        <Checkbox id="rework-yes" />
+                        <Label htmlFor="rework-yes" className="text-xs">Yes</Label>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Checkbox id="rework-no" />
+                        <Label htmlFor="rework-no" className="text-xs">No</Label>
+                      </div>
                     </div>
-                    <div>
-                      <Label className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-1.5 block">
-                        Material Used
-                      </Label>
-                      <Input placeholder="Materials used" className="h-9 text-sm" />
-                    </div>
-                    <div>
-                      <Label className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-1.5 block">
-                        Rework Start
-                      </Label>
-                      <Input type="date" className="h-9 text-sm" />
-                    </div>
-                    <div>
-                      <Label className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-1.5 block">
-                        Rework End
-                      </Label>
-                      <Input type="date" className="h-9 text-sm" />
-                    </div>
-                    <div>
-                      <Label className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-1.5 block">
-                        Total Manpower
-                      </Label>
-                      <Input type="number" placeholder="0" className="h-9 text-sm" />
+
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+                      <div className="space-y-0.5 col-span-2">
+                        <Label className="text-[10px] uppercase font-bold text-slate-500">Reason</Label>
+                        <Input className="h-7 text-xs" />
+                      </div>
+                      <div className="space-y-0.5">
+                        <Label className="text-[10px] uppercase font-bold text-slate-500">Start</Label>
+                        <Input className="h-7 text-xs" type="time" />
+                      </div>
+                      <div className="space-y-0.5">
+                        <Label className="text-[10px] uppercase font-bold text-slate-500">End</Label>
+                        <Input className="h-7 text-xs" type="time" />
+                      </div>
+                      <div className="space-y-0.5">
+                        <Label className="text-[10px] uppercase font-bold text-slate-500">Manpower</Label>
+                        <Input className="h-7 text-xs" />
+                      </div>
                     </div>
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Documents Card */}
-              <Card>
-                <CardHeader className="py-3 px-4">
-                  <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                    <FileText className="w-4 h-4" />
-                    Documents (DC/Invoice)
+              {/* Site Pictures / Documents */}
+              <Card className="border-slate-200 shadow-sm">
+                <CardHeader className="bg-slate-50/50 border-b border-slate-100 py-1.5 px-3">
+                  <CardTitle className="text-xs font-bold">Documents (DC/Invoice)</CardTitle>
+                </CardHeader>
+                <CardContent className="p-2 grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="space-y-0.5">
+                    <Label className="text-[10px] uppercase font-bold text-slate-500">Type</Label>
+                    <Select>
+                      <SelectTrigger className="h-7 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="INVOICE">INVOICE</SelectItem>
+                        <SelectItem value="DC">DC</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-0.5">
+                    <Label className="text-[10px] uppercase font-bold text-slate-500">Document No.</Label>
+                    <Input className="h-7 text-xs" />
+                  </div>
+                  <div className="space-y-0.5">
+                    <Label className="text-[10px] uppercase font-bold text-slate-500">Signature & Gate Entry</Label>
+                    <Select>
+                      <SelectTrigger className="h-7 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Yes">Yes</SelectItem>
+                        <SelectItem value="Pending">Pending</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Client Requirements */}
+              <Card className="border-slate-200 shadow-sm">
+                <CardHeader className="bg-slate-50/50 border-b border-slate-100 py-1.5 px-3">
+                  <CardTitle className="text-xs font-bold flex items-center gap-2">
+                    <ClipboardCheck className="w-3.5 h-3.5 text-blue-600" />
+                    Client Side New Requirement/Deviation
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="py-3 px-4">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <Label className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-1.5 block">
-                        Document Type
-                      </Label>
-                      <Select>
-                        <SelectTrigger className="h-9 text-sm">
-                          <SelectValue placeholder="Select type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="INVOICE">Invoice</SelectItem>
-                          <SelectItem value="DC">Delivery Challan</SelectItem>
-                        </SelectContent>
-                      </Select>
+                <CardContent className="p-2 space-y-3">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between mb-1">
+                      <Label className="text-[10px] font-bold uppercase text-slate-500">Details (Bulletin Entry)</Label>
+                      <Button type="button" variant="outline" size="sm" className="h-6 text-[10px]">
+                        <Plus className="w-3 h-3 mr-1" /> Add Point
+                      </Button>
                     </div>
-                    <div>
-                      <Label className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-1.5 block">
-                        Doc No.
-                      </Label>
-                      <Input placeholder="Document number" className="h-9 text-sm" />
-                    </div>
-                    <div>
-                      <Label className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-1.5 block">
-                        Signature Received
-                      </Label>
-                      <Select>
-                        <SelectTrigger className="h-9 text-sm">
-                          <SelectValue placeholder="Select" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Yes">Yes</SelectItem>
-                          <SelectItem value="Pending">Pending</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Client Requirements Card */}
-              <Card>
-                <CardHeader className="py-3 px-4">
-                  <CardTitle className="text-sm font-semibold">Client Requirements</CardTitle>
-                </CardHeader>
-                <CardContent className="py-3 px-4 space-y-4">
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Input placeholder="Enter requirement detail" className="h-9 text-sm flex-1" />
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-1">
-                          <Checkbox id="req-quote-1" />
-                          <Label htmlFor="req-quote-1" className="text-xs cursor-pointer">Quote</Label>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Checkbox id="req-mail-1" />
-                          <Label htmlFor="req-mail-1" className="text-xs cursor-pointer">Mail</Label>
-                        </div>
-                        <Button type="button" variant="ghost" size="sm" className="h-9 w-9 p-0 text-red-500 hover:text-red-600 hover:bg-red-50">
-                          <Trash2 className="w-4 h-4" />
+                    <div className="space-y-1.5">
+                      <div className="flex gap-1 items-start">
+                        <div className="mt-2.5 w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
+                        <Input className="h-8 text-xs" placeholder="Enter requirement or deviation..." />
+                        <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-red-500 shrink-0">
+                          <Trash2 className="w-3 h-3" />
                         </Button>
                       </div>
                     </div>
                   </div>
-                  <Button type="button" variant="outline" size="sm" className="h-8 text-xs">
-                    <Plus className="w-3 h-3 mr-1" />
-                    Add Requirement
-                  </Button>
-                </CardContent>
-              </Card>
-
-              {/* Reporting & Material Arrangement Card */}
-              <Card>
-                <CardHeader className="py-3 px-4">
-                  <CardTitle className="text-sm font-semibold">Reporting & Material Arrangement</CardTitle>
-                </CardHeader>
-                <CardContent className="py-3 px-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-1.5 block">
-                        Reporting to PM
-                      </Label>
-                      <Select>
-                        <SelectTrigger className="h-9 text-sm">
-                          <SelectValue placeholder="Select status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Reported">Reported</SelectItem>
-                          <SelectItem value="Pending">Pending</SelectItem>
-                        </SelectContent>
-                      </Select>
+                  <div className="flex flex-wrap gap-4 pt-2 border-t border-slate-100">
+                    <div className="flex items-center gap-2">
+                      <Checkbox id="quote-sent" />
+                      <Label htmlFor="quote-sent" className="text-xs font-medium">Quote to be sent</Label>
                     </div>
-                    <div>
-                      <Label className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-1.5 block">
-                        Material Arrangement
-                      </Label>
-                      <Select>
-                        <SelectTrigger className="h-9 text-sm">
-                          <SelectValue placeholder="Select status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Arranged">Arranged</SelectItem>
-                          <SelectItem value="Pending">Pending</SelectItem>
-                          <SelectItem value="Not Required">Not Required</SelectItem>
-                          <SelectItem value="Informed to stores">Informed to stores</SelectItem>
-                        </SelectContent>
-                      </Select>
+                    <div className="flex items-center gap-2">
+                      <Checkbox id="mail-received" />
+                      <Label htmlFor="mail-received" className="text-xs font-medium">Mail Received</Label>
                     </div>
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Work Plan & Special Instructions Card */}
-              <Card>
-                <CardHeader className="py-3 px-4">
-                  <CardTitle className="text-sm font-semibold">Work Plan & Special Instructions</CardTitle>
+              {/* Reporting & Material Arrangement */}
+              <Card className="border-slate-200 shadow-sm">
+                <CardHeader className="bg-slate-50/50 border-b border-slate-100 py-1.5 px-3">
+                  <CardTitle className="text-xs font-bold flex items-center gap-2">
+                    <LayoutDashboard className="w-3.5 h-3.5 text-slate-600" />
+                    Reporting & Logistics
+                  </CardTitle>
                 </CardHeader>
-                <CardContent className="py-3 px-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <Label className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-2 block">
-                        Next Day Work Plan
-                      </Label>
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <Input placeholder="Plan item" className="h-9 text-sm flex-1" />
-                          <Button type="button" variant="ghost" size="sm" className="h-9 w-9 p-0 text-red-500 hover:text-red-600 hover:bg-red-50">
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </div>
-                      <Button type="button" variant="outline" size="sm" className="h-8 text-xs mt-2">
-                        <Plus className="w-3 h-3 mr-1" />
-                        Add Plan Item
-                      </Button>
-                    </div>
-                    <div>
-                      <Label className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-2 block">
-                        Special Instructions
-                      </Label>
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <Input placeholder="Instruction" className="h-9 text-sm flex-1" />
-                          <Button type="button" variant="ghost" size="sm" className="h-9 w-9 p-0 text-red-500 hover:text-red-600 hover:bg-red-50">
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </div>
-                      <Button type="button" variant="outline" size="sm" className="h-8 text-xs mt-2">
-                        <Plus className="w-3 h-3 mr-1" />
-                        Add Instruction
-                      </Button>
-                    </div>
+                <CardContent className="p-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <Label className="text-slate-500 text-[10px] uppercase font-bold tracking-wider">Report to PM</Label>
+                    <Select>
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Reported">Reported</SelectItem>
+                        <SelectItem value="Pending">Pending</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <Label className="text-slate-500 text-[10px] uppercase font-bold tracking-wider">Material Arrangement</Label>
+                    <Select>
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Arranged">Arranged</SelectItem>
+                        <SelectItem value="Pending">Pending</SelectItem>
+                        <SelectItem value="Not Required">Not Required</SelectItem>
+                        <SelectItem value="Informed to stores">Informed to stores</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Issues Faced Card */}
-              <Card>
-                <CardHeader className="py-3 px-4">
-                  <CardTitle className="text-sm font-semibold">Issues Faced</CardTitle>
+              {/* Work Plan & Instructions */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <Card className="border-slate-200 shadow-sm">
+                  <CardHeader className="bg-slate-50/50 border-b border-slate-100 py-1.5 px-3">
+                    <CardTitle className="text-xs font-bold">Work Plan (Next Day)</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-2 space-y-1.5">
+                    <div className="flex gap-1">
+                      <Input className="h-7 text-xs" />
+                      <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-red-500">
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </div>
+                    <Button type="button" variant="outline" size="sm" className="w-full h-7 text-[10px]">
+                      <Plus className="w-3 h-3 mr-1" /> Add
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-slate-200 shadow-sm">
+                  <CardHeader className="bg-slate-50/50 border-b border-slate-100 py-1.5 px-3">
+                    <CardTitle className="text-xs font-bold">Special Instructions</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-2 space-y-1.5">
+                    <div className="flex gap-1">
+                      <Input className="h-7 text-xs" />
+                      <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-red-500">
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </div>
+                    <Button type="button" variant="outline" size="sm" className="w-full h-7 text-[10px]">
+                      <Plus className="w-3 h-3 mr-1" /> Add
+                    </Button>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Issues Faced */}
+              <Card className="border-slate-200 shadow-sm">
+                <CardHeader className="bg-slate-50/50 border-b border-slate-100 py-1.5 px-3">
+                  <CardTitle className="text-xs font-bold flex items-center gap-2">
+                    <AlertCircle className="w-3.5 h-3.5 text-red-600" />
+                    Issues Faced
+                  </CardTitle>
                 </CardHeader>
-                <CardContent className="py-3 px-4">
+                <CardContent className="p-2 space-y-2">
                   <Table>
                     <TableHeader>
-                      <TableRow className="h-8">
-                        <TableHead className="text-[10px] uppercase">Issue Description</TableHead>
-                        <TableHead className="text-[10px] uppercase">Solution/Action</TableHead>
-                        <TableHead className="text-[10px] uppercase w-10"></TableHead>
+                      <TableRow className="h-7">
+                        <TableHead className="text-[10px] h-7 px-1">Issue</TableHead>
+                        <TableHead className="text-[10px] h-7 px-1">Remarks</TableHead>
+                        <TableHead className="w-[30px] h-7 px-1"></TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      <TableRow className="h-9">
-                        <TableCell><Input placeholder="Describe issue" className="h-7 text-xs" /></TableCell>
-                        <TableCell><Input placeholder="Solution taken" className="h-7 text-xs" /></TableCell>
-                        <TableCell>
-                          <button type="button" className="text-red-400 hover:text-red-600">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                      <TableRow className="h-8">
+                        <TableCell className="p-0.5"><Input className="h-7 text-xs" /></TableCell>
+                        <TableCell className="p-0.5"><Input className="h-7 text-xs" /></TableCell>
+                        <TableCell className="p-0.5">
+                          <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-red-500">
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
                         </TableCell>
                       </TableRow>
                     </TableBody>
                   </Table>
-                  <Button type="button" variant="outline" size="sm" className="h-8 text-xs mt-3">
-                    <Plus className="w-3 h-3 mr-1" />
-                    Add Issue
+                  <Button type="button" variant="outline" size="sm" className="w-full h-7 text-[10px]">
+                    <Plus className="w-3 h-3 mr-1" /> Add Issue
                   </Button>
                 </CardContent>
               </Card>
 
-              {/* Site Photos Card */}
-              <Card>
-                <CardHeader className="py-3 px-4">
-                  <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                    <Camera className="w-4 h-4" />
+              {/* Photo Upload Section */}
+              <Card className="border-slate-200 shadow-sm">
+                <CardHeader className="bg-slate-50/50 border-b border-slate-100 py-1.5 px-3">
+                  <CardTitle className="text-xs font-bold flex items-center gap-2">
+                    <Camera className="w-3.5 h-3.5 text-blue-600" />
                     Site Photos
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="py-3 px-4">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="aspect-square border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 transition-colors">
-                      <Upload className="w-8 h-8 text-gray-400 mb-2" />
-                      <span className="text-xs text-gray-500">Upload Photo</span>
-                    </div>
+                <CardContent className="p-2">
+                  <div className="grid grid-cols-4 md:grid-cols-8 gap-2">
+                    <label className="flex flex-col items-center justify-center aspect-square rounded border-2 border-dashed border-slate-200 hover:border-blue-400 hover:bg-blue-50 transition-all cursor-pointer">
+                      <Upload className="w-3.5 h-3.5 text-slate-400 mb-0.5" />
+                      <span className="text-[9px] font-medium text-slate-500 text-center">Upload</span>
+                      <input type="file" className="hidden" accept="image/*" multiple />
+                    </label>
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Filing & Documentation Card */}
-              <Card>
-                <CardHeader className="py-3 px-4">
-                  <CardTitle className="text-sm font-semibold">Filing & Documentation</CardTitle>
+              {/* Proper Documentation */}
+              <Card className="border-slate-200 shadow-sm">
+                <CardHeader className="bg-slate-50/50 border-b border-slate-100 py-1.5 px-3">
+                  <CardTitle className="text-xs font-bold">Filing & Documentation</CardTitle>
                 </CardHeader>
-                <CardContent className="py-3 px-4">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="flex items-center gap-2">
-                      <Checkbox id="filed" />
-                      <Label htmlFor="filed" className="text-sm cursor-pointer">
-                        Documents Filed
-                      </Label>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Checkbox id="tools-locked" />
-                      <Label htmlFor="tools-locked" className="text-sm cursor-pointer">
-                        Tools Locked
-                      </Label>
-                    </div>
-                    <div>
-                      <Label className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-1.5 block">
-                        Site Pictures
-                      </Label>
-                      <Select>
-                        <SelectTrigger className="h-9 text-sm">
-                          <SelectValue placeholder="Select" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Taken">Taken</SelectItem>
-                          <SelectItem value="Not Allowed">Not Allowed</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                <CardContent className="p-2 flex flex-wrap gap-4">
+                  <div className="flex items-center gap-2">
+                    <Checkbox id="doc-filed" />
+                    <Label htmlFor="doc-filed" className="text-xs">Report Filed</Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Checkbox id="tools-locked" />
+                    <Label htmlFor="tools-locked" className="text-xs">Tools/Materials Locked</Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs">SITE PICTURES:</Label>
+                    <Select>
+                      <SelectTrigger className="h-7 text-xs w-[100px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Taken">Taken</SelectItem>
+                        <SelectItem value="Not Allowed">Not Allowed</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Footer Card */}
-              <Card>
-                <CardHeader className="py-3 px-4">
-                  <CardTitle className="text-sm font-semibold">Sign-off</CardTitle>
-                </CardHeader>
-                <CardContent className="py-3 px-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-1.5 block">
-                        Engineer Name
-                      </Label>
-                      <Input placeholder="Enter engineer name" className="h-9 text-sm" />
-                    </div>
-                    <div>
-                      <Label className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 mb-1.5 block">
-                        Signature Date
-                      </Label>
-                      <Input type="date" className="h-9 text-sm" defaultValue={format(new Date(), 'yyyy-MM-dd')} />
-                    </div>
+              {/* Footer */}
+              <Card className="border-slate-200 shadow-sm">
+                <CardContent className="p-2 grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="space-y-0.5">
+                    <Label className="text-[10px] uppercase font-bold text-slate-500">Engineer/Supervisor</Label>
+                    <Input className="h-7 text-xs" />
+                  </div>
+                  <div className="space-y-0.5">
+                    <Label className="text-[10px] uppercase font-bold text-slate-500">Signature & Date</Label>
+                    <Input className="h-7 text-xs" placeholder="Digital signature or name" />
                   </div>
                 </CardContent>
               </Card>
-            </form>
 
-            {/* Footer Actions */}
-            <div className="p-4 sm:p-6 border-t border-gray-200 bg-gray-50 sticky bottom-0 z-10">
-              <div className="flex items-center justify-between gap-3">
-                <button
-                  onClick={() => setIsFormOpen(false)}
-                  className="inline-flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-white border border-gray-300 rounded-lg transition-colors"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                  <span className="text-sm font-medium">Cancel</span>
-                </button>
-
-                <button
-                  onClick={handleFormSubmit}
-                  className="inline-flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
-                >
-                  <Save className="w-4 h-4" />
-                  <span className="text-sm font-medium">Save Report</span>
-                </button>
+              {/* Submit Button */}
+              <div className="flex justify-end gap-4 pt-6">
+                <Button variant="outline">Reset Form</Button>
+                <Button className="bg-blue-600 hover:bg-blue-700 px-8 h-11 text-base font-bold shadow-xl shadow-blue-600/20" onClick={handleFormSubmit}>
+                  <Save className="w-5 h-5 mr-2" /> Save Daily Report
+                </Button>
               </div>
             </div>
           </div>
