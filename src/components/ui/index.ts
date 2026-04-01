@@ -3,8 +3,8 @@ export { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter, 
 export { Button, IconButton } from './button';
 export { Badge, PriorityBadge, StatusBadge } from './Badge';
 export { Input } from './input';
-export { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './select';
-export { Textarea } from './textarea';
+export { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Select as TextAreaSelect } from './select';
+export { Textarea, Textarea as TextArea } from './textarea';
 export { Checkbox } from './checkbox';
 export { Label } from './label';
 export { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './table';
