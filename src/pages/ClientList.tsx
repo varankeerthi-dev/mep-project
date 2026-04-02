@@ -1,9 +1,26 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '../supabase';
-import { useQueries, useQuery } from '@tanstack/react-query';
-import { flexRender, getCoreRowModel, getSortedRowModel, getFilteredRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
+import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
+import { flexRender, getCoreRowModel, getSortedRowModel, getFilteredRowModel, getPaginationRowModel, useReactTable } from '@tanstack/table';
 import { ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+
+export const CLIENT_QUERY_KEYS = {
+  list: () => ['clients'] as const,
+  transactions: (clientId: string | null) => ['clientTx', 'all', clientId] as const,
+  quotation: (clientId: string) => ['clientTx', 'quotation', clientId] as const,
+  clientPO: (clientId: string) => ['clientTx', 'client_po', clientId] as const,
+  project: (clientId: string) => ['clientTx', 'project', clientId] as const,
+  siteVisit: (clientId: string) => ['clientTx', 'site_visit', clientId] as const,
+  deliveryChallan: (clientId: string) => ['clientTx', 'delivery_challan', clientId] as const,
+  meeting: (clientId: string) => ['clientTx', 'meeting', clientId] as const,
+  all: () => ['clients', 'clientTx'] as const,
+} as const;
+
+export function invalidateClientData(queryClient: ReturnType<typeof useQueryClient>) {
+  queryClient.invalidateQueries({ queryKey: ['clientTx'] });
+  queryClient.invalidateQueries({ queryKey: ['clients'] });
+}
 
 type TransactionsTableProps = {
   rows: any[]
@@ -213,6 +230,7 @@ function TransactionsTable({ rows, loading, onOpen, emptyMessage }: Transactions
 
 export default function ClientList() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeClientId, setActiveClientId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
@@ -222,7 +240,7 @@ export default function ClientList() {
   const [txDateFrom, setTxDateFrom] = useState('');
   const [txDateTo, setTxDateTo] = useState('');
   const clientsQuery = useQuery({
-    queryKey: ['clients'],
+    queryKey: CLIENT_QUERY_KEYS.list(),
     queryFn: async () => {
       const { data, error } = await supabase
         .from('clients')
@@ -231,7 +249,8 @@ export default function ClientList() {
       if (error) throw error;
       return data || [];
     },
-    staleTime: 0,
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000,
     refetchOnMount: 'always',
     refetchOnWindowFocus: true
   });
@@ -255,7 +274,7 @@ export default function ClientList() {
 const txQueries = useQueries({
   queries: (activeClient && activeTab === 'reports' ? [
     {
-      queryKey: ['clientTx', 'quotation', activeClientId],
+      queryKey: CLIENT_QUERY_KEYS.quotation(activeClientId!),
       queryFn: async () => {
         const { data, error } = await supabase
           .from('quotation_header')
@@ -265,11 +284,13 @@ const txQueries = useQueries({
         if (error) throw error;
         return data || [];
       },
-      staleTime: 5 * 60 * 1000,
+      staleTime: 30 * 1000,
+      gcTime: 5 * 60 * 1000,
+      refetchOnMount: 'always',
       enabled: activeTab === 'reports'
     },
     {
-      queryKey: ['clientTx', 'client_po', activeClientId],
+      queryKey: CLIENT_QUERY_KEYS.clientPO(activeClientId!),
       queryFn: async () => {
         const { data, error } = await supabase
           .from('client_purchase_orders')
@@ -279,11 +300,13 @@ const txQueries = useQueries({
         if (error) throw error;
         return data || [];
       },
-      staleTime: 5 * 60 * 1000,
+      staleTime: 30 * 1000,
+      gcTime: 5 * 60 * 1000,
+      refetchOnMount: 'always',
       enabled: activeTab === 'reports'
     },
     {
-      queryKey: ['clientTx', 'project', activeClientId],
+      queryKey: CLIENT_QUERY_KEYS.project(activeClientId!),
       queryFn: async () => {
         const { data, error } = await supabase
           .from('projects')
@@ -293,11 +316,13 @@ const txQueries = useQueries({
         if (error) throw error;
         return data || [];
       },
-      staleTime: 5 * 60 * 1000,
+      staleTime: 30 * 1000,
+      gcTime: 5 * 60 * 1000,
+      refetchOnMount: 'always',
       enabled: activeTab === 'reports'
     },
     {
-      queryKey: ['clientTx', 'site_visit', activeClientId],
+      queryKey: CLIENT_QUERY_KEYS.siteVisit(activeClientId!),
       queryFn: async () => {
         const { data, error } = await supabase
           .from('site_visits')
@@ -307,11 +332,13 @@ const txQueries = useQueries({
         if (error) throw error;
         return data || [];
       },
-      staleTime: 5 * 60 * 1000,
+      staleTime: 30 * 1000,
+      gcTime: 5 * 60 * 1000,
+      refetchOnMount: 'always',
       enabled: activeTab === 'reports'
     },
     {
-      queryKey: ['clientTx', 'delivery_challan', activeClientId],
+      queryKey: CLIENT_QUERY_KEYS.deliveryChallan(activeClientId!),
       queryFn: async () => {
         const { data, error } = await supabase
           .from('delivery_challans')
@@ -321,11 +348,13 @@ const txQueries = useQueries({
         if (error) throw error;
         return data || [];
       },
-      staleTime: 5 * 60 * 1000,
+      staleTime: 30 * 1000,
+      gcTime: 5 * 60 * 1000,
+      refetchOnMount: 'always',
       enabled: activeTab === 'reports'
     },
     {
-      queryKey: ['clientTx', 'meeting', activeClientId],
+      queryKey: CLIENT_QUERY_KEYS.meeting(activeClientId!),
       queryFn: async () => {
         const { data, error } = await supabase
           .from('meetings')
@@ -335,7 +364,9 @@ const txQueries = useQueries({
         if (error) throw error;
         return data || [];
       },
-      staleTime: 5 * 60 * 1000,
+      staleTime: 30 * 1000,
+      gcTime: 5 * 60 * 1000,
+      refetchOnMount: 'always',
       enabled: activeTab === 'reports'
     }
   ] : []) as any
