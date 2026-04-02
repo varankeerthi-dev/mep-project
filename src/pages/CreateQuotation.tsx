@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { supabase } from '../supabase';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import { formatCurrency } from '../utils/formatters';
 import { useQuery } from '@tanstack/react-query';
 import { flexRender, getCoreRowModel, useReactTable } from '@tanstack/react-table';
@@ -46,14 +47,7 @@ export default function CreateQuotation() {
   const [searchParams] = useSearchParams();
   const editId = searchParams.get('id');
   const duplicateId = searchParams.get('duplicateId');
-  
-  let organisation = null;
-  try {
-    const auth = useAuth();
-    organisation = auth?.organisation;
-  } catch (e) {
-    // Auth context not available yet
-  }
+  const { organisation } = useAuth();
   
   const [saving, setSaving] = useState(false);
   const [clients, setClients] = useState([]);
@@ -303,13 +297,14 @@ useEffect(() => {
 }, [initLoading]);
 
 useEffect(() => {
-  const handleBeforeUnload = useCallback((e) => {
+  const handleBeforeUnload = (e) => {
     if (isDirty && !saving) {
       e.preventDefault();
       e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
       return e.returnValue;
     }
-  }, [isDirty, saving]);
+    return undefined;
+  };
   window.addEventListener('beforeunload', handleBeforeUnload);
   return () => window.removeEventListener('beforeunload', handleBeforeUnload);
 }, [isDirty, saving]);
@@ -379,7 +374,7 @@ const loadQuoteNoPreview = useCallback(async () => {
     setQuoteNoPreview('QT-0001');
     setFormData((prev) => ({ ...prev, quotation_no: 'QT-0001' }));
   }
-});
+}, [buildQuoteNoFromSeries, editId]);
 
   const loadVariantDiscounts = async (quotationId) => {
     try {
