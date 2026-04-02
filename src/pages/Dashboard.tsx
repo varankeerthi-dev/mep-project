@@ -154,8 +154,8 @@ function DashboardCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="bg-card border border-border rounded-lg shadow-sm">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+    <div className="bg-card border border-border rounded-lg shadow-sm flex flex-col min-h-[280px]">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
         <div className="flex items-center gap-3">
           <div
             className="w-9 h-9 rounded-lg flex items-center justify-center"
@@ -176,7 +176,7 @@ function DashboardCard({
           />
         </button>
       </div>
-      {!collapsed && <div className="p-4">{children}</div>}
+      {!collapsed && <div className="p-4 flex-1 flex flex-col">{children}</div>}
     </div>
   );
 }
@@ -211,7 +211,7 @@ function TodaySiteCard() {
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2 flex-1">
       {visits.map((v: any) => (
         <div
           key={v.id}
@@ -267,7 +267,7 @@ function ApprovalsCard() {
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2 flex-1">
       {pendingApprovals.map((q: any) => (
         <div
           key={q.id}
@@ -334,7 +334,7 @@ function ClientCommunicationCard() {
   }
 
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto flex-1">
       <Table>
         <TableHeader>
           <TableRow className="border-b border-border">
@@ -392,7 +392,7 @@ function SiteVisitPlanCard() {
   }
 
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto flex-1">
       <Table>
         <TableHeader>
           <TableRow className="border-b border-border">
@@ -453,7 +453,7 @@ function QuotationApprovalCard() {
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2 flex-1">
       {quotations.map((q: any) => (
         <div
           key={q.id}
@@ -498,7 +498,7 @@ function InvoiceCard() {
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2 flex-1">
       {invoices.map((inv: any) => (
         <div
           key={inv.id}
@@ -550,7 +550,7 @@ function DeliveryChallanCard() {
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2 flex-1">
       {challans.map((dc: any) => (
         <div
           key={dc.id}
@@ -756,7 +756,7 @@ export default function Dashboard({ onNavigate }: { onNavigate?: (path: string) 
       <div className="max-w-[1600px] mx-auto px-6 py-6">
         <div className="flex gap-6">
           <div className="flex-1 min-w-0 space-y-6">
-            <div className="grid gap-6 lg:grid-cols-3">
+            <div className="grid gap-6 lg:grid-cols-3 items-stretch">
               {row1Cards.map((card) => (
                 <DashboardCard
                   key={card.id}
@@ -769,7 +769,7 @@ export default function Dashboard({ onNavigate }: { onNavigate?: (path: string) 
               ))}
             </div>
 
-            <div className="grid gap-6 lg:grid-cols-2">
+            <div className="grid gap-6 lg:grid-cols-2 items-stretch">
               {row2Cards.map((card) => (
                 <DashboardCard
                   key={card.id}
@@ -782,7 +782,7 @@ export default function Dashboard({ onNavigate }: { onNavigate?: (path: string) 
               ))}
             </div>
 
-            <div className="grid gap-6 lg:grid-cols-2">
+            <div className="grid gap-6 lg:grid-cols-2 items-stretch">
               {row3Cards.map((card) => (
                 <DashboardCard
                   key={card.id}
