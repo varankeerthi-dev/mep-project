@@ -1,6 +1,49 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../supabase';
+
+export const DASHBOARD_QUERY_KEYS = {
+  todaySites: (date: string) => ['dashboard-today-sites', date] as const,
+  approvals: () => ['dashboard-approvals'] as const,
+  clientComms: () => ['dashboard-client-comms'] as const,
+  clientsLookup: () => ['dashboard-clients-lookup'] as const,
+  visitPlan: () => ['dashboard-visit-plan'] as const,
+  quotationApproval: () => ['dashboard-quotation-approval'] as const,
+  invoices: () => ['dashboard-invoices'] as const,
+  deliveryChallans: () => ['dashboard-delivery-challans'] as const,
+  recentUpdates: () => ['dashboard-recent-updates'] as const,
+  all: () => ['dashboard'] as const,
+} as const;
+
+export function invalidateDashboardQueries(queryClient: ReturnType<typeof useQueryClient>, options?: {
+  todaySites?: boolean;
+  approvals?: boolean;
+  clientComms?: boolean;
+  visitPlan?: boolean;
+  quotationApproval?: boolean;
+  invoices?: boolean;
+  deliveryChallans?: boolean;
+  recentUpdates?: boolean;
+}) {
+  const today = format(new Date(), 'yyyy-MM-dd');
+  const invalidateAll = !options || Object.values(options).every(v => v === undefined || v === true);
+  
+  const keysToInvalidate = [
+    invalidateAll || options?.todaySites ? DASHBOARD_QUERY_KEYS.todaySites(today) : null,
+    invalidateAll || options?.approvals ? DASHBOARD_QUERY_KEYS.approvals() : null,
+    invalidateAll || options?.clientComms ? DASHBOARD_QUERY_KEYS.clientComms() : null,
+    invalidateAll || options?.visitPlan ? DASHBOARD_QUERY_KEYS.visitPlan() : null,
+    invalidateAll || options?.quotationApproval ? DASHBOARD_QUERY_KEYS.quotationApproval() : null,
+    invalidateAll || options?.invoices ? DASHBOARD_QUERY_KEYS.invoices() : null,
+    invalidateAll || options?.deliveryChallans ? DASHBOARD_QUERY_KEYS.deliveryChallans() : null,
+    invalidateAll || options?.recentUpdates ? DASHBOARD_QUERY_KEYS.recentUpdates() : null,
+  ].filter(Boolean);
+
+  queryClient.invalidateQueries({ queryKey: DASHBOARD_QUERY_KEYS.all() });
+  keysToInvalidate.forEach(key => {
+    if (key) queryClient.invalidateQueries({ queryKey: key });
+  });
+}
 import { useAuth } from '../App';
 import { format, formatDistanceToNow, isToday, parseISO } from 'date-fns';
 import {
@@ -41,6 +84,7 @@ import {
   FileCheck,
   CreditCard,
   ArrowRight,
+  RefreshCw,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
@@ -233,7 +277,7 @@ function TodaySiteCard() {
   const today = format(new Date(), 'yyyy-MM-dd');
 
   const { data: visits = [], isLoading } = useQuery({
-    queryKey: ['dashboard-today-sites', today],
+    queryKey: DASHBOARD_QUERY_KEYS.todaySites(today),
     queryFn: async () => {
       const { data, error } = await supabase
         .from('site_visits')
@@ -288,7 +332,7 @@ function TodaySiteCard() {
 
 function ApprovalsCard() {
   const { data: pendingApprovals = [], isLoading } = useQuery({
-    queryKey: ['dashboard-approvals'],
+    queryKey: DASHBOARD_QUERY_KEYS.approvals(),
     queryFn: async () => {
       const { data, error } = await supabase
         .from('quotation_header')
@@ -339,7 +383,7 @@ function ApprovalsCard() {
 
 function ClientCommunicationCard() {
   const { data: comms = [], isLoading } = useQuery({
-    queryKey: ['dashboard-client-comms'],
+    queryKey: DASHBOARD_QUERY_KEYS.clientComms(),
     queryFn: async () => {
       const { data, error } = await supabase
         .from('client_communication')
@@ -354,7 +398,7 @@ function ClientCommunicationCard() {
   });
 
   const { data: clients = [] } = useQuery({
-    queryKey: ['dashboard-clients-lookup'],
+    queryKey: DASHBOARD_QUERY_KEYS.clientsLookup(),
     queryFn: async () => {
       const { data, error } = await supabase.from('clients').select('id, client_name').order('client_name');
       if (error) throw error;
@@ -411,7 +455,7 @@ function ClientCommunicationCard() {
 
 function SiteVisitPlanCard() {
   const { data: visits = [], isLoading } = useQuery({
-    queryKey: ['dashboard-visit-plan'],
+    queryKey: DASHBOARD_QUERY_KEYS.visitPlan(),
     queryFn: async () => {
       const today = format(new Date(), 'yyyy-MM-dd');
       const { data, error } = await supabase
@@ -474,7 +518,7 @@ function SiteVisitPlanCard() {
 
 function QuotationApprovalCard() {
   const { data: quotations = [], isLoading } = useQuery({
-    queryKey: ['dashboard-quotation-approval'],
+    queryKey: DASHBOARD_QUERY_KEYS.quotationApproval(),
     queryFn: async () => {
       const { data, error } = await supabase
         .from('quotation_header')
@@ -520,7 +564,7 @@ function QuotationApprovalCard() {
 
 function InvoiceCard() {
   const { data: invoices = [], isLoading } = useQuery({
-    queryKey: ['dashboard-invoices'],
+    queryKey: DASHBOARD_QUERY_KEYS.invoices(),
     queryFn: async () => {
       const { data, error } = await supabase
         .from('project_invoices')
@@ -572,7 +616,7 @@ function InvoiceCard() {
 
 function DeliveryChallanCard() {
   const { data: challans = [], isLoading } = useQuery({
-    queryKey: ['dashboard-delivery-challans'],
+    queryKey: DASHBOARD_QUERY_KEYS.deliveryChallans(),
     queryFn: async () => {
       const { data, error } = await supabase
         .from('delivery_challans')
@@ -626,7 +670,7 @@ function DeliveryChallanCard() {
 
 function RecentUpdates() {
   const { data: recentItems = [], isLoading } = useQuery({
-    queryKey: ['dashboard-recent-updates'],
+    queryKey: DASHBOARD_QUERY_KEYS.recentUpdates(),
     queryFn: async () => {
       const [commsRes, visitsRes, dcRes, quotesRes] = await Promise.all([
         supabase
@@ -734,7 +778,9 @@ const CARD_CONTENT_MAP: Record<DashboardCardId, () => React.ReactNode> = {
 
 export default function Dashboard({ onNavigate }: { onNavigate?: (path: string) => void }) {
   const { user, organisation } = useAuth();
+  const queryClient = useQueryClient();
   const [isReorderMode, setIsReorderMode] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [cardOrder, setCardOrder] = useState<DashboardCardId[]>(() => {
     if (typeof window === 'undefined') return DEFAULT_CARDS.map((c) => c.id);
 
@@ -777,6 +823,12 @@ export default function Dashboard({ onNavigate }: { onNavigate?: (path: string) 
     });
   }, []);
 
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    invalidateDashboardQueries(queryClient);
+    setTimeout(() => setIsRefreshing(false), 500);
+  }, [queryClient]);
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
@@ -808,6 +860,15 @@ export default function Dashboard({ onNavigate }: { onNavigate?: (path: string) 
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleRefresh}
+              leftIcon={<RefreshCw size={14} className={isRefreshing ? 'animate-spin' : ''} />}
+              disabled={isRefreshing}
+            >
+              Refresh
+            </Button>
             <Button
               variant={isReorderMode ? 'primary' : 'secondary'}
               size="sm"
