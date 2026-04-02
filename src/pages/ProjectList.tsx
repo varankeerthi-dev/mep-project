@@ -1,8 +1,9 @@
 import { useState, useMemo } from 'react';
 import { supabase } from '../supabase';
-import { formatDate, formatCurrency } from '../utils/formatters';
+import { formatCurrency } from '../utils/formatters';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
+import { Search, Plus, ChevronRight, ArrowLeft, Edit, Trash2, Package } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -31,34 +32,33 @@ type ProjectDetails = {
   payments: any[];
 };
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Status Dots ────────────────────────────────────────────────────────────────
 
-const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
-  Draft:                { bg: '#f3f4f6', color: '#6b7280' },
-  Active:               { bg: '#dbeafe', color: '#1d4ed8' },
-  'Execution Completed':{ bg: '#fef3c7', color: '#b45309' },
-  'Financially Closed': { bg: '#d1fae5', color: '#047857' },
-  Closed:               { bg: '#f3f4f6', color: '#374151' },
+const STATUS_DOTS: Record<string, string> = {
+  Draft: 'bg-zinc-400',
+  Active: 'bg-teal-500',
+  'Execution Completed': 'bg-amber-500',
+  'Financially Closed': 'bg-emerald-500',
+  Closed: 'bg-zinc-400',
 };
 
-const PO_STATUS_COLORS: Record<string, { bg: string; color: string }> = {
-  'Not Required': { bg: '#d1fae5', color: '#047857' },
-  Pending:        { bg: '#fef3c7', color: '#b45309' },
-  Received:       { bg: '#dbeafe', color: '#1d4ed8' },
+const PO_STATUS_DOTS: Record<string, string> = {
+  'Not Required': 'bg-emerald-500',
+  Pending: 'bg-amber-500',
+  Received: 'bg-teal-500',
 };
 
-const getStatusColor  = (s?: string) => STATUS_COLORS[s ?? '']    ?? STATUS_COLORS['Draft'];
-const getPOStatusColor = (s?: string) => PO_STATUS_COLORS[s ?? ''] ?? PO_STATUS_COLORS['Pending'];
+const getStatusDot = (s?: string) => STATUS_DOTS[s ?? 'Draft'] ?? 'bg-zinc-400';
+const getPOStatusDot = (s?: string) => PO_STATUS_DOTS[s ?? 'Pending'] ?? 'bg-amber-500';
 
 // ─── ProjectList ──────────────────────────────────────────────────────────────
 
 export default function ProjectList() {
   const navigate = useNavigate();
-  const [searchTerm, setSearchTerm]         = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-  const [viewMode, setViewMode]             = useState<'list' | 'detail'>('list');
+  const [viewMode, setViewMode] = useState<'list' | 'detail'>('list');
 
-  // ── Projects query (cached, no re-fetch on tab switch) ──────────────────────
   const { data: projects = [], isLoading } = useQuery<Project[]>({
     queryKey: ['projects'],
     queryFn: async () => {
@@ -69,10 +69,9 @@ export default function ProjectList() {
       if (error) throw error;
       return data ?? [];
     },
-    staleTime: 3 * 60 * 1000,
+    staleTime: 30 * 1000,
   });
 
-  // ── Project details query (only fires when a project is selected in detail view) ─
   const { data: projectDetails, isLoading: detailsLoading } = useQuery<ProjectDetails>({
     queryKey: ['project-details', selectedProject?.id],
     queryFn: async () => {
@@ -82,56 +81,52 @@ export default function ProjectList() {
         supabase.from('project_expenses').select('*').eq('project_id', selectedProject!.id).order('expense_date', { ascending: false }),
         supabase.from('project_payments').select('*').eq('project_id', selectedProject!.id).order('payment_date', { ascending: false }),
       ]);
-      if (posResult.error)     throw posResult.error;
+      if (posResult.error) throw posResult.error;
       if (invoicesResult.error) throw invoicesResult.error;
       if (expensesResult.error) throw expensesResult.error;
       if (paymentsResult.error) throw paymentsResult.error;
       return {
-        pos:      posResult.data      ?? [],
+        pos: posResult.data ?? [],
         invoices: invoicesResult.data ?? [],
         expenses: expensesResult.data ?? [],
         payments: paymentsResult.data ?? [],
       };
     },
-    // Only fetches when we're actually viewing the detail page
     enabled: !!selectedProject?.id && viewMode === 'detail',
-    staleTime: 2 * 60 * 1000,
+    staleTime: 30 * 1000,
   });
 
-  const projectPOs       = projectDetails?.pos      ?? [];
-  const projectInvoices  = projectDetails?.invoices ?? [];
-  const projectExpenses  = projectDetails?.expenses ?? [];
-  const projectPayments  = projectDetails?.payments ?? [];
+  const projectPOs = projectDetails?.pos ?? [];
+  const projectInvoices = projectDetails?.invoices ?? [];
+  const projectExpenses = projectDetails?.expenses ?? [];
+  const projectPayments = projectDetails?.payments ?? [];
 
-  // ── Financial summary (derived, no extra query needed) ─────────────────────
   const financialSummary = useMemo(() => {
     if (!projectDetails) return null;
-    const totalPOValue           = projectPOs.reduce((s, p) => s + (parseFloat(p.po_total_value) || 0), 0);
-    const totalInvoiceValue      = projectInvoices.reduce((s, i) => s + (parseFloat(i.total_amount) || 0), 0);
-    const totalPaymentReceived   = projectPayments.reduce((s, p) => s + (parseFloat(p.payment_amount) || 0), 0);
-    const totalExpense           = projectExpenses.reduce((s, e) => s + (parseFloat(e.amount) || 0), 0);
+    const totalPOValue = projectPOs.reduce((s, p) => s + (parseFloat(p.po_total_value) || 0), 0);
+    const totalInvoiceValue = projectInvoices.reduce((s, i) => s + (parseFloat(i.total_amount) || 0), 0);
+    const totalPaymentReceived = projectPayments.reduce((s, p) => s + (parseFloat(p.payment_amount) || 0), 0);
+    const totalExpense = projectExpenses.reduce((s, e) => s + (parseFloat(e.amount) || 0), 0);
     return {
-      total_po_value:          totalPOValue,
-      total_invoice_value:     totalInvoiceValue,
-      total_payment_received:  totalPaymentReceived,
-      total_expense:           totalExpense,
-      outstanding_amount:      totalInvoiceValue - totalPaymentReceived,
-      profit:                  totalInvoiceValue - totalExpense,
-      po_balance:              totalPOValue - totalInvoiceValue,
+      total_po_value: totalPOValue,
+      total_invoice_value: totalInvoiceValue,
+      total_payment_received: totalPaymentReceived,
+      total_expense: totalExpense,
+      outstanding_amount: totalInvoiceValue - totalPaymentReceived,
+      profit: totalInvoiceValue - totalExpense,
+      po_balance: totalPOValue - totalInvoiceValue,
     };
   }, [projectDetails]);
 
-  // ── Filtered list ───────────────────────────────────────────────────────────
   const filteredProjects = useMemo(() => {
     const q = searchTerm.toLowerCase();
     return projects.filter(p =>
-      (p.project_name  ?? '').toLowerCase().includes(q) ||
-      (p.project_code  ?? '').toLowerCase().includes(q) ||
+      (p.project_name ?? '').toLowerCase().includes(q) ||
+      (p.project_code ?? '').toLowerCase().includes(q) ||
       (p.client?.client_name ?? '').toLowerCase().includes(q)
     );
   }, [projects, searchTerm]);
 
-  // ── Delete ──────────────────────────────────────────────────────────────────
   const deleteProject = async (id: string) => {
     const [posRes, invoicesRes, expensesRes, paymentsRes] = await Promise.all([
       supabase.from('client_purchase_orders').select('id').eq('project_id', id),
@@ -140,7 +135,7 @@ export default function ProjectList() {
       supabase.from('project_payments').select('id').eq('project_id', id),
     ]);
     if (
-      (posRes.data?.length  ?? 0) > 0 ||
+      (posRes.data?.length ?? 0) > 0 ||
       (invoicesRes.data?.length ?? 0) > 0 ||
       (expensesRes.data?.length ?? 0) > 0 ||
       (paymentsRes.data?.length ?? 0) > 0
@@ -151,8 +146,6 @@ export default function ProjectList() {
     if (!confirm('Are you sure you want to delete this project?')) return;
     const { error } = await supabase.from('projects').delete().eq('id', id);
     if (error) { alert('Error deleting project: ' + error.message); return; }
-    // TanStack Query will auto-refetch on next stale check.
-    // Force immediate refresh:
     setSelectedProject(null);
     window.location.reload();
   };
@@ -165,10 +158,18 @@ export default function ProjectList() {
     setViewMode('detail');
   };
 
-  // ── Render ──────────────────────────────────────────────────────────────────
-
   if (isLoading) {
-    return <div style={{ padding: '40px', textAlign: 'center' }}>Loading...</div>;
+    return (
+      <div className="min-h-screen bg-[#fafafa] px-6 py-6">
+        <div className="max-w-[1400px] mx-auto">
+          <div className="animate-pulse space-y-4">
+            <div className="h-8 bg-gray-200 rounded-lg w-32" />
+            <div className="h-12 bg-gray-200 rounded-xl w-full" />
+            <div className="h-96 bg-gray-200 rounded-2xl w-full" />
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (viewMode === 'detail' && selectedProject) {
@@ -188,110 +189,146 @@ export default function ProjectList() {
   }
 
   return (
-    <div>
-      <div className="page-header">
-        <h1 className="page-title">Projects</h1>
-        <button className="btn btn-primary" onClick={() => navigate('/projects/new')}>
-          + New Project
-        </button>
-      </div>
-
-      <div className="card" style={{ marginBottom: '16px' }}>
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-          <input
-            type="text"
-            className="form-input"
-            placeholder="Search projects..."
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-            style={{ maxWidth: '300px' }}
-          />
+    <div className="min-h-screen bg-[#fafafa] px-6 py-6">
+      <div className="max-w-[1400px] mx-auto">
+        {/* Page Header */}
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-xl font-extrabold text-zinc-900 tracking-tight">Projects</h1>
+          <button
+            onClick={() => navigate('/projects/new')}
+            className="inline-flex items-center gap-2 bg-zinc-900 text-white rounded-full px-5 py-2.5 text-sm font-semibold hover:bg-zinc-800 transition-colors"
+          >
+            <Plus size={16} />
+            New Project
+          </button>
         </div>
-      </div>
 
-      <div className="card">
-        {filteredProjects.length === 0 ? (
-          <div className="empty-state">
-            <h3>No Projects Found</h3>
-            <p>Create your first project to get started</p>
+        {/* Search Card */}
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm px-5 py-4 mb-5">
+          <div className="flex items-center gap-3">
+            <div className="relative flex-1 max-w-sm">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+              <input
+                type="text"
+                placeholder="Search projects..."
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-teal-300 focus:ring-2 focus:ring-teal-300/20 focus:outline-none transition-all"
+              />
+            </div>
+            <span className="text-xs text-zinc-400 font-medium">{filteredProjects.length} projects</span>
           </div>
-        ) : (
-          <div className="table-container">
-            <table className="table">
+        </div>
+
+        {/* Projects Table Card */}
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+          {filteredProjects.length === 0 ? (
+            <div className="py-16 text-center">
+              <Package size={48} strokeWidth={1} className="mx-auto text-zinc-300 mb-3" />
+              <p className="text-sm text-zinc-400">No projects found</p>
+            </div>
+          ) : (
+            <table className="w-full">
               <thead>
-                <tr>
-                  <th>Project Code</th>
-                  <th>Project Name</th>
-                  <th>Client</th>
-                  <th>Type</th>
-                  <th>Est. Value</th>
-                  <th>PO Status</th>
-                  <th>Status</th>
-                  <th>Completion</th>
-                  <th>Actions</th>
+                <tr className="border-b border-gray-200">
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Project</th>
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Client</th>
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Type</th>
+                  <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Est. Value</th>
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-zinc-500">PO Status</th>
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Status</th>
+                  <th className="px-4 py-3 text-center text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Completion</th>
+                  <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredProjects.map(p => {
-                  const statusStyle   = getStatusColor(p.status);
-                  const poStatusStyle = getPOStatusColor(p.po_status);
-                  const showWarning   = checkPORequiredWarning(p);
+                  const showWarning = checkPORequiredWarning(p);
                   return (
-                    <tr key={p.id}>
-                      <td>{p.project_code || '-'}</td>
-                      <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <tr key={p.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
                           <span
-                            style={{ cursor: 'pointer', color: '#2563eb', fontWeight: 500 }}
+                            className="text-sm font-medium text-zinc-900 cursor-pointer hover:text-teal-600 transition-colors"
                             onClick={() => loadProjectDetails(p)}
                           >
                             {p.project_name || 'Unnamed Project'}
                           </span>
+                          {p.project_code && (
+                            <span className="text-[11px] text-zinc-400 font-medium">{p.project_code}</span>
+                          )}
                           {showWarning && (
-                            <span style={{
-                              background: '#fee2e2', color: '#dc2626',
-                              padding: '2px 6px', borderRadius: '4px',
-                              fontSize: '10px', fontWeight: 600,
-                            }}>
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-50 text-red-600 rounded-full text-[10px] font-semibold">
+                              <span className="w-1.5 h-1.5 bg-red-500 rounded-full" />
                               PO Required
                             </span>
                           )}
                         </div>
                       </td>
-                      <td>{p.client?.client_name || '-'}</td>
-                      <td>{p.project_type || '-'}</td>
-                      <td>{p.project_estimated_value ? formatCurrency(p.project_estimated_value) : '-'}</td>
-                      <td>
-                        <span style={{
-                          background: poStatusStyle.bg, color: poStatusStyle.color,
-                          padding: '4px 8px', borderRadius: '4px',
-                          fontSize: '11px', fontWeight: 600,
-                        }}>
-                          {p.po_status || 'Pending'}
-                        </span>
+                      <td className="px-4 py-3 text-sm text-zinc-600">{p.client?.client_name || '-'}</td>
+                      <td className="px-4 py-3 text-sm text-zinc-600">{p.project_type || '-'}</td>
+                      <td className="px-4 py-3 text-sm text-zinc-900 text-right font-medium">
+                        {p.project_estimated_value ? formatCurrency(p.project_estimated_value) : '-'}
                       </td>
-                      <td>
-                        <span style={{
-                          background: statusStyle.bg, color: statusStyle.color,
-                          padding: '4px 8px', borderRadius: '4px',
-                          fontSize: '11px', fontWeight: 600,
-                        }}>
-                          {p.status || 'Draft'}
-                        </span>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <span className={`w-2 h-2 rounded-full ${getPOStatusDot(p.po_status)}`} />
+                          <span className="text-[11px] font-medium px-2 py-0.5 bg-gray-100 text-zinc-700 rounded-full">
+                            {p.po_status || 'Pending'}
+                          </span>
+                        </div>
                       </td>
-                      <td>{p.completion_percentage || 0}%</td>
-                      <td>
-                        <button className="btn btn-sm btn-secondary" onClick={() => loadProjectDetails(p)}>View</button>
-                        <button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px' }} onClick={() => navigate(`/projects/edit?id=${p.id}`)}>Edit</button>
-                        <button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px', color: '#dc2626' }} onClick={() => deleteProject(p.id)}>Delete</button>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <span className={`w-2 h-2 rounded-full ${getStatusDot(p.status)}`} />
+                          <span className="text-[11px] font-medium px-2 py-0.5 bg-gray-100 text-zinc-700 rounded-full">
+                            {p.status || 'Draft'}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <div className="inline-flex items-center gap-2">
+                          <div className="w-16 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-teal-400 rounded-full"
+                              style={{ width: `${p.completion_percentage || 0}%` }}
+                            />
+                          </div>
+                          <span className="text-xs text-zinc-500 font-medium">{p.completion_percentage || 0}%</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => loadProjectDetails(p)}
+                            className="p-2 text-zinc-400 hover:text-zinc-600 hover:bg-gray-100 rounded-full transition-colors"
+                            title="View"
+                          >
+                            <ChevronRight size={16} />
+                          </button>
+                          <button
+                            onClick={() => navigate(`/projects/edit?id=${p.id}`)}
+                            className="p-2 text-zinc-400 hover:text-zinc-600 hover:bg-gray-100 rounded-full transition-colors"
+                            title="Edit"
+                          >
+                            <Edit size={16} />
+                          </button>
+                          <button
+                            onClick={() => deleteProject(p.id)}
+                            className="p-2 text-zinc-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
+                            title="Delete"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );
@@ -323,237 +360,350 @@ function ProjectDetailView({
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('summary');
 
-  const fmt  = (n: any) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(n || 0);
+  const fmt = (n: any) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(n || 0);
   const fmtD = (d?: string) => { if (!d) return '-'; const x = new Date(d); return isNaN(x.getTime()) ? '-' : x.toLocaleDateString(); };
 
+  const tabs = [
+    { id: 'summary', label: 'Summary' },
+    { id: 'pos', label: `POs`, count: projectPOs.length },
+    { id: 'invoices', label: 'Invoices', count: projectInvoices.length },
+    { id: 'payments', label: 'Payments', count: projectPayments.length },
+    { id: 'expenses', label: 'Expenses', count: projectExpenses.length },
+  ];
+
   return (
-    <div>
-      <div className="page-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <button className="btn btn-secondary" onClick={onBack}>← Back</button>
-          <div>
-            <h1 className="page-title" style={{ margin: 0 }}>{project.project_name}</h1>
-            <span style={{ color: '#6b7280', fontSize: '14px' }}>{project.project_code}</span>
+    <div className="min-h-screen bg-[#fafafa] px-6 py-6">
+      <div className="max-w-[1400px] mx-auto">
+        {/* Page Header */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={onBack}
+              className="p-2 text-zinc-400 hover:text-zinc-600 hover:bg-gray-100 rounded-full transition-colors"
+            >
+              <ArrowLeft size={20} />
+            </button>
+            <div>
+              <h1 className="text-xl font-extrabold text-zinc-900 tracking-tight">{project.project_name}</h1>
+              <p className="text-xs text-zinc-400 font-medium mt-0.5">{project.project_code}</p>
+            </div>
           </div>
-        </div>
-        <button className="btn btn-primary" onClick={onEdit}>Edit Project</button>
-      </div>
-
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-        {(['summary', 'pos', 'invoices', 'payments', 'expenses'] as const).map(tab => (
           <button
-            key={tab}
-            className={`btn ${activeTab === tab ? 'btn-primary' : 'btn-secondary'}`}
-            onClick={() => setActiveTab(tab)}
+            onClick={onEdit}
+            className="inline-flex items-center gap-2 bg-zinc-900 text-white rounded-full px-5 py-2.5 text-sm font-semibold hover:bg-zinc-800 transition-colors"
           >
-            {tab === 'summary'  && 'Summary'}
-            {tab === 'pos'      && `POs (${projectPOs.length})`}
-            {tab === 'invoices' && `Invoices (${projectInvoices.length})`}
-            {tab === 'payments' && `Payments (${projectPayments.length})`}
-            {tab === 'expenses' && `Expenses (${projectExpenses.length})`}
+            <Edit size={16} />
+            Edit Project
           </button>
-        ))}
-      </div>
+        </div>
 
-      {detailsLoading && activeTab !== 'summary' && (
-        <div style={{ padding: '20px', textAlign: 'center', color: '#6b7280' }}>Loading...</div>
-      )}
+        {/* Tabs */}
+        <div className="flex items-center gap-2 mb-5 overflow-x-auto pb-1">
+          {tabs.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-4 py-2 rounded-full text-sm font-medium transition-colors whitespace-nowrap ${
+                activeTab === tab.id
+                  ? 'bg-zinc-900 text-white'
+                  : 'bg-white border border-gray-200 text-zinc-600 hover:bg-gray-50'
+              }`}
+            >
+              {tab.label}
+              {tab.count !== undefined && (
+                <span className={`ml-1.5 text-xs ${activeTab === tab.id ? 'text-zinc-400' : 'text-zinc-400'}`}>
+                  ({tab.count})
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
 
-      {/* ── Summary ── */}
-      {activeTab === 'summary' && (
-        <>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
-            <div className="card">
-              <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '16px', color: '#374151' }}>Commercial Summary</h3>
-              <div style={{ display: 'grid', gap: '12px' }}>
-                {[
-                  ['Project Code',      project.project_code || '-'],
-                  ['Project Name',      project.project_name || '-'],
-                  ['Client',            project.client?.client_name || '-'],
-                  ['Project Type',      project.project_type || '-'],
-                  ['Estimated Value',   project.project_estimated_value ? fmt(project.project_estimated_value) : '-'],
-                  ['PO Required',       project.po_required ? 'Yes' : 'No'],
-                  ['PO Status',         project.po_status || 'Pending'],
-                ].map(([k, v], i, arr) => (
-                  <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: i < arr.length - 1 ? '1px solid #e5e7eb' : undefined }}>
-                    <span style={{ color: '#6b7280' }}>{k}</span>
-                    <span style={{ fontWeight: 500 }}>{v}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+        {detailsLoading && activeTab !== 'summary' && (
+          <div className="py-12 text-center text-sm text-zinc-400">Loading...</div>
+        )}
 
-            <div className="card">
-              <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '16px', color: '#374151' }}>Execution Summary</h3>
-              <div style={{ display: 'grid', gap: '12px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #e5e7eb' }}>
-                  <span style={{ color: '#6b7280' }}>Status</span>
-                  <span style={{ background: getStatusColor(project.status).bg, color: getStatusColor(project.status).color, padding: '4px 12px', borderRadius: '12px', fontSize: '12px', fontWeight: 600 }}>
-                    {project.status || 'Draft'}
-                  </span>
-                </div>
-                {[
-                  ['Start Date',         fmtD(project.start_date)],
-                  ['Expected End Date',  fmtD(project.expected_end_date)],
-                  ['Actual End Date',    fmtD(project.actual_end_date)],
-                  ['Completion',         `${project.completion_percentage || 0}%`],
-                  ['Remarks',            project.remarks || '-'],
-                ].map(([k, v], i, arr) => (
-                  <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: i < arr.length - 1 ? '1px solid #e5e7eb' : undefined }}>
-                    <span style={{ color: '#6b7280' }}>{k}</span>
-                    <span style={{ fontWeight: 500, maxWidth: '200px', textAlign: 'right' }}>{v}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="card">
-            <h3 style={{ marginTop: 0, marginBottom: '16px', fontSize: '16px', color: '#374151' }}>Financial Summary</h3>
-            {!financialSummary ? (
-              <div style={{ padding: '16px', textAlign: 'center', color: '#6b7280', fontSize: '13px' }}>
-                Click the POs / Invoices / Payments / Expenses tabs to load financial data.
-              </div>
-            ) : (
-              <>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+        {/* ── Summary ── */}
+        {activeTab === 'summary' && (
+          <>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
+              {/* Commercial Summary */}
+              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm px-5 py-4">
+                <h2 className="text-[13px] font-bold uppercase tracking-widest text-zinc-500 mb-4">Commercial Summary</h2>
+                <div className="space-y-3">
                   {[
-                    { label: 'Total PO Value',           value: financialSummary.total_po_value,         bg: '#eff6ff', color: '#1d4ed8' },
-                    { label: 'Total Invoice Value',       value: financialSummary.total_invoice_value,    bg: '#fef3c7', color: '#b45309' },
-                    { label: 'Total Payment Received',    value: financialSummary.total_payment_received, bg: '#dcfce7', color: '#047857' },
-                    { label: 'Total Expense',             value: financialSummary.total_expense,          bg: '#fee2e2', color: '#dc2626' },
-                  ].map(({ label, value, bg, color }) => (
-                    <div key={label} style={{ background: bg, padding: '16px', borderRadius: '8px', textAlign: 'center' }}>
-                      <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '4px' }}>{label}</div>
-                      <div style={{ fontSize: '20px', fontWeight: 700, color }}>{fmt(value)}</div>
+                    ['Project Code', project.project_code || '-'],
+                    ['Project Name', project.project_name || '-'],
+                    ['Client', project.client?.client_name || '-'],
+                    ['Type', project.project_type || '-'],
+                    ['Est. Value', project.project_estimated_value ? fmt(project.project_estimated_value) : '-'],
+                    ['PO Required', project.po_required ? 'Yes' : 'No'],
+                    ['PO Status', project.po_status || 'Pending'],
+                  ].map(([k, v]) => (
+                    <div key={k} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+                      <span className="text-xs text-zinc-500 font-medium">{k}</span>
+                      <span className="text-sm text-zinc-900 font-medium">{v}</span>
                     </div>
                   ))}
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginTop: '16px' }}>
-                  <div style={{ background: '#f3f4f6', padding: '16px', borderRadius: '8px', textAlign: 'center' }}>
-                    <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '4px' }}>Outstanding Amount</div>
-                    <div style={{ fontSize: '24px', fontWeight: 700, color: financialSummary.outstanding_amount > 0 ? '#dc2626' : '#047857' }}>{fmt(financialSummary.outstanding_amount)}</div>
+              </div>
+
+              {/* Execution Summary */}
+              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm px-5 py-4">
+                <h2 className="text-[13px] font-bold uppercase tracking-widest text-zinc-500 mb-4">Execution Summary</h2>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between py-2 border-b border-gray-100">
+                    <span className="text-xs text-zinc-500 font-medium">Status</span>
+                    <div className="flex items-center gap-2">
+                      <span className={`w-2 h-2 rounded-full ${getStatusDot(project.status)}`} />
+                      <span className="text-sm font-medium text-zinc-900">{project.status || 'Draft'}</span>
+                    </div>
                   </div>
-                  <div style={{ background: '#f0fdf4', padding: '16px', borderRadius: '8px', textAlign: 'center' }}>
-                    <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '4px' }}>Profit</div>
-                    <div style={{ fontSize: '24px', fontWeight: 700, color: financialSummary.profit >= 0 ? '#047857' : '#dc2626' }}>{fmt(financialSummary.profit)}</div>
-                  </div>
-                  <div style={{ background: '#f5f3ff', padding: '16px', borderRadius: '8px', textAlign: 'center' }}>
-                    <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '4px' }}>PO Balance</div>
-                    <div style={{ fontSize: '24px', fontWeight: 700, color: financialSummary.po_balance >= 0 ? '#7c3aed' : '#dc2626' }}>{fmt(financialSummary.po_balance)}</div>
-                  </div>
+                  {[
+                    ['Start Date', fmtD(project.start_date)],
+                    ['Expected End', fmtD(project.expected_end_date)],
+                    ['Actual End', fmtD(project.actual_end_date)],
+                    ['Completion', `${project.completion_percentage || 0}%`],
+                    ['Remarks', project.remarks || '-'],
+                  ].map(([k, v]) => (
+                    <div key={k} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+                      <span className="text-xs text-zinc-500 font-medium">{k}</span>
+                      <span className="text-sm text-zinc-900 font-medium text-right max-w-[200px] truncate">{v}</span>
+                    </div>
+                  ))}
                 </div>
-              </>
+              </div>
+            </div>
+
+            {/* Financial Summary */}
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm px-5 py-4">
+              <h2 className="text-[13px] font-bold uppercase tracking-widest text-zinc-500 mb-4">Financial Summary</h2>
+              {!financialSummary ? (
+                <div className="py-8 text-center text-sm text-zinc-400">
+                  Click the POs / Invoices / Payments / Expenses tabs to load financial data.
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                    {[
+                      { label: 'Total PO Value', value: financialSummary.total_po_value, color: 'text-zinc-900' },
+                      { label: 'Total Invoice', value: financialSummary.total_invoice_value, color: 'text-zinc-900' },
+                      { label: 'Payment Received', value: financialSummary.total_payment_received, color: 'text-emerald-600' },
+                      { label: 'Total Expense', value: financialSummary.total_expense, color: 'text-red-600' },
+                    ].map(({ label, value, color }) => (
+                      <div key={label} className="bg-gray-50 rounded-xl p-4 text-center">
+                        <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 mb-2">{label}</div>
+                        <div className={`text-lg font-bold ${color}`}>{fmt(value)}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-3 gap-4">
+                    {[
+                      { label: 'Outstanding', value: financialSummary.outstanding_amount, color: financialSummary.outstanding_amount > 0 ? 'text-red-600' : 'text-emerald-600' },
+                      { label: 'Profit', value: financialSummary.profit, color: financialSummary.profit >= 0 ? 'text-emerald-600' : 'text-red-600' },
+                      { label: 'PO Balance', value: financialSummary.po_balance, color: financialSummary.po_balance >= 0 ? 'text-teal-600' : 'text-red-600' },
+                    ].map(({ label, value, color }) => (
+                      <div key={label} className="bg-gray-100 rounded-xl p-4 text-center">
+                        <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 mb-2">{label}</div>
+                        <div className={`text-xl font-bold ${color}`}>{fmt(value)}</div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* ── POs ── */}
+        {activeTab === 'pos' && (
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm px-5 py-4">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-bold text-zinc-900">Purchase Orders</h2>
+              <button
+                onClick={() => navigate(`/client-po/create?project_id=${project.id}`)}
+                className="inline-flex items-center gap-2 bg-teal-300 text-zinc-900 rounded-full px-4 py-2 text-sm font-semibold hover:bg-teal-400 transition-colors"
+              >
+                <Plus size={14} />
+                Create PO
+              </button>
+            </div>
+            {projectPOs.length === 0 ? (
+              <div className="py-12 text-center">
+                <Package size={40} strokeWidth={1} className="mx-auto text-zinc-300 mb-2" />
+                <p className="text-sm text-zinc-400">No POs found</p>
+              </div>
+            ) : (
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-zinc-500">PO Number</th>
+                    <th className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Date</th>
+                    <th className="px-4 py-2 text-right text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Total Value</th>
+                    <th className="px-4 py-2 text-right text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Utilized</th>
+                    <th className="px-4 py-2 text-right text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Available</th>
+                    <th className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {projectPOs.map(po => (
+                    <tr key={po.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                      <td className="px-4 py-3 text-sm text-zinc-900 font-medium">{po.po_number}</td>
+                      <td className="px-4 py-3 text-sm text-zinc-600">{fmtD(po.po_date)}</td>
+                      <td className="px-4 py-3 text-sm text-zinc-900 text-right font-medium">{fmt(po.po_total_value)}</td>
+                      <td className="px-4 py-3 text-sm text-zinc-600 text-right">{fmt(po.po_utilized_value)}</td>
+                      <td className="px-4 py-3 text-sm text-zinc-600 text-right">{fmt(po.po_available_value)}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <span className={`w-2 h-2 rounded-full ${getPOStatusDot(po.status)}`} />
+                          <span className="text-[11px] font-medium px-2 py-0.5 bg-gray-100 text-zinc-700 rounded-full">{po.status}</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             )}
           </div>
-        </>
-      )}
+        )}
 
-      {/* ── POs ── */}
-      {activeTab === 'pos' && (
-        <div className="card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-            <h3 style={{ margin: 0 }}>Purchase Orders</h3>
-            <button className="btn btn-primary" onClick={() => navigate(`/client-po/create?project_id=${project.id}`)}>+ Create PO</button>
-          </div>
-          {projectPOs.length === 0 ? <div className="empty-state"><p>No POs found</p></div> : (
-            <table className="table">
-              <thead><tr><th>PO Number</th><th>PO Date</th><th>Total Value</th><th>Utilized</th><th>Available</th><th>Status</th></tr></thead>
-              <tbody>
-                {projectPOs.map(po => (
-                  <tr key={po.id}>
-                    <td>{po.po_number}</td>
-                    <td>{fmtD(po.po_date)}</td>
-                    <td>{fmt(po.po_total_value)}</td>
-                    <td>{fmt(po.po_utilized_value)}</td>
-                    <td>{fmt(po.po_available_value)}</td>
-                    <td>{po.status}</td>
+        {/* ── Invoices ── */}
+        {activeTab === 'invoices' && (
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm px-5 py-4">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-bold text-zinc-900">Invoices</h2>
+              <button
+                onClick={() => navigate(`/projects/invoice/new?project_id=${project.id}`)}
+                className="inline-flex items-center gap-2 bg-teal-300 text-zinc-900 rounded-full px-4 py-2 text-sm font-semibold hover:bg-teal-400 transition-colors"
+              >
+                <Plus size={14} />
+                Create Invoice
+              </button>
+            </div>
+            {projectInvoices.length === 0 ? (
+              <div className="py-12 text-center">
+                <Package size={40} strokeWidth={1} className="mx-auto text-zinc-300 mb-2" />
+                <p className="text-sm text-zinc-400">No invoices found</p>
+              </div>
+            ) : (
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Invoice</th>
+                    <th className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Date</th>
+                    <th className="px-4 py-2 text-right text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Amount</th>
+                    <th className="px-4 py-2 text-right text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Tax</th>
+                    <th className="px-4 py-2 text-right text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Total</th>
+                    <th className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      )}
+                </thead>
+                <tbody>
+                  {projectInvoices.map(inv => (
+                    <tr key={inv.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                      <td className="px-4 py-3 text-sm text-zinc-900 font-medium">{inv.invoice_number}</td>
+                      <td className="px-4 py-3 text-sm text-zinc-600">{fmtD(inv.invoice_date)}</td>
+                      <td className="px-4 py-3 text-sm text-zinc-600 text-right">{fmt(inv.invoice_amount)}</td>
+                      <td className="px-4 py-3 text-sm text-zinc-600 text-right">{fmt(inv.tax_amount)}</td>
+                      <td className="px-4 py-3 text-sm text-zinc-900 text-right font-semibold">{fmt(inv.total_amount)}</td>
+                      <td className="px-4 py-3 text-[11px] font-medium px-2 py-0.5 bg-gray-100 text-zinc-700 rounded-full">{inv.status}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
 
-      {/* ── Invoices ── */}
-      {activeTab === 'invoices' && (
-        <div className="card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-            <h3 style={{ margin: 0 }}>Invoices</h3>
-            <button className="btn btn-primary" onClick={() => navigate(`/projects/invoice/new?project_id=${project.id}`)}>+ Create Invoice</button>
-          </div>
-          {projectInvoices.length === 0 ? <div className="empty-state"><p>No invoices found</p></div> : (
-            <table className="table">
-              <thead><tr><th>Invoice Number</th><th>Date</th><th>Amount</th><th>Tax</th><th>Total</th><th>Status</th></tr></thead>
-              <tbody>
-                {projectInvoices.map(inv => (
-                  <tr key={inv.id}>
-                    <td>{inv.invoice_number}</td>
-                    <td>{fmtD(inv.invoice_date)}</td>
-                    <td>{fmt(inv.invoice_amount)}</td>
-                    <td>{fmt(inv.tax_amount)}</td>
-                    <td>{fmt(inv.total_amount)}</td>
-                    <td>{inv.status}</td>
+        {/* ── Payments ── */}
+        {activeTab === 'payments' && (
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm px-5 py-4">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-bold text-zinc-900">Payments</h2>
+              <button
+                onClick={() => navigate(`/projects/payment/new?project_id=${project.id}`)}
+                className="inline-flex items-center gap-2 bg-teal-300 text-zinc-900 rounded-full px-4 py-2 text-sm font-semibold hover:bg-teal-400 transition-colors"
+              >
+                <Plus size={14} />
+                Record Payment
+              </button>
+            </div>
+            {projectPayments.length === 0 ? (
+              <div className="py-12 text-center">
+                <Package size={40} strokeWidth={1} className="mx-auto text-zinc-300 mb-2" />
+                <p className="text-sm text-zinc-400">No payments found</p>
+              </div>
+            ) : (
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Payment</th>
+                    <th className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Date</th>
+                    <th className="px-4 py-2 text-right text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Amount</th>
+                    <th className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Mode</th>
+                    <th className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Reference</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      )}
+                </thead>
+                <tbody>
+                  {projectPayments.map(pay => (
+                    <tr key={pay.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                      <td className="px-4 py-3 text-sm text-zinc-900 font-medium">{pay.payment_number}</td>
+                      <td className="px-4 py-3 text-sm text-zinc-600">{fmtD(pay.payment_date)}</td>
+                      <td className="px-4 py-3 text-sm text-emerald-600 text-right font-semibold">{fmt(pay.payment_amount)}</td>
+                      <td className="px-4 py-3 text-sm text-zinc-600">{pay.payment_mode}</td>
+                      <td className="px-4 py-3 text-sm text-zinc-600">{pay.reference_number || '-'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
 
-      {/* ── Payments ── */}
-      {activeTab === 'payments' && (
-        <div className="card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-            <h3 style={{ margin: 0 }}>Payments</h3>
-            <button className="btn btn-primary" onClick={() => navigate(`/projects/payment/new?project_id=${project.id}`)}>+ Record Payment</button>
-          </div>
-          {projectPayments.length === 0 ? <div className="empty-state"><p>No payments found</p></div> : (
-            <table className="table">
-              <thead><tr><th>Payment Number</th><th>Date</th><th>Amount</th><th>Mode</th><th>Reference</th></tr></thead>
-              <tbody>
-                {projectPayments.map(pay => (
-                  <tr key={pay.id}>
-                    <td>{pay.payment_number}</td>
-                    <td>{fmtD(pay.payment_date)}</td>
-                    <td>{fmt(pay.payment_amount)}</td>
-                    <td>{pay.payment_mode}</td>
-                    <td>{pay.reference_number || '-'}</td>
+        {/* ── Expenses ── */}
+        {activeTab === 'expenses' && (
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm px-5 py-4">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-bold text-zinc-900">Expenses</h2>
+              <button
+                onClick={() => navigate(`/projects/expense/new?project_id=${project.id}`)}
+                className="inline-flex items-center gap-2 bg-teal-300 text-zinc-900 rounded-full px-4 py-2 text-sm font-semibold hover:bg-teal-400 transition-colors"
+              >
+                <Plus size={14} />
+                Add Expense
+              </button>
+            </div>
+            {projectExpenses.length === 0 ? (
+              <div className="py-12 text-center">
+                <Package size={40} strokeWidth={1} className="mx-auto text-zinc-300 mb-2" />
+                <p className="text-sm text-zinc-400">No expenses found</p>
+              </div>
+            ) : (
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Date</th>
+                    <th className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Type</th>
+                    <th className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Description</th>
+                    <th className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Vendor</th>
+                    <th className="px-4 py-2 text-right text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Amount</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      )}
-
-      {/* ── Expenses ── */}
-      {activeTab === 'expenses' && (
-        <div className="card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-            <h3 style={{ margin: 0 }}>Expenses</h3>
-            <button className="btn btn-primary" onClick={() => navigate(`/projects/expense/new?project_id=${project.id}`)}>+ Add Expense</button>
+                </thead>
+                <tbody>
+                  {projectExpenses.map(exp => (
+                    <tr key={exp.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                      <td className="px-4 py-3 text-sm text-zinc-600">{fmtD(exp.expense_date)}</td>
+                      <td className="px-4 py-3 text-sm text-zinc-900 font-medium">{exp.expense_type}</td>
+                      <td className="px-4 py-3 text-sm text-zinc-600">{exp.description || '-'}</td>
+                      <td className="px-4 py-3 text-sm text-zinc-600">{exp.vendor_name || '-'}</td>
+                      <td className="px-4 py-3 text-sm text-red-600 text-right font-semibold">{fmt(exp.amount)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
-          {projectExpenses.length === 0 ? <div className="empty-state"><p>No expenses found</p></div> : (
-            <table className="table">
-              <thead><tr><th>Date</th><th>Type</th><th>Description</th><th>Vendor</th><th>Amount</th></tr></thead>
-              <tbody>
-                {projectExpenses.map(exp => (
-                  <tr key={exp.id}>
-                    <td>{fmtD(exp.expense_date)}</td>
-                    <td>{exp.expense_type}</td>
-                    <td>{exp.description || '-'}</td>
-                    <td>{exp.vendor_name || '-'}</td>
-                    <td>{fmt(exp.amount)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
