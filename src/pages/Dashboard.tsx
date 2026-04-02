@@ -1,6 +1,34 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../supabase';
+import { useAuth } from '../App';
+import { format, formatDistanceToNow, isToday, parseISO } from 'date-fns';
+import {
+  MapPin,
+  CheckCircle,
+  Phone,
+  Calendar,
+  FileText,
+  Receipt,
+  Truck,
+  ChevronDown,
+  ChevronUp,
+  RefreshCw,
+  User,
+  Building2,
+  Activity,
+  Plus,
+  MessageSquare,
+  Package,
+} from 'lucide-react';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '../components/ui/table';
 
 export const DASHBOARD_QUERY_KEYS = {
   todaySites: (date: string) => ['dashboard-today-sites', date] as const,
@@ -44,60 +72,6 @@ export function invalidateDashboardQueries(queryClient: ReturnType<typeof useQue
     if (key) queryClient.invalidateQueries({ queryKey: key });
   });
 }
-import { useAuth } from '../App';
-import { format, formatDistanceToNow, isToday, parseISO } from 'date-fns';
-import {
-  DndContext,
-  closestCenter,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-} from '@dnd-kit/core';
-import {
-  SortableContext,
-  useSortable,
-  rectSortingStrategy,
-  arrayMove,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-import {
-  MapPin,
-  CheckCircle,
-  Phone,
-  Calendar,
-  FileText,
-  Receipt,
-  Truck,
-  ChevronDown,
-  ChevronUp,
-  GripVertical,
-  Clock,
-  User,
-  Building2,
-  AlertCircle,
-  Activity,
-  Plus,
-  Eye,
-  MessageSquare,
-  Package,
-  FileCheck,
-  CreditCard,
-  ArrowRight,
-  RefreshCw,
-} from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card';
-import { Badge } from '../components/ui/Badge';
-import { Button } from '../components/ui/button';
-import { Skeleton } from '../components/ui/skeleton';
-import {
-  Table,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableHead,
-  TableCell,
-} from '../components/ui/table';
 
 type DashboardCardId =
   | 'today-site'
@@ -119,23 +93,28 @@ type CardConfig = {
 const DEFAULT_CARDS: CardConfig[] = [
   { id: 'today-site', title: 'Today Site', icon: <MapPin size={18} />, iconColor: '#3b82f6', row: 0 },
   { id: 'approvals', title: 'Approvals', icon: <CheckCircle size={18} />, iconColor: '#22c55e', row: 0 },
-  { id: 'client-communication', title: 'Client Communication', icon: <Phone size={18} />, iconColor: '#6366f1', row: 1 },
+  { id: 'client-communication', title: 'Client Communication', icon: <Phone size={18} />, iconColor: '#3b82f6', row: 0 },
   { id: 'site-visit-plan', title: 'Site Visit Plan', icon: <Calendar size={18} />, iconColor: '#f59e0b', row: 1 },
-  { id: 'quotation-approval', title: 'Quotation Approval', icon: <FileText size={18} />, iconColor: '#a855f7', row: 2 },
+  { id: 'quotation-approval', title: 'Quotation Approval', icon: <FileText size={18} />, iconColor: '#a855f7', row: 1 },
   { id: 'invoice', title: 'Invoice', icon: <Receipt size={18} />, iconColor: '#ec4899', row: 2 },
   { id: 'delivery-challan', title: 'Delivery Challan', icon: <Truck size={18} />, iconColor: '#06b6d4', row: 2 },
 ];
 
 function StatusBadge({ status }: { status: string }) {
   const s = (status || '').toLowerCase();
-  let variant: 'default' | 'success' | 'warning' | 'error' | 'info' | 'neutral' = 'neutral';
+  let badgeClass = 'bg-slate-100 text-slate-700';
 
-  if (s === 'completed' || s === 'approved' || s === 'active') variant = 'success';
-  else if (s === 'pending' || s === 'pending approval' || s === 'draft') variant = 'warning';
-  else if (s === 'scheduled') variant = 'info';
-  else if (s === 'cancelled' || s === 'rejected') variant = 'error';
+  if (s === 'completed' || s === 'approved' || s === 'active') badgeClass = 'bg-emerald-100 text-emerald-700';
+  else if (s === 'pending' || s === 'pending approval') badgeClass = 'bg-amber-100 text-amber-700';
+  else if (s === 'draft') badgeClass = 'bg-orange-100 text-orange-700';
+  else if (s === 'scheduled') badgeClass = 'bg-blue-100 text-blue-700';
+  else if (s === 'cancelled' || s === 'rejected') badgeClass = 'bg-red-100 text-red-700';
 
-  return <Badge variant={variant} size="sm">{status || '-'}</Badge>;
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${badgeClass}`}>
+      {status || '-'}
+    </span>
+  );
 }
 
 function CardSkeleton({ rows = 3 }: { rows?: number }) {
@@ -143,10 +122,10 @@ function CardSkeleton({ rows = 3 }: { rows?: number }) {
     <div className="p-4 space-y-3">
       {Array.from({ length: rows }).map((_, i) => (
         <div key={i} className="flex items-center gap-3">
-          <Skeleton className="w-8 h-8 rounded-lg" />
+          <div className="w-8 h-8 rounded-lg bg-slate-100 animate-pulse" />
           <div className="flex-1 space-y-1.5">
-            <Skeleton className="h-3 w-3/4" />
-            <Skeleton className="h-2 w-1/2" />
+            <div className="h-3 bg-slate-100 rounded animate-pulse w-3/4" />
+            <div className="h-2 bg-slate-50 rounded animate-pulse w-1/2" />
           </div>
         </div>
       ))}
@@ -163,113 +142,42 @@ function EmptyState({ message, icon }: { message: string; icon?: React.ReactNode
   );
 }
 
-function DashboardCardFrame({
+function DashboardCard({
   config,
   collapsed,
   onToggle,
-  dragHandle,
   children,
 }: {
   config: CardConfig;
   collapsed: boolean;
   onToggle: () => void;
-  dragHandle?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
-    <Card className="flex flex-col h-full">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+    <div className="bg-card border border-border rounded-lg shadow-sm">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
         <div className="flex items-center gap-3">
           <div
-            className="w-10 h-10 rounded-lg flex items-center justify-center"
+            className="w-9 h-9 rounded-lg flex items-center justify-center"
             style={{ backgroundColor: `${config.iconColor}15`, color: config.iconColor }}
           >
             {config.icon}
           </div>
-          <CardTitle className="text-base">{config.title}</CardTitle>
-          {dragHandle}
+          <h3 className="text-base font-semibold text-foreground">{config.title}</h3>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
+        <button
           onClick={onToggle}
-          className="p-1.5"
+          className="p-1.5 rounded-lg hover:bg-accent transition-colors"
+          type="button"
         >
           <ChevronUp
             size={16}
-            className={`transition-transform ${collapsed ? 'rotate-180' : ''}`}
+            className={`transition-transform duration-200 ${collapsed ? 'rotate-180' : ''}`}
           />
-        </Button>
-      </CardHeader>
-      {!collapsed && <CardContent className="flex-1 overflow-auto pt-0">{children}</CardContent>}
-    </Card>
-  );
-}
-
-function SortableCard({
-  id,
-  config,
-  collapsed,
-  onToggle,
-  children,
-}: {
-  id: string;
-  config: CardConfig;
-  collapsed: boolean;
-  onToggle: () => void;
-  children: React.ReactNode;
-}) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useSortable({
-    id,
-    animateLayoutChanges: () => false,
-  });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition: undefined,
-    opacity: isDragging ? 0.65 : 1,
-    zIndex: isDragging ? 50 : 'auto',
-  };
-
-  return (
-    <div ref={setNodeRef} style={style} className={isDragging ? 'ring-2 ring-slate-200 rounded-lg' : undefined}>
-      <DashboardCardFrame
-        config={config}
-        collapsed={collapsed}
-        onToggle={onToggle}
-        dragHandle={
-          <button
-            {...attributes}
-            {...listeners}
-            className="cursor-grab active:cursor-grabbing p-1 rounded-lg hover:bg-slate-100 transition-colors ml-1"
-            title="Drag to reorder"
-            type="button"
-          >
-            <GripVertical size={14} className="text-muted-foreground" />
-          </button>
-        }
-      >
-        {children}
-      </DashboardCardFrame>
+        </button>
+      </div>
+      {!collapsed && <div className="p-4">{children}</div>}
     </div>
-  );
-}
-
-function StaticCard({
-  config,
-  collapsed,
-  onToggle,
-  children,
-}: {
-  config: CardConfig;
-  collapsed: boolean;
-  onToggle: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <DashboardCardFrame config={config} collapsed={collapsed} onToggle={onToggle}>
-      {children}
-    </DashboardCardFrame>
   );
 }
 
@@ -307,7 +215,7 @@ function TodaySiteCard() {
       {visits.map((v: any) => (
         <div
           key={v.id}
-          className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100"
+          className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted transition-colors"
         >
           <div className="w-2 h-2 rounded-full bg-slate-400 flex-shrink-0" />
           <div className="flex-1 min-w-0">
@@ -363,7 +271,7 @@ function ApprovalsCard() {
       {pendingApprovals.map((q: any) => (
         <div
           key={q.id}
-          className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100"
+          className="flex items-center justify-between p-3 rounded-lg hover:bg-muted transition-colors"
         >
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-foreground truncate">{q.quotation_no}</p>
@@ -429,15 +337,15 @@ function ClientCommunicationCard() {
     <div className="overflow-x-auto">
       <Table>
         <TableHeader>
-          <TableRow className="border-b border-slate-100">
-            <TableHead className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Created By</TableHead>
-            <TableHead className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Client</TableHead>
-            <TableHead className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Call Brief</TableHead>
+          <TableRow className="border-b border-border">
+            <TableHead className="text-xs uppercase tracking-wide text-muted-foreground font-semibold bg-muted">Created By</TableHead>
+            <TableHead className="text-xs uppercase tracking-wide text-muted-foreground font-semibold bg-muted">Client</TableHead>
+            <TableHead className="text-xs uppercase tracking-wide text-muted-foreground font-semibold bg-muted">Call Brief</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {comms.map((c: any) => (
-            <TableRow key={c.id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
+            <TableRow key={c.id} className="border-b border-border hover:bg-muted transition-colors">
               <TableCell className="text-sm text-foreground py-3">{c.call_entered_by || c.call_received_by || '-'}</TableCell>
               <TableCell className="text-sm font-medium text-foreground max-w-[140px] truncate py-3">
                 {clientMap.get(c.client_id) || '-'}
@@ -487,15 +395,15 @@ function SiteVisitPlanCard() {
     <div className="overflow-x-auto">
       <Table>
         <TableHeader>
-          <TableRow className="border-b border-slate-100">
-            <TableHead className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Date</TableHead>
-            <TableHead className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Client</TableHead>
-            <TableHead className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Visit By</TableHead>
+          <TableRow className="border-b border-border">
+            <TableHead className="text-xs uppercase tracking-wide text-muted-foreground font-semibold bg-muted">Date</TableHead>
+            <TableHead className="text-xs uppercase tracking-wide text-muted-foreground font-semibold bg-muted">Client</TableHead>
+            <TableHead className="text-xs uppercase tracking-wide text-muted-foreground font-semibold bg-muted">Visit By</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {visits.map((v: any) => (
-            <TableRow key={v.id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
+            <TableRow key={v.id} className="border-b border-border hover:bg-muted transition-colors">
               <TableCell className="text-sm text-foreground whitespace-nowrap py-3">
                 <span className={`flex items-center gap-1 ${isToday(parseISO(v.visit_date)) ? 'font-semibold text-foreground' : 'text-muted-foreground'}`}>
                   <Calendar size={12} />
@@ -549,7 +457,7 @@ function QuotationApprovalCard() {
       {quotations.map((q: any) => (
         <div
           key={q.id}
-          className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100"
+          className="flex items-center justify-between p-3 rounded-lg hover:bg-muted transition-colors"
         >
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-foreground">{q.quotation_no}</p>
@@ -594,7 +502,7 @@ function InvoiceCard() {
       {invoices.map((inv: any) => (
         <div
           key={inv.id}
-          className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100"
+          className="flex items-center justify-between p-3 rounded-lg hover:bg-muted transition-colors"
         >
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-foreground">{inv.invoice_number || `INV-${inv.id?.slice(0, 6)}`}</p>
@@ -646,7 +554,7 @@ function DeliveryChallanCard() {
       {challans.map((dc: any) => (
         <div
           key={dc.id}
-          className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100"
+          className="flex items-center justify-between p-3 rounded-lg hover:bg-muted transition-colors"
         >
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-foreground">{dc.dc_number}</p>
@@ -659,9 +567,7 @@ function DeliveryChallanCard() {
               )}
             </div>
           </div>
-          <div className="flex items-center gap-2 ml-2">
-            <StatusBadge status={dc.status} />
-          </div>
+          <StatusBadge status={dc.status} />
         </div>
       ))}
     </div>
@@ -718,31 +624,31 @@ function RecentUpdates() {
   });
 
   return (
-    <Card className="h-full flex flex-col">
-      <CardHeader className="pb-4">
+    <div className="bg-card border border-border rounded-lg shadow-sm h-full flex flex-col">
+      <div className="px-4 py-3 border-b border-border">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-slate-900 flex items-center justify-center">
+          <div className="w-9 h-9 rounded-lg bg-slate-900 flex items-center justify-center">
             <Activity size={18} className="text-white" />
           </div>
           <div>
-            <CardTitle className="text-base">Recent Updates</CardTitle>
-            <p className="text-xs text-muted-foreground mt-0.5">Activity across all modules</p>
+            <h3 className="text-base font-semibold text-foreground">Recent Updates</h3>
+            <p className="text-xs text-muted-foreground">Activity across all modules</p>
           </div>
         </div>
-      </CardHeader>
-      <CardContent className="flex-1 overflow-y-auto pt-0">
+      </div>
+      <div className="flex-1 overflow-y-auto max-h-[400px] p-4">
         {isLoading ? (
           <CardSkeleton rows={8} />
         ) : recentItems.length === 0 ? (
           <EmptyState message="No recent activity" icon={<Activity size={48} strokeWidth={1} className="text-muted-foreground" />} />
         ) : (
           <div className="relative">
-            <div className="absolute left-[19px] top-2 bottom-2 w-px bg-slate-100" />
+            <div className="absolute left-[19px] top-2 bottom-2 w-px bg-border" />
             <div className="space-y-1">
               {recentItems.map((item: any, i: number) => (
                 <div
                   key={`${item.type}-${item.id}-${i}`}
-                  className="flex items-start gap-3 p-3 rounded-lg hover:bg-slate-50 transition-colors relative"
+                  className="flex items-start gap-3 p-3 rounded-lg hover:bg-muted transition-colors relative"
                 >
                   <div
                     className="w-[38px] h-[38px] rounded-full flex items-center justify-center flex-shrink-0 z-10"
@@ -761,8 +667,8 @@ function RecentUpdates() {
             </div>
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 
@@ -776,43 +682,16 @@ const CARD_CONTENT_MAP: Record<DashboardCardId, () => React.ReactNode> = {
   'delivery-challan': () => <DeliveryChallanCard />,
 };
 
+const CARD_CONFIG_MAP: Record<DashboardCardId, CardConfig> = DEFAULT_CARDS.reduce((acc, card) => {
+  acc[card.id] = card;
+  return acc;
+}, {} as Record<DashboardCardId, CardConfig>);
+
 export default function Dashboard({ onNavigate }: { onNavigate?: (path: string) => void }) {
   const { user, organisation } = useAuth();
   const queryClient = useQueryClient();
-  const [isReorderMode, setIsReorderMode] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [cardOrder, setCardOrder] = useState<DashboardCardId[]>(() => {
-    if (typeof window === 'undefined') return DEFAULT_CARDS.map((c) => c.id);
-
-    try {
-      const raw = window.localStorage.getItem('dashboard-card-order');
-      if (!raw) return DEFAULT_CARDS.map((c) => c.id);
-      const parsed = JSON.parse(raw);
-      if (!Array.isArray(parsed)) return DEFAULT_CARDS.map((c) => c.id);
-
-      const allowed = new Set(DEFAULT_CARDS.map((c) => c.id));
-      const next = parsed.filter((id) => allowed.has(id)) as DashboardCardId[];
-      const missing = DEFAULT_CARDS.map((c) => c.id).filter((id) => !next.includes(id));
-      return [...next, ...missing];
-    } catch {
-      return DEFAULT_CARDS.map((c) => c.id);
-    }
-  });
   const [collapsedCards, setCollapsedCards] = useState<Set<DashboardCardId>>(new Set());
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
-  );
-
-  const handleDragEnd = useCallback((event: DragEndEvent) => {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-    setCardOrder((prev) => {
-      const oldIndex = prev.indexOf(active.id as DashboardCardId);
-      const newIndex = prev.indexOf(over.id as DashboardCardId);
-      return arrayMove(prev, oldIndex, newIndex);
-    });
-  }, []);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const toggleCard = useCallback((id: DashboardCardId) => {
     setCollapsedCards((prev) => {
@@ -829,25 +708,9 @@ export default function Dashboard({ onNavigate }: { onNavigate?: (path: string) 
     setTimeout(() => setIsRefreshing(false), 500);
   }, [queryClient]);
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    try {
-      window.localStorage.setItem('dashboard-card-order', JSON.stringify(cardOrder));
-    } catch {
-      // ignore storage failures (quota/private mode)
-    }
-  }, [cardOrder]);
-
-  const configMap = useMemo(() => {
-    const m = new Map<DashboardCardId, CardConfig>();
-    DEFAULT_CARDS.forEach((c) => m.set(c.id, c));
-    return m;
-  }, []);
-
-  const row1 = cardOrder.filter((id) => configMap.get(id)?.row === 0);
-  const row2 = cardOrder.filter((id) => configMap.get(id)?.row === 1);
-  const row3 = cardOrder.filter((id) => configMap.get(id)?.row === 2);
+  const row1Cards = DEFAULT_CARDS.filter(c => c.row === 0);
+  const row2Cards = DEFAULT_CARDS.filter(c => c.row === 1);
+  const row3Cards = DEFAULT_CARDS.filter(c => c.row === 2);
 
   return (
     <div className="min-h-screen bg-background">
@@ -860,41 +723,30 @@ export default function Dashboard({ onNavigate }: { onNavigate?: (path: string) 
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              variant="secondary"
-              size="sm"
+            <button
               onClick={handleRefresh}
-              leftIcon={<RefreshCw size={14} className={isRefreshing ? 'animate-spin' : ''} />}
               disabled={isRefreshing}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold text-foreground bg-white border border-border rounded-md hover:bg-muted transition-colors disabled:opacity-50"
             >
+              <RefreshCw size={14} className={isRefreshing ? 'animate-spin' : ''} />
               Refresh
-            </Button>
-            <Button
-              variant={isReorderMode ? 'primary' : 'secondary'}
-              size="sm"
-              onClick={() => setIsReorderMode((prev) => !prev)}
-              leftIcon={<GripVertical size={14} />}
-            >
-              {isReorderMode ? 'Done' : 'Reorder'}
-            </Button>
+            </button>
             {onNavigate && (
               <>
-                <Button
-                  variant="primary"
-                  size="sm"
+                <button
                   onClick={() => onNavigate('/dc/create')}
-                  leftIcon={<Plus size={14} />}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold text-white bg-black hover:bg-slate-900 rounded-md transition-colors"
                 >
+                  <Plus size={14} />
                   Create DC
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="sm"
+                </button>
+                <button
                   onClick={() => onNavigate('/clients/new')}
-                  leftIcon={<Building2 size={14} />}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold text-foreground bg-white border border-border rounded-md hover:bg-muted transition-colors"
                 >
+                  <Building2 size={14} />
                   Add Client
-                </Button>
+                </button>
               </>
             )}
           </div>
@@ -903,60 +755,49 @@ export default function Dashboard({ onNavigate }: { onNavigate?: (path: string) 
 
       <div className="max-w-[1600px] mx-auto px-6 py-6">
         <div className="flex gap-6">
-          <div className="flex-1 min-w-0">
-            {isReorderMode ? (
-              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                <div className="space-y-6">
-                  {[row1, row2, row3].map((rowCards, ri) => (
-                    <SortableContext key={ri} items={rowCards} strategy={rectSortingStrategy}>
-                      <div className={`grid gap-6 ${rowCards.length === 3 ? 'lg:grid-cols-3' : 'lg:grid-cols-2'}`}>
-                        {rowCards.map((id) => {
-                          const config = configMap.get(id)!;
-                          return (
-                            <SortableCard
-                              key={id}
-                              id={id}
-                              config={config}
-                              collapsed={collapsedCards.has(id)}
-                              onToggle={() => toggleCard(id)}
-                            >
-                              {CARD_CONTENT_MAP[id]()}
-                            </SortableCard>
-                          );
-                        })}
-                      </div>
-                    </SortableContext>
-                  ))}
-                </div>
-              </DndContext>
-            ) : (
-              <div className="space-y-6">
-                {[row1, row2, row3].map((rowCards, ri) => (
-                  <div
-                    key={ri}
-                    className={`grid gap-6 ${rowCards.length === 3 ? 'lg:grid-cols-3' : 'lg:grid-cols-2'}`}
-                  >
-                    {rowCards.map((id) => {
-                      const config = configMap.get(id)!;
-                      return (
-                        <StaticCard
-                          key={id}
-                          config={config}
-                          collapsed={collapsedCards.has(id)}
-                          onToggle={() => toggleCard(id)}
-                        >
-                          {CARD_CONTENT_MAP[id]()}
-                        </StaticCard>
-                      );
-                    })}
-                  </div>
-                ))}
-              </div>
-            )}
+          <div className="flex-1 min-w-0 space-y-6">
+            <div className="grid gap-6 lg:grid-cols-3">
+              {row1Cards.map((card) => (
+                <DashboardCard
+                  key={card.id}
+                  config={card}
+                  collapsed={collapsedCards.has(card.id)}
+                  onToggle={() => toggleCard(card.id)}
+                >
+                  {CARD_CONTENT_MAP[card.id]()}
+                </DashboardCard>
+              ))}
+            </div>
+
+            <div className="grid gap-6 lg:grid-cols-2">
+              {row2Cards.map((card) => (
+                <DashboardCard
+                  key={card.id}
+                  config={card}
+                  collapsed={collapsedCards.has(card.id)}
+                  onToggle={() => toggleCard(card.id)}
+                >
+                  {CARD_CONTENT_MAP[card.id]()}
+                </DashboardCard>
+              ))}
+            </div>
+
+            <div className="grid gap-6 lg:grid-cols-2">
+              {row3Cards.map((card) => (
+                <DashboardCard
+                  key={card.id}
+                  config={card}
+                  collapsed={collapsedCards.has(card.id)}
+                  onToggle={() => toggleCard(card.id)}
+                >
+                  {CARD_CONTENT_MAP[card.id]()}
+                </DashboardCard>
+              ))}
+            </div>
           </div>
 
           <div className="w-[340px] flex-shrink-0 hidden lg:block">
-            <div className="sticky top-[89px]" style={{ maxHeight: 'calc(100vh - 110px)' }}>
+            <div className="sticky top-[89px]">
               <RecentUpdates />
             </div>
           </div>
