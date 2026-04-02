@@ -28,6 +28,13 @@ export function formatCurrency(value: number) {
   }).format(value || 0);
 }
 
+export function formatCurrencyExplicit(value: number) {
+  return `Rs. ${new Intl.NumberFormat('en-IN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value || 0)}`;
+}
+
 export function formatDisplayDate(value?: string | null) {
   if (!value) return '-';
   try {

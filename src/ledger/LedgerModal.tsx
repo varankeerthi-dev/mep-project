@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/dialog';
 import type { LedgerClient } from './api';
 import type { LedgerSummaryRow } from './utils';
-import { buildLedgerStatementRows, formatCurrency, formatDisplayDate } from './utils';
+import { buildLedgerStatementRows, formatCurrency, formatCurrencyExplicit, formatDisplayDate } from './utils';
 
 type Props = {
   open: boolean;
@@ -35,44 +35,7 @@ function getOrganisationLine(organisation: Record<string, unknown> | null) {
   };
 }
 
-function createPrintDocument(title: string, html: string) {
-  const popup = window.open('', '_blank', 'noopener,noreferrer,width=1024,height=768');
-  if (!popup) {
-    throw new Error('Unable to open print preview window.');
-  }
-
-  popup.document.open();
-  popup.document.write(`
-    <!doctype html>
-    <html>
-      <head>
-        <title>${title}</title>
-        <style>
-          body { font-family: Arial, sans-serif; margin: 0; padding: 24px; color: #0f172a; }
-          .sheet { max-width: 900px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 18px; padding: 24px; }
-          .meta { display: flex; justify-content: space-between; gap: 24px; margin-bottom: 24px; }
-          .panel h2 { margin: 0 0 8px; font-size: 16px; }
-          .panel p { margin: 0; font-size: 12px; line-height: 1.6; color: #475569; }
-          table { width: 100%; border-collapse: collapse; margin-top: 18px; }
-          th, td { border: 1px solid #e2e8f0; padding: 10px 12px; font-size: 12px; text-align: left; }
-          th { background: #f8fafc; text-transform: uppercase; letter-spacing: 0.08em; font-size: 11px; color: #64748b; }
-          .num { text-align: right; }
-          .totals { width: 320px; margin-left: auto; margin-top: 18px; }
-          .totals-row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 12px; border-bottom: 1px solid #e2e8f0; }
-          .totals-row.total { font-weight: 700; font-size: 14px; color: #0f172a; border-bottom: 0; padding-top: 12px; }
-        </style>
-      </head>
-      <body>
-        ${html}
-      </body>
-    </html>
-  `);
-  popup.document.close();
-  popup.focus();
-  popup.print();
-}
-
-function downloadLedgerPdf(
+function buildLedgerPdfDoc(
   organisation: ReturnType<typeof getOrganisationLine>,
   client: LedgerClient,
   rows: ReturnType<typeof buildLedgerStatementRows>,
@@ -84,34 +47,45 @@ function downloadLedgerPdf(
   const totalDebit = rows.reduce((sum, row) => sum + row.debit, 0);
   const totalCredit = rows.reduce((sum, row) => sum + row.credit, 0);
 
+  doc.setDrawColor(226, 232, 240);
+  doc.setFillColor(248, 250, 252);
+  doc.roundedRect(28, 26, 539, 770, 18, 18, 'S');
+
   doc.setFontSize(18);
-  doc.text('Ledger Statement', 40, 44);
-  doc.setFontSize(10);
-  doc.setTextColor(100);
-  doc.text(`Range: ${rangeLabel}`, 40, 62);
+  doc.setTextColor(15, 23, 42);
+  doc.text('Ledger Statement', 44, 54);
+  doc.setFontSize(9);
+  doc.setTextColor(100, 116, 139);
+  doc.text(`Statement Period: ${rangeLabel}`, 44, 70);
+
+  doc.setTextColor(15, 23, 42);
+  doc.setFillColor(248, 250, 252);
+  doc.roundedRect(40, 88, 240, 74, 12, 12, 'F');
+  doc.roundedRect(287, 88, 240, 74, 12, 12, 'F');
+  doc.setFontSize(12);
+  doc.text(organisation.name, 52, 108);
+  doc.setFontSize(9);
+  doc.setTextColor(71, 85, 105);
+  doc.text(`GSTIN: ${organisation.gstin}`, 52, 124);
+  doc.text(organisation.address, 52, 140, { maxWidth: 210 });
 
   doc.setTextColor(15, 23, 42);
   doc.setFontSize(12);
-  doc.text(organisation.name, 40, 92);
-  doc.setFontSize(10);
-  doc.text(`GSTIN: ${organisation.gstin}`, 40, 108);
-  doc.text(organisation.address, 40, 124);
-
-  doc.setFontSize(12);
-  doc.text(client.name, 330, 92);
-  doc.setFontSize(10);
-  doc.text(`GSTIN: ${client.gstin || '-'}`, 330, 108);
-  doc.text(`State: ${client.state || '-'}`, 330, 124);
+  doc.text(client.name, 299, 108);
+  doc.setFontSize(9);
+  doc.setTextColor(71, 85, 105);
+  doc.text(`GSTIN: ${client.gstin || '-'}`, 299, 124);
+  doc.text(`State: ${client.state || '-'}`, 299, 140);
 
   autoTable(doc, {
-    startY: 152,
+    startY: 180,
     head: [['Date', 'Type', 'Remarks', 'Debit Amount', 'Credit Amount']],
     body: rows.map((row) => [
       formatDisplayDate(row.date),
       row.type,
       row.remarks,
-      row.debit ? formatCurrency(row.debit) : '-',
-      row.credit ? formatCurrency(row.credit) : '-',
+      row.debit ? formatCurrencyExplicit(row.debit) : '-',
+      row.credit ? formatCurrencyExplicit(row.credit) : '-',
     ]),
     theme: 'grid',
     styles: {
@@ -131,14 +105,55 @@ function downloadLedgerPdf(
     },
   });
 
-  const finalY = (doc as any).lastAutoTable?.finalY ?? 152;
+  const finalY = (doc as any).lastAutoTable?.finalY ?? 180;
+  const summaryY = finalY + 18;
+  doc.setFillColor(248, 250, 252);
+  doc.roundedRect(342, summaryY, 186, 82, 12, 12, 'F');
+  doc.setFontSize(9);
+  doc.setTextColor(100, 116, 139);
+  doc.text('Total Debits', 354, summaryY + 20);
+  doc.text('Total Credits', 354, summaryY + 40);
   doc.setFontSize(10);
-  doc.text(`Total Debits: ${formatCurrency(totalDebit)}`, 350, finalY + 24);
-  doc.text(`Total Credits: ${formatCurrency(totalCredit)}`, 350, finalY + 40);
-  doc.setFontSize(12);
-  doc.text(`Net Balance: ${formatCurrency(netBalance)}`, 350, finalY + 62);
+  doc.setTextColor(15, 23, 42);
+  doc.text(formatCurrencyExplicit(totalDebit), 516, summaryY + 20, { align: 'right' });
+  doc.text(formatCurrencyExplicit(totalCredit), 516, summaryY + 40, { align: 'right' });
+  doc.setDrawColor(226, 232, 240);
+  doc.line(354, summaryY + 52, 516, summaryY + 52);
+  doc.setFontSize(11);
+  doc.text('Net Balance', 354, summaryY + 70);
+  doc.text(formatCurrencyExplicit(netBalance), 516, summaryY + 70, { align: 'right' });
 
+  return doc;
+}
+
+function downloadLedgerPdf(
+  organisation: ReturnType<typeof getOrganisationLine>,
+  client: LedgerClient,
+  rows: ReturnType<typeof buildLedgerStatementRows>,
+  summary: LedgerSummaryRow,
+  rangeLabel: string,
+) {
+  const doc = buildLedgerPdfDoc(organisation, client, rows, summary, rangeLabel);
   doc.save(`ledger-${client.name.replace(/\s+/g, '-').toLowerCase()}.pdf`);
+}
+
+function printLedgerPdf(
+  organisation: ReturnType<typeof getOrganisationLine>,
+  client: LedgerClient,
+  rows: ReturnType<typeof buildLedgerStatementRows>,
+  summary: LedgerSummaryRow,
+  rangeLabel: string,
+) {
+  const doc = buildLedgerPdfDoc(organisation, client, rows, summary, rangeLabel);
+  const blobUrl = doc.output('bloburl');
+  const popup = window.open(blobUrl, '_blank', 'noopener,noreferrer,width=1100,height=800');
+  if (!popup) {
+    throw new Error('Unable to open print preview window.');
+  }
+  popup.addEventListener('load', () => {
+    popup.focus();
+    popup.print();
+  });
 }
 
 export default function LedgerModal({
@@ -159,59 +174,6 @@ export default function LedgerModal({
   const totalDebit = rows.reduce((sum, row) => sum + row.debit, 0);
   const totalCredit = rows.reduce((sum, row) => sum + row.credit, 0);
   const netBalance = Number(((summary?.outstanding ?? 0)).toFixed(2));
-
-  const printHtml = useMemo(() => {
-    if (!client || !summary) return '';
-
-    const bodyRows = rows
-      .map(
-        (row) => `
-          <tr>
-            <td>${formatDisplayDate(row.date)}</td>
-            <td>${row.type}</td>
-            <td>${row.remarks}</td>
-            <td class="num">${row.debit ? formatCurrency(row.debit) : '-'}</td>
-            <td class="num">${row.credit ? formatCurrency(row.credit) : '-'}</td>
-          </tr>
-        `,
-      )
-      .join('');
-
-    return `
-      <div class="sheet">
-        <div class="meta">
-          <div class="panel">
-            <h2>${orgDetails.name}</h2>
-            <p>GSTIN: ${orgDetails.gstin}</p>
-            <p>${orgDetails.address}</p>
-          </div>
-          <div class="panel">
-            <h2>${client.name}</h2>
-            <p>GSTIN: ${client.gstin || '-'}</p>
-            <p>State: ${client.state || '-'}</p>
-            <p>Range: ${rangeLabel}</p>
-          </div>
-        </div>
-        <table>
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Type</th>
-              <th>Remarks</th>
-              <th class="num">Debit Amount</th>
-              <th class="num">Credit Amount</th>
-            </tr>
-          </thead>
-          <tbody>${bodyRows}</tbody>
-        </table>
-        <div class="totals">
-          <div class="totals-row"><span>Total Debits</span><strong>${formatCurrency(totalDebit)}</strong></div>
-          <div class="totals-row"><span>Total Credits</span><strong>${formatCurrency(totalCredit)}</strong></div>
-          <div class="totals-row total"><span>Net Balance</span><strong>${formatCurrency(netBalance)}</strong></div>
-        </div>
-      </div>
-    `;
-  }, [client, netBalance, orgDetails, rangeLabel, rows, summary, totalCredit, totalDebit]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -238,8 +200,8 @@ export default function LedgerModal({
             </button>
             <button
               type="button"
-              onClick={() => printHtml && createPrintDocument(`${client?.name || 'ledger'}-statement`, printHtml)}
-              disabled={!printHtml}
+              onClick={() => client && summary && printLedgerPdf(orgDetails, client, rows, summary, rangeLabel)}
+              disabled={!client || !summary}
               className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3.5 py-2 text-[12px] font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Printer size={14} />

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { endOfMonth, format, subMonths, subYears, startOfMonth } from 'date-fns';
-import { Eye, Filter, Landmark, Loader2, Wallet } from 'lucide-react';
+import { Eye, Filter, Landmark, Loader2, Search, Wallet } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { toast } from 'sonner';
@@ -104,6 +104,8 @@ export default function LedgerDashboard() {
   const [selectedPreset, setSelectedPreset] = useState<RangePreset | null>(storedDefault?.preset ?? 'monthly');
   const [startDate, setStartDate] = useState(storedDefault?.startDate ?? getPresetRange('monthly').startDate);
   const [endDate, setEndDate] = useState(storedDefault?.endDate ?? getPresetRange('monthly').endDate);
+  const [appliedStartDate, setAppliedStartDate] = useState(storedDefault?.startDate ?? getPresetRange('monthly').startDate);
+  const [appliedEndDate, setAppliedEndDate] = useState(storedDefault?.endDate ?? getPresetRange('monthly').endDate);
   const [saveAsDefault, setSaveAsDefault] = useState(Boolean(storedDefault));
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -116,14 +118,14 @@ export default function LedgerDashboard() {
   });
 
   const invoicesQuery = useQuery({
-    queryKey: ['ledger', 'invoices', orgId, startDate, endDate],
-    queryFn: () => listLedgerInvoices(orgId, { startDate, endDate }),
+    queryKey: ['ledger', 'invoices', orgId, appliedStartDate, appliedEndDate],
+    queryFn: () => listLedgerInvoices(orgId, { startDate: appliedStartDate, endDate: appliedEndDate }),
     enabled: Boolean(orgId),
   });
 
   const receiptsQuery = useQuery({
-    queryKey: ['ledger', 'receipts', orgId, startDate, endDate],
-    queryFn: () => listLedgerReceipts(orgId, { startDate, endDate }),
+    queryKey: ['ledger', 'receipts', orgId, appliedStartDate, appliedEndDate],
+    queryFn: () => listLedgerReceipts(orgId, { startDate: appliedStartDate, endDate: appliedEndDate }),
     enabled: Boolean(orgId),
   });
 
@@ -171,15 +173,15 @@ export default function LedgerDashboard() {
         DEFAULT_STORAGE_KEY,
         JSON.stringify({
           preset: selectedPreset,
-          startDate,
-          endDate,
+          startDate: appliedStartDate,
+          endDate: appliedEndDate,
         }),
       );
       return;
     }
 
     window.localStorage.removeItem(DEFAULT_STORAGE_KEY);
-  }, [endDate, saveAsDefault, selectedPreset, startDate]);
+  }, [appliedEndDate, appliedStartDate, saveAsDefault, selectedPreset]);
 
   const clients = clientsQuery.data ?? [];
   const summaries = useMemo(
@@ -209,13 +211,19 @@ export default function LedgerDashboard() {
     };
   }, [invoicesQuery.data, receiptsQuery.data, summaries]);
 
-  const rangeLabel = `${formatDisplayDate(startDate)} to ${formatDisplayDate(endDate)}`;
+  const rangeLabel = `${formatDisplayDate(appliedStartDate)} to ${formatDisplayDate(appliedEndDate)}`;
+  const hasPendingFilterChanges = startDate !== appliedStartDate || endDate !== appliedEndDate;
 
   const handlePreset = (preset: RangePreset) => {
     const range = getPresetRange(preset);
     setSelectedPreset(preset);
     setStartDate(range.startDate);
     setEndDate(range.endDate);
+  };
+
+  const handleSearch = () => {
+    setAppliedStartDate(startDate);
+    setAppliedEndDate(endDate);
   };
 
   const handleView = (clientId: string) => {
@@ -287,7 +295,7 @@ export default function LedgerDashboard() {
       </section>
 
       <section className="rounded-[28px] border border-slate-200 bg-white shadow-sm">
-        <div className="grid gap-4 border-b border-slate-200 px-5 py-5 lg:grid-cols-[1.2fr_1fr_auto] lg:items-end">
+          <div className="grid gap-4 border-b border-slate-200 px-5 py-5 lg:grid-cols-[1.2fr_1fr_auto_auto] lg:items-end">
           <div className="space-y-3">
             <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Presets</div>
             <div className="flex flex-wrap gap-2">
@@ -344,6 +352,16 @@ export default function LedgerDashboard() {
             />
             Set as Default
           </label>
+
+          <button
+            type="button"
+            onClick={handleSearch}
+            disabled={!hasPendingFilterChanges}
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-slate-950 px-4 py-2.5 text-[12px] font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Search size={14} />
+            Search
+          </button>
         </div>
 
         <div className="grid gap-5 p-5 xl:grid-cols-[minmax(0,1fr)_360px]">
