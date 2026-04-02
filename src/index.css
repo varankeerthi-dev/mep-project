@@ -149,12 +149,12 @@ body {
 .top-nav-btn {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
+  gap: 4px;
+  padding: 6px 10px;
   background: var(--gray-100);
   border: none;
-  border-radius: 8px;
-  font-size: 13px;
+  border-radius: 6px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--gray-600);
   cursor: pointer;
@@ -178,10 +178,10 @@ body {
 .user-profile {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
+  gap: 6px;
+  padding: 4px 8px;
   background: var(--gray-100);
-  border-radius: 8px;
+  border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s;
 }
@@ -191,8 +191,8 @@ body {
 }
 
 .user-profile-avatar {
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   background: var(--primary);
   border-radius: 50%;
   display: flex;
@@ -200,12 +200,12 @@ body {
   justify-content: center;
   color: white;
   font-weight: 600;
-  font-size: 11px;
+  font-size: 10px;
 }
 
 .user-profile-name {
   font-weight: 500;
-  font-size: 13px;
+  font-size: 12px;
   color: var(--gray-700);
 }
 
