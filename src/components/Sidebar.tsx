@@ -302,6 +302,8 @@ function getIcon(id: string) {
 }
 
 export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, mobileOpen }: SidebarProps) {
+  const isCollapsed = collapsed && !mobileOpen;
+
   const defaultExpandedMenus = useMemo(() => {
     const defaults: string[] = [];
     menuData.forEach(section => {
@@ -354,8 +356,6 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
   }, [currentPath]);
 
   const isActive = useCallback((path: string) => currentPath === path, [currentPath]);
-
-  const isCollapsed = collapsed && !mobileOpen;
 
   return (
     <>
