@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
+import { useState, useEffect, useMemo, useCallback, lazy, Suspense, useRef } from 'react';
 import type { ComponentType, LazyExoticComponent } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -30,6 +30,7 @@ const POList = lazyAny(() => import('./pages/POList'));
 const PODetails = lazyAny(() => import('./pages/PODetails'));
 const InvoiceListPage = lazyAny(() => import('./invoices/pages/InvoiceListPage'));
 const InvoiceEditorPage = lazyAny(() => import('./invoices/pages/InvoiceEditorPage'));
+const LedgerDashboard = lazyAny(() => import('./ledger/LedgerDashboard'));
 const ProjectList = lazyAny(() => import('./pages/ProjectList'));
 const CreateProject = lazyAny(() => import('./pages/CreateProject'));
 const AuthModule = import('./pages/Auth');
@@ -37,6 +38,8 @@ const Login = lazyAny(() => AuthModule.then(m => ({ default: m.Login })));
 const Signup = lazyAny(() => AuthModule.then(m => ({ default: m.Signup })));
 const AuthCallback = lazyAny(() => AuthModule.then(m => ({ default: m.AuthCallback })));
 const SelectOrganisation = lazyAny(() => AuthModule.then(m => ({ default: m.SelectOrganisation })));
+const RequestAccessPage = lazyAny(() => import('./pages/RequestAccess'));
+const AccessControlPage = lazyAny(() => import('./pages/AccessControl'));
 const OrganisationSettings = lazyAny(() => import('./pages/Organisation').then(m => ({ default: m.OrganisationSettings })));
 const QuotationList = lazyAny(() => import('./pages/QuotationList'));
 const CreateQuotation = lazyAny(() => import('./pages/CreateQuotation'));
@@ -124,29 +127,29 @@ export default function App() {
   const [dbSetup, setDbSetup] = useState(false);
   const currentPath = `${location.pathname}${location.search}` || '/';
 
+  // Use refs to avoid stale closures in event listeners
+  const lastCheckRef = useRef(0);
+  const isCheckingRef = useRef(false);
+
   const checkDatabase = async () => {
     try {
       const { error } = await supabase.from('projects').select('id').limit(1);
-      // Only treat "table/schema missing" as DB setup required.
-      // Transient network/auth/RLS issues should not force the app into setup mode.
       if (error) {
         const message = String(error.message || '');
         const code = String(error.code || '');
         const looksLikeMissingTable =
-          code === '42P01' || // postgres undefined_table
+          code === '42P01' ||
           /does not exist/i.test(message) ||
           /schema cache/i.test(message);
         if (looksLikeMissingTable) setDbSetup(true);
       }
     } catch (e) {
-      // Don't assume DB is missing on unexpected runtime errors.
       console.warn('Database check failed (non-fatal):', e);
     }
   };
 
   const initAuth = async (): Promise<(() => void) | undefined> => {
     try {
-      // IMPORTANT: wait for session restoration
       const { data: { session } } = await supabase.auth.getSession();
 
       if (session?.user) {
@@ -192,51 +195,65 @@ export default function App() {
   };
 
   useEffect(() => {
-  let unsubscribeAuth: (() => void) | undefined;
-  let lastCheck = 0;
+    let unsubscribeAuth: (() => void) | undefined;
 
-  const init = async () => {
-    unsubscribeAuth = await initAuth();
-    await checkDatabase();
-    initStorageBuckets().catch(() => {});
-  };
+    const init = async () => {
+      unsubscribeAuth = await initAuth();
+      await checkDatabase();
+      initStorageBuckets().catch(() => {});
+    };
 
-  init();
+    init();
 
-  const handleFocus = async () => {
-    const now = Date.now();
-    if (now - lastCheck < 300000) return;
-    lastCheck = now;
+    // Optimized heartbeat check - throttled and non-blocking
+    const handleFocus = async () => {
+      const now = Date.now();
+      
+      // Throttle: max once every 5 minutes
+      if (now - lastCheckRef.current < 300000) return;
+      
+      // Prevent concurrent checks
+      if (isCheckingRef.current) return;
+      
+      lastCheckRef.current = now;
+      isCheckingRef.current = true;
 
-    try {
-      const { data: { session }, error } = await supabase.auth.getSession();
-      if (!error && session?.user) {
-        // Use functional update to avoid reading stale user from closure
-        setUser(prev => {
-          if (prev?.id !== session.user.id) return session.user;
-          return prev;
-        });
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (!error && session?.user) {
+          setUser(prev => {
+            // Only update if user ID actually changed
+            if (prev?.id !== session.user.id) return session.user;
+            return prev;
+          });
+        }
+      } catch (e) {
+        console.warn('Heartbeat check failed', e);
+      } finally {
+        isCheckingRef.current = false;
       }
-    } catch (e) {
-      console.warn('Heartbeat check failed', e);
-    }
-  };
+    };
 
-  const handleVisibility = () => {
-    if (document.visibilityState === 'visible') {
-      handleFocus();
-    }
-  };
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        // Use requestIdleCallback if available to not block main thread
+        if ('requestIdleCallback' in window) {
+          requestIdleCallback(() => handleFocus(), { timeout: 2000 });
+        } else {
+          setTimeout(handleFocus, 100);
+        }
+      }
+    };
 
-  window.addEventListener('focus', handleFocus);
-  window.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('visibilitychange', handleVisibility);
 
-  return () => {
-    unsubscribeAuth?.();
-    window.removeEventListener('focus', handleFocus);
-    window.removeEventListener('visibilitychange', handleVisibility);
-  };
-}, []); // ← Empty deps. No more re-runs on user change.
+    return () => {
+      unsubscribeAuth?.();
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, []);
 
   const handleLogout = async () => {
     await signOut();
@@ -265,6 +282,19 @@ export default function App() {
       setOrganisation(orgs?.[0]?.organisation);
     }
   };
+
+  const refreshMemberships = useCallback(async () => {
+    if (!user) return;
+    const { data: orgs } = await getUserOrganisations(user.id);
+    setOrganisations(orgs || []);
+    if (orgs && orgs.length > 0) {
+      // If current org is still valid keep it, otherwise default to the first active org.
+      const stillValid = organisation?.id && orgs.some((m) => (m.organisation as any)?.id === organisation.id);
+      setOrganisation(stillValid ? organisation : (orgs[0].organisation as Organisation));
+    } else {
+      setOrganisation(null);
+    }
+  }, [user, organisation]);
 
   const navigate = useCallback((path?: string) => {
     routerNavigate(path || '/');
@@ -295,8 +325,9 @@ export default function App() {
     setMobileSidebarOpen(prev => !prev);
   }, []);
 
-  const renderPage = (authUser: User | null, authOrg: Organisation | null) => {
-    const pathKey = currentPath.split('?')[0]
+  const renderPage = useCallback((authUser: User | null, authOrg: Organisation | null) => {
+    const pathKey = currentPath.split('?')[0];
+    
     switch (pathKey) {
       case '/': 
         return authUser ? <Dashboard onNavigate={navigate} /> : <LandingPage />;
@@ -316,12 +347,9 @@ export default function App() {
       case '/meetings': return <MeetingsDashboard onNavigate={navigate} />;
       case '/meetings/create': return <CreateMeeting onSuccess={() => navigate('/meetings')} onCancel={() => navigate('/meetings')} />;
       case '/meetings/edit': return <CreateMeeting onSuccess={() => navigate('/meetings')} onCancel={() => navigate('/meetings')} editMode={true} />;
-      case '/site-visits':
-        return <SiteVisits />
-      case '/site-reports':
-        return <SiteReport />
-      case '/client-communication':
-        return <ClientCommunication />
+      case '/site-visits': return <SiteVisits />;
+      case '/site-reports': return <SiteReport />;
+      case '/client-communication': return <ClientCommunication />;
       case '/subcontractors': return <SubcontractorDashboard onNavigate={navigate} />;
       case '/subcontractors/new': return <CreateSubcontractor onSuccess={() => navigate('/subcontractors')} onCancel={() => navigate('/subcontractors')} />;
       case '/subcontractors/view': return <SubcontractorView onNavigate={navigate} />;
@@ -364,6 +392,7 @@ export default function App() {
       case '/settings/organisation': return <OrganisationSettings organisation={authOrg} userId={authUser?.id} />;
       case '/settings/document-series': return <TransactionNumberSeries />;
       case '/settings/template': return <TemplateSettings />;
+      case '/settings/access-control': return <AccessControlPage />;
       case '/quick-stock-check': return <QuickStockCheckList />;
       case '/quick-stock-check/create': return <QuickStockCheck />;
       case '/quick-stock-check/edit': return <QuickStockCheck />;
@@ -374,10 +403,10 @@ export default function App() {
       case '/invoices': return <InvoiceListPage />;
       case '/invoices/create': return <InvoiceEditorPage />;
       case '/invoices/edit': return <InvoiceEditorPage />;
+      case '/ledger': return <LedgerDashboard />;
       case '/employee/checkin': return <EmployeeCheckIn />;
       case '/hr/dashboard': return <HRAdminDashboard />;
       default:
-        // Handle dynamic routes
         if (pathKey.startsWith('/dc/edit/')) {
           const dcId = pathKey.split('/dc/edit/')[1];
           return <DCEdit dcId={dcId} onCancel={() => navigate('/dc/list')} />;
@@ -388,19 +417,28 @@ export default function App() {
         }
         return <Dashboard onNavigate={navigate} />;
     }
-  };
+  }, [currentPath, navigate]);
 
+  // Memoize rendered page with stable dependencies
   const renderedPage = useMemo(
     () => renderPage(user, organisation),
-    [currentPath, user?.id, organisation?.id]
+    [currentPath, user?.id, organisation?.id, renderPage]
   );
 
-  // Prefetch heavier routes when user is already in the Quotation area.
-  // This keeps UI the same but reduces delay when navigating to create/edit.
+  // Prefetch heavy routes when user is in related areas
   useEffect(() => {
     const pathKey = (currentPath || '').split('?')[0];
     if (pathKey === '/quotation') {
-      import('./pages/CreateQuotation').catch(() => {});
+      // Prefetch on idle to avoid blocking main thread
+      if ('requestIdleCallback' in window) {
+        requestIdleCallback(() => {
+          import('./pages/CreateQuotation').catch(() => {});
+        });
+      } else {
+        setTimeout(() => {
+          import('./pages/CreateQuotation').catch(() => {});
+        }, 1000);
+      }
     }
   }, [currentPath]);
 
@@ -434,7 +472,19 @@ export default function App() {
     );
   }
 
-  if (organisations.length === 0 || !organisation) {
+  if (organisations.length === 0) {
+    return (
+      <Suspense fallback={<div>Loading access...</div>}>
+        <RequestAccessPage
+          user={user}
+          onCreateOrganisation={handleCreateOrganisation}
+          onRefreshMemberships={refreshMemberships}
+        />
+      </Suspense>
+    );
+  }
+
+  if (!organisation) {
     return (
       <Suspense fallback={<div>Loading organisation...</div>}>
         <SelectOrganisation
@@ -459,8 +509,7 @@ export default function App() {
           }>
             {renderedPage}
           </Suspense>
-
-                  </main>
+        </main>
       </div>
     </AuthContext.Provider>
   );

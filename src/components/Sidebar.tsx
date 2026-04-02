@@ -166,6 +166,11 @@ const menuData: MenuSection[] = [
         ]
       },
       {
+        id: 'ledger',
+        label: 'Ledger',
+        path: '/ledger'
+      },
+      {
         id: 'boq',
         label: 'BOQ',
         submenu: [
@@ -261,6 +266,7 @@ const menuData: MenuSection[] = [
           { id: 'settings-document', label: 'Document Settings', path: '/settings/document-series' },
           { id: 'settings-template', label: 'Template Settings', path: '/settings/template' },
           { id: 'settings-organisation', label: 'Organisation Settings', path: '/settings/organisation' },
+          { id: 'settings-access', label: 'Access Control', path: '/settings/access-control' },
           { id: 'settings-discounts', label: 'Discount Settings', path: '/settings/discounts' }
         ]
       }
@@ -282,6 +288,7 @@ const iconMap = {
   'client-requests': InboxIcon,
   quotation: DocumentDuplicateIcon,
   invoice: DocumentTextIcon,
+  ledger: DocumentTextIcon,
   boq: TableCellsIcon,
   documents: FolderOpenIcon,
   issue: ExclamationTriangleIcon,

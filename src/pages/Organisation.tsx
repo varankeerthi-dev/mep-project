@@ -234,7 +234,9 @@ export function OrganisationSettings({ organisation, userId }) {
     website: organisation.website || '',
     state: organisation.state || 'Maharashtra',
     logo_url: organisation.logo_url || '',
-    signatures: organisation.signatures || []
+    signatures: organisation.signatures || [],
+    allow_access_requests: organisation.allow_access_requests ?? true,
+    is_listed: organisation.is_listed ?? false
   })
 
   useEffect(() => {
@@ -250,7 +252,9 @@ export function OrganisationSettings({ organisation, userId }) {
       website: organisation.website || '',
       state: organisation.state || 'Maharashtra',
       logo_url: organisation.logo_url || '',
-      signatures: organisation.signatures || []
+      signatures: organisation.signatures || [],
+      allow_access_requests: organisation.allow_access_requests ?? true,
+      is_listed: organisation.is_listed ?? false
     })
   }, [organisation])
   
@@ -384,6 +388,8 @@ export function OrganisationSettings({ organisation, userId }) {
           state: orgDetails.state,
           logo_url: orgDetails.logo_url,
           signatures: orgDetails.signatures,
+          allow_access_requests: orgDetails.allow_access_requests,
+          is_listed: orgDetails.is_listed,
           updated_at: new Date().toISOString()
         })
         .eq('id', organisation.id)
@@ -559,6 +565,47 @@ export function OrganisationSettings({ organisation, userId }) {
             value={orgDetails.address}
             onChange={(e) => setOrgDetails({...orgDetails, address: e.target.value})}
           />
+        </div>
+
+        <div style={{ marginTop: '20px', padding: '14px', border: '1px solid #e5e7eb', borderRadius: '10px', background: '#fafafa' }}>
+          <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '4px' }}>Access Requests</div>
+          <div style={{ fontSize: '12px', color: '#666', marginBottom: '12px', lineHeight: 1.5 }}>
+            This controls whether employees can request Google-login access. Only emails present in the Employees list can submit a request.
+          </div>
+
+          <div style={{ display: 'grid', gap: '10px' }}>
+            <label style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', cursor: isAdmin ? 'pointer' : 'not-allowed', opacity: isAdmin ? 1 : 0.6 }}>
+              <input
+                type="checkbox"
+                checked={Boolean(orgDetails.allow_access_requests)}
+                disabled={!isAdmin}
+                onChange={(e) => setOrgDetails({ ...orgDetails, allow_access_requests: e.target.checked })}
+                style={{ marginTop: '3px' }}
+              />
+              <div>
+                <div style={{ fontWeight: 600, fontSize: '13px' }}>Allow access requests</div>
+                <div style={{ fontSize: '12px', color: '#666', lineHeight: 1.5 }}>
+                  Users can request access (admins approve in Settings &rarr; Access Control).
+                </div>
+              </div>
+            </label>
+
+            <label style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', cursor: isAdmin ? 'pointer' : 'not-allowed', opacity: isAdmin ? 1 : 0.6 }}>
+              <input
+                type="checkbox"
+                checked={Boolean(orgDetails.is_listed)}
+                disabled={!isAdmin}
+                onChange={(e) => setOrgDetails({ ...orgDetails, is_listed: e.target.checked })}
+                style={{ marginTop: '3px' }}
+              />
+              <div>
+                <div style={{ fontWeight: 600, fontSize: '13px' }}>Show in organisation list</div>
+                <div style={{ fontSize: '12px', color: '#666', lineHeight: 1.5 }}>
+                  Makes this organisation appear on the Request access page dropdown.
+                </div>
+              </div>
+            </label>
+          </div>
         </div>
         
         {isAdmin && (
