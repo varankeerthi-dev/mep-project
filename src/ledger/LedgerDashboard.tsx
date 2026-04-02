@@ -146,7 +146,7 @@ export default function LedgerDashboard() {
         receipt_date: values.receipt_date,
         remarks: values.remarks,
       }),
-    onSuccess: async () => {
+    onSuccess: () => {
       toast.success('Payment recorded successfully.');
       paymentForm.reset({
         client_id: '',
@@ -154,10 +154,11 @@ export default function LedgerDashboard() {
         receipt_date: toDateInput(new Date()),
         remarks: '',
       });
-      await Promise.all([
-        qc.invalidateQueries({ queryKey: ['ledger', 'receipts', orgId] }),
-        qc.invalidateQueries({ queryKey: ['ledger', 'invoices', orgId] }),
-      ]);
+
+      // Refresh in the background so the mutation does not stay pending
+      // while downstream queries refetch.
+      void qc.invalidateQueries({ queryKey: ['ledger', 'receipts', orgId] });
+      void qc.invalidateQueries({ queryKey: ['ledger', 'invoices', orgId] });
     },
     onError: (error: any) => {
       toast.error(error?.message ?? 'Unable to record payment.');
