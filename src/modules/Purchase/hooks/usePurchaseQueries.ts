@@ -1,6 +1,14 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../../supabase';
 
+const createPaymentVoucherNo = () => {
+  const now = new Date();
+  const datePart = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+  const timePart = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}${String(now.getMilliseconds()).padStart(3, '0')}`;
+  const randomPart = Math.random().toString(36).slice(2, 6).toUpperCase();
+  return `PAY-${datePart}-${timePart}-${randomPart}`;
+};
+
 // ============== VENDOR QUERIES ==============
 
 export const useVendors = (organisationId: string | undefined) => {
@@ -201,6 +209,31 @@ export const usePurchaseBills = (organisationId: string | undefined, filters?: a
   });
 };
 
+export const useVendorOpenBills = (
+  organisationId: string | undefined,
+  vendorId: string | undefined,
+  enabled = true
+) => {
+  return useQuery({
+    queryKey: ['purchase-bills', 'open', organisationId, vendorId],
+    queryFn: async () => {
+      if (!organisationId || !vendorId) return [];
+
+      const { data, error } = await supabase
+        .from('purchase_bills')
+        .select('*')
+        .eq('organisation_id', organisationId)
+        .eq('vendor_id', vendorId)
+        .in('payment_status', ['Unpaid', 'Partially Paid'])
+        .order('bill_date', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: enabled && !!organisationId && !!vendorId,
+  });
+};
+
 export const useCreatePurchaseBill = () => {
   const queryClient = useQueryClient();
   
@@ -236,6 +269,7 @@ export const useCreatePurchaseBill = () => {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['purchase-bills', data.organisation_id] });
       queryClient.invalidateQueries({ queryKey: ['purchase-vendors', data.organisation_id] });
+      queryClient.invalidateQueries({ queryKey: ['purchase-vendor-ledger', data.organisation_id] });
     },
   });
 };
@@ -289,15 +323,75 @@ export const usePayments = (organisationId: string | undefined) => {
   });
 };
 
+export const useVendorLedger = (
+  organisationId: string | undefined,
+  vendorId: string | undefined,
+  enabled = true
+) => {
+  return useQuery({
+    queryKey: ['purchase-vendor-ledger', organisationId, vendorId],
+    queryFn: async () => {
+      if (!organisationId || !vendorId) {
+        return {
+          bills: [],
+          payments: [],
+          debitNotes: [],
+        };
+      }
+
+      const [billsResult, paymentsResult, debitNotesResult] = await Promise.all([
+        supabase
+          .from('purchase_bills')
+          .select('id, bill_number, bill_date, due_date, total_amount, paid_amount, balance_amount, payment_status, vendor_invoice_no')
+          .eq('organisation_id', organisationId)
+          .eq('vendor_id', vendorId)
+          .order('bill_date', { ascending: true }),
+        supabase
+          .from('purchase_payments')
+          .select('id, voucher_no, payment_date, amount, reference_no, narration, is_advance, payment_mode, has_vendor_proforma, vendor_proforma_invoice, vendor_proforma_date, vendor_proforma_amount')
+          .eq('organisation_id', organisationId)
+          .eq('vendor_id', vendorId)
+          .order('payment_date', { ascending: true }),
+        supabase
+          .from('debit_notes')
+          .select('id, dn_number, dn_date, dn_type, total_amount, reason, approval_status')
+          .eq('organisation_id', organisationId)
+          .eq('vendor_id', vendorId)
+          .eq('approval_status', 'Approved')
+          .order('dn_date', { ascending: true }),
+      ]);
+
+      if (billsResult.error) throw billsResult.error;
+      if (paymentsResult.error) throw paymentsResult.error;
+      if (debitNotesResult.error) throw debitNotesResult.error;
+
+      return {
+        bills: billsResult.data || [],
+        payments: paymentsResult.data || [],
+        debitNotes: debitNotesResult.data || [],
+      };
+    },
+    enabled: enabled && !!organisationId && !!vendorId,
+  });
+};
+
 export const useCreatePayment = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
     mutationFn: async ({ paymentData, billAllocations }: any) => {
+      const normalizedPaymentData = {
+        ...paymentData,
+        voucher_no: paymentData.voucher_no || createPaymentVoucherNo(),
+        net_amount: paymentData.net_amount ?? paymentData.amount,
+        advance_remaining: paymentData.is_advance ? (paymentData.advance_remaining ?? paymentData.amount) : 0,
+        created_by: paymentData.created_by ?? null,
+      };
+
       // Insert payment
       const { data: payment, error: paymentError } = await supabase
         .from('purchase_payments')
-        .insert(paymentData)
+        .insert(normalizedPaymentData)
         .select()
         .single();
       
@@ -316,21 +410,26 @@ export const useCreatePayment = () => {
           .insert(allocations);
         
         if (allocError) throw allocError;
-        
-        // Update bill payment status
-        for (const alloc of billAllocations) {
-          await updateBillPaymentStatus(alloc.bill_id);
-        }
       }
-      
-      // Update vendor balance
-      await updateVendorBalance(payment.vendor_id, payment.organisation_id);
+
+      // These follow-up updates should not block the UI save action.
+      void Promise.allSettled([
+        ...(billAllocations || []).map((alloc: any) => updateBillPaymentStatus(alloc.bill_id)),
+        updateVendorBalance(payment.vendor_id, payment.organisation_id),
+      ]).then(() => {
+        void queryClient.invalidateQueries({ queryKey: ['purchase-payments', payment.organisation_id] });
+        void queryClient.invalidateQueries({ queryKey: ['purchase-bills', payment.organisation_id] });
+        void queryClient.invalidateQueries({ queryKey: ['purchase-vendors', payment.organisation_id] });
+        void queryClient.invalidateQueries({ queryKey: ['purchase-vendor-ledger', payment.organisation_id] });
+      });
       
       return payment;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['purchase-payments', data.organisation_id] });
       queryClient.invalidateQueries({ queryKey: ['purchase-bills', data.organisation_id] });
+      queryClient.invalidateQueries({ queryKey: ['purchase-vendors', data.organisation_id] });
+      queryClient.invalidateQueries({ queryKey: ['purchase-vendor-ledger', data.organisation_id] });
     },
   });
 };
@@ -457,6 +556,7 @@ export const useCreateDebitNote = () => {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['debit-notes', data.organisation_id] });
       queryClient.invalidateQueries({ queryKey: ['purchase-bills', data.organisation_id] });
+      queryClient.invalidateQueries({ queryKey: ['purchase-vendor-ledger', data.organisation_id] });
     },
   });
 };

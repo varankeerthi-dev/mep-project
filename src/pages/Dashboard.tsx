@@ -33,14 +33,27 @@ import {
   User,
   Building2,
   AlertCircle,
-  ArrowUpRight,
   Activity,
   Plus,
-  RefreshCw,
   Eye,
   MessageSquare,
   Package,
+  FileCheck,
+  CreditCard,
+  ArrowRight,
 } from 'lucide-react';
+import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card';
+import { Badge } from '../components/ui/Badge';
+import { Button } from '../components/ui/button';
+import { Skeleton } from '../components/ui/skeleton';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from '../components/ui/table';
 
 type DashboardCardId =
   | 'today-site'
@@ -55,20 +68,56 @@ type CardConfig = {
   id: DashboardCardId;
   title: string;
   icon: React.ReactNode;
-  color: string;
-  bgGradient: string;
+  iconColor: string;
   row: number;
 };
 
 const DEFAULT_CARDS: CardConfig[] = [
-  { id: 'today-site', title: 'Today Site', icon: <MapPin size={18} />, color: '#3b82f6', bgGradient: 'from-blue-500/10 to-blue-500/5', row: 0 },
-  { id: 'approvals', title: 'Approvals', icon: <CheckCircle size={18} />, color: '#10b981', bgGradient: 'from-emerald-500/10 to-emerald-500/5', row: 0 },
-  { id: 'client-communication', title: 'Client Communication', icon: <Phone size={18} />, color: '#6366f1', bgGradient: 'from-indigo-500/10 to-indigo-500/5', row: 1 },
-  { id: 'site-visit-plan', title: 'Site Visit Plan', icon: <Calendar size={18} />, color: '#f59e0b', bgGradient: 'from-amber-500/10 to-amber-500/5', row: 1 },
-  { id: 'quotation-approval', title: 'Quotation Approval', icon: <FileText size={18} />, color: '#8b5cf6', bgGradient: 'from-violet-500/10 to-violet-500/5', row: 2 },
-  { id: 'invoice', title: 'Invoice', icon: <Receipt size={18} />, color: '#ec4899', bgGradient: 'from-pink-500/10 to-pink-500/5', row: 2 },
-  { id: 'delivery-challan', title: 'Delivery Challan', icon: <Truck size={18} />, color: '#14b8a6', bgGradient: 'from-teal-500/10 to-teal-500/5', row: 2 },
+  { id: 'today-site', title: 'Today Site', icon: <MapPin size={18} />, iconColor: '#3b82f6', row: 0 },
+  { id: 'approvals', title: 'Approvals', icon: <CheckCircle size={18} />, iconColor: '#22c55e', row: 0 },
+  { id: 'client-communication', title: 'Client Communication', icon: <Phone size={18} />, iconColor: '#6366f1', row: 1 },
+  { id: 'site-visit-plan', title: 'Site Visit Plan', icon: <Calendar size={18} />, iconColor: '#f59e0b', row: 1 },
+  { id: 'quotation-approval', title: 'Quotation Approval', icon: <FileText size={18} />, iconColor: '#a855f7', row: 2 },
+  { id: 'invoice', title: 'Invoice', icon: <Receipt size={18} />, iconColor: '#ec4899', row: 2 },
+  { id: 'delivery-challan', title: 'Delivery Challan', icon: <Truck size={18} />, iconColor: '#06b6d4', row: 2 },
 ];
+
+function StatusBadge({ status }: { status: string }) {
+  const s = (status || '').toLowerCase();
+  let variant: 'default' | 'success' | 'warning' | 'error' | 'info' | 'neutral' = 'neutral';
+
+  if (s === 'completed' || s === 'approved' || s === 'active') variant = 'success';
+  else if (s === 'pending' || s === 'pending approval' || s === 'draft') variant = 'warning';
+  else if (s === 'scheduled') variant = 'info';
+  else if (s === 'cancelled' || s === 'rejected') variant = 'error';
+
+  return <Badge variant={variant} size="sm">{status || '-'}</Badge>;
+}
+
+function CardSkeleton({ rows = 3 }: { rows?: number }) {
+  return (
+    <div className="p-4 space-y-3">
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} className="flex items-center gap-3">
+          <Skeleton className="w-8 h-8 rounded-lg" />
+          <div className="flex-1 space-y-1.5">
+            <Skeleton className="h-3 w-3/4" />
+            <Skeleton className="h-2 w-1/2" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function EmptyState({ message, icon }: { message: string; icon?: React.ReactNode }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+      {icon || <Package size={48} strokeWidth={1} className="mb-2" />}
+      <p className="text-sm">{message}</p>
+    </div>
+  );
+}
 
 function DashboardCardFrame({
   config,
@@ -84,32 +133,32 @@ function DashboardCardFrame({
   children: React.ReactNode;
 }) {
   return (
-    <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden flex flex-col">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-slate-50/50">
-        <div className="flex items-center gap-3 min-w-0">
+    <Card className="flex flex-col h-full">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+        <div className="flex items-center gap-3">
           <div
-            className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
-            style={{ backgroundColor: `${config.color}14`, color: config.color }}
+            className="w-10 h-10 rounded-lg flex items-center justify-center"
+            style={{ backgroundColor: `${config.iconColor}15`, color: config.iconColor }}
           >
             {config.icon}
           </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <h3 className="text-[13px] font-semibold text-slate-900 tracking-tight truncate">{config.title}</h3>
-              {dragHandle ? <div className="text-slate-400 flex-shrink-0">{dragHandle}</div> : null}
-            </div>
-          </div>
+          <CardTitle className="text-base">{config.title}</CardTitle>
+          {dragHandle}
         </div>
-        <button
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={onToggle}
-          className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-white transition-colors"
-          type="button"
+          className="p-1.5"
         >
-          {collapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
-        </button>
-      </div>
-      {!collapsed && <div className="flex-1 overflow-auto">{children}</div>}
-    </div>
+          <ChevronUp
+            size={16}
+            className={`transition-transform ${collapsed ? 'rotate-180' : ''}`}
+          />
+        </Button>
+      </CardHeader>
+      {!collapsed && <CardContent className="flex-1 overflow-auto pt-0">{children}</CardContent>}
+    </Card>
   );
 }
 
@@ -128,7 +177,6 @@ function SortableCard({
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useSortable({
     id,
-    // Disable layout animations; they can feel laggy on dashboards with lots of content.
     animateLayoutChanges: () => false,
   });
 
@@ -136,11 +184,11 @@ function SortableCard({
     transform: CSS.Transform.toString(transform),
     transition: undefined,
     opacity: isDragging ? 0.65 : 1,
-    zIndex: isDragging ? (50 as any) : ('auto' as any),
+    zIndex: isDragging ? 50 : 'auto',
   };
 
   return (
-    <div ref={setNodeRef} style={style} className={isDragging ? 'ring-2 ring-slate-300/60 rounded-2xl' : undefined}>
+    <div ref={setNodeRef} style={style} className={isDragging ? 'ring-2 ring-slate-200 rounded-lg' : undefined}>
       <DashboardCardFrame
         config={config}
         collapsed={collapsed}
@@ -149,11 +197,11 @@ function SortableCard({
           <button
             {...attributes}
             {...listeners}
-            className="cursor-grab active:cursor-grabbing p-1 rounded-lg hover:bg-white transition-colors"
+            className="cursor-grab active:cursor-grabbing p-1 rounded-lg hover:bg-slate-100 transition-colors ml-1"
             title="Drag to reorder"
             type="button"
           >
-            <GripVertical size={14} />
+            <GripVertical size={14} className="text-muted-foreground" />
           </button>
         }
       >
@@ -181,15 +229,6 @@ function StaticCard({
   );
 }
 
-function EmptyState({ message }: { message: string }) {
-  return (
-    <div className="flex flex-col items-center justify-center py-8 text-slate-400">
-      <Package size={28} strokeWidth={1.5} className="mb-2 text-slate-300" />
-      <p className="text-[12px] font-medium">{message}</p>
-    </div>
-  );
-}
-
 function TodaySiteCard() {
   const today = format(new Date(), 'yyyy-MM-dd');
 
@@ -210,33 +249,39 @@ function TodaySiteCard() {
 
   if (isLoading) return <CardSkeleton rows={3} />;
 
+  if (visits.length === 0) {
+    return (
+      <EmptyState
+        message="No site visits today"
+        icon={<MapPin size={48} strokeWidth={1} className="text-muted-foreground" />}
+      />
+    );
+  }
+
   return (
-    <div className="px-4 py-3">
-      {visits.length === 0 ? (
-        <EmptyState message="No site visits today" />
-      ) : (
-        <div className="space-y-2">
-          {visits.map((v: any) => (
-            <div key={v.id} className="flex items-center gap-3 p-2.5 rounded-xl bg-slate-50/80 hover:bg-slate-50 transition-colors group">
-              <div className="w-2 h-2 rounded-full bg-slate-400 flex-shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="text-[12px] font-semibold text-slate-900 truncate">{v.clients?.client_name || 'Unknown Client'}</p>
-                <div className="flex items-center gap-3 mt-0.5">
-                  {v.visited_by && (
-                    <span className="text-[11px] text-slate-500 flex items-center gap-1">
-                      <User size={10} /> {v.visited_by}
-                    </span>
-                  )}
-                  {v.purpose && (
-                    <span className="text-[11px] text-slate-400 truncate">{v.purpose}</span>
-                  )}
-                </div>
-              </div>
-              <StatusPill status={v.status} />
+    <div className="space-y-2">
+      {visits.map((v: any) => (
+        <div
+          key={v.id}
+          className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100"
+        >
+          <div className="w-2 h-2 rounded-full bg-slate-400 flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-foreground truncate">{v.clients?.client_name || 'Unknown Client'}</p>
+            <div className="flex items-center gap-3 mt-0.5">
+              {v.visited_by && (
+                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                  <User size={10} /> {v.visited_by}
+                </span>
+              )}
+              {v.purpose && (
+                <span className="text-xs text-muted-foreground truncate">{v.purpose}</span>
+              )}
             </div>
-          ))}
+          </div>
+          <StatusBadge status={v.status} />
         </div>
-      )}
+      ))}
     </div>
   );
 }
@@ -260,26 +305,34 @@ function ApprovalsCard() {
 
   if (isLoading) return <CardSkeleton rows={3} />;
 
+  if (pendingApprovals.length === 0) {
+    return (
+      <EmptyState
+        message="No pending approvals"
+        icon={<CheckCircle size={48} strokeWidth={1} className="text-muted-foreground" />}
+      />
+    );
+  }
+
   return (
-    <div className="px-4 py-3">
-      {pendingApprovals.length === 0 ? (
-        <EmptyState message="No pending approvals" />
-      ) : (
-        <div className="space-y-2">
-          {pendingApprovals.map((q: any) => (
-            <div key={q.id} className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50/80 hover:bg-slate-50 transition-colors">
-              <div className="min-w-0 flex-1">
-                <p className="text-[12px] font-semibold text-slate-900 truncate">{q.quotation_no}</p>
-                <p className="text-[11px] text-slate-500 truncate">{q.client?.client_name || '-'}</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <StatusPill status={q.status} />
-                <span className="text-[10px] text-slate-400">{q.created_at ? formatDistanceToNow(parseISO(q.created_at), { addSuffix: true }) : ''}</span>
-              </div>
-            </div>
-          ))}
+    <div className="space-y-2">
+      {pendingApprovals.map((q: any) => (
+        <div
+          key={q.id}
+          className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100"
+        >
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-foreground truncate">{q.quotation_no}</p>
+            <p className="text-xs text-muted-foreground truncate">{q.client?.client_name || '-'}</p>
+          </div>
+          <div className="flex items-center gap-2 ml-2">
+            <StatusBadge status={q.status} />
+            <span className="text-xs text-muted-foreground whitespace-nowrap">
+              {q.created_at ? formatDistanceToNow(parseISO(q.created_at), { addSuffix: true }) : ''}
+            </span>
+          </div>
         </div>
-      )}
+      ))}
     </div>
   );
 }
@@ -319,32 +372,39 @@ function ClientCommunicationCard() {
 
   if (isLoading) return <CardSkeleton rows={4} />;
 
+  if (comms.length === 0) {
+    return (
+      <EmptyState
+        message="No recent communications"
+        icon={<Phone size={48} strokeWidth={1} className="text-muted-foreground" />}
+      />
+    );
+  }
+
   return (
-    <div className="px-1 py-2">
-      {comms.length === 0 ? (
-        <EmptyState message="No recent communications" />
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="border-b border-slate-100">
-                <th className="px-3 py-2 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Created By</th>
-                <th className="px-3 py-2 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Client</th>
-                <th className="px-3 py-2 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Call Brief</th>
-              </tr>
-            </thead>
-            <tbody>
-              {comms.map((c: any) => (
-                <tr key={c.id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
-                  <td className="px-3 py-2.5 text-[12px] text-slate-600">{c.call_entered_by || c.call_received_by || '-'}</td>
-                  <td className="px-3 py-2.5 text-[12px] font-medium text-slate-900 max-w-[140px] truncate">{clientMap.get(c.client_id) || '-'}</td>
-                  <td className="px-3 py-2.5 text-[12px] text-slate-500 max-w-[200px] truncate">{c.call_brief || '-'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+    <div className="overflow-x-auto">
+      <Table>
+        <TableHeader>
+          <TableRow className="border-b border-slate-100">
+            <TableHead className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Created By</TableHead>
+            <TableHead className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Client</TableHead>
+            <TableHead className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Call Brief</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {comms.map((c: any) => (
+            <TableRow key={c.id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
+              <TableCell className="text-sm text-foreground py-3">{c.call_entered_by || c.call_received_by || '-'}</TableCell>
+              <TableCell className="text-sm font-medium text-foreground max-w-[140px] truncate py-3">
+                {clientMap.get(c.client_id) || '-'}
+              </TableCell>
+              <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate py-3">
+                {c.call_brief || '-'}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
     </div>
   );
 }
@@ -370,37 +430,44 @@ function SiteVisitPlanCard() {
 
   if (isLoading) return <CardSkeleton rows={4} />;
 
+  if (visits.length === 0) {
+    return (
+      <EmptyState
+        message="No upcoming visits"
+        icon={<Calendar size={48} strokeWidth={1} className="text-muted-foreground" />}
+      />
+    );
+  }
+
   return (
-    <div className="px-1 py-2">
-      {visits.length === 0 ? (
-        <EmptyState message="No upcoming visits" />
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="border-b border-slate-100">
-                <th className="px-3 py-2 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Date</th>
-                <th className="px-3 py-2 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Client</th>
-                <th className="px-3 py-2 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Visit By</th>
-              </tr>
-            </thead>
-            <tbody>
-              {visits.map((v: any) => (
-                <tr key={v.id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
-                  <td className="px-3 py-2.5 text-[12px] text-slate-600 whitespace-nowrap">
-                    <span className={`inline-flex items-center gap-1 ${isToday(parseISO(v.visit_date)) ? 'text-slate-900 font-semibold' : ''}`}>
-                      <Calendar size={10} />
-                      {format(parseISO(v.visit_date), 'dd MMM')}
-                    </span>
-                  </td>
-                  <td className="px-3 py-2.5 text-[12px] font-medium text-slate-900 max-w-[140px] truncate">{v.clients?.client_name || '-'}</td>
-                  <td className="px-3 py-2.5 text-[12px] text-slate-500">{v.visited_by || v.engineer || '-'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+    <div className="overflow-x-auto">
+      <Table>
+        <TableHeader>
+          <TableRow className="border-b border-slate-100">
+            <TableHead className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Date</TableHead>
+            <TableHead className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Client</TableHead>
+            <TableHead className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">Visit By</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {visits.map((v: any) => (
+            <TableRow key={v.id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
+              <TableCell className="text-sm text-foreground whitespace-nowrap py-3">
+                <span className={`flex items-center gap-1 ${isToday(parseISO(v.visit_date)) ? 'font-semibold text-foreground' : 'text-muted-foreground'}`}>
+                  <Calendar size={12} />
+                  {format(parseISO(v.visit_date), 'dd MMM')}
+                </span>
+              </TableCell>
+              <TableCell className="text-sm font-medium text-foreground max-w-[140px] truncate py-3">
+                {v.clients?.client_name || '-'}
+              </TableCell>
+              <TableCell className="text-sm text-muted-foreground py-3">
+                {v.visited_by || v.engineer || '-'}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
     </div>
   );
 }
@@ -424,23 +491,29 @@ function QuotationApprovalCard() {
 
   if (isLoading) return <CardSkeleton rows={3} />;
 
+  if (quotations.length === 0) {
+    return (
+      <EmptyState
+        message="No quotation approvals"
+        icon={<FileText size={48} strokeWidth={1} className="text-muted-foreground" />}
+      />
+    );
+  }
+
   return (
-    <div className="px-4 py-3">
-      {quotations.length === 0 ? (
-        <EmptyState message="No quotation approvals" />
-      ) : (
-        <div className="space-y-2">
-          {quotations.map((q: any) => (
-            <div key={q.id} className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50/80 hover:bg-slate-50 transition-colors">
-              <div className="min-w-0 flex-1">
-                <p className="text-[12px] font-semibold text-slate-900">{q.quotation_no}</p>
-                <p className="text-[11px] text-slate-500 truncate">{q.client?.client_name || '-'}</p>
-              </div>
-              <StatusPill status={q.approval_status || q.status} />
-            </div>
-          ))}
+    <div className="space-y-2">
+      {quotations.map((q: any) => (
+        <div
+          key={q.id}
+          className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100"
+        >
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-foreground">{q.quotation_no}</p>
+            <p className="text-xs text-muted-foreground truncate">{q.client?.client_name || '-'}</p>
+          </div>
+          <StatusBadge status={q.approval_status || q.status} />
         </div>
-      )}
+      ))}
     </div>
   );
 }
@@ -463,26 +536,36 @@ function InvoiceCard() {
 
   if (isLoading) return <CardSkeleton rows={3} />;
 
+  if (invoices.length === 0) {
+    return (
+      <EmptyState
+        message="No recent invoices"
+        icon={<Receipt size={48} strokeWidth={1} className="text-muted-foreground" />}
+      />
+    );
+  }
+
   return (
-    <div className="px-4 py-3">
-      {invoices.length === 0 ? (
-        <EmptyState message="No recent invoices" />
-      ) : (
-        <div className="space-y-2">
-          {invoices.map((inv: any) => (
-            <div key={inv.id} className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50/80 hover:bg-slate-50 transition-colors">
-              <div className="min-w-0 flex-1">
-                <p className="text-[12px] font-semibold text-slate-900">{inv.invoice_number || `INV-${inv.id?.slice(0, 6)}`}</p>
-                <p className="text-[11px] text-slate-500 truncate">{inv.project?.project_name || '-'}</p>
-              </div>
-              <div className="text-right">
-                {inv.total_amount && <p className="text-[11px] font-semibold text-slate-900">₹{Number(inv.total_amount).toLocaleString('en-IN')}</p>}
-                <p className="text-[10px] text-slate-400">{inv.invoice_date ? format(parseISO(inv.invoice_date), 'dd MMM') : ''}</p>
-              </div>
-            </div>
-          ))}
+    <div className="space-y-2">
+      {invoices.map((inv: any) => (
+        <div
+          key={inv.id}
+          className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100"
+        >
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-foreground">{inv.invoice_number || `INV-${inv.id?.slice(0, 6)}`}</p>
+            <p className="text-xs text-muted-foreground truncate">{inv.project?.project_name || '-'}</p>
+          </div>
+          <div className="text-right ml-2">
+            {inv.total_amount && (
+              <p className="text-sm font-semibold text-foreground">₹{Number(inv.total_amount).toLocaleString('en-IN')}</p>
+            )}
+            <p className="text-xs text-muted-foreground">
+              {inv.invoice_date ? format(parseISO(inv.invoice_date), 'dd MMM') : ''}
+            </p>
+          </div>
         </div>
-      )}
+      ))}
     </div>
   );
 }
@@ -505,28 +588,38 @@ function DeliveryChallanCard() {
 
   if (isLoading) return <CardSkeleton rows={3} />;
 
+  if (challans.length === 0) {
+    return (
+      <EmptyState
+        message="No recent delivery challans"
+        icon={<Truck size={48} strokeWidth={1} className="text-muted-foreground" />}
+      />
+    );
+  }
+
   return (
-    <div className="px-4 py-3">
-      {challans.length === 0 ? (
-        <EmptyState message="No recent delivery challans" />
-      ) : (
-        <div className="space-y-2">
-          {challans.map((dc: any) => (
-            <div key={dc.id} className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50/80 hover:bg-slate-50 transition-colors">
-              <div className="min-w-0 flex-1">
-                <p className="text-[12px] font-semibold text-slate-900">{dc.dc_number}</p>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <span className="text-[11px] text-slate-500 truncate">{dc.client_name || '-'}</span>
-                  {dc.vehicle_number && <span className="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">{dc.vehicle_number}</span>}
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <StatusPill status={dc.status} />
-              </div>
+    <div className="space-y-2">
+      {challans.map((dc: any) => (
+        <div
+          key={dc.id}
+          className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100"
+        >
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-foreground">{dc.dc_number}</p>
+            <div className="flex items-center gap-2 mt-0.5">
+              <span className="text-xs text-muted-foreground truncate">{dc.client_name || '-'}</span>
+              {dc.vehicle_number && (
+                <span className="text-xs text-muted-foreground bg-slate-100 px-1.5 py-0.5 rounded">
+                  {dc.vehicle_number}
+                </span>
+              )}
             </div>
-          ))}
+          </div>
+          <div className="flex items-center gap-2 ml-2">
+            <StatusBadge status={dc.status} />
+          </div>
         </div>
-      )}
+      ))}
     </div>
   );
 }
@@ -567,10 +660,10 @@ function RecentUpdates() {
         items.push({ id: v.id, type: 'visit', text: `Visit: ${(v as any).clients?.client_name || 'Client'}`, time: v.created_at, icon: <MapPin size={14} />, color: '#3b82f6' })
       );
       (dcRes.data || []).forEach((d: any) =>
-        items.push({ id: d.id, type: 'dc', text: `DC: ${d.dc_number || d.client_name}`, time: d.created_at, icon: <Truck size={14} />, color: '#14b8a6' })
+        items.push({ id: d.id, type: 'dc', text: `DC: ${d.dc_number || d.client_name}`, time: d.created_at, icon: <Truck size={14} />, color: '#06b6d4' })
       );
       (quotesRes.data || []).forEach((q: any) =>
-        items.push({ id: q.id, type: 'quotation', text: `Quote: ${q.quotation_no}`, time: q.created_at, icon: <FileText size={14} />, color: '#8b5cf6', status: q.status })
+        items.push({ id: q.id, type: 'quotation', text: `Quote: ${q.quotation_no}`, time: q.created_at, icon: <FileText size={14} />, color: '#a855f7', status: q.status })
       );
 
       items.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
@@ -581,38 +674,41 @@ function RecentUpdates() {
   });
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm h-full flex flex-col overflow-hidden">
-      <div className="px-5 py-4 border-b border-slate-100 bg-slate-50/50">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-slate-800 flex items-center justify-center">
-            <Activity size={16} className="text-white" />
+    <Card className="h-full flex flex-col">
+      <CardHeader className="pb-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-slate-900 flex items-center justify-center">
+            <Activity size={18} className="text-white" />
           </div>
           <div>
-            <h3 className="text-[13px] font-semibold text-slate-900 tracking-tight">Recent Updates</h3>
-            <p className="text-[10px] text-slate-400 mt-0.5">Activity across all modules</p>
+            <CardTitle className="text-base">Recent Updates</CardTitle>
+            <p className="text-xs text-muted-foreground mt-0.5">Activity across all modules</p>
           </div>
         </div>
-      </div>
-      <div className="flex-1 overflow-y-auto px-4 py-3">
+      </CardHeader>
+      <CardContent className="flex-1 overflow-y-auto pt-0">
         {isLoading ? (
           <CardSkeleton rows={8} />
         ) : recentItems.length === 0 ? (
-          <EmptyState message="No recent activity" />
+          <EmptyState message="No recent activity" icon={<Activity size={48} strokeWidth={1} className="text-muted-foreground" />} />
         ) : (
           <div className="relative">
-            <div className="absolute left-[15px] top-2 bottom-2 w-px bg-slate-100" />
+            <div className="absolute left-[19px] top-2 bottom-2 w-px bg-slate-100" />
             <div className="space-y-1">
               {recentItems.map((item: any, i: number) => (
-                <div key={`${item.type}-${item.id}-${i}`} className="flex items-start gap-3 p-2 rounded-lg hover:bg-slate-50 transition-colors relative">
+                <div
+                  key={`${item.type}-${item.id}-${i}`}
+                  className="flex items-start gap-3 p-3 rounded-lg hover:bg-slate-50 transition-colors relative"
+                >
                   <div
-                    className="w-[30px] h-[30px] rounded-full flex items-center justify-center flex-shrink-0 z-10"
-                    style={{ backgroundColor: item.color + '14', color: item.color }}
+                    className="w-[38px] h-[38px] rounded-full flex items-center justify-center flex-shrink-0 z-10"
+                    style={{ backgroundColor: `${item.color}15`, color: item.color }}
                   >
                     {item.icon}
                   </div>
-                  <div className="flex-1 min-w-0 pt-0.5">
-                    <p className="text-[12px] font-medium text-slate-700 truncate leading-snug">{item.text}</p>
-                    <p className="text-[10px] text-slate-400 mt-0.5">
+                  <div className="flex-1 min-w-0 pt-1.5">
+                    <p className="text-sm font-medium text-foreground truncate leading-snug">{item.text}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
                       {item.time ? formatDistanceToNow(parseISO(item.time), { addSuffix: true }) : ''}
                     </p>
                   </div>
@@ -621,42 +717,8 @@ function RecentUpdates() {
             </div>
           </div>
         )}
-      </div>
-    </div>
-  );
-}
-
-function StatusPill({ status }: { status: string }) {
-  const s = (status || '').toLowerCase();
-  let bg = 'bg-slate-100';
-  let text = 'text-slate-600';
-
-  if (s === 'completed' || s === 'approved' || s === 'active') { bg = 'bg-emerald-50'; text = 'text-emerald-700'; }
-  else if (s === 'pending' || s === 'pending approval' || s === 'draft') { bg = 'bg-amber-50'; text = 'text-amber-700'; }
-  else if (s === 'scheduled') { bg = 'bg-blue-50'; text = 'text-blue-700'; }
-  else if (s === 'cancelled' || s === 'rejected') { bg = 'bg-red-50'; text = 'text-red-700'; }
-  else if (s === 'postponed') { bg = 'bg-slate-100'; text = 'text-slate-600'; }
-
-  return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${bg} ${text}`}>
-      {status || '-'}
-    </span>
-  );
-}
-
-function CardSkeleton({ rows = 3 }: { rows?: number }) {
-  return (
-    <div className="px-4 py-3 space-y-3">
-      {Array.from({ length: rows }).map((_, i) => (
-        <div key={i} className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-slate-100 animate-pulse" />
-          <div className="flex-1 space-y-1.5">
-            <div className="h-3 bg-slate-100 rounded-md animate-pulse w-3/4" />
-            <div className="h-2 bg-slate-50 rounded-md animate-pulse w-1/2" />
-          </div>
-        </div>
-      ))}
-    </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -699,7 +761,7 @@ export default function Dashboard({ onNavigate }: { onNavigate?: (path: string) 
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-    setCardOrder(prev => {
+    setCardOrder((prev) => {
       const oldIndex = prev.indexOf(active.id as DashboardCardId);
       const newIndex = prev.indexOf(over.id as DashboardCardId);
       return arrayMove(prev, oldIndex, newIndex);
@@ -707,7 +769,7 @@ export default function Dashboard({ onNavigate }: { onNavigate?: (path: string) 
   }, []);
 
   const toggleCard = useCallback((id: DashboardCardId) => {
-    setCollapsedCards(prev => {
+    setCollapsedCards((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
@@ -727,50 +789,51 @@ export default function Dashboard({ onNavigate }: { onNavigate?: (path: string) 
 
   const configMap = useMemo(() => {
     const m = new Map<DashboardCardId, CardConfig>();
-    DEFAULT_CARDS.forEach(c => m.set(c.id, c));
+    DEFAULT_CARDS.forEach((c) => m.set(c.id, c));
     return m;
   }, []);
 
-  const row1 = cardOrder.filter(id => configMap.get(id)?.row === 0);
-  const row2 = cardOrder.filter(id => configMap.get(id)?.row === 1);
-  const row3 = cardOrder.filter(id => configMap.get(id)?.row === 2);
+  const row1 = cardOrder.filter((id) => configMap.get(id)?.row === 0);
+  const row2 = cardOrder.filter((id) => configMap.get(id)?.row === 1);
+  const row3 = cardOrder.filter((id) => configMap.get(id)?.row === 2);
 
   return (
-    <div className="min-h-screen bg-slate-50 font-['Inter',system-ui,sans-serif]">
-      <div className="px-6 py-5 border-b border-slate-200 bg-white sticky top-0 z-30">
+    <div className="min-h-screen bg-background">
+      <div className="px-6 py-5 border-b border-border bg-card sticky top-0 z-30">
         <div className="max-w-[1600px] mx-auto flex items-center justify-between">
           <div>
-            <h1 className="text-lg font-semibold text-slate-900 tracking-tight">Dashboard</h1>
-            <p className="text-[12px] text-slate-500 mt-0.5">{format(new Date(), 'EEEE, dd MMMM yyyy')}</p>
+            <h1 className="text-3xl font-bold text-foreground tracking-tight">Dashboard</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              {format(new Date(), 'EEEE, dd MMMM yyyy')}
+            </p>
           </div>
           <div className="flex items-center gap-2">
-            <button
-              type="button"
+            <Button
+              variant={isReorderMode ? 'primary' : 'secondary'}
+              size="sm"
               onClick={() => setIsReorderMode((prev) => !prev)}
-              className={`inline-flex items-center gap-1.5 px-3.5 py-2 text-[12px] font-semibold rounded-xl transition-colors border ${
-                isReorderMode
-                  ? 'bg-slate-950 text-white border-slate-950 hover:bg-slate-800'
-                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-              }`}
-              title={isReorderMode ? 'Exit reorder mode' : 'Reorder dashboard cards'}
+              leftIcon={<GripVertical size={14} />}
             >
-              <GripVertical size={14} />
               {isReorderMode ? 'Done' : 'Reorder'}
-            </button>
+            </Button>
             {onNavigate && (
               <>
-                <button
+                <Button
+                  variant="primary"
+                  size="sm"
                   onClick={() => onNavigate('/dc/create')}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 text-[12px] font-semibold text-white bg-slate-950 hover:bg-slate-800 rounded-xl transition-colors"
+                  leftIcon={<Plus size={14} />}
                 >
-                  <Plus size={14} /> Create DC
-                </button>
-                <button
+                  Create DC
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
                   onClick={() => onNavigate('/clients/new')}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 text-[12px] font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl transition-colors"
+                  leftIcon={<Building2 size={14} />}
                 >
-                  <Building2 size={14} /> Add Client
-                </button>
+                  Add Client
+                </Button>
               </>
             )}
           </div>
@@ -782,10 +845,10 @@ export default function Dashboard({ onNavigate }: { onNavigate?: (path: string) 
           <div className="flex-1 min-w-0">
             {isReorderMode ? (
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                <div className="space-y-5">
+                <div className="space-y-6">
                   {[row1, row2, row3].map((rowCards, ri) => (
                     <SortableContext key={ri} items={rowCards} strategy={rectSortingStrategy}>
-                      <div className={`grid gap-5 ${rowCards.length === 3 ? 'grid-cols-1 md:grid-cols-3' : 'grid-cols-1 md:grid-cols-2'}`}>
+                      <div className={`grid gap-6 ${rowCards.length === 3 ? 'lg:grid-cols-3' : 'lg:grid-cols-2'}`}>
                         {rowCards.map((id) => {
                           const config = configMap.get(id)!;
                           return (
@@ -806,16 +869,21 @@ export default function Dashboard({ onNavigate }: { onNavigate?: (path: string) 
                 </div>
               </DndContext>
             ) : (
-              <div className="space-y-5">
+              <div className="space-y-6">
                 {[row1, row2, row3].map((rowCards, ri) => (
                   <div
                     key={ri}
-                    className={`grid gap-5 ${rowCards.length === 3 ? 'grid-cols-1 md:grid-cols-3' : 'grid-cols-1 md:grid-cols-2'}`}
+                    className={`grid gap-6 ${rowCards.length === 3 ? 'lg:grid-cols-3' : 'lg:grid-cols-2'}`}
                   >
                     {rowCards.map((id) => {
                       const config = configMap.get(id)!;
                       return (
-                        <StaticCard key={id} config={config} collapsed={collapsedCards.has(id)} onToggle={() => toggleCard(id)}>
+                        <StaticCard
+                          key={id}
+                          config={config}
+                          collapsed={collapsedCards.has(id)}
+                          onToggle={() => toggleCard(id)}
+                        >
                           {CARD_CONTENT_MAP[id]()}
                         </StaticCard>
                       );
@@ -826,8 +894,8 @@ export default function Dashboard({ onNavigate }: { onNavigate?: (path: string) 
             )}
           </div>
 
-          <div className="w-[320px] flex-shrink-0 hidden lg:block">
-            <div className="sticky top-[85px]" style={{ maxHeight: 'calc(100vh - 110px)' }}>
+          <div className="w-[340px] flex-shrink-0 hidden lg:block">
+            <div className="sticky top-[89px]" style={{ maxHeight: 'calc(100vh - 110px)' }}>
               <RecentUpdates />
             </div>
           </div>

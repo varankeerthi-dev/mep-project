@@ -1,25 +1,24 @@
 import React, { useState } from 'react';
 import {
   Box, Paper, Typography, Button, TextField, Dialog, DialogTitle, DialogContent, DialogActions,
-  Grid, FormControl, InputLabel, Select, MenuItem, Chip, IconButton, Tooltip, Autocomplete,
+  Grid, FormControl, InputLabel, Select, MenuItem, Chip, IconButton, Autocomplete, Checkbox,
   Stepper, Step, StepLabel, FormControlLabel,
 } from '@mui/material';
-import { DataGrid, GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
+import { DataGrid, GridColDef } from '@mui/x-data-grid';
 import {
-  Add as AddIcon, Edit as EditIcon, AccountBalance as AccountBalanceIcon,
-  CheckCircle as CheckCircleIcon, PictureAsPdf as PdfIcon,
+  Add as AddIcon, AccountBalance as AccountBalanceIcon, PictureAsPdf as PdfIcon,
 } from '@mui/icons-material';
+import { toast } from 'sonner';
 import { useAuth } from '../../../contexts/AuthContext';
-import { usePayments, useVendors, usePurchaseBills, useCreatePayment } from '../hooks/usePurchaseQueries';
+import { usePayments, useVendors, useVendorOpenBills, useCreatePayment } from '../hooks/usePurchaseQueries';
 
 const PAYMENT_MODES = ['Cash', 'Bank Transfer', 'Cheque', 'UPI', 'Card', 'NEFT', 'RTGS'];
 
 export const Payments: React.FC = () => {
-  const { organisation } = useAuth();
+  const { organisation, user } = useAuth();
   const [openDialog, setOpenDialog] = useState(false);
   const [openRequestDialog, setOpenRequestDialog] = useState(false);
   const [activeStep, setActiveStep] = useState(0);
-  const [searchTerm, setSearchTerm] = useState('');
   const [vendorId, setVendorId] = useState('');
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
   const [paymentMode, setPaymentMode] = useState('Bank Transfer');
@@ -27,47 +26,131 @@ export const Payments: React.FC = () => {
   const [referenceNo, setReferenceNo] = useState('');
   const [bankAccount, setBankAccount] = useState('');
   const [narration, setNarration] = useState('');
-  const [selectedBills, setSelectedBills] = useState<any[]>([]);
+  const [selectedBillIds, setSelectedBillIds] = useState<string[]>([]);
   const [isAdvance, setIsAdvance] = useState(false);
+  const [hasVendorProforma, setHasVendorProforma] = useState(false);
+  const [vendorProformaInvoice, setVendorProformaInvoice] = useState('');
+  const [vendorProformaDate, setVendorProformaDate] = useState('');
+  const [vendorProformaAmount, setVendorProformaAmount] = useState('');
 
   const { data: payments = [], isLoading } = usePayments(organisation?.id);
   const { data: vendors = [] } = useVendors(organisation?.id);
-  const { data: bills = [] } = usePurchaseBills(organisation?.id, { status: 'Unpaid' });
+  const { data: vendorBills = [] } = useVendorOpenBills(organisation?.id, vendorId || undefined, openDialog && !isAdvance);
   const createPayment = useCreatePayment();
+  const selectedBills = vendorBills.filter((bill: any) => selectedBillIds.includes(String(bill.id)));
+  const isLastStep = isAdvance ? activeStep === 1 : activeStep === 2;
 
   const handleAddPayment = () => {
     setOpenDialog(true);
     setActiveStep(0);
     setVendorId('');
     setAmount('');
-    setSelectedBills([]);
+    setSelectedBillIds([]);
     setIsAdvance(false);
+    setReferenceNo('');
+    setBankAccount('');
+    setNarration('');
+    setPaymentMode('Bank Transfer');
+    setPaymentDate(new Date().toISOString().split('T')[0]);
+    setHasVendorProforma(false);
+    setVendorProformaInvoice('');
+    setVendorProformaDate('');
+    setVendorProformaAmount('');
   };
 
   const handleCreateRequest = () => {
     setOpenRequestDialog(true);
   };
 
+  const buildBillAllocations = () => {
+    let remainingAmount = Number(amount);
+
+    return selectedBills.reduce((allocations: any[], bill: any) => {
+      const billBalance = Number(bill.balance_amount ?? bill.total_amount ?? 0);
+      if (remainingAmount <= 0 || billBalance <= 0) {
+        return allocations;
+      }
+
+      const adjustedAmount = Math.min(remainingAmount, billBalance);
+      remainingAmount -= adjustedAmount;
+
+      allocations.push({
+        bill_id: bill.id,
+        adjusted_amount: adjustedAmount,
+        tds_amount: Number(bill.tds_amount || 0),
+      });
+
+      return allocations;
+    }, []);
+  };
+
   const handleSave = async () => {
+    if (!organisation?.id) {
+      toast.error('Organisation is required to record a payment.');
+      return;
+    }
+
+    if (!vendorId) {
+      toast.error('Please select a vendor.');
+      setActiveStep(0);
+      return;
+    }
+
+    if (!amount || Number(amount) <= 0) {
+      toast.error('Please enter a valid payment amount.');
+      setActiveStep(1);
+      return;
+    }
+
+    if (!isAdvance && selectedBillIds.length === 0) {
+      toast.error('Please select at least one bill for this payment.');
+      setActiveStep(2);
+      return;
+    }
+
+    if (hasVendorProforma && !vendorProformaInvoice.trim()) {
+      toast.error('Please enter the vendor proforma invoice reference.');
+      setActiveStep(1);
+      return;
+    }
+
     const paymentData = {
-      organisation_id: organisation?.id,
+      organisation_id: organisation.id,
       vendor_id: vendorId,
       payment_date: paymentDate,
       payment_mode: paymentMode,
       amount: Number(amount),
+      net_amount: Number(amount),
       reference_no: referenceNo,
+      bank_name: bankAccount || null,
       narration,
       is_advance: isAdvance,
+      advance_remaining: isAdvance ? Number(amount) : 0,
+      created_by: user?.id ?? null,
+      ...(hasVendorProforma
+        ? {
+            has_vendor_proforma: true,
+            vendor_proforma_invoice: vendorProformaInvoice.trim(),
+            vendor_proforma_date: vendorProformaDate || null,
+            vendor_proforma_amount: vendorProformaAmount ? Number(vendorProformaAmount) : null,
+          }
+        : {}),
     };
 
-    const billAllocations = selectedBills.map((bill: any) => ({
-      bill_id: bill.id,
-      adjusted_amount: bill.adjusted_amount,
-      tds_amount: bill.tds_amount || 0,
-    }));
+    const billAllocations = isAdvance ? [] : buildBillAllocations();
 
-    await createPayment.mutateAsync({ paymentData, billAllocations });
-    setOpenDialog(false);
+    if (!isAdvance && billAllocations.length === 0) {
+      toast.error('No bill amount could be allocated from the selected bills.');
+      return;
+    }
+
+    try {
+      await createPayment.mutateAsync({ paymentData, billAllocations });
+      toast.success('Payment saved successfully.');
+      setOpenDialog(false);
+    } catch (error: any) {
+      toast.error(error?.message ?? 'Failed to save payment.');
+    }
   };
 
   const columns: GridColDef[] = [
@@ -116,11 +199,35 @@ export const Payments: React.FC = () => {
           {activeStep === 0 && (
             <Grid container spacing={2}>
               <Grid item xs={12}>
-                <Autocomplete options={vendors} getOptionLabel={(o: any) => o.company_name} onChange={(e, v) => setVendorId(v?.id || '')}
-                  renderInput={(p) => <TextField {...p} label="Select Vendor *" size="small" fullWidth />} />
+                <Autocomplete options={vendors} getOptionLabel={(o: any) => o.company_name} onChange={(e, v) => {
+                  setVendorId(v?.id || '');
+                  setSelectedBillIds([]);
+                }}
+                  renderInput={(p) => (
+                    <TextField
+                      {...p}
+                      label="Select Vendor *"
+                      size="small"
+                      fullWidth
+                      sx={{
+                        '& .MuiInputBase-root': {
+                          minHeight: 40,
+                        },
+                      }}
+                    />
+                  )} />
               </Grid>
               <Grid item xs={12}>
-                <FormControlLabel control={<input type="checkbox" checked={isAdvance} onChange={(e) => setIsAdvance(e.target.checked)} />} label="Advance Payment (Without Bill)" />
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+                  <FormControlLabel
+                    control={<Checkbox checked={isAdvance} onChange={(e) => setIsAdvance(e.target.checked)} />}
+                    label="Advance Payment (Without Bill)"
+                  />
+                  <FormControlLabel
+                    control={<Checkbox checked={hasVendorProforma} onChange={(e) => setHasVendorProforma(e.target.checked)} />}
+                    label="Proforma Invoice"
+                  />
+                </Box>
               </Grid>
             </Grid>
           )}
@@ -137,28 +244,74 @@ export const Payments: React.FC = () => {
               <Grid item xs={12} md={6}><TextField fullWidth label="Reference No / Cheque No" value={referenceNo} onChange={(e) => setReferenceNo(e.target.value)} size="small" /></Grid>
               <Grid item xs={12} md={6}><TextField fullWidth label="Bank Account" value={bankAccount} onChange={(e) => setBankAccount(e.target.value)} size="small" /></Grid>
               <Grid item xs={12}><TextField fullWidth multiline rows={2} label="Narration" value={narration} onChange={(e) => setNarration(e.target.value)} size="small" /></Grid>
+              {hasVendorProforma ? (
+                <>
+                  <Grid item xs={12} md={4}>
+                    <TextField
+                      fullWidth
+                      label="Vendor Proforma Invoice"
+                      value={vendorProformaInvoice}
+                      onChange={(e) => setVendorProformaInvoice(e.target.value)}
+                      size="small"
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    <TextField
+                      fullWidth
+                      type="date"
+                      label="Proforma Date"
+                      value={vendorProformaDate}
+                      onChange={(e) => setVendorProformaDate(e.target.value)}
+                      size="small"
+                      InputLabelProps={{ shrink: true }}
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    <TextField
+                      fullWidth
+                      type="number"
+                      label="Proforma Amount"
+                      value={vendorProformaAmount}
+                      onChange={(e) => setVendorProformaAmount(e.target.value)}
+                      size="small"
+                    />
+                  </Grid>
+                  <Grid item xs={12}>
+                    <Typography sx={{ fontSize: '11px', color: 'text.secondary', fontFamily: 'Inter, sans-serif' }}>
+                      Proforma details are stored only for tracking. They do not affect payment totals, vendor balance, or bill allocation.
+                    </Typography>
+                  </Grid>
+                </>
+              ) : null}
             </Grid>
           )}
 
           {activeStep === 2 && !isAdvance && (
             <Box>
               <Typography variant="subtitle2" sx={{ mb: 2 }}>Select Bills to Pay:</Typography>
-              <DataGrid rows={bills.filter((b: any) => b.vendor_id === vendorId)} columns={[
+              <DataGrid rows={vendorBills} columns={[
                 { field: 'bill_number', headerName: 'Bill #', width: 110 },
                 { field: 'bill_date', headerName: 'Date', width: 100 },
                 { field: 'total_amount', headerName: 'Amount', width: 110, renderCell: (p) => <Typography align="right">₹{Number(p.value).toLocaleString()}</Typography> },
                 { field: 'balance_amount', headerName: 'Balance', width: 110, renderCell: (p) => <Typography align="right" color="error">₹{Number(p.value).toLocaleString()}</Typography> },
-              ]} density="compact" checkboxSelection hideFooterPagination sx={{ height: 300 }} />
+              ]} density="compact" checkboxSelection hideFooterPagination rowSelectionModel={selectedBillIds}
+                onRowSelectionModelChange={(rowSelectionModel) => setSelectedBillIds(rowSelectionModel.map((id) => String(id)))}
+                sx={{ height: 300 }} />
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                Payment amount will be allocated across selected bills in order, up to the entered amount.
+              </Typography>
             </Box>
           )}
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2 }}>
           <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
           {activeStep > 0 && <Button onClick={() => setActiveStep(activeStep - 1)}>Back</Button>}
-          {activeStep < 2 ? (
+          {!isLastStep ? (
             <Button variant="contained" onClick={() => setActiveStep(activeStep + 1)} disabled={activeStep === 0 && !vendorId}>Next</Button>
           ) : (
-            <Button variant="contained" color="success" onClick={handleSave} disabled={!amount || Number(amount) <= 0}>Save Payment</Button>
+            <Button variant="contained" color="success" onClick={handleSave} disabled={createPayment.isPending || !amount || Number(amount) <= 0}>
+              {createPayment.isPending ? 'Saving...' : 'Save Payment'}
+            </Button>
           )}
         </DialogActions>
       </Dialog>

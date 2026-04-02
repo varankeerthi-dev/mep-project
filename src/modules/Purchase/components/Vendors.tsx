@@ -25,13 +25,14 @@ import {
 import {
   Add as AddIcon,
   Edit as EditIcon,
-  Delete as DeleteIcon,
   Search as SearchIcon,
   Business as BusinessIcon,
+  MenuBook as MenuBookIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useVendors, useCreateVendor, useUpdateVendor } from '../hooks/usePurchaseQueries';
 import { supabase } from '../../../supabase';
+import VendorLedgerDialog from './VendorLedgerDialog';
 
 import { 
   validateGSTIN, 
@@ -101,6 +102,7 @@ const defaultFormData: VendorFormData = {
 export const Vendors: React.FC = () => {
   const { organisation } = useAuth();
   const [openDialog, setOpenDialog] = useState(false);
+  const [openLedgerDialog, setOpenLedgerDialog] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [selectedVendor, setSelectedVendor] = useState<any>(null);
   const [formData, setFormData] = useState<VendorFormData>(defaultFormData);
@@ -143,6 +145,11 @@ export const Vendors: React.FC = () => {
     });
     setErrors({});
     setOpenDialog(true);
+  };
+
+  const handleOpenLedger = (vendor: any) => {
+    setSelectedVendor(vendor);
+    setOpenLedgerDialog(true);
   };
 
   const generateVendorCode = () => {
@@ -355,6 +362,15 @@ export const Vendors: React.FC = () => {
       align: 'center',
       renderCell: (params: GridRenderCellParams) => (
         <Box>
+          <Tooltip title="Vendor Ledger">
+            <IconButton
+              size="small"
+              onClick={() => handleOpenLedger(params.row)}
+              sx={{ color: 'text.secondary' }}
+            >
+              <MenuBookIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
           <Tooltip title="Edit">
             <IconButton
               size="small"
@@ -717,6 +733,14 @@ export const Vendors: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <VendorLedgerDialog
+        open={openLedgerDialog}
+        onClose={() => setOpenLedgerDialog(false)}
+        organisationName={organisation?.name || 'Organisation'}
+        organisationId={organisation?.id}
+        vendor={selectedVendor}
+      />
     </Box>
   );
 };
