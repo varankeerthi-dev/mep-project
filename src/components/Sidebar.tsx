@@ -157,6 +157,14 @@ const menuData: MenuSection[] = [
         ]
       },
       {
+        id: 'invoice',
+        label: 'Invoice',
+        submenu: [
+          { id: 'invoice-list', label: 'Invoice List', path: '/invoices' },
+          { id: 'invoice-create', label: 'Create Invoice', path: '/invoices/create' }
+        ]
+      },
+      {
         id: 'boq',
         label: 'BOQ',
         submenu: [
@@ -272,6 +280,7 @@ const iconMap = {
   subcontractor: UserGroupIcon,
   'client-requests': InboxIcon,
   quotation: DocumentDuplicateIcon,
+  invoice: DocumentTextIcon,
   boq: TableCellsIcon,
   documents: FolderOpenIcon,
   issue: ExclamationTriangleIcon,

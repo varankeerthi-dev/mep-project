@@ -28,6 +28,8 @@ const TransactionNumberSeries = lazyAny(() => import('./pages/TransactionNumberS
 const CreatePO = lazyAny(() => import('./pages/CreatePO'));
 const POList = lazyAny(() => import('./pages/POList'));
 const PODetails = lazyAny(() => import('./pages/PODetails'));
+const InvoiceListPage = lazyAny(() => import('./invoices/pages/InvoiceListPage'));
+const InvoiceEditorPage = lazyAny(() => import('./invoices/pages/InvoiceEditorPage'));
 const ProjectList = lazyAny(() => import('./pages/ProjectList'));
 const CreateProject = lazyAny(() => import('./pages/CreateProject'));
 const AuthModule = import('./pages/Auth');
@@ -369,6 +371,9 @@ export default function App() {
       case '/client-po': return <POList />;
       case '/client-po/create': return <CreatePO />;
       case '/client-po/details': return <PODetails />;
+      case '/invoices': return <InvoiceListPage />;
+      case '/invoices/create': return <InvoiceEditorPage />;
+      case '/invoices/edit': return <InvoiceEditorPage />;
       case '/employee/checkin': return <EmployeeCheckIn />;
       case '/hr/dashboard': return <HRAdminDashboard />;
       default:
