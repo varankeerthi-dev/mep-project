@@ -3,7 +3,7 @@ import { supabase } from '../supabase';
 import { formatCurrency } from '../utils/formatters';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Search, Plus, ChevronRight, ArrowLeft, Edit, Trash2, Package } from 'lucide-react';
+import { Search, Plus, ChevronRight, ArrowLeft, Edit, Trash2, Folder, TrendingUp, Clock, DollarSign } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -32,24 +32,533 @@ type ProjectDetails = {
   payments: any[];
 };
 
-// ─── Status Dots ────────────────────────────────────────────────────────────────
+// ─── Status Config ─────────────────────────────────────────────────────────────
 
-const STATUS_DOTS: Record<string, string> = {
-  Draft: 'bg-zinc-400',
-  Active: 'bg-teal-500',
-  'Execution Completed': 'bg-amber-500',
-  'Financially Closed': 'bg-emerald-500',
-  Closed: 'bg-zinc-400',
+const STATUS_CONFIG = {
+  Draft: { dot: '#94a3b8', label: 'Draft' },
+  Active: { dot: '#10b981', label: 'Active' },
+  'Execution Completed': { dot: '#f59e0b', label: 'Execution' },
+  'Financially Closed': { dot: '#6366f1', label: 'Financially Closed' },
+  Closed: { dot: '#64748b', label: 'Closed' },
 };
 
-const PO_STATUS_DOTS: Record<string, string> = {
-  'Not Required': 'bg-emerald-500',
-  Pending: 'bg-amber-500',
-  Received: 'bg-teal-500',
+const PO_STATUS_CONFIG = {
+  'Not Required': { dot: '#10b981', label: 'Not Required' },
+  Pending: { dot: '#f59e0b', label: 'Pending' },
+  Received: { dot: '#3b82f6', label: 'Received' },
 };
 
-const getStatusDot = (s?: string) => STATUS_DOTS[s ?? 'Draft'] ?? 'bg-zinc-400';
-const getPOStatusDot = (s?: string) => PO_STATUS_DOTS[s ?? 'Pending'] ?? 'bg-amber-500';
+// ─── Styles ────────────────────────────────────────────────────────────────────
+
+const styles = `
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap');
+  
+  :root {
+    --bg-primary: #faf9f7;
+    --bg-card: #ffffff;
+    --bg-hover: #f5f3f0;
+    --border: #e8e5e1;
+    --border-hover: #d4d0ca;
+    --text-primary: #1a1a1a;
+    --text-secondary: #6b6b6b;
+    --text-muted: #9ca3af;
+    --accent: #e85d04;
+    --accent-hover: #dc4c00;
+    --accent-light: #fff4ed;
+    --success: #10b981;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+  }
+  
+  * { box-sizing: border-box; }
+  
+  body { background: var(--bg-primary); }
+  
+  .pl-page {
+    font-family: 'DM Sans', system-ui, sans-serif;
+    background: var(--bg-primary);
+    min-height: 100vh;
+    padding: 2rem;
+  }
+  
+  .pl-container {
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  
+  /* Header */
+  .pl-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 2rem;
+  }
+  
+  .pl-title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
+    margin: 0;
+  }
+  
+  .pl-subtitle {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    margin-top: 0.25rem;
+  }
+  
+  /* Buttons */
+  .pl-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.25rem;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none;
+  }
+  
+  .pl-btn-primary {
+    background: var(--accent);
+    color: white;
+  }
+  
+  .pl-btn-primary:hover {
+    background: var(--accent-hover);
+    transform: translateY(-1px);
+  }
+  
+  .pl-btn-secondary {
+    background: var(--bg-card);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+  }
+  
+  .pl-btn-secondary:hover {
+    background: var(--bg-hover);
+    border-color: var(--border-hover);
+  }
+  
+  .pl-btn-icon {
+    padding: 0.5rem;
+    border-radius: 0.5rem;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  
+  .pl-btn-icon:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+  
+  /* Search */
+  .pl-search-wrapper {
+    position: relative;
+    margin-bottom: 1.5rem;
+  }
+  
+  .pl-search-icon {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+  }
+  
+  .pl-search-input {
+    width: 100%;
+    padding: 0.875rem 1rem 0.875rem 2.75rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    font-size: 0.9375rem;
+    color: var(--text-primary);
+    transition: all 0.2s ease;
+    font-family: inherit;
+  }
+  
+  .pl-search-input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(232, 93, 4, 0.1);
+  }
+  
+  .pl-search-input::placeholder {
+    color: var(--text-muted);
+  }
+  
+  .pl-count {
+    position: absolute;
+    right: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  
+  /* Project Card */
+  .pl-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 1rem;
+    overflow: hidden;
+    transition: all 0.25s ease;
+  }
+  
+  .pl-card:hover {
+    border-color: var(--border-hover);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+  }
+  
+  .pl-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  
+  .pl-table thead {
+    background: var(--bg-primary);
+  }
+  
+  .pl-table th {
+    padding: 0.875rem 1rem;
+    text-align: left;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+  }
+  
+  .pl-table th:last-child {
+    text-align: right;
+  }
+  
+  .pl-table td {
+    padding: 1rem;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+  
+  .pl-table tbody tr {
+    transition: background 0.15s ease;
+  }
+  
+  .pl-table tbody tr:hover {
+    background: var(--bg-hover);
+  }
+  
+  .pl-table tbody tr:last-child td {
+    border-bottom: none;
+  }
+  
+  /* Project Name Cell */
+  .pl-project-name {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  
+  .pl-project-title {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: color 0.15s ease;
+  }
+  
+  .pl-project-title:hover {
+    color: var(--accent);
+  }
+  
+  .pl-project-code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.6875rem;
+    color: var(--text-muted);
+  }
+  
+  /* Status Badge */
+  .pl-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.75rem;
+    background: var(--bg-primary);
+    border-radius: 2rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+  }
+  
+  .pl-status-dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+  }
+  
+  /* Warning Badge */
+  .pl-warning {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.5rem;
+    background: #fef2f2;
+    color: var(--danger);
+    border-radius: 0.25rem;
+    font-size: 0.625rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  
+  /* Progress Bar */
+  .pl-progress {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+  
+  .pl-progress-bar {
+    flex: 1;
+    height: 0.375rem;
+    background: var(--bg-primary);
+    border-radius: 1rem;
+    overflow: hidden;
+  }
+  
+  .pl-progress-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 1rem;
+    transition: width 0.5s ease;
+  }
+  
+  .pl-progress-value {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    min-width: 2.5rem;
+    text-align: right;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  
+  /* Action Buttons */
+  .pl-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.25rem;
+  }
+  
+  /* Empty State */
+  .pl-empty {
+    padding: 4rem 2rem;
+    text-align: center;
+  }
+  
+  .pl-empty-icon {
+    width: 4rem;
+    height: 4rem;
+    margin: 0 auto 1rem;
+    color: var(--text-muted);
+    opacity: 0.5;
+  }
+  
+  .pl-empty-text {
+    font-size: 0.9375rem;
+    color: var(--text-secondary);
+  }
+  
+  /* Loading Skeleton */
+  .pl-skeleton {
+    background: linear-gradient(90deg, var(--bg-primary) 0%, var(--bg-card) 50%, var(--bg-primary) 100%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: 0.5rem;
+  }
+  
+  @keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+  
+  /* Detail View */
+  .pl-detail-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+  
+  .pl-detail-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
+    margin: 0;
+  }
+  
+  .pl-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    overflow-x: auto;
+    padding-bottom: 0.5rem;
+  }
+  
+  .pl-tab {
+    padding: 0.625rem 1rem;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text-secondary);
+  }
+  
+  .pl-tab:hover {
+    background: var(--bg-hover);
+  }
+  
+  .pl-tab.active {
+    background: var(--accent);
+    color: white;
+  }
+  
+  .pl-tab-count {
+    margin-left: 0.375rem;
+    opacity: 0.7;
+  }
+  
+  /* Summary Cards */
+  .pl-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  .pl-summary-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    padding: 1.25rem;
+  }
+  
+  .pl-summary-title {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    margin-bottom: 1rem;
+  }
+  
+  .pl-summary-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--border);
+  }
+  
+  .pl-summary-row:last-child {
+    border-bottom: none;
+  }
+  
+  .pl-summary-label {
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+  }
+  
+  .pl-summary-value {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+  
+  /* Financial Grid */
+  .pl-financial-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+  
+  .pl-financial-card {
+    background: var(--bg-primary);
+    border-radius: 0.75rem;
+    padding: 1rem;
+    text-align: center;
+  }
+  
+  .pl-financial-label {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    margin-bottom: 0.5rem;
+  }
+  
+  .pl-financial-value {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  
+  .pl-financial-value.positive {
+    color: var(--success);
+  }
+  
+  .pl-financial-value.negative {
+    color: var(--danger);
+  }
+  
+  /* Responsive */
+  @media (max-width: 1024px) {
+    .pl-financial-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+  
+  @media (max-width: 768px) {
+    .pl-page {
+      padding: 1rem;
+    }
+    
+    .pl-summary-grid {
+      grid-template-columns: 1fr;
+    }
+    
+    .pl-table th:nth-child(4),
+    .pl-table td:nth-child(4) {
+      display: none;
+    }
+  }
+`;
+
+// ─── Inject Styles ─────────────────────────────────────────────────────────────
+
+if (typeof document !== 'undefined') {
+  const styleId = 'pl-styles';
+  if (!document.getElementById(styleId)) {
+    const styleEl = document.createElement('style');
+    styleEl.id = styleId;
+    styleEl.textContent = styles;
+    document.head.appendChild(styleEl);
+  }
+}
 
 // ─── ProjectList ──────────────────────────────────────────────────────────────
 
@@ -158,166 +667,384 @@ export default function ProjectList() {
     setViewMode('detail');
   };
 
+  const fmt = (n: any) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n || 0);
+  const fmtD = (d?: string) => { if (!d) return '-'; const x = new Date(d); return isNaN(x.getTime()) ? '-' : x.toLocaleDateString(); };
+
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#fafafa] px-6 py-6">
-        <div className="max-w-[1400px] mx-auto">
-          <div className="animate-pulse space-y-4">
-            <div className="h-8 bg-gray-200 rounded-lg w-32" />
-            <div className="h-12 bg-gray-200 rounded-xl w-full" />
-            <div className="h-96 bg-gray-200 rounded-2xl w-full" />
+      <div className="pl-page">
+        <div className="pl-container">
+          <div className="pl-header">
+            <div>
+              <div className="pl-skeleton" style={{ width: '120px', height: '2rem' }} />
+              <div className="pl-skeleton" style={{ width: '180px', height: '1rem', marginTop: '0.5rem' }} />
+            </div>
           </div>
+          <div className="pl-skeleton" style={{ width: '100%', height: '3rem', marginBottom: '1.5rem' }} />
+          <div className="pl-skeleton" style={{ width: '100%', height: '400px' }} />
         </div>
       </div>
     );
   }
 
   if (viewMode === 'detail' && selectedProject) {
+    const tabs = [
+      { id: 'summary', label: 'Summary' },
+      { id: 'pos', label: 'POs', count: projectPOs.length },
+      { id: 'invoices', label: 'Invoices', count: projectInvoices.length },
+      { id: 'payments', label: 'Payments', count: projectPayments.length },
+      { id: 'expenses', label: 'Expenses', count: projectExpenses.length },
+    ];
+    const [activeTab, setActiveTab] = useState('summary');
+
     return (
-      <ProjectDetailView
-        project={selectedProject}
-        financialSummary={financialSummary}
-        projectPOs={projectPOs}
-        projectInvoices={projectInvoices}
-        projectExpenses={projectExpenses}
-        projectPayments={projectPayments}
-        detailsLoading={detailsLoading}
-        onBack={() => { setViewMode('list'); setSelectedProject(null); }}
-        onEdit={() => navigate(`/projects/edit?id=${selectedProject.id}`)}
-      />
+      <div className="pl-page">
+        <div className="pl-container">
+          <div className="pl-detail-header">
+            <button className="pl-btn-icon" onClick={() => { setViewMode('list'); setSelectedProject(null); }}>
+              <ArrowLeft size={20} />
+            </button>
+            <div>
+              <h1 className="pl-detail-title">{selectedProject.project_name}</h1>
+              <p className="pl-subtitle">{selectedProject.project_code}</p>
+            </div>
+            <button className="pl-btn pl-btn-primary" style={{ marginLeft: 'auto' }} onClick={() => navigate(`/projects/edit?id=${selectedProject.id}`)}>
+              <Edit size={16} />
+              Edit Project
+            </button>
+          </div>
+
+          <div className="pl-tabs">
+            {tabs.map(tab => (
+              <button
+                key={tab.id}
+                className={`pl-tab ${activeTab === tab.id ? 'active' : ''}`}
+                onClick={() => setActiveTab(tab.id)}
+              >
+                {tab.label}
+                <span className="pl-tab-count">({tab.count})</span>
+              </button>
+            ))}
+          </div>
+
+          {activeTab === 'summary' && (
+            <>
+              <div className="pl-summary-grid">
+                <div className="pl-summary-card">
+                  <h3 className="pl-summary-title">Commercial</h3>
+                  <div className="pl-summary-row">
+                    <span className="pl-summary-label">Client</span>
+                    <span className="pl-summary-value">{selectedProject.client?.client_name || '-'}</span>
+                  </div>
+                  <div className="pl-summary-row">
+                    <span className="pl-summary-label">Type</span>
+                    <span className="pl-summary-value">{selectedProject.project_type || '-'}</span>
+                  </div>
+                  <div className="pl-summary-row">
+                    <span className="pl-summary-label">Est. Value</span>
+                    <span className="pl-summary-value">{selectedProject.project_estimated_value ? fmt(selectedProject.project_estimated_value) : '-'}</span>
+                  </div>
+                  <div className="pl-summary-row">
+                    <span className="pl-summary-label">PO Status</span>
+                    <span className="pl-summary-value">{selectedProject.po_status || 'Pending'}</span>
+                  </div>
+                </div>
+
+                <div className="pl-summary-card">
+                  <h3 className="pl-summary-title">Execution</h3>
+                  <div className="pl-summary-row">
+                    <span className="pl-summary-label">Status</span>
+                    <span className="pl-summary-value">{selectedProject.status || 'Draft'}</span>
+                  </div>
+                  <div className="pl-summary-row">
+                    <span className="pl-summary-label">Start Date</span>
+                    <span className="pl-summary-value">{fmtD(selectedProject.start_date)}</span>
+                  </div>
+                  <div className="pl-summary-row">
+                    <span className="pl-summary-label">End Date</span>
+                    <span className="pl-summary-value">{fmtD(selectedProject.expected_end_date)}</span>
+                  </div>
+                  <div className="pl-summary-row">
+                    <span className="pl-summary-label">Completion</span>
+                    <span className="pl-summary-value">{selectedProject.completion_percentage || 0}%</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pl-card" style={{ padding: '1.25rem' }}>
+                <h3 className="pl-summary-title" style={{ marginBottom: '1rem' }}>Financial Overview</h3>
+                <div className="pl-financial-grid">
+                  <div className="pl-financial-card">
+                    <div className="pl-financial-label">PO Value</div>
+                    <div className="pl-financial-value">{fmt(financialSummary?.total_po_value)}</div>
+                  </div>
+                  <div className="pl-financial-card">
+                    <div className="pl-financial-label">Invoice</div>
+                    <div className="pl-financial-value">{fmt(financialSummary?.total_invoice_value)}</div>
+                  </div>
+                  <div className="pl-financial-card">
+                    <div className="pl-financial-label">Payments</div>
+                    <div className="pl-financial-value positive">{fmt(financialSummary?.total_payment_received)}</div>
+                  </div>
+                  <div className="pl-financial-card">
+                    <div className="pl-financial-label">Expenses</div>
+                    <div className="pl-financial-value negative">{fmt(financialSummary?.total_expense)}</div>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          {activeTab === 'pos' && (
+            <div className="pl-card">
+              <div style={{ padding: '1rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={{ margin: 0, fontWeight: 600, color: 'var(--text-primary)' }}>Purchase Orders</h3>
+                <button className="pl-btn pl-btn-primary" onClick={() => navigate(`/client-po/create?project_id=${selectedProject.id}`)}>
+                  <Plus size={16} />
+                  Create PO
+                </button>
+              </div>
+              {projectPOs.length === 0 ? (
+                <div className="pl-empty">
+                  <Folder className="pl-empty-icon" />
+                  <p className="pl-empty-text">No purchase orders found</p>
+                </div>
+              ) : (
+                <table className="pl-table">
+                  <thead>
+                    <tr>
+                      <th>PO Number</th>
+                      <th>Date</th>
+                      <th>Total Value</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {projectPOs.map(po => (
+                      <tr key={po.id}>
+                        <td style={{ fontWeight: 500 }}>{po.po_number}</td>
+                        <td style={{ color: 'var(--text-secondary)' }}>{fmtD(po.po_date)}</td>
+                        <td style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 500 }}>{fmt(po.po_total_value)}</td>
+                        <td>
+                          <span className="pl-status">
+                            <span className="pl-status-dot" style={{ background: PO_STATUS_CONFIG[po.status as keyof typeof PO_STATUS_CONFIG]?.dot || '#94a3b8' }} />
+                            {po.status || 'Pending'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'invoices' && (
+            <div className="pl-card">
+              <div style={{ padding: '1rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={{ margin: 0, fontWeight: 600, color: 'var(--text-primary)' }}>Invoices</h3>
+              </div>
+              {projectInvoices.length === 0 ? (
+                <div className="pl-empty">
+                  <Folder className="pl-empty-icon" />
+                  <p className="pl-empty-text">No invoices found</p>
+                </div>
+              ) : (
+                <table className="pl-table">
+                  <thead>
+                    <tr>
+                      <th>Invoice</th>
+                      <th>Date</th>
+                      <th>Amount</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {projectInvoices.map(inv => (
+                      <tr key={inv.id}>
+                        <td style={{ fontWeight: 500 }}>{inv.invoice_number}</td>
+                        <td style={{ color: 'var(--text-secondary)' }}>{fmtD(inv.invoice_date)}</td>
+                        <td style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 500 }}>{fmt(inv.total_amount)}</td>
+                        <td><span className="pl-status">{inv.status}</span></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'payments' && (
+            <div className="pl-card">
+              <div style={{ padding: '1rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={{ margin: 0, fontWeight: 600, color: 'var(--text-primary)' }}>Payments</h3>
+              </div>
+              {projectPayments.length === 0 ? (
+                <div className="pl-empty">
+                  <Folder className="pl-empty-icon" />
+                  <p className="pl-empty-text">No payments found</p>
+                </div>
+              ) : (
+                <table className="pl-table">
+                  <thead>
+                    <tr>
+                      <th>Payment</th>
+                      <th>Date</th>
+                      <th>Amount</th>
+                      <th>Mode</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {projectPayments.map(pay => (
+                      <tr key={pay.id}>
+                        <td style={{ fontWeight: 500 }}>{pay.payment_number}</td>
+                        <td style={{ color: 'var(--text-secondary)' }}>{fmtD(pay.payment_date)}</td>
+                        <td style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 500, color: 'var(--success)' }}>{fmt(pay.payment_amount)}</td>
+                        <td style={{ color: 'var(--text-secondary)' }}>{pay.payment_mode}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'expenses' && (
+            <div className="pl-card">
+              <div style={{ padding: '1rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={{ margin: 0, fontWeight: 600, color: 'var(--text-primary)' }}>Expenses</h3>
+              </div>
+              {projectExpenses.length === 0 ? (
+                <div className="pl-empty">
+                  <Folder className="pl-empty-icon" />
+                  <p className="pl-empty-text">No expenses found</p>
+                </div>
+              ) : (
+                <table className="pl-table">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Type</th>
+                      <th>Description</th>
+                      <th>Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {projectExpenses.map(exp => (
+                      <tr key={exp.id}>
+                        <td style={{ color: 'var(--text-secondary)' }}>{fmtD(exp.expense_date)}</td>
+                        <td style={{ fontWeight: 500 }}>{exp.expense_type}</td>
+                        <td style={{ color: 'var(--text-secondary)' }}>{exp.description || '-'}</td>
+                        <td style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 500, color: 'var(--danger)' }}>{fmt(exp.amount)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#fafafa] px-6 py-6">
-      <div className="max-w-[1400px] mx-auto">
-        {/* Page Header */}
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-xl font-extrabold text-zinc-900 tracking-tight">Projects</h1>
-          <button
-            onClick={() => navigate('/projects/new')}
-            className="inline-flex items-center gap-2 bg-zinc-900 text-white rounded-full px-5 py-2.5 text-sm font-semibold hover:bg-zinc-800 transition-colors"
-          >
-            <Plus size={16} />
+    <div className="pl-page">
+      <div className="pl-container">
+        <div className="pl-header">
+          <div>
+            <h1 className="pl-title">Projects</h1>
+            <p className="pl-subtitle">Manage and track all your projects</p>
+          </div>
+          <button className="pl-btn pl-btn-primary" onClick={() => navigate('/projects/new')}>
+            <Plus size={18} />
             New Project
           </button>
         </div>
 
-        {/* Search Card */}
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm px-5 py-4 mb-5">
-          <div className="flex items-center gap-3">
-            <div className="relative flex-1 max-w-sm">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
-              <input
-                type="text"
-                placeholder="Search projects..."
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-teal-300 focus:ring-2 focus:ring-teal-300/20 focus:outline-none transition-all"
-              />
-            </div>
-            <span className="text-xs text-zinc-400 font-medium">{filteredProjects.length} projects</span>
-          </div>
+        <div className="pl-search-wrapper">
+          <Search size={18} className="pl-search-icon" />
+          <input
+            type="text"
+            className="pl-search-input"
+            placeholder="Search by project name, code, or client..."
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+          />
+          <span className="pl-count">{filteredProjects.length} projects</span>
         </div>
 
-        {/* Projects Table Card */}
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="pl-card">
           {filteredProjects.length === 0 ? (
-            <div className="py-16 text-center">
-              <Package size={48} strokeWidth={1} className="mx-auto text-zinc-300 mb-3" />
-              <p className="text-sm text-zinc-400">No projects found</p>
+            <div className="pl-empty">
+              <Folder className="pl-empty-icon" />
+              <p className="pl-empty-text">No projects found</p>
             </div>
           ) : (
-            <table className="w-full">
+            <table className="pl-table">
               <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Project</th>
-                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Client</th>
-                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Type</th>
-                  <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Est. Value</th>
-                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-zinc-500">PO Status</th>
-                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Status</th>
-                  <th className="px-4 py-3 text-center text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Completion</th>
-                  <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Actions</th>
+                <tr>
+                  <th>Project</th>
+                  <th>Client</th>
+                  <th>Type</th>
+                  <th>Est. Value</th>
+                  <th>PO Status</th>
+                  <th>Status</th>
+                  <th>Completion</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
                 {filteredProjects.map(p => {
+                  const statusCfg = STATUS_CONFIG[p.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.Draft;
+                  const poStatusCfg = PO_STATUS_CONFIG[p.po_status as keyof typeof PO_STATUS_CONFIG] || PO_STATUS_CONFIG.Pending;
                   const showWarning = checkPORequiredWarning(p);
+
                   return (
-                    <tr key={p.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className="text-sm font-medium text-zinc-900 cursor-pointer hover:text-teal-600 transition-colors"
-                            onClick={() => loadProjectDetails(p)}
-                          >
+                    <tr key={p.id}>
+                      <td>
+                        <div className="pl-project-name">
+                          <span className="pl-project-title" onClick={() => loadProjectDetails(p)}>
                             {p.project_name || 'Unnamed Project'}
                           </span>
-                          {p.project_code && (
-                            <span className="text-[11px] text-zinc-400 font-medium">{p.project_code}</span>
-                          )}
-                          {showWarning && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-50 text-red-600 rounded-full text-[10px] font-semibold">
-                              <span className="w-1.5 h-1.5 bg-red-500 rounded-full" />
-                              PO Required
-                            </span>
-                          )}
+                          {p.project_code && <span className="pl-project-code">{p.project_code}</span>}
+                          {showWarning && <span className="pl-warning">⚠ PO Required</span>}
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-sm text-zinc-600">{p.client?.client_name || '-'}</td>
-                      <td className="px-4 py-3 text-sm text-zinc-600">{p.project_type || '-'}</td>
-                      <td className="px-4 py-3 text-sm text-zinc-900 text-right font-medium">
-                        {p.project_estimated_value ? formatCurrency(p.project_estimated_value) : '-'}
+                      <td style={{ color: 'var(--text-secondary)' }}>{p.client?.client_name || '-'}</td>
+                      <td style={{ color: 'var(--text-secondary)' }}>{p.project_type || '-'}</td>
+                      <td style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 500 }}>
+                        {p.project_estimated_value ? fmt(p.project_estimated_value) : '-'}
                       </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <span className={`w-2 h-2 rounded-full ${getPOStatusDot(p.po_status)}`} />
-                          <span className="text-[11px] font-medium px-2 py-0.5 bg-gray-100 text-zinc-700 rounded-full">
-                            {p.po_status || 'Pending'}
-                          </span>
-                        </div>
+                      <td>
+                        <span className="pl-status">
+                          <span className="pl-status-dot" style={{ background: poStatusCfg.dot }} />
+                          {poStatusCfg.label}
+                        </span>
                       </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <span className={`w-2 h-2 rounded-full ${getStatusDot(p.status)}`} />
-                          <span className="text-[11px] font-medium px-2 py-0.5 bg-gray-100 text-zinc-700 rounded-full">
-                            {p.status || 'Draft'}
-                          </span>
-                        </div>
+                      <td>
+                        <span className="pl-status">
+                          <span className="pl-status-dot" style={{ background: statusCfg.dot }} />
+                          {statusCfg.label}
+                        </span>
                       </td>
-                      <td className="px-4 py-3 text-center">
-                        <div className="inline-flex items-center gap-2">
-                          <div className="w-16 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-teal-400 rounded-full"
-                              style={{ width: `${p.completion_percentage || 0}%` }}
-                            />
+                      <td>
+                        <div className="pl-progress">
+                          <div className="pl-progress-bar">
+                            <div className="pl-progress-fill" style={{ width: `${p.completion_percentage || 0}%` }} />
                           </div>
-                          <span className="text-xs text-zinc-500 font-medium">{p.completion_percentage || 0}%</span>
+                          <span className="pl-progress-value">{p.completion_percentage || 0}%</span>
                         </div>
                       </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center justify-end gap-1">
-                          <button
-                            onClick={() => loadProjectDetails(p)}
-                            className="p-2 text-zinc-400 hover:text-zinc-600 hover:bg-gray-100 rounded-full transition-colors"
-                            title="View"
-                          >
-                            <ChevronRight size={16} />
+                      <td>
+                        <div className="pl-actions">
+                          <button className="pl-btn-icon" onClick={() => loadProjectDetails(p)} title="View">
+                            <ChevronRight size={18} />
                           </button>
-                          <button
-                            onClick={() => navigate(`/projects/edit?id=${p.id}`)}
-                            className="p-2 text-zinc-400 hover:text-zinc-600 hover:bg-gray-100 rounded-full transition-colors"
-                            title="Edit"
-                          >
+                          <button className="pl-btn-icon" onClick={() => navigate(`/projects/edit?id=${p.id}`)} title="Edit">
                             <Edit size={16} />
                           </button>
-                          <button
-                            onClick={() => deleteProject(p.id)}
-                            className="p-2 text-zinc-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
-                            title="Delete"
-                          >
+                          <button className="pl-btn-icon" onClick={() => deleteProject(p.id)} title="Delete" style={{ '--hover-color': 'var(--danger)' } as any}>
                             <Trash2 size={16} />
                           </button>
                         </div>
@@ -329,380 +1056,6 @@ export default function ProjectList() {
             </table>
           )}
         </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── ProjectDetailView ────────────────────────────────────────────────────────
-
-function ProjectDetailView({
-  project,
-  financialSummary,
-  projectPOs,
-  projectInvoices,
-  projectExpenses,
-  projectPayments,
-  detailsLoading,
-  onBack,
-  onEdit,
-}: {
-  project: Project;
-  financialSummary: any;
-  projectPOs: any[];
-  projectInvoices: any[];
-  projectExpenses: any[];
-  projectPayments: any[];
-  detailsLoading: boolean;
-  onBack: () => void;
-  onEdit: () => void;
-}) {
-  const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('summary');
-
-  const fmt = (n: any) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(n || 0);
-  const fmtD = (d?: string) => { if (!d) return '-'; const x = new Date(d); return isNaN(x.getTime()) ? '-' : x.toLocaleDateString(); };
-
-  const tabs = [
-    { id: 'summary', label: 'Summary' },
-    { id: 'pos', label: `POs`, count: projectPOs.length },
-    { id: 'invoices', label: 'Invoices', count: projectInvoices.length },
-    { id: 'payments', label: 'Payments', count: projectPayments.length },
-    { id: 'expenses', label: 'Expenses', count: projectExpenses.length },
-  ];
-
-  return (
-    <div className="min-h-screen bg-[#fafafa] px-6 py-6">
-      <div className="max-w-[1400px] mx-auto">
-        {/* Page Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={onBack}
-              className="p-2 text-zinc-400 hover:text-zinc-600 hover:bg-gray-100 rounded-full transition-colors"
-            >
-              <ArrowLeft size={20} />
-            </button>
-            <div>
-              <h1 className="text-xl font-extrabold text-zinc-900 tracking-tight">{project.project_name}</h1>
-              <p className="text-xs text-zinc-400 font-medium mt-0.5">{project.project_code}</p>
-            </div>
-          </div>
-          <button
-            onClick={onEdit}
-            className="inline-flex items-center gap-2 bg-zinc-900 text-white rounded-full px-5 py-2.5 text-sm font-semibold hover:bg-zinc-800 transition-colors"
-          >
-            <Edit size={16} />
-            Edit Project
-          </button>
-        </div>
-
-        {/* Tabs */}
-        <div className="flex items-center gap-2 mb-5 overflow-x-auto pb-1">
-          {tabs.map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-colors whitespace-nowrap ${
-                activeTab === tab.id
-                  ? 'bg-zinc-900 text-white'
-                  : 'bg-white border border-gray-200 text-zinc-600 hover:bg-gray-50'
-              }`}
-            >
-              {tab.label}
-              {tab.count !== undefined && (
-                <span className={`ml-1.5 text-xs ${activeTab === tab.id ? 'text-zinc-400' : 'text-zinc-400'}`}>
-                  ({tab.count})
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
-
-        {detailsLoading && activeTab !== 'summary' && (
-          <div className="py-12 text-center text-sm text-zinc-400">Loading...</div>
-        )}
-
-        {/* ── Summary ── */}
-        {activeTab === 'summary' && (
-          <>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
-              {/* Commercial Summary */}
-              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm px-5 py-4">
-                <h2 className="text-[13px] font-bold uppercase tracking-widest text-zinc-500 mb-4">Commercial Summary</h2>
-                <div className="space-y-3">
-                  {[
-                    ['Project Code', project.project_code || '-'],
-                    ['Project Name', project.project_name || '-'],
-                    ['Client', project.client?.client_name || '-'],
-                    ['Type', project.project_type || '-'],
-                    ['Est. Value', project.project_estimated_value ? fmt(project.project_estimated_value) : '-'],
-                    ['PO Required', project.po_required ? 'Yes' : 'No'],
-                    ['PO Status', project.po_status || 'Pending'],
-                  ].map(([k, v]) => (
-                    <div key={k} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
-                      <span className="text-xs text-zinc-500 font-medium">{k}</span>
-                      <span className="text-sm text-zinc-900 font-medium">{v}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Execution Summary */}
-              <div className="bg-white rounded-2xl border border-gray-200 shadow-sm px-5 py-4">
-                <h2 className="text-[13px] font-bold uppercase tracking-widest text-zinc-500 mb-4">Execution Summary</h2>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between py-2 border-b border-gray-100">
-                    <span className="text-xs text-zinc-500 font-medium">Status</span>
-                    <div className="flex items-center gap-2">
-                      <span className={`w-2 h-2 rounded-full ${getStatusDot(project.status)}`} />
-                      <span className="text-sm font-medium text-zinc-900">{project.status || 'Draft'}</span>
-                    </div>
-                  </div>
-                  {[
-                    ['Start Date', fmtD(project.start_date)],
-                    ['Expected End', fmtD(project.expected_end_date)],
-                    ['Actual End', fmtD(project.actual_end_date)],
-                    ['Completion', `${project.completion_percentage || 0}%`],
-                    ['Remarks', project.remarks || '-'],
-                  ].map(([k, v]) => (
-                    <div key={k} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
-                      <span className="text-xs text-zinc-500 font-medium">{k}</span>
-                      <span className="text-sm text-zinc-900 font-medium text-right max-w-[200px] truncate">{v}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Financial Summary */}
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm px-5 py-4">
-              <h2 className="text-[13px] font-bold uppercase tracking-widest text-zinc-500 mb-4">Financial Summary</h2>
-              {!financialSummary ? (
-                <div className="py-8 text-center text-sm text-zinc-400">
-                  Click the POs / Invoices / Payments / Expenses tabs to load financial data.
-                </div>
-              ) : (
-                <>
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                    {[
-                      { label: 'Total PO Value', value: financialSummary.total_po_value, color: 'text-zinc-900' },
-                      { label: 'Total Invoice', value: financialSummary.total_invoice_value, color: 'text-zinc-900' },
-                      { label: 'Payment Received', value: financialSummary.total_payment_received, color: 'text-emerald-600' },
-                      { label: 'Total Expense', value: financialSummary.total_expense, color: 'text-red-600' },
-                    ].map(({ label, value, color }) => (
-                      <div key={label} className="bg-gray-50 rounded-xl p-4 text-center">
-                        <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 mb-2">{label}</div>
-                        <div className={`text-lg font-bold ${color}`}>{fmt(value)}</div>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="grid grid-cols-3 gap-4">
-                    {[
-                      { label: 'Outstanding', value: financialSummary.outstanding_amount, color: financialSummary.outstanding_amount > 0 ? 'text-red-600' : 'text-emerald-600' },
-                      { label: 'Profit', value: financialSummary.profit, color: financialSummary.profit >= 0 ? 'text-emerald-600' : 'text-red-600' },
-                      { label: 'PO Balance', value: financialSummary.po_balance, color: financialSummary.po_balance >= 0 ? 'text-teal-600' : 'text-red-600' },
-                    ].map(({ label, value, color }) => (
-                      <div key={label} className="bg-gray-100 rounded-xl p-4 text-center">
-                        <div className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 mb-2">{label}</div>
-                        <div className={`text-xl font-bold ${color}`}>{fmt(value)}</div>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-          </>
-        )}
-
-        {/* ── POs ── */}
-        {activeTab === 'pos' && (
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm px-5 py-4">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-bold text-zinc-900">Purchase Orders</h2>
-              <button
-                onClick={() => navigate(`/client-po/create?project_id=${project.id}`)}
-                className="inline-flex items-center gap-2 bg-teal-300 text-zinc-900 rounded-full px-4 py-2 text-sm font-semibold hover:bg-teal-400 transition-colors"
-              >
-                <Plus size={14} />
-                Create PO
-              </button>
-            </div>
-            {projectPOs.length === 0 ? (
-              <div className="py-12 text-center">
-                <Package size={40} strokeWidth={1} className="mx-auto text-zinc-300 mb-2" />
-                <p className="text-sm text-zinc-400">No POs found</p>
-              </div>
-            ) : (
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-zinc-500">PO Number</th>
-                    <th className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Date</th>
-                    <th className="px-4 py-2 text-right text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Total Value</th>
-                    <th className="px-4 py-2 text-right text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Utilized</th>
-                    <th className="px-4 py-2 text-right text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Available</th>
-                    <th className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {projectPOs.map(po => (
-                    <tr key={po.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-                      <td className="px-4 py-3 text-sm text-zinc-900 font-medium">{po.po_number}</td>
-                      <td className="px-4 py-3 text-sm text-zinc-600">{fmtD(po.po_date)}</td>
-                      <td className="px-4 py-3 text-sm text-zinc-900 text-right font-medium">{fmt(po.po_total_value)}</td>
-                      <td className="px-4 py-3 text-sm text-zinc-600 text-right">{fmt(po.po_utilized_value)}</td>
-                      <td className="px-4 py-3 text-sm text-zinc-600 text-right">{fmt(po.po_available_value)}</td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <span className={`w-2 h-2 rounded-full ${getPOStatusDot(po.status)}`} />
-                          <span className="text-[11px] font-medium px-2 py-0.5 bg-gray-100 text-zinc-700 rounded-full">{po.status}</span>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        )}
-
-        {/* ── Invoices ── */}
-        {activeTab === 'invoices' && (
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm px-5 py-4">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-bold text-zinc-900">Invoices</h2>
-              <button
-                onClick={() => navigate(`/projects/invoice/new?project_id=${project.id}`)}
-                className="inline-flex items-center gap-2 bg-teal-300 text-zinc-900 rounded-full px-4 py-2 text-sm font-semibold hover:bg-teal-400 transition-colors"
-              >
-                <Plus size={14} />
-                Create Invoice
-              </button>
-            </div>
-            {projectInvoices.length === 0 ? (
-              <div className="py-12 text-center">
-                <Package size={40} strokeWidth={1} className="mx-auto text-zinc-300 mb-2" />
-                <p className="text-sm text-zinc-400">No invoices found</p>
-              </div>
-            ) : (
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Invoice</th>
-                    <th className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Date</th>
-                    <th className="px-4 py-2 text-right text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Amount</th>
-                    <th className="px-4 py-2 text-right text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Tax</th>
-                    <th className="px-4 py-2 text-right text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Total</th>
-                    <th className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {projectInvoices.map(inv => (
-                    <tr key={inv.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-                      <td className="px-4 py-3 text-sm text-zinc-900 font-medium">{inv.invoice_number}</td>
-                      <td className="px-4 py-3 text-sm text-zinc-600">{fmtD(inv.invoice_date)}</td>
-                      <td className="px-4 py-3 text-sm text-zinc-600 text-right">{fmt(inv.invoice_amount)}</td>
-                      <td className="px-4 py-3 text-sm text-zinc-600 text-right">{fmt(inv.tax_amount)}</td>
-                      <td className="px-4 py-3 text-sm text-zinc-900 text-right font-semibold">{fmt(inv.total_amount)}</td>
-                      <td className="px-4 py-3 text-[11px] font-medium px-2 py-0.5 bg-gray-100 text-zinc-700 rounded-full">{inv.status}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        )}
-
-        {/* ── Payments ── */}
-        {activeTab === 'payments' && (
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm px-5 py-4">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-bold text-zinc-900">Payments</h2>
-              <button
-                onClick={() => navigate(`/projects/payment/new?project_id=${project.id}`)}
-                className="inline-flex items-center gap-2 bg-teal-300 text-zinc-900 rounded-full px-4 py-2 text-sm font-semibold hover:bg-teal-400 transition-colors"
-              >
-                <Plus size={14} />
-                Record Payment
-              </button>
-            </div>
-            {projectPayments.length === 0 ? (
-              <div className="py-12 text-center">
-                <Package size={40} strokeWidth={1} className="mx-auto text-zinc-300 mb-2" />
-                <p className="text-sm text-zinc-400">No payments found</p>
-              </div>
-            ) : (
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Payment</th>
-                    <th className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Date</th>
-                    <th className="px-4 py-2 text-right text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Amount</th>
-                    <th className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Mode</th>
-                    <th className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Reference</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {projectPayments.map(pay => (
-                    <tr key={pay.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-                      <td className="px-4 py-3 text-sm text-zinc-900 font-medium">{pay.payment_number}</td>
-                      <td className="px-4 py-3 text-sm text-zinc-600">{fmtD(pay.payment_date)}</td>
-                      <td className="px-4 py-3 text-sm text-emerald-600 text-right font-semibold">{fmt(pay.payment_amount)}</td>
-                      <td className="px-4 py-3 text-sm text-zinc-600">{pay.payment_mode}</td>
-                      <td className="px-4 py-3 text-sm text-zinc-600">{pay.reference_number || '-'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        )}
-
-        {/* ── Expenses ── */}
-        {activeTab === 'expenses' && (
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm px-5 py-4">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-bold text-zinc-900">Expenses</h2>
-              <button
-                onClick={() => navigate(`/projects/expense/new?project_id=${project.id}`)}
-                className="inline-flex items-center gap-2 bg-teal-300 text-zinc-900 rounded-full px-4 py-2 text-sm font-semibold hover:bg-teal-400 transition-colors"
-              >
-                <Plus size={14} />
-                Add Expense
-              </button>
-            </div>
-            {projectExpenses.length === 0 ? (
-              <div className="py-12 text-center">
-                <Package size={40} strokeWidth={1} className="mx-auto text-zinc-300 mb-2" />
-                <p className="text-sm text-zinc-400">No expenses found</p>
-              </div>
-            ) : (
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Date</th>
-                    <th className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Type</th>
-                    <th className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Description</th>
-                    <th className="px-4 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Vendor</th>
-                    <th className="px-4 py-2 text-right text-[11px] font-semibold uppercase tracking-wide text-zinc-500">Amount</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {projectExpenses.map(exp => (
-                    <tr key={exp.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-                      <td className="px-4 py-3 text-sm text-zinc-600">{fmtD(exp.expense_date)}</td>
-                      <td className="px-4 py-3 text-sm text-zinc-900 font-medium">{exp.expense_type}</td>
-                      <td className="px-4 py-3 text-sm text-zinc-600">{exp.description || '-'}</td>
-                      <td className="px-4 py-3 text-sm text-zinc-600">{exp.vendor_name || '-'}</td>
-                      <td className="px-4 py-3 text-sm text-red-600 text-right font-semibold">{fmt(exp.amount)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        )}
       </div>
     </div>
   );
