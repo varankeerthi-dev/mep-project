@@ -158,7 +158,8 @@ const menuData: MenuSection[] = [
       },
       {
         id: 'invoice',
-        label: 'Invoice',
+        label: 'Invoices',
+        path: '/invoices',
         submenu: [
           { id: 'invoice-list', label: 'Invoice List', path: '/invoices' },
           { id: 'invoice-create', label: 'Create Invoice', path: '/invoices/create' }
@@ -326,11 +327,16 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
 
   const handleClick = useCallback((item: MenuItem) => {
     if (item.submenu) {
+      // When the sidebar is collapsed, submenus aren't visible. Navigate to the parent path instead.
+      if (isCollapsed && item.path) {
+        onNavigate(item.path);
+        return;
+      }
       toggleMenu(item.id);
     } else if (item.path) {
       onNavigate(item.path);
     }
-  }, [toggleMenu, onNavigate]);
+  }, [isCollapsed, toggleMenu, onNavigate]);
 
   const handleSubmenuClick = useCallback((path: string) => {
     onNavigate(path);
