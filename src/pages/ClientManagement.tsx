@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import type { ChangeEvent, FormEvent } from 'react';
+import type { ChangeEvent, FormEvent, CSSProperties, ComponentProps } from 'react';
 import { supabase } from '../supabase';
 import { useAuth } from '../App';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -41,7 +41,7 @@ type CreateClientProps = {
   clientData?: any
 }
 
-const selectCn = 'h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition-colors focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 disabled:cursor-not-allowed disabled:opacity-50';
+const selectCn = 'h-8 w-full rounded-md border border-slate-200 bg-white px-2 text-[12px] text-slate-800 outline-none transition-colors focus:border-slate-400 disabled:cursor-not-allowed disabled:opacity-50';
 
 const SectionHeading = ({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) => (
   <div className="flex items-center gap-2.5 pb-1">
@@ -52,12 +52,23 @@ const SectionHeading = ({ icon, children }: { icon: React.ReactNode; children: R
 
 const FieldGroup = ({ label, required, error, children }: { label: string; required?: boolean; error?: string; children: React.ReactNode }) => (
   <div className="space-y-1.5">
-    <Label className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+    <Label className="text-[11px] font-semibold text-[#374151]">
       {label}{required && <span className="text-red-500 ml-0.5">*</span>}
     </Label>
     {children}
     {error && <p className="text-xs text-red-500">{error}</p>}
   </div>
+);
+
+const dcInputStyle: CSSProperties = { padding: '4px 8px', fontSize: '12px', background: '#ffffff' };
+const dcTextAreaStyle: CSSProperties = { padding: '6px 8px', fontSize: '12px', background: '#ffffff', minHeight: '60px' };
+
+const CompactInput = (props: ComponentProps<typeof Input>) => (
+  <Input {...props} style={{ ...dcInputStyle, ...(props.style || {}) }} />
+);
+
+const CompactTextarea = (props: ComponentProps<typeof Textarea>) => (
+  <Textarea {...props} style={{ ...dcTextAreaStyle, ...(props.style || {}) }} />
 );
 
 export function CreateClientEdit({ onSuccess, onCancel }: CreateClientEditProps) {
@@ -294,7 +305,7 @@ function ClientDiscountPortfolio({ formData, setFormData, isAdmin }: ClientDisco
                     <TableRow key={v.id}>
                       <TableCell className="font-medium text-slate-700">{v.variant_name}</TableCell>
                       <TableCell>
-                        <input
+                        <CompactInput
                           type="number"
                           className="h-9 w-24 rounded-lg border border-slate-200 bg-white px-3 text-right text-sm outline-none transition-colors focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
                           value={customDiscounts[v.id] || 0}
@@ -586,7 +597,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                   <CardContent>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
                       <FieldGroup label="Client Name" required>
-                        <Input value={val('client_name')} onChange={set('client_name')} required placeholder="Enter client name" />
+                        <CompactInput value={val('client_name')} onChange={set('client_name')} required placeholder="Enter client name" />
                       </FieldGroup>
                       <FieldGroup label="Category">
                         <select className={selectCn} value={val('category') || 'Active'} onChange={e => setFormData({ ...formData, category: e.target.value })}>
@@ -596,10 +607,10 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                         </select>
                       </FieldGroup>
                       <FieldGroup label="GST IN" error={gstError}>
-                        <Input value={val('gstin')} onChange={handleGstChange} placeholder="15 character GSTIN" maxLength={15} />
+                        <CompactInput value={val('gstin')} onChange={handleGstChange} placeholder="15 character GSTIN" maxLength={15} />
                       </FieldGroup>
                       <FieldGroup label="Vendor No">
-                        <Input value={val('vendor_no')} onChange={set('vendor_no')} placeholder="Vendor reference number" />
+                        <CompactInput value={val('vendor_no')} onChange={set('vendor_no')} placeholder="Vendor reference number" />
                       </FieldGroup>
                     </div>
                   </CardContent>
@@ -617,30 +628,30 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                       <div>
                         <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Primary Contact</p>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                          <Input value={val('contact_person')} onChange={set('contact_person')} placeholder="Full name" />
-                          <Input value={val('contact_designation')} onChange={set('contact_designation')} placeholder="Designation" />
-                          <Input value={val('contact')} onChange={set('contact')} placeholder="Phone" />
-                          <Input type="email" value={val('contact_person_email')} onChange={set('contact_person_email')} placeholder="Email" />
+                          <CompactInput value={val('contact_person')} onChange={set('contact_person')} placeholder="Full name" />
+                          <CompactInput value={val('contact_designation')} onChange={set('contact_designation')} placeholder="Designation" />
+                          <CompactInput value={val('contact')} onChange={set('contact')} placeholder="Phone" />
+                          <CompactInput type="email" value={val('contact_person_email')} onChange={set('contact_person_email')} placeholder="Email" />
                         </div>
                       </div>
                       <Separator />
                       <div>
                         <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Secondary Contact</p>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                          <Input value={val('contact_person_2')} onChange={set('contact_person_2')} placeholder="Full name" />
-                          <Input value={val('contact_designation_2')} onChange={set('contact_designation_2')} placeholder="Designation" />
-                          <Input value={val('contact_person_2_contact')} onChange={set('contact_person_2_contact')} placeholder="Phone" />
-                          <Input type="email" value={val('contact_person_2_email')} onChange={set('contact_person_2_email')} placeholder="Email" />
+                          <CompactInput value={val('contact_person_2')} onChange={set('contact_person_2')} placeholder="Full name" />
+                          <CompactInput value={val('contact_designation_2')} onChange={set('contact_designation_2')} placeholder="Designation" />
+                          <CompactInput value={val('contact_person_2_contact')} onChange={set('contact_person_2_contact')} placeholder="Phone" />
+                          <CompactInput type="email" value={val('contact_person_2_email')} onChange={set('contact_person_2_email')} placeholder="Email" />
                         </div>
                       </div>
                       <Separator />
                       <div>
                         <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Purchase Contact</p>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                          <Input value={val('purchase_person')} onChange={set('purchase_person')} placeholder="Full name" />
-                          <Input value={val('purchase_designation')} onChange={set('purchase_designation')} placeholder="Designation" />
-                          <Input value={val('purchase_contact')} onChange={set('purchase_contact')} placeholder="Phone" />
-                          <Input type="email" value={val('purchase_email')} onChange={set('purchase_email')} placeholder="Email" />
+                          <CompactInput value={val('purchase_person')} onChange={set('purchase_person')} placeholder="Full name" />
+                          <CompactInput value={val('purchase_designation')} onChange={set('purchase_designation')} placeholder="Designation" />
+                          <CompactInput value={val('purchase_contact')} onChange={set('purchase_contact')} placeholder="Phone" />
+                          <CompactInput type="email" value={val('purchase_email')} onChange={set('purchase_email')} placeholder="Email" />
                         </div>
                       </div>
                     </div>
@@ -659,8 +670,8 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-3">
-                        <Input value={val('address1')} onChange={set('address1')} placeholder="Address Line 1" />
-                        <Input value={val('address2')} onChange={set('address2')} placeholder="Address Line 2" />
+                        <CompactInput value={val('address1')} onChange={set('address1')} placeholder="Address Line 1" />
+                        <CompactInput value={val('address2')} onChange={set('address2')} placeholder="Address Line 2" />
                         <div className="grid grid-cols-3 gap-3">
                           <FieldGroup label="State">
                             <select className={cn(selectCn, 'text-xs')} value={val('state')} onChange={e => setFormData({ ...formData, state: e.target.value })}>
@@ -669,10 +680,10 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                             </select>
                           </FieldGroup>
                           <FieldGroup label="City">
-                            <Input value={val('city')} onChange={set('city')} placeholder="City" />
+                            <CompactInput value={val('city')} onChange={set('city')} placeholder="City" />
                           </FieldGroup>
                           <FieldGroup label="Pincode">
-                            <Input value={val('pincode')} onChange={set('pincode')} placeholder="Pincode" />
+                            <CompactInput value={val('pincode')} onChange={set('pincode')} placeholder="Pincode" />
                           </FieldGroup>
                         </div>
                       </div>
@@ -711,18 +722,18 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                           <div className="rounded-lg border border-indigo-200 bg-indigo-50/50 p-4 space-y-3">
                             <p className="text-xs font-semibold text-indigo-700 uppercase tracking-wider">New Shipping Address</p>
                             <div className="grid grid-cols-2 gap-3">
-                              <Input value={newShipping.address_name} onChange={e => setNewShipping({ ...newShipping, address_name: (e.target as HTMLInputElement).value })} placeholder="Address Name" />
-                              <Input value={newShipping.contact} onChange={e => setNewShipping({ ...newShipping, contact: (e.target as HTMLInputElement).value })} placeholder="Contact" />
+                              <CompactInput value={newShipping.address_name} onChange={e => setNewShipping({ ...newShipping, address_name: (e.target as HTMLInputElement).value })} placeholder="Address Name" />
+                              <CompactInput value={newShipping.contact} onChange={e => setNewShipping({ ...newShipping, contact: (e.target as HTMLInputElement).value })} placeholder="Contact" />
                             </div>
-                            <Input value={newShipping.address_line1} onChange={e => setNewShipping({ ...newShipping, address_line1: (e.target as HTMLInputElement).value })} placeholder="Address Line 1" />
-                            <Input value={newShipping.address_line2} onChange={e => setNewShipping({ ...newShipping, address_line2: (e.target as HTMLInputElement).value })} placeholder="Address Line 2" />
+                            <CompactInput value={newShipping.address_line1} onChange={e => setNewShipping({ ...newShipping, address_line1: (e.target as HTMLInputElement).value })} placeholder="Address Line 1" />
+                            <CompactInput value={newShipping.address_line2} onChange={e => setNewShipping({ ...newShipping, address_line2: (e.target as HTMLInputElement).value })} placeholder="Address Line 2" />
                             <div className="grid grid-cols-3 gap-3">
                               <select className={cn(selectCn, 'text-xs')} value={newShipping.state} onChange={e => setNewShipping({ ...newShipping, state: e.target.value })}>
                                 <option value="">State</option>
                                 {indianStates.map(state => (<option key={state} value={state}>{state}</option>))}
                               </select>
-                              <Input value={newShipping.city} onChange={e => setNewShipping({ ...newShipping, city: (e.target as HTMLInputElement).value })} placeholder="City" />
-                              <Input value={newShipping.pincode} onChange={e => setNewShipping({ ...newShipping, pincode: (e.target as HTMLInputElement).value })} placeholder="Pincode" />
+                              <CompactInput value={newShipping.city} onChange={e => setNewShipping({ ...newShipping, city: (e.target as HTMLInputElement).value })} placeholder="City" />
+                              <CompactInput value={newShipping.pincode} onChange={e => setNewShipping({ ...newShipping, pincode: (e.target as HTMLInputElement).value })} placeholder="Pincode" />
                             </div>
                             <div className="flex gap-2 pt-1">
                               <Button variant="primary" size="sm" onClick={addShippingAddress}>Save Address</Button>
@@ -758,10 +769,10 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                   <CardContent>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <FieldGroup label="Remarks">
-                        <Textarea rows={3} value={val('remarks')} onChange={e => setFormData({ ...formData, remarks: e.target.value })} placeholder="Internal remarks..." />
+                        <CompactTextarea rows={3} value={val('remarks')} onChange={e => setFormData({ ...formData, remarks: e.target.value })} placeholder="Internal remarks..." />
                       </FieldGroup>
                       <FieldGroup label="About Client">
-                        <Textarea rows={3} value={val('about_client')} onChange={e => setFormData({ ...formData, about_client: e.target.value })} placeholder="Additional information..." />
+                        <CompactTextarea rows={3} value={val('about_client')} onChange={e => setFormData({ ...formData, about_client: e.target.value })} placeholder="Additional information..." />
                       </FieldGroup>
                     </div>
                   </CardContent>
