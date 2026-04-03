@@ -340,9 +340,10 @@ export default function CreatePO() {
   return (
     <div style={{ 
       fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
-      maxWidth: '1200px',
-      margin: '0 auto',
-      padding: '24px'
+      width: '100%',
+      minHeight: '100vh',
+      padding: '24px',
+      boxSizing: 'border-box'
     }}>
       {/* Header */}
       <div style={{ 
@@ -452,10 +453,10 @@ export default function CreatePO() {
           {getStatusBadge(formData.status || 'Open')}
         </div>
 
-        {/* Fields Grid - 4 Columns */}
+        {/* Fields Grid - Responsive 4 Columns */}
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(4, 1fr)',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
           gap: '16px',
           marginBottom: '20px'
         }}>
