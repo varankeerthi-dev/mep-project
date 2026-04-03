@@ -9,7 +9,7 @@ import { formatCurrency, formatDate, getInvoiceDisplayNumber } from '../ui-utils
 // ─── Styles ────────────────────────────────────────────────────────────────────
 
 const styles = `
-  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap');
   
   :root {
     --bg-page: #faf9f7;
@@ -31,7 +31,7 @@ const styles = `
   }
   
   .il-page {
-    font-family: 'DM Sans', system-ui, sans-serif;
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     background: var(--bg-page);
     min-height: 100vh;
     padding: 2rem;
