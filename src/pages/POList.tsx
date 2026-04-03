@@ -2,6 +2,278 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { useNavigate } from 'react-router-dom';
 import { formatDate, formatCurrency } from '../utils/formatters';
+import { Plus, Search, Filter, FileText, TrendingUp, CheckCircle, Clock, XCircle, ChevronRight, Edit2, Trash2 } from 'lucide-react';
+
+// ─── Styles ────────────────────────────────────────────────────────────────────
+
+const styles = `
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+  
+  .po-page {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 24px;
+  }
+  
+  .po-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #e5e5e5;
+  }
+  
+  .po-title {
+    font-size: 24px;
+    font-weight: 600;
+    color: #0a0a0a;
+    margin: 0;
+  }
+  
+  .po-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    border: none;
+    font-family: inherit;
+  }
+  
+  .po-btn-primary {
+    background: #171717;
+    color: white;
+  }
+  
+  .po-btn-primary:hover {
+    background: #262626;
+  }
+  
+  .po-btn-secondary {
+    background: white;
+    color: #525252;
+    border: 1px solid #e5e5e5;
+  }
+  
+  .po-btn-secondary:hover {
+    background: #fafafa;
+    border-color: #d4d4d4;
+  }
+  
+  .po-card {
+    background: white;
+    border: 1px solid #e5e5e5;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  
+  .po-filters {
+    display: flex;
+    gap: 12px;
+    padding: 16px;
+    border-bottom: 1px solid #e5e5e5;
+    background: #fafafa;
+    flex-wrap: wrap;
+  }
+  
+  .po-filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  
+  .po-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #737373;
+  }
+  
+  .po-input,
+  .po-select {
+    padding: 6px 10px;
+    border: 1px solid #d4d4d4;
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: inherit;
+    color: #171717;
+    background: white;
+    min-width: 140px;
+  }
+  
+  .po-input:focus,
+  .po-select:focus {
+    outline: none;
+    border-color: #a3a3a3;
+    box-shadow: 0 0 0 3px rgba(0,0,0,0.05);
+  }
+  
+  .po-stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  
+  @media (max-width: 1024px) {
+    .po-stats { grid-template-columns: repeat(2, 1fr); }
+  }
+  
+  @media (max-width: 640px) {
+    .po-stats { grid-template-columns: 1fr; }
+  }
+  
+  .po-stat-card {
+    background: white;
+    border: 1px solid #e5e5e5;
+    border-radius: 8px;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  
+  .po-stat-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .po-stat-content {
+    flex: 1;
+  }
+  
+  .po-stat-label {
+    font-size: 12px;
+    color: #737373;
+    margin-bottom: 4px;
+  }
+  
+  .po-stat-value {
+    font-size: 20px;
+    font-weight: 700;
+    color: #171717;
+  }
+  
+  .po-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  
+  .po-table thead {
+    background: #fafafa;
+    border-bottom: 1px solid #e5e5e5;
+  }
+  
+  .po-table th {
+    padding: 10px 12px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #737373;
+  }
+  
+  .po-table td {
+    padding: 12px;
+    border-bottom: 1px solid #f0f0f0;
+    vertical-align: middle;
+  }
+  
+  .po-table tbody tr:hover {
+    background: #fafafa;
+  }
+  
+  .po-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  
+  .po-status-open {
+    background: #dbeafe;
+    color: #1d4ed8;
+  }
+  
+  .po-status-partial {
+    background: #fef3c7;
+    color: #b45309;
+  }
+  
+  .po-status-closed {
+    background: #d1fae5;
+    color: #047857;
+  }
+  
+  .po-actions {
+    display: flex;
+    gap: 6px;
+  }
+  
+  .po-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: 1px solid #e5e5e5;
+    border-radius: 4px;
+    background: white;
+    color: #737373;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  
+  .po-icon-btn:hover {
+    background: #fafafa;
+    border-color: #d4d4d4;
+    color: #171717;
+  }
+  
+  .po-icon-btn.danger:hover {
+    background: #fef2f2;
+    border-color: #fecaca;
+    color: #dc2626;
+  }
+  
+  .po-empty {
+    padding: 48px;
+    text-align: center;
+    color: #737373;
+  }
+  
+  .po-loading {
+    padding: 48px;
+    text-align: center;
+    color: #737373;
+  }
+`;
+
+if (typeof document !== 'undefined') {
+  const styleId = 'po-styles';
+  if (!document.getElementById(styleId)) {
+    const styleEl = document.createElement('style');
+    styleEl.id = styleId;
+    styleEl.textContent = styles;
+    document.head.appendChild(styleEl);
+  }
+}
 
 export default function POList() {
   const navigate = useNavigate();
@@ -50,27 +322,22 @@ export default function POList() {
   });
 
   const getStatusBadge = (status: string) => {
-    const colors = {
-      'Open': { bg: '#dbeafe', color: '#1d4ed8' },
-      'Partially Billed': { bg: '#fef3c7', color: '#b45309' },
-      'Closed': { bg: '#d1fae5', color: '#047857' }
+    const classes = {
+      'Open': 'po-status-open',
+      'Partially Billed': 'po-status-partial',
+      'Closed': 'po-status-closed'
     };
-    const style = colors[status] || colors['Open'];
     return (
-      <span style={{ 
-        background: style.bg, 
-        color: style.color, 
-        padding: '4px 10px', 
-        borderRadius: '12px',
-        fontSize: '12px',
-        fontWeight: 600
-      }}>
+      <span className={`po-status ${classes[status] || 'po-status-open'}`}>
+        {status === 'Partially Billed' && <Clock size={12} />}
+        {status === 'Open' && <CheckCircle size={12} />}
+        {status === 'Closed' && <CheckCircle size={12} />}
         {status}
       </span>
     );
   };
 
-  const deletePO = async (id) => {
+  const deletePO = async (id: string) => {
     if (!confirm('Are you sure you want to delete this PO?')) return;
     
     const { error } = await supabase
@@ -86,146 +353,183 @@ export default function POList() {
   };
 
   return (
-    <div>
-      <div className="page-header">
-        <h1 className="page-title">Client Purchase Orders</h1>
-        <button className="btn btn-primary" onClick={() => navigate('/client-po/create')}>
-          + Create PO
+    <div className="po-page">
+      {/* Header */}
+      <div className="po-header">
+        <h1 className="po-title">Client Purchase Orders</h1>
+        <button className="po-btn po-btn-primary" onClick={() => navigate('/client-po/create')}>
+          <Plus size={16} />
+          Create PO
         </button>
       </div>
 
-      {/* Filters */}
-      <div className="card" style={{ padding: '16px', marginBottom: '16px' }}>
-        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
-          <div className="form-group" style={{ margin: 0, minWidth: '200px' }}>
-            <label className="form-label" style={{ fontSize: '11px', marginBottom: '4px' }}>Search</label>
-            <input
-              type="text"
-              className="form-input"
-              placeholder="PO No / Client name..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              style={{ padding: '8px 12px' }}
-            />
+      {/* Stats */}
+      <div className="po-stats">
+        <div className="po-stat-card">
+          <div className="po-stat-icon" style={{ background: '#f0f9ff', color: '#0284c7' }}>
+            <FileText size={20} />
           </div>
-          <div className="form-group" style={{ margin: 0, minWidth: '150px' }}>
-            <label className="form-label" style={{ fontSize: '11px', marginBottom: '4px' }}>Status</label>
+          <div className="po-stat-content">
+            <div className="po-stat-label">Total POs</div>
+            <div className="po-stat-value">{filteredPOs.length}</div>
+          </div>
+        </div>
+        <div className="po-stat-card">
+          <div className="po-stat-icon" style={{ background: '#dbeafe', color: '#1d4ed8' }}>
+            <CheckCircle size={20} />
+          </div>
+          <div className="po-stat-content">
+            <div className="po-stat-label">Open</div>
+            <div className="po-stat-value" style={{ color: '#1d4ed8' }}>
+              {filteredPOs.filter(p => p.status === 'Open').length}
+            </div>
+          </div>
+        </div>
+        <div className="po-stat-card">
+          <div className="po-stat-icon" style={{ background: '#fef3c7', color: '#b45309' }}>
+            <Clock size={20} />
+          </div>
+          <div className="po-stat-content">
+            <div className="po-stat-label">Partially Billed</div>
+            <div className="po-stat-value" style={{ color: '#b45309' }}>
+              {filteredPOs.filter(p => p.status === 'Partially Billed').length}
+            </div>
+          </div>
+        </div>
+        <div className="po-stat-card">
+          <div className="po-stat-icon" style={{ background: '#d1fae5', color: '#047857' }}>
+            <TrendingUp size={20} />
+          </div>
+          <div className="po-stat-content">
+            <div className="po-stat-label">Total Value</div>
+            <div className="po-stat-value" style={{ color: '#047857' }}>
+              ₹{formatCurrency(filteredPOs.reduce((sum, p) => sum + (p.po_total_value || 0), 0))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Card */}
+      <div className="po-card">
+        {/* Filters */}
+        <div className="po-filters">
+          <div className="po-filter-group">
+            <label className="po-label">Search</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Search size={14} style={{ color: '#a3a3a3' }} />
+              <input
+                type="text"
+                className="po-input"
+                placeholder="PO number or client..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                style={{ minWidth: '200px' }}
+              />
+            </div>
+          </div>
+          <div className="po-filter-group">
+            <label className="po-label">Status</label>
             <select
-              className="form-select"
+              className="po-select"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              style={{ padding: '8px 12px' }}
             >
-              <option value="">All Status</option>
+              <option value="">All Statuses</option>
               <option value="Open">Open</option>
               <option value="Partially Billed">Partially Billed</option>
               <option value="Closed">Closed</option>
             </select>
           </div>
-          <div className="form-group" style={{ margin: 0, minWidth: '140px' }}>
-            <label className="form-label" style={{ fontSize: '11px', marginBottom: '4px' }}>From Date</label>
+          <div className="po-filter-group">
+            <label className="po-label">From Date</label>
             <input
               type="date"
-              className="form-input"
+              className="po-input"
               value={dateFrom}
               onChange={(e) => setDateFrom(e.target.value)}
-              style={{ padding: '8px 12px' }}
             />
           </div>
-          <div className="form-group" style={{ margin: 0, minWidth: '140px' }}>
-            <label className="form-label" style={{ fontSize: '11px', marginBottom: '4px' }}>To Date</label>
+          <div className="po-filter-group">
+            <label className="po-label">To Date</label>
             <input
               type="date"
-              className="form-input"
+              className="po-input"
               value={dateTo}
               onChange={(e) => setDateTo(e.target.value)}
-              style={{ padding: '8px 12px' }}
             />
           </div>
         </div>
-      </div>
 
-      {/* Summary Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '16px' }}>
-        <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '16px' }}>
-          <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '4px' }}>Total POs</div>
-          <div style={{ fontSize: '24px', fontWeight: 700 }}>{filteredPOs.length}</div>
-        </div>
-        <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '16px' }}>
-          <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '4px' }}>Open</div>
-          <div style={{ fontSize: '24px', fontWeight: 700, color: '#1d4ed8' }}>{filteredPOs.filter(p => p.status === 'Open').length}</div>
-        </div>
-        <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '16px' }}>
-          <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '4px' }}>Partially Billed</div>
-          <div style={{ fontSize: '24px', fontWeight: 700, color: '#b45309' }}>{filteredPOs.filter(p => p.status === 'Partially Billed').length}</div>
-        </div>
-        <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '16px' }}>
-          <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '4px' }}>Total Value</div>
-          <div style={{ fontSize: '24px', fontWeight: 700, color: '#047857' }}>₹{formatCurrency(filteredPOs.reduce((sum, p) => sum + (p.po_total_value || 0), 0))}</div>
-        </div>
-      </div>
-
-      {/* PO Table */}
-      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        {/* Table */}
         <div style={{ overflowX: 'auto' }}>
-          <table className="table" style={{ margin: 0 }}>
+          <table className="po-table">
             <thead>
               <tr>
-                <th style={{ minWidth: '120px' }}>PO No</th>
-                <th style={{ minWidth: '150px' }}>Client</th>
-                <th style={{ minWidth: '100px' }}>PO Date</th>
-                <th style={{ minWidth: '100px' }}>Expiry</th>
-                <th style={{ minWidth: '120px', textAlign: 'right' }}>Total Value</th>
-                <th style={{ minWidth: '100px', textAlign: 'right' }}>Utilized</th>
-                <th style={{ minWidth: '100px', textAlign: 'right' }}>Balance</th>
-                <th style={{ minWidth: '130px' }}>Status</th>
-                <th style={{ minWidth: '120px' }}>Actions</th>
+                <th>PO Number</th>
+                <th>Client</th>
+                <th>PO Date</th>
+                <th>Expiry</th>
+                <th style={{ textAlign: 'right' }}>Total Value</th>
+                <th style={{ textAlign: 'right' }}>Utilized</th>
+                <th style={{ textAlign: 'right' }}>Balance</th>
+                <th>Status</th>
+                <th style={{ textAlign: 'center' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={9} style={{ textAlign: 'center', padding: '40px' }}>Loading...</td>
+                  <td colSpan={9} className="po-loading">Loading purchase orders...</td>
                 </tr>
               ) : filteredPOs.length === 0 ? (
                 <tr>
-                  <td colSpan={9} style={{ textAlign: 'center', padding: '40px', color: '#6b7280' }}>
-                    No purchase orders found
-                  </td>
+                  <td colSpan={9} className="po-empty">No purchase orders found</td>
                 </tr>
               ) : (
                 filteredPOs.map(po => (
-                  <tr 
-                    key={po.id} 
-                    style={{ cursor: 'pointer' }}
-                    onClick={() => navigate(`/client-po/details?id=${po.id}`)}
-                  >
-                    <td style={{ fontWeight: 600 }}>{po.po_number}</td>
+                  <tr key={po.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/client-po/details?id=${po.id}`)}>
+                    <td style={{ fontWeight: 600, color: '#171717' }}>{po.po_number}</td>
                     <td>{po.client?.client_name || '-'}</td>
                     <td>{formatDate(po.po_date)}</td>
                     <td>{formatDate(po.po_expiry_date)}</td>
-                    <td style={{ textAlign: 'right', fontWeight: 500 }}>₹{formatCurrency(po.po_total_value)}</td>
-                    <td style={{ textAlign: 'right', color: '#6b7280' }}>₹{formatCurrency(po.po_utilized_value)}</td>
-                    <td style={{ textAlign: 'right', fontWeight: 600, color: po.po_available_value > 0 ? '#047857' : '#dc2626' }}>
+                    <td style={{ textAlign: 'right', fontWeight: 500 }}>
+                      ₹{formatCurrency(po.po_total_value)}
+                    </td>
+                    <td style={{ textAlign: 'right', color: '#737373' }}>
+                      ₹{formatCurrency(po.po_utilized_value)}
+                    </td>
+                    <td style={{ 
+                      textAlign: 'right', 
+                      fontWeight: 600, 
+                      color: po.po_available_value > 0 ? '#047857' : '#dc2626' 
+                    }}>
                       ₹{formatCurrency(po.po_available_value)}
                     </td>
                     <td onClick={(e) => e.stopPropagation()}>
                       {getStatusBadge(po.status)}
                     </td>
                     <td onClick={(e) => e.stopPropagation()}>
-                      <div style={{ display: 'flex', gap: '8px' }}>
+                      <div className="po-actions" style={{ justifyContent: 'center' }}>
                         <button
-                          className="btn btn-sm btn-secondary"
+                          className="po-icon-btn"
                           onClick={() => navigate(`/client-po/create?id=${po.id}`)}
+                          title="Edit"
                         >
-                          Edit
+                          <Edit2 size={14} />
                         </button>
                         <button
-                          className="btn btn-sm btn-danger"
+                          className="po-icon-btn danger"
                           onClick={() => deletePO(po.id)}
-                          style={{ background: '#fee2e2', color: '#dc2626', border: 'none' }}
+                          title="Delete"
                         >
-                          Delete
+                          <Trash2 size={14} />
+                        </button>
+                        <button
+                          className="po-icon-btn"
+                          onClick={() => navigate(`/client-po/details?id=${po.id}`)}
+                          title="View"
+                        >
+                          <ChevronRight size={14} />
                         </button>
                       </div>
                     </td>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Plus, Save, X, FileText, Upload, CheckCircle, Clock, XCircle } from 'lucide-react';
 
 type POFormData = {
   client_id: string
@@ -10,6 +11,7 @@ type POFormData = {
   po_expiry_date: string
   po_total_value: string
   po_utilized_value: number
+  po_available_value: number
   status: string
   remarks: string
 }
@@ -33,6 +35,7 @@ export default function CreatePO() {
     po_expiry_date: '',
     po_total_value: '',
     po_utilized_value: 0,
+    po_available_value: 0,
     status: 'Open',
     remarks: ''
   });
@@ -79,8 +82,9 @@ export default function CreatePO() {
           po_number: data.po_number || '',
           po_date: data.po_date || '',
           po_expiry_date: data.po_expiry_date || '',
-          po_total_value: data.po_total_value || '',
+          po_total_value: data.po_total_value?.toString() || '',
           po_utilized_value: data.po_utilized_value || 0,
+          po_available_value: data.po_available_value || 0,
           status: data.status || 'Open',
           remarks: data.remarks || ''
         });
@@ -94,13 +98,13 @@ export default function CreatePO() {
     }
   };
 
-  const handleInputChange = (e) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) {
         alert('File size must be less than 5MB');
@@ -110,7 +114,7 @@ export default function CreatePO() {
     }
   };
 
-  const uploadAttachment = async (poId) => {
+  const uploadAttachment = async (poId: string) => {
     if (!attachment) return null;
     
     try {
@@ -161,13 +165,13 @@ export default function CreatePO() {
     return true;
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) return;
 
     setSaving(true);
     try {
-      const poData = {
+      const poData: any = {
         client_id: formData.client_id,
         project_id: formData.project_id || null,
         po_number: formData.po_number.trim(),
@@ -178,7 +182,7 @@ export default function CreatePO() {
         remarks: formData.remarks || null
       };
 
-      let poId;
+      let poId: string;
       if (editId) {
         // Preserve existing utilized value, recalculate available
         poData.po_utilized_value = formData.po_utilized_value || 0;
@@ -228,7 +232,7 @@ export default function CreatePO() {
 
       alert(editId ? 'PO updated successfully!' : 'PO created successfully!');
       navigate('/client-po');
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error saving PO:', err);
       alert('Error: ' + err.message);
     } finally {
@@ -236,7 +240,7 @@ export default function CreatePO() {
     }
   };
 
-  const handleSaveAndNew = async (e) => {
+  const handleSaveAndNew = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) return;
 
@@ -244,6 +248,7 @@ export default function CreatePO() {
     try {
       const poData = {
         client_id: formData.client_id,
+        project_id: formData.project_id || null,
         po_number: formData.po_number.trim(),
         po_date: formData.po_date,
         po_expiry_date: formData.po_expiry_date || null,
@@ -277,15 +282,18 @@ export default function CreatePO() {
       alert('PO created successfully!');
       setFormData({
         client_id: '',
+        project_id: '',
         po_number: '',
         po_date: new Date().toISOString().split('T')[0],
         po_expiry_date: '',
         po_total_value: '',
+        po_utilized_value: 0,
+        po_available_value: 0,
         status: 'Open',
         remarks: ''
       });
       setAttachment(null);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error saving PO:', err);
       alert('Error: ' + err.message);
     } finally {
@@ -293,22 +301,27 @@ export default function CreatePO() {
     }
   };
 
-  const getStatusBadge = (status) => {
-    const colors = {
-      'Open': { bg: '#dbeafe', color: '#1d4ed8' },
-      'Partially Billed': { bg: '#fef3c7', color: '#b45309' },
-      'Closed': { bg: '#d1fae5', color: '#047857' }
+  const getStatusBadge = (status: string) => {
+    const styles: Record<string, { bg: string; color: string; icon: any }> = {
+      'Open': { bg: '#dbeafe', color: '#1d4ed8', icon: CheckCircle },
+      'Partially Billed': { bg: '#fef3c7', color: '#b45309', icon: Clock },
+      'Closed': { bg: '#d1fae5', color: '#047857', icon: XCircle }
     };
-    const style = colors[status] || colors['Open'];
+    const style = styles[status] || styles['Open'];
+    const Icon = style.icon;
     return (
       <span style={{ 
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '6px',
         background: style.bg, 
         color: style.color, 
-        padding: '4px 10px', 
-        borderRadius: '12px',
+        padding: '6px 12px', 
+        borderRadius: '6px',
         fontSize: '12px',
         fontWeight: 600
       }}>
+        <Icon size={14} />
         {status}
       </span>
     );
@@ -317,159 +330,418 @@ export default function CreatePO() {
   const availableValue = formData.po_total_value ? parseFloat(formData.po_total_value) : 0;
 
   if (loading) {
-    return <div style={{ padding: '40px', textAlign: 'center' }}>Loading...</div>;
+    return (
+      <div style={{ padding: '40px', textAlign: 'center', color: '#737373' }}>
+        Loading...
+      </div>
+    );
   }
 
   return (
-    <div>
-      <div className="page-header">
-        <h1 className="page-title">{editId ? 'Edit Purchase Order' : 'Create Purchase Order'}</h1>
+    <div style={{ 
+      fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
+      maxWidth: '1200px',
+      margin: '0 auto',
+      padding: '24px'
+    }}>
+      {/* Header */}
+      <div style={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'space-between',
+        marginBottom: '24px',
+        paddingBottom: '16px',
+        borderBottom: '1px solid #e5e5e5'
+      }}>
+        <h1 style={{ 
+          fontSize: '24px', 
+          fontWeight: 600, 
+          color: '#0a0a0a',
+          margin: 0
+        }}>
+          {editId ? 'Edit Purchase Order' : 'New Purchase Order'}
+        </h1>
+
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button
+            type="button"
+            onClick={() => navigate('/client-po')}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '8px 16px',
+              border: '1px solid #e5e5e5',
+              borderRadius: '6px',
+              background: '#fff',
+              color: '#525252',
+              fontSize: '13px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.15s'
+            }}
+          >
+            <X size={16} />
+            Cancel
+          </button>
+          {!editId && (
+            <button
+              type="button"
+              onClick={handleSaveAndNew}
+              disabled={saving}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '8px 16px',
+                border: '1px solid #e5e5e5',
+                borderRadius: '6px',
+                background: '#fff',
+                color: '#525252',
+                fontSize: '13px',
+                fontWeight: 600,
+                cursor: saving ? 'not-allowed' : 'pointer',
+                opacity: saving ? 0.6 : 1,
+                transition: 'all 0.15s'
+              }}
+            >
+              <Plus size={16} />
+              Save & New
+            </button>
+          )}
+          <button
+            type="submit"
+            form="po-form"
+            disabled={saving}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '8px 16px',
+              border: 'none',
+              borderRadius: '6px',
+              background: '#171717',
+              color: '#fff',
+              fontSize: '13px',
+              fontWeight: 600,
+              cursor: saving ? 'not-allowed' : 'pointer',
+              opacity: saving ? 0.6 : 1,
+              transition: 'all 0.15s'
+            }}
+          >
+            <Save size={16} />
+            {saving ? 'Saving...' : editId ? 'Update' : 'Save'}
+          </button>
+        </div>
       </div>
 
-      <form onSubmit={handleSubmit}>
-        <div style={{ background: '#f8f9fa', padding: '16px', borderRadius: '8px', marginBottom: '16px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
-            {/* Row 1 */}
-            <div className="form-group" style={{ margin: 0 }}>
-              <label className="form-label" style={{ fontWeight: 600, fontSize: '11px', marginBottom: '4px' }}>Client *</label>
-              <select
-                name="client_id"
-                className="form-select"
-                style={{ padding: '8px 12px' }}
-                value={formData.client_id}
-                onChange={handleInputChange}
-              >
-                <option value="">Select Client</option>
-                {clients.map(c => (
-                  <option key={c.id} value={c.id}>{c.client_name}</option>
-                ))}
-              </select>
-            </div>
-            <div className="form-group" style={{ margin: 0 }}>
-              <label className="form-label" style={{ fontWeight: 600, fontSize: '11px', marginBottom: '4px' }}>Project</label>
-              <select
-                name="project_id"
-                className="form-select"
-                style={{ padding: '8px 12px' }}
-                value={formData.project_id}
-                onChange={handleInputChange}
-              >
-                <option value="">Select Project</option>
-                {projects.filter(p => !formData.client_id || p.client_id === formData.client_id).map(p => (
-                  <option key={p.id} value={p.id}>{p.project_code || 'N/A'} - {p.project_name || 'Unnamed'}</option>
-                ))}
-              </select>
-            </div>
-            <div className="form-group" style={{ margin: 0 }}>
-              <label className="form-label" style={{ fontWeight: 600, fontSize: '11px', marginBottom: '4px' }}>PO Number *</label>
-              <input
-                type="text"
-                name="po_number"
-                className="form-input"
-                style={{ padding: '8px 12px' }}
-                value={formData.po_number}
-                onChange={handleInputChange}
-                placeholder="e.g., PO/2025/001"
-              />
-            </div>
+      {/* Form */}
+      <form id="po-form" onSubmit={handleSubmit}>
+        {/* Status Bar */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '16px',
+          padding: '12px 16px',
+          background: '#fafafa',
+          border: '1px solid #e5e5e5',
+          borderRadius: '8px',
+          marginBottom: '20px'
+        }}>
+          <span style={{ fontSize: '13px', fontWeight: 600, color: '#737373' }}>Status</span>
+          {getStatusBadge(formData.status || 'Open')}
+        </div>
 
-            {/* Row 2 */}
-            <div className="form-group" style={{ margin: 0 }}>
-              <label className="form-label" style={{ fontWeight: 600, fontSize: '11px', marginBottom: '4px' }}>PO Date *</label>
-              <input
-                type="date"
-                name="po_date"
-                className="form-input"
-                style={{ padding: '8px 12px' }}
-                value={formData.po_date}
-                onChange={handleInputChange}
-              />
-            </div>
-            <div className="form-group" style={{ margin: 0 }}>
-              <label className="form-label" style={{ fontWeight: 600, fontSize: '11px', marginBottom: '4px' }}>Expiry Date</label>
-              <input
-                type="date"
-                name="po_expiry_date"
-                className="form-input"
-                style={{ padding: '8px 12px' }}
-                value={formData.po_expiry_date}
-                onChange={handleInputChange}
-              />
-            </div>
+        {/* Fields Grid - 4 Columns */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(4, 1fr)',
+          gap: '16px',
+          marginBottom: '20px'
+        }}>
+          {/* Client */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label style={{
+              fontSize: '11px',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em',
+              color: '#737373'
+            }}>
+              Client *
+            </label>
+            <select
+              name="client_id"
+              value={formData.client_id}
+              onChange={handleInputChange}
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                border: '1px solid #d4d4d4',
+                borderRadius: '6px',
+                fontSize: '14px',
+                color: '#171717',
+                background: '#fff',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="">Select client</option>
+              {clients.map(c => (
+                <option key={c.id} value={c.id}>{c.client_name}</option>
+              ))}
+            </select>
+          </div>
 
-            {/* Row 3 */}
-            <div className="form-group" style={{ margin: 0 }}>
-              <label className="form-label" style={{ fontWeight: 600, fontSize: '11px', marginBottom: '4px' }}>PO Total Value *</label>
-              <input
-                type="number"
-                name="po_total_value"
-                className="form-input"
-                style={{ padding: '8px 12px' }}
-                value={formData.po_total_value}
-                onChange={handleInputChange}
-                placeholder="0.00"
-                min="0"
-                step="0.01"
-              />
-            </div>
-            <div className="form-group" style={{ margin: 0 }}>
-              <label className="form-label" style={{ fontWeight: 600, fontSize: '11px', marginBottom: '4px' }}>Status</label>
-              <div style={{ padding: '8px 12px', background: '#f3f4f6', borderRadius: '6px', border: '1px solid #e5e7eb' }}>
-                {getStatusBadge(formData.status || 'Open')}
-              </div>
-            </div>
+          {/* Project */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label style={{
+              fontSize: '11px',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em',
+              color: '#737373'
+            }}>
+              Project
+            </label>
+            <select
+              name="project_id"
+              value={formData.project_id}
+              onChange={handleInputChange}
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                border: '1px solid #d4d4d4',
+                borderRadius: '6px',
+                fontSize: '14px',
+                color: '#171717',
+                background: '#fff',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="">Select project</option>
+              {projects.filter(p => !formData.client_id || p.client_id === formData.client_id).map(p => (
+                <option key={p.id} value={p.id}>{p.project_code || 'N/A'} - {p.project_name || 'Unnamed'}</option>
+              ))}
+            </select>
+          </div>
 
-            {/* Row 4 */}
-            <div className="form-group" style={{ margin: 0 }}>
-              <label className="form-label" style={{ fontWeight: 600, fontSize: '11px', marginBottom: '4px' }}>Attachment</label>
-              <input
-                type="file"
-                accept=".pdf,.jpg,.jpeg,.png"
-                onChange={handleFileChange}
-                style={{ padding: '6px', fontSize: '13px' }}
-              />
-              {attachmentUrl && !attachment && (
-                <a href={attachmentUrl} target="_blank" rel="noopener noreferrer" style={{ marginLeft: '10px', fontSize: '12px' }}>View current</a>
-              )}
-            </div>
-            <div className="form-group" style={{ margin: 0 }}>
-              <label className="form-label" style={{ fontWeight: 600, fontSize: '11px', marginBottom: '4px' }}>Available Value</label>
-              <div style={{ padding: '8px 12px', background: '#f0fdf4', borderRadius: '6px', border: '1px solid #bbf7d0', fontWeight: 600, color: '#166534' }}>
-                ₹{availableValue.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-              </div>
+          {/* PO Number */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label style={{
+              fontSize: '11px',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em',
+              color: '#737373'
+            }}>
+              PO Number *
+            </label>
+            <input
+              type="text"
+              name="po_number"
+              value={formData.po_number}
+              onChange={handleInputChange}
+              placeholder="e.g., PO/2025/001"
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                border: '1px solid #d4d4d4',
+                borderRadius: '6px',
+                fontSize: '14px',
+                color: '#171717',
+                background: '#fff'
+              }}
+            />
+          </div>
+
+          {/* PO Date */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label style={{
+              fontSize: '11px',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em',
+              color: '#737373'
+            }}>
+              PO Date *
+            </label>
+            <input
+              type="date"
+              name="po_date"
+              value={formData.po_date}
+              onChange={handleInputChange}
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                border: '1px solid #d4d4d4',
+                borderRadius: '6px',
+                fontSize: '14px',
+                color: '#171717',
+                background: '#fff'
+              }}
+            />
+          </div>
+
+          {/* Expiry Date */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label style={{
+              fontSize: '11px',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em',
+              color: '#737373'
+            }}>
+              Expiry Date
+            </label>
+            <input
+              type="date"
+              name="po_expiry_date"
+              value={formData.po_expiry_date}
+              onChange={handleInputChange}
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                border: '1px solid #d4d4d4',
+                borderRadius: '6px',
+                fontSize: '14px',
+                color: '#171717',
+                background: '#fff'
+              }}
+            />
+          </div>
+
+          {/* Total Value */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label style={{
+              fontSize: '11px',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em',
+              color: '#737373'
+            }}>
+              Total Value *
+            </label>
+            <input
+              type="number"
+              name="po_total_value"
+              value={formData.po_total_value}
+              onChange={handleInputChange}
+              placeholder="0.00"
+              min="0"
+              step="0.01"
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                border: '1px solid #d4d4d4',
+                borderRadius: '6px',
+                fontSize: '14px',
+                color: '#171717',
+                background: '#fff'
+              }}
+            />
+          </div>
+
+          {/* Available Value */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label style={{
+              fontSize: '11px',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em',
+              color: '#737373'
+            }}>
+              Available Value
+            </label>
+            <div style={{
+              padding: '8px 12px',
+              background: '#f0fdf4',
+              border: '1px solid #bbf7d0',
+              borderRadius: '6px',
+              fontSize: '14px',
+              fontWeight: 600,
+              color: '#166534'
+            }}>
+              ₹{availableValue.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
             </div>
           </div>
 
-          {/* Row 5 - Remarks */}
-          <div style={{ marginTop: '16px' }}>
-            <div className="form-group" style={{ margin: 0 }}>
-              <label className="form-label" style={{ fontWeight: 600, fontSize: '11px', marginBottom: '4px' }}>Remarks</label>
-              <textarea
-                name="remarks"
-                className="form-textarea"
-                style={{ padding: '8px 12px' }}
-                value={formData.remarks}
-                onChange={handleInputChange}
-                rows={3}
-                placeholder="Add any additional notes..."
-              />
+          {/* Attachment */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label style={{
+              fontSize: '11px',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em',
+              color: '#737373'
+            }}>
+              Attachment
+            </label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <label style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 12px',
+                border: '1px solid #d4d4d4',
+                borderRadius: '6px',
+                background: '#fff',
+                fontSize: '13px',
+                color: '#525252',
+                cursor: 'pointer',
+                transition: 'all 0.15s'
+              }}>
+                <Upload size={14} />
+                {attachment ? attachment.name : 'Choose file'}
+                <input
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  onChange={handleFileChange}
+                  style={{ display: 'none' }}
+                />
+              </label>
+              {attachmentUrl && !attachment && (
+                <a 
+                  href={attachmentUrl} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  style={{ fontSize: '12px', color: '#1d4ed8' }}
+                >
+                  View current
+                </a>
+              )}
             </div>
           </div>
         </div>
 
-        {/* Buttons */}
-        <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-          <button type="button" className="btn btn-secondary" onClick={() => navigate('/client-po')}>
-            Cancel
-          </button>
-          {!editId && (
-            <button type="button" className="btn btn-secondary" onClick={handleSaveAndNew} disabled={saving}>
-              {saving ? 'Saving...' : 'Save & New'}
-            </button>
-          )}
-          <button type="submit" className="btn btn-primary" disabled={saving}>
-            {saving ? 'Saving...' : editId ? 'Update' : 'Save'}
-          </button>
+        {/* Remarks */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <label style={{
+            fontSize: '11px',
+            fontWeight: 600,
+            textTransform: 'uppercase',
+            letterSpacing: '0.04em',
+            color: '#737373'
+          }}>
+            Remarks
+          </label>
+          <textarea
+            name="remarks"
+            value={formData.remarks}
+            onChange={handleInputChange}
+            rows={3}
+            placeholder="Add any additional notes..."
+            style={{
+              width: '100%',
+              padding: '8px 12px',
+              border: '1px solid #d4d4d4',
+              borderRadius: '6px',
+              fontSize: '14px',
+              color: '#171717',
+              background: '#fff',
+              resize: 'vertical',
+              minHeight: '80px'
+            }}
+          />
         </div>
       </form>
     </div>
