@@ -341,6 +341,8 @@ export default function CreatePO() {
     <div style={{ 
       fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
       width: '100%',
+      maxWidth: '1400px',
+      margin: '0 auto',
       minHeight: '100vh',
       padding: '24px',
       boxSizing: 'border-box'
