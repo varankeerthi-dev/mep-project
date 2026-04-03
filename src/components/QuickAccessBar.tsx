@@ -71,7 +71,7 @@ export default function QuickAccessBar({ onQuickAction, organisation, onLogout, 
         </div>
       </div>
       
-      <div className="top-navbar-actions">
+      <div className="top-navbar-actions" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
         <button className="top-nav-btn" onClick={handleQuickAction.bind(null, 'daily-updates')}>
           {icons.calendar}
           Daily Updates
@@ -90,17 +90,27 @@ export default function QuickAccessBar({ onQuickAction, organisation, onLogout, 
         </button>
       </div>
 
-      <div className="user-menu">
+      <div className="user-menu" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
         <button 
           className="user-profile"
           onClick={toggleDropdown}
+          style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 8px' }}
         >
-          <div className="user-profile-avatar">
+          <div className="user-profile-avatar" style={{ width: '20px', height: '20px', fontSize: '9px' }}>
             {organisation?.name?.charAt(0)?.toUpperCase() || 'U'}
           </div>
-          <span className="user-profile-name">
-            {organisation?.name || 'Organisation'}
+          <span className="user-profile-name" style={{ fontSize: '11px' }}>
+            Profile
           </span>
+        </button>
+
+        <button 
+          className="top-nav-btn"
+          onClick={handleLogoutClick}
+          style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
+        >
+          {icons.logout}
+          Logout
         </button>
 
         {showDropdown && (
@@ -114,11 +124,6 @@ export default function QuickAccessBar({ onQuickAction, organisation, onLogout, 
               {icons.settings}
               <span>Settings</span>
             </a>
-            <div className="user-dropdown-divider" />
-            <div className="user-dropdown-item" onClick={handleLogoutClick}>
-              {icons.logout}
-              <span>Sign Out</span>
-            </div>
           </div>
         )}
       </div>
