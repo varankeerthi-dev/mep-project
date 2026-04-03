@@ -1,10 +1,453 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowRight, Download, Eye, Loader2, Mail, MoreHorizontal, Plus, Printer } from 'lucide-react';
+import { ArrowRight, Download, Eye, Loader2, Mail, MoreHorizontal, Plus, Printer, Search, Filter, FileText } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useInvoices } from '../hooks';
 import { InvoiceStatusBadge } from '../components/InvoiceStatusBadge';
 import { downloadInvoicePDF, emailInvoicePDF, previewInvoicePDF, printInvoicePDF } from '../pdf';
 import { formatCurrency, formatDate, getInvoiceDisplayNumber } from '../ui-utils';
+
+// ─── Styles ────────────────────────────────────────────────────────────────────
+
+const styles = `
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap');
+  
+  :root {
+    --bg-page: #faf9f7;
+    --bg-card: #ffffff;
+    --bg-hover: #f5f3f0;
+    --bg-muted: #f8f7f5;
+    --border: #e8e5e1;
+    --border-light: #f0eeeb;
+    --border-hover: #d4d0ca;
+    --text-primary: #1a1a1a;
+    --text-secondary: #6b6b6b;
+    --text-muted: #9ca3af;
+    --accent: #e85d04;
+    --accent-hover: #dc4c00;
+    --accent-light: #fff4ed;
+    --success: #10b981;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+  }
+  
+  .il-page {
+    font-family: 'DM Sans', system-ui, sans-serif;
+    background: var(--bg-page);
+    min-height: 100vh;
+    padding: 2rem;
+  }
+  
+  .il-container {
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  
+  /* Header */
+  .il-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 2rem;
+    gap: 1rem;
+  }
+  
+  .il-header-left {
+    flex: 1;
+  }
+  
+  .il-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    margin-bottom: 0.75rem;
+  }
+  
+  .il-title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
+    margin: 0 0 0.5rem 0;
+  }
+  
+  .il-subtitle {
+    font-size: 0.9375rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    max-width: 600px;
+  }
+  
+  .il-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1.25rem;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none;
+    font-family: inherit;
+    white-space: nowrap;
+  }
+  
+  .il-btn-primary {
+    background: var(--accent);
+    color: white;
+  }
+  
+  .il-btn-primary:hover {
+    background: var(--accent-hover);
+    transform: translateY(-1px);
+  }
+  
+  .il-btn-secondary {
+    background: var(--bg-card);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+  }
+  
+  .il-btn-secondary:hover {
+    background: var(--bg-hover);
+    border-color: var(--border-hover);
+  }
+  
+  .il-btn-icon {
+    padding: 0.5rem;
+    border-radius: 0.5rem;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  
+  .il-btn-icon:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+  
+  /* Filters Card */
+  .il-filters {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  
+  .il-filter-group {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+  
+  .il-filter-label {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+  
+  .il-select,
+  .il-input {
+    padding: 0.5rem 0.75rem;
+    background: var(--bg-muted);
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    font-size: 0.8125rem;
+    font-family: inherit;
+    color: var(--text-primary);
+    transition: all 0.15s ease;
+    min-width: 140px;
+  }
+  
+  .il-select:focus,
+  .il-input:focus {
+    outline: none;
+    border-color: var(--accent);
+    background: white;
+  }
+  
+  .il-select {
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.5rem center;
+    padding-right: 2rem;
+  }
+  
+  .il-count {
+    margin-left: auto;
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+  
+  /* Table Card */
+  .il-table-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    overflow: hidden;
+  }
+  
+  .il-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8125rem;
+  }
+  
+  .il-table thead {
+    background: var(--bg-muted);
+    border-bottom: 1px solid var(--border);
+  }
+  
+  .il-table th {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+  
+  .il-table th:last-child {
+    text-align: right;
+  }
+  
+  .il-table td {
+    padding: 0.625rem 1rem;
+    border-bottom: 1px solid var(--border-light);
+    vertical-align: middle;
+  }
+  
+  .il-table tbody tr {
+    transition: background 0.15s ease;
+  }
+  
+  .il-table tbody tr:hover {
+    background: var(--bg-hover);
+  }
+  
+  .il-table tbody tr:last-child td {
+    border-bottom: none;
+  }
+  
+  /* Invoice Number */
+  .il-invoice-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+  
+  /* Client Cell */
+  .il-client {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+  }
+  
+  .il-client-name {
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+  
+  .il-client-source {
+    font-size: 0.6875rem;
+    color: var(--text-muted);
+    text-transform: capitalize;
+  }
+  
+  /* Amount */
+  .il-amount {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 600;
+    color: var(--text-primary);
+    text-align: right;
+  }
+  
+  /* Date */
+  .il-date {
+    color: var(--text-secondary);
+    font-size: 0.8125rem;
+  }
+  
+  /* Actions */
+  .il-actions {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 0.375rem;
+  }
+  
+  .il-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.75rem;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 0.375rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+  }
+  
+  .il-action-btn:hover {
+    background: var(--bg-hover);
+    border-color: var(--border-hover);
+    color: var(--text-primary);
+  }
+  
+  /* Dropdown */
+  .il-dropdown-trigger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 0.375rem;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  
+  .il-dropdown-trigger:hover {
+    background: var(--bg-hover);
+    border-color: var(--border-hover);
+    color: var(--text-primary);
+  }
+  
+  .il-dropdown {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 0.25rem);
+    z-index: 50;
+    min-width: 180px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    padding: 0.375rem;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+  }
+  
+  .il-dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.375rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    border: none;
+    background: transparent;
+    text-align: left;
+  }
+  
+  .il-dropdown-item:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+  
+  /* Loading & Empty */
+  .il-loading,
+  .il-empty {
+    padding: 3rem;
+    text-align: center;
+  }
+  
+  .il-loading-text,
+  .il-empty-title {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+  }
+  
+  .il-empty-desc {
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+  }
+  
+  .il-empty-icon {
+    width: 3rem;
+    height: 3rem;
+    margin: 0 auto 1rem;
+    color: var(--text-muted);
+    opacity: 0.4;
+  }
+  
+  /* Responsive */
+  @media (max-width: 768px) {
+    .il-page {
+      padding: 1rem;
+    }
+    
+    .il-header {
+      flex-direction: column;
+      gap: 1rem;
+    }
+    
+    .il-filters {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    
+    .il-filter-group {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 0.5rem;
+    }
+    
+    .il-select,
+    .il-input {
+      width: 100%;
+    }
+    
+    .il-table th:nth-child(2),
+    .il-table td:nth-child(2),
+    .il-table th:nth-child(5),
+    .il-table td:nth-child(5) {
+      display: none;
+    }
+  }
+`;
+
+if (typeof document !== 'undefined') {
+  const styleId = 'il-styles';
+  if (!document.getElementById(styleId)) {
+    const styleEl = document.createElement('style');
+    styleEl.id = styleId;
+    styleEl.textContent = styles;
+    document.head.appendChild(styleEl);
+  }
+}
 
 export default function InvoiceListPage() {
   const navigate = useNavigate();
@@ -90,112 +533,118 @@ export default function InvoiceListPage() {
   };
 
   return (
-    <div className="mx-auto flex max-w-[1400px] flex-col gap-5">
-      <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-        <div>
-          <div className="text-[11px] font-semibold uppercase tracking-[0.26em] text-slate-400">
-            Invoice Module
+    <div className="il-page">
+      <div className="il-container">
+        {/* Header */}
+        <div className="il-header">
+          <div className="il-header-left">
+            <div className="il-label">
+              <FileText size={14} />
+              Invoice Module
+            </div>
+            <h1 className="il-title">Invoices</h1>
+            <p className="il-subtitle">
+              Manage draft and final invoices across quotations, delivery challans, and client purchase orders.
+            </p>
           </div>
-          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Invoices</h1>
-          <p className="mt-2 max-w-2xl text-[14px] leading-6 text-slate-500">
-            Manage draft and final invoices across quotations, delivery challans, and client purchase orders.
-          </p>
+          <button
+            type="button"
+            onClick={() => navigate('/invoices/create')}
+            className="il-btn il-btn-primary"
+          >
+            <Plus size={16} />
+            Create Invoice
+          </button>
         </div>
 
-        <button
-          type="button"
-          onClick={() => navigate('/invoices/create')}
-          className="inline-flex items-center justify-center gap-2 rounded-full bg-slate-950 px-4 py-2.5 text-[13px] font-semibold text-white transition hover:bg-slate-800"
-        >
-          <Plus size={15} />
-          Create invoice
-        </button>
-      </div>
-
-      <section className="rounded-[28px] border border-slate-200 bg-white">
-        <div className="grid gap-3 border-b border-slate-200 px-5 py-4 md:grid-cols-[180px_180px_1fr]">
-          <label className="space-y-1">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Status</span>
+        {/* Filters */}
+        <div className="il-filters">
+          <div className="il-filter-group">
+            <Filter size={14} className="il-filter-label" style={{ display: 'flex' }} />
             <select
               value={statusFilter}
               onChange={(event) => setStatusFilter(event.target.value as 'all' | 'draft' | 'final')}
-              className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-[13px] text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
+              className="il-select"
             >
-              <option value="all">All statuses</option>
+              <option value="all">All Statuses</option>
               <option value="draft">Draft</option>
               <option value="final">Final</option>
             </select>
-          </label>
+          </div>
 
-          <label className="space-y-1">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Date</span>
+          <div className="il-filter-group">
+            <span className="il-filter-label">Date</span>
             <input
               type="date"
               value={dateFilter}
               onChange={(event) => setDateFilter(event.target.value)}
-              className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-[13px] text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
+              className="il-input"
             />
-          </label>
-
-          <div className="flex items-end justify-start text-[12px] text-slate-500 md:justify-end">
-            {filteredInvoices.length} invoice{filteredInvoices.length === 1 ? '' : 's'}
           </div>
+
+          <span className="il-count">
+            {filteredInvoices.length} invoice{filteredInvoices.length === 1 ? '' : 's'}
+          </span>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="min-w-full table-fixed">
+        {/* Table */}
+        <div className="il-table-card">
+          <table className="il-table">
             <thead>
-              <tr className="border-b border-slate-200 bg-slate-50/70 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                <th className="px-5 py-3">Invoice No</th>
-                <th className="px-4 py-3">Client</th>
-                <th className="px-4 py-3 text-right">Amount</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Date</th>
-                <th className="px-5 py-3 text-right">Action</th>
+              <tr>
+                <th>Invoice No</th>
+                <th>Client</th>
+                <th style={{ textAlign: 'right' }}>Amount</th>
+                <th>Status</th>
+                <th>Date</th>
+                <th style={{ textAlign: 'right' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {invoicesQuery.isLoading && (
                 <tr>
-                  <td colSpan={6} className="px-5 py-12 text-center text-[13px] text-slate-500">
-                    Loading invoices...
+                  <td colSpan={6} className="il-loading">
+                    <div className="il-loading-text">Loading invoices...</div>
                   </td>
                 </tr>
               )}
 
               {!invoicesQuery.isLoading && filteredInvoices.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-5 py-14 text-center">
-                    <div className="mx-auto max-w-md space-y-2">
-                      <div className="text-[15px] font-semibold text-slate-900">No invoices found</div>
-                      <div className="text-[13px] text-slate-500">
-                        Try a different filter or create your first invoice from a source document.
-                      </div>
+                  <td colSpan={6} className="il-empty">
+                    <FileText className="il-empty-icon" />
+                    <div className="il-empty-title">No invoices found</div>
+                    <div className="il-empty-desc">
+                      Try a different filter or create your first invoice from a source document.
                     </div>
                   </td>
                 </tr>
               )}
 
               {filteredInvoices.map((invoice) => (
-                <tr key={invoice.id} className="border-b border-slate-100 text-[13px] text-slate-700 last:border-b-0">
-                  <td className="px-5 py-4 font-semibold text-slate-950">{getInvoiceDisplayNumber(invoice)}</td>
-                  <td className="px-4 py-4">
-                    <div className="font-medium text-slate-900">{invoice.client?.name ?? 'Unknown client'}</div>
-                    <div className="mt-1 text-[12px] text-slate-500">{invoice.source_type}</div>
+                <tr key={invoice.id}>
+                  <td>
+                    <span className="il-invoice-num">{getInvoiceDisplayNumber(invoice)}</span>
                   </td>
-                  <td className="px-4 py-4 text-right font-semibold text-slate-950">{formatCurrency(invoice.total)}</td>
-                  <td className="px-4 py-4">
+                  <td>
+                    <div className="il-client">
+                      <span className="il-client-name">{invoice.client?.name ?? 'Unknown client'}</span>
+                      <span className="il-client-source">{invoice.source_type}</span>
+                    </div>
+                  </td>
+                  <td className="il-amount">{formatCurrency(invoice.total)}</td>
+                  <td>
                     <InvoiceStatusBadge status={invoice.status} />
                   </td>
-                  <td className="px-4 py-4 text-slate-500">{formatDate(invoice.created_at)}</td>
-                  <td className="px-5 py-4 text-right">
-                    <div className="flex justify-end gap-2">
+                  <td className="il-date">{formatDate(invoice.created_at)}</td>
+                  <td>
+                    <div className="il-actions">
                       <button
                         type="button"
                         onClick={() => navigate(`/invoices/edit?id=${invoice.id}`)}
-                        className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-2 text-[12px] font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+                        className="il-action-btn"
                       >
-                        View / edit
+                        View
                         <ArrowRight size={14} />
                       </button>
                       <div
@@ -206,9 +655,8 @@ export default function InvoiceListPage() {
                           type="button"
                           onClick={() => setOpenMenuInvoiceId((current) => (current === invoice.id ? null : invoice.id ?? null))}
                           disabled={!invoice.id || activePdfAction?.invoiceId === invoice.id}
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                          className="il-dropdown-trigger"
                           aria-label="More actions"
-                          aria-expanded={openMenuInvoiceId === invoice.id}
                         >
                           {activePdfAction?.invoiceId === invoice.id ? (
                             <Loader2 className="animate-spin" size={14} />
@@ -218,14 +666,14 @@ export default function InvoiceListPage() {
                         </button>
 
                         {openMenuInvoiceId === invoice.id && (
-                          <div className="absolute right-0 top-10 z-20 min-w-[190px] overflow-hidden rounded-2xl border border-slate-200 bg-white p-1.5 shadow-[0_18px_48px_rgba(15,23,42,0.14)]">
+                          <div className="il-dropdown">
                             <button
                               type="button"
                               onClick={() => {
                                 setOpenMenuInvoiceId(null);
                                 void handlePreviewPdf(invoice.id ?? '');
                               }}
-                              className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[12px] font-medium text-slate-700 transition hover:bg-slate-50"
+                              className="il-dropdown-item"
                             >
                               <Eye size={14} />
                               Preview PDF
@@ -236,7 +684,7 @@ export default function InvoiceListPage() {
                                 setOpenMenuInvoiceId(null);
                                 void handleDownloadPdf(invoice.id ?? '');
                               }}
-                              className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[12px] font-medium text-slate-700 transition hover:bg-slate-50"
+                              className="il-dropdown-item"
                             >
                               <Download size={14} />
                               Download PDF
@@ -247,7 +695,7 @@ export default function InvoiceListPage() {
                                 setOpenMenuInvoiceId(null);
                                 void handlePrintPdf(invoice.id ?? '');
                               }}
-                              className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[12px] font-medium text-slate-700 transition hover:bg-slate-50"
+                              className="il-dropdown-item"
                             >
                               <Printer size={14} />
                               Print
@@ -258,7 +706,7 @@ export default function InvoiceListPage() {
                                 setOpenMenuInvoiceId(null);
                                 void handleEmailPdf(invoice.id ?? '');
                               }}
-                              className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[12px] font-medium text-slate-700 transition hover:bg-slate-50"
+                              className="il-dropdown-item"
                             >
                               <Mail size={14} />
                               Email
@@ -273,7 +721,7 @@ export default function InvoiceListPage() {
             </tbody>
           </table>
         </div>
-      </section>
+      </div>
     </div>
   );
 }
