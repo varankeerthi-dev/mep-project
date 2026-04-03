@@ -13,9 +13,6 @@ type InvoiceMaterialsEditorProps = {
   error?: string;
 };
 
-const inputClass =
-  'h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-[13px] text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200';
-
 export function InvoiceMaterialsEditor({
   fields,
   register,
@@ -25,38 +22,90 @@ export function InvoiceMaterialsEditor({
   error,
 }: InvoiceMaterialsEditorProps) {
   return (
-    <section className="rounded-[24px] border border-slate-200 bg-white">
-      <div className="flex items-center justify-between gap-4 border-b border-slate-200 px-5 py-4">
-        <div>
-          <h2 className="text-sm font-semibold text-slate-900">Materials Used</h2>
-          <p className="mt-1 text-[12px] text-slate-500">
-            These rows are used only for stock deduction in lot invoices.
-          </p>
-        </div>
+    <div style={{ border: '1px solid #d4d4d4', borderRadius: '4px', overflow: 'hidden' }}>
+      {/* Header */}
+      <div style={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'space-between',
+        padding: '8px 12px',
+        background: '#f5f5f5',
+        borderBottom: '1px solid #d4d4d4'
+      }}>
+        <span style={{ fontSize: '12px', fontWeight: 600, color: '#171717' }}>
+          Materials Used
+        </span>
         <button
           type="button"
-          className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-2 text-[12px] font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
           onClick={() => append(createEmptyMaterial())}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '4px',
+            padding: '4px 8px',
+            border: '1px solid #d4d4d4',
+            borderRadius: '4px',
+            background: '#fff',
+            fontSize: '11px',
+            fontWeight: 600,
+            color: '#525252',
+            cursor: 'pointer'
+          }}
         >
-          <Plus size={14} />
-          Add material
+          <Plus size={12} />
+          Add
         </button>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="min-w-full table-fixed">
+      {/* Table */}
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
           <thead>
-            <tr className="border-b border-slate-200 bg-slate-50/70 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-              <th className="px-5 py-3">Product</th>
-              <th className="w-[160px] px-4 py-3 text-right">Qty Used</th>
-              <th className="w-[48px] px-3 py-3" />
+            <tr style={{ background: '#fafafa', borderBottom: '1px solid #e5e5e5' }}>
+              <th style={{ 
+                padding: '6px 8px', 
+                textAlign: 'left', 
+                fontSize: '10px', 
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: '0.03em',
+                color: '#737373'
+              }}>
+                Product
+              </th>
+              <th style={{ 
+                padding: '6px 8px', 
+                textAlign: 'right', 
+                fontSize: '10px', 
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: '0.03em',
+                color: '#737373',
+                width: '120px'
+              }}>
+                Qty Used
+              </th>
+              <th style={{ padding: '6px 8px', width: '32px' }} />
             </tr>
           </thead>
           <tbody>
             {fields.map((field, index) => (
-              <tr key={field.id} className="border-b border-slate-100 last:border-b-0">
-                <td className="px-5 py-3">
-                  <select {...register(`materials.${index}.product_id`)} className={inputClass}>
+              <tr key={field.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                <td style={{ padding: '4px 8px' }}>
+                  <select
+                    {...register(`materials.${index}.product_id`)}
+                    style={{
+                      width: '100%',
+                      padding: '4px 6px',
+                      border: '1px solid transparent',
+                      borderRadius: '2px',
+                      fontSize: '12px',
+                      background: 'transparent',
+                      cursor: 'pointer'
+                    }}
+                    onFocus={(e) => e.currentTarget.style.borderColor = '#d4d4d4'}
+                    onBlur={(e) => e.currentTarget.style.borderColor = 'transparent'}
+                  >
                     <option value="">Select product</option>
                     {productOptions.map((option) => (
                       <option key={option.id} value={option.id}>
@@ -65,22 +114,51 @@ export function InvoiceMaterialsEditor({
                     ))}
                   </select>
                 </td>
-                <td className="px-4 py-3">
+                <td style={{ padding: '4px 8px' }}>
                   <input
                     type="number"
                     step="0.01"
                     {...register(`materials.${index}.qty_used`, { valueAsNumber: true })}
-                    className={`${inputClass} text-right`}
+                    style={{
+                      width: '100%',
+                      padding: '4px 6px',
+                      border: '1px solid transparent',
+                      borderRadius: '2px',
+                      fontSize: '12px',
+                      textAlign: 'right',
+                      background: 'transparent'
+                    }}
+                    onFocus={(e) => e.currentTarget.style.borderColor = '#d4d4d4'}
+                    onBlur={(e) => e.currentTarget.style.borderColor = 'transparent'}
                   />
                 </td>
-                <td className="px-3 py-3 text-right">
+                <td style={{ padding: '4px 8px' }}>
                   <button
                     type="button"
-                    className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-transparent text-slate-400 transition hover:border-rose-100 hover:bg-rose-50 hover:text-rose-600"
                     onClick={() => remove(index)}
-                    aria-label="Remove material"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '24px',
+                      height: '24px',
+                      border: 'none',
+                      borderRadius: '2px',
+                      background: 'transparent',
+                      color: '#a3a3a3',
+                      cursor: 'pointer'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#fef2f2';
+                      e.currentTarget.style.color = '#dc2626';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'transparent';
+                      e.currentTarget.style.color = '#a3a3a3';
+                    }}
+                    title="Remove"
                   >
-                    <Minus size={15} />
+                    <Minus size={14} />
                   </button>
                 </td>
               </tr>
@@ -90,11 +168,11 @@ export function InvoiceMaterialsEditor({
       </div>
 
       {fields.length === 0 && (
-        <div className="px-5 py-8 text-center text-[13px] text-slate-500">
-          Add materials here when the invoice is in lot mode.
+        <div style={{ padding: '12px', textAlign: 'center', fontSize: '12px', color: '#737373' }}>
+          No materials added yet.
         </div>
       )}
-      {error && <div className="px-5 pb-4 text-[12px] text-rose-600">{error}</div>}
-    </section>
+      {error && <div style={{ padding: '6px 12px', fontSize: '11px', color: '#dc2626' }}>{error}</div>}
+    </div>
   );
 }

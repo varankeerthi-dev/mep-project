@@ -1,7 +1,6 @@
 import type { KeyboardEvent } from 'react';
 import type { FieldArrayWithId, UseFieldArrayAppend, UseFieldArrayRemove, UseFormRegister } from 'react-hook-form';
 import { Minus, Plus } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import type { InvoiceEditorFormValues } from '../ui-utils';
 import { createEmptyItem, createLotItem, formatCurrency, round2 } from '../ui-utils';
 
@@ -17,49 +16,6 @@ type InvoiceItemsEditorProps = {
   error?: string;
 };
 
-const inputClass =
-  'h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-[13px] text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:ring-2 focus:ring-slate-200';
-
-function focusGridCell(gridId: string, rowIndex: number, columnIndex: number) {
-  const selector = `[data-grid="${gridId}:${rowIndex}:${columnIndex}"]`;
-  const target = document.querySelector<HTMLInputElement | HTMLTextAreaElement>(selector);
-  if (target) {
-    target.focus();
-    if (typeof target.select === 'function') target.select();
-  }
-}
-
-function handleGridKey(
-  event: KeyboardEvent<HTMLInputElement>,
-  gridId: string,
-  rowIndex: number,
-  columnIndex: number,
-  rowCount: number,
-  columnCount: number,
-) {
-  let nextRow = rowIndex;
-  let nextColumn = columnIndex;
-
-  if (event.key === 'ArrowRight' || event.key === 'Enter') nextColumn += 1;
-  if (event.key === 'ArrowLeft') nextColumn -= 1;
-  if (event.key === 'ArrowDown') nextRow += 1;
-  if (event.key === 'ArrowUp') nextRow -= 1;
-
-  if (
-    nextRow === rowIndex &&
-    nextColumn === columnIndex
-  ) {
-    return;
-  }
-
-  event.preventDefault();
-
-  nextRow = Math.max(0, Math.min(rowCount - 1, nextRow));
-  nextColumn = Math.max(0, Math.min(columnCount - 1, nextColumn));
-
-  focusGridCell(gridId, nextRow, nextColumn);
-}
-
 export function InvoiceItemsEditor({
   fields,
   items,
@@ -74,37 +30,123 @@ export function InvoiceItemsEditor({
   const editableColumnCount = showCustomColumn ? 5 : 4;
 
   return (
-    <section className="min-h-0 rounded-[24px] border border-slate-200 bg-white">
-      <div className="flex items-center justify-between gap-4 border-b border-slate-200 px-5 py-4">
-        <div>
-          <h2 className="text-sm font-semibold text-slate-900">Line Items</h2>
-          <p className="mt-1 text-[12px] text-slate-500">
-            Inline editing with instant amount calculation.
-          </p>
-        </div>
+    <div style={{ border: '1px solid #d4d4d4', borderRadius: '4px', overflow: 'hidden' }}>
+      {/* Header */}
+      <div style={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'space-between',
+        padding: '8px 12px',
+        background: '#f5f5f5',
+        borderBottom: '1px solid #d4d4d4'
+      }}>
+        <span style={{ fontSize: '12px', fontWeight: 600, color: '#171717' }}>
+          Line Items
+        </span>
         {mode !== 'lot' && (
           <button
             type="button"
-            className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3 py-2 text-[12px] font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
             onClick={() => append(createEmptyItem())}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              padding: '4px 8px',
+              border: '1px solid #d4d4d4',
+              borderRadius: '4px',
+              background: '#fff',
+              fontSize: '11px',
+              fontWeight: 600,
+              color: '#525252',
+              cursor: 'pointer'
+            }}
           >
-            <Plus size={14} />
-            Add row
+            <Plus size={12} />
+            Add
           </button>
         )}
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="min-w-full table-fixed">
+      {/* Table */}
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
           <thead>
-            <tr className="border-b border-slate-200 bg-slate-50/70 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-              <th className="w-[34%] px-5 py-3">Description</th>
-              {showCustomColumn && <th className="w-[16%] px-4 py-3">{extraColumnLabel}</th>}
-              <th className="w-[14%] px-4 py-3">HSN Code</th>
-              <th className="w-[10%] px-4 py-3 text-right">Qty</th>
-              <th className="w-[12%] px-4 py-3 text-right">Rate</th>
-              <th className="w-[12%] px-4 py-3 text-right">Amount</th>
-              <th className="w-[48px] px-3 py-3" />
+            <tr style={{ background: '#fafafa', borderBottom: '1px solid #e5e5e5' }}>
+              <th style={{ 
+                padding: '6px 8px', 
+                textAlign: 'left', 
+                fontSize: '10px', 
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: '0.03em',
+                color: '#737373',
+                width: showCustomColumn ? '30%' : '35%'
+              }}>
+                Description
+              </th>
+              {showCustomColumn && (
+                <th style={{ 
+                  padding: '6px 8px', 
+                  textAlign: 'left', 
+                  fontSize: '10px', 
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.03em',
+                  color: '#737373',
+                  width: '15%'
+                }}>
+                  {extraColumnLabel}
+                </th>
+              )}
+              <th style={{ 
+                padding: '6px 8px', 
+                textAlign: 'left', 
+                fontSize: '10px', 
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: '0.03em',
+                color: '#737373',
+                width: '12%'
+              }}>
+                HSN
+              </th>
+              <th style={{ 
+                padding: '6px 8px', 
+                textAlign: 'right', 
+                fontSize: '10px', 
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: '0.03em',
+                color: '#737373',
+                width: '10%'
+              }}>
+                Qty
+              </th>
+              <th style={{ 
+                padding: '6px 8px', 
+                textAlign: 'right', 
+                fontSize: '10px', 
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: '0.03em',
+                color: '#737373',
+                width: '12%'
+              }}>
+                Rate
+              </th>
+              <th style={{ 
+                padding: '6px 8px', 
+                textAlign: 'right', 
+                fontSize: '10px', 
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: '0.03em',
+                color: '#737373',
+                width: '14%'
+              }}>
+                Amount
+              </th>
+              <th style={{ padding: '6px 8px', width: '32px' }} />
             </tr>
           </thead>
           <tbody>
@@ -113,101 +155,134 @@ export function InvoiceItemsEditor({
               const amount = round2((Number(item.qty) || 0) * (Number(item.rate) || 0));
 
               return (
-                <tr key={field.id} className="border-b border-slate-100 align-top last:border-b-0">
-                  <td className="px-5 py-3">
+                <tr key={field.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                  <td style={{ padding: '4px 8px' }}>
                     <input
                       {...register(`items.${index}.description`)}
-                      data-grid={`invoice-items:${index}:0`}
-                      onKeyDown={(event) =>
-                        handleGridKey(event, 'invoice-items', index, 0, fields.length, editableColumnCount)
-                      }
-                      className={cn(inputClass, 'min-w-[220px]')}
-                      placeholder={mode === 'lot' ? 'As per PO' : 'Describe the line item'}
+                      placeholder={mode === 'lot' ? 'As per PO' : 'Item description'}
+                      style={{
+                        width: '100%',
+                        padding: '4px 6px',
+                        border: '1px solid transparent',
+                        borderRadius: '2px',
+                        fontSize: '12px',
+                        background: 'transparent'
+                      }}
+                      onFocus={(e) => e.currentTarget.style.borderColor = '#d4d4d4'}
+                      onBlur={(e) => e.currentTarget.style.borderColor = 'transparent'}
                     />
                   </td>
                   {showCustomColumn && (
-                    <td className="px-4 py-3">
+                    <td style={{ padding: '4px 8px' }}>
                       <input
                         {...register(`items.${index}.meta_json.client_custom_value` as const)}
-                        data-grid={`invoice-items:${index}:1`}
-                        onKeyDown={(event) =>
-                          handleGridKey(event, 'invoice-items', index, 1, fields.length, editableColumnCount)
-                        }
-                        className={inputClass}
                         placeholder={extraColumnLabel}
+                        style={{
+                          width: '100%',
+                          padding: '4px 6px',
+                          border: '1px solid transparent',
+                          borderRadius: '2px',
+                          fontSize: '12px',
+                          background: 'transparent'
+                        }}
+                        onFocus={(e) => e.currentTarget.style.borderColor = '#d4d4d4'}
+                        onBlur={(e) => e.currentTarget.style.borderColor = 'transparent'}
                       />
                     </td>
                   )}
-                  <td className="px-4 py-3">
+                  <td style={{ padding: '4px 8px' }}>
                     <input
                       {...register(`items.${index}.hsn_code`)}
-                      data-grid={`invoice-items:${index}:${showCustomColumn ? 2 : 1}`}
-                      onKeyDown={(event) =>
-                        handleGridKey(
-                          event,
-                          'invoice-items',
-                          index,
-                          showCustomColumn ? 2 : 1,
-                          fields.length,
-                          editableColumnCount,
-                        )
-                      }
-                      className={inputClass}
                       placeholder="9987"
+                      style={{
+                        width: '100%',
+                        padding: '4px 6px',
+                        border: '1px solid transparent',
+                        borderRadius: '2px',
+                        fontSize: '12px',
+                        background: 'transparent'
+                      }}
+                      onFocus={(e) => e.currentTarget.style.borderColor = '#d4d4d4'}
+                      onBlur={(e) => e.currentTarget.style.borderColor = 'transparent'}
                     />
                   </td>
-                  <td className="px-4 py-3">
+                  <td style={{ padding: '4px 8px' }}>
                     <input
                       type="number"
                       step="0.01"
                       {...register(`items.${index}.qty`, { valueAsNumber: true })}
-                      data-grid={`invoice-items:${index}:${showCustomColumn ? 3 : 2}`}
-                      onKeyDown={(event) =>
-                        handleGridKey(
-                          event,
-                          'invoice-items',
-                          index,
-                          showCustomColumn ? 3 : 2,
-                          fields.length,
-                          editableColumnCount,
-                        )
-                      }
-                      className={cn(inputClass, 'text-right')}
+                      style={{
+                        width: '100%',
+                        padding: '4px 6px',
+                        border: '1px solid transparent',
+                        borderRadius: '2px',
+                        fontSize: '12px',
+                        textAlign: 'right',
+                        background: 'transparent'
+                      }}
+                      onFocus={(e) => e.currentTarget.style.borderColor = '#d4d4d4'}
+                      onBlur={(e) => e.currentTarget.style.borderColor = 'transparent'}
                     />
                   </td>
-                  <td className="px-4 py-3">
+                  <td style={{ padding: '4px 8px' }}>
                     <input
                       type="number"
                       step="0.01"
                       {...register(`items.${index}.rate`, { valueAsNumber: true })}
-                      data-grid={`invoice-items:${index}:${showCustomColumn ? 4 : 3}`}
-                      onKeyDown={(event) =>
-                        handleGridKey(
-                          event,
-                          'invoice-items',
-                          index,
-                          showCustomColumn ? 4 : 3,
-                          fields.length,
-                          editableColumnCount,
-                        )
-                      }
-                      className={cn(inputClass, 'text-right')}
+                      style={{
+                        width: '100%',
+                        padding: '4px 6px',
+                        border: '1px solid transparent',
+                        borderRadius: '2px',
+                        fontSize: '12px',
+                        textAlign: 'right',
+                        background: 'transparent'
+                      }}
+                      onFocus={(e) => e.currentTarget.style.borderColor = '#d4d4d4'}
+                      onBlur={(e) => e.currentTarget.style.borderColor = 'transparent'}
                     />
                   </td>
-                  <td className="px-4 py-3">
-                    <div className="flex h-10 items-center justify-end rounded-xl border border-slate-200 bg-slate-50 px-3 text-[13px] font-semibold text-slate-900">
+                  <td style={{ padding: '4px 8px' }}>
+                    <div style={{
+                      padding: '4px 6px',
+                      textAlign: 'right',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      color: '#171717',
+                      background: '#f5f5f5',
+                      borderRadius: '2px'
+                    }}>
                       {formatCurrency(amount)}
                     </div>
                   </td>
-                  <td className="px-3 py-3 text-right">
+                  <td style={{ padding: '4px 8px' }}>
                     {mode !== 'lot' && fields.length > 1 ? (
                       <button
                         type="button"
-                        className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-transparent text-slate-400 transition hover:border-rose-100 hover:bg-rose-50 hover:text-rose-600"
                         onClick={() => remove(index)}
-                        aria-label="Remove row"
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: '24px',
+                          height: '24px',
+                          border: 'none',
+                          borderRadius: '2px',
+                          background: 'transparent',
+                          color: '#a3a3a3',
+                          cursor: 'pointer'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = '#fef2f2';
+                          e.currentTarget.style.color = '#dc2626';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = 'transparent';
+                          e.currentTarget.style.color = '#a3a3a3';
+                        }}
+                        title="Remove"
                       >
-                        <Minus size={15} />
+                        <Minus size={14} />
                       </button>
                     ) : null}
                   </td>
@@ -219,11 +294,11 @@ export function InvoiceItemsEditor({
       </div>
 
       {mode === 'lot' && (
-        <div className="border-t border-slate-200 px-5 py-3 text-[12px] text-slate-500">
-          Lot mode keeps a single invoice line and moves deductions into the material table below.
+        <div style={{ padding: '6px 12px', fontSize: '11px', color: '#737373', background: '#fafafa', borderTop: '1px solid #e5e5e5' }}>
+          Lot mode: Single invoice line with materials listed below.
         </div>
       )}
-      {error && <div className="px-5 pb-4 text-[12px] text-rose-600">{error}</div>}
-    </section>
+      {error && <div style={{ padding: '6px 12px', fontSize: '11px', color: '#dc2626' }}>{error}</div>}
+    </div>
   );
 }

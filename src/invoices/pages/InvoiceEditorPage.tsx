@@ -408,48 +408,27 @@ export default function InvoiceEditorPage() {
       fontFamily: "'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
       maxWidth: '1400px',
       margin: '0 auto',
-      padding: '24px'
+      padding: '16px'
     }}>
-      {/* Header */}
+      {/* Compact Header */}
       <div style={{ 
         display: 'flex', 
-        alignItems: 'flex-start', 
+        alignItems: 'center', 
         justifyContent: 'space-between',
-        marginBottom: '24px',
-        gap: '16px'
+        marginBottom: '16px',
+        paddingBottom: '12px',
+        borderBottom: '1px solid #e5e5e5'
       }}>
-        <div>
-          <div style={{ 
-            fontSize: '11px', 
-            fontWeight: 600, 
-            textTransform: 'uppercase', 
-            letterSpacing: '0.16em',
-            color: '#737373',
-            marginBottom: '8px'
-          }}>
-            Invoice Workspace
-          </div>
-          <h1 style={{ 
-            fontSize: '28px', 
-            fontWeight: 600, 
-            color: '#0a0a0a',
-            letterSpacing: '-0.02em',
-            margin: '0 0 8px 0'
-          }}>
-            {isEditMode ? 'Edit Invoice' : 'Create Invoice'}
-          </h1>
-          <p style={{ 
-            fontSize: '14px', 
-            color: '#525252',
-            lineHeight: 1.5,
-            margin: 0,
-            maxWidth: '600px'
-          }}>
-            Build the invoice from a source document, adjust inline rows, and let GST totals settle at the bottom.
-          </p>
-        </div>
+        <h1 style={{ 
+          fontSize: '20px', 
+          fontWeight: 600, 
+          color: '#0a0a0a',
+          margin: 0
+        }}>
+          {isEditMode ? 'Edit Invoice' : 'New Invoice'}
+        </h1>
 
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
           <InvoiceStatusBadge status={getValues('status')} />
           
           {/* Small box buttons */}
@@ -461,10 +440,10 @@ export default function InvoiceEditorPage() {
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
-              width: '36px',
-              height: '36px',
-              border: '1px solid #e5e5e5',
-              borderRadius: '6px',
+              width: '32px',
+              height: '32px',
+              border: '1px solid #d4d4d4',
+              borderRadius: '4px',
               background: '#fff',
               color: '#525252',
               cursor: pdfAction !== null ? 'not-allowed' : 'pointer',
@@ -473,7 +452,7 @@ export default function InvoiceEditorPage() {
             }}
             title="Preview PDF"
           >
-            {pdfAction === 'preview' ? <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={16} /> : <Eye size={16} />}
+            {pdfAction === 'preview' ? <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={14} /> : <Eye size={14} />}
           </button>
           
           <button
@@ -484,10 +463,10 @@ export default function InvoiceEditorPage() {
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
-              width: '36px',
-              height: '36px',
-              border: '1px solid #e5e5e5',
-              borderRadius: '6px',
+              width: '32px',
+              height: '32px',
+              border: '1px solid #d4d4d4',
+              borderRadius: '4px',
               background: '#fff',
               color: '#525252',
               cursor: pdfAction !== null ? 'not-allowed' : 'pointer',
@@ -496,7 +475,7 @@ export default function InvoiceEditorPage() {
             }}
             title="Download PDF"
           >
-            {pdfAction === 'download' ? <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={16} /> : <Download size={16} />}
+            {pdfAction === 'download' ? <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={14} /> : <Download size={14} />}
           </button>
           
           <button
@@ -507,10 +486,10 @@ export default function InvoiceEditorPage() {
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
-              width: '36px',
-              height: '36px',
-              border: '1px solid #e5e5e5',
-              borderRadius: '6px',
+              width: '32px',
+              height: '32px',
+              border: '1px solid #d4d4d4',
+              borderRadius: '4px',
               background: '#fff',
               color: '#525252',
               cursor: pdfAction !== null ? 'not-allowed' : 'pointer',
@@ -519,7 +498,7 @@ export default function InvoiceEditorPage() {
             }}
             title="Print"
           >
-            {pdfAction === 'print' ? <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={16} /> : <Printer size={16} />}
+            {pdfAction === 'print' ? <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={14} /> : <Printer size={14} />}
           </button>
           
           <button
@@ -530,10 +509,10 @@ export default function InvoiceEditorPage() {
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
-              width: '36px',
-              height: '36px',
-              border: '1px solid #e5e5e5',
-              borderRadius: '6px',
+              width: '32px',
+              height: '32px',
+              border: '1px solid #d4d4d4',
+              borderRadius: '4px',
               background: '#fff',
               color: '#525252',
               cursor: pdfAction !== null ? 'not-allowed' : 'pointer',
@@ -542,7 +521,7 @@ export default function InvoiceEditorPage() {
             }}
             title="Email"
           >
-            {pdfAction === 'email' ? <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={16} /> : <Mail size={16} />}
+            {pdfAction === 'email' ? <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={14} /> : <Mail size={14} />}
           </button>
           
           <button
@@ -551,13 +530,13 @@ export default function InvoiceEditorPage() {
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: '6px',
-              padding: '8px 14px',
-              border: '1px solid #e5e5e5',
-              borderRadius: '6px',
+              gap: '4px',
+              padding: '6px 12px',
+              border: '1px solid #d4d4d4',
+              borderRadius: '4px',
               background: '#fff',
               color: '#525252',
-              fontSize: '13px',
+              fontSize: '12px',
               fontWeight: 500,
               cursor: 'pointer',
               transition: 'all 0.15s'
@@ -574,13 +553,13 @@ export default function InvoiceEditorPage() {
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: '6px',
-              padding: '8px 16px',
+              gap: '4px',
+              padding: '6px 14px',
               border: 'none',
-              borderRadius: '6px',
+              borderRadius: '4px',
               background: '#171717',
               color: '#fff',
-              fontSize: '13px',
+              fontSize: '12px',
               fontWeight: 600,
               cursor: isSaving ? 'not-allowed' : 'pointer',
               opacity: isSaving ? 0.6 : 1,
@@ -595,437 +574,405 @@ export default function InvoiceEditorPage() {
 
       {/* Main Form */}
       <form id="invoice-form" onSubmit={onSubmit}>
+        {/* Top Fields - 4 Column Grid */}
         <div style={{
-          border: '1px solid #e5e5e5',
-          borderRadius: '12px',
-          background: '#fff',
-          overflow: 'hidden'
+          display: 'grid',
+          gridTemplateColumns: 'repeat(4, 1fr)',
+          gap: '12px',
+          marginBottom: '16px'
         }}>
-          {/* Top Fields - 4 Column Grid */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(4, 1fr)',
-            gap: '16px',
-            padding: '20px',
-            background: '#fafafa',
-            borderBottom: '1px solid #e5e5e5'
-          }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label style={{
-                fontSize: '11px',
-                fontWeight: 600,
-                textTransform: 'uppercase',
-                letterSpacing: '0.06em',
-                color: '#737373'
-              }}>
-                Client *
-              </label>
-              <select
-                {...register('client_id')}
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  border: '1px solid #d4d4d4',
-                  borderRadius: '8px',
-                  fontSize: '14px',
-                  color: '#171717',
-                  background: '#fff',
-                  cursor: 'pointer'
-                }}
-              >
-                <option value="">Select client</option>
-                {clients.map((client) => (
-                  <option key={client.id} value={client.id}>{client.name}</option>
-                ))}
-              </select>
-              {errors.client_id && (
-                <span style={{ fontSize: '12px', color: '#dc2626', fontWeight: 500 }}>
-                  {errors.client_id.message}
-                </span>
-              )}
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label style={{
-                fontSize: '11px',
-                fontWeight: 600,
-                textTransform: 'uppercase',
-                letterSpacing: '0.06em',
-                color: '#737373'
-              }}>
-                Source Type
-              </label>
-              <select
-                {...register('source_type')}
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  border: '1px solid #d4d4d4',
-                  borderRadius: '8px',
-                  fontSize: '14px',
-                  color: '#171717',
-                  background: '#fff',
-                  cursor: 'pointer'
-                }}
-              >
-                <option value="quotation">Quotation</option>
-                <option value="challan">Delivery Challan</option>
-                <option value="po">Client PO</option>
-              </select>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label style={{
-                fontSize: '11px',
-                fontWeight: 600,
-                textTransform: 'uppercase',
-                letterSpacing: '0.06em',
-                color: '#737373'
-              }}>
-                Source Document
-              </label>
-              <select
-                {...register('source_id')}
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  border: '1px solid #d4d4d4',
-                  borderRadius: '8px',
-                  fontSize: '14px',
-                  color: '#171717',
-                  background: '#fff',
-                  cursor: 'pointer'
-                }}
-              >
-                <option value="">Select {getSourceLabel(selectedSourceType).toLowerCase()}</option>
-                {(sourceOptionsQuery.data ?? []).map((option) => (
-                  <option key={option.id} value={option.id}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              {errors.source_id && (
-                <span style={{ fontSize: '12px', color: '#dc2626', fontWeight: 500 }}>
-                  {errors.source_id.message}
-                </span>
-              )}
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label style={{
-                fontSize: '11px',
-                fontWeight: 600,
-                textTransform: 'uppercase',
-                letterSpacing: '0.06em',
-                color: '#737373'
-              }}>
-                Template
-              </label>
-              <select
-                {...register('template_id')}
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  border: '1px solid #d4d4d4',
-                  borderRadius: '8px',
-                  fontSize: '14px',
-                  color: '#171717',
-                  background: '#fff',
-                  cursor: 'pointer'
-                }}
-              >
-                <option value="">Select template</option>
-                {templates.map((template) => (
-                  <option key={template.id} value={template.id}>{template.name}</option>
-                ))}
-              </select>
-              {errors.template_id && (
-                <span style={{ fontSize: '12px', color: '#dc2626', fontWeight: 500 }}>
-                  {errors.template_id.message}
-                </span>
-              )}
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label style={{
-                fontSize: '11px',
-                fontWeight: 600,
-                textTransform: 'uppercase',
-                letterSpacing: '0.06em',
-                color: '#737373'
-              }}>
-                Status
-              </label>
-              <select
-                {...register('status')}
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  border: '1px solid #d4d4d4',
-                  borderRadius: '8px',
-                  fontSize: '14px',
-                  color: '#171717',
-                  background: '#fff',
-                  cursor: 'pointer'
-                }}
-              >
-                <option value="draft">Draft</option>
-                <option value="final">Final</option>
-              </select>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label style={{
-                fontSize: '11px',
-                fontWeight: 600,
-                textTransform: 'uppercase',
-                letterSpacing: '0.06em',
-                color: '#737373'
-              }}>
-                Mode
-              </label>
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: '1fr 1fr',
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label style={{
+              fontSize: '11px',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em',
+              color: '#737373'
+            }}>
+              Client *
+            </label>
+            <select
+              {...register('client_id')}
+              style={{
+                width: '100%',
+                padding: '6px 10px',
                 border: '1px solid #d4d4d4',
-                borderRadius: '8px',
-                overflow: 'hidden'
-              }}>
-                <button
-                  type="button"
-                  onClick={() => setValue('mode', 'itemized', { shouldDirty: true, shouldValidate: false })}
-                  style={{
-                    padding: '8px 12px',
-                    fontSize: '13px',
-                    fontWeight: 600,
-                    border: 'none',
-                    background: selectedMode === 'itemized' ? '#171717' : '#fff',
-                    color: selectedMode === 'itemized' ? '#fff' : '#525252',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s'
-                  }}
-                >
-                  Itemized
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setValue('mode', 'lot', { shouldDirty: true, shouldValidate: false })}
-                  style={{
-                    padding: '8px 12px',
-                    fontSize: '13px',
-                    fontWeight: 600,
-                    border: 'none',
-                    background: selectedMode === 'lot' ? '#171717' : '#fff',
-                    color: selectedMode === 'lot' ? '#fff' : '#525252',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s'
-                  }}
-                >
-                  Lot
-                </button>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <label style={{
-                fontSize: '11px',
-                fontWeight: 600,
-                textTransform: 'uppercase',
-                letterSpacing: '0.06em',
-                color: '#737373'
-              }}>
-                Company State
-              </label>
-              <input
-                {...register('company_state')}
-                placeholder={DEFAULT_COMPANY_STATE}
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  border: '1px solid #d4d4d4',
-                  borderRadius: '8px',
-                  fontSize: '14px',
-                  color: '#171717',
-                  background: '#fff'
-                }}
-              />
-            </div>
+                borderRadius: '4px',
+                fontSize: '13px',
+                color: '#171717',
+                background: '#fff',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="">Select client</option>
+              {clients.map((client) => (
+                <option key={client.id} value={client.id}>{client.name}</option>
+              ))}
+            </select>
+            {errors.client_id && (
+              <span style={{ fontSize: '11px', color: '#dc2626', fontWeight: 500 }}>
+                {errors.client_id.message}
+              </span>
+            )}
           </div>
 
-          {/* Content Area */}
-          <div style={{ padding: '20px' }}>
-            {sourceDraftQuery.isFetching && selectedSourceId && (
-              <div style={{
-                padding: '12px 16px',
-                background: '#f5f5f5',
-                borderRadius: '8px',
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label style={{
+              fontSize: '11px',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em',
+              color: '#737373'
+            }}>
+              Source Type
+            </label>
+            <select
+              {...register('source_type')}
+              style={{
+                width: '100%',
+                padding: '6px 10px',
+                border: '1px solid #d4d4d4',
+                borderRadius: '4px',
                 fontSize: '13px',
-                color: '#525252',
-                marginBottom: '16px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}>
-                <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={16} />
-                Loading source data from {getSourceLabel(selectedSourceType).toLowerCase()}...
-              </div>
-            )}
+                color: '#171717',
+                background: '#fff',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="quotation">Quotation</option>
+              <option value="challan">Delivery Challan</option>
+              <option value="po">Client PO</option>
+            </select>
+          </div>
 
-            {(createInvoice.isError || updateInvoice.isError || invoiceQuery.isError) && (
-              <div style={{
-                padding: '12px 16px',
-                background: '#fef2f2',
-                border: '1px solid #fecaca',
-                borderRadius: '8px',
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label style={{
+              fontSize: '11px',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em',
+              color: '#737373'
+            }}>
+              Source Document
+            </label>
+            <select
+              {...register('source_id')}
+              style={{
+                width: '100%',
+                padding: '6px 10px',
+                border: '1px solid #d4d4d4',
+                borderRadius: '4px',
                 fontSize: '13px',
-                color: '#dc2626',
-                marginBottom: '16px',
-                fontWeight: 500
-              }}>
-                {String(
-                  (createInvoice.error as Error | null)?.message ??
-                    (updateInvoice.error as Error | null)?.message ??
-                    (invoiceQuery.error as Error | null)?.message ??
-                    'Unable to save invoice.',
-                )}
-              </div>
+                color: '#171717',
+                background: '#fff',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="">Select {getSourceLabel(selectedSourceType).toLowerCase()}</option>
+              {(sourceOptionsQuery.data ?? []).map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            {errors.source_id && (
+              <span style={{ fontSize: '11px', color: '#dc2626', fontWeight: 500 }}>
+                {errors.source_id.message}
+              </span>
             )}
+          </div>
 
-            <InvoiceItemsEditor
-              fields={itemsFieldArray.fields}
-              items={watchedItems}
-              register={register}
-              append={itemsFieldArray.append}
-              remove={itemsFieldArray.remove}
-              mode={selectedMode}
-              showCustomColumn={showCustomColumn}
-              extraColumnLabel={customColumnLabel}
-              error={fieldErrorMessage(errors.items)}
-            />
-
-            {selectedMode === 'lot' && (
-              <div style={{ marginTop: '24px' }}>
-                <InvoiceMaterialsEditor
-                  fields={materialsFieldArray.fields}
-                  register={register}
-                  append={materialsFieldArray.append}
-                  remove={materialsFieldArray.remove}
-                  materials={watchedMaterials}
-                  productOptions={materialsQuery.data ?? []}
-                  error={fieldErrorMessage(errors.materials)}
-                />
-              </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label style={{
+              fontSize: '11px',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em',
+              color: '#737373'
+            }}>
+              Template
+            </label>
+            <select
+              {...register('template_id')}
+              style={{
+                width: '100%',
+                padding: '6px 10px',
+                border: '1px solid #d4d4d4',
+                borderRadius: '4px',
+                fontSize: '13px',
+                color: '#171717',
+                background: '#fff',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="">Select template</option>
+              {templates.map((template) => (
+                <option key={template.id} value={template.id}>{template.name}</option>
+              ))}
+            </select>
+            {errors.template_id && (
+              <span style={{ fontSize: '11px', color: '#dc2626', fontWeight: 500 }}>
+                {errors.template_id.message}
+              </span>
             )}
+          </div>
 
-            {/* Context Panel */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label style={{
+              fontSize: '11px',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em',
+              color: '#737373'
+            }}>
+              Status
+            </label>
+            <select
+              {...register('status')}
+              style={{
+                width: '100%',
+                padding: '6px 10px',
+                border: '1px solid #d4d4d4',
+                borderRadius: '4px',
+                fontSize: '13px',
+                color: '#171717',
+                background: '#fff',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="draft">Draft</option>
+              <option value="final">Final</option>
+            </select>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label style={{
+              fontSize: '11px',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em',
+              color: '#737373'
+            }}>
+              Mode
+            </label>
             <div style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(4, 1fr)',
-              gap: '16px',
-              marginTop: '24px',
-              padding: '16px',
-              background: '#f5f5f5',
-              borderRadius: '8px',
-              border: '1px solid #e5e5e5'
+              gridTemplateColumns: '1fr 1fr',
+              border: '1px solid #d4d4d4',
+              borderRadius: '4px',
+              overflow: 'hidden'
             }}>
-              <div>
-                <div style={{
-                  fontSize: '11px',
-                  fontWeight: 600,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.05em',
-                  color: '#737373',
-                  marginBottom: '4px'
-                }}>
-                  Client State
-                </div>
-                <div style={{ fontSize: '14px', fontWeight: 600, color: '#171717' }}>
-                  {clientState || 'Pending'}
-                </div>
-              </div>
-              <div>
-                <div style={{
-                  fontSize: '11px',
-                  fontWeight: 600,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.05em',
-                  color: '#737373',
-                  marginBottom: '4px'
-                }}>
-                  Template Type
-                </div>
-                <div style={{ fontSize: '14px', fontWeight: 600, color: '#171717', textTransform: 'capitalize' }}>
-                  {getValues('template_type').replace('_', ' ')}
-                </div>
-              </div>
-              <div>
-                <div style={{
-                  fontSize: '11px',
-                  fontWeight: 600,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.05em',
-                  color: '#737373',
-                  marginBottom: '4px'
-                }}>
-                  Source
-                </div>
-                <div style={{ fontSize: '14px', fontWeight: 600, color: '#171717' }}>
-                  {getSourceLabel(selectedSourceType)}
-                </div>
-              </div>
-              <div>
-                <div style={{
-                  fontSize: '11px',
-                  fontWeight: 600,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.05em',
-                  color: '#737373',
-                  marginBottom: '4px'
-                }}>
-                  Materials
-                </div>
-                <div style={{ fontSize: '14px', fontWeight: 600, color: '#171717' }}>
-                  {watchedMaterials.length}
-                </div>
-              </div>
-            </div>
-
-            <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'center' }}>
               <button
                 type="button"
-                onClick={() => itemsFieldArray.append(selectedMode === 'lot' ? createLotItem() : createEmptyItem())}
+                onClick={() => setValue('mode', 'itemized', { shouldDirty: true, shouldValidate: false })}
                 style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '8px 16px',
-                  border: '1px solid #e5e5e5',
-                  borderRadius: '6px',
-                  background: '#fff',
-                  color: '#525252',
-                  fontSize: '13px',
+                  padding: '6px 10px',
+                  fontSize: '12px',
                   fontWeight: 600,
+                  border: 'none',
+                  background: selectedMode === 'itemized' ? '#171717' : '#fff',
+                  color: selectedMode === 'itemized' ? '#fff' : '#525252',
                   cursor: 'pointer',
                   transition: 'all 0.15s'
                 }}
               >
-                <Plus size={16} />
-                Add Row
+                Itemized
+              </button>
+              <button
+                type="button"
+                onClick={() => setValue('mode', 'lot', { shouldDirty: true, shouldValidate: false })}
+                style={{
+                  padding: '6px 10px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  border: 'none',
+                  background: selectedMode === 'lot' ? '#171717' : '#fff',
+                  color: selectedMode === 'lot' ? '#fff' : '#525252',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s'
+                }}
+              >
+                Lot
               </button>
             </div>
           </div>
 
-          <InvoiceSummaryFooter
-            subtotal={totals.subtotal}
-            cgst={totals.cgst}
-            sgst={totals.sgst}
-            igst={totals.igst}
-            total={totals.total}
-            interstate={totals.interstate}
-            companyState={companyState}
-            clientState={clientState}
-          />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label style={{
+              fontSize: '11px',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em',
+              color: '#737373'
+            }}>
+              Company State
+            </label>
+            <input
+              {...register('company_state')}
+              placeholder={DEFAULT_COMPANY_STATE}
+              style={{
+                width: '100%',
+                padding: '6px 10px',
+                border: '1px solid #d4d4d4',
+                borderRadius: '4px',
+                fontSize: '13px',
+                color: '#171717',
+                background: '#fff'
+              }}
+            />
+          </div>
         </div>
+
+        {/* Alerts */}
+        {sourceDraftQuery.isFetching && selectedSourceId && (
+          <div style={{
+            padding: '8px 12px',
+            background: '#f5f5f5',
+            borderRadius: '4px',
+            fontSize: '12px',
+            color: '#525252',
+            marginBottom: '12px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={14} />
+            Loading source data...
+          </div>
+        )}
+
+        {(createInvoice.isError || updateInvoice.isError || invoiceQuery.isError) && (
+          <div style={{
+            padding: '8px 12px',
+            background: '#fef2f2',
+            border: '1px solid #fecaca',
+            borderRadius: '4px',
+            fontSize: '12px',
+            color: '#dc2626',
+            marginBottom: '12px',
+            fontWeight: 500
+          }}>
+            {String(
+              (createInvoice.error as Error | null)?.message ??
+                (updateInvoice.error as Error | null)?.message ??
+                (invoiceQuery.error as Error | null)?.message ??
+                'Unable to save invoice.',
+            )}
+          </div>
+        )}
+
+        {/* Invoice Items Editor - Compact Excel Style */}
+        <InvoiceItemsEditor
+          fields={itemsFieldArray.fields}
+          items={watchedItems}
+          register={register}
+          append={itemsFieldArray.append}
+          remove={itemsFieldArray.remove}
+          mode={selectedMode}
+          showCustomColumn={showCustomColumn}
+          extraColumnLabel={customColumnLabel}
+          error={fieldErrorMessage(errors.items)}
+        />
+
+        {/* Materials Editor - Compact Excel Style */}
+        {selectedMode === 'lot' && (
+          <div style={{ marginTop: '16px' }}>
+            <InvoiceMaterialsEditor
+              fields={materialsFieldArray.fields}
+              register={register}
+              append={materialsFieldArray.append}
+              remove={materialsFieldArray.remove}
+              materials={watchedMaterials}
+              productOptions={materialsQuery.data ?? []}
+              error={fieldErrorMessage(errors.materials)}
+            />
+          </div>
+        )}
+
+        {/* Context Panel */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(4, 1fr)',
+          gap: '12px',
+          marginTop: '16px',
+          padding: '12px',
+          background: '#f5f5f5',
+          borderRadius: '4px',
+          border: '1px solid #e5e5e5'
+        }}>
+          <div>
+            <div style={{
+              fontSize: '10px',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.03em',
+              color: '#737373',
+              marginBottom: '2px'
+            }}>
+              Client State
+            </div>
+            <div style={{ fontSize: '13px', fontWeight: 600, color: '#171717' }}>
+              {clientState || 'Pending'}
+            </div>
+          </div>
+          <div>
+            <div style={{
+              fontSize: '10px',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.03em',
+              color: '#737373',
+              marginBottom: '2px'
+            }}>
+              Template Type
+            </div>
+            <div style={{ fontSize: '13px', fontWeight: 600, color: '#171717', textTransform: 'capitalize' }}>
+              {getValues('template_type').replace('_', ' ')}
+            </div>
+          </div>
+          <div>
+            <div style={{
+              fontSize: '10px',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.03em',
+              color: '#737373',
+              marginBottom: '2px'
+            }}>
+              Source
+            </div>
+            <div style={{ fontSize: '13px', fontWeight: 600, color: '#171717' }}>
+              {getSourceLabel(selectedSourceType)}
+            </div>
+          </div>
+          <div>
+            <div style={{
+              fontSize: '10px',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.03em',
+              color: '#737373',
+              marginBottom: '2px'
+            }}>
+              Materials
+            </div>
+            <div style={{ fontSize: '13px', fontWeight: 600, color: '#171717' }}>
+              {watchedMaterials.length}
+            </div>
+          </div>
+        </div>
+
+        {/* Invoice Summary Footer */}
+        <InvoiceSummaryFooter
+          subtotal={totals.subtotal}
+          cgst={totals.cgst}
+          sgst={totals.sgst}
+          igst={totals.igst}
+          total={totals.total}
+          interstate={totals.interstate}
+          companyState={companyState}
+          clientState={clientState}
+        />
       </form>
     </div>
   );
