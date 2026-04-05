@@ -100,6 +100,13 @@ export function CreateSubcontractorModal({
     address: '',
     state: '',
     gstin: '',
+    pincode: '',
+    pan_card: '',
+    bank_name: '',
+    bank_account_number: '',
+    bank_ifsc_code: '',
+    bank_account_type: '',
+    previous_projects: '',
     nature_of_work: '',
     internal_remarks: '',
     nda_signed: false,
@@ -122,6 +129,13 @@ export function CreateSubcontractorModal({
         address: subData.address || '',
         state: subData.state || '',
         gstin: subData.gstin || '',
+        pincode: subData.pincode || '',
+        pan_card: subData.pan_card || '',
+        bank_name: subData.bank_name || '',
+        bank_account_number: subData.bank_account_number || '',
+        bank_ifsc_code: subData.bank_ifsc_code || '',
+        bank_account_type: subData.bank_account_type || '',
+        previous_projects: subData.previous_projects || '',
         nature_of_work: subData.nature_of_work || '',
         internal_remarks: subData.internal_remarks || '',
         nda_signed: subData.nda_signed || false,
@@ -139,6 +153,13 @@ export function CreateSubcontractorModal({
         address: '',
         state: '',
         gstin: '',
+        pincode: '',
+        pan_card: '',
+        bank_name: '',
+        bank_account_number: '',
+        bank_ifsc_code: '',
+        bank_account_type: '',
+        previous_projects: '',
         nature_of_work: '',
         internal_remarks: '',
         nda_signed: false,
@@ -329,34 +350,117 @@ export function CreateSubcontractorModal({
               />
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-[12px] font-medium text-slate-700">State</label>
-              <select
-                value={formData.state}
-                onChange={(e) => setFormData({...formData, state: e.target.value})}
-                className={inputClass}
-              >
-                <option value="">Select State</option>
-                {indianStates.map(st => (
-                  <option key={st} value={st}>{st}</option>
-                ))}
-              </select>
-            </div>
+          <div className="space-y-1.5">
+            <label className="text-[12px] font-medium text-slate-700">State</label>
+            <select
+              value={formData.state}
+              onChange={(e) => setFormData({...formData, state: e.target.value})}
+              className={inputClass}
+            >
+              <option value="">Select State</option>
+              {indianStates.map(st => (
+                <option key={st} value={st}>{st}</option>
+              ))}
+            </select>
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-[12px] font-medium text-slate-700">Address</label>
-            <div className="relative">
-              <MapPin size={16} className="absolute left-3 top-3 text-slate-400" />
-              <textarea
-                value={formData.address}
-                onChange={(e) => setFormData({...formData, address: e.target.value})}
-                placeholder="Full address"
-                rows={2}
-                className={`${inputClass} pl-10 resize-none`}
+            <label className="text-[12px] font-medium text-slate-700">PIN Code</label>
+            <input
+              type="text"
+              value={formData.pincode}
+              onChange={(e) => setFormData({...formData, pincode: e.target.value})}
+              placeholder="6 digit PIN code"
+              maxLength={6}
+              className={inputClass}
+            />
+          </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <label className="text-[12px] font-medium text-slate-700">Address</label>
+          <div className="relative">
+            <MapPin size={16} className="absolute left-3 top-3 text-slate-400" />
+            <textarea
+              value={formData.address}
+              onChange={(e) => setFormData({...formData, address: e.target.value})}
+              placeholder="Full address"
+              rows={2}
+              className={`${inputClass} pl-10 resize-none`}
+            />
+          </div>
+        </div>
+
+        {/* PAN & Bank Details */}
+        <div className="space-y-4 pt-4 border-t border-slate-100">
+          <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+            <FileText size={14} />
+            PAN & Bank Details
+          </div>
+          
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <label className="text-[12px] font-medium text-slate-700">PAN Card</label>
+              <input
+                type="text"
+                value={formData.pan_card}
+                onChange={(e) => setFormData({...formData, pan_card: e.target.value.toUpperCase()})}
+                placeholder="ABCDE1234F"
+                maxLength={10}
+                className={inputClass}
               />
             </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[12px] font-medium text-slate-700">Bank Name</label>
+              <input
+                type="text"
+                value={formData.bank_name}
+                onChange={(e) => setFormData({...formData, bank_name: e.target.value})}
+                placeholder="e.g., State Bank of India"
+                className={inputClass}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[12px] font-medium text-slate-700">Account Number</label>
+              <input
+                type="text"
+                value={formData.bank_account_number}
+                onChange={(e) => setFormData({...formData, bank_account_number: e.target.value})}
+                placeholder="Bank account number"
+                className={inputClass}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[12px] font-medium text-slate-700">IFSC Code</label>
+              <input
+                type="text"
+                value={formData.bank_ifsc_code}
+                onChange={(e) => setFormData({...formData, bank_ifsc_code: e.target.value.toUpperCase()})}
+                placeholder="SBIN0001234"
+                maxLength={11}
+                className={inputClass}
+              />
+            </div>
+
+            <div className="space-y-1.5 sm:col-span-2">
+              <label className="text-[12px] font-medium text-slate-700">Account Type</label>
+              <select
+                value={formData.bank_account_type}
+                onChange={(e) => setFormData({...formData, bank_account_type: e.target.value})}
+                className={inputClass}
+              >
+                <option value="">Select Account Type</option>
+                <option value="Savings">Savings</option>
+                <option value="Current">Current</option>
+                <option value="Fixed Deposit">Fixed Deposit</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
           </div>
+        </div>
         </div>
 
         {/* Work Details */}
@@ -388,6 +492,17 @@ export function CreateSubcontractorModal({
                 <option value="Active">Active</option>
                 <option value="Inactive">Inactive</option>
               </select>
+            </div>
+
+            <div className="space-y-1.5 sm:col-span-2">
+              <label className="text-[12px] font-medium text-slate-700">Previous Projects</label>
+              <textarea
+                value={formData.previous_projects}
+                onChange={(e) => setFormData({...formData, previous_projects: e.target.value})}
+                placeholder="List previous projects completed by this subcontractor..."
+                rows={3}
+                className={`${inputClass} resize-none`}
+              />
             </div>
           </div>
         </div>
@@ -756,7 +871,8 @@ export function CreateSubcontractor({ onSuccess, onCancel, editMode, subData }: 
   const queryClient = useQueryClient();
   const [formData, setFormData] = useState(subData || {
     company_name: '', contact_person: '', phone: '', email: '', address: '', state: '', gstin: '',
-    nature_of_work: '', internal_remarks: '', nda_signed: false, contract_signed: false,
+    pincode: '', pan_card: '', bank_name: '', bank_account_number: '', bank_ifsc_code: '', bank_account_type: '',
+    previous_projects: '', nature_of_work: '', internal_remarks: '', nda_signed: false, contract_signed: false,
     nda_date: '', contract_date: '', status: 'Active'
   })
 

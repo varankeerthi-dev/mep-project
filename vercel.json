@@ -6,3 +6,7 @@
     }
   ]
 }
+{
+  "buildCommand": "npm run build",
+  "cleanUrls": true
+}
