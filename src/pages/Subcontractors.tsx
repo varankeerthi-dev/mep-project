@@ -467,11 +467,6 @@ export function SubcontractorDashboard({ onNavigate }: WithNavigate) {
   const [filter, setFilter] = useState('all')
   const [searchTerm, setSearchTerm] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  
-  // Modal state
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [editMode, setEditMode] = useState(false)
-  const [selectedSubcontractor, setSelectedSubcontractor] = useState<any>(null)
 
   useEffect(() => { loadData() }, [filter, organisation?.id])
 
@@ -649,11 +644,7 @@ export function SubcontractorDashboard({ onNavigate }: WithNavigate) {
             <Button
               variant="contained"
               startIcon={<AddIcon />}
-              onClick={() => {
-                setEditMode(false);
-                setSelectedSubcontractor(null);
-                setIsModalOpen(true);
-              }}
+              onClick={() => onNavigate('/subcontractors/new')}
               sx={{ fontFamily: 'Inter', textTransform: 'none', fontSize: '12px' }}
             >
               Add Sub-Contractor
@@ -704,18 +695,6 @@ export function SubcontractorDashboard({ onNavigate }: WithNavigate) {
           }}
         />
       </Paper>
-      
-      {/* Create/Edit Modal */}
-      <CreateSubcontractorModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSuccess={() => {
-          setIsModalOpen(false);
-          loadData();
-        }}
-        editMode={editMode}
-        subData={selectedSubcontractor}
-      />
     </Box>
   )
 }
