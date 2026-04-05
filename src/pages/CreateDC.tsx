@@ -85,7 +85,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
     ship_to_contact: '',
     status: 'active',
     authorized_signatory_id: '',
-    // organisation_id: organisation?.id || null
+    organisation_id: organisation?.id || null
   });
 
   const [items, setItems] = useState<any[]>([
@@ -637,7 +637,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
         project_id: formData.project_id || null,
         status: 'active',
         authorized_signatory_id: formData.authorized_signatory_id || null,
-        // organisation_id: formData.organisation_id || organisation?.id || null
+        organisation_id: formData.organisation_id || organisation?.id || null
       };
       
       let dcId;
@@ -673,7 +673,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
         quantity: parseFloat(item.quantity),
         rate: parseFloat(item.rate) || 0,
         amount: item.amount,
-        // organisation_id: dcData.organisation_id
+        organisation_id: dcData.organisation_id
       }));
       
       await supabase.from('delivery_challan_items').insert(itemsToSave);
