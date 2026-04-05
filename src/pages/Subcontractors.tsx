@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import type { ChangeEvent } from 'react';
 import { supabase } from '../supabase';
 import { useAuth } from '../App';
+import { Modal } from '../components/ui/Modal';
+import { Building2, X, Save, User, Phone, Mail, MapPin, FileText, Briefcase, CheckCircle } from 'lucide-react';
 import {
   Box,
   Paper,
@@ -29,6 +31,20 @@ import {
   Business as BusinessIcon,
 } from '@mui/icons-material';
 
+// Design System Colors from DESIGN.md
+const COLORS = {
+  cream: '#FCFAFA',
+  lightGray: '#F5F5F5',
+  tealNavy: '#294056',
+  charcoal: '#2C2C2C',
+  warmGray: '#6B6B6B',
+  silverGray: '#E0E0E0',
+  moss: '#10B981',
+  terracotta: '#EF4444',
+};
+
+const inputClass = `w-full rounded-lg border border-[${COLORS.silverGray}] bg-[${COLORS.cream}] px-4 py-2.5 text-[13px] text-[${COLORS.charcoal}] outline-none transition-all duration-200 focus:border-[${COLORS.tealNavy}] focus:ring-2 focus:ring-[${COLORS.tealNavy}]/10 placeholder:text-[${COLORS.warmGray}]/50`;
+
 function getCurrentQueryParams() {
   const hashQuery = window.location.hash.split('?')[1];
   const searchQuery = window.location.search.slice(1);
@@ -44,12 +60,418 @@ type CreateSubcontractorProps = {
   subData?: any
 }
 
+// New Modal-based Create Subcontractor Component
+export function CreateSubcontractorModal({ 
+  isOpen, 
+  onClose, 
+  onSuccess, 
+  editMode = false, 
+  subData 
+}: { 
+  isOpen: boolean; 
+  onClose: () => void; 
+  onSuccess: () => void;
+  editMode?: boolean;
+  subData?: any;
+}) {
+  const { organisation } = useAuth();
+  const [formData, setFormData] = useState({
+    company_name: '',
+    contact_person: '',
+    phone: '',
+    email: '',
+    address: '',
+    state: '',
+    gstin: '',
+    nature_of_work: '',
+    internal_remarks: '',
+    nda_signed: false,
+    contract_signed: false,
+    nda_date: '',
+    contract_date: '',
+    status: 'Active'
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const indianStates = ['Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh', 'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka', 'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur', 'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha', 'Punjab', 'Rajasthan', 'Sikkim', 'Tamil Nadu', 'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal', 'Delhi', 'Jammu and Kashmir', 'Ladakh', 'Puducherry'];
+
+  useEffect(() => {
+    if (isOpen && editMode && subData) {
+      setFormData({
+        company_name: subData.company_name || '',
+        contact_person: subData.contact_person || '',
+        phone: subData.phone || '',
+        email: subData.email || '',
+        address: subData.address || '',
+        state: subData.state || '',
+        gstin: subData.gstin || '',
+        nature_of_work: subData.nature_of_work || '',
+        internal_remarks: subData.internal_remarks || '',
+        nda_signed: subData.nda_signed || false,
+        contract_signed: subData.contract_signed || false,
+        nda_date: subData.nda_date || '',
+        contract_date: subData.contract_date || '',
+        status: subData.status || 'Active'
+      });
+    } else if (isOpen && !editMode) {
+      setFormData({
+        company_name: '',
+        contact_person: '',
+        phone: '',
+        email: '',
+        address: '',
+        state: '',
+        gstin: '',
+        nature_of_work: '',
+        internal_remarks: '',
+        nda_signed: false,
+        contract_signed: false,
+        nda_date: '',
+        contract_date: '',
+        status: 'Active'
+      });
+    }
+  }, [isOpen, editMode, subData]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    
+    if (!organisation?.id) {
+      setError('No organization selected. Please select an organization first.');
+      return;
+    }
+
+    if (!formData.company_name.trim()) {
+      setError('Company name is required');
+      return;
+    }
+
+    setSaving(true);
+    
+    try {
+      const payload = {
+        ...formData,
+        organisation_id: organisation.id
+      };
+
+      console.log('Saving subcontractor with payload:', payload);
+
+      if (editMode && subData?.id) {
+        const { error: updateError } = await supabase
+          .from('subcontractors')
+          .update(payload)
+          .eq('id', subData.id);
+        
+        if (updateError) {
+          console.error('Update error:', updateError);
+          throw new Error(updateError.message);
+        }
+      } else {
+        const { error: insertError } = await supabase
+          .from('subcontractors')
+          .insert([payload]);
+        
+        if (insertError) {
+          console.error('Insert error:', insertError);
+          throw new Error(insertError.message);
+        }
+      }
+
+      onSuccess();
+      onClose();
+    } catch (err: any) {
+      console.error('Error saving subcontractor:', err);
+      setError(err?.message || 'Failed to save subcontractor. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const footer = (
+    <div className="flex items-center gap-3">
+      <button
+        type="button"
+        onClick={onClose}
+        disabled={saving}
+        className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-[13px] font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+      >
+        Cancel
+      </button>
+      <button
+        type="submit"
+        form="subcontractor-form"
+        disabled={saving || !formData.company_name.trim()}
+        className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-[13px] font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60"
+        style={{ backgroundColor: COLORS.tealNavy }}
+      >
+        {saving ? (
+          <>
+            <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+            Saving...
+          </>
+        ) : (
+          <>
+            <Save size={16} />
+            {editMode ? 'Update' : 'Save'}
+          </>
+        )}
+      </button>
+    </div>
+  );
+
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={editMode ? 'Edit Sub-Contractor' : 'Add Sub-Contractor'}
+      size="lg"
+      footer={footer}
+    >
+      <form id="subcontractor-form" onSubmit={handleSubmit} className="space-y-4">
+        {error && (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-[13px] text-red-700">
+            {error}
+          </div>
+        )}
+
+        {/* Company Information */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+            <Building2 size={14} />
+            Company Information
+          </div>
+          
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5 sm:col-span-2">
+              <label className="text-[12px] font-medium text-slate-700">
+                Company Name <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={formData.company_name}
+                onChange={(e) => setFormData({...formData, company_name: e.target.value})}
+                placeholder="Enter company name"
+                className={inputClass}
+                required
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[12px] font-medium text-slate-700">Contact Person</label>
+              <div className="relative">
+                <User size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  value={formData.contact_person}
+                  onChange={(e) => setFormData({...formData, contact_person: e.target.value})}
+                  placeholder="Contact person name"
+                  className={`${inputClass} pl-10`}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[12px] font-medium text-slate-700">Phone</label>
+              <div className="relative">
+                <Phone size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                  placeholder="Phone number"
+                  className={`${inputClass} pl-10`}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[12px] font-medium text-slate-700">Email</label>
+              <div className="relative">
+                <Mail size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({...formData, email: e.target.value})}
+                  placeholder="email@company.com"
+                  className={`${inputClass} pl-10`}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[12px] font-medium text-slate-700">GSTIN</label>
+              <input
+                type="text"
+                value={formData.gstin}
+                onChange={(e) => setFormData({...formData, gstin: e.target.value.toUpperCase()})}
+                placeholder="15 character GSTIN"
+                maxLength={15}
+                className={inputClass}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[12px] font-medium text-slate-700">State</label>
+              <select
+                value={formData.state}
+                onChange={(e) => setFormData({...formData, state: e.target.value})}
+                className={inputClass}
+              >
+                <option value="">Select State</option>
+                {indianStates.map(st => (
+                  <option key={st} value={st}>{st}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[12px] font-medium text-slate-700">Address</label>
+            <div className="relative">
+              <MapPin size={16} className="absolute left-3 top-3 text-slate-400" />
+              <textarea
+                value={formData.address}
+                onChange={(e) => setFormData({...formData, address: e.target.value})}
+                placeholder="Full address"
+                rows={2}
+                className={`${inputClass} pl-10 resize-none`}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Work Details */}
+        <div className="space-y-4 pt-4 border-t border-slate-100">
+          <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+            <Briefcase size={14} />
+            Work Details
+          </div>
+          
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <label className="text-[12px] font-medium text-slate-700">Nature of Work</label>
+              <input
+                type="text"
+                value={formData.nature_of_work}
+                onChange={(e) => setFormData({...formData, nature_of_work: e.target.value})}
+                placeholder="e.g., Electrical, Plumbing, HVAC"
+                className={inputClass}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[12px] font-medium text-slate-700">Status</label>
+              <select
+                value={formData.status}
+                onChange={(e) => setFormData({...formData, status: e.target.value})}
+                className={inputClass}
+              >
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Documents & Agreements */}
+        <div className="space-y-4 pt-4 border-t border-slate-100">
+          <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+            <FileText size={14} />
+            Documents & Agreements
+          </div>
+          
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-[12px] font-medium text-slate-700">NDA Signed</label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setFormData({...formData, nda_signed: !formData.nda_signed})}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${formData.nda_signed ? 'bg-emerald-500' : 'bg-slate-200'}`}
+                  >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${formData.nda_signed ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </button>
+                  <span className="text-[12px] text-slate-600">
+                    {formData.nda_signed ? 'Yes' : 'No'}
+                  </span>
+                </div>
+              </div>
+              {formData.nda_signed && (
+                <div className="space-y-1.5">
+                  <label className="text-[12px] font-medium text-slate-700">NDA Date</label>
+                  <input
+                    type="date"
+                    value={formData.nda_date}
+                    onChange={(e) => setFormData({...formData, nda_date: e.target.value})}
+                    className={inputClass}
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-[12px] font-medium text-slate-700">Contract Signed</label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setFormData({...formData, contract_signed: !formData.contract_signed})}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${formData.contract_signed ? 'bg-emerald-500' : 'bg-slate-200'}`}
+                  >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${formData.contract_signed ? 'translate-x-6' : 'translate-x-1'}`} />
+                  </button>
+                  <span className="text-[12px] text-slate-600">
+                    {formData.contract_signed ? 'Yes' : 'No'}
+                  </span>
+                </div>
+              </div>
+              {formData.contract_signed && (
+                <div className="space-y-1.5">
+                  <label className="text-[12px] font-medium text-slate-700">Contract Date</label>
+                  <input
+                    type="date"
+                    value={formData.contract_date}
+                    onChange={(e) => setFormData({...formData, contract_date: e.target.value})}
+                    className={inputClass}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Internal Remarks */}
+        <div className="space-y-4 pt-4 border-t border-slate-100">
+          <div className="space-y-1.5">
+            <label className="text-[12px] font-medium text-slate-700">Internal Remarks</label>
+            <textarea
+              value={formData.internal_remarks}
+              onChange={(e) => setFormData({...formData, internal_remarks: e.target.value})}
+              placeholder="Any internal notes or remarks..."
+              rows={3}
+              className={`${inputClass} resize-none`}
+            />
+          </div>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
 export function SubcontractorDashboard({ onNavigate }: WithNavigate) {
   const { organisation } = useAuth();
   const [subcontractors, setSubcontractors] = useState<any[]>([])
   const [filter, setFilter] = useState('all')
   const [searchTerm, setSearchTerm] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  
+  // Modal state
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [editMode, setEditMode] = useState(false)
+  const [selectedSubcontractor, setSelectedSubcontractor] = useState<any>(null)
 
   useEffect(() => { loadData() }, [filter, organisation?.id])
 
@@ -227,7 +649,11 @@ export function SubcontractorDashboard({ onNavigate }: WithNavigate) {
             <Button
               variant="contained"
               startIcon={<AddIcon />}
-              onClick={() => onNavigate('/subcontractors/new')}
+              onClick={() => {
+                setEditMode(false);
+                setSelectedSubcontractor(null);
+                setIsModalOpen(true);
+              }}
               sx={{ fontFamily: 'Inter', textTransform: 'none', fontSize: '12px' }}
             >
               Add Sub-Contractor
@@ -278,6 +704,18 @@ export function SubcontractorDashboard({ onNavigate }: WithNavigate) {
           }}
         />
       </Paper>
+      
+      {/* Create/Edit Modal */}
+      <CreateSubcontractorModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSuccess={() => {
+          setIsModalOpen(false);
+          loadData();
+        }}
+        editMode={editMode}
+        subData={selectedSubcontractor}
+      />
     </Box>
   )
 }
