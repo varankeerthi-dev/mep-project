@@ -159,7 +159,10 @@ export function CreateSubcontractorModal({
 
       const payload = {
         ...data,
-        organisation_id: organisation.id
+        organisation_id: organisation.id,
+        // Convert empty strings to null for date fields
+        nda_date: data.nda_signed ? (data.nda_date || null) : null,
+        contract_date: data.contract_signed ? (data.contract_date || null) : null,
       };
 
       if (editMode && subData?.id) {
@@ -769,6 +772,9 @@ export function CreateSubcontractor({ onSuccess, onCancel, editMode, subData }: 
       const payload = {
         ...data,
         organisation_id: organisation.id,
+        // Convert empty strings to null for date fields
+        nda_date: data.nda_signed ? (data.nda_date || null) : null,
+        contract_date: data.contract_signed ? (data.contract_date || null) : null,
       };
 
       if (editMode && subData?.id) {
