@@ -93,6 +93,7 @@ export function CreateSubcontractorModal({
 }) {
   const { organisation } = useAuth();
   const [formData, setFormData] = useState({
+    sub_number: '',
     company_name: '',
     contact_person: '',
     phone: '',
@@ -122,6 +123,7 @@ export function CreateSubcontractorModal({
   useEffect(() => {
     if (isOpen && editMode && subData) {
       setFormData({
+        sub_number: subData.sub_number || '',
         company_name: subData.company_name || '',
         contact_person: subData.contact_person || '',
         phone: subData.phone || '',
@@ -146,6 +148,7 @@ export function CreateSubcontractorModal({
       });
     } else if (isOpen && !editMode) {
       setFormData({
+        sub_number: '',
         company_name: '',
         contact_person: '',
         phone: '',
@@ -282,6 +285,19 @@ export function CreateSubcontractorModal({
           </div>
           
           <div className="grid gap-4 sm:grid-cols-2">
+            {/* Sub Number - Read Only */}
+            {formData.sub_number && (
+              <div className="space-y-1.5">
+                <label className="text-[12px] font-medium text-slate-700">Sub Number</label>
+                <input
+                  type="text"
+                  value={formData.sub_number}
+                  disabled
+                  className={`${inputClass} bg-slate-50 cursor-not-allowed`}
+                />
+              </div>
+            )}
+
             <div className="space-y-1.5 sm:col-span-2">
               <label className="text-[12px] font-medium text-slate-700">
                 Company Name <span className="text-red-500">*</span>
@@ -646,6 +662,16 @@ export function SubcontractorDashboard({ onNavigate }: WithNavigate) {
 
   const columns: GridColDef[] = [
     {
+      field: 'sub_number',
+      headerName: 'Sub #',
+      width: 100,
+      renderCell: (params: GridRenderCellParams) => (
+        <Typography variant="body2" fontWeight="600" fontFamily="Inter" sx={{ fontSize: '12px', color: 'primary.main' }}>
+          {params.value || '-'}
+        </Typography>
+      ),
+    },
+    {
       field: 'company_name',
       headerName: 'Company Name',
       width: 200,
@@ -870,7 +896,7 @@ export function CreateSubcontractor({ onSuccess, onCancel, editMode, subData }: 
   const { organisation } = useAuth();
   const queryClient = useQueryClient();
   const [formData, setFormData] = useState(subData || {
-    company_name: '', contact_person: '', phone: '', email: '', address: '', state: '', gstin: '',
+    sub_number: '', company_name: '', contact_person: '', phone: '', email: '', address: '', state: '', gstin: '',
     pincode: '', pan_card: '', bank_name: '', bank_account_number: '', bank_ifsc_code: '', bank_account_type: '',
     previous_projects: '', nature_of_work: '', internal_remarks: '', nda_signed: false, contract_signed: false,
     nda_date: '', contract_date: '', status: 'Active'
