@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import type { ChangeEvent } from 'react';
 import { supabase } from '../supabase';
 import { useAuth } from '../App';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Modal } from '../components/ui/Modal';
 import { Building2, X, Save, User, Phone, Mail, MapPin, FileText, Briefcase, CheckCircle } from 'lucide-react';
 import {
@@ -29,6 +30,7 @@ import {
   Edit as EditIcon,
   Visibility as VisibilityIcon,
   Business as BusinessIcon,
+  Refresh as RefreshIcon,
 } from '@mui/icons-material';
 
 // Design System Colors from DESIGN.md
@@ -44,6 +46,21 @@ const COLORS = {
 };
 
 const inputClass = `w-full rounded-lg border border-[${COLORS.silverGray}] bg-[${COLORS.cream}] px-4 py-2.5 text-[13px] text-[${COLORS.charcoal}] outline-none transition-all duration-200 focus:border-[${COLORS.tealNavy}] focus:ring-2 focus:ring-[${COLORS.tealNavy}]/10 placeholder:text-[${COLORS.warmGray}]/50`;
+
+// Query Keys for Subcontractor Module
+export const SUBCONTRACTOR_QUERY_KEYS = {
+  all: () => ['subcontractors'] as const,
+  list: (orgId: string | null, filter: string) => ['subcontractors', 'list', orgId, filter] as const,
+  detail: (id: string | null) => ['subcontractors', 'detail', id] as const,
+  workOrders: (subId: string | null) => ['subcontractors', 'workOrders', subId] as const,
+  attendance: (subId: string | null) => ['subcontractors', 'attendance', subId] as const,
+  dailyLogs: (subId: string | null) => ['subcontractors', 'dailyLogs', subId] as const,
+  payments: (subId: string | null) => ['subcontractors', 'payments', subId] as const,
+  invoices: (subId: string | null) => ['subcontractors', 'invoices', subId] as const,
+} as const;
+
+// StaleTime configuration (2 minutes)
+const STALE_TIME = 2 * 60 * 1000;
 
 function getCurrentQueryParams() {
   const hashQuery = window.location.hash.split('?')[1];
@@ -91,7 +108,6 @@ export function CreateSubcontractorModal({
     contract_date: '',
     status: 'Active'
   });
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
   const indianStates = ['Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh', 'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka', 'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur', 'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha', 'Punjab', 'Rajasthan', 'Sikkim', 'Tamil Nadu', 'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal', 'Delhi', 'Jammu and Kashmir', 'Ladakh', 'Puducherry'];
@@ -134,6 +150,42 @@ export function CreateSubcontractorModal({
     }
   }, [isOpen, editMode, subData]);
 
+  // useMutation for saving subcontractor
+  const saveSubcontractorMutation = useMutation({
+    mutationFn: async (data: typeof formData) => {
+      if (!organisation?.id) {
+        throw new Error('No organization selected');
+      }
+
+      const payload = {
+        ...data,
+        organisation_id: organisation.id
+      };
+
+      if (editMode && subData?.id) {
+        const { error: updateError } = await supabase
+          .from('subcontractors')
+          .update(payload)
+          .eq('id', subData.id);
+        
+        if (updateError) throw new Error(updateError.message);
+      } else {
+        const { error: insertError } = await supabase
+          .from('subcontractors')
+          .insert([payload]);
+        
+        if (insertError) throw new Error(insertError.message);
+      }
+    },
+    onSuccess: () => {
+      onSuccess();
+      onClose();
+    },
+    onError: (err: any) => {
+      setError(err?.message || 'Failed to save subcontractor. Please try again.');
+    },
+  });
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -148,45 +200,7 @@ export function CreateSubcontractorModal({
       return;
     }
 
-    setSaving(true);
-    
-    try {
-      const payload = {
-        ...formData,
-        organisation_id: organisation.id
-      };
-
-      console.log('Saving subcontractor with payload:', payload);
-
-      if (editMode && subData?.id) {
-        const { error: updateError } = await supabase
-          .from('subcontractors')
-          .update(payload)
-          .eq('id', subData.id);
-        
-        if (updateError) {
-          console.error('Update error:', updateError);
-          throw new Error(updateError.message);
-        }
-      } else {
-        const { error: insertError } = await supabase
-          .from('subcontractors')
-          .insert([payload]);
-        
-        if (insertError) {
-          console.error('Insert error:', insertError);
-          throw new Error(insertError.message);
-        }
-      }
-
-      onSuccess();
-      onClose();
-    } catch (err: any) {
-      console.error('Error saving subcontractor:', err);
-      setError(err?.message || 'Failed to save subcontractor. Please try again.');
-    } finally {
-      setSaving(false);
-    }
+    saveSubcontractorMutation.mutate(formData);
   };
 
   const footer = (
@@ -194,7 +208,7 @@ export function CreateSubcontractorModal({
       <button
         type="button"
         onClick={onClose}
-        disabled={saving}
+        disabled={saveSubcontractorMutation.isPending}
         className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-[13px] font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
       >
         Cancel
@@ -202,11 +216,11 @@ export function CreateSubcontractorModal({
       <button
         type="submit"
         form="subcontractor-form"
-        disabled={saving || !formData.company_name.trim()}
+        disabled={saveSubcontractorMutation.isPending || !formData.company_name.trim()}
         className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-[13px] font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60"
         style={{ backgroundColor: COLORS.tealNavy }}
       >
-        {saving ? (
+        {saveSubcontractorMutation.isPending ? (
           <>
             <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
             Saving...
@@ -463,23 +477,48 @@ export function CreateSubcontractorModal({
 
 export function SubcontractorDashboard({ onNavigate }: WithNavigate) {
   const { organisation } = useAuth();
-  const [subcontractors, setSubcontractors] = useState<any[]>([])
   const [filter, setFilter] = useState('all')
   const [searchTerm, setSearchTerm] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
+  const queryClient = useQueryClient();
 
-  useEffect(() => { loadData() }, [filter, organisation?.id])
+  // useQuery for fetching subcontractors with TanStack Query
+  const { 
+    data: subcontractors = [], 
+    isLoading, 
+    isFetching,
+    refetch 
+  } = useQuery({
+    queryKey: SUBCONTRACTOR_QUERY_KEYS.list(organisation?.id || null, filter),
+    queryFn: async () => {
+      if (!organisation?.id) return [];
+      
+      let query = supabase
+        .from('subcontractors')
+        .select('*')
+        .eq('organisation_id', organisation.id)
+        .order('created_at', { ascending: false });
+      
+      if (filter === 'active') query = query.eq('status', 'Active');
+      else if (filter === 'inactive') query = query.eq('status', 'Inactive');
+      
+      const { data, error } = await query;
+      
+      if (error) {
+        console.error('Error fetching subcontractors:', error);
+        throw new Error(error.message);
+      }
+      
+      return data || [];
+    },
+    staleTime: STALE_TIME, // 2 minutes
+    refetchOnWindowFocus: false,
+    enabled: !!organisation?.id, // Only run query if we have an org ID
+  });
 
-  const loadData = async () => {
-    if (!organisation?.id) return;
-    setIsLoading(true)
-    let query = supabase.from('subcontractors').select('*').eq('organisation_id', organisation.id).order('created_at', { ascending: false })
-    if (filter === 'active') query = query.eq('status', 'Active')
-    else if (filter === 'inactive') query = query.eq('status', 'Inactive')
-    const { data } = await query
-    setSubcontractors(data || [])
-    setIsLoading(false)
-  }
+  // Manual refetch function for refresh button
+  const handleRefresh = () => {
+    refetch();
+  };
 
   const filtered = subcontractors.filter(s => 
     s.company_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -641,6 +680,16 @@ export function SubcontractorDashboard({ onNavigate }: WithNavigate) {
               onChange={(e) => setSearchTerm(e.target.value)}
               sx={{ width: 250, '& .MuiInputBase-input': { fontSize: '12px' } }}
             />
+            <Tooltip title="Refresh data">
+              <IconButton 
+                onClick={handleRefresh} 
+                disabled={isFetching}
+                size="small"
+                sx={{ color: 'primary.main' }}
+              >
+                <RefreshIcon fontSize="small" className={isFetching ? 'animate-spin' : ''} />
+              </IconButton>
+            </Tooltip>
             <Button
               variant="contained"
               startIcon={<AddIcon />}
@@ -701,36 +750,58 @@ export function SubcontractorDashboard({ onNavigate }: WithNavigate) {
 
 export function CreateSubcontractor({ onSuccess, onCancel, editMode, subData }: CreateSubcontractorProps) {
   const { organisation } = useAuth();
+  const queryClient = useQueryClient();
   const [formData, setFormData] = useState(subData || {
     company_name: '', contact_person: '', phone: '', email: '', address: '', state: '', gstin: '',
     nature_of_work: '', internal_remarks: '', nda_signed: false, contract_signed: false,
     nda_date: '', contract_date: '', status: 'Active'
   })
-  const [saving, setSaving] = useState(false)
 
   const indianStates = ['Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh', 'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka', 'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur', 'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha', 'Punjab', 'Rajasthan', 'Sikkim', 'Tamil Nadu', 'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal', 'Delhi', 'Jammu and Kashmir', 'Ladakh', 'Puducherry']
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!organisation?.id) {
-      alert('No organization selected')
-      return
-    }
-    setSaving(true)
-    try {
-      if (editMode && subData?.id) {
-        const { error } = await supabase.from('subcontractors').update(formData).eq('id', subData.id)
-        if (error) throw error
-      } else {
-        const { error } = await supabase.from('subcontractors').insert({ ...formData, organisation_id: organisation.id })
-        if (error) throw error
+  // useMutation for creating/updating subcontractor
+  const saveSubcontractorMutation = useMutation({
+    mutationFn: async (data: typeof formData) => {
+      if (!organisation?.id) {
+        throw new Error('No organization selected');
       }
-      onSuccess()
-    } catch (err: any) { 
-      console.error('Error saving subcontractor:', err)
-      alert('Error saving subcontractor: ' + (err?.message || err?.error?.message || 'Unknown error')) 
-    }
-    setSaving(false)
+
+      const payload = {
+        ...data,
+        organisation_id: organisation.id,
+      };
+
+      if (editMode && subData?.id) {
+        const { error } = await supabase
+          .from('subcontractors')
+          .update(payload)
+          .eq('id', subData.id);
+        
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('subcontractors')
+          .insert(payload);
+        
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      // Invalidate and refetch subcontractors list
+      queryClient.invalidateQueries({ 
+        queryKey: SUBCONTRACTOR_QUERY_KEYS.all() 
+      });
+      onSuccess();
+    },
+    onError: (error: any) => {
+      console.error('Error saving subcontractor:', error);
+      alert('Error saving subcontractor: ' + (error?.message || 'Unknown error'));
+    },
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    saveSubcontractorMutation.mutate(formData);
   }
 
   return (
@@ -937,15 +1008,16 @@ export function CreateSubcontractor({ onSuccess, onCancel, editMode, subData }: 
               <Button 
                 type="submit" 
                 variant="contained" 
-                disabled={saving || !formData.company_name}
+                disabled={saveSubcontractorMutation.isPending || !formData.company_name}
                 sx={{ fontSize: '12px', textTransform: 'none' }}
               >
-                {saving ? 'Saving...' : (editMode ? 'Update' : 'Save')}
+                {saveSubcontractorMutation.isPending ? 'Saving...' : (editMode ? 'Update' : 'Save')}
               </Button>
               <Button 
                 type="button" 
                 variant="outlined" 
                 onClick={onCancel}
+                disabled={saveSubcontractorMutation.isPending}
                 sx={{ fontSize: '12px', textTransform: 'none' }}
               >
                 Cancel
