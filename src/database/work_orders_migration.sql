@@ -1,7 +1,25 @@
 -- Professional Work Order System - Database Migration
 -- Run this in Supabase SQL Editor
 
--- Create the work orders table with professional features
+-- First, check if old table exists and backup if needed
+DO $$
+BEGIN
+  -- Check if the table exists
+  IF EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'subcontractor_work_orders') THEN
+    -- Check if issue_date column exists
+    IF NOT EXISTS (
+      SELECT FROM information_schema.columns 
+      WHERE table_name = 'subcontractor_work_orders' 
+      AND column_name = 'issue_date'
+    ) THEN
+      -- Old table exists but is missing new columns - drop it
+      DROP TABLE subcontractor_work_orders CASCADE;
+      RAISE NOTICE 'Old work orders table dropped (missing new columns)';
+    END IF;
+  END IF;
+END $$;
+
+-- Now create the table with full professional schema
 CREATE TABLE IF NOT EXISTS subcontractor_work_orders (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   organisation_id UUID REFERENCES organisations(id) ON DELETE CASCADE NOT NULL,
@@ -101,4 +119,4 @@ COMMENT ON COLUMN subcontractor_work_orders.line_items IS 'Array of line items: 
 COMMENT ON COLUMN subcontractor_work_orders.terms_conditions IS 'Array of terms: [{"id": "term-1", "text": "Payment within 30 days", "order": 0}]';
 
 -- Success message
-SELECT 'Work Order table created successfully!' as result;
+SELECT 'Work Order table created/updated successfully!' as result;
