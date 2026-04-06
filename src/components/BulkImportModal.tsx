@@ -105,47 +105,70 @@ export default function BulkImportModal({ open, onClose, materials, warehouses, 
 
   const handleDownloadSample = () => {
     const headers = IMPORT_COLUMNS.map(col => col.key);
-    const sampleRow = IMPORT_COLUMNS.map(col => {
-      switch (col.key) {
-        case 'item_code': return 'VLV-001';
-        case 'name': return 'Ball Valve 2 inch';
-        case 'display_name': return '2" Ball Valve - SS316';
-        case 'main_category': return 'VALVE';
-        case 'sub_category': return 'Ball Valve';
-        case 'size': return '2 inch';
-        case 'size_lwh': return '2 x 1.5 x 1';
-        case 'pressure_class': return 'PN16';
-        case 'make': return 'KITZ';
-        case 'material': return 'SS316';
-        case 'end_connection': return 'Screwed';
-        case 'unit': return 'nos';
-        case 'sale_price': return '1250.00';
-        case 'purchase_price': return '980.00';
-        case 'hsn_code': return '848180';
-        case 'gst_rate': return '18';
-        case 'part_number': return 'KITZ-BV-2IN-SS';
-        case 'taxable': return 'taxable';
-        case 'weight': return '2.5';
-        case 'upc': return '890123456789';
-        case 'mpn': return 'BV2SS';
-        case 'ean': return '1234567890123';
-        case 'inventory_account': return 'inventory asset';
-        case 'is_active': return 'true';
-        case 'low_stock_level': return '10';
-        case 'current_stock': return '50';
-        case 'warehouse': return 'Main Warehouse';
-        default: return '';
-      }
-    });
     
-    const content = [headers.join('\t'), sampleRow.join('\t')].join('\n');
-    const blob = new Blob([content], { type: 'text/tab-separated-values' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'item_import_sample.txt';
-    a.click();
-    URL.revokeObjectURL(url);
+    if (materials.length === 0) {
+      // Fallback to sample data if no items in database
+      const sampleRow = IMPORT_COLUMNS.map(col => {
+        switch (col.key) {
+          case 'item_code': return 'VLV-001';
+          case 'name': return 'Ball Valve 2 inch';
+          case 'display_name': return '2" Ball Valve - SS316';
+          case 'main_category': return 'VALVE';
+          case 'sub_category': return 'Ball Valve';
+          case 'size': return '2 inch';
+          case 'size_lwh': return '2 x 1.5 x 1';
+          case 'pressure_class': return 'PN16';
+          case 'make': return 'KITZ';
+          case 'material': return 'SS316';
+          case 'end_connection': return 'Screwed';
+          case 'unit': return 'nos';
+          case 'sale_price': return '1250.00';
+          case 'purchase_price': return '980.00';
+          case 'hsn_code': return '848180';
+          case 'gst_rate': return '18';
+          case 'part_number': return 'KITZ-BV-2IN-SS';
+          case 'taxable': return 'taxable';
+          case 'weight': return '2.5';
+          case 'upc': return '890123456789';
+          case 'mpn': return 'BV2SS';
+          case 'ean': return '1234567890123';
+          case 'inventory_account': return 'inventory asset';
+          case 'is_active': return 'true';
+          case 'low_stock_level': return '10';
+          case 'current_stock': return '50';
+          case 'warehouse': return 'Main Warehouse';
+          default: return '';
+        }
+      });
+      
+      const content = [headers.join('\t'), sampleRow.join('\t')].join('\n');
+      const blob = new Blob([content], { type: 'text/tab-separated-values' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'item_sample_data.txt';
+      a.click();
+      URL.revokeObjectURL(url);
+    } else {
+      // Export actual items from database
+      const rows = materials.map(item => {
+        return IMPORT_COLUMNS.map(col => {
+          const value = item[col.key];
+          if (value === null || value === undefined) return '';
+          if (typeof value === 'boolean') return value ? 'true' : 'false';
+          return String(value);
+        });
+      });
+      
+      const content = [headers.join('\t'), ...rows.map(row => row.join('\t'))].join('\n');
+      const blob = new Blob([content], { type: 'text/tab-separated-values' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `items_export_${new Date().toISOString().split('T')[0]}.txt`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
   };
 
   const handleRowToggle = (rowNo: number) => {
@@ -256,7 +279,7 @@ export default function BulkImportModal({ open, onClose, materials, warehouses, 
               </Typography>
             </Alert>
 
-            <Box display="flex" gap={2} mb={2}>
+            <Box display="flex" gap={2} mb={2} flexWrap="wrap" alignItems="center">
               <Button
                 variant="outlined"
                 startIcon={<DownloadIcon />}
@@ -276,7 +299,7 @@ export default function BulkImportModal({ open, onClose, materials, warehouses, 
                 startIcon={<DownloadIcon />}
                 onClick={handleDownloadSample}
               >
-                Download Sample Data
+                Download Current Items ({materials.length})
               </Button>
               <Button
                 variant="outlined"
@@ -293,6 +316,15 @@ export default function BulkImportModal({ open, onClose, materials, warehouses, 
                 onChange={handleFileUpload}
               />
             </Box>
+
+            {materials.length > 0 && (
+              <Alert severity="success" sx={{ mb: 2 }}>
+                <Typography variant="body2">
+                  <strong>{materials.length} items</strong> available in your database. 
+                  Click "Download Current Items" to export them for editing.
+                </Typography>
+              </Alert>
+            )}
 
             <TextField
               fullWidth
