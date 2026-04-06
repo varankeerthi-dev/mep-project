@@ -11,11 +11,14 @@ import {
   Chip,
   IconButton,
   Tooltip,
+  Alert,
 } from '@mui/material';
-import { Inventory as InventoryIcon, Add as AddIcon } from '@mui/icons-material';
+import { Inventory as InventoryIcon, Add as AddIcon, CloudUpload as UploadIcon, TableChart as ExcelIcon } from '@mui/icons-material';
 import { supabase } from '../supabase';
 import { formatDate, formatCurrency } from '../utils/formatters';
 import { timedSupabaseQuery } from '../utils/queryTimeout';
+import BulkImportModal from '../components/BulkImportModal';
+import ExcelEditor, { FieldSelector } from '../components/ExcelEditor';
 
 const MAIN_CATEGORIES = ['VALVE', 'PIPE', 'FITTING', 'FLANGE', 'ELECTRICAL', 'PLUMBING', 'HVAC', 'FIRE PROTECTION', 'BUILDING MATERIALS', 'TOOLS', 'SAFETY', 'OFFICE', 'OTHER'];
 
@@ -187,6 +190,7 @@ function ItemsTab() {
   const [showForm, setShowForm] = useState(false);
   const [showColumnSettings, setShowColumnSettings] = useState(false);
   const [showBulkPriceModal, setShowBulkPriceModal] = useState(false);
+  const [showBulkImportModal, setShowBulkImportModal] = useState(false);
   const [showItemWorkspace, setShowItemWorkspace] = useState(false);
   const [workspaceSearch, setWorkspaceSearch] = useState('');
   const [editingMaterial, setEditingMaterial] = useState(null);
@@ -229,6 +233,13 @@ function ItemsTab() {
   });
 
   const [variantPricing, setVariantPricing] = useState([]);
+  
+  // Excel Edit Mode state
+  const [excelEditMode, setExcelEditMode] = useState(false);
+  const [showFieldSelector, setShowFieldSelector] = useState(false);
+  const [selectedEditFields, setSelectedEditFields] = useState<string[]>(['sale_price', 'purchase_price']);
+  const [showExcelImportFieldSelector, setShowExcelImportFieldSelector] = useState(false);
+  const [excelImportFields, setExcelImportFields] = useState<string[]>([]);
 
   const formatCurrencyOrDash = (value) => {
     if (value === null || value === undefined || value === '' || value === 0) return '-';
@@ -1468,6 +1479,20 @@ function ItemsTab() {
             <Button size="small" variant="outlined" onClick={openBulkPriceModal} sx={{ fontSize: '11px', fontFamily: 'Inter' }}>
               Bulk Price
             </Button>
+            <Button size="small" variant="outlined" startIcon={<UploadIcon />} onClick={() => setShowBulkImportModal(true)} sx={{ fontSize: '11px', fontFamily: 'Inter' }}>
+              Bulk Import
+            </Button>
+            <Tooltip title="Edit in Excel Mode">
+              <Button 
+                size="small" 
+                variant="outlined" 
+                startIcon={<ExcelIcon />} 
+                onClick={() => setShowFieldSelector(true)} 
+                sx={{ fontSize: '11px', fontFamily: 'Inter' }}
+              >
+                Excel Edit
+              </Button>
+            </Tooltip>
           </Box>
         </Box>
       </Paper>
@@ -1994,6 +2019,17 @@ function ItemsTab() {
           </div>
         </div>
       )}
+
+      <BulkImportModal
+        open={showBulkImportModal}
+        onClose={() => setShowBulkImportModal(false)}
+        materials={materials}
+        warehouses={warehousesQuery.data || []}
+        onSuccess={() => {
+          refreshMaterials();
+          setSaveNotice('Bulk import completed successfully');
+        }}
+      />
 
       {deleteTarget && (
         <div className="modal-overlay open" onClick={closeDeleteModal}>
@@ -2743,8 +2779,247 @@ function VariantsTab() {
           </div>
         </div>
       )}
+
+      {/* Excel Edit Mode - Field Selector Dialog */}
+      {showFieldSelector && (
+        <div className="modal-overlay open" onClick={() => setShowFieldSelector(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '900px', maxHeight: '90vh', overflow: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2 style={{ margin: 0 }}>Select Fields to Edit</h2>
+              <button onClick={() => setShowFieldSelector(false)} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}>×</button>
+            </div>
+            <FieldSelector 
+              warehouses={warehouses}
+              selectedFields={selectedEditFields}
+              onChange={setSelectedEditFields}
+            />
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '20px' }}>
+              <button className="btn btn-secondary" onClick={() => setShowFieldSelector(false)}>Cancel</button>
+              <button 
+                className="btn btn-primary" 
+                onClick={() => {
+                  setShowFieldSelector(false);
+                  setExcelEditMode(true);
+                }}
+                disabled={selectedEditFields.length === 0}
+              >
+                Start Excel Edit Mode
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Excel Editor Mode */}
+      {excelEditMode && (
+        <div className="modal-overlay open" style={{ alignItems: 'flex-start', paddingTop: '20px' }}>
+          <div 
+            className="modal-content" 
+            onClick={e => e.stopPropagation()} 
+            style={{ 
+              maxWidth: '98vw', 
+              width: '98vw', 
+              maxHeight: '95vh', 
+              height: '95vh',
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+          >
+            <ExcelEditor
+              materials={materials}
+              warehouses={warehouses}
+              selectedFields={selectedEditFields}
+              onSave={async (changes) => {
+                // Apply changes to database
+                const nowIso = new Date().toISOString();
+                
+                for (const change of changes) {
+                  const fieldMapping: Record<string, string> = {
+                    'Sale Price': 'sale_price',
+                    'Purchase Price': 'purchase_price',
+                    'Display Name': 'display_name',
+                    'Category': 'main_category',
+                    'Sub Category': 'sub_category',
+                    'Size': 'size',
+                    'L×W×H': 'size_lwh',
+                    'Pressure': 'pressure_class',
+                    'Make': 'make',
+                    'Material': 'material',
+                    'Connection': 'end_connection',
+                    'Unit': 'unit',
+                    'HSN': 'hsn_code',
+                    'GST%': 'gst_rate',
+                    'Part #': 'part_number',
+                    'Taxable': 'taxable',
+                    'Weight': 'weight',
+                    'UPC': 'upc',
+                    'MPN': 'mpn',
+                    'EAN': 'ean',
+                    'Inv Account': 'inventory_account',
+                    'Active': 'is_active',
+                    'Low Stock': 'low_stock_level',
+                  };
+                  
+                  // Check if it's a stock field
+                  if (change.field.startsWith('Stock:')) {
+                    const warehouse = warehouses.find(w => change.field.includes(w.warehouse_name || w.name));
+                    if (warehouse) {
+                      // Update stock for specific warehouse
+                      const { data: existingStock } = await supabase
+                        .from('item_stock')
+                        .select('id')
+                        .eq('item_id', change.itemId)
+                        .eq('warehouse_id', warehouse.id)
+                        .maybeSingle();
+                      
+                      if (existingStock) {
+                        await supabase
+                          .from('item_stock')
+                          .update({ current_stock: change.newValue, updated_at: nowIso })
+                          .eq('id', existingStock.id);
+                      } else {
+                        await supabase
+                          .from('item_stock')
+                          .insert({
+                            item_id: change.itemId,
+                            warehouse_id: warehouse.id,
+                            current_stock: change.newValue,
+                            created_at: nowIso,
+                            updated_at: nowIso,
+                          });
+                      }
+                    }
+                  } else {
+                    // Update material field
+                    const dbField = fieldMapping[change.field];
+                    if (dbField) {
+                      await supabase
+                        .from('materials')
+                        .update({ [dbField]: change.newValue, updated_at: nowIso })
+                        .eq('id', change.itemId);
+                    }
+                  }
+                  
+                  // Log audit trail
+                  await supabase.from('item_audit_logs').insert({
+                    item_id: change.itemId,
+                    action: 'BULK_EXCEL_UPDATE',
+                    notes: `Field "${change.field}" changed from "${change.oldValue}" to "${change.newValue}" via Excel Edit Mode`,
+                    changes: JSON.stringify([{
+                      field: change.field,
+                      old_value: change.oldValue,
+                      new_value: change.newValue,
+                    }]),
+                    created_at: nowIso,
+                  });
+                }
+                
+                await refreshMaterials();
+              }}
+              onCancel={() => setExcelEditMode(false)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Excel Import Field Selector */}
+      {showExcelImportFieldSelector && (
+        <div className="modal-overlay open" onClick={() => setShowExcelImportFieldSelector(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '900px', maxHeight: '90vh', overflow: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2 style={{ margin: 0 }}>Select Fields for Import Template</h2>
+              <button onClick={() => setShowExcelImportFieldSelector(false)} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}>×</button>
+            </div>
+            <Alert severity="info" sx={{ mb: 2 }}>
+              Select the fields you want to edit. Only selected fields will be included in the download template and editable during upload.
+            </Alert>
+            <FieldSelector 
+              warehouses={warehouses}
+              selectedFields={excelImportFields}
+              onChange={setExcelImportFields}
+            />
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '20px' }}>
+              <button className="btn btn-secondary" onClick={() => setShowExcelImportFieldSelector(false)}>Cancel</button>
+              <button 
+                className="btn btn-primary" 
+                onClick={() => {
+                  // Generate template with selected fields
+                  generateSelectiveTemplate(excelImportFields);
+                  setShowExcelImportFieldSelector(false);
+                }}
+                disabled={excelImportFields.length === 0}
+              >
+                Download Template
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
+}
+
+// Helper function to generate template with selected fields
+function generateSelectiveTemplate(selectedFields: string[]) {
+  const columns = [
+    { key: 'item_code', label: 'Item Code' },
+    { key: 'name', label: 'Item Name' },
+    ...selectedFields.map(field => {
+      if (field.startsWith('stock_')) {
+        return { key: field, label: field };
+      }
+      const colDef = [
+        { key: 'display_name', label: 'Display Name' },
+        { key: 'main_category', label: 'Main Category' },
+        { key: 'sub_category', label: 'Sub Category' },
+        { key: 'size', label: 'Size' },
+        { key: 'size_lwh', label: 'Size (L x W x H)' },
+        { key: 'pressure_class', label: 'Pressure Class' },
+        { key: 'make', label: 'Make/Brand' },
+        { key: 'material', label: 'Material' },
+        { key: 'end_connection', label: 'End Connection' },
+        { key: 'unit', label: 'Unit' },
+        { key: 'sale_price', label: 'Sale Price' },
+        { key: 'purchase_price', label: 'Purchase Price' },
+        { key: 'hsn_code', label: 'HSN/SAC Code' },
+        { key: 'gst_rate', label: 'GST Rate (%)' },
+        { key: 'part_number', label: 'Part Number' },
+        { key: 'taxable', label: 'Taxable Status' },
+        { key: 'weight', label: 'Weight' },
+        { key: 'upc', label: 'UPC' },
+        { key: 'mpn', label: 'MPN' },
+        { key: 'ean', label: 'EAN' },
+        { key: 'inventory_account', label: 'Inventory Account' },
+        { key: 'is_active', label: 'Is Active' },
+        { key: 'low_stock_level', label: 'Low Stock Level' },
+      ].find(c => c.key === field);
+      return colDef || { key: field, label: field };
+    }),
+  ].filter(Boolean);
+  
+  const headers = columns.map(c => c.label);
+  const sampleRow = columns.map(c => {
+    switch (c.key) {
+      case 'item_code': return 'ITEM-001';
+      case 'name': return 'Sample Item';
+      case 'display_name': return 'Sample Display Name';
+      case 'main_category': return 'VALVE';
+      case 'sale_price': return '1250.00';
+      case 'purchase_price': return '980.00';
+      case 'gst_rate': return '18';
+      case 'is_active': return 'true';
+      default: return '';
+    }
+  });
+  
+  const content = [headers.join('\t'), sampleRow.join('\t')].join('\n');
+  const blob = new Blob([content], { type: 'text/tab-separated-values' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'selective_item_template.txt';
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 export default function MaterialsList() {
