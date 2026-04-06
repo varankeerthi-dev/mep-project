@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   Box,
   Button,
@@ -109,8 +109,8 @@ export function ExcelEditor({ materials, warehouses, selectedFields, onSave, onC
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Build column configuration based on selected fields
-  const columns = useCallback(() => {
+  // Build column configuration based on selected fields - compute directly
+  const getColumnConfig = useMemo(() => {
     const baseCols = EDITABLE_COLUMNS.filter(col => selectedFields.includes(col.key));
     
     // Add stock columns for selected warehouses
@@ -130,8 +130,6 @@ export function ExcelEditor({ materials, warehouses, selectedFields, onSave, onC
     
     return [...idCols, ...baseCols, ...stockCols];
   }, [selectedFields, warehouses]);
-
-  const getColumnConfig = columns();
 
   // Initialize rows from materials
   useEffect(() => {
