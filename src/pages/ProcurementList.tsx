@@ -1,8 +1,11 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { FileDown } from 'lucide-react';
 
 const STATUS_COLOURS: Record<string, string> = {
   Active: '#16a34a',
@@ -123,6 +126,81 @@ export default function ProcurementList() {
   const active = filtered.filter((l) => l.status === 'Active');
   const archived = filtered.filter((l) => l.status === 'Archived');
 
+  // Export procurement lists to PDF
+  const exportToPDF = useCallback(() => {
+    const doc = new jsPDF({
+      orientation: 'landscape',
+      unit: 'mm',
+      format: 'a4'
+    });
+
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const marginX = 14;
+    const orgName = organisation?.name || 'Organization';
+
+    // Header
+    doc.setFontSize(16);
+    doc.setTextColor(31, 41, 55);
+    doc.text('PROCUREMENT LISTS', pageWidth / 2, 15, { align: 'center' });
+    
+    doc.setFontSize(10);
+    doc.setTextColor(107, 114, 128);
+    doc.text(orgName, pageWidth / 2, 22, { align: 'center' });
+
+    const exportData = filtered.map((list, index) => [
+      index + 1,
+      list.title || '',
+      SOURCE_LABELS[list.source] || list.source || '',
+      list.client_name || '—',
+      list.boq_no || list.quotation_no || '—',
+      list.created_at ? new Date(list.created_at).toLocaleDateString('en-IN') : '—',
+      list.status || ''
+    ]);
+
+    autoTable(doc, {
+      startY: 30,
+      head: [['#', 'Title', 'Source', 'Client', 'Reference', 'Created', 'Status']],
+      body: exportData,
+      theme: 'grid',
+      headStyles: {
+        fillColor: [241, 245, 249],
+        textColor: [55, 65, 81],
+        fontSize: 9,
+        fontStyle: 'bold',
+        lineColor: [203, 213, 225],
+        lineWidth: 0.1
+      },
+      styles: {
+        fontSize: 8,
+        cellPadding: 3,
+        lineColor: [203, 213, 225],
+        lineWidth: 0.1,
+        textColor: [75, 85, 99]
+      },
+      columnStyles: {
+        0: { cellWidth: 12, halign: 'center' },
+        1: { cellWidth: 'auto', halign: 'left' },
+        2: { cellWidth: 25, halign: 'center' },
+        3: { cellWidth: 45, halign: 'left' },
+        4: { cellWidth: 35, halign: 'left' },
+        5: { cellWidth: 30, halign: 'center' },
+        6: { cellWidth: 25, halign: 'center' }
+      },
+      alternateRowStyles: {
+        fillColor: [250, 250, 250]
+      }
+    });
+
+    // Summary
+    const finalY = (doc as any).lastAutoTable?.finalY || 50;
+    doc.setFontSize(9);
+    doc.setTextColor(107, 114, 128);
+    doc.text(`Total Lists: ${filtered.length} | Active: ${active.length} | Archived: ${archived.length}`, marginX, finalY + 10);
+    doc.text(`Generated on: ${new Date().toLocaleString('en-IN')}`, pageWidth - marginX, finalY + 10, { align: 'right' });
+
+    doc.save(`procurement-lists-${new Date().toISOString().split('T')[0]}.pdf`);
+  }, [filtered, active, archived, organisation]);
+
   return (
     <div style={{ padding: '24px', background: '#f8fafc', minHeight: '100vh' }}>
       {/* Header */}
@@ -134,6 +212,25 @@ export default function ProcurementList() {
           </p>
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
+          {filtered.length > 0 && (
+            <button
+              onClick={exportToPDF}
+              style={{
+                padding: '7px 14px',
+                border: '1px solid #d1d5db',
+                borderRadius: '6px',
+                background: '#fff',
+                fontSize: '12px',
+                cursor: 'pointer',
+                color: '#374151',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+            >
+              <FileDown size={14} /> Export PDF
+            </button>
+          )}
           <button
             onClick={() => setShowArchived(!showArchived)}
             style={{
