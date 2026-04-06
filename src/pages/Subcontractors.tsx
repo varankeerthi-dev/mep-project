@@ -4,6 +4,7 @@ import { supabase } from '../supabase';
 import { useAuth } from '../App';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Modal } from '../components/ui/Modal';
+import { SubcontractorLedger } from '../components/SubcontractorLedger';
 import { Building2, X, Save, User, Phone, Mail, MapPin, FileText, Briefcase, CheckCircle } from 'lucide-react';
 import {
   Box,
@@ -1216,6 +1217,7 @@ export function SubcontractorView({ onNavigate }: WithNavigate) {
           <button className={`btn ${activeTab === 'dailylogs' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('dailylogs')}>Daily Logs ({dailyLogs.length})</button>
           <button className={`btn ${activeTab === 'payments' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('payments')}>Payments ({payments.length})</button>
           <button className={`btn ${activeTab === 'invoices' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('invoices')}>Invoices ({invoices.length})</button>
+          <button className={`btn ${activeTab === 'ledger' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('ledger')}>Ledger</button>
         </div>
       </div>
       <div className="card">
@@ -1244,6 +1246,13 @@ export function SubcontractorView({ onNavigate }: WithNavigate) {
         )}
         {activeTab === 'invoices' && (
           <div>{invoices.length === 0 ? <p>No Invoices</p> : <table className="table"><thead><tr><th>Invoice No</th><th>Date</th><th>Amount</th><th>Status</th></tr></thead><tbody>{invoices.map(i => <tr key={i.id}><td>{i.invoice_no}</td><td>{i.invoice_date}</td><td>₹{i.amount}</td><td>{i.status}</td></tr>)}</tbody></table>}</div>
+        )}
+        {activeTab === 'ledger' && sub && (
+          <SubcontractorLedger
+            subcontractorId={sub.id}
+            subcontractorName={sub.company_name}
+            onBack={() => setActiveTab('details')}
+          />
         )}
       </div>
     </div>

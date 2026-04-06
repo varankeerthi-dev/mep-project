@@ -1730,3 +1730,133 @@ body {
     max-width: none;
   }
 }
+
+/* ============================================================================
+   SUBCONTRACTOR LEDGER - Minimalist Grid Styles
+   ============================================================================ */
+
+.ledger-container {
+  font-family: 'Courier New', 'Monaco', monospace;
+}
+
+.ledger-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: 'Courier New', 'Monaco', monospace;
+  border: 1px solid #000;
+}
+
+.ledger-table th,
+.ledger-table td {
+  border: 1px solid #000;
+  padding: 8px 12px;
+  text-align: left;
+}
+
+.ledger-table th {
+  background: #f5f5f5;
+  font-weight: bold;
+  border-bottom: 2px solid #000;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.ledger-numeric {
+  text-align: right !important;
+  font-family: 'Courier New', 'Monaco', monospace;
+}
+
+.ledger-selected-row {
+  background: #e3f2fd !important;
+  border: 2px solid #1976d2;
+}
+
+.ledger-summary-card {
+  border: 1px solid #000;
+  padding: 16px;
+  text-align: center;
+  font-family: 'Courier New', 'Monaco', monospace;
+  background: #fff;
+}
+
+.ledger-summary-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #666;
+  margin-bottom: 8px;
+}
+
+.ledger-summary-value {
+  font-size: 20px;
+  font-weight: bold;
+  font-family: 'Courier New', 'Monaco', monospace;
+}
+
+/* Type badges */
+.ledger-type-badge {
+  font-size: 10px;
+  padding: 2px 6px;
+  border: 1px solid;
+  text-transform: uppercase;
+  font-weight: bold;
+}
+
+.ledger-type-wo {
+  border-color: #1976d2;
+  color: #1976d2;
+  background: #e3f2fd;
+}
+
+.ledger-type-amd {
+  border-color: #ed6c02;
+  color: #ed6c02;
+  background: #fff3e0;
+}
+
+.ledger-type-inv {
+  border-color: #2e7d32;
+  color: #2e7d32;
+  background: #e8f5e9;
+}
+
+.ledger-type-pay {
+  border-color: #d32f2f;
+  color: #d32f2f;
+  background: #ffebee;
+}
+
+/* Amendment sub-rows */
+.ledger-amendment-row {
+  background: #fafafa;
+  font-size: 12px;
+}
+
+.ledger-amendment-row td {
+  color: #666;
+}
+
+/* Status indicators */
+.ledger-status {
+  font-size: 10px;
+  padding: 2px 8px;
+  border: 1px solid #000;
+  text-transform: uppercase;
+}
+
+/* Print styles for ledger */
+@media print {
+  .ledger-container {
+    font-size: 10px;
+  }
+  
+  .ledger-table th,
+  .ledger-table td {
+    padding: 4px 6px;
+  }
+  
+  .no-print {
+    display: none !important;
+  }
+}
