@@ -23,7 +23,8 @@ import {
   ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
-  ShoppingCartIcon
+  ShoppingCartIcon,
+  ClipboardDocumentListIcon
 } from '@heroicons/react/24/outline';
 
 type SubmenuItem = {
@@ -208,6 +209,11 @@ const menuData: MenuSection[] = [
         id: 'purchase', 
         label: 'Purchase', 
         path: '/purchase'
+      },
+      {
+        id: 'procurement',
+        label: 'Procurement',
+        path: '/procurement'
       }
     ]
   },
@@ -295,6 +301,7 @@ const iconMap = {
   'client-comm': ChatBubbleLeftRightIcon,
   store: CubeIcon,
   purchase: ShoppingCartIcon,
+  procurement: ClipboardDocumentListIcon,
   tools: WrenchScrewdriverIcon,
   dc: TruckIcon,
   'non-billable-dc': TruckIcon,

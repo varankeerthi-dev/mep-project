@@ -48,6 +48,8 @@ const TemplateSettings = lazyAny(() => import('./pages/TemplateSettings'));
 const DiscountSettings = lazyAny(() => import('./pages/DiscountSettings'));
 const QuickStockCheckList = lazyAny(() => import('./pages/QuickStockCheckList'));
 const QuickStockCheck = lazyAny(() => import('./pages/QuickStockCheck'));
+const ProcurementList = lazyAny(() => import('./pages/ProcurementList'));
+const ProcurementDetail = lazyAny(() => import('./pages/ProcurementDetail'));
 
 // Lazy load internally moved pages
 const Dashboard = lazyAny(() => import('./pages/Dashboard'));
@@ -397,6 +399,8 @@ export default function App() {
       case '/quick-stock-check/create': return <QuickStockCheck />;
       case '/quick-stock-check/edit': return <QuickStockCheck />;
       case '/quick-stock-check/view': return <QuickStockCheck />;
+      case '/procurement': return <ProcurementList />;
+      case '/procurement/detail': return <ProcurementDetail />;
       case '/client-po': return <POList />;
       case '/client-po/create': return <CreatePO />;
       case '/client-po/details': return <PODetails />;

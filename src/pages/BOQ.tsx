@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase';
+import { useAuth } from '../contexts/AuthContext';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Save, FileDown, Plus, Trash2, Sheet, Table, X, Settings, FileSpreadsheet, Loader2, GripVertical } from 'lucide-react';
@@ -197,7 +198,9 @@ type BoqInitData = {
 
 export function BOQ() {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { organisation } = useAuth();
   const editId = searchParams.get('editId');
   const [boqData, setBoqData] = useState<BoqFormData>({
     id: null,
@@ -236,6 +239,11 @@ export function BOQ() {
   const [showDiscountApplyModal, setShowDiscountApplyModal] = useState(false);
   const [pendingDiscountChange, setPendingDiscountChange] = useState<PendingDiscountChange>(null);
   const [discountApplyMode, setDiscountApplyMode] = useState('skip');
+  
+  // Stock Check modal state
+  const [showStockCheckModal, setShowStockCheckModal] = useState(false);
+  const [selectedSheets, setSelectedSheets] = useState<Record<string, boolean>>({});
+  const [launchingStockCheck, setLaunchingStockCheck] = useState(false);
 
   const inputRefs = useRef<Record<string, HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | null>>({});
   const prevDefaultVariantRef = useRef('');
@@ -1363,6 +1371,103 @@ const exportToExcel = useCallback(async () => {
     await saveMutation.mutateAsync();
   };
 
+  // Stock Check handler - launches procurement list from selected sheets
+  const handleLaunchStockCheck = async () => {
+    const sheetIds = Object.entries(selectedSheets)
+      .filter(([, selected]) => selected)
+      .map(([id]) => id);
+
+    if (sheetIds.length === 0) {
+      alert('Please select at least one sheet.');
+      return;
+    }
+
+    setLaunchingStockCheck(true);
+    try {
+      const orgId = organisation?.id;
+
+      const client = clients.find((c) => c.id === boqData.clientId);
+      const project = projects.find((p) => p.id === boqData.projectId);
+
+      // Create procurement list header
+      const { data: listData, error: listError } = await supabase
+        .from('procurement_lists')
+        .insert({
+          organisation_id: orgId,
+          title: `${boqData.boqNo} — Stock Check`,
+          source: 'boq',
+          boq_id: boqData.id || null,
+          boq_no: boqData.boqNo || null,
+          client_id: boqData.clientId || null,
+          client_name: client?.client_name || null,
+          project_id: boqData.projectId || null,
+          project_name: project?.project_name || null,
+          status: 'Active',
+        })
+        .select()
+        .single();
+
+      if (listError) throw listError;
+      const listId = listData.id;
+
+      // Collect items from selected sheets
+      const procurementRows: any[] = [];
+      let order = 0;
+
+      sheetIds.forEach((sheetId) => {
+        const sheetItems = items[sheetId] || [];
+        sheetItems.forEach((row) => {
+          if (row.isHeaderRow) {
+            procurementRows.push({
+              list_id: listId,
+              organisation_id: orgId,
+              is_header_row: true,
+              header_text: row.headerText || 'Section',
+              item_name: '',
+              display_order: order++,
+            });
+            return;
+          }
+
+          // Skip completely empty rows
+          if (!row.description && !row.itemId && !row.quantity) return;
+
+          procurementRows.push({
+            list_id: listId,
+            organisation_id: orgId,
+            item_id: row.itemId || null,
+            item_name: row.description || '',
+            make: row.make || null,
+            variant_name: row.variantName || null,
+            uom: row.unit || null,
+            boq_qty: parseFloat(String(row.quantity)) || 0,
+            stock_qty: 0,         // to be filled manually
+            local_qty: 0,
+            vendor_id: null,
+            notes: null,
+            status: 'Pending',
+            display_order: order++,
+            is_header_row: false,
+          });
+        });
+      });
+
+      if (procurementRows.length > 0) {
+        const { error: itemsError } = await supabase
+          .from('procurement_items')
+          .insert(procurementRows);
+        if (itemsError) throw itemsError;
+      }
+
+      setShowStockCheckModal(false);
+      navigate(`/procurement/detail?id=${listId}`);
+    } catch (e: any) {
+      alert('Error launching stock check: ' + e.message);
+    } finally {
+      setLaunchingStockCheck(false);
+    }
+  };
+
   const hydrationKey = editId || 'new';
   const isHydrated = hydratedKeyRef.current === hydrationKey;
 
@@ -1414,6 +1519,18 @@ const exportToExcel = useCallback(async () => {
               </div>
             )}
           </div>
+          <button
+            onClick={() => {
+              // Pre-select all sheets
+              const selection: Record<string, boolean> = {};
+              sheets.forEach((s) => { selection[s.id] = true; });
+              setSelectedSheets(selection);
+              setShowStockCheckModal(true);
+            }}
+            style={{ ...btnStyle, background: '#064e3b', color: '#fff', border: 'none' }}
+          >
+            📦 Stock Check
+          </button>
           <button 
             onClick={handleSave}
             style={{ ...btnStyle, background: '#1976d2', color: 'white' }}
@@ -2085,6 +2202,86 @@ const exportToExcel = useCallback(async () => {
                   }}
                 >
                   Apply
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Stock Check Modal */}
+        {showStockCheckModal && (
+          <div
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}
+            onClick={() => setShowStockCheckModal(false)}
+          >
+            <div
+              style={{ background: '#fff', borderRadius: '10px', padding: '28px', width: '420px', boxShadow: '0 8px 30px rgba(0,0,0,0.2)' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 style={{ margin: '0 0 6px', fontSize: '16px', fontWeight: 700 }}>Launch Stock Check</h3>
+              <p style={{ margin: '0 0 20px', fontSize: '12px', color: '#6b7280' }}>
+                Select which BOQ sheets to include in the procurement tracker.
+              </p>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '24px' }}>
+                {sheets.map((sheet) => {
+                  const isTerms = sheet.name.toLowerCase().includes('terms');
+                  const isPreface = sheet.name.toLowerCase().includes('preface');
+                  const itemCount = (items[sheet.id] || []).filter((r) => !r.isHeaderRow && (r.description || r.itemId)).length;
+
+                  return (
+                    <label
+                      key={sheet.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px',
+                        padding: '10px 14px',
+                        border: `1px solid ${selectedSheets[sheet.id] ? '#1d4ed8' : '#e5e7eb'}`,
+                        borderRadius: '8px',
+                        cursor: isTerms || isPreface ? 'not-allowed' : 'pointer',
+                        background: selectedSheets[sheet.id] ? '#eff6ff' : '#fff',
+                        opacity: isTerms || isPreface ? 0.4 : 1,
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={!!selectedSheets[sheet.id]}
+                        disabled={isTerms || isPreface}
+                        onChange={(e) =>
+                          setSelectedSheets((prev) => ({ ...prev, [sheet.id]: e.target.checked }))
+                        }
+                        style={{ width: '16px', height: '16px', accentColor: '#1d4ed8' }}
+                      />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 600, fontSize: '13px', color: '#111827' }}>{sheet.name}</div>
+                        <div style={{ fontSize: '11px', color: '#9ca3af' }}>
+                          {isTerms || isPreface ? 'Not applicable' : `${itemCount} items`}
+                        </div>
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                <button
+                  onClick={() => setShowStockCheckModal(false)}
+                  style={{ padding: '8px 16px', border: '1px solid #d1d5db', borderRadius: '6px', background: '#fff', fontSize: '13px', cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleLaunchStockCheck}
+                  disabled={launchingStockCheck || Object.values(selectedSheets).every((v) => !v)}
+                  style={{
+                    padding: '8px 18px', border: 'none', borderRadius: '6px',
+                    background: '#064e3b', color: '#fff', fontSize: '13px',
+                    fontWeight: 600, cursor: 'pointer',
+                    opacity: launchingStockCheck || Object.values(selectedSheets).every((v) => !v) ? 0.5 : 1,
+                  }}
+                >
+                  {launchingStockCheck ? 'Creating...' : '📦 Launch Stock Check'}
                 </button>
               </div>
             </div>
