@@ -229,10 +229,11 @@ function ItemsTab() {
     item_code: '', item_name: '', display_name: '', main_category: '', sub_category: '',
     size: '', pressure_class: '', make: '', material: '', end_connection: '',
     unit: 'nos', sale_price: '', purchase_price: '', hsn_code: '', gst_rate: 18, is_active: true,
-    uses_variant: false
+    uses_variant: false, track_inventory: false
   });
 
   const [variantPricing, setVariantPricing] = useState([]);
+  const [warehouseStock, setWarehouseStock] = useState({});
   
   // Excel Edit Mode state
   const [excelEditMode, setExcelEditMode] = useState(false);
@@ -1094,6 +1095,26 @@ function ItemsTab() {
           const { error: pricingError } = await supabase.from('item_variant_pricing').insert(pricingToInsert);
           if (pricingError) throw pricingError;
         }
+      } else if (formData.track_inventory && warehouses) {
+        const stockInsertions = [];
+        for (const wh of warehouses) {
+           const ws = warehouseStock[wh.id] || { exclude: false, current_stock: 0 };
+           if (ws.exclude) {
+               await supabase.from('item_stock').delete().eq('item_id', itemId).eq('warehouse_id', wh.id).is('company_variant_id', null);
+           } else {
+               stockInsertions.push({
+                   item_id: itemId,
+                   warehouse_id: wh.id,
+                   company_variant_id: null,
+                   current_stock: ws.current_stock || 0,
+                   updated_at: nowIso
+               });
+           }
+        }
+        if (stockInsertions.length > 0) {
+            const { error: stockError } = await supabase.from('item_stock').upsert(stockInsertions, { onConflict: 'item_id, company_variant_id, warehouse_id' });
+            if (stockError) console.error('Error saving warehouse stock:', stockError);
+        }
       }
 
       const changeLog = isEditing ? buildItemChangeLog(originalMaterial, materialData) : ['Item created'];
@@ -1150,13 +1171,40 @@ function ItemsTab() {
       item_code: '', item_name: '', display_name: '', main_category: '', sub_category: '',
       size: '', pressure_class: '', make: '', material: '', end_connection: '',
       unit: 'nos', sale_price: '', purchase_price: '', hsn_code: '', gst_rate: 18, is_active: true,
-      uses_variant: false
+      uses_variant: false, track_inventory: false
     });
     setVariantPricing([]);
+    
+    // Initialize default warehouse stock
+    const defaultWStock = {};
+    if (warehouses) {
+      warehouses.forEach(wh => {
+        defaultWStock[wh.id] = { exclude: false, current_stock: 0 };
+      });
+    }
+    setWarehouseStock(defaultWStock);
   };
 
   const editMaterial = async (material) => {
     setEditingMaterial(material);
+    
+    // Check if un-varianted stock exists
+    let hasStock = false;
+    let wStock = {};
+    if (warehouses) {
+      const itemStockRecords = stockQuery.data ? stockQuery.data.filter(s => s.item_id === material.id && !s.company_variant_id) : [];
+      if (itemStockRecords.length > 0) hasStock = true;
+      
+      warehouses.forEach(wh => {
+        const record = itemStockRecords.find(r => r.warehouse_id === wh.id);
+        wStock[wh.id] = {
+          exclude: !record,
+          current_stock: record ? parseFloat(record.current_stock) || 0 : 0
+        };
+      });
+    }
+    setWarehouseStock(wStock);
+    
     setFormData({
       item_code: material.item_code || '',
       item_name: material.name || '',
@@ -1174,7 +1222,8 @@ function ItemsTab() {
       hsn_code: material.hsn_code || '',
       gst_rate: material.gst_rate || 18,
       is_active: material.is_active !== false,
-      uses_variant: material.uses_variant || false
+      uses_variant: material.uses_variant || false,
+      track_inventory: hasStock
     });
     setShowForm(true);
     loadVariantPricing(material.id);
@@ -2191,25 +2240,56 @@ function ItemsTab() {
               </div>
 
               <div style={{ background: '#fff3e0', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
-                <h4 style={{ marginBottom: '15px', color: '#f39c12' }}>Inventory</h4>
+                <h4 style={{ marginBottom: '15px', color: '#f39c12' }}>Inventory Tracking</h4>
                 <div className="form-row">
                   <div className="form-group">
                     <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
                       <input type="checkbox" checked={formData.track_inventory} onChange={e => setFormData({...formData, track_inventory: e.target.checked})} />
-                      Track Inventory
+                      Track Inventory (Warehouse Specific)
                     </label>
                   </div>
                 </div>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label className="form-label">Current Stock</label>
-                    <input type="number" className="form-input" value={formData.current_stock} onChange={e => setFormData({...formData, current_stock: e.target.value})} step="0.01" />
+                {formData.track_inventory && (
+                  <div style={{ marginTop: '15px' }}>
+                    <table className="table" style={{ background: '#fff', fontSize: '13px' }}>
+                      <thead>
+                        <tr>
+                          <th>Warehouse</th>
+                          <th>"Not in this warehouse"</th>
+                          <th>Opening Stock</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {warehouses.map(wh => {
+                          const ws = warehouseStock[wh.id] || { exclude: false, current_stock: 0 };
+                          return (
+                            <tr key={wh.id} style={{ opacity: ws.exclude ? 0.6 : 1 }}>
+                              <td>{wh.warehouse_name || wh.name || wh.warehouse_code}</td>
+                              <td>
+                                <input 
+                                  type="checkbox" 
+                                  checked={ws.exclude} 
+                                  onChange={e => setWarehouseStock({...warehouseStock, [wh.id]: { ...ws, exclude: e.target.checked }})}
+                                />
+                              </td>
+                              <td>
+                                <input 
+                                  type="number" 
+                                  className="form-input" 
+                                  style={{ padding: '4px 8px', height: 'auto' }}
+                                  value={ws.current_stock}
+                                  onChange={e => setWarehouseStock({...warehouseStock, [wh.id]: { ...ws, current_stock: parseFloat(e.target.value) || 0 }})}
+                                  disabled={ws.exclude}
+                                  step="0.01"
+                                />
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
-                  <div className="form-group">
-                    <label className="form-label">Low Stock Level</label>
-                    <input type="number" className="form-input" value={formData.low_stock_level} onChange={e => setFormData({...formData, low_stock_level: e.target.value})} step="0.01" />
-                  </div>
-                </div>
+                )}
               </div>
 
               <div className="form-group">
