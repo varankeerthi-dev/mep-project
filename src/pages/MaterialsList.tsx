@@ -2327,6 +2327,157 @@ function ItemsTab() {
           </div>
         </div>
       )}
+
+      {/* Excel Edit Mode - Field Selector Dialog */}
+      {showFieldSelector && (
+        <div className="modal-overlay open" onClick={() => setShowFieldSelector(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '900px', maxHeight: '90vh', overflow: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2 style={{ margin: 0 }}>Select Fields to Edit</h2>
+              <button onClick={() => setShowFieldSelector(false)} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}>×</button>
+            </div>
+            <FieldSelector 
+              warehouses={warehouses}
+              selectedFields={selectedEditFields}
+              onChange={setSelectedEditFields}
+            />
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '20px' }}>
+              <button className="btn btn-secondary" onClick={() => setShowFieldSelector(false)}>Cancel</button>
+              <button 
+                className="btn btn-primary" 
+                onClick={() => {
+                  setShowFieldSelector(false);
+                  setExcelEditMode(true);
+                }}
+                disabled={selectedEditFields.length === 0}
+              >
+                Start Excel Edit Mode
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Excel Editor Mode */}
+      {excelEditMode && (
+        <div className="modal-overlay open" style={{ alignItems: 'flex-start', paddingTop: '20px' }}>
+          <div 
+            className="modal-content" 
+            onClick={e => e.stopPropagation()} 
+            style={{ 
+              maxWidth: '98vw', 
+              width: '98vw', 
+              maxHeight: '95vh', 
+              height: '95vh',
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+          >
+            <ExcelEditor
+              materials={materials}
+              warehouses={warehouses}
+              selectedFields={selectedEditFields}
+              onSave={async (changes) => {
+                const nowIso = new Date().toISOString();
+                for (const change of changes) {
+                  const fieldMapping = {
+                    'Sale Price': 'sale_price',
+                    'Purchase Price': 'purchase_price',
+                    'Display Name': 'display_name',
+                    'Category': 'main_category',
+                    'Sub Category': 'sub_category',
+                    'Size': 'size',
+                    'L×W×H': 'size_lwh',
+                    'Pressure': 'pressure_class',
+                    'Make': 'make',
+                    'Material': 'material',
+                    'Connection': 'end_connection',
+                    'Unit': 'unit',
+                    'HSN': 'hsn_code',
+                    'GST%': 'gst_rate',
+                    'Part #': 'part_number',
+                    'Taxable': 'taxable',
+                    'Weight': 'weight',
+                    'UPC': 'upc',
+                    'MPN': 'mpn',
+                    'EAN': 'ean',
+                    'Inv Account': 'inventory_account',
+                    'Active': 'is_active',
+                    'Low Stock': 'low_stock_level',
+                  };
+                  
+                  if (change.field.startsWith('Stock:')) {
+                    const whName = change.field.replace('Stock: ', '');
+                    const warehouse = warehouses.find(w => (w.warehouse_name || w.name) === whName);
+                    if (warehouse) {
+                      const { data: existingStock } = await supabase
+                        .from('item_stock')
+                        .select('id')
+                        .eq('item_id', change.itemId)
+                        .eq('warehouse_id', warehouse.id)
+                        .maybeSingle();
+                      
+                      if (existingStock) {
+                        await supabase.from('item_stock').update({ current_stock: change.newValue, updated_at: nowIso }).eq('id', existingStock.id);
+                      } else {
+                        await supabase.from('item_stock').insert({ item_id: change.itemId, warehouse_id: warehouse.id, current_stock: change.newValue, created_at: nowIso, updated_at: nowIso });
+                      }
+                    }
+                  } else {
+                    const dbField = fieldMapping[change.field];
+                    if (dbField) {
+                      await supabase.from('materials').update({ [dbField]: change.newValue, updated_at: nowIso }).eq('id', change.itemId);
+                    }
+                  }
+                  
+                  await supabase.from('item_audit_logs').insert({
+                    item_id: change.itemId,
+                    action: 'BULK_EXCEL_UPDATE',
+                    notes: `Field "${change.field}" changed from "${change.oldValue}" to "${change.newValue}" via Excel Edit Mode`,
+                    changes: JSON.stringify([{ field: change.field, old_value: change.oldValue, new_value: change.newValue }]),
+                    created_at: nowIso,
+                  });
+                }
+                await queryClient.invalidateQueries({ queryKey: ['materials'] });
+              }}
+              onCancel={() => setExcelEditMode(false)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Excel Import Field Selector */}
+      {showExcelImportFieldSelector && (
+        <div className="modal-overlay open" onClick={() => setShowExcelImportFieldSelector(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '900px', maxHeight: '90vh', overflow: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2 style={{ margin: 0 }}>Select Fields for Import Template</h2>
+              <button onClick={() => setShowExcelImportFieldSelector(false)} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}>×</button>
+            </div>
+            <Alert severity="info" sx={{ mb: 2 }}>
+              Select the fields you want to edit. Only selected fields will be included in the download template and editable during upload.
+            </Alert>
+            <FieldSelector 
+              warehouses={warehouses}
+              selectedFields={excelImportFields}
+              onChange={setExcelImportFields}
+            />
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '20px' }}>
+              <button className="btn btn-secondary" onClick={() => setShowExcelImportFieldSelector(false)}>Cancel</button>
+              <button 
+                className="btn btn-primary" 
+                onClick={() => {
+                  generateSelectiveTemplate(excelImportFields);
+                  setShowExcelImportFieldSelector(false);
+                }}
+                disabled={excelImportFields.length === 0}
+              >
+                Download Template
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Box>
   );
 }
@@ -2797,182 +2948,6 @@ function VariantsTab() {
               <div className="form-group"><label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><input type="checkbox" checked={formData.is_active} onChange={e => setFormData({...formData, is_active: e.target.checked})} /> Active</label></div>
               <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}><button type="submit" className="btn btn-primary">{editingVariant ? 'Update' : 'Save'}</button><button type="button" className="btn btn-secondary" onClick={resetForm}>Cancel</button></div>
             </form>
-          </div>
-        </div>
-      )}
-
-      {/* Excel Edit Mode - Field Selector Dialog */}
-      {showFieldSelector && (
-        <div className="modal-overlay open" onClick={() => setShowFieldSelector(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '900px', maxHeight: '90vh', overflow: 'auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h2 style={{ margin: 0 }}>Select Fields to Edit</h2>
-              <button onClick={() => setShowFieldSelector(false)} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}>×</button>
-            </div>
-            <FieldSelector 
-              warehouses={warehouses}
-              selectedFields={selectedEditFields}
-              onChange={setSelectedEditFields}
-            />
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '20px' }}>
-              <button className="btn btn-secondary" onClick={() => setShowFieldSelector(false)}>Cancel</button>
-              <button 
-                className="btn btn-primary" 
-                onClick={() => {
-                  setShowFieldSelector(false);
-                  setExcelEditMode(true);
-                }}
-                disabled={selectedEditFields.length === 0}
-              >
-                Start Excel Edit Mode
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Excel Editor Mode */}
-      {excelEditMode && (
-        <div className="modal-overlay open" style={{ alignItems: 'flex-start', paddingTop: '20px' }}>
-          <div 
-            className="modal-content" 
-            onClick={e => e.stopPropagation()} 
-            style={{ 
-              maxWidth: '98vw', 
-              width: '98vw', 
-              maxHeight: '95vh', 
-              height: '95vh',
-              display: 'flex',
-              flexDirection: 'column',
-            }}
-          >
-            <ExcelEditor
-              materials={materials}
-              warehouses={warehouses}
-              selectedFields={selectedEditFields}
-              onSave={async (changes) => {
-                // Apply changes to database
-                const nowIso = new Date().toISOString();
-                
-                for (const change of changes) {
-                  const fieldMapping: Record<string, string> = {
-                    'Sale Price': 'sale_price',
-                    'Purchase Price': 'purchase_price',
-                    'Display Name': 'display_name',
-                    'Category': 'main_category',
-                    'Sub Category': 'sub_category',
-                    'Size': 'size',
-                    'L×W×H': 'size_lwh',
-                    'Pressure': 'pressure_class',
-                    'Make': 'make',
-                    'Material': 'material',
-                    'Connection': 'end_connection',
-                    'Unit': 'unit',
-                    'HSN': 'hsn_code',
-                    'GST%': 'gst_rate',
-                    'Part #': 'part_number',
-                    'Taxable': 'taxable',
-                    'Weight': 'weight',
-                    'UPC': 'upc',
-                    'MPN': 'mpn',
-                    'EAN': 'ean',
-                    'Inv Account': 'inventory_account',
-                    'Active': 'is_active',
-                    'Low Stock': 'low_stock_level',
-                  };
-                  
-                  // Check if it's a stock field
-                  if (change.field.startsWith('Stock:')) {
-                    const warehouse = warehouses.find(w => change.field.includes(w.warehouse_name || w.name));
-                    if (warehouse) {
-                      // Update stock for specific warehouse
-                      const { data: existingStock } = await supabase
-                        .from('item_stock')
-                        .select('id')
-                        .eq('item_id', change.itemId)
-                        .eq('warehouse_id', warehouse.id)
-                        .maybeSingle();
-                      
-                      if (existingStock) {
-                        await supabase
-                          .from('item_stock')
-                          .update({ current_stock: change.newValue, updated_at: nowIso })
-                          .eq('id', existingStock.id);
-                      } else {
-                        await supabase
-                          .from('item_stock')
-                          .insert({
-                            item_id: change.itemId,
-                            warehouse_id: warehouse.id,
-                            current_stock: change.newValue,
-                            created_at: nowIso,
-                            updated_at: nowIso,
-                          });
-                      }
-                    }
-                  } else {
-                    // Update material field
-                    const dbField = fieldMapping[change.field];
-                    if (dbField) {
-                      await supabase
-                        .from('materials')
-                        .update({ [dbField]: change.newValue, updated_at: nowIso })
-                        .eq('id', change.itemId);
-                    }
-                  }
-                  
-                  // Log audit trail
-                  await supabase.from('item_audit_logs').insert({
-                    item_id: change.itemId,
-                    action: 'BULK_EXCEL_UPDATE',
-                    notes: `Field "${change.field}" changed from "${change.oldValue}" to "${change.newValue}" via Excel Edit Mode`,
-                    changes: JSON.stringify([{
-                      field: change.field,
-                      old_value: change.oldValue,
-                      new_value: change.newValue,
-                    }]),
-                    created_at: nowIso,
-                  });
-                }
-                
-                await refreshMaterials();
-              }}
-              onCancel={() => setExcelEditMode(false)}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Excel Import Field Selector */}
-      {showExcelImportFieldSelector && (
-        <div className="modal-overlay open" onClick={() => setShowExcelImportFieldSelector(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '900px', maxHeight: '90vh', overflow: 'auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h2 style={{ margin: 0 }}>Select Fields for Import Template</h2>
-              <button onClick={() => setShowExcelImportFieldSelector(false)} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}>×</button>
-            </div>
-            <Alert severity="info" sx={{ mb: 2 }}>
-              Select the fields you want to edit. Only selected fields will be included in the download template and editable during upload.
-            </Alert>
-            <FieldSelector 
-              warehouses={warehouses}
-              selectedFields={excelImportFields}
-              onChange={setExcelImportFields}
-            />
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '20px' }}>
-              <button className="btn btn-secondary" onClick={() => setShowExcelImportFieldSelector(false)}>Cancel</button>
-              <button 
-                className="btn btn-primary" 
-                onClick={() => {
-                  // Generate template with selected fields
-                  generateSelectiveTemplate(excelImportFields);
-                  setShowExcelImportFieldSelector(false);
-                }}
-                disabled={excelImportFields.length === 0}
-              >
-                Download Template
-              </button>
-            </div>
           </div>
         </div>
       )}
