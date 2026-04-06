@@ -47,36 +47,41 @@ function buildLedgerPdfDoc(
   const totalDebit = rows.reduce((sum, row) => sum + row.debit, 0);
   const totalCredit = rows.reduce((sum, row) => sum + row.credit, 0);
 
+  // Header area
   doc.setDrawColor(226, 232, 240);
-  doc.setFillColor(248, 250, 252);
-  doc.roundedRect(28, 26, 539, 770, 18, 18, 'S');
+  doc.setFillColor(250, 248, 245);
+  doc.roundedRect(28, 26, 539, 770, 12, 12, 'S');
 
-  doc.setFontSize(18);
-  doc.setTextColor(15, 23, 42);
-  doc.text('Ledger Statement', 44, 54);
+  doc.setFontSize(20);
+  doc.setTextColor(26, 35, 58);
+  doc.text('Ledger Statement', 44, 56);
   doc.setFontSize(9);
-  doc.setTextColor(100, 116, 139);
-  doc.text(`Statement Period: ${rangeLabel}`, 44, 70);
+  doc.setTextColor(100, 100, 120);
+  doc.text(`Period: ${rangeLabel}`, 44, 72);
 
-  doc.setTextColor(15, 23, 42);
-  doc.setFillColor(248, 250, 252);
-  doc.roundedRect(40, 88, 240, 74, 12, 12, 'F');
-  doc.roundedRect(287, 88, 240, 74, 12, 12, 'F');
-  doc.setFontSize(12);
-  doc.text(organisation.name, 52, 108);
-  doc.setFontSize(9);
-  doc.setTextColor(71, 85, 105);
+  // Org card
+  doc.setTextColor(26, 35, 58);
+  doc.setFillColor(250, 248, 245);
+  doc.roundedRect(40, 92, 235, 70, 8, 8, 'F');
+  doc.setFontSize(11);
+  doc.text(organisation.name, 52, 110);
+  doc.setFontSize(8);
+  doc.setTextColor(80, 80, 100);
   doc.text(`GSTIN: ${organisation.gstin}`, 52, 124);
-  doc.text(organisation.address, 52, 140, { maxWidth: 210 });
+  doc.text(organisation.address, 52, 138, { maxWidth: 205 });
 
-  doc.setTextColor(15, 23, 42);
-  doc.setFontSize(12);
-  doc.text(client.name, 299, 108);
-  doc.setFontSize(9);
-  doc.setTextColor(71, 85, 105);
-  doc.text(`GSTIN: ${client.gstin || '-'}`, 299, 124);
-  doc.text(`State: ${client.state || '-'}`, 299, 140);
+  // Client card
+  doc.setTextColor(26, 35, 58);
+  doc.setFillColor(250, 248, 245);
+  doc.roundedRect(292, 92, 235, 70, 8, 8, 'F');
+  doc.setFontSize(11);
+  doc.text(client.name, 304, 110);
+  doc.setFontSize(8);
+  doc.setTextColor(80, 80, 100);
+  doc.text(`GSTIN: ${client.gstin || '-'}`, 304, 124);
+  doc.text(`State: ${client.state || '-'}`, 304, 138);
 
+  // Table
   autoTable(doc, {
     startY: 180,
     head: [['Date', 'Type', 'Remarks', 'Debit Amount', 'Credit Amount']],
@@ -89,15 +94,17 @@ function buildLedgerPdfDoc(
     ]),
     theme: 'grid',
     styles: {
-      fontSize: 9,
-      cellPadding: 6,
+      fontSize: 8,
+      cellPadding: 5,
       lineColor: [226, 232, 240],
       lineWidth: 0.5,
+      font: 'helvetica',
     },
     headStyles: {
-      fillColor: [248, 250, 252],
-      textColor: [100, 116, 139],
-      fontSize: 8,
+      fillColor: [250, 248, 245],
+      textColor: [80, 80, 100],
+      fontSize: 7,
+      fontStyle: 'bold',
     },
     columnStyles: {
       3: { halign: 'right' },
@@ -105,23 +112,24 @@ function buildLedgerPdfDoc(
     },
   });
 
+  // Summary box
   const finalY = (doc as any).lastAutoTable?.finalY ?? 180;
-  const summaryY = finalY + 18;
-  doc.setFillColor(248, 250, 252);
-  doc.roundedRect(342, summaryY, 186, 82, 12, 12, 'F');
+  const summaryY = finalY + 16;
+  doc.setFillColor(250, 248, 245);
+  doc.roundedRect(342, summaryY, 186, 78, 8, 8, 'F');
+  doc.setFontSize(8);
+  doc.setTextColor(100, 100, 120);
+  doc.text('Total Debits', 354, summaryY + 18);
+  doc.text('Total Credits', 354, summaryY + 36);
   doc.setFontSize(9);
-  doc.setTextColor(100, 116, 139);
-  doc.text('Total Debits', 354, summaryY + 20);
-  doc.text('Total Credits', 354, summaryY + 40);
-  doc.setFontSize(10);
-  doc.setTextColor(15, 23, 42);
-  doc.text(formatCurrencyExplicit(totalDebit), 516, summaryY + 20, { align: 'right' });
-  doc.text(formatCurrencyExplicit(totalCredit), 516, summaryY + 40, { align: 'right' });
+  doc.setTextColor(26, 35, 58);
+  doc.text(formatCurrencyExplicit(totalDebit), 516, summaryY + 18, { align: 'right' });
+  doc.text(formatCurrencyExplicit(totalCredit), 516, summaryY + 36, { align: 'right' });
   doc.setDrawColor(226, 232, 240);
-  doc.line(354, summaryY + 52, 516, summaryY + 52);
-  doc.setFontSize(11);
-  doc.text('Net Balance', 354, summaryY + 70);
-  doc.text(formatCurrencyExplicit(netBalance), 516, summaryY + 70, { align: 'right' });
+  doc.line(354, summaryY + 48, 516, summaryY + 48);
+  doc.setFontSize(10);
+  doc.text('Net Balance', 354, summaryY + 66);
+  doc.text(formatCurrencyExplicit(netBalance), 516, summaryY + 66, { align: 'right' });
 
   return doc;
 }
@@ -177,13 +185,33 @@ export default function LedgerModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-[1100px] overflow-hidden rounded-[28px] border border-slate-200 p-0 shadow-[0_24px_64px_rgba(15,23,42,0.18)]">
-        <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+        
+        .font-display { font-family: 'Space Grotesk', system-ui, sans-serif; }
+        .font-body { font-family: 'IBM Plex Sans', system-ui, sans-serif; }
+        
+        .bg-cream-50 { background-color: oklch(0.97 0.01 85); }
+        .bg-cream-100 { background-color: oklch(0.94 0.02 85); }
+        .bg-navy-950 { background-color: oklch(0.18 0.03 260); }
+        .bg-navy-900 { background-color: oklch(0.25 0.04 260); }
+        .bg-navy-800 { background-color: oklch(0.32 0.05 260); }
+        .text-navy-950 { color: oklch(0.18 0.03 260); }
+        .text-navy-900 { color: oklch(0.25 0.04 260); }
+        .text-navy-600 { color: oklch(0.45 0.06 260); }
+        .text-navy-500 { color: oklch(0.55 0.06 260); }
+        .border-navy-200 { border-color: oklch(0.85 0.04 260); }
+        .border-navy-100 { border-color: oklch(0.91 0.03 260); }
+      `}</style>
+
+      <DialogContent className="max-h-[90vh] max-w-6xl overflow-hidden rounded-2xl border border-navy-100 bg-white p-0 shadow-2xl">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-navy-100 px-6 py-5">
           <DialogHeader className="mb-0 space-y-1">
-            <DialogTitle className="text-[20px] font-semibold tracking-tight text-slate-950">
+            <DialogTitle className="font-display text-xl font-semibold tracking-tight text-navy-950">
               Ledger Statement
             </DialogTitle>
-            <DialogDescription className="text-[13px] text-slate-500">
+            <DialogDescription className="font-body text-sm text-navy-500">
               {client?.name ?? 'Client'} • {rangeLabel}
             </DialogDescription>
           </DialogHeader>
@@ -193,16 +221,16 @@ export default function LedgerModal({
               type="button"
               onClick={() => client && summary && downloadLedgerPdf(orgDetails, client, rows, summary, rangeLabel)}
               disabled={!client || !summary}
-              className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3.5 py-2 text-[12px] font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              className="font-body inline-flex items-center gap-2 rounded-lg border border-navy-200 px-3 py-2 text-xs font-semibold text-navy-700 transition hover:bg-cream-50 disabled:cursor-not-allowed disabled:opacity-40"
             >
               <Download size={14} />
-              Download PDF
+              PDF
             </button>
             <button
               type="button"
               onClick={() => client && summary && printLedgerPdf(orgDetails, client, rows, summary, rangeLabel)}
               disabled={!client || !summary}
-              className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-3.5 py-2 text-[12px] font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              className="font-body inline-flex items-center gap-2 rounded-lg border border-navy-200 px-3 py-2 text-xs font-semibold text-navy-700 transition hover:bg-cream-50 disabled:cursor-not-allowed disabled:opacity-40"
             >
               <Printer size={14} />
               Print
@@ -211,15 +239,15 @@ export default function LedgerModal({
               type="button"
               onClick={() => client && onEditLedger(client.id)}
               disabled={!client}
-              className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-3.5 py-2 text-[12px] font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+              className="font-body inline-flex items-center gap-2 rounded-lg bg-navy-950 px-3 py-2 text-xs font-semibold text-white transition hover:bg-navy-900 disabled:cursor-not-allowed disabled:opacity-40"
             >
               <FilePenLine size={14} />
-              Edit Ledger
+              Edit
             </button>
             <button
               type="button"
               onClick={() => onOpenChange(false)}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-slate-600 transition hover:bg-slate-50"
+              className="font-body inline-flex h-9 w-9 items-center justify-center rounded-lg border border-navy-200 text-navy-600 transition hover:bg-cream-50"
               aria-label="Close"
             >
               <X size={14} />
@@ -227,64 +255,66 @@ export default function LedgerModal({
           </div>
         </div>
 
-        <div className="max-h-[calc(90vh-88px)] overflow-auto bg-slate-50/70 px-6 py-6">
-          <div className="mx-auto flex max-w-[960px] flex-col gap-5 rounded-[24px] border border-slate-200 bg-white p-6">
+        {/* Content */}
+        <div className="max-h-[calc(90vh-88px)] overflow-auto bg-cream-50 px-6 py-6">
+          <div className="mx-auto flex max-w-5xl flex-col gap-5 rounded-xl border border-navy-100 bg-white p-6">
+            {/* Info Cards */}
             <div className="grid gap-4 md:grid-cols-2">
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Company</div>
-                <div className="mt-3 text-[18px] font-semibold tracking-tight text-slate-950">{orgDetails.name}</div>
-                <div className="mt-2 text-[13px] leading-6 text-slate-500">GSTIN: {orgDetails.gstin}</div>
-                <div className="text-[13px] leading-6 text-slate-500">{orgDetails.address}</div>
+              <div className="rounded-lg border border-navy-100 bg-cream-50 p-4">
+                <span className="font-body text-xs font-semibold uppercase tracking-[0.15em] text-navy-500">Company</span>
+                <div className="font-display mt-2 text-lg font-semibold tracking-tight text-navy-950">{orgDetails.name}</div>
+                <div className="font-body mt-1 text-sm text-navy-600">GSTIN: {orgDetails.gstin}</div>
+                <div className="font-body text-sm text-navy-600">{orgDetails.address}</div>
               </div>
 
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Client</div>
-                <div className="mt-3 text-[18px] font-semibold tracking-tight text-slate-950">{client?.name ?? '-'}</div>
-                <div className="mt-2 text-[13px] leading-6 text-slate-500">GSTIN: {client?.gstin || '-'}</div>
-                <div className="text-[13px] leading-6 text-slate-500">State: {client?.state || '-'}</div>
-                <div className="text-[13px] leading-6 text-slate-500">Statement Period: {rangeLabel}</div>
+              <div className="rounded-lg border border-navy-100 bg-cream-50 p-4">
+                <span className="font-body text-xs font-semibold uppercase tracking-[0.15em] text-navy-500">Client</span>
+                <div className="font-display mt-2 text-lg font-semibold tracking-tight text-navy-950">{client?.name ?? '-'}</div>
+                <div className="font-body mt-1 text-sm text-navy-600">GSTIN: {client?.gstin || '-'}</div>
+                <div className="font-body text-sm text-navy-600">State: {client?.state || '-'}</div>
               </div>
             </div>
 
-            <div className="overflow-hidden rounded-[20px] border border-slate-200">
-              <table className="min-w-full table-fixed">
+            {/* Table */}
+            <div className="overflow-hidden rounded-lg border border-navy-100">
+              <table className="w-full">
                 <thead>
-                  <tr className="bg-slate-50 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  <tr className="bg-cream-100 font-body text-left text-xs font-semibold uppercase tracking-[0.15em] text-navy-600">
                     <th className="px-4 py-3">Date</th>
                     <th className="px-4 py-3">Type</th>
                     <th className="px-4 py-3">Remarks</th>
-                    <th className="px-4 py-3 text-right">Debit Amount</th>
-                    <th className="px-4 py-3 text-right">Credit Amount</th>
+                    <th className="px-4 py-3 text-right">Debit</th>
+                    <th className="px-4 py-3 text-right">Credit</th>
                   </tr>
                 </thead>
                 <tbody>
                   {rows.length === 0 && (
                     <tr>
-                      <td colSpan={5} className="px-4 py-12 text-center text-[13px] text-slate-500">
-                        No ledger entries in this date range.
+                      <td colSpan={5} className="px-4 py-12 text-center">
+                        <span className="font-body text-sm text-navy-500">No ledger entries in this date range.</span>
                       </td>
                     </tr>
                   )}
 
                   {rows.map((row) => (
-                    <tr key={row.id} className="border-t border-slate-100 text-[13px] text-slate-700">
+                    <tr key={row.id} className="font-body border-t border-navy-100 text-sm text-navy-700 transition hover:bg-cream-50">
                       <td className="px-4 py-3">{formatDisplayDate(row.date)}</td>
                       <td className="px-4 py-3">
                         <span
-                          className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                          className={`font-body inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
                             row.type === 'Debit'
-                              ? 'bg-rose-50 text-rose-700'
-                              : 'bg-emerald-50 text-emerald-700'
+                              ? 'bg-rose-100 text-rose-800'
+                              : 'bg-emerald-100 text-emerald-800'
                           }`}
                         >
                           {row.type}
                         </span>
                       </td>
                       <td className="px-4 py-3">{row.remarks}</td>
-                      <td className="px-4 py-3 text-right font-medium text-slate-900">
+                      <td className="px-4 py-3 text-right font-display font-medium text-navy-950">
                         {row.debit ? formatCurrency(row.debit) : '-'}
                       </td>
-                      <td className="px-4 py-3 text-right font-medium text-slate-900">
+                      <td className="px-4 py-3 text-right font-display font-medium text-navy-950">
                         {row.credit ? formatCurrency(row.credit) : '-'}
                       </td>
                     </tr>
@@ -293,16 +323,17 @@ export default function LedgerModal({
               </table>
             </div>
 
-            <div className="ml-auto grid w-full max-w-[340px] gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <div className="flex items-center justify-between text-[13px] text-slate-600">
+            {/* Summary */}
+            <div className="ml-auto w-full max-w-xs rounded-lg border border-navy-100 bg-cream-50 p-4">
+              <div className="flex items-center justify-between font-body text-sm text-navy-600">
                 <span>Total Debits</span>
-                <strong className="text-slate-900">{formatCurrency(totalDebit)}</strong>
+                <strong className="font-display text-navy-950">{formatCurrency(totalDebit)}</strong>
               </div>
-              <div className="flex items-center justify-between text-[13px] text-slate-600">
+              <div className="flex items-center justify-between font-body text-sm text-navy-600">
                 <span>Total Credits</span>
-                <strong className="text-slate-900">{formatCurrency(totalCredit)}</strong>
+                <strong className="font-display text-navy-950">{formatCurrency(totalCredit)}</strong>
               </div>
-              <div className="mt-2 flex items-center justify-between border-t border-slate-200 pt-3 text-[15px] font-semibold text-slate-950">
+              <div className="mt-2 flex items-center justify-between border-t border-navy-200 pt-2 font-display text-base font-semibold text-navy-950">
                 <span>Net Balance</span>
                 <span>{formatCurrency(netBalance)}</span>
               </div>
