@@ -78,6 +78,7 @@ const SubcontractorView = lazyAny(() => Subcontractors.then(m => ({ default: m.S
 const SubcontractorEdit = lazyAny(() => Subcontractors.then(m => ({ default: m.SubcontractorEdit })));
 const SubcontractorAttendance = lazyAny(() => Subcontractors.then(m => ({ default: m.SubcontractorAttendance })));
 const SubcontractorWorkOrders = lazyAny(() => import('./pages/SubcontractorWorkOrderProfessional').then(m => ({ default: m.WorkOrderList })));
+const WorkOrderDetailView = lazyAny(() => import('./pages/WorkOrderDetailView').then(m => ({ default: m.WorkOrderDetailView })));
 const SubcontractorDailyLogs = lazyAny(() => Subcontractors.then(m => ({ default: m.SubcontractorDailyLogs })));
 const SubcontractorPayments = lazyAny(() => Subcontractors.then(m => ({ default: m.SubcontractorPayments })));
 const SubcontractorInvoices = lazyAny(() => Subcontractors.then(m => ({ default: m.SubcontractorInvoices })));
@@ -359,6 +360,7 @@ export default function App() {
       case '/subcontractors/edit': return <SubcontractorEdit onNavigate={navigate} />;
       case '/subcontractors/attendance': return <SubcontractorAttendance onNavigate={navigate} />;
       case '/subcontractors/workorders': return <SubcontractorWorkOrders onNavigate={navigate} />;
+      case '/subcontractors/work-orders': return <WorkOrderDetailView onBack={() => navigate('/subcontractors/workorders')} />;
       case '/subcontractors/dailylogs': return <SubcontractorDailyLogs onNavigate={navigate} />;
       case '/subcontractors/payments': return <SubcontractorPayments onNavigate={navigate} />;
       case '/subcontractors/invoices': return <SubcontractorInvoices onNavigate={navigate} />;

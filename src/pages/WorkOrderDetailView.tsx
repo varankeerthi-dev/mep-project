@@ -1,10 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../supabase';
 import { MeasurementSheetList } from '../components/MeasurementSheetList';
 import { SpreadsheetMeasurementSheet } from '../components/SpreadsheetMeasurementSheet';
 import { FinalPaymentModal } from '../components/FinalPaymentModal';
-import { useSubcontractorLedger } from '../hooks/useSubcontractorLedger';
 import { useMeasurementSheets } from '../hooks/useMeasurementSheets';
 import { formatCurrency } from '../utils/formatters';
 import { ArrowLeft, FileText, Ruler, DollarSign, History, Plus, Download } from 'lucide-react';
@@ -12,17 +11,32 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 interface WorkOrderDetailViewProps {
-  workOrderId: string;
   onBack: () => void;
 }
 
+// Helper to get query params
+const getCurrentQueryParams = () => {
+  if (typeof window === 'undefined') return new URLSearchParams();
+  return new URLSearchParams(window.location.search);
+};
+
 type TabType = 'details' | 'measurements' | 'payments' | 'ledger';
 
-export function WorkOrderDetailView({ workOrderId, onBack }: WorkOrderDetailViewProps) {
+export function WorkOrderDetailView({ onBack }: WorkOrderDetailViewProps) {
   const [activeTab, setActiveTab] = useState<TabType>('details');
   const [showMeasurementModal, setShowMeasurementModal] = useState(false);
   const [showFinalPaymentModal, setShowFinalPaymentModal] = useState(false);
+  const [workOrderId, setWorkOrderId] = useState<string>('');
   const queryClient = useQueryClient();
+
+  // Get work order ID from URL on mount
+  useEffect(() => {
+    const params = getCurrentQueryParams();
+    const id = params.get('id');
+    if (id) {
+      setWorkOrderId(id);
+    }
+  }, []);
 
   // Fetch work order details
   const { data: workOrder, isLoading: woLoading } = useQuery({

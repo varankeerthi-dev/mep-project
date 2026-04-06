@@ -1143,7 +1143,8 @@ export function WorkOrderList({ onNavigate }: { onNavigate?: (path: string) => v
           workOrders.map((wo: any) => (
             <div
               key={wo.id}
-              className="rounded-lg border border-slate-200 bg-white p-4 transition hover:shadow-md"
+              onClick={() => onNavigate?.(`/subcontractors/work-orders?id=${wo.id}`)}
+              className="rounded-lg border border-slate-200 bg-white p-4 transition hover:shadow-md cursor-pointer"
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
@@ -1185,17 +1186,20 @@ export function WorkOrderList({ onNavigate }: { onNavigate?: (path: string) => v
                 </div>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => {
-                      setSelectedWO(wo);
-                      setIsModalOpen(true);
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onNavigate?.(`/subcontractors/work-orders?id=${wo.id}`);
                     }}
                     className="rounded p-2 text-blue-600 transition hover:bg-blue-50"
-                    title="Edit"
+                    title="View Details"
                   >
                     <Edit size={16} />
                   </button>
                   <button
-                    onClick={() => handleDownloadPDF(wo)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDownloadPDF(wo);
+                    }}
                     className="rounded p-2 text-slate-600 transition hover:bg-slate-50"
                     title="Download PDF"
                   >
