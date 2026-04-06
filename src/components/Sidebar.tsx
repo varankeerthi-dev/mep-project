@@ -55,7 +55,7 @@ type SidebarProps = {
 
 const menuData: MenuSection[] = [
   {
-    section: 'Overview',
+    section: 'Dashboard',
     items: [
       { id: 'dashboard', label: 'Dashboard', path: '/' }
     ]
@@ -63,16 +63,12 @@ const menuData: MenuSection[] = [
   {
     section: 'Projects',
     items: [
-      { 
-        id: 'projects', 
-        label: 'Project', 
-        submenu: [
-          { id: 'projects-new', label: 'New Project', path: '/projects/new' },
-          { id: 'projects-list', label: 'Project List', path: '/projects' },
-          { id: 'daily-updates', label: 'Daily Updates', path: '/projects/daily-updates' },
-          { id: 'site-materials', label: 'Site Materials', path: '/projects/site-materials' }
-        ]
-      },
+      { id: 'projects', label: 'Projects', path: '/projects' }
+    ]
+  },
+  {
+    section: 'Tasks',
+    items: [
       { id: 'todo', label: 'To Do List', path: '/todo' },
       { id: 'approvals', label: 'Approvals', path: '/approvals' }
     ]
@@ -147,7 +143,7 @@ const menuData: MenuSection[] = [
     ]
   },
   {
-    section: 'Documents',
+    section: 'Sales',
     items: [
       { 
         id: 'quotation', 
@@ -180,13 +176,13 @@ const menuData: MenuSection[] = [
         ]
       },
       { id: 'documents', label: 'Documents', path: '/documents' },
-      { id: 'issue', label: 'Issue', path: '/issue' },
-      { id: 'client-comm', label: 'Client Communication', path: '/client-comm' }
+      { id: 'issue', label: 'Issue', path: '/issue' }
     ]
   },
   {
-    section: 'Material',
+    section: 'Inventory',
     items: [
+      { id: 'procurement', label: 'Procurement', path: '/procurement' },
       { 
         id: 'store', 
         label: 'Material', 
@@ -209,18 +205,7 @@ const menuData: MenuSection[] = [
         id: 'purchase', 
         label: 'Purchase', 
         path: '/purchase'
-      },
-      {
-        id: 'procurement',
-        label: 'Procurement',
-        path: '/procurement'
       }
-    ]
-  },
-  {
-    section: 'Tools',
-    items: [
-      { id: 'tools', label: 'Tools', path: '/tools' }
     ]
   },
   {
@@ -247,11 +232,11 @@ const menuData: MenuSection[] = [
     ]
   },
   {
-    section: 'Report',
+    section: 'Reports',
     items: [
       { 
         id: 'reports', 
-        label: 'Report', 
+        label: 'Reports', 
         submenu: [
           { id: 'stock-report', label: 'Stock Report', path: '/reports/stock' },
           { id: 'purchase-report', label: 'Purchase Report', path: '/reports/purchase' },
@@ -298,11 +283,9 @@ const iconMap = {
   boq: TableCellsIcon,
   documents: FolderOpenIcon,
   issue: ExclamationTriangleIcon,
-  'client-comm': ChatBubbleLeftRightIcon,
   store: CubeIcon,
   purchase: ShoppingCartIcon,
   procurement: ClipboardDocumentListIcon,
-  tools: WrenchScrewdriverIcon,
   dc: TruckIcon,
   'non-billable-dc': TruckIcon,
   reports: ChartBarIcon,

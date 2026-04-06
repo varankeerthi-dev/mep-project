@@ -50,6 +50,7 @@ const QuickStockCheckList = lazyAny(() => import('./pages/QuickStockCheckList'))
 const QuickStockCheck = lazyAny(() => import('./pages/QuickStockCheck'));
 const ProcurementList = lazyAny(() => import('./pages/ProcurementList'));
 const ProcurementDetail = lazyAny(() => import('./pages/ProcurementDetail'));
+const Projects = lazyAny(() => import('./pages/Projects'));
 
 // Lazy load internally moved pages
 const Dashboard = lazyAny(() => import('./pages/Dashboard'));
@@ -335,11 +336,11 @@ export default function App() {
         return authUser ? <Dashboard onNavigate={navigate} /> : <LandingPage />;
       case '/login': 
         return authUser ? <Dashboard onNavigate={navigate} /> : <Login onLogin={() => {}} onSwitch={() => setAuthView('signup')} />;
-      case '/projects/new': return <CreateProject onSuccess={() => navigate('/projects')} onCancel={() => navigate('/projects')} />;
-      case '/projects/edit': return <CreateProject />;
-      case '/projects': return <ProjectList />;
-      case '/projects/daily-updates': return <DailyUpdates />;
-      case '/projects/site-materials': return <SiteMaterials />;
+      case '/projects': return <Projects />;
+      case '/projects/new': return <Projects />;
+      case '/projects/edit': return <Projects />;
+      case '/projects/daily-updates': return <Projects />;
+      case '/projects/site-materials': return <Projects />;
       case '/todo': return <TodoList />;
       case '/remindme': return <RemindMe />;
       case '/approvals': return <Approvals />;
