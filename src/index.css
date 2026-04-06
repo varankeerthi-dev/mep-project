@@ -1664,6 +1664,43 @@ body {
   text-align: center;
 }
 
+/* Dashboard Animations & Responsive */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.show-on-lg {
+  display: block;
+}
+
+.hide-on-lg {
+  display: none;
+}
+
+@media (max-width: 1024px) {
+  .show-on-lg {
+    display: none;
+  }
+  
+  .hide-on-lg {
+    display: block;
+  }
+}
+
 /* Mobile */
 @media (max-width: 768px) {
   .sidebar {
