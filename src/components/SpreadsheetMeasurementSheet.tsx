@@ -52,6 +52,7 @@ export function SpreadsheetMeasurementSheet({
   
   // Column definitions
   const columns = [
+    { key: 'sno', label: 'S.No', width: 50, type: 'readonly' },
     { key: 'description', label: 'Description', width: 250, type: 'text' },
     { key: 'unit', label: 'Unit', width: 80, type: 'text' },
     { key: 'contract_qty', label: 'Contract Qty', width: 100, type: 'number' },
@@ -71,6 +72,12 @@ export function SpreadsheetMeasurementSheet({
   // Cell value getter
   const getCellValue = (row: number, col: number): string => {
     if (row < 0 || row >= rows.length || col < 0 || col >= columns.length) return '';
+    
+    // Handle S.No column
+    if (columns[col].key === 'sno') {
+      return String(row + 1);
+    }
+    
     const item = rows[row];
     const colKey = columns[col].key as keyof MeasurementLineItem;
     const value = item[colKey];
@@ -203,7 +210,7 @@ export function SpreadsheetMeasurementSheet({
   
   // Cell click handler
   const handleCellClick = (row: number, col: number) => {
-    if (columns[col].type === 'calculated') return; // Can't edit calculated cells
+    if (columns[col].type === 'calculated' || columns[col].type === 'readonly') return; // Can't edit calculated or readonly cells
     setActiveCell({ row, col });
     setEditValue(getCellValue(row, col));
     setIsEditing(true);
@@ -370,32 +377,32 @@ export function SpreadsheetMeasurementSheet({
       <div className="bg-white p-4 overflow-auto">
         <table className="border-collapse">
           <thead>
-            <tr>
-              <th className="w-10 border border-gray-400 bg-gray-100 p-1"></th>
-              {columns.map((col, i) => (
-                <th 
-                  key={col.key}
-                  className="border border-gray-400 bg-gray-100 p-1 text-xs font-bold text-center"
-                  style={{ width: col.width, minWidth: col.width }}
-                >
-                  {String.fromCharCode(65 + i)}
-                </th>
-              ))}
-              <th className="w-10 border border-gray-400 bg-gray-100 p-1"></th>
-            </tr>
-            <tr>
-              <th className="border border-gray-400 bg-gray-200 p-1 text-xs">#</th>
-              {columns.map(col => (
-                <th 
-                  key={col.key}
-                  className="border border-gray-400 bg-gray-200 p-1 text-xs"
-                  style={{ width: col.width, minWidth: col.width }}
-                >
-                  {col.label}
-                </th>
-              ))}
-              <th className="border border-gray-400 bg-gray-200 p-1 text-xs">Del</th>
-            </tr>
+             <tr>
+               <th className="w-10 border border-gray-400 bg-gray-100 p-1"></th>
+               {columns.filter(col => col.key !== 'sno').map((col, i) => (
+                 <th 
+                   key={col.key}
+                   className="border border-gray-400 bg-gray-100 p-1 text-xs font-bold text-center"
+                   style={{ width: col.width, minWidth: col.width }}
+                 >
+                   {String.fromCharCode(65 + i)}
+                 </th>
+               ))}
+               <th className="w-10 border border-gray-400 bg-gray-100 p-1"></th>
+             </tr>
+             <tr>
+               <th className="border border-gray-400 bg-gray-200 p-1 text-xs">#</th>
+               {columns.filter(col => col.key !== 'sno').map(col => (
+                 <th 
+                   key={col.key}
+                   className="border border-gray-400 bg-gray-200 p-1 text-xs"
+                   style={{ width: col.width, minWidth: col.width }}
+                 >
+                   {col.label}
+                 </th>
+               ))}
+               <th className="border border-gray-400 bg-gray-200 p-1 text-xs">Del</th>
+             </tr>
           </thead>
           <tbody>
             {rows.map((row, rowIndex) => (
@@ -403,17 +410,17 @@ export function SpreadsheetMeasurementSheet({
                 <td className="border border-gray-400 bg-gray-100 p-1 text-center text-xs font-bold">
                   {rowIndex + 1}
                 </td>
-                {columns.map((col, colIndex) => {
-                  const isActive = activeCell.row === rowIndex && activeCell.col === colIndex;
+                {columns.filter(col => col.key !== 'sno').map((col, colIndex) => {
+                  const isActive = activeCell.row === rowIndex && activeCell.col === colIndex + 1; // +1 because S.No is col 0
                   const isCalculated = col.type === 'calculated';
-                  const value = getCellValue(rowIndex, colIndex);
+                  const value = getCellValue(rowIndex, colIndex + 1);
                   
                   return (
                     <td
                       key={col.key}
                       className={`border border-gray-400 p-0 ${isActive ? 'bg-blue-100' : ''} ${isCalculated ? 'bg-gray-50' : ''}`}
                       style={{ width: col.width, minWidth: col.width, height: '28px' }}
-                      onClick={() => handleCellClick(rowIndex, colIndex)}
+                      onClick={() => handleCellClick(rowIndex, colIndex + 1)}
                     >
                       {isActive && isEditing && !isCalculated ? (
                         <input
@@ -447,6 +454,20 @@ export function SpreadsheetMeasurementSheet({
                 </td>
               </tr>
             ))}
+            {/* TOTALS ROW */}
+            <tr className="bg-yellow-50 font-bold border-t-2 border-black">
+              <td className="border border-gray-400 p-1 text-center text-xs font-bold bg-gray-200">
+                TOTAL
+              </td>
+              <td className="border border-gray-400 p-1 text-center" colSpan={4}></td>
+              <td className="border border-gray-400 p-1 text-right">
+                {formatCurrency(totals.actualValue)}
+              </td>
+              <td className={`border border-gray-400 p-1 text-right ${totals.difference > 0 ? 'text-red-600' : totals.difference < 0 ? 'text-green-600' : ''}`}>
+                {totals.difference > 0 ? '+' : ''}{formatCurrency(totals.difference)}
+              </td>
+              <td className="border border-gray-400 p-1 text-center"></td>
+            </tr>
           </tbody>
         </table>
         
