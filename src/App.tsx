@@ -77,7 +77,7 @@ const CreateSubcontractor = lazyAny(() => Subcontractors.then(m => ({ default: m
 const SubcontractorView = lazyAny(() => Subcontractors.then(m => ({ default: m.SubcontractorView })));
 const SubcontractorEdit = lazyAny(() => Subcontractors.then(m => ({ default: m.SubcontractorEdit })));
 const SubcontractorAttendance = lazyAny(() => Subcontractors.then(m => ({ default: m.SubcontractorAttendance })));
-const SubcontractorWorkOrders = lazyAny(() => Subcontractors.then(m => ({ default: m.SubcontractorWorkOrders })));
+const SubcontractorWorkOrders = lazyAny(() => import('./pages/SubcontractorWorkOrderProfessional').then(m => ({ default: m.WorkOrderList })));
 const SubcontractorDailyLogs = lazyAny(() => Subcontractors.then(m => ({ default: m.SubcontractorDailyLogs })));
 const SubcontractorPayments = lazyAny(() => Subcontractors.then(m => ({ default: m.SubcontractorPayments })));
 const SubcontractorInvoices = lazyAny(() => Subcontractors.then(m => ({ default: m.SubcontractorInvoices })));
