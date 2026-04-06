@@ -340,10 +340,31 @@ function ItemsTab() {
     staleTime: 10 * 60 * 1000
   });
 
+  const warehousesQuery = useQuery({
+    queryKey: ['warehouses'],
+    queryFn: async () => {
+      try {
+        const data = await timedSupabaseQuery(
+          supabase.from('warehouses').select('*').eq('is_active', true).order('warehouse_name'),
+          'Warehouses'
+        );
+        return data || [];
+      } catch (error) {
+        if (isMissingRelationError(error)) {
+          console.log('warehouses table not found');
+          return [];
+        }
+        throw error;
+      }
+    },
+    staleTime: 10 * 60 * 1000
+  });
+
   const materials = materialsQuery.data || [];
   const categories = categoriesQuery.data || [];
   const units = unitsQuery.data || [];
   const variants = variantsQuery.data || [];
+  const warehouses = warehousesQuery.data || [];
   const categoryOptions = categories.length > 0 ? categories.map((c) => c.category_name) : MAIN_CATEGORIES;
   const materialsError = materialsQuery.error instanceof Error ? materialsQuery.error.message : '';
   const auxiliaryQueryError =
