@@ -1427,11 +1427,10 @@ body {
 /* Sidebar Styles - Shadcn Inspired Compact Design */
 .sidebar {
   position: fixed;
-  top: 0;
+  top: 60px;                          /* was: top: 0 + padding-top: 60px */
   left: 0;
   width: 260px;
-  height: 100vh;
-  padding-top: 60px;
+  height: calc(100vh - 60px);        /* was: height: 100vh */
   background: #ffffff;
   border-right: 1px solid #e5e7eb;
   overflow: hidden;
