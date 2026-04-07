@@ -37,6 +37,8 @@ export default function Projects() {
       tabConfig.component().then(mod => {
         setComponent(() => mod.default);
       });
+    } else if (tab === 'material-management') {
+      setComponent(null);
     } else {
       setComponent(null);
     }
@@ -44,7 +46,9 @@ export default function Projects() {
 
   const handleTabChange = (tabId: string) => {
     setSearchParams({ tab: tabId });
-    setSelectedProjectId(null);
+    if (tabId !== 'material-management') {
+      setSelectedProjectId(null);
+    }
   };
 
   const handleSelectProject = (id: string, orgId: string, name: string) => {
