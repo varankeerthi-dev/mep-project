@@ -3,6 +3,9 @@ import { useSearchParams } from 'react-router-dom';
 import { Folder, Plus, ClipboardList, Package, ArrowLeft } from 'lucide-react';
 import { supabase } from '../supabase';
 import { useQuery } from '@tanstack/react-query';
+import ProjectMaterialIntents from './ProjectMaterialIntents';
+import ReceiveMaterial from './ReceiveMaterial';
+import ProjectMaterialDashboard from './ProjectMaterialDashboard';
 
 const ProjectList = () => import('./ProjectList').then(m => ({ default: m.default }));
 const CreateProject = () => import('./CreateProject').then(m => ({ default: m.default }));
@@ -20,10 +23,6 @@ const TABS = [
 function FileText() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>; }
 function Truck() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>; }
 function BarChart() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 3v18h18"/><path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"/></svg>; }
-
-import ProjectMaterialIntents from './ProjectMaterialIntents';
-import ReceiveMaterial from './ReceiveMaterial';
-import ProjectMaterialDashboard from './ProjectMaterialDashboard';
 
 export default function Projects() {
   const [searchParams, setSearchParams] = useSearchParams();
