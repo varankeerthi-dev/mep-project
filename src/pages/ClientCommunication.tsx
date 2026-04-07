@@ -381,6 +381,7 @@ export function ClientCommunication() {
   // Create client
   const createClientMutation = useMutation({
     mutationFn: async (clientData: any) => {
+      console.log('Starting client creation with data:', clientData);
       // Auto-generate client_id if not provided, and handle empty string
       const { client_id, ...rest } = clientData;
       const dataToInsert = {
@@ -388,21 +389,29 @@ export function ClientCommunication() {
         client_id: client_id && client_id.trim() !== '' ? client_id : `CL-${Date.now()}`,
         created_at: new Date().toISOString(),
       };
-      console.log('Creating client with data:', dataToInsert);
-      const { data: result, error } = await supabase
-        .from('clients')
-        .insert(dataToInsert)
-        .select('id, client_name')
-        .single();
-      if (error) {
-        console.error('Create client error:', error);
-        throw error;
+      console.log('Inserting client data:', dataToInsert);
+      
+      try {
+        const { data: result, error } = await supabase
+          .from('clients')
+          .insert(dataToInsert)
+          .select('id, client_name')
+          .single();
+          
+        if (error) {
+          console.error('Create client error from Supabase:', error);
+          throw new Error(error.message || 'Failed to create client');
+        }
+        
+        console.log('Client created successfully:', result);
+        return result;
+      } catch (err) {
+        console.error('Exception during client creation:', err);
+        throw err;
       }
-      console.log('Client created:', result);
-      return result;
     },
     onSuccess: (result) => {
-      console.log('Client mutation success, invalidating cache...');
+      console.log('Client mutation success callback, invalidating cache...');
       queryClient.invalidateQueries({ queryKey: ['clients'] });
       setShowAddClientModal(false);
       // Auto-select the newly created client in the form
@@ -425,7 +434,7 @@ export function ClientCommunication() {
       });
     },
     onError: (error: any) => {
-      console.error('Client mutation error:', error);
+      console.error('Client mutation error in onError callback:', error);
       alert('Failed to create client: ' + (error?.message || 'Unknown error'));
     },
   });
