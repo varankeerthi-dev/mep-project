@@ -277,7 +277,7 @@ export function ClientCommunication() {
   const validateSession = async () => {
     const { data: { session }, error } = await supabase.auth.getSession();
     if (error || !session) {
-      throw new Error('Session expired. Please refresh the page and log in again.');
+      throw new Error('Session expired. Please refresh the page to continue.');
     }
     return session;
   };
@@ -326,7 +326,7 @@ export function ClientCommunication() {
       resetForm();
     },
     onError: (error: any) => {
-      const message = error?.message || 'Failed to save. Please refresh and try again.';
+      const message = error?.message || 'Failed to save. Please refresh the page to continue.';
       alert('Error: ' + message);
     },
   });
@@ -375,7 +375,7 @@ export function ClientCommunication() {
       resetForm();
     },
     onError: (error: any) => {
-      const message = error?.message || 'Failed to save entry. Please refresh and try again.';
+      const message = error?.message || 'Failed to save entry. Please refresh the page to continue.';
       alert('Error: ' + message);
     },
   });
@@ -395,7 +395,7 @@ export function ClientCommunication() {
       setSelectedCommunication(null);
     },
     onError: (error: any) => {
-      const message = error?.message || 'Failed to update. Please refresh and try again.';
+      const message = error?.message || 'Failed to update. Please refresh the page to continue.';
       alert('Error: ' + message);
     },
   });
@@ -425,7 +425,7 @@ export function ClientCommunication() {
       setNewClientData({ client_id: '', client_name: '', contact_person: '', contact_number: '', email: '', city: '', state: '', address1: '' });
     },
     onError: (error: any) => {
-      const message = error?.message || 'Failed to create client. Please refresh and try again.';
+      const message = error?.message || 'Failed to create client. Please refresh the page to continue.';
       alert('Error: ' + message);
     },
   });
@@ -443,7 +443,7 @@ export function ClientCommunication() {
       setSiteVisitData({ visit_date: '', visit_time: '', assigned_to: '', notes: '' });
     },
     onError: (error: any) => {
-      const message = error?.message || 'Failed to schedule visit. Please refresh and try again.';
+      const message = error?.message || 'Failed to schedule visit. Please refresh the page to continue.';
       alert('Error: ' + message);
     },
   });
