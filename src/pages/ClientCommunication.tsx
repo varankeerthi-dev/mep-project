@@ -49,7 +49,7 @@ import {
   Users,
   UsersRound,
 } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, parseISO, isSameDay, isToday } from 'date-fns';
+import { format, startOfMonth, endOfMonth, parseISO, isSameDay, isToday, formatDistanceToNow } from 'date-fns';
 
 const CALL_CATEGORIES = [
   { value: '', label: 'All Types' },
@@ -94,6 +94,33 @@ const CATEGORY_ICONS = {
   meeting: Users,
 };
 
+const ENTRY_TYPE_ICONS: Record<string, any> = {
+  call: Phone,
+  email: Mail,
+  whatsapp: Smartphone,
+  meeting: Users,
+  note: MessageSquare,
+  sms: MessageCircle,
+};
+
+const ENTRY_TYPE_OPTIONS = [
+  { value: 'call', label: 'Call' },
+  { value: 'email', label: 'Email' },
+  { value: 'whatsapp', label: 'WhatsApp' },
+  { value: 'meeting', label: 'Meeting' },
+  { value: 'note', label: 'Note' },
+  { value: 'sms', label: 'SMS' },
+];
+
+const OUTCOME_OPTIONS = [
+  { value: '', label: 'No Outcome' },
+  { value: 'discussed', label: 'Discussed' },
+  { value: 'approved', label: 'Approved' },
+  { value: 'pending', label: 'Pending' },
+  { value: 'escalated', label: 'Escalated' },
+  { value: 'follow_up_required', label: 'Follow-up Required' },
+];
+
 export function ClientCommunication() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -104,6 +131,9 @@ export function ClientCommunication() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  // Phase 2: Thread and entry states
+  const [showAddEntryModal, setShowAddEntryModal] = useState(false);
+  const [expandedThreads, setExpandedThreads] = useState<Set<string>>(new Set());
 
   // Filters
   const [filters, setFilters] = useState({
@@ -238,6 +268,49 @@ export function ClientCommunication() {
     },
   });
 
+  // Phase 2: Add entry to existing thread
+  const addEntryMutation = useMutation({
+    mutationFn: async ({ parentId, data }: { parentId: string; data: any }) => {
+      // Get next sequence number
+      const { data: maxSeq, error: seqError } = await supabase
+        .from('client_communication_entries')
+        .select('entry_sequence')
+        .eq('parent_communication_id', parentId)
+        .order('entry_sequence', { ascending: false })
+        .limit(1)
+        .single();
+
+      // PGRST116 = no rows found (first entry)
+      if (seqError && seqError.code !== 'PGRST116') throw seqError;
+
+      const nextSeq = (maxSeq?.entry_sequence || 0) + 1;
+
+      const { error } = await supabase.from('client_communication_entries').insert({
+        parent_communication_id: parentId,
+        entry_sequence: nextSeq,
+        entry_timestamp: data.entry_timestamp,
+        entry_type: data.entry_type,
+        brief: data.brief,
+        duration_minutes: data.duration_minutes ? parseInt(data.duration_minutes) : null,
+        outcome: data.outcome || null,
+        entered_by: user?.id,
+      });
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['client-communications'] });
+      setShowAddEntryModal(false);
+      setEntryFormData({
+        entry_type: 'call',
+        brief: '',
+        duration_minutes: '',
+        outcome: '',
+        entry_timestamp: new Date().toISOString().slice(0, 16),
+      });
+    },
+  });
+
   // Create client
   const createClientMutation = useMutation({
     mutationFn: async (clientData: any) => {
@@ -344,6 +417,15 @@ export function ClientCommunication() {
     purpose: '',
     assigned_to: '',
     notes: '',
+  });
+
+  // Phase 2: Entry form data for adding to thread
+  const [entryFormData, setEntryFormData] = useState({
+    entry_type: 'call',
+    brief: '',
+    duration_minutes: '',
+    outcome: '',
+    entry_timestamp: new Date().toISOString().slice(0, 16),
   });
 
   const resetForm = () => {
