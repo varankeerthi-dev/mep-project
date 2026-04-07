@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabase';
 import { useAuth } from '../App';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -11,11 +11,19 @@ import {
   Download,
   GripVertical,
   X,
+  Search,
+  Filter,
+  ChevronDown,
+  ArrowUpDown,
+  MoreHorizontal,
+  Calendar,
+  Building2,
+  IndianRupee,
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
-// Design System Colors
+// Design System Colors - Capy Inspired
 const COLORS = {
   cream: '#FCFAFA',
   lightGray: '#F5F5F5',
@@ -25,6 +33,20 @@ const COLORS = {
   silverGray: '#E0E0E0',
   moss: '#10B981',
   terracotta: '#EF4444',
+};
+
+// Capy Color Tokens
+const CAPY = {
+  bgPage: '#fafafa',
+  bgSurface: '#ffffff',
+  border: '#e5e7eb',
+  borderHover: '#d1d5db',
+  textPrimary: '#18181b',
+  textSecondary: '#52525b',
+  textMuted: '#a1a1aa',
+  accent: '#5eead4',
+  accentDark: '#14b8a6',
+  accentSubtle: '#ccfbf1',
 };
 
 const inputClass = `w-full rounded-lg border border-[${COLORS.silverGray}] bg-[${COLORS.cream}] px-3 py-2 text-[13px] text-[${COLORS.charcoal}] outline-none transition-all duration-200 focus:border-[${COLORS.tealNavy}] focus:ring-2 focus:ring-[${COLORS.tealNavy}]/10 placeholder:text-[${COLORS.warmGray}]/50`;
@@ -81,6 +103,30 @@ const DEFAULT_TERMS = [
   'Company reserves the right to reject substandard work without any liability.',
   'Contractor shall comply with all statutory requirements and obtain necessary permits.',
 ];
+
+// Status dot component - Capy style
+function StatusDot({ status }: { status: string }) {
+  const colors: Record<string, string> = {
+    'Draft': 'bg-gray-400',
+    'Issued': 'bg-blue-500',
+    'In Progress': 'bg-amber-500',
+    'Completed': 'bg-emerald-500',
+    'Cancelled': 'bg-red-500',
+  };
+  return <span className={`w-2 h-2 rounded-full ${colors[status] || 'bg-gray-400'}`} />;
+}
+
+// Status pill component - Capy style (monochrome pill with dot)
+function StatusPill({ status }: { status: string }) {
+  return (
+    <div className="flex items-center gap-2">
+      <StatusDot status={status} />
+      <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-gray-100 text-zinc-700">
+        {status}
+      </span>
+    </div>
+  );
+}
 
 export function WorkOrderCreateModal({
   isOpen,
@@ -284,36 +330,36 @@ export function WorkOrderCreateModal({
     setDraggedTerm(null);
   };
 
-  const saveWorkOrderMutation = useMutation({
-    mutationFn: async (data: WorkOrderFormData) => {
-      if (!organisation?.id) throw new Error('No organization selected');
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      if (!organisation?.id) throw new Error('No organisation');
 
       const payload = {
         organisation_id: organisation.id,
-        subcontractor_id: data.subcontractor_id,
-        work_order_no: data.work_order_no,
-        issue_date: data.issue_date,
-        valid_until: data.valid_until || null,
-        work_description: data.work_description,
-        site_location: data.site_location,
-        start_date: data.start_date || null,
-        end_date: data.end_date || null,
-        line_items: data.line_items,
-        subtotal: data.subtotal,
-        cgst_percent: data.cgst_percent,
-        sgst_percent: data.sgst_percent,
-        igst_percent: data.igst_percent,
-        cgst_amount: data.cgst_amount,
-        sgst_amount: data.sgst_amount,
-        igst_amount: data.igst_amount,
-        total_amount: data.total_amount,
-        advance_percent: data.advance_percent,
-        advance_amount: data.advance_amount,
-        payment_terms: data.payment_terms,
-        delivery_terms: data.delivery_terms,
-        terms_conditions: data.terms_conditions,
-        status: data.status,
-        remarks: data.remarks,
+        work_order_no: formData.work_order_no,
+        subcontractor_id: formData.subcontractor_id,
+        issue_date: formData.issue_date,
+        valid_until: formData.valid_until,
+        work_description: formData.work_description,
+        site_location: formData.site_location,
+        start_date: formData.start_date,
+        end_date: formData.end_date,
+        line_items: formData.line_items,
+        subtotal: formData.subtotal,
+        cgst_percent: formData.cgst_percent,
+        sgst_percent: formData.sgst_percent,
+        igst_percent: formData.igst_percent,
+        cgst_amount: formData.cgst_amount,
+        sgst_amount: formData.sgst_amount,
+        igst_amount: formData.igst_amount,
+        total_amount: formData.total_amount,
+        advance_percent: formData.advance_percent,
+        advance_amount: formData.advance_amount,
+        payment_terms: formData.payment_terms,
+        delivery_terms: formData.delivery_terms,
+        terms_conditions: formData.terms_conditions,
+        status: formData.status,
+        remarks: formData.remarks,
       };
 
       if (editMode && workOrderData?.id) {
@@ -325,323 +371,65 @@ export function WorkOrderCreateModal({
       } else {
         const { error } = await supabase
           .from('subcontractor_work_orders')
-          .insert([payload]);
+          .insert(payload);
         if (error) throw error;
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['subcontractor_work_orders'] });
       onSuccess();
-      onClose();
     },
     onError: (err: any) => {
-      setError(err?.message || 'Failed to save work order');
+      setError(err.message || 'Failed to save work order');
     },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-
     if (!formData.subcontractor_id) {
-      setError('Please select a sub-contractor');
+      setError('Please select a subcontractor');
       return;
     }
-
-    if (formData.line_items.length === 0) {
-      setError('Please add at least one line item');
-      return;
-    }
-
-    saveWorkOrderMutation.mutate(formData);
+    saveMutation.mutate();
   };
-
-  const generatePDF = () => {
-    const selectedSub = subcontractors.find((s) => s.id === formData.subcontractor_id);
-    if (!selectedSub) {
-      alert('Please select a sub-contractor first');
-      return;
-    }
-
-    const doc = new jsPDF();
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
-    let yPos = 15;
-
-    // Header - Company Name
-    doc.setFontSize(18);
-    doc.setFont('helvetica', 'bold');
-    doc.text(organisation?.name || 'Company Name', pageWidth / 2, yPos, { align: 'center' });
-    yPos += 6;
-
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.text(organisation?.address || 'Company Address', pageWidth / 2, yPos, { align: 'center' });
-    yPos += 5;
-    doc.text(`GSTIN: ${organisation?.gstin || 'N/A'}`, pageWidth / 2, yPos, { align: 'center' });
-    yPos += 10;
-
-    // Title
-    doc.setFontSize(14);
-    doc.setFont('helvetica', 'bold');
-    doc.setFillColor(240, 240, 240);
-    doc.rect(10, yPos, pageWidth - 20, 8, 'F');
-    doc.text('WORK ORDER', pageWidth / 2, yPos + 6, { align: 'center' });
-    yPos += 12;
-
-    // WO Details Grid
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'normal');
-
-    const detailsData = [
-      ['WO Number', formData.work_order_no, 'Issue Date', formData.issue_date],
-      ['Valid Until', formData.valid_until || 'N/A', 'Status', formData.status],
-    ];
-
-    autoTable(doc, {
-      startY: yPos,
-      head: [],
-      body: detailsData,
-      theme: 'grid',
-      styles: { fontSize: 9, cellPadding: 2 },
-      columnStyles: {
-        0: { fontStyle: 'bold', cellWidth: 30 },
-        1: { cellWidth: 55 },
-        2: { fontStyle: 'bold', cellWidth: 30 },
-        3: { cellWidth: 55 },
-      },
-    });
-
-    yPos = (doc as any).lastAutoTable.finalY + 5;
-
-    // Sub-Contractor Details
-    doc.setFont('helvetica', 'bold');
-    doc.text('TO:', 10, yPos);
-    yPos += 5;
-    doc.setFont('helvetica', 'normal');
-    doc.text(selectedSub.company_name, 10, yPos);
-    yPos += 10;
-
-    // Work Description
-    doc.setFont('helvetica', 'bold');
-    doc.text('Work Description:', 10, yPos);
-    yPos += 5;
-    doc.setFont('helvetica', 'normal');
-    const splitDesc = doc.splitTextToSize(formData.work_description || 'N/A', pageWidth - 25);
-    doc.text(splitDesc, 10, yPos);
-    yPos += splitDesc.length * 5 + 5;
-
-    if (formData.site_location) {
-      doc.setFont('helvetica', 'bold');
-      doc.text('Site Location:', 10, yPos);
-      doc.setFont('helvetica', 'normal');
-      doc.text(formData.site_location, 50, yPos);
-      yPos += 5;
-    }
-
-    if (formData.start_date || formData.end_date) {
-      doc.text(`Duration: ${formData.start_date || 'TBD'} to ${formData.end_date || 'TBD'}`, 10, yPos);
-      yPos += 8;
-    }
-
-    // Line Items Table
-    const lineItemsData = formData.line_items.map((item, idx) => [
-      idx + 1,
-      item.description,
-      item.quantity.toFixed(2),
-      item.unit,
-      `₹${item.rate.toFixed(2)}`,
-      `₹${item.amount.toFixed(2)}`,
-    ]);
-
-    autoTable(doc, {
-      startY: yPos,
-      head: [['S.No', 'Description', 'Qty', 'Unit', 'Rate', 'Amount']],
-      body: lineItemsData,
-      theme: 'grid',
-      styles: { fontSize: 9, cellPadding: 2 },
-      headStyles: { fillColor: [41, 64, 86], textColor: 255, fontStyle: 'bold' },
-      columnStyles: {
-        0: { cellWidth: 15, halign: 'center' },
-        1: { cellWidth: 70 },
-        2: { cellWidth: 20, halign: 'right' },
-        3: { cellWidth: 20, halign: 'center' },
-        4: { cellWidth: 30, halign: 'right' },
-        5: { cellWidth: 35, halign: 'right' },
-      },
-    });
-
-    yPos = (doc as any).lastAutoTable.finalY + 2;
-
-    // Tax and Total Summary
-    const summaryData = [
-      ['Subtotal', '', '', '', '', `₹${formData.subtotal.toFixed(2)}`],
-    ];
-
-    if (formData.cgst_amount > 0) {
-      summaryData.push(['CGST', `${formData.cgst_percent}%`, '', '', '', `₹${formData.cgst_amount.toFixed(2)}`]);
-    }
-    if (formData.sgst_amount > 0) {
-      summaryData.push(['SGST', `${formData.sgst_percent}%`, '', '', '', `₹${formData.sgst_amount.toFixed(2)}`]);
-    }
-    if (formData.igst_amount > 0) {
-      summaryData.push(['IGST', `${formData.igst_percent}%`, '', '', '', `₹${formData.igst_amount.toFixed(2)}`]);
-    }
-
-    summaryData.push([
-      { content: 'Total Amount', styles: { fontStyle: 'bold' } },
-      '',
-      '',
-      '',
-      '',
-      { content: `₹${formData.total_amount.toFixed(2)}`, styles: { fontStyle: 'bold' } },
-    ]);
-
-    if (formData.advance_amount > 0) {
-      summaryData.push([
-        `Advance (${formData.advance_percent}%)`,
-        '',
-        '',
-        '',
-        '',
-        `₹${formData.advance_amount.toFixed(2)}`,
-      ]);
-    }
-
-    autoTable(doc, {
-      startY: yPos,
-      body: summaryData,
-      theme: 'grid',
-      styles: { fontSize: 9, cellPadding: 2 },
-      columnStyles: {
-        0: { cellWidth: 15 },
-        1: { cellWidth: 70 },
-        2: { cellWidth: 20 },
-        3: { cellWidth: 20 },
-        4: { cellWidth: 30 },
-        5: { cellWidth: 35, halign: 'right' },
-      },
-    });
-
-    yPos = (doc as any).lastAutoTable.finalY + 8;
-
-    // Payment & Delivery Terms
-    if (yPos > pageHeight - 60) {
-      doc.addPage();
-      yPos = 15;
-    }
-
-    doc.setFont('helvetica', 'bold');
-    doc.text('Payment Terms:', 10, yPos);
-    yPos += 5;
-    doc.setFont('helvetica', 'normal');
-    doc.text(formData.payment_terms, 10, yPos);
-    yPos += 8;
-
-    doc.setFont('helvetica', 'bold');
-    doc.text('Delivery Terms:', 10, yPos);
-    yPos += 5;
-    doc.setFont('helvetica', 'normal');
-    doc.text(formData.delivery_terms, 10, yPos);
-    yPos += 10;
-
-    // Terms & Conditions
-    if (yPos > pageHeight - 60) {
-      doc.addPage();
-      yPos = 15;
-    }
-
-    doc.setFont('helvetica', 'bold');
-    doc.text('Terms & Conditions:', 10, yPos);
-    yPos += 5;
-
-    formData.terms_conditions
-      .sort((a, b) => a.order - b.order)
-      .forEach((term, idx) => {
-        if (yPos > pageHeight - 20) {
-          doc.addPage();
-          yPos = 15;
-        }
-        doc.setFont('helvetica', 'normal');
-        const termText = `${idx + 1}. ${term.text}`;
-        const splitTerm = doc.splitTextToSize(termText, pageWidth - 25);
-        doc.text(splitTerm, 10, yPos);
-        yPos += splitTerm.length * 5 + 2;
-      });
-
-    // Signature Section
-    yPos += 10;
-    if (yPos > pageHeight - 30) {
-      doc.addPage();
-      yPos = 15;
-    }
-
-    doc.setFont('helvetica', 'bold');
-    doc.text('For ' + (organisation?.name || 'Company'), 10, yPos);
-    yPos += 15;
-    doc.text('Authorized Signatory', 10, yPos);
-
-    // Save PDF
-    doc.save(`Work_Order_${formData.work_order_no}.pdf`);
-  };
-
-  const footer = (
-    <div className="flex items-center justify-between">
-      <button
-        type="button"
-        onClick={generatePDF}
-        disabled={!formData.subcontractor_id || formData.line_items.length === 0}
-        className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-[13px] font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        <Download size={16} />
-        Download PDF
-      </button>
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={onClose}
-          disabled={saveWorkOrderMutation.isPending}
-          className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-[13px] font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
-        >
-          Cancel
-        </button>
-        <button
-          type="submit"
-          form="work-order-form"
-          disabled={saveWorkOrderMutation.isPending}
-          className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-[13px] font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60"
-          style={{ backgroundColor: COLORS.tealNavy }}
-        >
-          {saveWorkOrderMutation.isPending ? (
-            <>
-              <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-              Saving...
-            </>
-          ) : (
-            <>
-              <Save size={16} />
-              {editMode ? 'Update' : 'Save'} Work Order
-            </>
-          )}
-        </button>
-      </div>
-    </div>
-  );
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Create Work Order" size="xl" footer={footer}>
-      <form id="work-order-form" onSubmit={handleSubmit} className="space-y-6">
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={editMode ? 'Edit Work Order' : 'Create Work Order'}
+      size="lg"
+      footer={
+        <div className="flex items-center gap-3">
+          <button
+            onClick={onClose}
+            className="rounded-full px-5 py-2.5 text-sm font-medium text-zinc-700 transition hover:bg-gray-100"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={saveMutation.isPending}
+            className="inline-flex items-center gap-2 rounded-full bg-zinc-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:opacity-50"
+          >
+            <Save size={16} />
+            {saveMutation.isPending ? 'Saving...' : editMode ? 'Update' : 'Save'}
+          </button>
+        </div>
+      }
+    >
+      <form onSubmit={handleSubmit} className="space-y-6">
         {error && (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-[13px] text-red-700">
+          <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-600">
             {error}
           </div>
         )}
 
-        {/* Header Details */}
-        <div className="grid gap-4 sm:grid-cols-4">
+        {/* Work Order Details */}
+        <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <label className="text-[12px] font-medium text-slate-700">
-              WO Number <span className="text-red-500">*</span>
+            <label className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+              Work Order No <span className="text-zinc-400">*</span>
             </label>
             <input
               type="text"
@@ -653,8 +441,8 @@ export function WorkOrderCreateModal({
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-[12px] font-medium text-slate-700">
-              Sub-Contractor <span className="text-red-500">*</span>
+            <label className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+              Subcontractor <span className="text-zinc-400">*</span>
             </label>
             <select
               value={formData.subcontractor_id}
@@ -662,8 +450,8 @@ export function WorkOrderCreateModal({
               className={inputClass}
               required
             >
-              <option value="">Select Sub-Contractor</option>
-              {subcontractors.map((sub) => (
+              <option value="">Select subcontractor</option>
+              {subcontractors.map((sub: any) => (
                 <option key={sub.id} value={sub.id}>
                   {sub.company_name}
                 </option>
@@ -672,7 +460,9 @@ export function WorkOrderCreateModal({
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-[12px] font-medium text-slate-700">Issue Date</label>
+            <label className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+              Issue Date
+            </label>
             <input
               type="date"
               value={formData.issue_date}
@@ -682,7 +472,9 @@ export function WorkOrderCreateModal({
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-[12px] font-medium text-slate-700">Valid Until</label>
+            <label className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+              Valid Until
+            </label>
             <input
               type="date"
               value={formData.valid_until}
@@ -690,312 +482,37 @@ export function WorkOrderCreateModal({
               className={inputClass}
             />
           </div>
-        </div>
 
-        {/* Work Details */}
-        <div className="space-y-4">
-          <div className="space-y-1.5">
-            <label className="text-[12px] font-medium text-slate-700">Work Description</label>
+          <div className="space-y-1.5 sm:col-span-2">
+            <label className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+              Work Description
+            </label>
             <textarea
               value={formData.work_description}
               onChange={(e) => setFormData({ ...formData, work_description: e.target.value })}
-              placeholder="Describe the work to be performed..."
               rows={3}
-              className={`${inputClass} resize-none`}
-            />
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div className="space-y-1.5">
-              <label className="text-[12px] font-medium text-slate-700">Site Location</label>
-              <input
-                type="text"
-                value={formData.site_location}
-                onChange={(e) => setFormData({ ...formData, site_location: e.target.value })}
-                placeholder="Project site location"
-                className={inputClass}
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-[12px] font-medium text-slate-700">Start Date</label>
-              <input
-                type="date"
-                value={formData.start_date}
-                onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-                className={inputClass}
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-[12px] font-medium text-slate-700">End Date</label>
-              <input
-                type="date"
-                value={formData.end_date}
-                onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
-                className={inputClass}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Line Items */}
-        <div className="space-y-3 border-t border-slate-200 pt-4">
-          <div className="flex items-center justify-between">
-            <label className="text-[13px] font-semibold text-slate-700">Line Items</label>
-            <button
-              type="button"
-              onClick={addLineItem}
-              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-medium text-white transition"
-              style={{ backgroundColor: COLORS.moss }}
-            >
-              <Plus size={14} />
-              Add Item
-            </button>
-          </div>
-
-          <div className="overflow-x-auto rounded-lg border border-slate-200">
-            <table className="w-full text-[12px]">
-              <thead className="bg-slate-50">
-                <tr>
-                  <th className="px-3 py-2 text-left font-semibold text-slate-700">S.No</th>
-                  <th className="px-3 py-2 text-left font-semibold text-slate-700">Description</th>
-                  <th className="px-3 py-2 text-right font-semibold text-slate-700">Qty</th>
-                  <th className="px-3 py-2 text-center font-semibold text-slate-700">Unit</th>
-                  <th className="px-3 py-2 text-right font-semibold text-slate-700">Rate</th>
-                  <th className="px-3 py-2 text-right font-semibold text-slate-700">Amount</th>
-                  <th className="px-3 py-2 text-center font-semibold text-slate-700">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {formData.line_items.map((item, idx) => (
-                  <tr key={item.id} className="border-t border-slate-100">
-                    <td className="px-3 py-2 text-center text-slate-600">{idx + 1}</td>
-                    <td className="px-3 py-2">
-                      <input
-                        type="text"
-                        value={item.description}
-                        onChange={(e) => updateLineItem(item.id, 'description', e.target.value)}
-                        placeholder="Item description"
-                        className="w-full rounded border border-slate-200 px-2 py-1 text-[12px] outline-none focus:border-slate-400"
-                      />
-                    </td>
-                    <td className="px-3 py-2">
-                      <input
-                        type="number"
-                        value={item.quantity}
-                        onChange={(e) => updateLineItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
-                        className="w-20 rounded border border-slate-200 px-2 py-1 text-right text-[12px] outline-none focus:border-slate-400"
-                        step="0.01"
-                      />
-                    </td>
-                    <td className="px-3 py-2">
-                      <select
-                        value={item.unit}
-                        onChange={(e) => updateLineItem(item.id, 'unit', e.target.value)}
-                        className="w-full rounded border border-slate-200 px-2 py-1 text-[12px] outline-none focus:border-slate-400"
-                      >
-                        <option>Nos</option>
-                        <option>Sq.ft</option>
-                        <option>Sq.m</option>
-                        <option>Kg</option>
-                        <option>Ltr</option>
-                        <option>Rmt</option>
-                        <option>Cum</option>
-                        <option>LS</option>
-                      </select>
-                    </td>
-                    <td className="px-3 py-2">
-                      <input
-                        type="number"
-                        value={item.rate}
-                        onChange={(e) => updateLineItem(item.id, 'rate', parseFloat(e.target.value) || 0)}
-                        className="w-24 rounded border border-slate-200 px-2 py-1 text-right text-[12px] outline-none focus:border-slate-400"
-                        step="0.01"
-                      />
-                    </td>
-                    <td className="px-3 py-2 text-right font-medium text-slate-700">
-                      ₹{item.amount.toFixed(2)}
-                    </td>
-                    <td className="px-3 py-2 text-center">
-                      <button
-                        type="button"
-                        onClick={() => removeLineItem(item.id)}
-                        className="rounded p-1 text-red-500 transition hover:bg-red-50"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Tax & Total Summary */}
-          <div className="flex justify-end">
-            <div className="w-96 space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-4">
-              <div className="flex justify-between text-[13px]">
-                <span className="text-slate-600">Subtotal:</span>
-                <span className="font-semibold">₹{formData.subtotal.toFixed(2)}</span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <label className="text-[11px] text-slate-600">CGST %</label>
-                  <input
-                    type="number"
-                    value={formData.cgst_percent}
-                    onChange={(e) => setFormData({ ...formData, cgst_percent: parseFloat(e.target.value) || 0 })}
-                    className="w-full rounded border border-slate-200 px-2 py-1 text-[12px]"
-                    step="0.01"
-                  />
-                </div>
-                <div className="flex items-end justify-end text-[13px]">
-                  <span className="font-medium">₹{formData.cgst_amount.toFixed(2)}</span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <label className="text-[11px] text-slate-600">SGST %</label>
-                  <input
-                    type="number"
-                    value={formData.sgst_percent}
-                    onChange={(e) => setFormData({ ...formData, sgst_percent: parseFloat(e.target.value) || 0 })}
-                    className="w-full rounded border border-slate-200 px-2 py-1 text-[12px]"
-                    step="0.01"
-                  />
-                </div>
-                <div className="flex items-end justify-end text-[13px]">
-                  <span className="font-medium">₹{formData.sgst_amount.toFixed(2)}</span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <label className="text-[11px] text-slate-600">IGST %</label>
-                  <input
-                    type="number"
-                    value={formData.igst_percent}
-                    onChange={(e) => setFormData({ ...formData, igst_percent: parseFloat(e.target.value) || 0 })}
-                    className="w-full rounded border border-slate-200 px-2 py-1 text-[12px]"
-                    step="0.01"
-                  />
-                </div>
-                <div className="flex items-end justify-end text-[13px]">
-                  <span className="font-medium">₹{formData.igst_amount.toFixed(2)}</span>
-                </div>
-              </div>
-
-              <div className="border-t border-slate-300 pt-2">
-                <div className="flex justify-between text-[14px]">
-                  <span className="font-bold text-slate-700">Total Amount:</span>
-                  <span className="font-bold text-slate-900">₹{formData.total_amount.toFixed(2)}</span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 border-t border-slate-300 pt-2">
-                <div className="space-y-1">
-                  <label className="text-[11px] text-slate-600">Advance %</label>
-                  <input
-                    type="number"
-                    value={formData.advance_percent}
-                    onChange={(e) => setFormData({ ...formData, advance_percent: parseFloat(e.target.value) || 0 })}
-                    className="w-full rounded border border-slate-200 px-2 py-1 text-[12px]"
-                    step="0.01"
-                  />
-                </div>
-                <div className="flex items-end justify-end text-[13px]">
-                  <span className="font-medium text-emerald-600">₹{formData.advance_amount.toFixed(2)}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Payment & Delivery Terms */}
-        <div className="grid gap-4 border-t border-slate-200 pt-4 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <label className="text-[12px] font-medium text-slate-700">Payment Terms</label>
-            <textarea
-              value={formData.payment_terms}
-              onChange={(e) => setFormData({ ...formData, payment_terms: e.target.value })}
-              rows={3}
-              className={`${inputClass} resize-none`}
+              className={`${inputClass} resize-y`}
+              placeholder="Brief description of work scope"
             />
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-[12px] font-medium text-slate-700">Delivery Terms</label>
-            <textarea
-              value={formData.delivery_terms}
-              onChange={(e) => setFormData({ ...formData, delivery_terms: e.target.value })}
-              rows={3}
-              className={`${inputClass} resize-none`}
-            />
-          </div>
-        </div>
-
-        {/* Terms & Conditions with Drag & Drop */}
-        <div className="space-y-3 border-t border-slate-200 pt-4">
-          <div className="flex items-center justify-between">
-            <label className="text-[13px] font-semibold text-slate-700">
-              Terms & Conditions (Drag to Reorder)
+            <label className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+              Site Location
             </label>
-            <button
-              type="button"
-              onClick={addTerm}
-              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-medium text-white transition"
-              style={{ backgroundColor: COLORS.moss }}
-            >
-              <Plus size={14} />
-              Add Term
-            </button>
+            <input
+              type="text"
+              value={formData.site_location}
+              onChange={(e) => setFormData({ ...formData, site_location: e.target.value })}
+              className={inputClass}
+              placeholder="Project site address"
+            />
           </div>
 
-          <div className="space-y-2">
-            {formData.terms_conditions
-              .sort((a, b) => a.order - b.order)
-              .map((term, idx) => (
-                <div
-                  key={term.id}
-                  draggable
-                  onDragStart={() => handleDragStart(idx)}
-                  onDragOver={(e) => handleDragOver(e, idx)}
-                  onDragEnd={handleDragEnd}
-                  className={`flex items-start gap-2 rounded-lg border bg-white p-3 transition ${
-                    draggedTerm === idx ? 'border-blue-400 shadow-lg' : 'border-slate-200'
-                  }`}
-                >
-                  <div className="cursor-move pt-1 text-slate-400">
-                    <GripVertical size={16} />
-                  </div>
-                  <div className="flex-1">
-                    <textarea
-                      value={term.text}
-                      onChange={(e) => updateTerm(term.id, e.target.value)}
-                      placeholder={`Term ${idx + 1}...`}
-                      rows={2}
-                      className="w-full resize-none rounded border border-slate-200 px-3 py-2 text-[12px] outline-none focus:border-slate-400"
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => removeTerm(term.id)}
-                    className="mt-1 rounded p-1 text-red-500 transition hover:bg-red-50"
-                  >
-                    <X size={16} />
-                  </button>
-                </div>
-              ))}
-          </div>
-        </div>
-
-        {/* Status & Remarks */}
-        <div className="grid gap-4 border-t border-slate-200 pt-4 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <label className="text-[12px] font-medium text-slate-700">Status</label>
+            <label className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+              Status
+            </label>
             <select
               value={formData.status}
               onChange={(e) => setFormData({ ...formData, status: e.target.value })}
@@ -1008,9 +525,250 @@ export function WorkOrderCreateModal({
               <option>Cancelled</option>
             </select>
           </div>
+        </div>
+
+        {/* Line Items */}
+        <div className="rounded-2xl border border-gray-200 bg-white shadow-sm">
+          <div className="border-b border-gray-100 px-5 py-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-zinc-800 tracking-tight">Line Items</h3>
+              <button
+                type="button"
+                onClick={addLineItem}
+                className="inline-flex items-center gap-2 rounded-full bg-teal-300 px-4 py-2 text-sm font-semibold text-zinc-900 transition hover:bg-teal-400"
+              >
+                <Plus size={16} />
+                Add Item
+              </button>
+            </div>
+          </div>
+          <div className="p-5">
+            {formData.line_items.length === 0 ? (
+              <div className="text-center py-8 text-zinc-400">
+                <FileText className="mx-auto mb-2" size={32} />
+                <p className="text-sm">No line items added yet</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {formData.line_items.map((item, idx) => (
+                  <div
+                    key={item.id}
+                    className="grid gap-3 rounded-xl border border-gray-100 bg-gray-50/50 p-4 sm:grid-cols-12"
+                  >
+                    <div className="sm:col-span-5">
+                      <label className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
+                        Description
+                      </label>
+                      <input
+                        type="text"
+                        value={item.description}
+                        onChange={(e) => updateLineItem(item.id, 'description', e.target.value)}
+                        className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-teal-300 focus:ring-2 focus:ring-teal-300/20"
+                        placeholder="Item description"
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
+                        Qty
+                      </label>
+                      <input
+                        type="number"
+                        value={item.quantity}
+                        onChange={(e) => updateLineItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
+                        className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-teal-300 focus:ring-2 focus:ring-teal-300/20"
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
+                        Unit
+                      </label>
+                      <select
+                        value={item.unit}
+                        onChange={(e) => updateLineItem(item.id, 'unit', e.target.value)}
+                        className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-teal-300 focus:ring-2 focus:ring-teal-300/20"
+                      >
+                        <option>Nos</option>
+                        <option>MT</option>
+                        <option>Sq.M</option>
+                        <option>Cu.M</option>
+                        <option>Rft</option>
+                        <option>Lump Sum</option>
+                      </select>
+                    </div>
+                    <div className="sm:col-span-2">
+                      <label className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
+                        Rate (₹)
+                      </label>
+                      <input
+                        type="number"
+                        value={item.rate}
+                        onChange={(e) => updateLineItem(item.id, 'rate', parseFloat(e.target.value) || 0)}
+                        className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-teal-300 focus:ring-2 focus:ring-teal-300/20"
+                      />
+                    </div>
+                    <div className="sm:col-span-1 flex items-end">
+                      <button
+                        type="button"
+                        onClick={() => removeLineItem(item.id)}
+                        className="rounded-full p-2 text-zinc-400 transition hover:bg-red-50 hover:text-red-500"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Totals */}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+              Subtotal
+            </label>
+            <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm font-semibold text-zinc-800">
+              ₹{formData.subtotal.toFixed(2)}
+            </div>
+          </div>
 
           <div className="space-y-1.5">
-            <label className="text-[12px] font-medium text-slate-700">Remarks</label>
+            <label className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+              CGST ({formData.cgst_percent}%)
+            </label>
+            <input
+              type="number"
+              value={formData.cgst_percent}
+              onChange={(e) => setFormData({ ...formData, cgst_percent: parseFloat(e.target.value) || 0 })}
+              className={inputClass}
+            />
+            <div className="text-xs text-zinc-500">₹{formData.cgst_amount.toFixed(2)}</div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+              SGST ({formData.sgst_percent}%)
+            </label>
+            <input
+              type="number"
+              value={formData.sgst_percent}
+              onChange={(e) => setFormData({ ...formData, sgst_percent: parseFloat(e.target.value) || 0 })}
+              className={inputClass}
+            />
+            <div className="text-xs text-zinc-500">₹{formData.sgst_amount.toFixed(2)}</div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+              Total Amount
+            </label>
+            <div className="rounded-xl border border-teal-300 bg-teal-50 px-4 py-2.5 text-sm font-bold text-zinc-900">
+              ₹{formData.total_amount.toFixed(2)}
+            </div>
+          </div>
+        </div>
+
+        {/* Terms & Conditions */}
+        <div className="rounded-2xl border border-gray-200 bg-white shadow-sm">
+          <div className="border-b border-gray-100 px-5 py-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-zinc-800 tracking-tight">Terms & Conditions</h3>
+              <button
+                type="button"
+                onClick={addTerm}
+                className="inline-flex items-center gap-2 rounded-full bg-white border border-gray-200 px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-gray-50"
+              >
+                <Plus size={16} />
+                Add Term
+              </button>
+            </div>
+          </div>
+          <div className="p-5">
+            <div className="space-y-2">
+              {formData.terms_conditions.map((term, idx) => (
+                <div
+                  key={term.id}
+                  draggable
+                  onDragStart={() => handleDragStart(idx)}
+                  onDragOver={(e) => handleDragOver(e, idx)}
+                  onDragEnd={handleDragEnd}
+                  className="flex items-start gap-3 rounded-xl border border-gray-100 bg-gray-50/50 p-3"
+                >
+                  <button
+                    type="button"
+                    className="mt-1 cursor-move text-zinc-400"
+                  >
+                    <GripVertical size={16} />
+                  </button>
+                  <span className="mt-2 text-xs font-medium text-zinc-400">
+                    {idx + 1}.
+                  </span>
+                  <textarea
+                    value={term.text}
+                    onChange={(e) => updateTerm(term.id, e.target.value)}
+                    rows={2}
+                    className="flex-1 resize-none rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-teal-300 focus:ring-2 focus:ring-teal-300/20"
+                    placeholder="Enter term condition"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeTerm(term.id)}
+                    className="mt-1 rounded-full p-2 text-zinc-400 transition hover:bg-red-50 hover:text-red-500"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Payment & Delivery Terms */}
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+              Payment Terms
+            </label>
+            <input
+              type="text"
+              value={formData.payment_terms}
+              onChange={(e) => setFormData({ ...formData, payment_terms: e.target.value })}
+              className={inputClass}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+              Delivery Terms
+            </label>
+            <input
+              type="text"
+              value={formData.delivery_terms}
+              onChange={(e) => setFormData({ ...formData, delivery_terms: e.target.value })}
+              className={inputClass}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+              Advance %
+            </label>
+            <input
+              type="number"
+              value={formData.advance_percent}
+              onChange={(e) => setFormData({ ...formData, advance_percent: parseFloat(e.target.value) || 0 })}
+              className={inputClass}
+            />
+            <div className="text-xs text-zinc-500">
+              Advance: ₹{formData.advance_amount.toFixed(2)}
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+              Remarks
+            </label>
             <textarea
               value={formData.remarks}
               onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
@@ -1024,14 +782,19 @@ export function WorkOrderCreateModal({
   );
 }
 
-// List View Component
-import { Edit, Download, Plus, FileText } from 'lucide-react';
-
+// List View Component - Capy Style Table with Filters
 export function WorkOrderList({ onNavigate }: { onNavigate?: (path: string) => void }) {
   const { organisation } = useAuth();
   const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedWO, setSelectedWO] = useState<any>(null);
+
+  // Filter states
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [subcontractorFilter, setSubcontractorFilter] = useState<string>('all');
+  const [dateRange, setDateRange] = useState<{ from: string; to: string }>({ from: '', to: '' });
+  const [showFilters, setShowFilters] = useState(false);
 
   const { data: workOrders = [], isLoading, refetch } = useQuery({
     queryKey: ['subcontractor_work_orders', organisation?.id],
@@ -1045,27 +808,63 @@ export function WorkOrderList({ onNavigate }: { onNavigate?: (path: string) => v
         `)
         .eq('organisation_id', organisation.id)
         .order('created_at', { ascending: false });
-      
+
       if (error) throw error;
       return data || [];
     },
     enabled: !!organisation?.id,
   });
 
+  // Get unique subcontractors for filter
+  const subcontractors = useMemo(() => {
+    const unique = new Map();
+    workOrders.forEach((wo: any) => {
+      if (wo.subcontractors?.id) {
+        unique.set(wo.subcontractors.id, wo.subcontractors);
+      }
+    });
+    return Array.from(unique.values());
+  }, [workOrders]);
+
+  // Filter work orders
+  const filteredWorkOrders = useMemo(() => {
+    return workOrders.filter((wo: any) => {
+      // Search filter
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        const matchesSearch =
+          wo.work_order_no?.toLowerCase().includes(query) ||
+          wo.subcontractors?.company_name?.toLowerCase().includes(query) ||
+          wo.work_description?.toLowerCase().includes(query) ||
+          wo.site_location?.toLowerCase().includes(query);
+        if (!matchesSearch) return false;
+      }
+
+      // Status filter
+      if (statusFilter !== 'all' && wo.status !== statusFilter) return false;
+
+      // Subcontractor filter
+      if (subcontractorFilter !== 'all' && wo.subcontractor_id !== subcontractorFilter) return false;
+
+      // Date range filter
+      if (dateRange.from && wo.issue_date < dateRange.from) return false;
+      if (dateRange.to && wo.issue_date > dateRange.to) return false;
+
+      return true;
+    });
+  }, [workOrders, searchQuery, statusFilter, subcontractorFilter, dateRange]);
+
   const handleDownloadPDF = async (wo: any) => {
-    // Generate PDF using the same logic from the modal
     const doc = new jsPDF();
-    
-    // Header
+
     doc.setFontSize(16);
     doc.text('WORK ORDER', 105, 20, { align: 'center' });
-    
+
     doc.setFontSize(10);
     doc.text(`WO No: ${wo.work_order_no}`, 20, 35);
     doc.text(`Date: ${wo.issue_date}`, 20, 42);
     doc.text(`Sub-contractor: ${wo.subcontractors?.company_name || '-'}`, 20, 49);
-    
-    // Line Items Table
+
     const lineItems = wo.line_items || [];
     const tableData = lineItems.map((item: any, idx: number) => [
       idx + 1,
@@ -1075,7 +874,7 @@ export function WorkOrderList({ onNavigate }: { onNavigate?: (path: string) => v
       item.rate?.toFixed(2),
       item.amount?.toFixed(2),
     ]);
-    
+
     autoTable(doc, {
       startY: 60,
       head: [['S.No', 'Description', 'Qty', 'Unit', 'Rate', 'Amount']],
@@ -1083,133 +882,347 @@ export function WorkOrderList({ onNavigate }: { onNavigate?: (path: string) => v
       theme: 'grid',
       headStyles: { fillColor: [41, 64, 86] },
     });
-    
-    // Totals
+
     const finalY = (doc as any).lastAutoTable?.finalY || 120;
     doc.setFontSize(10);
     doc.text(`Subtotal: ₹${wo.subtotal?.toFixed(2)}`, 150, finalY + 10);
     doc.text(`CGST (${wo.cgst_percent}%): ₹${wo.cgst_amount?.toFixed(2)}`, 150, finalY + 17);
     doc.text(`SGST (${wo.sgst_percent}%): ₹${wo.sgst_amount?.toFixed(2)}`, 150, finalY + 24);
     doc.text(`Total: ₹${wo.total_amount?.toFixed(2)}`, 150, finalY + 31);
-    
+
     doc.save(`Work_Order_${wo.work_order_no}.pdf`);
   };
 
-  return (
-    <div className="p-6">
-      {/* Header */}
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800">Work Orders</h1>
-          <p className="mt-1 text-sm text-slate-600">
-            Create and manage sub-contractor work orders
-          </p>
-        </div>
-        <button
-          onClick={() => {
-            setSelectedWO(null);
-            setIsModalOpen(true);
-          }}
-          className="inline-flex items-center gap-2 rounded-lg bg-teal-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-teal-800"
-        >
-          <Plus size={16} />
-          New Work Order
-        </button>
-      </div>
+  const clearFilters = () => {
+    setSearchQuery('');
+    setStatusFilter('all');
+    setSubcontractorFilter('all');
+    setDateRange({ from: '', to: '' });
+  };
 
-      {/* Work Orders Grid/List */}
-      <div className="grid gap-4">
-        {isLoading ? (
-          <div className="text-center py-12 text-slate-500">Loading...</div>
-        ) : workOrders.length === 0 ? (
-          <div className="rounded-lg border-2 border-dashed border-slate-200 bg-slate-50 p-12 text-center">
-            <FileText className="mx-auto mb-3 text-slate-400" size={48} />
-            <h3 className="text-lg font-semibold text-slate-700">No Work Orders Yet</h3>
-            <p className="mt-2 text-sm text-slate-600">
-              Create your first work order to get started
-            </p>
+  const hasActiveFilters = searchQuery || statusFilter !== 'all' || subcontractorFilter !== 'all' || dateRange.from || dateRange.to;
+
+  return (
+    <div className="min-h-screen bg-[#fafafa]">
+      {/* Header Section */}
+      <div className="px-6 py-6">
+        <div className="mx-auto max-w-[1400px]">
+          {/* Title Row */}
+          <div className="mb-6 flex items-center justify-between">
+            <div>
+              <h1 className="text-xl font-extrabold tracking-tight text-zinc-900">
+                Work Orders
+              </h1>
+              <p className="mt-1 text-sm text-zinc-500">
+                Manage subcontractor work orders and track progress
+              </p>
+            </div>
             <button
               onClick={() => {
                 setSelectedWO(null);
                 setIsModalOpen(true);
               }}
-              className="mt-4 inline-flex items-center gap-2 rounded-lg bg-teal-900 px-4 py-2 text-sm font-semibold text-white"
+              className="inline-flex items-center gap-2 rounded-full bg-zinc-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800"
             >
               <Plus size={16} />
-              Create Work Order
+              New Work Order
             </button>
           </div>
-        ) : (
-          workOrders.map((wo: any) => (
-            <div
-              key={wo.id}
-              onClick={() => onNavigate?.(`/subcontractors/work-orders?id=${wo.id}`)}
-              className="rounded-lg border border-slate-200 bg-white p-4 transition hover:shadow-md cursor-pointer"
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3">
-                    <h3 className="text-lg font-semibold text-slate-800">
-                      {wo.work_order_no}
-                    </h3>
-                    <span
-                      className={`rounded-full px-3 py-1 text-xs font-medium ${
-                        wo.status === 'Issued'
-                          ? 'bg-blue-100 text-blue-700'
-                          : wo.status === 'In Progress'
-                          ? 'bg-yellow-100 text-yellow-700'
-                          : wo.status === 'Completed'
-                          ? 'bg-green-100 text-green-700'
-                          : wo.status === 'Cancelled'
-                          ? 'bg-red-100 text-red-700'
-                          : 'bg-slate-100 text-slate-700'
-                      }`}
-                    >
-                      {wo.status}
-                    </span>
-                  </div>
-                  <p className="mt-1 text-sm text-slate-600">
-                    {wo.subcontractors?.company_name}
-                  </p>
-                  <p className="mt-2 text-sm text-slate-700">
-                    {wo.work_description?.substring(0, 150)}
-                    {wo.work_description?.length > 150 ? '...' : ''}
-                  </p>
-                  <div className="mt-3 flex flex-wrap gap-4 text-xs text-slate-600">
-                    <span>Issue Date: {wo.issue_date}</span>
-                    {wo.start_date && <span>Start: {wo.start_date}</span>}
-                    {wo.end_date && <span>End: {wo.end_date}</span>}
-                    <span className="font-semibold text-slate-800">
-                      Total: ₹{parseFloat(wo.total_amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                    </span>
+
+          {/* Search & Filter Bar */}
+          <div className="rounded-2xl border border-gray-200 bg-white shadow-sm">
+            <div className="px-5 py-4">
+              <div className="flex flex-wrap items-center gap-3">
+                {/* Search */}
+                <div className="flex-1 min-w-[280px]">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={16} />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search by WO number, subcontractor, or description..."
+                      className="w-full rounded-xl border border-gray-200 bg-white pl-10 pr-4 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 outline-none focus:border-teal-300 focus:ring-2 focus:ring-teal-300/20 transition-all"
+                    />
                   </div>
                 </div>
-                <div className="flex gap-2">
+
+                {/* Filter Toggle */}
+                <button
+                  onClick={() => setShowFilters(!showFilters)}
+                  className={`inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium transition ${
+                    showFilters
+                      ? 'bg-zinc-900 text-white'
+                      : 'bg-white border border-gray-200 text-zinc-700 hover:bg-gray-50'
+                  }`}
+                >
+                  <Filter size={16} />
+                  Filters
+                  {hasActiveFilters && (
+                    <span className="ml-1 rounded-full bg-teal-300 px-2 py-0.5 text-[10px] font-bold text-zinc-900">
+                      Active
+                    </span>
+                  )}
+                </button>
+
+                {/* Clear Filters */}
+                {hasActiveFilters && (
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onNavigate?.(`/subcontractors/work-orders?id=${wo.id}`);
-                    }}
-                    className="rounded p-2 text-blue-600 transition hover:bg-blue-50"
-                    title="View Details"
+                    onClick={clearFilters}
+                    className="rounded-full px-4 py-2.5 text-sm font-medium text-zinc-500 transition hover:text-zinc-700 hover:bg-gray-100"
                   >
-                    <Edit size={16} />
+                    Clear all
                   </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDownloadPDF(wo);
-                    }}
-                    className="rounded p-2 text-slate-600 transition hover:bg-slate-50"
-                    title="Download PDF"
-                  >
-                    <Download size={16} />
-                  </button>
-                </div>
+                )}
               </div>
+
+              {/* Expanded Filters */}
+              {showFilters && (
+                <div className="mt-4 grid gap-4 border-t border-gray-100 pt-4 sm:grid-cols-2 lg:grid-cols-4">
+                  {/* Status Filter */}
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                      Status
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                        className="w-full appearance-none rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-zinc-900 outline-none focus:border-teal-300 focus:ring-2 focus:ring-teal-300/20"
+                      >
+                        <option value="all">All Status</option>
+                        <option value="Draft">Draft</option>
+                        <option value="Issued">Issued</option>
+                        <option value="In Progress">In Progress</option>
+                        <option value="Completed">Completed</option>
+                        <option value="Cancelled">Cancelled</option>
+                      </select>
+                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" size={16} />
+                    </div>
+                  </div>
+
+                  {/* Subcontractor Filter */}
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                      Subcontractor
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={subcontractorFilter}
+                        onChange={(e) => setSubcontractorFilter(e.target.value)}
+                        className="w-full appearance-none rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-zinc-900 outline-none focus:border-teal-300 focus:ring-2 focus:ring-teal-300/20"
+                      >
+                        <option value="all">All Subcontractors</option>
+                        {subcontractors.map((sub: any) => (
+                          <option key={sub.id} value={sub.id}>
+                            {sub.company_name}
+                          </option>
+                        ))}
+                      </select>
+                      <Building2 className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" size={16} />
+                    </div>
+                  </div>
+
+                  {/* Date From */}
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                      From Date
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="date"
+                        value={dateRange.from}
+                        onChange={(e) => setDateRange({ ...dateRange, from: e.target.value })}
+                        className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-zinc-900 outline-none focus:border-teal-300 focus:ring-2 focus:ring-teal-300/20"
+                      />
+                      <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" size={16} />
+                    </div>
+                  </div>
+
+                  {/* Date To */}
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                      To Date
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="date"
+                        value={dateRange.to}
+                        onChange={(e) => setDateRange({ ...dateRange, to: e.target.value })}
+                        className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-zinc-900 outline-none focus:border-teal-300 focus:ring-2 focus:ring-teal-300/20"
+                      />
+                      <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" size={16} />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
-          ))
-        )}
+          </div>
+
+          {/* Results Count */}
+          <div className="mt-4 flex items-center justify-between">
+            <p className="text-sm text-zinc-500">
+              Showing <span className="font-semibold text-zinc-900">{filteredWorkOrders.length}</span> of{' '}
+              <span className="font-semibold text-zinc-900">{workOrders.length}</span> work orders
+            </p>
+          </div>
+
+          {/* Table */}
+          <div className="mt-4 rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+            {isLoading ? (
+              <div className="flex items-center justify-center py-16">
+                <div className="animate-pulse text-zinc-400">Loading work orders...</div>
+              </div>
+            ) : filteredWorkOrders.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 px-6">
+                <div className="rounded-full bg-gray-100 p-4 mb-4">
+                  <FileText className="text-zinc-400" size={32} />
+                </div>
+                <h3 className="text-sm font-bold text-zinc-800 tracking-tight">
+                  {hasActiveFilters ? 'No matching work orders' : 'No work orders yet'}
+                </h3>
+                <p className="mt-1 text-sm text-zinc-500 text-center max-w-sm">
+                  {hasActiveFilters
+                    ? 'Try adjusting your filters to see more results'
+                    : 'Create your first work order to get started with subcontractor management'}
+                </p>
+                {!hasActiveFilters && (
+                  <button
+                    onClick={() => {
+                      setSelectedWO(null);
+                      setIsModalOpen(true);
+                    }}
+                    className="mt-4 inline-flex items-center gap-2 rounded-full bg-teal-300 px-5 py-2.5 text-sm font-semibold text-zinc-900 transition hover:bg-teal-400"
+                  >
+                    <Plus size={16} />
+                    Create Work Order
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-gray-200 bg-gray-50/50">
+                      <th className="px-4 py-3 text-left">
+                        <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                          Work Order
+                        </span>
+                      </th>
+                      <th className="px-4 py-3 text-left">
+                        <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                          Subcontractor
+                        </span>
+                      </th>
+                      <th className="px-4 py-3 text-left">
+                        <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                          Status
+                        </span>
+                      </th>
+                      <th className="px-4 py-3 text-left">
+                        <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                          Issue Date
+                        </span>
+                      </th>
+                      <th className="px-4 py-3 text-right">
+                        <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                          Total Amount
+                        </span>
+                      </th>
+                      <th className="px-4 py-3 text-center">
+                        <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                          Actions
+                        </span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredWorkOrders.map((wo: any) => (
+                      <tr
+                        key={wo.id}
+                        onClick={() => onNavigate?.(`/subcontractors/work-orders?id=${wo.id}`)}
+                        className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors cursor-pointer"
+                      >
+                        <td className="px-4 py-4">
+                          <div className="flex flex-col">
+                            <span className="text-sm font-semibold text-zinc-900">
+                              {wo.work_order_no}
+                            </span>
+                            <span className="text-xs text-zinc-500 mt-0.5 truncate max-w-[200px]">
+                              {wo.work_description?.substring(0, 60)}
+                              {wo.work_description?.length > 60 ? '...' : ''}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-4">
+                          <span className="text-sm text-zinc-700">
+                            {wo.subcontractors?.company_name || '-'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4">
+                          <StatusPill status={wo.status} />
+                        </td>
+                        <td className="px-4 py-4">
+                          <span className="text-sm text-zinc-600">
+                            {wo.issue_date ? new Date(wo.issue_date).toLocaleDateString('en-IN', {
+                              day: '2-digit',
+                              month: 'short',
+                              year: 'numeric'
+                            }) : '-'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4 text-right">
+                          <div className="flex items-center justify-end gap-1 text-sm font-semibold text-zinc-900">
+                            <IndianRupee size={14} className="text-zinc-500" />
+                            {parseFloat(wo.total_amount || 0).toLocaleString('en-IN', {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2
+                            })}
+                          </div>
+                        </td>
+                        <td className="px-4 py-4">
+                          <div className="flex items-center justify-center gap-1">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onNavigate?.(`/subcontractors/work-orders?id=${wo.id}`);
+                              }}
+                              className="rounded-full p-2 text-zinc-400 transition hover:bg-gray-100 hover:text-zinc-600"
+                              title="View Details"
+                            >
+                              <FileText size={16} />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedWO(wo);
+                                setIsModalOpen(true);
+                              }}
+                              className="rounded-full p-2 text-zinc-400 transition hover:bg-gray-100 hover:text-zinc-600"
+                              title="Edit"
+                            >
+                              <ArrowUpDown size={16} />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDownloadPDF(wo);
+                              }}
+                              className="rounded-full p-2 text-zinc-400 transition hover:bg-gray-100 hover:text-zinc-600"
+                              title="Download PDF"
+                            >
+                              <Download size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Modal */}
