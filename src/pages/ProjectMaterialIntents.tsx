@@ -85,7 +85,7 @@ export default function ProjectMaterialIntents({ projectId, organisationId }: Pr
         .eq('is_active', true)
         .order('name');
       
-      if (organisationId) {
+      if (organisationId && organisationId.trim() !== '') {
         query = query.eq('organisation_id', organisationId);
       }
       
@@ -103,7 +103,7 @@ export default function ProjectMaterialIntents({ projectId, organisationId }: Pr
         .eq('is_active', true)
         .order('variant_name');
       
-      if (organisationId) {
+      if (organisationId && organisationId.trim() !== '') {
         query = query.eq('organisation_id', organisationId);
       }
       
