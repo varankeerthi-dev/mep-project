@@ -79,12 +79,17 @@ export default function ProjectMaterialIntents({ projectId, organisationId }: Pr
   const { data: materials = [] } = useQuery({
     queryKey: ['materials', organisationId],
     queryFn: async () => {
-      const { data } = await supabase
+      let query = supabase
         .from('materials')
         .select('id, name, display_name, item_code, unit')
-        .eq('organisation_id', organisationId)
         .eq('is_active', true)
         .order('name');
+      
+      if (organisationId) {
+        query = query.eq('organisation_id', organisationId);
+      }
+      
+      const { data } = await query;
       return data || [];
     },
   });
@@ -92,12 +97,17 @@ export default function ProjectMaterialIntents({ projectId, organisationId }: Pr
   const { data: variants = [] } = useQuery({
     queryKey: ['companyVariants', organisationId],
     queryFn: async () => {
-      const { data } = await supabase
+      let query = supabase
         .from('company_variants')
         .select('id, variant_name')
-        .eq('organisation_id', organisationId)
         .eq('is_active', true)
         .order('variant_name');
+      
+      if (organisationId) {
+        query = query.eq('organisation_id', organisationId);
+      }
+      
+      const { data } = await query;
       return data || [];
     },
   });
