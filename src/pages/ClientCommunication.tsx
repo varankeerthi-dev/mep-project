@@ -1263,6 +1263,28 @@ export function ClientCommunication() {
             style={{ gridColumn: 'span 2' }}
           />
 
+          {/* Appointment Fields */}
+          <div style={{ gridColumn: 'span 2', border: `1px solid ${colors.gray[200]}`, borderRadius: radii.md, padding: '16px', background: colors.gray[50] }}>
+            <h4 style={{ margin: '0 0 12px 0', fontSize: '14px', fontWeight: 600, color: colors.gray[900] }}>
+              Next Appointment / Follow-up
+            </h4>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <Input
+                type="date"
+                label="Due Date"
+                value={formData.next_appointment_date}
+                onChange={(e) => setFormData({ ...formData, next_appointment_date: e.target.value })}
+              />
+              <TextArea
+                label="Remarks"
+                value={formData.next_appointment_remarks}
+                onChange={(e) => setFormData({ ...formData, next_appointment_remarks: e.target.value })}
+                placeholder="e.g., Call customer for approval"
+                style={{ minHeight: '60px' }}
+              />
+            </div>
+          </div>
+
           <Select
             label="Priority"
             value={formData.priority}
@@ -1466,6 +1488,13 @@ export function ClientCommunication() {
           <>
             <Button
               variant="secondary"
+              leftIcon={<Plus size={16} />}
+              onClick={() => setShowAddEntryModal(true)}
+            >
+              Add Entry
+            </Button>
+            <Button
+              variant="secondary"
               leftIcon={<CalendarPlus size={16} />}
               onClick={() => setShowSiteVisitModal(true)}
             >
@@ -1526,9 +1555,19 @@ export function ClientCommunication() {
               <label style={{ fontSize: '12px', color: colors.gray[500], marginBottom: '8px', display: 'block' }}>
                 Priority & Status
               </label>
-              <div style={{ display: 'flex', gap: '8px' }}>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                 <PriorityBadge priority={selectedCommunication.priority} />
                 <StatusBadge status={selectedCommunication.status} />
+                {(selectedCommunication.client_communication_entries?.length || 0) > 1 && (
+                  <Badge variant="primary" size="sm">
+                    {selectedCommunication.client_communication_entries.length} entries
+                  </Badge>
+                )}
+                {selectedCommunication.next_appointment_date && (
+                  <Badge variant="warning" size="sm" leftIcon={<CalendarPlus size={12} />}>
+                    Appt: {format(parseISO(selectedCommunication.next_appointment_date), 'MMM d')}
+                  </Badge>
+                )}
               </div>
             </div>
 
@@ -1570,6 +1609,35 @@ export function ClientCommunication() {
               </div>
             )}
 
+            {selectedCommunication.next_appointment_date && (
+              <div style={{ padding: '12px', background: colors.primary[50], borderRadius: radii.md, border: `1px solid ${colors.primary[200]}` }}>
+                <label style={{ fontSize: '12px', color: colors.primary[700], marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <CalendarPlus size={12} />
+                  Next Appointment
+                </label>
+                <p style={{ fontSize: '14px', fontWeight: 600, color: colors.primary[900], margin: '0 0 4px 0' }}>
+                  {format(parseISO(selectedCommunication.next_appointment_date), 'MMMM d, yyyy')}
+                  {' '}
+                  ({formatDistanceToNow(parseISO(selectedCommunication.next_appointment_date), { addSuffix: true })})                </p>
+                {selectedCommunication.next_appointment_remarks && (
+                  <p style={{ fontSize: '13px', color: colors.primary[800], margin: 0 }}>
+                    {selectedCommunication.next_appointment_remarks}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {(selectedCommunication.client_communication_entries?.length || 0) > 0 && (
+              <div>
+                <label style={{ fontSize: '12px', color: colors.gray[500], marginBottom: '8px', display: 'block' }}>
+                  Communication Timeline
+                </label>
+                <div style={{ border: `1px solid ${colors.gray[200]}`, borderRadius: radii.md, padding: '16px', background: colors.gray[50] }}>
+                  {renderThreadEntries(selectedCommunication, expandedThreads, setExpandedThreads)}
+                </div>
+              </div>
+            )}
+
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
               <div>
                 <label style={{ fontSize: '12px', color: colors.gray[500], marginBottom: '4px', display: 'block' }}>
@@ -1590,6 +1658,71 @@ export function ClientCommunication() {
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* Add Entry Modal */}
+      <Modal
+        isOpen={showAddEntryModal && !!selectedCommunication}
+        onClose={() => setShowAddEntryModal(false)}
+        title={`Add Entry - ${clientMap.get(selectedCommunication?.client_id)?.client_name || 'Unknown'}`}
+        size="md"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowAddEntryModal(false)}>Cancel</Button>
+            <Button
+              onClick={() => {
+                if (!entryFormData.brief.trim()) {
+                  alert('Please enter a brief description');
+                  return;
+                }
+                addEntryMutation.mutate({
+                  parentId: selectedCommunication.id,
+                  data: entryFormData,
+                });
+              }}
+              isLoading={addEntryMutation.isPending}
+            >
+              Add Entry
+            </Button>
+          </>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <Select
+              label="Entry Type *"
+              value={entryFormData.entry_type}
+              onChange={(e) => setEntryFormData({ ...entryFormData, entry_type: e.target.value })}
+              options={ENTRY_TYPE_OPTIONS}
+            />
+            <Input
+              label="Duration (min)"
+              type="number"
+              value={entryFormData.duration_minutes}
+              onChange={(e) => setEntryFormData({ ...entryFormData, duration_minutes: e.target.value })}
+              placeholder="15"
+            />
+          </div>
+          <Input
+            label="Timestamp"
+            type="datetime-local"
+            value={entryFormData.entry_timestamp}
+            onChange={(e) => setEntryFormData({ ...entryFormData, entry_timestamp: e.target.value })}
+          />
+          <TextArea
+            label="Brief *"
+            value={entryFormData.brief}
+            onChange={(e) => setEntryFormData({ ...entryFormData, brief: e.target.value })}
+            placeholder="What was discussed..."
+            style={{ minHeight: '80px' }}
+          />
+          <Select
+            label="Outcome"
+            value={entryFormData.outcome}
+            onChange={(e) => setEntryFormData({ ...entryFormData, outcome: e.target.value })}
+            options={OUTCOME_OPTIONS}
+          />
+        </div>
       </Modal>
 
       {/* Site Visit Modal */}
