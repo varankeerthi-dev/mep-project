@@ -238,6 +238,7 @@ export default function App() {
   // Use refs to avoid stale closures in event listeners
   const lastCheckRef = useRef(0);
   const isCheckingRef = useRef(false);
+  const heartbeatAbortRef = useRef<AbortController | null>(null);
 
   const checkDatabase = async () => {
     try {
@@ -317,8 +318,8 @@ export default function App() {
     const handleFocus = async () => {
       const now = Date.now();
       
-      // Throttle: max once every 5 minutes
-      if (now - lastCheckRef.current < 300000) return;
+      // Throttle: max once every 10 minutes (reduced from 5 min to reduce lock contention)
+      if (now - lastCheckRef.current < 600000) return;
       
       // Prevent concurrent checks
       if (isCheckingRef.current) return;
@@ -326,8 +327,23 @@ export default function App() {
       lastCheckRef.current = now;
       isCheckingRef.current = true;
 
+      // Abort previous heartbeat if still running
+      heartbeatAbortRef.current?.abort();
+      heartbeatAbortRef.current = new AbortController();
+
       try {
-        const { data: { session }, error } = await supabase.auth.getSession();
+        // Use a shorter timeout to avoid LockManager contention
+        const sessionPromise = supabase.auth.getSession();
+        const timeoutPromise = new Promise((_, reject) => {
+          const timer = setTimeout(() => reject(new Error('Session check timeout')), 5000);
+          heartbeatAbortRef.current?.signal.addEventListener('abort', () => {
+            clearTimeout(timer);
+            reject(new Error('Aborted'));
+          });
+        });
+        
+        const { data: { session }, error } = await Promise.race([sessionPromise, timeoutPromise]) as any;
+        
         if (!error && session?.user) {
           setUser(prev => {
             // Only update if user ID actually changed
@@ -336,9 +352,11 @@ export default function App() {
           });
         }
       } catch (e) {
-        console.warn('Heartbeat check failed', e);
+        // Silently ignore - auth will refresh on next interaction
+        console.log('Session check skipped (lock busy or timeout)');
       } finally {
         isCheckingRef.current = false;
+        heartbeatAbortRef.current = null;
       }
     };
 

@@ -29,7 +29,7 @@ export function withTimeout<T>(promise: PromiseLike<T>, ms: number, label: strin
 export async function timedSupabaseQuery<T>(
   promise: PromiseLike<SupabaseResponse<T>>,
   label: string,
-  ms = 15000,
+  ms = 30000, // Increased from 15s to 30s for complex queries
 ): Promise<T | null> {
   const result = await withTimeout(promise, ms, label);
   if (result.error) {
