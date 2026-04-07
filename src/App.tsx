@@ -11,9 +11,113 @@ import { AuthContext, type AuthContextValue, type Organisation, type Organisatio
 export { useAuth } from './contexts/AuthContext';
 export type { AuthContextValue, Organisation, OrganisationMember };
 
+// --- ROUTE SECTIONS FOR AUTO-PRELOADING ---
+// Group import factories by section for idle-time preloading
+type ImportFactory = () => Promise<{ default: ComponentType<any> }>;
+
+const ROUTE_SECTIONS: Record<string, ImportFactory[]> = {
+  dc: [
+    () => import('./pages/DCList'),
+    () => import('./pages/CreateDC'),
+    () => import('./pages/DCEdit'),
+    () => import('./pages/DateWiseConsolidation'),
+    () => import('./pages/MaterialWiseConsolidation'),
+  ],
+  'nb-dc': [
+    () => import('./pages/NonBillableDCList'),
+    () => import('./pages/CreateNonBillableDC'),
+    () => import('./pages/NonBillableDCEdit'),
+  ],
+  quotation: [
+    () => import('./pages/QuotationList'),
+    () => import('./pages/CreateQuotation'),
+    () => import('./pages/QuotationView'),
+  ],
+  store: [
+    () => import('./pages/MaterialsList'),
+    () => import('./pages/MaterialInward'),
+    () => import('./pages/MaterialOutward'),
+    () => import('./pages/StockTransfer'),
+  ],
+  reports: [
+    () => import('./pages/Reports').then(m => ({ default: m.StockBalance })),
+    () => import('./pages/Reports').then(m => ({ default: m.StockReport })),
+    () => import('./pages/Reports').then(m => ({ default: m.PurchaseReport })),
+    () => import('./pages/Reports').then(m => ({ default: m.SalesReport })),
+  ],
+  clients: [
+    () => import('./pages/ClientList'),
+    () => import('./pages/ClientManagement'),
+  ],
+  subcontractors: [
+    () => import('./pages/Subcontractors').then(m => ({ default: m.SubcontractorDashboard })),
+    () => import('./pages/Subcontractors').then(m => ({ default: m.CreateSubcontractor })),
+    () => import('./pages/Subcontractors').then(m => ({ default: m.SubcontractorView })),
+    () => import('./pages/Subcontractors').then(m => ({ default: m.SubcontractorEdit })),
+    () => import('./pages/Subcontractors').then(m => ({ default: m.SubcontractorAttendance })),
+    () => import('./pages/Subcontractors').then(m => ({ default: m.SubcontractorDailyLogs })),
+    () => import('./pages/Subcontractors').then(m => ({ default: m.SubcontractorPayments })),
+    () => import('./pages/Subcontractors').then(m => ({ default: m.SubcontractorInvoices })),
+    () => import('./pages/Subcontractors').then(m => ({ default: m.SubcontractorDocuments })),
+    () => import('./pages/SubcontractorWorkOrderProfessional').then(m => ({ default: m.WorkOrderList })),
+    () => import('./pages/WorkOrderDetailView').then(m => ({ default: m.WorkOrderDetailView })),
+  ],
+  meetings: [
+    () => import('./pages/Meetings').then(m => ({ default: m.MeetingsDashboard })),
+    () => import('./pages/Meetings').then(m => ({ default: m.CreateMeeting })),
+  ],
+  'client-po': [
+    () => import('./pages/POList'),
+    () => import('./pages/CreatePO'),
+    () => import('./pages/PODetails'),
+  ],
+  invoices: [
+    () => import('./invoices/pages/InvoiceListPage'),
+    () => import('./invoices/pages/InvoiceEditorPage'),
+  ],
+  boq: [
+    () => import('./pages/BOQList'),
+    () => import('./pages/BOQ'),
+  ],
+  settings: [
+    () => import('./pages/Settings'),
+    () => import('./pages/PrintSettings'),
+    () => import('./pages/TemplateSettings'),
+    () => import('./pages/DiscountSettings'),
+    () => import('./pages/TransactionNumberSeries'),
+    () => import('./pages/Organisation').then(m => ({ default: m.OrganisationSettings })),
+    () => import('./pages/AccessControl'),
+  ],
+};
+
 const lazyAny = (
   factory: () => Promise<{ default: ComponentType<any> }>
 ): LazyExoticComponent<ComponentType<any>> => lazy(factory);
+
+// --- SKELETON LOADING COMPONENT ---
+const PageSkeleton = () => (
+  <div className="flex flex-col h-full animate-pulse">
+    {/* Header skeleton */}
+    <div className="h-16 bg-gray-100 border-b border-gray-200 flex items-center px-6">
+      <div className="h-8 bg-gray-200 rounded w-1/4" />
+      <div className="ml-auto flex gap-3">
+        <div className="h-8 w-24 bg-gray-200 rounded" />
+        <div className="h-8 w-24 bg-gray-200 rounded" />
+      </div>
+    </div>
+    {/* Content skeleton */}
+    <div className="flex-1 p-6">
+      <div className="h-6 bg-gray-200 rounded w-1/3 mb-4" />
+      <div className="h-4 bg-gray-100 rounded w-2/3 mb-8" />
+      <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="h-32 bg-gray-100 rounded" />
+        <div className="h-32 bg-gray-100 rounded" />
+        <div className="h-32 bg-gray-100 rounded" />
+      </div>
+      <div className="h-64 bg-gray-100 rounded" />
+    </div>
+  </div>
+);
 
 // Lazy load all pages
 const CreateDC = lazyAny(() => import('./pages/CreateDC'));
@@ -432,21 +536,39 @@ export default function App() {
     [currentPath, user?.id, organisation?.id, renderPage]
   );
 
-  // Prefetch heavy routes when user is in related areas
+  // --- AUTO-PRELOAD: Current section routes on idle ---
   useEffect(() => {
     const pathKey = (currentPath || '').split('?')[0];
-    if (pathKey === '/quotation') {
-      // Prefetch on idle to avoid blocking main thread
-      if ('requestIdleCallback' in window) {
-        requestIdleCallback(() => {
-          import('./pages/CreateQuotation').catch(() => {});
-        });
-      } else {
-        setTimeout(() => {
-          import('./pages/CreateQuotation').catch(() => {});
-        }, 1000);
-      }
+    const currentSection = pathKey.split('/')[1]; // 'dc', 'quotation', 'store', etc.
+    
+    const routesToPreload = ROUTE_SECTIONS[currentSection];
+    if (!routesToPreload || routesToPreload.length === 0) return;
+
+    // Use requestIdleCallback to preload when browser is idle
+    const preloadSection = () => {
+      routesToPreload.forEach(importFn => {
+        // Preload but don't execute - just warm the cache
+        importFn().catch(() => {});
+      });
+    };
+
+    let handle: number | undefined;
+    if ('requestIdleCallback' in window) {
+      handle = requestIdleCallback(preloadSection, { timeout: 3000 });
+    } else {
+      // Fallback: delay preloading to not block initial render
+      handle = window.setTimeout(preloadSection, 500) as unknown as number;
     }
+
+    return () => {
+      if (handle) {
+        if ('cancelIdleCallback' in window) {
+          cancelIdleCallback(handle);
+        } else {
+          clearTimeout(handle);
+        }
+      }
+    };
   }, [currentPath]);
 
   if (loading) {
@@ -509,11 +631,7 @@ export default function App() {
         <QuickAccessBar onQuickAction={handleQuickAction} organisation={organisation} onLogout={handleLogout} onMenuToggle={handleMenuToggle} />
         <Sidebar currentPath={currentPath} onNavigate={handleSidebarNavigate} collapsed={sidebarCollapsed} onToggle={handleSidebarToggle} mobileOpen={mobileSidebarOpen} />
         <main className={`main-content ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
-          <Suspense fallback={
-            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
-              <div className="loading-spinner">Loading page...</div>
-            </div>
-          }>
+          <Suspense fallback={<PageSkeleton />}>
             {renderedPage}
           </Suspense>
         </main>
