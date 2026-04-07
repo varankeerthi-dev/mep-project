@@ -129,8 +129,7 @@ export default function ProjectMaterialIntents({ projectId, organisationId }: Pr
       const selectedMaterial = materials.find(m => m.id === data.item_id);
       const selectedVariant = variants.find(v => v.id === data.variant_id);
       
-      const { error } = await supabase.from('material_intents').insert({
-        organisation_id: organisationId,
+      const insertData: any = {
         project_id: projectId,
         item_id: data.item_id,
         variant_id: data.variant_id || null,
@@ -144,13 +143,26 @@ export default function ProjectMaterialIntents({ projectId, organisationId }: Pr
         priority: data.priority as any,
         notes: data.notes || '',
         requested_by_name: 'Engineer',
-      });
-      if (error) throw error;
+      };
+      
+      if (organisationId && organisationId.trim() !== '') {
+        insertData.organisation_id = organisationId;
+      }
+      
+      const { error } = await supabase.from('material_intents').insert(insertData);
+      if (error) {
+        console.error('Insert error:', error);
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['materialIntents', projectId] });
       setShowForm(false);
       resetForm();
+    },
+    onError: (error: any) => {
+      console.error('Failed to create intent:', error);
+      alert('Failed to create intent: ' + (error?.message || 'Unknown error'));
     },
   });
 
