@@ -1,4 +1,4 @@
-import { useState, useEffect, Suspense, lazy } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Folder, Plus, ClipboardList, Package, ArrowLeft } from 'lucide-react';
 import { supabase } from '../supabase';
@@ -20,6 +20,10 @@ function FileText() { return <svg width="18" height="18" viewBox="0 0 24 24" fil
 function Truck() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>; }
 function BarChart() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 3v18h18"/><path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"/></svg>; }
 
+const IntentComponent = lazy(() => import('./ProjectMaterialIntents').then(m => ({ default: m.default })));
+const ReceiveComponent = lazy(() => import('./ReceiveMaterial').then(m => ({ default: m.default })));
+const DashboardComponent = lazy(() => import('./ProjectMaterialDashboard').then(m => ({ default: m.default })));
+
 export default function Projects() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'list');
@@ -37,8 +41,6 @@ export default function Projects() {
       tabConfig.component().then(mod => {
         setComponent(() => mod.default);
       });
-    } else if (tab === 'material-management') {
-      setComponent(null);
     } else {
       setComponent(null);
     }
@@ -162,10 +164,6 @@ function ProjectMaterialTabs({ projectId, organisationId, projectName, onBack }:
     setSearchParams({ tab: 'material-management', subtab: subTab });
   };
 
-  const IntentComponent = lazy(() => import('./ProjectMaterialIntents').then(m => ({ default: m.default })));
-  const ReceiveComponent = lazy(() => import('./ReceiveMaterial').then(m => ({ default: m.default })));
-  const DashboardComponent = lazy(() => import('./ProjectMaterialDashboard').then(m => ({ default: m.default })));
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div style={{ background: '#fff', borderBottom: '1px solid #e5e7eb', padding: '0 24px' }}>
@@ -199,12 +197,30 @@ function ProjectMaterialTabs({ projectId, organisationId, projectName, onBack }:
         </div>
       </div>
       <div style={{ flex: 1, overflow: 'auto', padding: '16px' }}>
-        <Suspense fallback={<div style={{ padding: '40px', textAlign: 'center' }}>Loading...</div>}>
-          {activeSubTab === 'intents' && <IntentComponent projectId={projectId} organisationId={organisationId} />}
-          {activeSubTab === 'receive' && <ReceiveComponent projectId={projectId} organisationId={organisationId} />}
-          {activeSubTab === 'dashboard' && <DashboardComponent projectId={projectId} organisationId={organisationId} projectName={projectName} isAdmin={true} />}
-        </Suspense>
+        <ErrorBoundary>
+          <Suspense fallback={<div style={{ padding: '40px', textAlign: 'center' }}>Loading...</div>}>
+            {activeSubTab === 'intents' && <IntentComponent projectId={projectId} organisationId={organisationId} />}
+            {activeSubTab === 'receive' && <ReceiveComponent projectId={projectId} organisationId={organisationId} />}
+            {activeSubTab === 'dashboard' && <DashboardComponent projectId={projectId} organisationId={organisationId} projectName={projectName} isAdmin={true} />}
+          </Suspense>
+        </ErrorBoundary>
       </div>
     </div>
   );
+}
+
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean }> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  render() {
+    if (this.state.hasError) {
+      return <div style={{ padding: '40px', textAlign: 'center', color: '#ef4444' }}>Error loading component. Please refresh.</div>;
+    }
+    return this.props.children;
+  }
 }
