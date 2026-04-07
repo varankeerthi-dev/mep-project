@@ -30,6 +30,18 @@ export default defineConfig({
     },
   },
   build: {
-    sourcemap: true, 
+    sourcemap: true,
+    chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        // Larger chunks = fewer requests = faster subsequent navigation
+        manualChunks: {
+          // Group heavy vendor libs into single chunks
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-ui': ['@heroicons/react', 'sonner'],
+          'vendor-data': ['@tanstack/react-query', '@supabase/supabase-js'],
+        }
+      }
+    }
   }
 })
