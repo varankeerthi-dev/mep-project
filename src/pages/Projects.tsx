@@ -21,6 +21,10 @@ function FileText() { return <svg width="18" height="18" viewBox="0 0 24 24" fil
 function Truck() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>; }
 function BarChart() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 3v18h18"/><path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"/></svg>; }
 
+import ProjectMaterialIntents from './ProjectMaterialIntents';
+import ReceiveMaterial from './ReceiveMaterial';
+import ProjectMaterialDashboard from './ProjectMaterialDashboard';
+
 export default function Projects() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'list');
@@ -163,15 +167,12 @@ function ProjectMaterialTabs({ projectId, organisationId, projectName, onBack }:
 
   const renderContent = () => {
     if (activeSubTab === 'intents') {
-      const ProjectMaterialIntents = require('./ProjectMaterialIntents').default;
       return <ProjectMaterialIntents projectId={projectId} organisationId={organisationId} />;
     }
     if (activeSubTab === 'receive') {
-      const ReceiveMaterial = require('./ReceiveMaterial').default;
       return <ReceiveMaterial projectId={projectId} organisationId={organisationId} />;
     }
     if (activeSubTab === 'dashboard') {
-      const ProjectMaterialDashboard = require('./ProjectMaterialDashboard').default;
       return <ProjectMaterialDashboard projectId={projectId} organisationId={organisationId} projectName={projectName} isAdmin={true} />;
     }
     return null;
