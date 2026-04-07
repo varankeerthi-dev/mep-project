@@ -1095,21 +1095,35 @@ function ItemsTab() {
           const { error: pricingError } = await supabase.from('item_variant_pricing').insert(pricingToInsert);
           if (pricingError) throw pricingError;
         }
-      } else if (formData.track_inventory && warehouses) {
+      }
+      
+      if (formData.track_inventory && warehouses) {
+        const activeVariantIds = formData.uses_variant 
+          ? Array.from(new Set(variantPricing.map(p => p.company_variant_id || 'no_variant')))
+          : ['no_variant'];
+
         const stockInsertions = [];
-        for (const wh of warehouses) {
-           const ws = warehouseStock[wh.id] || { exclude: false, current_stock: 0 };
-           if (ws.exclude) {
-               await supabase.from('item_stock').delete().eq('item_id', itemId).eq('warehouse_id', wh.id).is('company_variant_id', null);
-           } else {
-               stockInsertions.push({
-                   item_id: itemId,
-                   warehouse_id: wh.id,
-                   company_variant_id: null,
-                   current_stock: ws.current_stock || 0,
-                   updated_at: nowIso
-               });
-           }
+        for (const vId of activeVariantIds) {
+          const dbVariantId = vId === 'no_variant' ? null : vId;
+          for (const wh of warehouses) {
+             const key = `${wh.id}_${vId}`;
+             const ws = warehouseStock[key] || { exclude: false, current_stock: 0 };
+             if (ws.exclude) {
+                 if (dbVariantId) {
+                     await supabase.from('item_stock').delete().eq('item_id', itemId).eq('warehouse_id', wh.id).eq('company_variant_id', dbVariantId);
+                 } else {
+                     await supabase.from('item_stock').delete().eq('item_id', itemId).eq('warehouse_id', wh.id).is('company_variant_id', null);
+                 }
+             } else {
+                 stockInsertions.push({
+                     item_id: itemId,
+                     warehouse_id: wh.id,
+                     company_variant_id: dbVariantId,
+                     current_stock: ws.current_stock || 0,
+                     updated_at: nowIso
+                 });
+             }
+          }
         }
         if (stockInsertions.length > 0) {
             const { error: stockError } = await supabase.from('item_stock').upsert(stockInsertions, { onConflict: 'item_id, company_variant_id, warehouse_id' });
@@ -1179,7 +1193,7 @@ function ItemsTab() {
     const defaultWStock = {};
     if (warehouses) {
       warehouses.forEach(wh => {
-        defaultWStock[wh.id] = { exclude: false, current_stock: 0 };
+        defaultWStock[`${wh.id}_no_variant`] = { exclude: false, current_stock: 0 };
       });
     }
     setWarehouseStock(defaultWStock);
@@ -1192,14 +1206,14 @@ function ItemsTab() {
     let hasStock = false;
     let wStock = {};
     if (warehouses) {
-      const itemStockRecords = stockQuery.data ? stockQuery.data.filter(s => s.item_id === material.id && !s.company_variant_id) : [];
+      const itemStockRecords = stockQuery.data ? stockQuery.data.filter(s => s.item_id === material.id) : [];
       if (itemStockRecords.length > 0) hasStock = true;
       
-      warehouses.forEach(wh => {
-        const record = itemStockRecords.find(r => r.warehouse_id === wh.id);
-        wStock[wh.id] = {
-          exclude: !record,
-          current_stock: record ? parseFloat(record.current_stock) || 0 : 0
+      itemStockRecords.forEach(record => {
+        const vId = record.company_variant_id || 'no_variant';
+        wStock[`${record.warehouse_id}_${vId}`] = {
+          exclude: false,
+          current_stock: parseFloat(record.current_stock) || 0
         };
       });
     }
@@ -2251,43 +2265,59 @@ function ItemsTab() {
                 </div>
                 {formData.track_inventory && (
                   <div style={{ marginTop: '15px' }}>
-                    <table className="table" style={{ background: '#fff', fontSize: '13px' }}>
-                      <thead>
-                        <tr>
-                          <th>Warehouse</th>
-                          <th>"Not in this warehouse"</th>
-                          <th>Opening Stock</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {warehouses.map(wh => {
-                          const ws = warehouseStock[wh.id] || { exclude: false, current_stock: 0 };
-                          return (
-                            <tr key={wh.id} style={{ opacity: ws.exclude ? 0.6 : 1 }}>
-                              <td>{wh.warehouse_name || wh.name || wh.warehouse_code}</td>
-                              <td>
-                                <input 
-                                  type="checkbox" 
-                                  checked={ws.exclude} 
-                                  onChange={e => setWarehouseStock({...warehouseStock, [wh.id]: { ...ws, exclude: e.target.checked }})}
-                                />
-                              </td>
-                              <td>
-                                <input 
-                                  type="number" 
-                                  className="form-input" 
-                                  style={{ padding: '4px 8px', height: 'auto' }}
-                                  value={ws.current_stock}
-                                  onChange={e => setWarehouseStock({...warehouseStock, [wh.id]: { ...ws, current_stock: parseFloat(e.target.value) || 0 }})}
-                                  disabled={ws.exclude}
-                                  step="0.01"
-                                />
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
+                    {(() => {
+                      const activeVariantIds = formData.uses_variant 
+                        ? Array.from(new Set(variantPricing.map(p => p.company_variant_id || 'no_variant')))
+                        : ['no_variant'];
+                      
+                      return activeVariantIds.map(vId => {
+                        const vName = vId === 'no_variant' ? (formData.uses_variant ? 'No Variant' : 'Standard Inventory') : variants.find(v => v.id === vId)?.variant_name || 'Unknown Variant';
+                        return (
+                          <div key={vId} style={{ marginBottom: '20px' }}>
+                            {formData.uses_variant && <h5 style={{ color: '#555', marginBottom: '10px' }}>{vName} Integration</h5>}
+                            <table className="table" style={{ background: '#fff', fontSize: '13px' }}>
+                              <thead>
+                                <tr>
+                                  <th>Warehouse</th>
+                                  <th>"Not in this warehouse"</th>
+                                  <th>Opening Stock</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {warehouses.map(wh => {
+                                  const key = `${wh.id}_${vId}`;
+                                  // For a new entry row, state might be undefined, fallback exclude to false so they can submit stock. However, during edit if we fetched records and didn't find one, we implicitly excluded it.
+                                  const ws = warehouseStock[key] || { exclude: !!editingMaterial, current_stock: 0 };
+                                  return (
+                                    <tr key={wh.id} style={{ opacity: ws.exclude ? 0.6 : 1 }}>
+                                      <td>{wh.warehouse_name || wh.name || wh.warehouse_code}</td>
+                                      <td>
+                                        <input 
+                                          type="checkbox" 
+                                          checked={ws.exclude} 
+                                          onChange={e => setWarehouseStock({...warehouseStock, [key]: { ...ws, exclude: e.target.checked }})}
+                                        />
+                                      </td>
+                                      <td>
+                                        <input 
+                                          type="number" 
+                                          className="form-input" 
+                                          style={{ padding: '4px 8px', height: 'auto' }}
+                                          value={ws.current_stock}
+                                          onChange={e => setWarehouseStock({...warehouseStock, [key]: { ...ws, current_stock: parseFloat(e.target.value) || 0 }})}
+                                          disabled={ws.exclude}
+                                          step="0.01"
+                                        />
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        );
+                      });
+                    })()}
                   </div>
                 )}
               </div>
