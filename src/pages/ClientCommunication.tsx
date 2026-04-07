@@ -3,23 +3,13 @@ import { useAuth } from '../contexts/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../supabase';
 import { colors, radii, shadows, spacing } from '../design-system';
-import {
-  Card,
-  Button,
-  IconButton,
-  Badge,
-  PriorityBadge,
-  StatusBadge,
-  Input,
-  Select,
-  TextArea,
-  Modal,
-  Tabs,
-  TabList,
-  Tab,
-  TabPanel,
-  Calendar,
-} from '../components/ui';
+import { Card } from '../components/ui/Card';
+import { Button, IconButton } from '../components/ui/Button';
+import { Badge, PriorityBadge, StatusBadge } from '../components/ui/Badge';
+import { Input, Select, TextArea } from '../components/ui/Input';
+import { Modal } from '../components/ui/Modal';
+import { Tabs, TabList, Tab, TabPanel } from '../components/ui/Tabs';
+import { Calendar } from '../components/ui/Calendar';
 import {
   Plus,
   Phone,
@@ -32,14 +22,11 @@ import {
   ChevronRight,
   User,
   Building,
-  Building2,
-  MapPin,
   Clock,
   AlertCircle,
   CheckCircle,
   XCircle,
   MessageSquare,
-  MessageCircle,
   CalendarPlus,
   MoreHorizontal,
   RefreshCw,
@@ -48,9 +35,8 @@ import {
   ArrowDownLeft,
   Smartphone,
   Users,
-  UsersRound,
 } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, parseISO, isSameDay, isToday, formatDistanceToNow } from 'date-fns';
+import { format, startOfMonth, endOfMonth, parseISO, isSameDay, isToday } from 'date-fns';
 
 const CALL_CATEGORIES = [
   { value: '', label: 'All Types' },
@@ -95,100 +81,6 @@ const CATEGORY_ICONS = {
   meeting: Users,
 };
 
-const ENTRY_TYPE_ICONS: Record<string, any> = {
-  call: Phone,
-  email: Mail,
-  whatsapp: Smartphone,
-  meeting: Users,
-  note: MessageSquare,
-  sms: MessageCircle,
-};
-
-const ENTRY_TYPE_OPTIONS = [
-  { value: 'call', label: 'Call' },
-  { value: 'email', label: 'Email' },
-  { value: 'whatsapp', label: 'WhatsApp' },
-  { value: 'meeting', label: 'Meeting' },
-  { value: 'note', label: 'Note' },
-  { value: 'sms', label: 'SMS' },
-];
-
-const OUTCOME_OPTIONS = [
-  { value: '', label: 'No Outcome' },
-  { value: 'discussed', label: 'Discussed' },
-  { value: 'approved', label: 'Approved' },
-  { value: 'pending', label: 'Pending' },
-  { value: 'escalated', label: 'Escalated' },
-  { value: 'follow_up_required', label: 'Follow-up Required' },
-];
-
-// Helper to render thread entries
-const renderThreadEntries = (comm: any, expandedThreads: Set<string>, setExpandedThreads: React.Dispatch<React.SetStateAction<Set<string>>>) => {
-  const entries = comm.client_communication_entries || [];
-  if (entries.length === 0) return null;
-
-  const isExpanded = expandedThreads.has(comm.id);
-  const displayEntries = isExpanded ? entries : entries.slice(0, 2);
-  const hasMore = entries.length > 2;
-
-  return (
-    <div style={{ marginTop: '12px', marginLeft: '32px', borderLeft: `2px solid ${colors.gray[200]}`, paddingLeft: '16px' }}>
-      {displayEntries.map((entry: any) => {
-        const EntryIcon = ENTRY_TYPE_ICONS[entry.entry_type] || MessageSquare;
-        return (
-          <div key={entry.id} style={{ marginBottom: '12px' }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-              <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: colors.gray[100], display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <EntryIcon size={12} color={colors.gray[600]} />
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                  <span style={{ fontSize: '12px', fontWeight: 600, color: colors.gray[700] }}>
-                    #{entry.entry_sequence} {entry.entry_type}
-                  </span>
-                  <span style={{ fontSize: '11px', color: colors.gray[500] }}>
-                    {format(parseISO(entry.entry_timestamp), 'h:mm a')}
-                  </span>
-                  {entry.duration_minutes && (
-                    <span style={{ fontSize: '11px', color: colors.gray[500] }}>{entry.duration_minutes}m</span>
-                  )}
-                  {entry.outcome && (
-                    <Badge variant={entry.outcome === 'approved' ? 'success' : entry.outcome === 'escalated' ? 'error' : 'default'} size="sm">
-                      {entry.outcome}
-                    </Badge>
-                  )}
-                </div>
-                <p style={{ fontSize: '13px', color: colors.gray[700], margin: 0 }}>{entry.brief}</p>
-                {entry.entered_by_name && (
-                  <span style={{ fontSize: '11px', color: colors.gray[500] }}>by {entry.entered_by_name}</span>
-                )}
-              </div>
-            </div>
-          </div>
-        );
-      })}
-      {hasMore && (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => {
-            const newSet = new Set(expandedThreads);
-            if (newSet.has(comm.id)) {
-              newSet.delete(comm.id);
-            } else {
-              newSet.add(comm.id);
-            }
-            setExpandedThreads(newSet);
-          }}
-          style={{ marginLeft: '32px' }}
-        >
-          {isExpanded ? 'Show less' : `Show ${entries.length - 2} more entries`}
-        </Button>
-      )}
-    </div>
-  );
-};
-
 export function ClientCommunication() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -199,9 +91,6 @@ export function ClientCommunication() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
-  // Phase 2: Thread and entry states
-  const [showAddEntryModal, setShowAddEntryModal] = useState(false);
-  const [expandedThreads, setExpandedThreads] = useState<Set<string>>(new Set());
 
   // Filters
   const [filters, setFilters] = useState({
@@ -241,13 +130,13 @@ export function ClientCommunication() {
     return map;
   }, [clients]);
 
-  // Fetch communications - with entries for future thread support (backward compatible)
+  // Fetch communications - simplified without complex joins
   const { data: communications = [], isLoading } = useQuery({
     queryKey: ['client-communications', filters],
     queryFn: async () => {
       let query = supabase
         .from('client_communication')
-        .select('*, client_communication_entries(*)')
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (filters.clientId) query = query.eq('client_id', filters.clientId);
@@ -287,20 +176,10 @@ export function ClientCommunication() {
     mutationFn: async (data: any) => {
       // Transform data to match database schema (title case for status/priority)
       const dbData = {
-        client_id: data.client_id,
-        call_received_by: data.call_received_by,
-        call_entered_by: data.call_entered_by,
-        call_type: data.call_type,
-        call_category: data.call_category === 'incoming' ? 'Incoming' : data.call_category === 'outgoing' ? 'Outgoing' : data.call_category,
-        call_regarding: data.call_regarding,
-        call_regarding_other: data.call_regarding_other,
-        call_brief: data.call_brief,
-        next_action: data.next_action,
+        ...data,
         status: data.status === 'open' ? 'Open' : data.status === 'in_progress' ? 'In Progress' : data.status === 'resolved' ? 'Resolved' : data.status === 'closed' ? 'Closed' : data.status,
         priority: data.priority === 'low' ? 'Low' : data.priority === 'normal' ? 'Normal' : data.priority === 'high' ? 'High' : data.priority === 'urgent' ? 'Urgent' : data.priority,
-        // New fields (Phase 1) - optional, will be null if empty
-        next_appointment_date: data.next_appointment_date || null,
-        next_appointment_remarks: data.next_appointment_remarks || null,
+        call_category: data.call_category === 'incoming' ? 'Incoming' : data.call_category === 'outgoing' ? 'Outgoing' : data.call_category,
       };
 
       const { data: result, error } = await supabase.from('client_communication').insert(dbData).select().single();
@@ -336,83 +215,30 @@ export function ClientCommunication() {
     },
   });
 
-  // Phase 2: Add entry to existing thread
-  const addEntryMutation = useMutation({
-    mutationFn: async ({ parentId, data }: { parentId: string; data: any }) => {
-      // Get next sequence number
-      const { data: maxSeq, error: seqError } = await supabase
-        .from('client_communication_entries')
-        .select('entry_sequence')
-        .eq('parent_communication_id', parentId)
-        .order('entry_sequence', { ascending: false })
-        .limit(1)
-        .single();
-
-      // PGRST116 = no rows found (first entry)
-      if (seqError && seqError.code !== 'PGRST116') throw seqError;
-
-      const nextSeq = (maxSeq?.entry_sequence || 0) + 1;
-
-      const { error } = await supabase.from('client_communication_entries').insert({
-        parent_communication_id: parentId,
-        entry_sequence: nextSeq,
-        entry_timestamp: data.entry_timestamp,
-        entry_type: data.entry_type,
-        brief: data.brief,
-        duration_minutes: data.duration_minutes ? parseInt(data.duration_minutes) : null,
-        outcome: data.outcome || null,
-        entered_by: user?.id,
-      });
-
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['client-communications'] });
-      setShowAddEntryModal(false);
-      setEntryFormData({
-        entry_type: 'call',
-        brief: '',
-        duration_minutes: '',
-        outcome: '',
-        entry_timestamp: new Date().toISOString().slice(0, 16),
-      });
-    },
-  });
-
   // Create client
   const createClientMutation = useMutation({
     mutationFn: async (clientData: any) => {
-      console.log('Starting client creation with data:', clientData);
-      // Auto-generate client_id if not provided, and handle empty string
-      const { client_id, ...rest } = clientData;
+      // Auto-generate client_id if not provided
       const dataToInsert = {
-        ...rest,
-        client_id: client_id && client_id.trim() !== '' ? client_id : `CL-${Date.now()}`,
+        ...clientData,
+        client_id: clientData.client_id || `CL-${Date.now()}`,
         created_at: new Date().toISOString(),
       };
-      console.log('Inserting client data:', dataToInsert);
-      
-      try {
-        const { data: result, error } = await supabase
-          .from('clients')
-          .insert(dataToInsert)
-          .select('id, client_name')
-          .single();
-          
-        if (error) {
-          console.error('Create client error from Supabase:', error);
-          throw new Error(error.message || 'Failed to create client');
-        }
-        
-        console.log('Client created successfully:', result);
-        return result;
-      } catch (err) {
-        console.error('Exception during client creation:', err);
-        throw err;
+      console.log('Creating client with data:', dataToInsert);
+      const { data: result, error } = await supabase
+        .from('clients')
+        .insert(dataToInsert)
+        .select('id, client_name')
+        .single();
+      if (error) {
+        console.error('Create client error:', error);
+        throw error;
       }
+      console.log('Client created:', result);
+      return result;
     },
     onSuccess: (result) => {
-      console.log('Client mutation success callback, invalidating cache...');
+      console.log('Client mutation success, invalidating cache...');
       queryClient.invalidateQueries({ queryKey: ['clients'] });
       setShowAddClientModal(false);
       // Auto-select the newly created client in the form
@@ -435,7 +261,7 @@ export function ClientCommunication() {
       });
     },
     onError: (error: any) => {
-      console.error('Client mutation error in onError callback:', error);
+      console.error('Client mutation error:', error);
       alert('Failed to create client: ' + (error?.message || 'Unknown error'));
     },
   });
@@ -466,9 +292,6 @@ export function ClientCommunication() {
     next_action: '',
     priority: 'normal',
     status: 'open',
-    // New fields for appointments (Phase 1)
-    next_appointment_date: '',
-    next_appointment_remarks: '',
   });
 
   const [newClientData, setNewClientData] = useState({
@@ -484,8 +307,6 @@ export function ClientCommunication() {
     email: '',
   });
 
-  const [addClientTab, setAddClientTab] = useState('details');
-
   const [siteVisitData, setSiteVisitData] = useState({
     client_id: '',
     project_id: '',
@@ -494,15 +315,6 @@ export function ClientCommunication() {
     purpose: '',
     assigned_to: '',
     notes: '',
-  });
-
-  // Phase 2: Entry form data for adding to thread
-  const [entryFormData, setEntryFormData] = useState({
-    entry_type: 'call',
-    brief: '',
-    duration_minutes: '',
-    outcome: '',
-    entry_timestamp: new Date().toISOString().slice(0, 16),
   });
 
   const resetForm = () => {
@@ -518,8 +330,6 @@ export function ClientCommunication() {
       next_action: '',
       priority: 'normal',
       status: 'open',
-      next_appointment_date: '',
-      next_appointment_remarks: '',
     });
   };
 
@@ -1273,28 +1083,6 @@ export function ClientCommunication() {
             style={{ gridColumn: 'span 2' }}
           />
 
-          {/* Appointment Fields */}
-          <div style={{ gridColumn: 'span 2', border: `1px solid ${colors.gray[200]}`, borderRadius: radii.md, padding: '16px', background: colors.gray[50] }}>
-            <h4 style={{ margin: '0 0 12px 0', fontSize: '14px', fontWeight: 600, color: colors.gray[900] }}>
-              Next Appointment / Follow-up
-            </h4>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-              <Input
-                type="date"
-                label="Due Date"
-                value={formData.next_appointment_date}
-                onChange={(e) => setFormData({ ...formData, next_appointment_date: e.target.value })}
-              />
-              <TextArea
-                label="Remarks"
-                value={formData.next_appointment_remarks}
-                onChange={(e) => setFormData({ ...formData, next_appointment_remarks: e.target.value })}
-                placeholder="e.g., Call customer for approval"
-                style={{ minHeight: '60px' }}
-              />
-            </div>
-          </div>
-
           <Select
             label="Priority"
             value={formData.priority}
@@ -1325,166 +1113,89 @@ export function ClientCommunication() {
         </div>
       </Modal>
 
-      {/* Add Client Modal - Professional Design */}
+      {/* Add Client Modal */}
       <Modal
         isOpen={showAddClientModal}
-        onClose={() => !createClientMutation.isPending && setShowAddClientModal(false)}
-        title="Create New Client"
-        size="lg"
+        onClose={() => setShowAddClientModal(false)}
+        title="Add New Client"
+        size="md"
         footer={
           <>
-            <Button 
-              variant="secondary" 
-              onClick={() => setShowAddClientModal(false)}
-              disabled={createClientMutation.isPending}
-            >
+            <Button variant="secondary" onClick={() => setShowAddClientModal(false)}>
               Cancel
             </Button>
             <Button
               variant="primary"
-              onClick={() => createClientMutation.mutate(newClientData)}
+              onClick={() =>
+                createClientMutation.mutate({
+                  ...newClientData,
+                  created_at: new Date().toISOString(),
+                })
+              }
               isLoading={createClientMutation.isPending}
-              disabled={!newClientData.client_name || createClientMutation.isPending}
+              disabled={!newClientData.client_name}
             >
-              {createClientMutation.isPending ? 'Creating...' : 'Create Client'}
+              Add Client
             </Button>
           </>
         }
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          {/* Client Name - Hero Field */}
-          <div>
-            <Input
-              label="Client Name *"
-              value={newClientData.client_name}
-              onChange={(e) => setNewClientData({ ...newClientData, client_name: e.target.value })}
-              placeholder="Enter company or individual name"
-              style={{ fontSize: '16px', fontWeight: 500 }}
-            />
-          </div>
-
-          {/* Two Column Layout */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-            {/* Left Column - Business Info */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <h4 style={{ 
-                fontSize: '12px', 
-                fontWeight: 600, 
-                color: colors.gray[500], 
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                marginBottom: '4px'
-              }}>
-                <Building2 size={14} />
-                Business Information
-              </h4>
-              
-              <Input
-                label="Client Type"
-                value={newClientData.client_type}
-                onChange={(e) => setNewClientData({ ...newClientData, client_type: e.target.value })}
-                placeholder="e.g., Corporate, Individual, Retail"
-              />
-              
-              <Input
-                label="Client ID"
-                hint="Auto-generated if empty"
-                value={newClientData.client_id}
-                onChange={(e) => setNewClientData({ ...newClientData, client_id: e.target.value })}
-                placeholder="e.g., CL-001"
-              />
-            </div>
-
-            {/* Right Column - Contact */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <h4 style={{ 
-                fontSize: '12px', 
-                fontWeight: 600, 
-                color: colors.gray[500], 
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                marginBottom: '4px'
-              }}>
-                <Users size={14} />
-                Contact Information
-              </h4>
-              
-              <Input
-                label="Contact Person"
-                value={newClientData.contact}
-                onChange={(e) => setNewClientData({ ...newClientData, contact: e.target.value })}
-                placeholder="Primary contact name"
-              />
-              
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <Input
-                  label="Phone"
-                  value={newClientData.phone}
-                  onChange={(e) => setNewClientData({ ...newClientData, phone: e.target.value })}
-                  placeholder="Phone number"
-                />
-                <Input
-                  label="Email"
-                  type="email"
-                  value={newClientData.email}
-                  onChange={(e) => setNewClientData({ ...newClientData, email: e.target.value })}
-                  placeholder="Email address"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Address Section - Full Width */}
-          <div style={{ 
-            padding: '16px',
-            background: colors.gray[50],
-            borderRadius: radii.md,
-            border: `1px solid ${colors.gray[200]}`
-          }}>
-            <h4 style={{ 
-              fontSize: '12px', 
-              fontWeight: 600, 
-              color: colors.gray[500], 
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              marginBottom: '12px'
-            }}>
-              <MapPin size={14} />
-              Address
-            </h4>
-            
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
-              <Input
-                label="City"
-                value={newClientData.city}
-                onChange={(e) => setNewClientData({ ...newClientData, city: e.target.value })}
-                placeholder="City"
-              />
-              <Input
-                label="State"
-                value={newClientData.state}
-                onChange={(e) => setNewClientData({ ...newClientData, state: e.target.value })}
-                placeholder="State"
-              />
-            </div>
-            
-            <TextArea
-              label="Full Address"
-              value={newClientData.address1}
-              onChange={(e) => setNewClientData({ ...newClientData, address1: e.target.value })}
-              placeholder="Street address, building, landmark..."
-              style={{ minHeight: '60px', background: '#ffffff' }}
-            />
-          </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <Input
+            label="Client Name *"
+            value={newClientData.client_name}
+            onChange={(e) => setNewClientData({ ...newClientData, client_name: e.target.value })}
+            placeholder="Enter client name"
+          />
+          <Input
+            label="Client ID (optional)"
+            value={newClientData.client_id}
+            onChange={(e) => setNewClientData({ ...newClientData, client_id: e.target.value })}
+            placeholder="Auto-generated if empty"
+          />
+          <Input
+            label="Client Type"
+            value={newClientData.client_type}
+            onChange={(e) => setNewClientData({ ...newClientData, client_type: e.target.value })}
+            placeholder="e.g., Corporate, Individual"
+          />
+          <Input
+            label="Contact Person"
+            value={newClientData.contact}
+            onChange={(e) => setNewClientData({ ...newClientData, contact: e.target.value })}
+            placeholder="Primary contact person"
+          />
+          <Input
+            label="Phone"
+            value={newClientData.phone}
+            onChange={(e) => setNewClientData({ ...newClientData, phone: e.target.value })}
+            placeholder="Contact number"
+          />
+          <Input
+            label="Email"
+            type="email"
+            value={newClientData.email}
+            onChange={(e) => setNewClientData({ ...newClientData, email: e.target.value })}
+            placeholder="Email address"
+          />
+          <Input
+            label="City"
+            value={newClientData.city}
+            onChange={(e) => setNewClientData({ ...newClientData, city: e.target.value })}
+            placeholder="City"
+          />
+          <Input
+            label="State"
+            value={newClientData.state}
+            onChange={(e) => setNewClientData({ ...newClientData, state: e.target.value })}
+            placeholder="State"
+          />
+          <TextArea
+            label="Address"
+            value={newClientData.address1}
+            onChange={(e) => setNewClientData({ ...newClientData, address1: e.target.value })}
+            placeholder="Full address"
+          />
         </div>
       </Modal>
 
@@ -1496,13 +1207,6 @@ export function ClientCommunication() {
         size="md"
         footer={
           <>
-            <Button
-              variant="secondary"
-              leftIcon={<Plus size={16} />}
-              onClick={() => setShowAddEntryModal(true)}
-            >
-              Add Entry
-            </Button>
             <Button
               variant="secondary"
               leftIcon={<CalendarPlus size={16} />}
@@ -1565,19 +1269,9 @@ export function ClientCommunication() {
               <label style={{ fontSize: '12px', color: colors.gray[500], marginBottom: '8px', display: 'block' }}>
                 Priority & Status
               </label>
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: '8px' }}>
                 <PriorityBadge priority={selectedCommunication.priority} />
                 <StatusBadge status={selectedCommunication.status} />
-                {(selectedCommunication.client_communication_entries?.length || 0) > 1 && (
-                  <Badge variant="primary" size="sm">
-                    {selectedCommunication.client_communication_entries.length} entries
-                  </Badge>
-                )}
-                {selectedCommunication.next_appointment_date && (
-                  <Badge variant="warning" size="sm" leftIcon={<CalendarPlus size={12} />}>
-                    Appt: {format(parseISO(selectedCommunication.next_appointment_date), 'MMM d')}
-                  </Badge>
-                )}
               </div>
             </div>
 
@@ -1619,35 +1313,6 @@ export function ClientCommunication() {
               </div>
             )}
 
-            {selectedCommunication.next_appointment_date && (
-              <div style={{ padding: '12px', background: colors.primary[50], borderRadius: radii.md, border: `1px solid ${colors.primary[200]}` }}>
-                <label style={{ fontSize: '12px', color: colors.primary[700], marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <CalendarPlus size={12} />
-                  Next Appointment
-                </label>
-                <p style={{ fontSize: '14px', fontWeight: 600, color: colors.primary[900], margin: '0 0 4px 0' }}>
-                  {format(parseISO(selectedCommunication.next_appointment_date), 'MMMM d, yyyy')}
-                  {' '}
-                  ({formatDistanceToNow(parseISO(selectedCommunication.next_appointment_date), { addSuffix: true })})                </p>
-                {selectedCommunication.next_appointment_remarks && (
-                  <p style={{ fontSize: '13px', color: colors.primary[800], margin: 0 }}>
-                    {selectedCommunication.next_appointment_remarks}
-                  </p>
-                )}
-              </div>
-            )}
-
-            {(selectedCommunication.client_communication_entries?.length || 0) > 0 && (
-              <div>
-                <label style={{ fontSize: '12px', color: colors.gray[500], marginBottom: '8px', display: 'block' }}>
-                  Communication Timeline
-                </label>
-                <div style={{ border: `1px solid ${colors.gray[200]}`, borderRadius: radii.md, padding: '16px', background: colors.gray[50] }}>
-                  {renderThreadEntries(selectedCommunication, expandedThreads, setExpandedThreads)}
-                </div>
-              </div>
-            )}
-
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
               <div>
                 <label style={{ fontSize: '12px', color: colors.gray[500], marginBottom: '4px', display: 'block' }}>
@@ -1668,71 +1333,6 @@ export function ClientCommunication() {
             </div>
           </div>
         )}
-      </Modal>
-
-      {/* Add Entry Modal */}
-      <Modal
-        isOpen={showAddEntryModal && !!selectedCommunication}
-        onClose={() => setShowAddEntryModal(false)}
-        title={`Add Entry - ${clientMap.get(selectedCommunication?.client_id)?.client_name || 'Unknown'}`}
-        size="md"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setShowAddEntryModal(false)}>Cancel</Button>
-            <Button
-              onClick={() => {
-                if (!entryFormData.brief.trim()) {
-                  alert('Please enter a brief description');
-                  return;
-                }
-                addEntryMutation.mutate({
-                  parentId: selectedCommunication.id,
-                  data: entryFormData,
-                });
-              }}
-              isLoading={addEntryMutation.isPending}
-            >
-              Add Entry
-            </Button>
-          </>
-        }
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <Select
-              label="Entry Type *"
-              value={entryFormData.entry_type}
-              onChange={(e) => setEntryFormData({ ...entryFormData, entry_type: e.target.value })}
-              options={ENTRY_TYPE_OPTIONS}
-            />
-            <Input
-              label="Duration (min)"
-              type="number"
-              value={entryFormData.duration_minutes}
-              onChange={(e) => setEntryFormData({ ...entryFormData, duration_minutes: e.target.value })}
-              placeholder="15"
-            />
-          </div>
-          <Input
-            label="Timestamp"
-            type="datetime-local"
-            value={entryFormData.entry_timestamp}
-            onChange={(e) => setEntryFormData({ ...entryFormData, entry_timestamp: e.target.value })}
-          />
-          <TextArea
-            label="Brief *"
-            value={entryFormData.brief}
-            onChange={(e) => setEntryFormData({ ...entryFormData, brief: e.target.value })}
-            placeholder="What was discussed..."
-            style={{ minHeight: '80px' }}
-          />
-          <Select
-            label="Outcome"
-            value={entryFormData.outcome}
-            onChange={(e) => setEntryFormData({ ...entryFormData, outcome: e.target.value })}
-            options={OUTCOME_OPTIONS}
-          />
-        </div>
       </Modal>
 
       {/* Site Visit Modal */}
