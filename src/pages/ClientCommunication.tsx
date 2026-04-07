@@ -121,6 +121,73 @@ const OUTCOME_OPTIONS = [
   { value: 'follow_up_required', label: 'Follow-up Required' },
 ];
 
+// Helper to render thread entries
+const renderThreadEntries = (comm: any, expandedThreads: Set<string>, setExpandedThreads: React.Dispatch<React.SetStateAction<Set<string>>>) => {
+  const entries = comm.client_communication_entries || [];
+  if (entries.length === 0) return null;
+
+  const isExpanded = expandedThreads.has(comm.id);
+  const displayEntries = isExpanded ? entries : entries.slice(0, 2);
+  const hasMore = entries.length > 2;
+
+  return (
+    <div style={{ marginTop: '12px', marginLeft: '32px', borderLeft: `2px solid ${colors.gray[200]}`, paddingLeft: '16px' }}>
+      {displayEntries.map((entry: any) => {
+        const EntryIcon = ENTRY_TYPE_ICONS[entry.entry_type] || MessageSquare;
+        return (
+          <div key={entry.id} style={{ marginBottom: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+              <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: colors.gray[100], display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <EntryIcon size={12} color={colors.gray[600]} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 600, color: colors.gray[700] }}>
+                    #{entry.entry_sequence} {entry.entry_type}
+                  </span>
+                  <span style={{ fontSize: '11px', color: colors.gray[500] }}>
+                    {format(parseISO(entry.entry_timestamp), 'h:mm a')}
+                  </span>
+                  {entry.duration_minutes && (
+                    <span style={{ fontSize: '11px', color: colors.gray[500] }}>{entry.duration_minutes}m</span>
+                  )}
+                  {entry.outcome && (
+                    <Badge variant={entry.outcome === 'approved' ? 'success' : entry.outcome === 'escalated' ? 'error' : 'default'} size="sm">
+                      {entry.outcome}
+                    </Badge>
+                  )}
+                </div>
+                <p style={{ fontSize: '13px', color: colors.gray[700], margin: 0 }}>{entry.brief}</p>
+                {entry.entered_by_name && (
+                  <span style={{ fontSize: '11px', color: colors.gray[500] }}>by {entry.entered_by_name}</span>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+      {hasMore && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => {
+            const newSet = new Set(expandedThreads);
+            if (newSet.has(comm.id)) {
+              newSet.delete(comm.id);
+            } else {
+              newSet.add(comm.id);
+            }
+            setExpandedThreads(newSet);
+          }}
+          style={{ marginLeft: '32px' }}
+        >
+          {isExpanded ? 'Show less' : `Show ${entries.length - 2} more entries`}
+        </Button>
+      )}
+    </div>
+  );
+};
+
 export function ClientCommunication() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('dashboard');
