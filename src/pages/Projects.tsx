@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Suspense, lazy } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Folder, Plus, ClipboardList, Package, ArrowLeft } from 'lucide-react';
 import { supabase } from '../supabase';
@@ -20,10 +20,6 @@ const TABS = [
 function FileText() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>; }
 function Truck() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>; }
 function BarChart() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 3v18h18"/><path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"/></svg>; }
-
-const IntentComponent = lazy(() => import('./ProjectMaterialIntents').then(m => ({ default: m.default })));
-const ReceiveComponent = lazy(() => import('./ReceiveMaterial').then(m => ({ default: m.default })));
-const DashboardComponent = lazy(() => import('./ProjectMaterialDashboard').then(m => ({ default: m.default })));
 
 export default function Projects() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -165,6 +161,22 @@ function ProjectMaterialTabs({ projectId, organisationId, projectName, onBack }:
     setSearchParams({ tab: 'material-management', subtab: subTab });
   };
 
+  const renderContent = () => {
+    if (activeSubTab === 'intents') {
+      const ProjectMaterialIntents = require('./ProjectMaterialIntents').default;
+      return <ProjectMaterialIntents projectId={projectId} organisationId={organisationId} />;
+    }
+    if (activeSubTab === 'receive') {
+      const ReceiveMaterial = require('./ReceiveMaterial').default;
+      return <ReceiveMaterial projectId={projectId} organisationId={organisationId} />;
+    }
+    if (activeSubTab === 'dashboard') {
+      const ProjectMaterialDashboard = require('./ProjectMaterialDashboard').default;
+      return <ProjectMaterialDashboard projectId={projectId} organisationId={organisationId} projectName={projectName} isAdmin={true} />;
+    }
+    return null;
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div style={{ background: '#fff', borderBottom: '1px solid #e5e7eb', padding: '0 24px' }}>
@@ -198,30 +210,8 @@ function ProjectMaterialTabs({ projectId, organisationId, projectName, onBack }:
         </div>
       </div>
       <div style={{ flex: 1, overflow: 'auto', padding: '16px' }}>
-        <ErrorBoundary>
-          <Suspense fallback={<div style={{ padding: '40px', textAlign: 'center' }}>Loading...</div>}>
-            {activeSubTab === 'intents' && <IntentComponent projectId={projectId} organisationId={organisationId} />}
-            {activeSubTab === 'receive' && <ReceiveComponent projectId={projectId} organisationId={organisationId} />}
-            {activeSubTab === 'dashboard' && <DashboardComponent projectId={projectId} organisationId={organisationId} projectName={projectName} isAdmin={true} />}
-          </Suspense>
-        </ErrorBoundary>
+        {renderContent()}
       </div>
     </div>
   );
-}
-
-class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean }> {
-  constructor(props: { children: React.ReactNode }) {
-    super(props);
-    this.state = { hasError: false };
-  }
-  static getDerivedStateFromError() {
-    return { hasError: true };
-  }
-  render() {
-    if (this.state.hasError) {
-      return <div style={{ padding: '40px', textAlign: 'center', color: '#ef4444' }}>Error loading component. Please refresh.</div>;
-    }
-    return this.props.children;
-  }
 }
