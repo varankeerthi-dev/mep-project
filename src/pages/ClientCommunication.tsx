@@ -273,9 +273,19 @@ export function ClientCommunication() {
     return data?.[0] || null;
   };
 
+  // Session validation helper
+  const validateSession = async () => {
+    const { data: { session }, error } = await supabase.auth.getSession();
+    if (error || !session) {
+      throw new Error('Session expired. Please refresh the page and log in again.');
+    }
+    return session;
+  };
+
   // Create communication (thread)
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
+      await validateSession();
       const dbData = {
         ...data,
         status: data.status === 'open' ? 'Open' : data.status === 'in_progress' ? 'In Progress' : data.status === 'resolved' ? 'Resolved' : data.status === 'closed' ? 'Closed' : data.status,
@@ -312,21 +322,29 @@ export function ClientCommunication() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['client-communications'] });
       setShowCreateThreadModal(false);
+      setShowCreateModal(false);
       resetForm();
+    },
+    onError: (error: any) => {
+      const message = error?.message || 'Failed to save. Please refresh and try again.';
+      alert('Error: ' + message);
     },
   });
 
   // Add entry to existing thread
   const addEntryMutation = useMutation({
     mutationFn: async ({ parentId, data }: { parentId: string; data: any }) => {
+      await validateSession();
       // Get next sequence number
-      const { data: maxSeq } = await supabase
+      const { data: maxSeq, error: seqError } = await supabase
         .from('client_communication_entries')
         .select('entry_sequence')
         .eq('parent_communication_id', parentId)
         .order('entry_sequence', { ascending: false })
         .limit(1)
         .single();
+
+      if (seqError && seqError.code !== 'PGRST116') throw seqError; // PGRST116 = no rows
 
       const nextSeq = (maxSeq?.entry_sequence || 0) + 1;
 
@@ -346,6 +364,7 @@ export function ClientCommunication() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['client-communications'] });
       setShowAddEntryModal(false);
+      setShowCreateModal(false);
       setEntryFormData({
         entry_type: 'call',
         brief: '',
@@ -353,12 +372,18 @@ export function ClientCommunication() {
         outcome: '',
         entry_timestamp: new Date().toISOString().slice(0, 16),
       });
+      resetForm();
+    },
+    onError: (error: any) => {
+      const message = error?.message || 'Failed to save entry. Please refresh and try again.';
+      alert('Error: ' + message);
     },
   });
 
   // Update communication
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      await validateSession();
       const { error } = await supabase
         .from('client_communication')
         .update({ ...data, updated_at: new Date().toISOString() })
@@ -369,11 +394,16 @@ export function ClientCommunication() {
       queryClient.invalidateQueries({ queryKey: ['client-communications'] });
       setSelectedCommunication(null);
     },
+    onError: (error: any) => {
+      const message = error?.message || 'Failed to update. Please refresh and try again.';
+      alert('Error: ' + message);
+    },
   });
 
   // Create client
   const createClientMutation = useMutation({
     mutationFn: async (clientData: any) => {
+      await validateSession();
       const { client_id, ...rest } = clientData;
       const dataToInsert = {
         ...rest,
@@ -394,11 +424,16 @@ export function ClientCommunication() {
       setShowAddClientModal(false);
       setNewClientData({ client_id: '', client_name: '', contact_person: '', contact_number: '', email: '', city: '', state: '', address1: '' });
     },
+    onError: (error: any) => {
+      const message = error?.message || 'Failed to create client. Please refresh and try again.';
+      alert('Error: ' + message);
+    },
   });
 
   // Create site visit
   const createSiteVisitMutation = useMutation({
     mutationFn: async (data: any) => {
+      await validateSession();
       const { error } = await supabase.from('site_visits').insert(data);
       if (error) throw error;
     },
@@ -406,6 +441,10 @@ export function ClientCommunication() {
       queryClient.invalidateQueries({ queryKey: ['site-visits'] });
       setShowSiteVisitModal(false);
       setSiteVisitData({ visit_date: '', visit_time: '', assigned_to: '', notes: '' });
+    },
+    onError: (error: any) => {
+      const message = error?.message || 'Failed to schedule visit. Please refresh and try again.';
+      alert('Error: ' + message);
     },
   });
 
