@@ -147,9 +147,11 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 8. Update existing client_communication table - add thread_mode flag
+-- 8. Update existing client_communication table - add thread_mode flag and appointment fields
 ALTER TABLE client_communication ADD COLUMN IF NOT EXISTS is_thread BOOLEAN DEFAULT FALSE;
 ALTER TABLE client_communication ADD COLUMN IF NOT EXISTS entry_count INTEGER DEFAULT 0;
+ALTER TABLE client_communication ADD COLUMN IF NOT EXISTS next_appointment_date TIMESTAMP WITH TIME ZONE;
+ALTER TABLE client_communication ADD COLUMN IF NOT EXISTS next_appointment_remarks TEXT;
 
 -- 9. Function to auto-update entry_count on parent
 CREATE OR REPLACE FUNCTION update_parent_entry_count()

@@ -143,13 +143,13 @@ export function ClientCommunication() {
     return map;
   }, [clients]);
 
-  // Fetch communications - simplified without complex joins
+  // Fetch communications - with entries for future thread support (backward compatible)
   const { data: communications = [], isLoading } = useQuery({
     queryKey: ['client-communications', filters],
     queryFn: async () => {
       let query = supabase
         .from('client_communication')
-        .select('*')
+        .select('*, client_communication_entries(*)')
         .order('created_at', { ascending: false });
 
       if (filters.clientId) query = query.eq('client_id', filters.clientId);
@@ -189,10 +189,20 @@ export function ClientCommunication() {
     mutationFn: async (data: any) => {
       // Transform data to match database schema (title case for status/priority)
       const dbData = {
-        ...data,
+        client_id: data.client_id,
+        call_received_by: data.call_received_by,
+        call_entered_by: data.call_entered_by,
+        call_type: data.call_type,
+        call_category: data.call_category === 'incoming' ? 'Incoming' : data.call_category === 'outgoing' ? 'Outgoing' : data.call_category,
+        call_regarding: data.call_regarding,
+        call_regarding_other: data.call_regarding_other,
+        call_brief: data.call_brief,
+        next_action: data.next_action,
         status: data.status === 'open' ? 'Open' : data.status === 'in_progress' ? 'In Progress' : data.status === 'resolved' ? 'Resolved' : data.status === 'closed' ? 'Closed' : data.status,
         priority: data.priority === 'low' ? 'Low' : data.priority === 'normal' ? 'Normal' : data.priority === 'high' ? 'High' : data.priority === 'urgent' ? 'Urgent' : data.priority,
-        call_category: data.call_category === 'incoming' ? 'Incoming' : data.call_category === 'outgoing' ? 'Outgoing' : data.call_category,
+        // New fields (Phase 1) - optional, will be null if empty
+        next_appointment_date: data.next_appointment_date || null,
+        next_appointment_remarks: data.next_appointment_remarks || null,
       };
 
       const { data: result, error } = await supabase.from('client_communication').insert(dbData).select().single();
@@ -306,6 +316,9 @@ export function ClientCommunication() {
     next_action: '',
     priority: 'normal',
     status: 'open',
+    // New fields for appointments (Phase 1)
+    next_appointment_date: '',
+    next_appointment_remarks: '',
   });
 
   const [newClientData, setNewClientData] = useState({
@@ -346,6 +359,8 @@ export function ClientCommunication() {
       next_action: '',
       priority: 'normal',
       status: 'open',
+      next_appointment_date: '',
+      next_appointment_remarks: '',
     });
   };
 
