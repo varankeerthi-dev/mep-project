@@ -327,9 +327,126 @@ export function SiteVisits() {
     setIsDeleteOpen(true);
   };
 
-  const isPending = addMutation.isPending || updateMutation.isPending;
+const isPending = addMutation.isPending || updateMutation.isPending;
 
-  // ─── Render ──────────────────────────────────────────────────────────────────
+  // === Component Extraction ===
+
+  /**
+   * VisitRow component for the table view
+   */
+  const VisitRow = React.memo(({
+    visit,
+    visibleCols,
+    openView,
+    openUpdate,
+    openSchedule,
+    confirmDelete,
+  }: {
+    visit: any;
+    visibleCols: Record<string, boolean>;
+    openView: (visit: any) => void;
+    openUpdate: (visit: any) => void;
+    openSchedule: (visit: any) => void;
+    confirmDelete: (visit: any) => void;
+  }) => {
+    return (
+      <tr
+        key={visit.id}
+        className(cn(
+          'group border-b border-gray-50 hover:bg-gray-50/50 transition-colors cursor-pointer'
+        ))
+        onClick={() => openView(visit)}
+      >
+        {visibleCols.date && (
+          <td className="px-6 py-4 whitespace-nowrap">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center text-zinc-700 font-bold text-sm">
+                {format(parseISO(visit.visit_date), 'dd')}
+              </div>
+              <div>
+                <p className="font-semibold text-zinc-800 text-sm">{format(parseISO(visit.visit_date), 'MMM')}</p>
+                <p className="text-xs text-zinc-400">{format(parseISO(visit.visit_date), 'yyyy')}</p>
+              </div>
+            </div>
+          </td>
+        )}
+        {visibleCols.client && (
+          <td className="px-6 py-4">
+            <p className="font-semibold text-zinc-900 text-sm">{visit.clients?.client_name || '—'}</p>
+          </td>
+        )}
+        {visibleCols.visitedBy && (
+          <td className="px-6 py-4">
+            <p className="text-sm text-zinc-600">{visit.visited_by || visit.engineer || '—'}</p>
+          </td>
+        )}
+        {visibleCols.purpose && (
+          <td className="px-6 py-4">
+            <p className="text-sm text-zinc-600 max-w-[160px] truncate">{visit.purpose || '—'}</p>
+          </td>
+        )}
+        {visibleCols.status && (
+          <td className="px-6 py-4">
+            <div className(cn(
+              'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border',
+              STATUS_COLORS[visit.status]?.bg,
+              STATUS_COLORS[visit.status]?.text,
+              STATUS_COLORS[visit.status]?.border
+            ))>
+              <span className(cn('w-1.5 h-1.5 rounded-full', STATUS_COLORS[visit.status]?.dot)} />
+              {visit.status}
+            </div>
+          </td>
+        )}
+        {visibleCols.nextStep && (
+          <td className="px-6 py-4">
+            <p className="text-sm text-zinc-600 max-w-[140px] truncate">{visit.next_step || '—'}</p>
+          </td>
+        )}
+        {visibleCols.actions && (
+          <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-end gap-1">
+              <Button variant="ghost" size="sm" className="h-8 w-8 rounded-full text-zinc-500 hover:bg-gray-100 hover:text-zinc-700" onClick={() => openView(visit)} title="View">
+                <Eye className="w-4 h-4" />
+              </Button>
+              <Button variant="ghost" size="sm" className="h-8 w-8 rounded-full text-zinc-500 hover:bg-gray-100 hover:text-zinc-700" onClick={() => openUpdate(visit)} title="Update">
+                <Edit2 className="w-4 h-4" />
+              </Button>
+              <Button variant="ghost" size="sm" className="h-8 w-8 rounded-full text-zinc-500 hover:bg-gray-100 hover:text-zinc-700" onClick={() => openSchedule(visit)} title="Reschedule">
+                <CalendarClock className="w-4 h-4" />
+              </Button>
+              <Button variant="ghost" size="sm" className="h-8 w-8 rounded-full text-zinc-500 hover:bg-gray-100 hover:text-zinc-700" onClick={() => confirmDelete(visit)} title="Delete">
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </div>
+          </td>
+        )}
+      </tr>
+    );
+  }) as React.ReactElement;
+
+  // VisitDayItem component for calendar view
+  const VisitDayItem = React.memo(({
+    visit,
+    onClick,
+  }: {
+    visit: any;
+    onClick: () => void;
+  }) => {
+    return (
+      <div
+        key={visit.id}
+        className="flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-semibold truncate cursor-pointer border border-gray-200 bg-white text-zinc-700 hover:bg-gray-50"
+        onClick={onClick}
+        title={visit.clients?.client_name}
+      >
+        <span className(cn('w-1.5 h-1.5 rounded-full', STATUS_COLORS[visit.status]?.dot)} />
+        <span className="truncate">{visit.clients?.client_name || 'Visit'}</span>
+      </div>
+    );
+  }) as React.ReactElement;
+
+  // ─── Render ────────────────────────────────────────────────────────────────────
 
   return (
     <div className="min-h-screen bg-[#fafafa]">
@@ -628,122 +745,97 @@ export function SiteVisits() {
     </div>
 </div>
 
-// === Component Extraction ===
+)}
+         </div>
 
-/**
- * VisitRow component for the table view
- */
-const VisitRow = React.memo(({
-    visit,
-    visibleCols,
-    openView,
-    openUpdate,
-    openSchedule,
-    confirmDelete,
-}: {
-    visit: any;
-    visibleCols: Record<string, boolean>;
-    openView: (visit: any) => void;
-    openUpdate: (visit: any) => void;
-    openSchedule: (visit: any) => void;
-    confirmDelete: (visit: any) => void;
-}) => {
-    return (
-        <tr
-            key={visit.id}
-            className={cn(
-                'group border-b border-gray-50 hover:bg-gray-50/50 transition-colors cursor-pointer'
-            )}
-            onClick={() => openView(visit)}
-        >
-            {visibleCols.date && (
-                <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center text-zinc-700 font-bold text-sm">
-                            {format(parseISO(visit.visit_date), 'dd')}
-                        </div>
-                        <div>
-                            <p className="font-semibold text-zinc-800 text-sm">{format(parseISO(visit.visit_date), 'MMM')}</p>
-                            <p className="text-xs text-zinc-400">{format(parseISO(visit.visit_date), 'yyyy')}</p>
-                        </div>
-                    </div>
-                </td>
-            )}
-            {visibleCols.client && (
-                <td className="px-6 py-4">
-                    <p className="font-semibold text-zinc-900 text-sm">{visit.clients?.client_name || '—'}</p>
-                </td>
-            )}
-            {visibleCols.visitedBy && (
-                <td className="px-6 py-4">
-                    <p className="text-sm text-zinc-600">{visit.visited_by || visit.engineer || '—'}</p>
-                </td>
-            )}
-            {visibleCols.purpose && (
-                <td className="px-6 py-4">
-                    <p className="text-sm text-zinc-600 max-w-[160px] truncate">{visit.purpose || '—'}</p>
-                </td>
-            )}
-            {visibleCols.status && (
-                <td className="px-6 py-4">
-                    <div className={cn(
-                        'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border',
-                        STATUS_COLORS[visit.status]?.bg,
-                        STATUS_COLORS[visit.status]?.text,
-                        STATUS_COLORS[visit.status]?.border
-                    )}>
-                        <span className={cn('w-1.5 h-1.5 rounded-full', STATUS_COLORS[visit.status]?.dot)} />
-                        {visit.status}
-                    </div>
-                </td>
-            )}
-            {visibleCols.nextStep && (
-                <td className="px-6 py-4">
-                    <p className="text-sm text-zinc-600 max-w-[140px] truncate">{visit.next_step || '—'}</p>
-                </td>
-            )}
-            {visibleCols.actions && (
-                <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
-                    <div className="flex items-center justify-end gap-1">
-                        <Button variant="ghost" size="sm" className="h-8 w-8 rounded-full text-zinc-500 hover:bg-gray-100 hover:text-zinc-700" onClick={() => openView(visit)} title="View">
-                            <Eye className="w-4 h-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm" className="h-8 w-8 rounded-full text-zinc-500 hover:bg-gray-100 hover:text-zinc-700" onClick={() => openUpdate(visit)} title="Update">
-                            <Edit2 className="w-4 h-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm" className="h-8 w-8 rounded-full text-zinc-500 hover:bg-gray-100 hover:text-zinc-700" onClick={() => openSchedule(visit)} title="Reschedule">
-                            <CalendarClock className="w-4 h-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm" className="h-8 w-8 rounded-full text-zinc-500 hover:bg-gray-100 hover:text-zinc-700" onClick={() => confirmDelete(visit)} title="Delete">
-                            <Trash2 className="w-4 h-4" />
-                        </Button>
-                    </div>
-                </td>
-            )}
-        </tr>
-    );
-}) as React.ReactElement;
+        {/* ─── SCHEDULE MODAL (Simple) ─────────────────────────────────────────── */}
+        <Dialog open={isScheduleOpen} onOpenChange={(o) => { setIsScheduleOpen(o); if (!o) setSelectedVisit(null); }}>
+          <DialogContent className="max-w-lg rounded-2xl border border-gray-200 shadow-lg">
+            <DialogHeader className="pb-3 border-b border-gray-200">
+              <DialogTitle className="text-lg font-bold text-zinc-900">
+                {selectedVisit ? 'Reschedule Visit' : 'Schedule Site Visit'}
+              </DialogTitle>
+            </DialogHeader>
+            <form key={`schedule-${selectedVisit?.id || 'new'}`} onSubmit={handleScheduleSubmit} className="space-y-4 pt-4">
 
-// VisitDayItem component for calendar view
-const VisitDayItem = React.memo(({
-    visit,
-    onClick,
-}: {
-    visit: any;
-    onClick: () => void;
-}) => {
-    return (
-        <div
-            key={visit.id}
-            className="flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-semibold truncate cursor-pointer border border-gray-200 bg-white text-zinc-700 hover:bg-gray-50"
-            onClick={onClick}
-            title={visit.clients?.client_name}
-        >
-            <span className={cn('w-1.5 h-1.5 rounded-full', STATUS_COLORS[visit.status]?.dot)} />
-            <span className="truncate">{visit.clients?.client_name || 'Visit'}</span>
-        </div>
-    );
-}) as React.ReactElement;
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Client *</Label>
+                  <button type="button className="text-xs text-teal-700 hover:text-teal-800 font-medium" onClick={() => setIsAddClientOpen(true)}>+ Add New</button>
+                </div>
+                <Select name="client_id" required defaultValue={selectedVisit?.client_id || undefined}>
+                  <SelectTrigger className="rounded-xl border-gray-200 bg-white h-10 focus:border-teal-300 focus:ring-2 focus:ring-teal-300/20 focus:outline-none">
+                    <SelectValue placeholder="Select Client" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl">
+                    {clients.map((c: any) => (
+                      <SelectItem key={c.id} value={c.id}>{c.client_name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Date *</Label>
+                  <Input
+                    name="visit_date"
+                    type="date"
+                    required
+                    value={scheduleDateStr}
+                    className="rounded-xl bg-white border-gray-200 h-10 text-sm focus:border-teal-300 focus:ring-2 focus:ring-teal-300/20 focus:outline-none"
+                    onChange={(e) => {
+                      const d = e.target.value;
+                      setScheduleDateStr(d);
+                      const isPast = new Date(d) < new Date(new Date().setHours(0, 0, 0, 0));
+                      setScheduleStatus(isPast ? 'completed' : 'scheduled');
+                    }}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Status *</Label>
+                  <Select name="status" value={scheduleStatus} onValueChange={setScheduleStatus} required>
+                    <SelectTrigger className="rounded-xl border-gray-200 bg-white h-10 focus:border-teal-300 focus:ring-2 focus:ring-teal-300/20 focus:outline-none">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-xl">
+                      <SelectItem value="scheduled">Scheduled</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="postponed">Postponed</SelectItem>
+                      <SelectItem value="cancelled">Cancelled</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Created By</Label>
+                  <Input name="created_by" className="rounded-xl bg-white border-gray-200 h-10 text-sm focus:border-teal-300 focus:ring-2 focus:ring-teal-300/20 focus:outline-none" placeholder="Your name" defaultValue={selectedVisit?.created_by || ''} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Engineer *</Label>
+                  <Input name="engineer" required className="rounded-xl bg-white border-gray-200 h-10 text-sm focus:border-teal-300 focus:ring-2 focus:ring-teal-300/20 focus:outline-none" placeholder="Engineer name" defaultValue={selectedVisit?.engineer || ''} />
+                </div>
+              </div>
+
+              {scheduleStatus === 'postponed' && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Reason for Postponement *</Label>
+                  <Textarea name="postponed_reason" required placeholder="Why was this visit postponed?" className="rounded-xl border-gray-200 text-sm focus:border-teal-300 focus:ring-2 focus:ring-teal-300/20 focus:outline-none" defaultValue={selectedVisit?.postponed_reason || ''} />
+                </div>
+              )}
+
+              <DialogFooter className="pt-2 gap-2 border-t border-gray-200">
+                <Button type="button" variant="secondary" className="rounded-full border border-gray-200 bg-white text-zinc-700 hover:bg-gray-50" onClick={() => setIsScheduleOpen(false)}>Cancel</Button>
+                <Button type="submit" disabled={isPending} className="rounded-full bg-zinc-900 text-white hover:bg-zinc-800 px-6">
+                  {isPending ? 'Saving...' : selectedVisit ? 'Update' : 'Schedule'}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
           )}
         </div>
 
