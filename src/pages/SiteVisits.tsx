@@ -349,14 +349,15 @@ const isPending = addMutation.isPending || updateMutation.isPending;
     openSchedule: (visit: any) => void;
     confirmDelete: (visit: any) => void;
   }) => {
-    return (
-      <tr
-        key={visit.id}
-        className(cn(
-          'group border-b border-gray-50 hover:bg-gray-50/50 transition-colors cursor-pointer'
-        ))
-        onClick={() => openView(visit)}
-      >
+return (
+        <div
+          key={visit.id}
+          className={cn(
+            'flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-semibold truncate cursor-pointer border border-gray-200 bg-white text-zinc-700 hover:bg-gray-50'
+          )}
+          onClick={onClick}
+          title={visit.clients?.client_name}
+        >
         {visibleCols.date && (
           <td className="px-6 py-4 whitespace-nowrap">
             <div className="flex items-center gap-3">
