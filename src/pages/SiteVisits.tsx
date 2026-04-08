@@ -379,7 +379,7 @@ return (
         onClick={onClick}
         title={visit.clients?.client_name}
       >
-        <span className(cn('w-1.5 h-1.5 rounded-full', STATUS_COLORS[visit.status]?.dot)} />
+        <span className={cn('w-1.5 h-1.5 rounded-full', STATUS_COLORS[visit.status]?.dot)} />
         <span className="truncate">{visit.clients?.client_name || 'Visit'}</span>
       </div>
     );
