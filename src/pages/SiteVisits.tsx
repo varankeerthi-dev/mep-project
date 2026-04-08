@@ -480,80 +480,17 @@ export function SiteVisits() {
                         </tr>
                       </thead>
                       <tbody>
-                        {paginatedVisits.map((visit: any) => (
-                          <tr
+{paginatedVisits.map((visit: any) => (
+                        <VisitRow
                             key={visit.id}
-                            className={cn(
-                              'group border-b border-gray-50 hover:bg-gray-50/50 transition-colors cursor-pointer'
-                            )}
-                            onClick={() => openView(visit)}
-                          >
-                            {visibleCols.date && (
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="flex items-center gap-3">
-                                  <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center text-zinc-700 font-bold text-sm">
-                                    {format(parseISO(visit.visit_date), 'dd')}
-                                  </div>
-                                  <div>
-                                    <p className="font-semibold text-zinc-800 text-sm">{format(parseISO(visit.visit_date), 'MMM')}</p>
-                                    <p className="text-xs text-zinc-400">{format(parseISO(visit.visit_date), 'yyyy')}</p>
-                                  </div>
-                                </div>
-                              </td>
-                            )}
-                            {visibleCols.client && (
-                              <td className="px-6 py-4">
-                                <p className="font-semibold text-zinc-900 text-sm">{visit.clients?.client_name || '—'}</p>
-                              </td>
-                            )}
-                            {visibleCols.visitedBy && (
-                              <td className="px-6 py-4">
-                                <p className="text-sm text-zinc-600">{visit.visited_by || visit.engineer || '—'}</p>
-                              </td>
-                            )}
-                            {visibleCols.purpose && (
-                              <td className="px-6 py-4">
-                                <p className="text-sm text-zinc-600 max-w-[160px] truncate">{visit.purpose || '—'}</p>
-                              </td>
-                            )}
-                            {visibleCols.status && (
-                              <td className="px-6 py-4">
-                                <div className={cn(
-                                  'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border',
-                                  STATUS_COLORS[visit.status]?.bg,
-                                  STATUS_COLORS[visit.status]?.text,
-                                  STATUS_COLORS[visit.status]?.border
-                                )}>
-                                  <span className={cn('w-1.5 h-1.5 rounded-full', STATUS_COLORS[visit.status]?.dot)} />
-                                  {visit.status}
-                                </div>
-                              </td>
-                            )}
-                            {visibleCols.nextStep && (
-                              <td className="px-6 py-4">
-                                <p className="text-sm text-zinc-600 max-w-[140px] truncate">{visit.next_step || '—'}</p>
-                              </td>
-                            )}
-                            {visibleCols.actions && (
-                              <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
-                                <div className="flex items-center justify-end gap-1">
-                                  <Button variant="ghost" size="sm" className="h-8 w-8 rounded-full text-zinc-500 hover:bg-gray-100 hover:text-zinc-700" onClick={() => openView(visit)} title="View">
-                                    <Eye className="w-4 h-4" />
-                                  </Button>
-                                  <Button variant="ghost" size="sm" className="h-8 w-8 rounded-full text-zinc-500 hover:bg-gray-100 hover:text-zinc-700" onClick={() => openUpdate(visit)} title="Update">
-                                    <Edit2 className="w-4 h-4" />
-                                  </Button>
-                                  <Button variant="ghost" size="sm" className="h-8 w-8 rounded-full text-zinc-500 hover:bg-gray-100 hover:text-zinc-700" onClick={() => openSchedule(visit)} title="Reschedule">
-                                    <CalendarClock className="w-4 h-4" />
-                                  </Button>
-                                  <Button variant="ghost" size="sm" className="h-8 w-8 rounded-full text-zinc-500 hover:bg-gray-100 hover:text-zinc-700" onClick={() => confirmDelete(visit)} title="Delete">
-                                    <Trash2 className="w-4 h-4" />
-                                  </Button>
-                                </div>
-                              </td>
-                            )}
-                          </tr>
-                        ))}
+                            visit={visit}
+                            visibleCols={visibleCols}
+                            openView={openView}
+                            openUpdate={openUpdate}
+                            openSchedule={openSchedule}
+                            confirmDelete={confirmDelete}
+                        />
+                    ))}
                       </tbody>
                     </table>
                   </div>
@@ -653,47 +590,160 @@ export function SiteVisits() {
                       )}
                       onClick={() => openSchedule(undefined, day)}
                     >
-                      <div className="flex items-center justify-between mb-2">
+<div className="flex items-center justify-between mb-2">
                         <span className={cn(
-                          'inline-flex items-center justify-center w-7 h-7 text-xs font-semibold rounded-full transition-colors',
-                          isToday(day) && 'bg-teal-300 text-zinc-900',
-                          !isToday(day) && isCurrentMonth && 'text-zinc-700 group-hover:bg-gray-100',
-                          !isCurrentMonth && 'text-zinc-400'
+                            'inline-flex items-center justify-center w-7 h-7 text-xs font-semibold rounded-full transition-colors',
+                            isToday(day) && 'bg-teal-300 text-zinc-900',
+                            !isToday(day) && isCurrentMonth && 'text-zinc-700 group-hover:bg-gray-100',
+                            !isCurrentMonth && 'text-zinc-400'
                         )}>
-                          {format(day, 'd')}
+                            {format(day, 'd')}
                         </span>
                         {dayVisits.length > 0 && (
-                          <span className="w-5 h-5 rounded-full bg-zinc-900 text-white text-[9px] font-bold flex items-center justify-center">
-                            {dayVisits.length}
-                          </span>
+                            <span className="w-5 h-5 rounded-full bg-zinc-900 text-white text-[9px] font-bold flex items-center justify-center">
+                                {dayVisits.length}
+                            </span>
                         )}
-                      </div>
-                      <div className="space-y-1">
-                        {dayVisits.slice(0, 3).map((v: any) => (
-                          <div
-                            key={v.id}
-                            className="flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-semibold truncate cursor-pointer border border-gray-200 bg-white text-zinc-700 hover:bg-gray-50"
-                            onClick={(e) => { e.stopPropagation(); openView(v); }}
-                            title={v.clients?.client_name}
-                          >
-                            <span className={cn('w-1.5 h-1.5 rounded-full', STATUS_COLORS[v.status]?.dot)} />
-                            <span className="truncate">{v.clients?.client_name || 'Visit'}</span>
-                          </div>
+                    </div>
+                    <div className="space-y-1">
+{dayVisits.slice(0, 3).map((v: any) => (
+                            <VisitDayItem
+                                key={v.id}
+                                visit={v}
+                                onClick={() => openView(v)}
+                            />
                         ))}
                         {dayVisits.length > 3 && (
-                          <div className="text-[9px] text-zinc-400 font-medium text-center py-0.5 bg-gray-100 rounded-full">+{dayVisits.length - 3} more</div>
+                            <div className="text-[9px] text-zinc-400 font-medium text-center py-0.5 bg-gray-100 rounded-full">+{dayVisits.length - 3} more</div>
                         )}
                         {isCurrentMonth && dayVisits.length === 0 && (
-                          <div className="hidden group-hover:block absolute inset-x-2 bottom-2">
-                            <div className="text-[10px] text-zinc-400 text-center py-1.5 border border-dashed border-gray-200 rounded-full">Click to schedule</div>
-                          </div>
+                            <div className="hidden group-hover:block absolute inset-x-2 bottom-2">
+                                <div className="text-[10px] text-zinc-400 text-center py-1.5 border border-dashed border-gray-200 rounded-full">Click to schedule</div>
+                            </div>
                         )}
-                      </div>
                     </div>
-                  );
-                })}
-              </div>
-            </div>
+                </div>
+            );
+        })}
+    </div>
+</div>
+
+// === Component Extraction ===
+
+/**
+ * VisitRow component for the table view
+ */
+const VisitRow = React.memo(({
+    visit,
+    visibleCols,
+    openView,
+    openUpdate,
+    openSchedule,
+    confirmDelete,
+}: {
+    visit: any;
+    visibleCols: Record<string, boolean>;
+    openView: (visit: any) => void;
+    openUpdate: (visit: any) => void;
+    openSchedule: (visit: any) => void;
+    confirmDelete: (visit: any) => void;
+}) => {
+    return (
+        <tr
+            key={visit.id}
+            className={cn(
+                'group border-b border-gray-50 hover:bg-gray-50/50 transition-colors cursor-pointer'
+            )}
+            onClick={() => openView(visit)}
+        >
+            {visibleCols.date && (
+                <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center text-zinc-700 font-bold text-sm">
+                            {format(parseISO(visit.visit_date), 'dd')}
+                        </div>
+                        <div>
+                            <p className="font-semibold text-zinc-800 text-sm">{format(parseISO(visit.visit_date), 'MMM')}</p>
+                            <p className="text-xs text-zinc-400">{format(parseISO(visit.visit_date), 'yyyy')}</p>
+                        </div>
+                    </div>
+                </td>
+            )}
+            {visibleCols.client && (
+                <td className="px-6 py-4">
+                    <p className="font-semibold text-zinc-900 text-sm">{visit.clients?.client_name || '—'}</p>
+                </td>
+            )}
+            {visibleCols.visitedBy && (
+                <td className="px-6 py-4">
+                    <p className="text-sm text-zinc-600">{visit.visited_by || visit.engineer || '—'}</p>
+                </td>
+            )}
+            {visibleCols.purpose && (
+                <td className="px-6 py-4">
+                    <p className="text-sm text-zinc-600 max-w-[160px] truncate">{visit.purpose || '—'}</p>
+                </td>
+            )}
+            {visibleCols.status && (
+                <td className="px-6 py-4">
+                    <div className={cn(
+                        'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border',
+                        STATUS_COLORS[visit.status]?.bg,
+                        STATUS_COLORS[visit.status]?.text,
+                        STATUS_COLORS[visit.status]?.border
+                    )}>
+                        <span className={cn('w-1.5 h-1.5 rounded-full', STATUS_COLORS[visit.status]?.dot)} />
+                        {visit.status}
+                    </div>
+                </td>
+            )}
+            {visibleCols.nextStep && (
+                <td className="px-6 py-4">
+                    <p className="text-sm text-zinc-600 max-w-[140px] truncate">{visit.next_step || '—'}</p>
+                </td>
+            )}
+            {visibleCols.actions && (
+                <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center justify-end gap-1">
+                        <Button variant="ghost" size="sm" className="h-8 w-8 rounded-full text-zinc-500 hover:bg-gray-100 hover:text-zinc-700" onClick={() => openView(visit)} title="View">
+                            <Eye className="w-4 h-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" className="h-8 w-8 rounded-full text-zinc-500 hover:bg-gray-100 hover:text-zinc-700" onClick={() => openUpdate(visit)} title="Update">
+                            <Edit2 className="w-4 h-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" className="h-8 w-8 rounded-full text-zinc-500 hover:bg-gray-100 hover:text-zinc-700" onClick={() => openSchedule(visit)} title="Reschedule">
+                            <CalendarClock className="w-4 h-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" className="h-8 w-8 rounded-full text-zinc-500 hover:bg-gray-100 hover:text-zinc-700" onClick={() => confirmDelete(visit)} title="Delete">
+                            <Trash2 className="w-4 h-4" />
+                        </Button>
+                    </div>
+                </td>
+            )}
+        </tr>
+    );
+}) as React.ReactElement;
+
+// VisitDayItem component for calendar view
+const VisitDayItem = React.memo(({
+    visit,
+    onClick,
+}: {
+    visit: any;
+    onClick: () => void;
+}) => {
+    return (
+        <div
+            key={visit.id}
+            className="flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-semibold truncate cursor-pointer border border-gray-200 bg-white text-zinc-700 hover:bg-gray-50"
+            onClick={onClick}
+            title={visit.clients?.client_name}
+        >
+            <span className={cn('w-1.5 h-1.5 rounded-full', STATUS_COLORS[visit.status]?.dot)} />
+            <span className="truncate">{visit.clients?.client_name || 'Visit'}</span>
+        </div>
+    );
+}) as React.ReactElement;
           )}
         </div>
 
