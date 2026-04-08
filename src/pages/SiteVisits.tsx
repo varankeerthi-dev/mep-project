@@ -331,10 +331,10 @@ const isPending = addMutation.isPending || updateMutation.isPending;
 
   // === Component Extraction ===
 
-  /**
+/**
    * VisitRow component for the table view
    */
-const VisitRow = React.memo(({
+  const VisitRow = React.memo(({
     visit,
     visibleCols,
     openView,
@@ -349,19 +349,80 @@ const VisitRow = React.memo(({
     openSchedule: (visit: any) => void;
     confirmDelete: (visit: any) => void;
   }) => {
-return (
-        <div
-          key={visit.id}
-          className={cn(
-            'flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-semibold truncate cursor-pointer border border-gray-200 bg-white text-zinc-700 hover:bg-gray-50'
-          )}
-          onClick={onClick}
-          title={visit.clients?.client_name}
-        >
-          <span className={cn('w-1.5 h-1.5 rounded-full', STATUS_COLORS[visit.status]?.dot)} />
-          <span className="truncate">{visit.clients?.client_name || 'Visit'}</span>
-        </div>
-      );
+    return (
+      <tr
+        key={visit.id}
+        className={cn(
+          'group border-b border-gray-50 hover:bg-gray-50/50 transition-colors cursor-pointer'
+        )}
+        onClick={() => openView(visit)}
+      >
+        {visibleCols.date && (
+          <td className="px-6 py-4 whitespace-nowrap">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center text-zinc-700 font-bold text-sm">
+                {format(parseISO(visit.visit_date), 'dd')}
+              </div>
+              <div>
+                <p className="font-semibold text-zinc-800 text-sm">{format(parseISO(visit.visit_date), 'MMM')}</p>
+                <p className="text-xs text-zinc-400">{format(parseISO(visit.visit_date), 'yyyy')}</p>
+              </div>
+            </div>
+          </td>
+        )}
+        {visibleCols.client && (
+          <td className="px-6 py-4">
+            <p className="font-semibold text-zinc-900 text-sm">{visit.clients?.client_name || '—'}</p>
+          </td>
+        )}
+        {visibleCols.visitedBy && (
+          <td className="px-6 py-4">
+            <p className="text-sm text-zinc-600">{visit.visited_by || visit.engineer || '—'}</p>
+          </td>
+        )}
+        {visibleCols.purpose && (
+          <td className="px-6 py-4">
+            <p className="text-sm text-zinc-600 max-w-[160px] truncate">{visit.purpose || '—'}</p>
+          </td>
+        )}
+        {visibleCols.status && (
+          <td className="px-6 py-4">
+            <div className={cn(
+              'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border',
+              STATUS_COLORS[visit.status]?.bg,
+              STATUS_COLORS[visit.status]?.text,
+              STATUS_COLORS[visit.status]?.border
+            )}>
+              <span className={cn('w-1.5 h-1.5 rounded-full', STATUS_COLORS[visit.status]?.dot)} />
+              {visit.status}
+            </div>
+          </td>
+        )}
+        {visibleCols.nextStep && (
+          <td className="px-6 py-4">
+            <p className="text-sm text-zinc-600 max-w-[140px] truncate">{visit.next_step || '—'}</p>
+          </td>
+        )}
+        {visibleCols.actions && (
+          <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-end gap-1">
+              <Button variant="ghost" size="sm" className="h-8 w-8 rounded-full text-zinc-500 hover:bg-gray-100 hover:text-zinc-700" onClick={() => openView(visit)} title="View">
+                <Eye className="w-4 h-4" />
+              </Button>
+              <Button variant="ghost" size="sm" className="h-8 w-8 rounded-full text-zinc-500 hover:bg-gray-100 hover:text-zinc-700" onClick={() => openUpdate(visit)} title="Update">
+                <Edit2 className="w-4 h-4" />
+              </Button>
+              <Button variant="ghost" size="sm" className="h-8 w-8 rounded-full text-zinc-500 hover:bg-gray-100 hover:text-zinc-700" onClick={() => openSchedule(visit)} title="Reschedule">
+                <CalendarClock className="w-4 h-4" />
+              </Button>
+              <Button variant="ghost" size="sm" className="h-8 w-8 rounded-full text-zinc-500 hover:bg-gray-100 hover:text-zinc-700" onClick={() => confirmDelete(visit)} title="Delete">
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </div>
+          </td>
+        )}
+      </tr>
+    );
   }) as React.ReactElement;
 
   // VisitDayItem component for calendar view
@@ -775,8 +836,6 @@ return (
             </form>
           </DialogContent>
         </Dialog>
-          )}
-        </div>
 
         {/* Follow-ups panel */}
         {visits.filter((v: any) => v.follow_up_date && v.status !== 'completed').length > 0 && (
