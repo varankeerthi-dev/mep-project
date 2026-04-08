@@ -700,7 +700,7 @@ return (
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <Label className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Client *</Label>
-                  <button type="button className="text-xs text-teal-700 hover:text-teal-800 font-medium" onClick={() => setIsAddClientOpen(true)}>+ Add New</button>
+                  <button type="button" className="text-xs text-teal-700 hover:text-teal-800 font-medium" onClick={() => setIsAddClientOpen(true)}>+ Add New</button>
                 </div>
                 <Select name="client_id" required defaultValue={selectedVisit?.client_id || undefined}>
                   <SelectTrigger className="rounded-xl border-gray-200 bg-white h-10 focus:border-teal-300 focus:ring-2 focus:ring-teal-300/20 focus:outline-none">
