@@ -84,6 +84,7 @@ const ROUTE_SECTIONS: Record<string, ImportFactory[]> = {
     () => import('./pages/PrintSettings'),
     () => import('./pages/TemplateSettings'),
     () => import('./pages/DiscountSettings'),
+    () => import('./pages/QuickQuoteSettings'),
     () => import('./pages/TransactionNumberSeries'),
     () => import('./pages/Organisation').then(m => ({ default: m.OrganisationSettings })),
     () => import('./pages/AccessControl'),
@@ -150,6 +151,7 @@ const CreateQuotation = lazyAny(() => import('./pages/CreateQuotation'));
 const QuotationView = lazyAny(() => import('./pages/QuotationView'));
 const TemplateSettings = lazyAny(() => import('./pages/TemplateSettings'));
 const DiscountSettings = lazyAny(() => import('./pages/DiscountSettings'));
+const QuickQuoteSettings = lazyAny(() => import('./pages/QuickQuoteSettings'));
 const QuickStockCheckList = lazyAny(() => import('./pages/QuickStockCheckList'));
 const QuickStockCheck = lazyAny(() => import('./pages/QuickStockCheck'));
 const ProcurementList = lazyAny(() => import('./pages/ProcurementList'));
@@ -519,6 +521,7 @@ export default function App() {
       case '/settings/organisation': return <OrganisationSettings organisation={authOrg} userId={authUser?.id} />;
       case '/settings/document-series': return <TransactionNumberSeries />;
       case '/settings/template': return <TemplateSettings />;
+      case '/settings/quick-quote': return <QuickQuoteSettings />;
       case '/settings/access-control': return <AccessControlPage />;
       case '/quick-stock-check': return <QuickStockCheckList />;
       case '/quick-stock-check/create': return <QuickStockCheck />;

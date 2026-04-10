@@ -78,12 +78,17 @@ export default function ReceiveMaterial({ projectId, organisationId }: ProjectPr
   const { data: vendors = [] } = useQuery({
     queryKey: ['purchaseVendors', organisationId],
     queryFn: async () => {
-      const { data } = await supabase
+      let query = supabase
         .from('purchase_vendors')
         .select('id, vendor_name')
-        .eq('organisation_id', organisationId)
         .eq('is_active', true)
         .order('vendor_name');
+      
+      if (organisationId && organisationId.trim() !== '') {
+        query = query.eq('organisation_id', organisationId);
+      }
+      
+      const { data } = await query;
       return data || [];
     },
   });
@@ -94,8 +99,7 @@ export default function ReceiveMaterial({ projectId, organisationId }: ProjectPr
 
       const qtyReceived = parseFloat(data.qty_received) || 0;
       
-      const { error: logError } = await supabase.from('material_logs').insert({
-        organisation_id: organisationId,
+      const logData: any = {
         project_id: projectId,
         intent_id: selectedIntent.id,
         item_id: selectedIntent.item_id,
@@ -110,7 +114,13 @@ export default function ReceiveMaterial({ projectId, organisationId }: ProjectPr
         invoice_number: data.invoice_number,
         dc_date: data.dc_date || null,
         received_by_name: 'Site Engineer',
-      });
+      };
+      
+      if (organisationId && organisationId.trim() !== '') {
+        logData.organisation_id = organisationId;
+      }
+      
+      const { error: logError } = await supabase.from('material_logs').insert(logData);
       if (logError) throw logError;
 
       const newReceivedQty = selectedIntent.received_qty + qtyReceived;
@@ -139,6 +149,10 @@ export default function ReceiveMaterial({ projectId, organisationId }: ProjectPr
       setDcImage(null);
       setDcImagePreview(null);
       resetReceiveForm();
+    },
+    onError: (error: any) => {
+      console.error('Failed to receive material:', error);
+      alert('Failed to receive material: ' + (error?.message || 'Unknown error'));
     },
   });
 

@@ -6,6 +6,9 @@ import { formatCurrency } from '../utils/formatters';
 import { useQuery } from '@tanstack/react-query';
 import { flexRender, getCoreRowModel, useReactTable } from '@tanstack/react-table';
 import { timedSupabaseQuery } from '../utils/queryTimeout';
+import { generateQuickQuoteItems } from '../quotation/quick-quote/engine';
+import { loadQuickQuoteConfig, normalizeQuickQuoteConfig } from '../quotation/quick-quote/api';
+import type { QuickQuoteConfig } from '../quotation/quick-quote/types';
 
 const INDIAN_STATES = [
   'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
@@ -75,6 +78,15 @@ export default function CreateQuotation() {
   const [showCustomLabelEditor, setShowCustomLabelEditor] = useState(false);
   const [itemSearch, setItemSearch] = useState('');
   const [pickerItems, setPickerItems] = useState([]);
+  const [quickQuoteConfig, setQuickQuoteConfig] = useState<QuickQuoteConfig | null>(null);
+  const [quickQuoteTemplateId, setQuickQuoteTemplateId] = useState('');
+  const [quickQuoteSize, setQuickQuoteSize] = useState('');
+  const [quickQuoteSubSize, setQuickQuoteSubSize] = useState('');
+  const [quickQuoteVariantId, setQuickQuoteVariantId] = useState('');
+  const [quickQuoteMake, setQuickQuoteMake] = useState('');
+  const [quickQuoteSpec, setQuickQuoteSpec] = useState('');
+  const [quickQuoteIncludeValves, setQuickQuoteIncludeValves] = useState(true);
+  const [quickQuoteIncludeThreadItems, setQuickQuoteIncludeThreadItems] = useState(true);
 
   const [formData, setFormData] = useState({
     quotation_no: '',
@@ -103,9 +115,9 @@ export default function CreateQuotation() {
   const [isDirty, setIsDirty] = useState(false);
 
   const initQuery = useQuery({
-    queryKey: ['quotationInit'],
+    queryKey: ['quotationInit', organisation?.id],
     queryFn: async () => {
-      const [clients, projects, materials, variants, pricing, settings, template] = await Promise.all([
+      const [clients, projects, materials, variants, pricing, settings, template, quickQuoteConfig] = await Promise.all([
         timedSupabaseQuery(
           supabase
             .from('clients')
@@ -148,6 +160,7 @@ export default function CreateQuotation() {
             .maybeSingle(),
           'Quotation template',
         ),
+        organisation?.id ? loadQuickQuoteConfig(organisation.id) : Promise.resolve(null),
       ]);
 
       return {
@@ -157,7 +170,8 @@ export default function CreateQuotation() {
         variants: variants || [],
         pricing: pricing || [],
         settings: settings || [],
-        template: template || null
+        template: template || null,
+        quickQuoteConfig: quickQuoteConfig || null
       };
     },
     staleTime: 5 * 60 * 1000
@@ -169,7 +183,7 @@ export default function CreateQuotation() {
   useEffect(() => {
     if (!initQuery.data) return;
 
-    const { clients, projects, materials, variants, pricing, settings, template } = initQuery.data;
+    const { clients, projects, materials, variants, pricing, settings, template, quickQuoteConfig } = initQuery.data;
 
     setClients(clients);
     setProjects(projects);
@@ -213,6 +227,19 @@ export default function CreateQuotation() {
 
     setVariantPricing(pricingMap);
     setItemMakes(finalMakesMap);
+
+    if (quickQuoteConfig) {
+      const normalizedQuickQuote = normalizeQuickQuoteConfig(quickQuoteConfig, mappedItems, pricing || []);
+      setQuickQuoteConfig(normalizedQuickQuote);
+      setQuickQuoteTemplateId((prev) => prev || normalizedQuickQuote.templates[0]?.id || '');
+      setQuickQuoteVariantId((prev) => prev || normalizedQuickQuote.settings?.default_variant || '');
+      setQuickQuoteMake((prev) => prev || normalizedQuickQuote.settings?.default_make || '');
+      setQuickQuoteSpec((prev) => prev || normalizedQuickQuote.settings?.default_spec || '');
+      setQuickQuoteIncludeValves(normalizedQuickQuote.settings?.enable_valves ?? true);
+      setQuickQuoteIncludeThreadItems(normalizedQuickQuote.settings?.enable_thread_items ?? true);
+    } else {
+      setQuickQuoteConfig(null);
+    }
 
     const settingsMap = {};
     (settings || []).forEach((row) => {
@@ -979,6 +1006,77 @@ const loadQuoteNoPreview = useCallback(async () => {
     }, 50);
   };
 
+  const handleGenerateQuickQuote = () => {
+    if (!quickQuoteConfig || !quickQuoteTemplateId) {
+      alert('Quick Quote template is not configured yet.');
+      return;
+    }
+    if (!quickQuoteSize.trim()) {
+      alert('Please enter a size for Quick Quote.');
+      return;
+    }
+
+    const generated = generateQuickQuoteItems({
+      templateId: quickQuoteTemplateId,
+      input: {
+        size: quickQuoteSize,
+        subSize: quickQuoteSubSize,
+        variantId: quickQuoteVariantId || null,
+        variantName: variants.find((v) => v.id === quickQuoteVariantId)?.variant_name || null,
+        make: quickQuoteMake || null,
+        spec: quickQuoteSpec || null,
+        includeValves: quickQuoteIncludeValves,
+        includeThreadItems: quickQuoteIncludeThreadItems,
+      },
+      config: quickQuoteConfig,
+    });
+
+    if (generated.length === 0) {
+      alert('No matching items found for the selected Quick Quote inputs.');
+      return;
+    }
+
+    const currentItemsLength = items.length;
+    const newItems = generated.map((row, idx) => {
+      const variantId = row.variant_id || null;
+      const headerDiscount = variantId ? (headerDiscounts[variantId] || 0) : 0;
+      const baseRate = Number(row.rate) || 0;
+      const finalRate = calculateVariantDiscountedRate(baseRate, headerDiscount);
+
+      return {
+        id: Date.now() + idx,
+        item_id: row.material.id,
+        variant_id: variantId,
+        material: row.material,
+        hsn_code: row.material.hsn_code || '',
+        description: row.description,
+        qty: row.qty,
+        uom: row.uom,
+        rate: finalRate,
+        discount_percent: headerDiscount,
+        discount_amount: 0,
+        tax_percent: row.tax_percent,
+        tax_amount: 0,
+        line_total: 0,
+        override_flag: false,
+        original_discount_percent: headerDiscount,
+        base_rate_snapshot: baseRate,
+        applied_discount_percent: headerDiscount,
+        is_override: false,
+        final_rate_snapshot: finalRate,
+        display_order: currentItemsLength + idx,
+        make: row.make,
+        custom1: '',
+        custom2: '',
+      };
+    });
+
+    setItems((prev) => [...prev, ...newItems]);
+    setTimeout(() => {
+      itemsTableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 50);
+  };
+
   const withTimeout = async (promise, label, timeoutMs = 40000) => {
     let timeoutId;
     const timeoutPromise = new Promise((_, reject) => {
@@ -1574,6 +1672,46 @@ const loadQuoteNoPreview = useCallback(async () => {
               )}
             </div>
           )}
+        </div>
+      )}
+
+      {quickQuoteConfig && (
+        <div className="card" style={{ marginBottom: '12px', padding: '12px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', background: '#f8fafc' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#0f172a', fontSize: '12px', fontWeight: 600 }}>
+              <span>Quick Quote</span>
+              <span style={{ color: '#64748b', fontWeight: 400 }}>Generate preset rows</span>
+            </div>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <select className="form-select" style={{ minWidth: '170px', height: '32px', fontSize: '12px' }} value={quickQuoteTemplateId} onChange={(e) => setQuickQuoteTemplateId(e.target.value)}>
+                <option value="">Template</option>
+                {quickQuoteConfig.templates.map((tpl) => (
+                  <option key={tpl.id} value={tpl.id}>{tpl.name}</option>
+                ))}
+              </select>
+              <input className="form-input" style={{ width: '92px', height: '32px', fontSize: '12px' }} value={quickQuoteSize} onChange={(e) => setQuickQuoteSize(e.target.value)} placeholder="Size" />
+              <input className="form-input" style={{ width: '92px', height: '32px', fontSize: '12px' }} value={quickQuoteSubSize} onChange={(e) => setQuickQuoteSubSize(e.target.value)} placeholder="Sub-size" />
+              <select className="form-select" style={{ minWidth: '160px', height: '32px', fontSize: '12px' }} value={quickQuoteVariantId} onChange={(e) => setQuickQuoteVariantId(e.target.value)}>
+                <option value="">Variant</option>
+                {variants.map((variant) => (
+                  <option key={variant.id} value={variant.id}>{variant.variant_name}</option>
+                ))}
+              </select>
+              <input className="form-input" style={{ width: '120px', height: '32px', fontSize: '12px' }} value={quickQuoteMake} onChange={(e) => setQuickQuoteMake(e.target.value)} placeholder="Make" />
+              <input className="form-input" style={{ width: '120px', height: '32px', fontSize: '12px' }} value={quickQuoteSpec} onChange={(e) => setQuickQuoteSpec(e.target.value)} placeholder="Spec" />
+              <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#334155' }}>
+                <input type="checkbox" checked={quickQuoteIncludeValves} onChange={(e) => setQuickQuoteIncludeValves(e.target.checked)} />
+                Valves
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#334155' }}>
+                <input type="checkbox" checked={quickQuoteIncludeThreadItems} onChange={(e) => setQuickQuoteIncludeThreadItems(e.target.checked)} />
+                Thread
+              </label>
+              <button className="btn btn-primary" style={{ height: '32px', borderRadius: '8px', fontSize: '12px', padding: '0 12px' }} onClick={handleGenerateQuickQuote}>
+                Generate
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

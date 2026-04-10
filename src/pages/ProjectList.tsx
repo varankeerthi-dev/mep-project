@@ -4,6 +4,8 @@ import { formatCurrency } from '../utils/formatters';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Search, Plus, ChevronRight, ArrowLeft, Edit, Trash2, Folder, TrendingUp, Clock, DollarSign } from 'lucide-react';
+import ProjectTaskListView from '../components/tasks/ProjectTaskListView';
+import { useAuth } from '../App';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -23,6 +25,7 @@ type Project = {
   remarks?: string;
   client?: { client_name?: string } | null;
   client_id?: string;
+  organisation_id?: string;
 };
 
 type ProjectDetails = {
@@ -393,8 +396,10 @@ const styles = `
   .pl-detail-header {
     display: flex;
     align-items: center;
-    gap: 1rem;
-    margin-bottom: 2rem;
+    gap: 0.75rem;
+    padding: 0.5rem 1rem;
+    margin-bottom: 0;
+    border-bottom: 1px solid var(--border);
   }
   
   .pl-detail-title {
@@ -564,9 +569,11 @@ if (typeof document !== 'undefined') {
 
 export default function ProjectList() {
   const navigate = useNavigate();
+  const { user, organisation } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'detail'>('list');
+  const [activeTab, setActiveTab] = useState('summary');
 
   const { data: projects = [], isLoading } = useQuery<Project[]>({
     queryKey: ['projects'],
@@ -690,41 +697,44 @@ export default function ProjectList() {
   if (viewMode === 'detail' && selectedProject) {
     const tabs = [
       { id: 'summary', label: 'Summary' },
+      { id: 'transactions', label: 'Transactions' },
+      { id: 'tasks', label: 'Tasks' },
+      { id: 'expenses', label: 'Expenses' },
+    ];
+
+    const transactionSubTabs = [
       { id: 'pos', label: 'POs', count: projectPOs.length },
       { id: 'invoices', label: 'Invoices', count: projectInvoices.length },
       { id: 'payments', label: 'Payments', count: projectPayments.length },
-      { id: 'expenses', label: 'Expenses', count: projectExpenses.length },
     ];
-    const [activeTab, setActiveTab] = useState('summary');
 
     return (
       <div className="pl-page">
         <div className="pl-container">
-          <div className="pl-detail-header">
+          <div className="pl-detail-header" style={{ padding: '0.5rem 1rem', gap: '0.75rem' }}>
             <button className="pl-btn-icon" onClick={() => { setViewMode('list'); setSelectedProject(null); }}>
-              <ArrowLeft size={20} />
+              <ArrowLeft size={18} />
             </button>
-            <div>
-              <h1 className="pl-detail-title">{selectedProject.project_name}</h1>
-              <p className="pl-subtitle">{selectedProject.project_code}</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1 }}>
+              <h1 className="pl-detail-title" style={{ fontSize: '18px', margin: 0 }}>{selectedProject.project_name}</h1>
+              <span style={{ color: 'var(--text-muted)', fontSize: '0.8125rem' }}>{selectedProject.project_code}</span>
             </div>
-            <button className="pl-btn pl-btn-primary" style={{ marginLeft: 'auto' }} onClick={() => navigate(`/projects/edit?id=${selectedProject.id}`)}>
-              <Edit size={16} />
-              Edit Project
+            <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
+              {tabs.map(tab => (
+                <button
+                  key={tab.id}
+                  className={`pl-tab ${activeTab === tab.id ? 'active' : ''}`}
+                  onClick={() => setActiveTab(tab.id)}
+                  style={{ padding: '0.375rem 0.75rem', fontSize: '0.8125rem' }}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+            <button className="pl-btn pl-btn-primary" onClick={() => navigate(`/projects/edit?id=${selectedProject.id}`)}>
+              <Edit size={14} />
+              Edit
             </button>
-          </div>
-
-          <div className="pl-tabs">
-            {tabs.map(tab => (
-              <button
-                key={tab.id}
-                className={`pl-tab ${activeTab === tab.id ? 'active' : ''}`}
-                onClick={() => setActiveTab(tab.id)}
-              >
-                {tab.label}
-                <span className="pl-tab-count">({tab.count})</span>
-              </button>
-            ))}
           </div>
 
           {activeTab === 'summary' && (
@@ -795,117 +805,163 @@ export default function ProjectList() {
             </>
           )}
 
-          {activeTab === 'pos' && (
-            <div className="pl-card">
-              <div style={{ padding: '1rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h3 style={{ margin: 0, fontWeight: 600, color: 'var(--text-primary)' }}>Purchase Orders</h3>
-                <button className="pl-btn pl-btn-primary" onClick={() => navigate(`/client-po/create?project_id=${selectedProject.id}`)}>
-                  <Plus size={16} />
-                  Create PO
-                </button>
-              </div>
-              {projectPOs.length === 0 ? (
-                <div className="pl-empty">
-                  <Folder className="pl-empty-icon" />
-                  <p className="pl-empty-text">No purchase orders found</p>
+          {activeTab === 'transactions' && (
+            <div>
+              {/* Transactions Summary */}
+              <div className="pl-card" style={{ padding: '1.25rem', marginBottom: '1rem' }}>
+                <h3 className="pl-summary-title" style={{ marginBottom: '1rem' }}>Transaction Summary</h3>
+                <div className="pl-financial-grid">
+                  <div className="pl-financial-card">
+                    <div className="pl-financial-label">Total POs</div>
+                    <div className="pl-financial-value">{projectPOs.length}</div>
+                  </div>
+                  <div className="pl-financial-card">
+                    <div className="pl-financial-label">PO Value</div>
+                    <div className="pl-financial-value">{fmt(financialSummary?.total_po_value)}</div>
+                  </div>
+                  <div className="pl-financial-card">
+                    <div className="pl-financial-label">Invoiced</div>
+                    <div className="pl-financial-value">{fmt(financialSummary?.total_invoice_value)}</div>
+                  </div>
+                  <div className="pl-financial-card">
+                    <div className="pl-financial-label">Payments</div>
+                    <div className="pl-financial-value positive">{fmt(financialSummary?.total_payment_received)}</div>
+                  </div>
                 </div>
-              ) : (
-                <table className="pl-table">
-                  <thead>
-                    <tr>
-                      <th>PO Number</th>
-                      <th>Date</th>
-                      <th>Total Value</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {projectPOs.map(po => (
-                      <tr key={po.id}>
-                        <td style={{ fontWeight: 500 }}>{po.po_number}</td>
-                        <td style={{ color: 'var(--text-secondary)' }}>{fmtD(po.po_date)}</td>
-                        <td style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 500 }}>{fmt(po.po_total_value)}</td>
-                        <td>
-                          <span className="pl-status">
-                            <span className="pl-status-dot" style={{ background: PO_STATUS_CONFIG[po.status as keyof typeof PO_STATUS_CONFIG]?.dot || '#94a3b8' }} />
-                            {po.status || 'Pending'}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-          )}
+              </div>
 
-          {activeTab === 'invoices' && (
-            <div className="pl-card">
-              <div style={{ padding: '1rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h3 style={{ margin: 0, fontWeight: 600, color: 'var(--text-primary)' }}>Invoices</h3>
+              {/* Transaction Sub-Tabs */}
+              <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', padding: '0.5rem 0' }}>
+                {transactionSubTabs.map(subTab => (
+                  <button
+                    key={subTab.id}
+                    onClick={() => {}}
+                    style={{
+                      padding: '0.5rem 1rem',
+                      borderRadius: '0.5rem',
+                      fontSize: '0.875rem',
+                      fontWeight: 500,
+                      cursor: 'pointer',
+                      border: '1px solid var(--border)',
+                      background: subTab.id === 'pos' ? 'var(--accent)' : 'white',
+                      color: subTab.id === 'pos' ? 'white' : 'var(--text-primary)',
+                    }}
+                  >
+                    {subTab.label} ({subTab.count})
+                  </button>
+                ))}
               </div>
-              {projectInvoices.length === 0 ? (
-                <div className="pl-empty">
-                  <Folder className="pl-empty-icon" />
-                  <p className="pl-empty-text">No invoices found</p>
-                </div>
-              ) : (
-                <table className="pl-table">
-                  <thead>
-                    <tr>
-                      <th>Invoice</th>
-                      <th>Date</th>
-                      <th>Amount</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {projectInvoices.map(inv => (
-                      <tr key={inv.id}>
-                        <td style={{ fontWeight: 500 }}>{inv.invoice_number}</td>
-                        <td style={{ color: 'var(--text-secondary)' }}>{fmtD(inv.invoice_date)}</td>
-                        <td style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 500 }}>{fmt(inv.total_amount)}</td>
-                        <td><span className="pl-status">{inv.status}</span></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-          )}
 
-          {activeTab === 'payments' && (
-            <div className="pl-card">
-              <div style={{ padding: '1rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h3 style={{ margin: 0, fontWeight: 600, color: 'var(--text-primary)' }}>Payments</h3>
-              </div>
-              {projectPayments.length === 0 ? (
-                <div className="pl-empty">
-                  <Folder className="pl-empty-icon" />
-                  <p className="pl-empty-text">No payments found</p>
+              {/* POs */}
+              <div className="pl-card">
+                <div style={{ padding: '1rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h3 style={{ margin: 0, fontWeight: 600, color: 'var(--text-primary)' }}>Purchase Orders</h3>
+                  <button className="pl-btn pl-btn-primary" onClick={() => navigate(`/client-po/create?project_id=${selectedProject.id}`)}>
+                    <Plus size={16} />
+                    Create PO
+                  </button>
                 </div>
-              ) : (
-                <table className="pl-table">
-                  <thead>
-                    <tr>
-                      <th>Payment</th>
-                      <th>Date</th>
-                      <th>Amount</th>
-                      <th>Mode</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {projectPayments.map(pay => (
-                      <tr key={pay.id}>
-                        <td style={{ fontWeight: 500 }}>{pay.payment_number}</td>
-                        <td style={{ color: 'var(--text-secondary)' }}>{fmtD(pay.payment_date)}</td>
-                        <td style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 500, color: 'var(--success)' }}>{fmt(pay.payment_amount)}</td>
-                        <td style={{ color: 'var(--text-secondary)' }}>{pay.payment_mode}</td>
+                {projectPOs.length === 0 ? (
+                  <div className="pl-empty">
+                    <Folder className="pl-empty-icon" />
+                    <p className="pl-empty-text">No purchase orders found</p>
+                  </div>
+                ) : (
+                  <table className="pl-table">
+                    <thead>
+                      <tr>
+                        <th>PO Number</th>
+                        <th>Date</th>
+                        <th>Total Value</th>
+                        <th>Status</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
+                    </thead>
+                    <tbody>
+                      {projectPOs.map(po => (
+                        <tr key={po.id}>
+                          <td style={{ fontWeight: 500 }}>{po.po_number}</td>
+                          <td style={{ color: 'var(--text-secondary)' }}>{fmtD(po.po_date)}</td>
+                          <td style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 500 }}>{fmt(po.po_total_value)}</td>
+                          <td>
+                            <span className="pl-status">
+                              <span className="pl-status-dot" style={{ background: PO_STATUS_CONFIG[po.status as keyof typeof PO_STATUS_CONFIG]?.dot || '#94a3b8' }} />
+                              {po.status || 'Pending'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+
+              {/* Invoices */}
+              <div className="pl-card" style={{ marginTop: '1rem' }}>
+                <div style={{ padding: '1rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h3 style={{ margin: 0, fontWeight: 600, color: 'var(--text-primary)' }}>Invoices</h3>
+                </div>
+                {projectInvoices.length === 0 ? (
+                  <div className="pl-empty">
+                    <Folder className="pl-empty-icon" />
+                    <p className="pl-empty-text">No invoices found</p>
+                  </div>
+                ) : (
+                  <table className="pl-table">
+                    <thead>
+                      <tr>
+                        <th>Invoice</th>
+                        <th>Date</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {projectInvoices.map(inv => (
+                        <tr key={inv.id}>
+                          <td style={{ fontWeight: 500 }}>{inv.invoice_number}</td>
+                          <td style={{ color: 'var(--text-secondary)' }}>{fmtD(inv.invoice_date)}</td>
+                          <td style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 500 }}>{fmt(inv.total_amount)}</td>
+                          <td><span className="pl-status">{inv.status}</span></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+
+              {/* Payments */}
+              <div className="pl-card" style={{ marginTop: '1rem' }}>
+                <div style={{ padding: '1rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h3 style={{ margin: 0, fontWeight: 600, color: 'var(--text-primary)' }}>Payments</h3>
+                </div>
+                {projectPayments.length === 0 ? (
+                  <div className="pl-empty">
+                    <Folder className="pl-empty-icon" />
+                    <p className="pl-empty-text">No payments found</p>
+                  </div>
+                ) : (
+                  <table className="pl-table">
+                    <thead>
+                      <tr>
+                        <th>Payment</th>
+                        <th>Date</th>
+                        <th>Amount</th>
+                        <th>Mode</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {projectPayments.map(pay => (
+                        <tr key={pay.id}>
+                          <td style={{ fontWeight: 500 }}>{pay.payment_number}</td>
+                          <td style={{ color: 'var(--text-secondary)' }}>{fmtD(pay.payment_date)}</td>
+                          <td style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 500, color: 'var(--success)' }}>{fmt(pay.payment_amount)}</td>
+                          <td style={{ color: 'var(--text-secondary)' }}>{pay.payment_mode}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
             </div>
           )}
 
@@ -942,6 +998,17 @@ export default function ProjectList() {
                 </table>
               )}
             </div>
+          )}
+
+          {activeTab === 'tasks' && (
+            selectedProject && user && organisation && (
+              <ProjectTaskListView 
+                projectId={selectedProject.id} 
+                projectName={selectedProject.project_name}
+                organisationId={organisation.id}
+                userId={user.id}
+              />
+            )
           )}
         </div>
       </div>

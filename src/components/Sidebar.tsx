@@ -256,6 +256,7 @@ const menuData: MenuSection[] = [
           { id: 'settings-print', label: 'Print Settings', path: '/settings/print' },
           { id: 'settings-document', label: 'Document Settings', path: '/settings/document-series' },
           { id: 'settings-template', label: 'Template Settings', path: '/settings/template' },
+          { id: 'settings-quick-quote', label: 'Quick Quote', path: '/settings/quick-quote' },
           { id: 'settings-organisation', label: 'Organisation Settings', path: '/settings/organisation' },
           { id: 'settings-access', label: 'Access Control', path: '/settings/access-control' },
           { id: 'settings-discounts', label: 'Discount Settings', path: '/settings/discounts' }

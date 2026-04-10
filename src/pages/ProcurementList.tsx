@@ -5,7 +5,10 @@ import { supabase } from '../supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { FileDown } from 'lucide-react';
+import { FileDown, Package, Truck } from 'lucide-react';
+
+const DISPATCH_SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQXCykygVpep9eq-6szekLKpcW6G6na2oymO2DxWIyTiIyTQQds7-MAMgTg_xN8HDQDN853qpfqOeUW/pubhtml?widget=true&headers=false";
+const DISPATCH_EDIT_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQXCykygVpep9eq-6szekLKpcW6G6na2oymO2DxWIyTiIyTQQds7-MAMgTg_xN8HDQDN853qpfqOeUW/edit?usp=sharing";
 
 const STATUS_COLOURS: Record<string, string> = {
   Active: '#16a34a',
@@ -36,6 +39,7 @@ export default function ProcurementList() {
   const [newTitle, setNewTitle] = useState('');
   const [newNotes, setNewNotes] = useState('');
   const [creating, setCreating] = useState(false);
+  const [activeSubTab, setActiveSubTab] = useState<'lists' | 'dispatch'>('lists');
 
   // Fetch all procurement lists
   const { data: lists = [], isLoading } = useQuery({
@@ -212,7 +216,7 @@ export default function ProcurementList() {
           </p>
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
-          {filtered.length > 0 && (
+          {activeSubTab === 'lists' && filtered.length > 0 && (
             <button
               onClick={exportToPDF}
               style={{
@@ -245,78 +249,145 @@ export default function ProcurementList() {
           >
             {showArchived ? 'Hide Archived' : 'Show Archived'}
           </button>
-          <button
-            onClick={() => setShowNewModal(true)}
-            style={{
-              padding: '7px 16px',
-              border: 'none',
-              borderRadius: '6px',
-              background: '#1d4ed8',
-              color: '#fff',
-              fontSize: '12px',
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
-          >
-            + New Manual List
-          </button>
+          {activeSubTab === 'lists' && (
+            <button
+              onClick={() => setShowNewModal(true)}
+              style={{
+                padding: '7px 16px',
+                border: 'none',
+                borderRadius: '6px',
+                background: '#1d4ed8',
+                color: '#fff',
+                fontSize: '12px',
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              + New Manual List
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Search */}
-      <input
-        type="text"
-        placeholder="Search by title, client, BOQ no..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        style={{
-          width: '100%',
-          maxWidth: '400px',
-          padding: '8px 12px',
-          border: '1px solid #d1d5db',
-          borderRadius: '6px',
-          fontSize: '13px',
-          marginBottom: '20px',
-          outline: 'none',
-        }}
-      />
+      {/* Tab Navigation */}
+      <div style={{ display: 'flex', gap: '4px', marginBottom: '20px', borderBottom: '1px solid #e5e7eb' }}>
+        <button
+          onClick={() => setActiveSubTab('lists')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '10px 16px',
+            border: 'none',
+            borderBottom: activeSubTab === 'lists' ? '2px solid #1d4ed8' : '2px solid transparent',
+            background: 'transparent',
+            color: activeSubTab === 'lists' ? '#1d4ed8' : '#6b7280',
+            fontSize: '14px',
+            fontWeight: activeSubTab === 'lists' ? 600 : 500,
+            cursor: 'pointer',
+          }}
+        >
+          <Package size={18} />
+          Lists
+        </button>
+        <button
+          onClick={() => setActiveSubTab('dispatch')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '10px 16px',
+            border: 'none',
+            borderBottom: activeSubTab === 'dispatch' ? '2px solid #1d4ed8' : '2px solid transparent',
+            background: 'transparent',
+            color: activeSubTab === 'dispatch' ? '#1d4ed8' : '#6b7280',
+            fontSize: '14px',
+            fontWeight: activeSubTab === 'dispatch' ? 600 : 500,
+            cursor: 'pointer',
+          }}
+        >
+          <Truck size={18} />
+          Dispatch
+        </button>
+      </div>
 
-      {isLoading ? (
-        <div style={{ textAlign: 'center', padding: '40px', color: '#9ca3af' }}>Loading...</div>
-      ) : filtered.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '60px', color: '#9ca3af' }}>
-          <div style={{ fontSize: '32px', marginBottom: '12px' }}>📦</div>
-          <div style={{ fontSize: '14px' }}>No procurement lists yet.</div>
-          <div style={{ fontSize: '12px', marginTop: '4px' }}>
-            Create a manual list or launch Stock Check from a BOQ or Quotation.
+      {/* Content */}
+      {activeSubTab === 'dispatch' ? (
+        <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', height: 'calc(100vh - 280px)', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ padding: '12px 16px', borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'flex-end' }}>
+            <a
+              href={DISPATCH_EDIT_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ padding: '6px 12px', background: '#1d4ed8', color: '#fff', borderRadius: '6px', textDecoration: 'none', fontSize: '13px', fontWeight: 500 }}
+            >
+              Open in Google Sheets
+            </a>
           </div>
+          <iframe
+            src={DISPATCH_SHEET_URL}
+            style={{ flex: 1, border: 'none' }}
+            title="Dispatch Dispatch"
+          />
         </div>
       ) : (
         <>
-          {/* Active Lists */}
-          {active.length > 0 && (
-            <ListTable
-              lists={active}
-              onOpen={(id) => navigate(`/procurement/detail?id=${id}`)}
-              onArchive={(id) => {
-                if (confirm('Archive this procurement list?')) archiveMutation.mutate(id);
-              }}
-              showRestore={false}
-            />
-          )}
+          {/* Search */}
+          <input
+            type="text"
+            placeholder="Search by title, client, BOQ no..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{
+              width: '100%',
+              maxWidth: '400px',
+              padding: '8px 12px',
+              border: '1px solid #d1d5db',
+              borderRadius: '6px',
+              fontSize: '13px',
+              marginBottom: '20px',
+              outline: 'none',
+            }}
+          />
 
-          {/* Archived Lists */}
-          {showArchived && archived.length > 0 && (
-            <>
-              <div style={{ margin: '28px 0 12px', fontSize: '12px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                Archived
+          {isLoading ? (
+            <div style={{ textAlign: 'center', padding: '40px', color: '#9ca3af' }}>Loading...</div>
+          ) : filtered.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '60px', color: '#9ca3af' }}>
+              <div style={{ fontSize: '32px', marginBottom: '12px' }}>📦</div>
+              <div style={{ fontSize: '14px' }}>No procurement lists yet.</div>
+              <div style={{ fontSize: '12px', marginTop: '4px' }}>
+                Create a manual list or launch Stock Check from a BOQ or Quotation.
               </div>
-              <ListTable
-                lists={archived}
-                onOpen={(id) => navigate(`/procurement/detail?id=${id}`)}
-                onRestore={(id) => restoreMutation.mutate(id)}
-                showRestore
-              />
+            </div>
+          ) : (
+            <>
+              {/* Active Lists */}
+              {active.length > 0 && (
+                <ListTable
+                  lists={active}
+                  onOpen={(id) => navigate(`/procurement/detail?id=${id}`)}
+                  onArchive={(id) => {
+                    if (confirm('Archive this procurement list?')) archiveMutation.mutate(id);
+                  }}
+                  showRestore={false}
+                />
+              )}
+
+              {/* Archived Lists */}
+              {showArchived && archived.length > 0 && (
+                <>
+                  <div style={{ margin: '28px 0 12px', fontSize: '12px', fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                    Archived
+                  </div>
+                  <ListTable
+                    lists={archived}
+                    onOpen={(id) => navigate(`/procurement/detail?id=${id}`)}
+                    onRestore={(id) => restoreMutation.mutate(id)}
+                    showRestore
+                  />
+                </>
+              )}
             </>
           )}
         </>

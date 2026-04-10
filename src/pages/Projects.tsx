@@ -157,11 +157,10 @@ function ProjectMaterialSelect({ onSelectProject }: { onSelectProject: (id: stri
 }
 
 function ProjectMaterialTabs({ projectId, organisationId, projectName, onBack }: { projectId: string; organisationId: string; projectName: string; onBack: () => void }) {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const activeSubTab = searchParams.get('subtab') || 'intents';
+  const [activeSubTab, setActiveSubTab] = useState('intents');
 
   const handleSubTabChange = (subTab: string) => {
-    setSearchParams({ tab: 'material-management', subtab: subTab });
+    setActiveSubTab(subTab);
   };
 
   const renderContent = () => {
