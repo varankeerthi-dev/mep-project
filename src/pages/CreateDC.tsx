@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import type { FormEvent } from 'react';
+import { format } from 'date-fns';
 import { supabase } from '../supabase';
 import { useAuth } from '../App';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import { generateProGridDeliveryChallanPdf } from '../pdf/proGridDeliveryChallanPdf';
 
 type CreateDCProps = {
   onSuccess: () => void
@@ -753,114 +753,51 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
     return `${dcSettings.prefix || ''}${paddedNum}${dcSettings.suffix || ''}`;
   };
 
-  const generatePDF = async (dc) => {
-    const doc = new jsPDF();
-    
-    doc.setFontSize(18);
-    doc.setFont('helvetica', 'bold');
-    doc.text('DELIVERY CHALLAN', 105, 20, { align: 'center' });
-    
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    
-    doc.text('DC No:', 14, 35);
-    doc.setFont('helvetica', 'bold');
-    doc.text(dc.dc_number || '-', 35, 35);
-    
-    doc.setFont('helvetica', 'normal');
-    doc.text('Date:', 14, 42);
-    doc.text(dc.dc_date || '-', 35, 42);
-    
-    doc.text('Source:', 100, 35);
-    doc.text(dc.source_type || '-', 120, 35);
-    
-    if (dc.warehouse_id) {
-      doc.text('Warehouse:', 100, 42);
-      const wh = warehouses.find(w => w.id === dc.warehouse_id);
-      doc.text(wh?.warehouse_name || '-', 120, 42);
-    }
-    
-    if (dc.eway_bill_no) {
-      doc.text('E-Way Bill:', 14, 49);
-      doc.text(dc.eway_bill_no, 35, 49);
-    }
-    
-    if (dc.vehicle_number) {
-      doc.text('Vehicle:', 100, 49);
-      doc.text(dc.vehicle_number, 120, 49);
-    }
-    
-    doc.setLineWidth(0.5);
-    doc.line(14, 55, 196, 55);
-    
-    doc.setFont('helvetica', 'bold');
-    doc.text('Bill To:', 14, 65);
-    doc.text('Ship To:', 110, 65);
-    
-    doc.setFont('helvetica', 'normal');
-    doc.text(dc.client_name || '-', 14, 72);
-    doc.text(dc.ship_to_name || '-', 110, 72);
-    
-    const billAddr = [dc.site_address || ''].filter(Boolean).join(', ');
-    const shipAddr = [dc.ship_to_address_line1, dc.ship_to_address_line2, dc.ship_to_city, dc.ship_to_state, dc.ship_to_pincode].filter(Boolean).join(', ');
-    
-    doc.text(billAddr || '-', 14, 79);
-    doc.text(shipAddr || '-', 110, 79);
-    
-    if (dc.ship_to_gstin) {
-      doc.text('GSTIN:', 110, 86);
-      doc.text(dc.ship_to_gstin, 125, 86);
-    }
-    
+  const generatePDF = async (dc: Record<string, unknown>) => {
     const { data: dcItems } = await supabase
       .from('delivery_challan_items')
       .select('*, variant:company_variants(variant_name)')
-      .eq('delivery_challan_id', dc.id);
-    
-    const tableData = (dcItems || []).map((item, idx) => [
-      idx + 1,
-      item.material_name,
-      item.variant?.variant_name || '-',
-      item.unit,
-      item.quantity,
-      item.rate ? `₹${parseFloat(item.rate).toFixed(2)}` : '-',
-      item.amount ? `₹${parseFloat(item.amount).toFixed(2)}` : '-'
-    ]);
-    
-    doc.autoTable({
-      startY: 95,
-      head: [['S.No', 'Item Description', 'Variant', 'Unit', 'Qty', 'Rate', 'Amount']],
-      body: tableData,
-      theme: 'grid',
-      headStyles: { fillColor: [26, 26, 26] },
-      columnStyles: {
-        0: { halign: 'center' },
-        4: { halign: 'right' },
-        5: { halign: 'right' },
-        6: { halign: 'right' }
-      }
+      .eq('delivery_challan_id', dc.id as string);
+
+    const whName = dc.warehouse_id
+      ? warehouses.find((w) => w.id === dc.warehouse_id)?.warehouse_name
+      : undefined;
+
+    const challan = {
+      ...dc,
+      remarks: [dc.remarks, dc.source_type ? `Source: ${dc.source_type}` : null, whName ? `Warehouse: ${whName}` : null]
+        .filter(Boolean)
+        .join(' · '),
+    };
+
+    const columnConfig = [
+      { header: 'S.No', key: 'sno', width: 10 },
+      { header: 'Item Description', key: 'item', width: 52 },
+      { header: 'Variant', key: 'variant', width: 24 },
+      { header: 'Unit', key: 'unit', width: 14 },
+      { header: 'Qty', key: 'qty', width: 16 },
+      { header: 'Rate', key: 'rate', width: 22 },
+      { header: 'Amount', key: 'amount', width: 26 },
+    ];
+
+    const tableData = (dcItems || []).map((item: any, idx: number) => ({
+      sno: idx + 1,
+      item: item.material_name,
+      variant: item.variant?.variant_name || '-',
+      unit: item.unit,
+      qty: parseFloat(item.quantity) || 0,
+      rate: parseFloat(item.rate) || 0,
+      amount: parseFloat(item.amount) || 0,
+    }));
+
+    const doc = generateProGridDeliveryChallanPdf({
+      challan,
+      dcWithItems: { items: dcItems || [] },
+      organisation: organisation || {},
+      columnConfig,
+      tableData,
+      formatChallanDate: (d) => (d ? format(new Date(d), 'dd/MM/yyyy') : '—'),
     });
-    
-    const finalY = doc.lastAutoTable.finalY + 15;
-    const totalQty = (dcItems || []).reduce((sum, i) => sum + (parseFloat(i.quantity) || 0), 0);
-    const totalAmount = (dcItems || []).reduce((sum, i) => sum + (parseFloat(i.amount) || 0), 0);
-    
-    doc.setFont('helvetica', 'normal');
-    doc.text('Total Quantity:', 140, finalY);
-    doc.setFont('helvetica', 'bold');
-    doc.text(totalQty.toFixed(2), 175, finalY, { align: 'right' });
-    
-    doc.setFont('helvetica', 'normal');
-    doc.text('Grand Total:', 140, finalY + 8);
-    doc.setFont('helvetica', 'bold');
-    doc.text(`₹${totalAmount.toFixed(2)}`, 175, finalY + 8, { align: 'right' });
-    
-    doc.line(14, finalY + 20, 80, finalY + 20);
-    doc.line(120, finalY + 20, 186, finalY + 20);
-    doc.setFontSize(8);
-    doc.text('Prepared By', 14, finalY + 28);
-    doc.text('Received By', 120, finalY + 28);
-    
     doc.save(`${dc.dc_number}.pdf`);
   };
 
@@ -879,7 +816,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
             checked={allowInsufficientStock}
             onChange={(e) => {
               setAllowInsufficientStock(e.target.checked);
-              localStorage.setItem('dc_allow_insufficient_stock', e.target.checked);
+              localStorage.setItem('dc_allow_insufficient_stock', e.target.checked ? 'true' : 'false');
             }}
             style={{ width: '16px', height: '16px' }}
           />

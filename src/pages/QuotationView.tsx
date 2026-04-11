@@ -9,6 +9,7 @@ import { useAuth } from '../App';
 import { generateQuotationTally } from './QuotationTallyTemplate';
 import { generateProfessionalTemplate } from './ProfessionalTemplate';
 import { generateZohoTemplate } from './ZohoTemplate';
+import { generateProGridQuotationPdf } from '../pdf/proGridQuotationPdf';
 import { timedSupabaseQuery } from '../utils/queryTimeout';
 
 export default function QuotationView() {
@@ -344,6 +345,15 @@ export default function QuotationView() {
           .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
           .replace(/\s+/g, '_');
         zohoDoc.save(`${safeFileName}.pdf`);
+        return;
+      }
+
+      if (template.template_code === 'QTN_GRID_PRO') {
+        const gridDoc = generateProGridQuotationPdf(quotation, organisation, template);
+        const safeFileName = String(quotation.quotation_no || 'quotation')
+          .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
+          .replace(/\s+/g, '_');
+        gridDoc.save(`${safeFileName}.pdf`);
         return;
       }
 

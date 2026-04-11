@@ -176,17 +176,6 @@ export default function DCList() {
         return;
       }
 
-      const isLandscape = template.orientation === 'Landscape';
-      const { default: jsPDF } = await import('jspdf');
-      const autoTableModule = await import('jspdf-autotable');
-      const autoTable = autoTableModule.default;
-      
-      const doc = new jsPDF({
-        orientation: isLandscape ? 'landscape' : 'portrait',
-        unit: 'mm',
-        format: template.page_size === 'Letter' ? 'letter' : 'a4'
-      });
-
       const colSettings = (template && typeof template.column_settings === 'object' && template.column_settings) || {};
       const optionalCols = colSettings.optional || {};
       const labels = colSettings.labels || {};
@@ -220,6 +209,35 @@ export default function DCList() {
         if (optionalCols.tax) row.tax = item.tax_percent || 0;
         if (optionalCols.amount !== false) row.amount = parseFloat(item.amount) || 0;
         return row;
+      });
+
+      if (template.template_code === 'DC_GRID_PRO') {
+        const { generateProGridDeliveryChallanPdf } = await import('../pdf/proGridDeliveryChallanPdf');
+        const gridDoc = generateProGridDeliveryChallanPdf({
+          challan,
+          dcWithItems,
+          organisation,
+          columnConfig,
+          tableData,
+          formatChallanDate: (d) => (d ? format(new Date(d), 'dd/MM/yyyy') : '—'),
+          orientation: template.orientation === 'Landscape' ? 'landscape' : 'portrait',
+          pageFormat: template.page_size === 'Letter' ? 'letter' : 'a4',
+        });
+        gridDoc.save(`${challan.dc_number}.pdf`);
+        setOpenPrintMenuId(null);
+        setPrintAnchorEl(null);
+        return;
+      }
+
+      const isLandscape = template.orientation === 'Landscape';
+      const { default: jsPDF } = await import('jspdf');
+      const autoTableModule = await import('jspdf-autotable');
+      const autoTable = autoTableModule.default;
+      
+      const doc = new jsPDF({
+        orientation: isLandscape ? 'landscape' : 'portrait',
+        unit: 'mm',
+        format: template.page_size === 'Letter' ? 'letter' : 'a4'
       });
 
       doc.setFontSize(18);

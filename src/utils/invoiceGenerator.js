@@ -1,10 +1,12 @@
 import { supabase } from '../supabase';
 import { generateInvoiceA4 } from '../pages/InvoiceA4Template';
 import { generateZohoTemplate } from '../pages/ZohoTemplate';
+import { generateProGridInvoiceLegacyPdf } from '../pdf/proGridInvoiceLegacyPdf';
 
 const TEMPLATE_GENERATORS = {
   'INV_DEFAULT': generateInvoiceA4,
-  'INV_ZOHO': generateZohoTemplate
+  'INV_ZOHO': generateZohoTemplate,
+  'INV_GRID_PRO': generateProGridInvoiceLegacyPdf,
 };
 
 export async function getInvoiceTemplate(templateCode) {
