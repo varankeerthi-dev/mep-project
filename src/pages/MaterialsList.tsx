@@ -2394,6 +2394,9 @@ function ItemsTab() {
                             uses_variant: checked,
                             sale_price: checked ? '0' : formData.sale_price
                           });
+                          if (checked && variantPricing.length === 0) {
+                            addVariantPricingRow();
+                          }
                         }
                       }}
                     />
