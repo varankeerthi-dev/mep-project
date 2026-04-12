@@ -123,6 +123,160 @@ export default function TemplateSettings() {
     }
   };
 
+  const BUILT_IN_TEMPLATES = [
+    {
+      template_name: 'Tally Template',
+      template_code: 'QTN_TALLY',
+      document_type: 'Quotation',
+      is_default: false,
+      page_size: 'A4',
+      orientation: 'Portrait',
+      show_logo: true,
+      show_bank_details: true,
+      show_terms: true,
+      show_signature: true,
+      column_settings: {
+        mandatory: [],
+        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: false, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
+        labels: { custom1: 'Custom 1', custom2: 'Custom 2', rate_after_discount: 'Rate/Unit' },
+        print: { style: 'default' }
+      }
+    },
+    {
+      template_name: 'Professional Template',
+      template_code: 'QTN_PROFESSIONAL',
+      document_type: 'Quotation',
+      is_default: false,
+      page_size: 'A4',
+      orientation: 'Portrait',
+      show_logo: true,
+      show_bank_details: true,
+      show_terms: true,
+      show_signature: true,
+      column_settings: {
+        mandatory: [],
+        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
+        labels: { custom1: 'Custom 1', custom2: 'Custom 2', rate_after_discount: 'Rate/Unit' },
+        print: { style: 'default' }
+      }
+    },
+    {
+      template_name: 'Zoho Template',
+      template_code: 'QTN_ZOHO',
+      document_type: 'Quotation',
+      is_default: false,
+      page_size: 'A4',
+      orientation: 'Portrait',
+      show_logo: true,
+      show_bank_details: true,
+      show_terms: true,
+      show_signature: true,
+      column_settings: {
+        mandatory: [],
+        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
+        labels: { custom1: 'Custom 1', custom2: 'Custom 2', rate_after_discount: 'Rate/Unit' },
+        print: { style: 'default' }
+      }
+    },
+    {
+      template_name: 'Grid Pro Template',
+      template_code: 'QTN_GRID_PRO',
+      document_type: 'Quotation',
+      is_default: false,
+      page_size: 'A4',
+      orientation: 'Landscape',
+      show_logo: true,
+      show_bank_details: true,
+      show_terms: true,
+      show_signature: true,
+      column_settings: {
+        mandatory: [],
+        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
+        labels: { custom1: 'Custom 1', custom2: 'Custom 2', rate_after_discount: 'Rate/Unit' },
+        print: { style: 'pro_grid' }
+      }
+    },
+    {
+      template_name: 'Grid Minimal Template',
+      template_code: 'GRID_MINIMAL',
+      document_type: 'Quotation',
+      is_default: false,
+      page_size: 'A4',
+      orientation: 'Portrait',
+      show_logo: true,
+      show_bank_details: true,
+      show_terms: true,
+      show_signature: true,
+      column_settings: {
+        mandatory: [],
+        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
+        labels: { custom1: 'Custom 1', custom2: 'Custom 2', rate_after_discount: 'Rate/Unit' },
+        print: { style: 'grid_minimal', gridMinimal: { titleOverride: 'QUOTATION', columns: { hsn: true, make: true, unit: true, discPct: true, gst: true } } }
+      }
+    },
+    {
+      template_name: 'Grid Minimal Invoice',
+      template_code: 'GRID_MINIMAL_INV',
+      document_type: 'Invoice',
+      is_default: false,
+      page_size: 'A4',
+      orientation: 'Portrait',
+      show_logo: true,
+      show_bank_details: true,
+      show_terms: true,
+      show_signature: true,
+      column_settings: {
+        mandatory: [],
+        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
+        labels: { custom1: 'Custom 1', custom2: 'Custom 2', rate_after_discount: 'Rate/Unit' },
+        print: { style: 'grid_minimal', gridMinimal: { titleOverride: 'TAX INVOICE', columns: { hsn: true, make: true, unit: true, discPct: true, gst: true } } }
+      }
+    },
+    {
+      template_name: 'Pro Grid Invoice',
+      template_code: 'PRO_GRID_INV',
+      document_type: 'Invoice',
+      is_default: false,
+      page_size: 'A4',
+      orientation: 'Landscape',
+      show_logo: true,
+      show_bank_details: true,
+      show_terms: true,
+      show_signature: true,
+      column_settings: {
+        mandatory: [],
+        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
+        labels: { custom1: 'Custom 1', custom2: 'Custom 2', rate_after_discount: 'Rate/Unit' },
+        print: { style: 'pro_grid' }
+      }
+    },
+  ];
+
+  const seedBuiltInTemplates = async () => {
+    setLoading(true);
+    try {
+      for (const template of BUILT_IN_TEMPLATES) {
+        const { data: existing } = await supabase
+          .from('document_templates')
+          .select('id')
+          .eq('template_code', template.template_code)
+          .eq('document_type', template.document_type)
+          .single();
+        
+        if (!existing) {
+          await supabase.from('document_templates').insert(template);
+        }
+      }
+      setSuccessMessage('Built-in templates added successfully!');
+      await loadTemplates();
+    } catch (err: any) {
+      console.error('Error seeding templates:', err);
+      alert('Error seeding templates: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleEdit = (template: any) => {
     setSelectedTemplate(template);
     setFormData({
@@ -874,10 +1028,17 @@ export default function TemplateSettings() {
         <div style={{ display: 'flex', gap: '8px' }}>
           <button 
             className="btn btn-secondary" 
+            onClick={seedBuiltInTemplates}
+            style={{ borderColor: '#059669', color: '#059669' }}
+          >
+            Seed Built-in Templates
+          </button>
+          <button 
+            className="btn btn-secondary" 
             onClick={() => handleNew('grid_minimal')}
             style={{ borderColor: '#7c3aed', color: '#7c3aed' }}
           >
-            + Create Grid Minimal
+            + Grid Minimal
           </button>
           <button className="btn btn-primary" onClick={() => handleNew()}>
             + Create Template
@@ -966,6 +1127,11 @@ export default function TemplateSettings() {
                             {template.column_settings?.print?.style === 'grid_minimal' && (
                               <span style={{ background: '#7c3aed', color: '#fff', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 500 }}>
                                 GRID MINIMAL
+                              </span>
+                            )}
+                            {template.column_settings?.print?.style === 'pro_grid' && (
+                              <span style={{ background: '#ea580c', color: '#fff', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 500 }}>
+                                PRO GRID
                               </span>
                             )}
                           </div>
