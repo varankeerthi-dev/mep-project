@@ -44,6 +44,7 @@ export default function TemplateSettings() {
   const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [styleFilter, setStyleFilter] = useState<'all' | 'default' | 'grid_minimal'>('all');
 
   const [formData, setFormData] = useState<any>({
     template_name: '',
@@ -878,6 +879,33 @@ export default function TemplateSettings() {
         </div>
       )}
 
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', alignItems: 'center' }}>
+        <span style={{ fontSize: '13px', color: '#6b7280' }}>Filter by Style:</span>
+        {[
+          { value: 'all', label: 'All' },
+          { value: 'default', label: 'Default' },
+          { value: 'grid_minimal', label: 'Grid Minimal' },
+        ].map(filter => (
+          <button
+            key={filter.value}
+            onClick={() => setStyleFilter(filter.value as any)}
+            style={{
+              padding: '6px 12px',
+              borderRadius: '6px',
+              border: '1px solid',
+              borderColor: styleFilter === filter.value ? '#7c3aed' : '#e5e7eb',
+              background: styleFilter === filter.value ? '#7c3aed' : '#fff',
+              color: styleFilter === filter.value ? '#fff' : '#374151',
+              fontSize: '12px',
+              cursor: 'pointer',
+              fontWeight: 500,
+            }}
+          >
+            {filter.label}
+          </button>
+        ))}
+      </div>
+
       <div className="card">
         {templates.length === 0 ? (
           <div className="empty-state">
@@ -887,7 +915,12 @@ export default function TemplateSettings() {
         ) : (
           <div style={{ display: 'grid', gap: '12px' }}>
             {DOCUMENT_TYPES.map(docType => {
-              const typeTemplates = templates.filter(t => t.document_type === docType);
+              const typeTemplates = templates.filter(t => {
+                if (t.document_type !== docType) return false;
+                if (styleFilter === 'all') return true;
+                const templateStyle = t.column_settings?.print?.style || 'default';
+                return templateStyle === styleFilter;
+              });
               if (typeTemplates.length === 0) return null;
 
               return (
@@ -916,6 +949,11 @@ export default function TemplateSettings() {
                             {template.is_default && (
                               <span style={{ background: '#16a34a', color: '#fff', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 500 }}>
                                 DEFAULT
+                              </span>
+                            )}
+                            {template.column_settings?.print?.style === 'grid_minimal' && (
+                              <span style={{ background: '#7c3aed', color: '#fff', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 500 }}>
+                                GRID MINIMAL
                               </span>
                             )}
                           </div>
