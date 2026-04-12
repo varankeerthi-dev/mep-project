@@ -346,21 +346,21 @@ let currentY = margin;
    hLine(currentY);
    currentY += 5;
    
-   doc.setFontSize(9);
-   doc.setFont('helvetica', 'bold');
-   doc.setTextColor(...darkText);
-   doc.text('Terms & Conditions', margin, currentY);
-   
-   currentY += 6;
-   doc.setFont('helvetica', 'normal');
-   doc.setTextColor(...midGray);
-   const terms = terms_conditions || "Payment - Purchase Order & 100% Advance\nDelivery - 3-4 days\nFreight - Client scope";
-   const termLines = doc.splitTextToSize(terms, 100);
-   doc.text(termLines, margin, currentY + 4);
-   
-   // Calculate space needed for terms and position signature
-   const termsHeight = termLines.length * 4.5;
-   currentY = currentY + termsHeight + 10;
+doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(...darkText);
+    doc.text('Terms & Conditions', margin, currentY);
+    
+    currentY += 6;
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(...midGray);
+    const tncText = terms_conditions || "Payment - Purchase Order & 100% Advance\nDelivery - 3-4 days\nFreight - Client scope";
+    const tncLines = doc.splitTextToSize(tncText, 100);
+    doc.text(tncLines, margin, currentY + 4);
+    
+    // Calculate space needed for terms and position signature
+    const tncHeight = tncLines.length * 4.5;
+    currentY = currentY + tncHeight + 10;
    
    // Signature Area - aligned to the right
    doc.setFont('helvetica', 'bold');
