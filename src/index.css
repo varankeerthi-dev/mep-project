@@ -42,11 +42,27 @@ html, body {
   left: 0;
   bottom: 0;
   width: 260px;
-  background: white;
+  /* Layout */
+  display: flex;
+  flex-direction: column;
+  /* Visuals */
+  background: #ffffff;
   border-right: 1px solid #e5e7eb;
+  box-shadow: 1px 0 4px 0 rgba(0, 0, 0, 0.04);
+  /* Typography (cascade to all sidebar children) */
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 13px;
+  line-height: 20px;
+  color: #334155;
+  /* Scroll */
   overflow-y: auto;
   overflow-x: hidden;
-  transition: width 0.2s ease, transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  scrollbar-width: thin;
+  scrollbar-color: #d1d5db transparent;
+  /* GPU-accelerated transition — no repaints */
+  transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: width, transform;
   z-index: 900;
 }
 
@@ -186,12 +202,7 @@ html, body {
   background: #9ca3af;
 }
 
-/* Firefox scrollbar */
-.sidebar {
-  scrollbar-width: thin;
-  scrollbar-color: #d1d5db transparent;
-}
-
+/* Firefox scrollbar — main content */
 .main-content {
   scrollbar-width: thin;
   scrollbar-color: #d1d5db #f3f4f6;
@@ -273,9 +284,8 @@ body {
   font-family: 'Inter', system-ui, sans-serif;
 }
 
+/* app-container — canonical rule is at the top (fixed layout). This alias kept for page-level bg only. */
 .app-container {
-  display: flex;
-  min-height: 100vh;
   background: var(--gray-50);
 }
 
@@ -473,22 +483,8 @@ body {
   margin: 6px 0;
 }
 
-/* Main Content */
-.main-content {
-  margin-left: 260px;
-  margin-top: 60px;
-  padding: 24px;
-  min-height: 100vh;
-  width: calc(100% - 260px);
-  transition: margin-left 0.25s ease, width 0.25s ease;
-  overflow-x: auto;
-}
-
-.sidebar-collapsed + .main-content,
-.main-content.sidebar-collapsed {
-  margin-left: 80px;
-  width: calc(100% - 80px);
-}
+/* Main Content — canonical layout set at top of file (fixed layout).
+   width is intentionally NOT set here; flex:1 in the fixed rule handles it. */
 
 /* Page Header */
 .page-header {
@@ -1248,34 +1244,19 @@ body {
   background: #fff;
 }
 
-/* Responsive */
-@media (max-width: 1024px) {
+/* Tablet responsive — slightly narrower sidebar, still shows labels */
+@media (min-width: 769px) and (max-width: 1024px) {
   .sidebar {
-    width: 80px;
+    width: 200px;
   }
-  
-  .sidebar .sidebar-section-title {
-    display: none;
+  .sidebar.collapsed {
+    width: 72px;
   }
-  
-  .sidebar .sidebar-item {
-    flex-direction: column;
-    justify-content: center;
-    padding: 10px 4px;
-    gap: 4px;
-  }
-  
-  .sidebar .sidebar-item-label {
-    flex: none;
-    font-size: 10px;
-    line-height: 14px;
-    text-align: center;
-    max-width: 60px;
-  }
-  
   .main-content {
-    margin-left: 80px;
-    width: calc(100% - 80px);
+    margin-left: 200px;
+  }
+  .main-content.sidebar-collapsed {
+    margin-left: 72px;
   }
 }
 
@@ -1635,29 +1616,9 @@ body {
   background: #fff3cd;
 }
 
-/* Sidebar Styles - Shadcn Inspired Compact Design */
-.sidebar {
-  position: fixed;
-  top: 60px;                          /* was: top: 0 + padding-top: 60px */
-  left: 0;
-  width: 260px;
-  height: calc(100vh - 60px);        /* was: height: 100vh */
-  background: #ffffff;
-  border-right: 1px solid #e5e7eb;
-  overflow: hidden;
-  transition: width 0.2s ease;
-  z-index: 900;
-  display: flex;
-  flex-direction: column;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  font-size: 13px;
-  line-height: 20px;
-  color: #334155;
-}
-
-.sidebar.collapsed {
-  width: 80px;
-}
+/* ============================================================================
+   SIDEBAR NAV ITEMS
+   ============================================================================ */
 
 .sidebar-content {
   flex: 1;
@@ -1875,14 +1836,7 @@ body {
 }
 
 /* Dashboard Animations & Responsive */
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
+/* Note: @keyframes spin already defined above — skipping duplicate */
 
 @keyframes pulse {
   0%, 100% {
@@ -1911,18 +1865,10 @@ body {
   }
 }
 
-/* Mobile */
+/* Mobile — sidebar slides in from left; canonical rules in lines 107-145.
+   Only override what is different from the top-of-file mobile block. */
 @media (max-width: 768px) {
-  .sidebar {
-    transform: translateX(-100%);
-    width: 260px;
-    z-index: 1001;
-    top: 0;
-    height: 100vh;
-  }
-  .sidebar.mobile-open {
-    transform: translateX(0);
-  }
+  /* Restore full labels when mobile sidebar is open */
   .sidebar.mobile-open .sidebar-section-title,
   .sidebar.mobile-open .sidebar-item-label {
     display: block;
@@ -2070,4 +2016,69 @@ body {
   .no-print {
     display: none !important;
   }
+}
+
+/* ==========================================
+   PRINT STYLES — hide chrome, show content full-width
+   ========================================== */
+
+@media print {
+  .quick-access-bar,
+  .sidebar,
+  .sidebar-backdrop {
+    display: none !important;
+  }
+
+  .main-content {
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    height: auto !important;
+    width: 100% !important;
+  }
+
+  .app-container {
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  body, html {
+    overflow: visible !important;
+    height: auto !important;
+  }
+}
+
+/* ==========================================
+   ACCESSIBILITY
+   ========================================== */
+
+/* Keyboard focus ring — visible only for keyboard nav */
+*:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Skip-to-main-content link for screen readers */
+.skip-to-main {
+  position: absolute;
+  left: -9999px;
+  z-index: 9999;
+  background: white;
+  padding: 0.5rem 1rem;
+  border-radius: 0.375rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.skip-to-main:focus {
+  left: 1rem;
+  top: 1rem;
+}
+
+/* Prevent layout shift during sidebar transitions */
+.sidebar.transitioning,
+.main-content.transitioning {
+  user-select: none;
+  pointer-events: none;
 }

@@ -7,6 +7,7 @@ import {
   type InvoiceWithRelations,
 } from './api';
 import { InvoicePdfDocument } from './pdf-document';
+import { ProGridInvoiceDocument } from './pro-grid-invoice-document';
 import type {
   InvoicePdfCompany,
   InvoicePdfData,
@@ -137,6 +138,32 @@ export async function generateInvoicePDF(
 ): Promise<Blob> {
   const data = await resolveInvoicePdfData(invoiceInput, options);
   return pdf(<InvoicePdfDocument data={data} />).toBlob();
+}
+
+export async function generateProGridInvoicePDF(
+  invoiceInput: InvoiceLike,
+  options: InvoicePdfOptions = {},
+): Promise<Blob> {
+  const invoice = await resolveInvoice(invoiceInput);
+  const organisation = options.company ?? await getInvoiceCompany(options.organisationId);
+  
+  if (!organisation) {
+    throw new Error('Organisation not found');
+  }
+
+  const client = invoice.client ? {
+    client_name: invoice.client.name || 'Client',
+    gstin: invoice.client.gst_number || undefined,
+    state: invoice.client.state || undefined,
+  } : {
+    client_name: 'Client',
+  };
+
+  return pdf(<ProGridInvoiceDocument
+    invoice={invoice as any}
+    organisation={organisation as any}
+    client={client as any}
+  />).toBlob();
 }
 
 function getDownloadFilename(invoice: InvoiceWithRelations, fileName?: string): string {

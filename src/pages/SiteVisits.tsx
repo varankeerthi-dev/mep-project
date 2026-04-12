@@ -353,12 +353,12 @@ const isPending = addMutation.isPending || updateMutation.isPending;
       <tr
         key={visit.id}
         className={cn(
-          'group border-b border-gray-50 hover:bg-gray-50/50 transition-colors cursor-pointer'
+          'border-b border-zinc-100 hover:bg-zinc-50/50 transition-colors cursor-pointer'
         )}
         onClick={() => openView(visit)}
       >
         {visibleCols.date && (
-          <td className="px-6 py-4 whitespace-nowrap">
+          <td className="px-3 py-1.5 align-middle whitespace-nowrap">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center text-zinc-700 font-bold text-sm">
                 {format(parseISO(visit.visit_date), 'dd')}
@@ -371,22 +371,22 @@ const isPending = addMutation.isPending || updateMutation.isPending;
           </td>
         )}
         {visibleCols.client && (
-          <td className="px-6 py-4">
+          <td className="px-3 py-1.5 align-middle whitespace-nowrap text-[12px] font-medium text-zinc-500">
             <p className="font-semibold text-zinc-900 text-sm">{visit.clients?.client_name || '—'}</p>
           </td>
         )}
         {visibleCols.visitedBy && (
-          <td className="px-6 py-4">
+          <td className="px-3 py-1.5 align-middle whitespace-nowrap text-[12px] font-medium text-zinc-500">
             <p className="text-sm text-zinc-600">{visit.visited_by || visit.engineer || '—'}</p>
           </td>
         )}
         {visibleCols.purpose && (
-          <td className="px-6 py-4">
+          <td className="px-3 py-1.5 align-middle whitespace-nowrap text-[12px] font-medium text-zinc-500">
             <p className="text-sm text-zinc-600 max-w-[160px] truncate">{visit.purpose || '—'}</p>
           </td>
         )}
         {visibleCols.status && (
-          <td className="px-6 py-4">
+          <td className="px-3 py-1.5 align-middle whitespace-nowrap">
             <div className={cn(
               'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border',
               STATUS_COLORS[visit.status]?.bg,
@@ -399,12 +399,12 @@ const isPending = addMutation.isPending || updateMutation.isPending;
           </td>
         )}
         {visibleCols.nextStep && (
-          <td className="px-6 py-4">
+          <td className="px-3 py-1.5 align-middle whitespace-nowrap text-[12px] font-medium text-zinc-500">
             <p className="text-sm text-zinc-600 max-w-[140px] truncate">{visit.next_step || '—'}</p>
           </td>
         )}
         {visibleCols.actions && (
-          <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+          <td className="px-3 py-1.5 align-middle text-right" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-end gap-1">
               <Button variant="ghost" size="sm" className="h-8 w-8 rounded-full text-zinc-500 hover:bg-gray-100 hover:text-zinc-700" onClick={() => openView(visit)} title="View">
                 <Eye className="w-4 h-4" />
@@ -423,7 +423,7 @@ const isPending = addMutation.isPending || updateMutation.isPending;
         )}
       </tr>
     );
-  }) as React.ReactElement;
+  });
 
   // VisitDayItem component for calendar view
   const VisitDayItem = React.memo(({
@@ -444,7 +444,7 @@ const isPending = addMutation.isPending || updateMutation.isPending;
         <span className="truncate">{visit.clients?.client_name || 'Visit'}</span>
       </div>
     );
-  }) as React.ReactElement;
+  });
 
   // ─── Render ────────────────────────────────────────────────────────────────────
 
@@ -581,35 +581,37 @@ const isPending = addMutation.isPending || updateMutation.isPending;
                     <Plus className="w-4 h-4" /> Schedule Visit
                   </Button>
                 </div>
-              ) : (
+) : (
                 <>
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="border-b border-gray-200">
-                          {visibleCols.date && <th className="text-left px-6 py-3 text-[11px] font-semibold text-zinc-500 uppercase tracking-wide whitespace-nowrap">Date</th>}
-                          {visibleCols.client && <th className="text-left px-6 py-3 text-[11px] font-semibold text-zinc-500 uppercase tracking-wide">Client</th>}
-                          {visibleCols.visitedBy && <th className="text-left px-6 py-3 text-[11px] font-semibold text-zinc-500 uppercase tracking-wide whitespace-nowrap">Visited By</th>}
-                          {visibleCols.purpose && <th className="text-left px-6 py-3 text-[11px] font-semibold text-zinc-500 uppercase tracking-wide">Purpose</th>}
-                          {visibleCols.status && <th className="text-left px-6 py-3 text-[11px] font-semibold text-zinc-500 uppercase tracking-wide">Status</th>}
-                          {visibleCols.nextStep && <th className="text-left px-6 py-3 text-[11px] font-semibold text-zinc-500 uppercase tracking-wide whitespace-nowrap">Next Step</th>}
-                          {visibleCols.actions && <th className="text-right px-6 py-3 text-[11px] font-semibold text-zinc-500 uppercase tracking-wide">Actions</th>}
-                        </tr>
-                      </thead>
-                      <tbody>
-{paginatedVisits.map((visit: any) => (
-                        <VisitRow
-                            key={visit.id}
-                            visit={visit}
-                            visibleCols={visibleCols}
-                            openView={openView}
-                            openUpdate={openUpdate}
-                            openSchedule={openSchedule}
-                            confirmDelete={confirmDelete}
-                        />
-                    ))}
-                      </tbody>
-                    </table>
+                  <div className="rounded-lg border border-zinc-200 bg-white text-zinc-950 shadow-sm">
+                    <div className="overflow-x-auto">
+                      <table className="w-full caption-bottom text-sm border-collapse">
+                        <thead className="border-b border-zinc-200 bg-zinc-50/80 [&_tr]:border-b">
+                          <tr className="border-b border-zinc-200">
+                            {visibleCols.date && <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500 whitespace-nowrap">Date</th>}
+                            {visibleCols.client && <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Client</th>}
+                            {visibleCols.visitedBy && <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500 whitespace-nowrap">Visited By</th>}
+                            {visibleCols.purpose && <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Purpose</th>}
+                            {visibleCols.status && <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Status</th>}
+                            {visibleCols.nextStep && <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500 whitespace-nowrap">Next Step</th>}
+                            {visibleCols.actions && <th className="h-10 px-3 text-right align-middle text-xs font-medium text-zinc-500 min-w-[100px]">Actions</th>}
+                          </tr>
+                        </thead>
+                        <tbody className="[&_tr:last-child]:border-0">
+                          {paginatedVisits.map((visit: any) => (
+                            <VisitRow
+                                key={visit.id}
+                                visit={visit}
+                                visibleCols={visibleCols}
+                                openView={openView}
+                                openUpdate={openUpdate}
+                                openSchedule={openSchedule}
+                                confirmDelete={confirmDelete}
+                            />
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
 
                   {/* Pagination */}

@@ -19,7 +19,7 @@ import type { TableColumn } from '@/lib/table-schema';
 import { distinctOptions } from '@/lib/table-schema';
 import { useInvoices } from '../hooks';
 import { invoiceListTableSchema, invoiceToListRow } from '../invoice-list-table-schema';
-import { downloadInvoicePDF, emailInvoicePDF, previewInvoicePDF, printInvoicePDF } from '../pdf';
+import { downloadInvoicePDF, emailInvoicePDF, previewInvoicePDF, printInvoicePDF, generateProGridInvoicePDF } from '../pdf';
 import type { InvoiceWithRelations } from '../api';
 import { formatCurrency, formatDate } from '../ui-utils';
 
@@ -518,6 +518,7 @@ export default function InvoiceListPage() {
     invoiceId: string;
     action: 'preview' | 'download' | 'print' | 'email';
   } | null>(null);
+  const [selectedPdfTemplate, setSelectedPdfTemplate] = useState<'default' | 'progrid'>('default');
   const [openMenuInvoiceId, setOpenMenuInvoiceId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -644,7 +645,11 @@ export default function InvoiceListPage() {
   const handleDownloadPdf = async (invoiceId: string) => {
     setActivePdfAction({ invoiceId, action: 'download' });
     try {
-      await downloadInvoicePDF(invoiceId);
+      if (selectedPdfTemplate === 'progrid') {
+        await generateProGridInvoicePDF(invoiceId);
+      } else {
+        await downloadInvoicePDF(invoiceId);
+      }
     } finally {
       setActivePdfAction(null);
     }
@@ -776,6 +781,23 @@ export default function InvoiceListPage() {
             <Plus size={16} />
             Create Invoice
           </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 12 }}>
+            <span style={{ fontSize: 12, color: '#64748b' }}>PDF:</span>
+            <select
+              value={selectedPdfTemplate}
+              onChange={(e) => setSelectedPdfTemplate(e.target.value as 'default' | 'progrid')}
+              style={{
+                padding: '4px 8px',
+                borderRadius: 6,
+                border: '1px solid #e2e8f0',
+                fontSize: 12,
+                backgroundColor: '#fff',
+              }}
+            >
+              <option value="default">Default</option>
+              <option value="progrid">Pro Grid</option>
+            </select>
+          </div>
         </div>
 
         <div className="il-filters-card">

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { Folder, Plus, ClipboardList, Package, ArrowLeft } from 'lucide-react';
 import { supabase } from '../supabase';
 import { useQuery } from '@tanstack/react-query';
@@ -23,6 +23,7 @@ function Truck() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="
 function BarChart() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 3v18h18"/><path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"/></svg>; }
 
 export default function Projects() {
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'list');
@@ -46,7 +47,7 @@ export default function Projects() {
     const tab = searchParams.get('tab') || 'list';
     setActiveTab(tab);
     loadComponent(tab);
-  }, [searchParams]);
+  }, [location.key]);
 
   const handleTabChange = (tabId: string) => {
     console.log('Tab clicked:', tabId); // Debug log

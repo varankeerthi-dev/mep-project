@@ -26,12 +26,41 @@ interface InvoiceWithRelations {
   id: string;
   invoice_number?: string;
   invoice_prefix?: string;
-  invoice_date?: string;
-  quotation_ref?: string;
-  due_date?: string;
-  po_number?: string;
-  terms_conditions?: string;
+  invoice_date?: string | null;
+  quotation_ref?: string | null;
+  due_date?: string | null;
+  po_number?: string | null;
+  terms_conditions?: string | null;
   invoice_items?: InvoiceItem[];
+}
+
+interface InvoiceClientInfo {
+  name?: string | null;
+  gst_number?: string | null;
+  state?: string | null;
+}
+
+interface Client {
+  client_name: string;
+  gstin?: string;
+  state?: string;
+  billing_address?: string;
+}
+
+interface Organisation {
+  name: string;
+  address: string;
+  phone: string;
+  email: string;
+  gstin: string;
+  state: string;
+  logo_url?: string;
+  bank_details?: {
+    bank_name?: string;
+    account_no?: string;
+    ifsc?: string;
+    branch?: string;
+  };
 }
 
 const styles = StyleSheet.create({

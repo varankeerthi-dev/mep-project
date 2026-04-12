@@ -306,6 +306,29 @@ export default function App() {
       case '/subcontractors/new': return <CreateSubcontractor onSuccess={() => navigate('/subcontractors')} onCancel={() => navigate('/subcontractors')} />;
       case '/subcontractors/view': return <SubcontractorView onNavigate={navigate} />;
       case '/subcontractors/edit': return <SubcontractorEdit onNavigate={navigate} />;
+      // Sales
+      case '/quotation': return <QuotationList />;
+      case '/quotation/create': return <CreateQuotation onSuccess={() => navigate('/quotation')} onCancel={() => navigate('/quotation')} />;
+      case '/invoices': return <InvoiceListPage />;
+      case '/invoices/create': return <InvoiceEditorPage />;
+      case '/ledger': return <LedgerDashboard onNavigate={navigate} />;
+      case '/boq': return <BOQList />;
+      case '/boq/create': return <BOQ onSuccess={() => navigate('/boq')} onCancel={() => navigate('/boq')} />;
+      case '/documents': return <Documents />;
+      case '/issue': return <IssueList />;
+      // Inventory
+      case '/procurement': return <ProcurementList />;
+      case '/store/materials': return <MaterialsList />;
+      case '/store/inward': return <MaterialInward />;
+      case '/store/outward': return <MaterialOutward />;
+      case '/store/transfer': return <StockTransfer />;
+      case '/store/stock': return <StockBalance />;
+      case '/quick-stock-check': return <QuickStockCheck />;
+      // Delivery Challan
+      case '/dc/create': return <CreateDC onCancel={() => navigate('/dc/list')} />;
+      case '/dc/list': return <DCList />;
+      case '/nb-dc/list': return <NonBillableDCList />;
+      case '/nb-dc/create': return <CreateNonBillableDC onCancel={() => navigate('/nb-dc/list')} />;
       default:
         if (pathKey.startsWith('/dc/edit/')) {
           const dcId = pathKey.split('/dc/edit/')[1];
