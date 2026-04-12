@@ -223,23 +223,24 @@ export function OrganisationSettings({ organisation, userId }) {
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteRole, setInviteRole] = useState('member')
   const [orgDetails, setOrgDetails] = useState({
-    name: organisation.name || '',
-    address: organisation.address || '',
-    phone: organisation.phone || '',
-    email: organisation.email || '',
-    gstin: organisation.gstin || '',
-    pan: organisation.pan || '',
-    tan: organisation.tan || '',
-    msme_no: organisation.msme_no || '',
-    website: organisation.website || '',
-    state: organisation.state || 'Maharashtra',
-    logo_url: organisation.logo_url || '',
-    signatures: organisation.signatures || [],
-    allow_access_requests: organisation.allow_access_requests ?? true,
-    is_listed: organisation.is_listed ?? false
+    name: organisation?.name || '',
+    address: organisation?.address || '',
+    phone: organisation?.phone || '',
+    email: organisation?.email || '',
+    gstin: organisation?.gstin || '',
+    pan: organisation?.pan || '',
+    tan: organisation?.tan || '',
+    msme_no: organisation?.msme_no || '',
+    website: organisation?.website || '',
+    state: organisation?.state || 'Maharashtra',
+    logo_url: organisation?.logo_url || '',
+    signatures: organisation?.signatures || [],
+    allow_access_requests: organisation?.allow_access_requests ?? true,
+    is_listed: organisation?.is_listed ?? false
   })
 
   useEffect(() => {
+    if (!organisation) return;
     setOrgDetails({
       name: organisation.name || '',
       address: organisation.address || '',

@@ -338,7 +338,7 @@ export default function App() {
       case '/settings/discounts': return <DiscountSettings />;
       case '/settings/quick-quote': return <QuickQuoteSettings />;
       case '/settings/document-series': return <TransactionNumberSeries />;
-      case '/settings/organisation': return <OrganisationSettings />;
+      case '/settings/organisation': return <OrganisationSettings organisation={organisation} userId={user.id} />;
       case '/settings/access-control': return <AccessControlPage />;
       default:
         if (pathKey.startsWith('/dc/edit/')) {
