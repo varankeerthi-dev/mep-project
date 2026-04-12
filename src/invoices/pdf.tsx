@@ -1,5 +1,7 @@
 import { pdf } from '@react-pdf/renderer';
 import { supabase } from '../supabase';
+import { ensurePdfFontsRegistered } from '../pdf/registerFonts';
+import { getPrintConfig } from '../pdf/print-config';
 import {
   getInvoiceById,
   loadInvoiceSource,
@@ -8,6 +10,7 @@ import {
 } from './api';
 import { InvoicePdfDocument } from './pdf-document';
 import { ProGridInvoiceDocument } from './pro-grid-invoice-document';
+import { GridMinimalInvoiceDocument } from './grid-minimal-invoice-document';
 import type {
   InvoicePdfCompany,
   InvoicePdfData,
@@ -20,6 +23,60 @@ import { getInvoiceDisplayNumber } from './ui-utils';
 type InvoiceLike = InvoiceWithRelations | string;
 
 type EmailInvoiceResult = 'shared' | 'mailto';
+
+type DocumentTemplateRecord = {
+  id: string;
+  template_name: string;
+  column_settings: Record<string, unknown>;
+};
+
+async function getDefaultDocumentTemplate(documentType: string): Promise<DocumentTemplateRecord | null> {
+  const { data, error } = await supabase
+    .from('document_templates')
+    .select('id, template_name, column_settings')
+    .eq('document_type', documentType)
+    .eq('is_default', true)
+    .maybeSingle();
+
+  if (error) return null;
+  if (!data) return null;
+
+  return {
+    id: String((data as any).id),
+    template_name: String((data as any).template_name ?? ''),
+    column_settings:
+      (data as any).column_settings && typeof (data as any).column_settings === 'object'
+        ? ((data as any).column_settings as Record<string, unknown>)
+        : {},
+  };
+}
+
+function resolveInvoicePdfElement(data: InvoicePdfData, invoiceTemplateConfig: DocumentTemplateRecord | null) {
+  const printConfig = getPrintConfig(invoiceTemplateConfig?.column_settings);
+  const title =
+    printConfig.style === 'grid_minimal' && printConfig.gridMinimal?.titleOverride
+      ? printConfig.gridMinimal.titleOverride
+      : 'TAX INVOICE';
+
+  const headerLabelsRaw = (invoiceTemplateConfig?.column_settings as any)?.header_labels;
+  const headerLabels: Record<string, string> =
+    headerLabelsRaw && typeof headerLabelsRaw === 'object' && !Array.isArray(headerLabelsRaw)
+      ? (headerLabelsRaw as Record<string, string>)
+      : {};
+
+  if (printConfig.style === 'grid_minimal') {
+    return (
+      <GridMinimalInvoiceDocument
+        data={data}
+        title={title}
+        columns={printConfig.gridMinimal?.columns}
+        headerLabels={headerLabels}
+      />
+    );
+  }
+
+  return <InvoicePdfDocument data={data} />;
+}
 
 async function resolveInvoice(invoice: InvoiceLike): Promise<InvoiceWithRelations> {
   if (typeof invoice === 'string') {
@@ -54,14 +111,14 @@ async function getInvoiceTemplateById(id?: string | null): Promise<InvoiceTempla
 async function getInvoiceCompany(organisationId?: string): Promise<InvoicePdfCompany | null> {
   let query = supabase
     .from('organisations')
-    .select('id, name, logo_url, address, phone, email, gstin, pan, tan, msme_no, website, state')
+    .select('id, name, logo_url, address, phone, email, gstin, pan, tan, msme_no, website, state, bank_details')
     .order('created_at', { ascending: true })
     .limit(1);
 
   if (organisationId) {
     query = supabase
       .from('organisations')
-      .select('id, name, logo_url, address, phone, email, gstin, pan, tan, msme_no, website, state')
+      .select('id, name, logo_url, address, phone, email, gstin, pan, tan, msme_no, website, state, bank_details')
       .eq('id', organisationId)
       .limit(1);
   }
@@ -83,6 +140,10 @@ async function getInvoiceCompany(organisationId?: string): Promise<InvoicePdfCom
     msme_no: data.msme_no ?? null,
     website: data.website ?? null,
     state: data.state ?? null,
+    bank_details:
+      data.bank_details && typeof data.bank_details === 'object'
+        ? (data.bank_details as any)
+        : null,
   };
 }
 
@@ -137,7 +198,9 @@ export async function generateInvoicePDF(
   options: InvoicePdfOptions = {},
 ): Promise<Blob> {
   const data = await resolveInvoicePdfData(invoiceInput, options);
-  return pdf(<InvoicePdfDocument data={data} />).toBlob();
+  const invoiceTemplateConfig = await getDefaultDocumentTemplate('Invoice');
+  ensurePdfFontsRegistered();
+  return pdf(resolveInvoicePdfElement(data, invoiceTemplateConfig)).toBlob();
 }
 
 export async function generateProGridInvoicePDF(
@@ -182,7 +245,9 @@ async function renderInvoicePdfBlob(
   fileName: string;
 }> {
   const data = await resolveInvoicePdfData(invoiceInput, options);
-  const blob = await pdf(<InvoicePdfDocument data={data} />).toBlob();
+  const invoiceTemplateConfig = await getDefaultDocumentTemplate('Invoice');
+  ensurePdfFontsRegistered();
+  const blob = await pdf(resolveInvoicePdfElement(data, invoiceTemplateConfig)).toBlob();
 
   return {
     blob,

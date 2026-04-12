@@ -10,6 +10,7 @@ import { generateQuotationTally } from './QuotationTallyTemplate';
 import { generateProfessionalTemplate } from './ProfessionalTemplate';
 import { generateZohoTemplate } from './ZohoTemplate';
 import { generateProGridQuotationPdf } from '../pdf/proGridQuotationPdf';
+import { generateGridMinimalQuotationPdfBlob } from '../pdf/grid-minimal/quotation';
 import { timedSupabaseQuery } from '../utils/queryTimeout';
 
 export default function QuotationView() {
@@ -287,6 +288,16 @@ export default function QuotationView() {
   };
 
   const previewQuotation = (template) => {
+    if (template?.column_settings?.print?.style === 'grid_minimal') {
+      generateGridMinimalQuotationPdfBlob(quotation, organisation, template).then((blob) => {
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank', 'noopener,noreferrer');
+      }).catch((err) => {
+        console.error('Unable to generate grid minimal quotation PDF:', err);
+        alert('Unable to generate PDF. Please check template settings.');
+      });
+      return;
+    }
     if (template.template_code === 'QTN_TALLY') {
       const doc = generateQuotationTally(quotation, organisation, template);
       const pdfBlob = doc.output('blob');
@@ -317,6 +328,27 @@ export default function QuotationView() {
   const downloadPDF = (template) => {
     try {
       if (!quotation) throw new Error('Quotation data is missing');
+
+      if (template?.column_settings?.print?.style === 'grid_minimal') {
+        const safeFileName = String(quotation.quotation_no || 'quotation')
+          .replace(/[<>:\"/\\\\|?*\\x00-\\x1F]/g, '_')
+          .replace(/\\s+/g, '_');
+
+        generateGridMinimalQuotationPdfBlob(quotation, organisation, template).then((blob) => {
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `${safeFileName}.pdf`;
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }).catch((err) => {
+          console.error('Unable to generate grid minimal quotation PDF:', err);
+          alert('Unable to generate PDF. Please check template settings.');
+        });
+        return;
+      }
 
       // Special handling for Tally Template
       if (template.template_code === 'QTN_TALLY') {

@@ -458,12 +458,12 @@ doc.setFontSize(9);
    doc.text('Authorized Signature', pageWidth - margin, currentY + 20, { align: 'right' });
    
    // Page Number - centered at bottom
-   const pageCount = doc.internal.getNumberOfPages();
-   for (let i = 1; i <= pageCount; i++) {
+   const pageTotal = doc.internal.getNumberOfPages();
+   for (let i = 1; i <= pageTotal; i++) {
      doc.setPage(i);
      doc.setFontSize(8);
      doc.setTextColor(180, 180, 180); // Very light gray
-     doc.text(`Page ${i} of ${pageCount}`, pageWidth / 2, pageHeight - 5, { align: 'center' });
+     doc.text(`Page ${i} of ${pageTotal}`, pageWidth / 2, pageHeight - 5, { align: 'center' });
    }
 
   return doc;

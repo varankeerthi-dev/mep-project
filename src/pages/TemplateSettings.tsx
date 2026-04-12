@@ -89,6 +89,13 @@ export default function TemplateSettings() {
         custom1: 'Custom 1',
         custom2: 'Custom 2',
         rate_after_discount: 'Rate/Unit'
+      },
+      print: {
+        style: 'default',
+        gridMinimal: {
+          titleOverride: '',
+          columns: { hsn: true, make: true, unit: true, discPct: true, gst: true }
+        }
       }
     }
   });
@@ -161,6 +168,13 @@ export default function TemplateSettings() {
           custom1: 'Custom 1',
           custom2: 'Custom 2',
           rate_after_discount: 'Rate/Unit'
+        },
+        print: template.column_settings?.print || {
+          style: 'default',
+          gridMinimal: {
+            titleOverride: '',
+            columns: { hsn: true, make: true, unit: true, discPct: true, gst: true }
+          }
         }
       }
     });
@@ -212,6 +226,13 @@ export default function TemplateSettings() {
           custom1: 'Custom 1',
           custom2: 'Custom 2',
           rate_after_discount: 'Rate/Unit'
+        },
+        print: {
+          style: 'default',
+          gridMinimal: {
+            titleOverride: '',
+            columns: { hsn: true, make: true, unit: true, discPct: true, gst: true }
+          }
         }
       }
     };
@@ -255,6 +276,60 @@ export default function TemplateSettings() {
           [fieldKey]: label
         }
       }
+    });
+  };
+
+  const handlePrintStyleChange = (style: string) => {
+    setFormData({
+      ...formData,
+      column_settings: {
+        ...formData.column_settings,
+        print: {
+          ...(formData.column_settings?.print || {}),
+          style
+        }
+      }
+    });
+  };
+
+  const handleGridMinimalColumnToggle = (key: string, checked: boolean) => {
+    const prevPrint = formData.column_settings?.print || {};
+    const prevGrid = prevPrint.gridMinimal || {};
+    const prevCols = prevGrid.columns || {};
+    setFormData({
+      ...formData,
+      column_settings: {
+        ...formData.column_settings,
+        print: {
+          ...prevPrint,
+          gridMinimal: {
+            ...prevGrid,
+            columns: {
+              ...prevCols,
+              [key]: checked,
+            },
+          },
+        },
+      },
+    });
+  };
+
+  const handleGridMinimalTitleOverride = (value: string) => {
+    const prevPrint = formData.column_settings?.print || {};
+    const prevGrid = prevPrint.gridMinimal || {};
+
+    setFormData({
+      ...formData,
+      column_settings: {
+        ...formData.column_settings,
+        print: {
+          ...prevPrint,
+          gridMinimal: {
+            ...prevGrid,
+            titleOverride: value,
+          },
+        },
+      },
     });
   };
 
@@ -640,11 +715,67 @@ export default function TemplateSettings() {
             </div>
           </div>
 
+          <div style={{ marginBottom: '20px' }}>
+            <div style={{ fontWeight: 600, color: '#6b7280', marginBottom: '12px' }}>PDF Template Style</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', background: '#f8fafc', padding: '16px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label" style={{ fontSize: '11px' }}>Style</label>
+                <select
+                  className="form-select"
+                  value={formData.column_settings?.print?.style || 'default'}
+                  onChange={(e) => handlePrintStyleChange(e.target.value)}
+                  style={{ padding: '6px 10px', fontSize: '12px' }}
+                >
+                  <option value="default">Default</option>
+                  <option value="grid_minimal">Grid Minimal (Manrope)</option>
+                </select>
+              </div>
+
+              {formData.column_settings?.print?.style === 'grid_minimal' && (
+                <>
+                  <div className="form-group" style={{ margin: 0, gridColumn: 'span 2' }}>
+                    <label className="form-label" style={{ fontSize: '11px' }}>Title Override</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      style={{ padding: '6px 10px', fontSize: '12px' }}
+                      value={formData.column_settings?.print?.gridMinimal?.titleOverride || ''}
+                      onChange={(e) => handleGridMinimalTitleOverride(e.target.value)}
+                      placeholder='e.g. TAX INVOICE'
+                    />
+                  </div>
+
+                  <div className="form-group" style={{ margin: 0, gridColumn: 'span 3' }}>
+                    <label className="form-label" style={{ fontSize: '11px' }}>Grid Columns</label>
+                    <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', fontSize: '12px' }}>
+                      {[
+                        { key: 'hsn', label: 'HSN' },
+                        { key: 'make', label: 'Make' },
+                        { key: 'unit', label: 'Unit' },
+                        { key: 'discPct', label: 'Disc%' },
+                        { key: 'gst', label: 'GST%' },
+                      ].map((col) => (
+                        <label key={col.key} style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                          <input
+                            type="checkbox"
+                            checked={formData.column_settings?.print?.gridMinimal?.columns?.[col.key] !== false}
+                            onChange={(e) => handleGridMinimalColumnToggle(col.key, e.target.checked)}
+                          />
+                          {col.label}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
           <div>
             <div style={{ fontWeight: 600, color: '#6b7280', marginBottom: '8px' }}>Select fields to show on document</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
               {OPTIONAL_COLUMNS.map(col => (                <div key={col.key} style={{ 
-                  padding: '8px 12px', 
+                padding: '8px 12px', 
                   background: formData.column_settings?.optional?.[col.key] ? '#dbeafe' : '#f9fafb',
                   border: `1px solid ${formData.column_settings?.optional?.[col.key] ? '#93c5fd' : '#e5e7eb'}`,
                   borderRadius: '6px',

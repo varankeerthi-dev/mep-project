@@ -14,6 +14,12 @@ export interface InvoicePdfCompany {
   msme_no?: string | null;
   website?: string | null;
   state?: string | null;
+  bank_details?: {
+    bank_name?: string | null;
+    account_no?: string | null;
+    ifsc?: string | null;
+    branch?: string | null;
+  } | null;
 }
 
 export interface InvoicePdfMaterialLine {
