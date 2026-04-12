@@ -310,6 +310,7 @@ export default function App() {
       case '/quotation': return <QuotationList />;
       case '/quotation/create': return <CreateQuotation onSuccess={() => navigate('/quotation')} onCancel={() => navigate('/quotation')} />;
       case '/quotation/view': return <QuotationView />;
+      case '/quotation/edit': return <CreateQuotation onSuccess={() => navigate('/quotation')} onCancel={() => navigate('/quotation')} editMode={true} />;
       case '/invoices': return <InvoiceListPage />;
       case '/invoices/create': return <InvoiceEditorPage />;
       case '/ledger': return <LedgerDashboard onNavigate={navigate} />;

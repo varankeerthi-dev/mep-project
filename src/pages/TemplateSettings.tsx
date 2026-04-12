@@ -185,9 +185,12 @@ export default function TemplateSettings() {
   const handleNew = (preset: any = null) => {
     const normalizedPreset = typeof preset === 'string' ? preset : null
     setSelectedTemplate(null);
+    
+    const isGridMinimal = normalizedPreset === 'grid_minimal';
+    
     const defaultData = {
-      template_name: normalizedPreset === 'Portrait' ? 'Professional Portrait' : '',
-      template_code: '',
+      template_name: isGridMinimal ? 'Grid Minimal Template' : normalizedPreset === 'Portrait' ? 'Professional Portrait' : '',
+      template_code: isGridMinimal ? 'GRID_MIN' : '',
       document_type: 'Quotation',
       is_default: false,
       page_size: 'A4',
@@ -229,9 +232,9 @@ export default function TemplateSettings() {
           rate_after_discount: 'Rate/Unit'
         },
         print: {
-          style: 'default',
+          style: isGridMinimal ? 'grid_minimal' : 'default',
           gridMinimal: {
-            titleOverride: '',
+            titleOverride: isGridMinimal ? 'QUOTATION' : '',
             columns: { hsn: true, make: true, unit: true, discPct: true, gst: true }
           }
         }
@@ -868,9 +871,18 @@ export default function TemplateSettings() {
     <div>
       <div className="page-header">
         <h1 className="page-title">Template Settings</h1>
-        <button className="btn btn-primary" onClick={handleNew}>
-          + Create Template
-        </button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button 
+            className="btn btn-secondary" 
+            onClick={() => handleNew('grid_minimal')}
+            style={{ borderColor: '#7c3aed', color: '#7c3aed' }}
+          >
+            + Create Grid Minimal
+          </button>
+          <button className="btn btn-primary" onClick={() => handleNew()}>
+            + Create Template
+          </button>
+        </div>
       </div>
 
       {successMessage && (
