@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import * as XLSX from 'xlsx';
 import { supabase } from '../supabase';
 import { timedSupabaseQuery } from '../utils/queryTimeout';
 
@@ -171,6 +172,24 @@ export const generateImportTemplateCSV = (): string => {
   });
   
   return [headers.join(','), sampleRow1.join(',')].join('\n');
+};
+
+export const generateImportTemplateXLSX = (): ArrayBuffer => {
+  const headers = IMPORT_COLUMNS.map(col => col.key);
+  const sampleRow1 = IMPORT_COLUMNS.map(col => {
+    if (col.key === 'item_code') return 'ITEM-001';
+    if (col.key === 'name') return 'Sample Item';
+    if (col.key === 'main_category') return 'VALVE';
+    if (col.key === 'unit') return 'nos';
+    if (col.key === 'sale_price') return 100.00;
+    if (col.key === 'is_active') return true;
+    return '';
+  });
+
+  const ws = XLSX.utils.aoa_to_sheet([headers, sampleRow1]);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Items Template');
+  return XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
 };
 
 export const parseExcelData = async (

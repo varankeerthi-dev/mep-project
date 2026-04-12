@@ -40,6 +40,7 @@ import {
   applyBulkImport,
   generateImportTemplate,
   generateImportTemplateCSV,
+  generateImportTemplateXLSX,
   IMPORT_COLUMNS,
   BulkImportRow,
   ImportValidationResult,
@@ -93,15 +94,27 @@ export default function BulkImportModal({ open, onClose, materials, warehouses, 
     }
   };
 
-  const handleDownloadTemplate = (format: 'tsv' | 'csv' = 'tsv') => {
-    const content = format === 'csv' ? generateImportTemplateCSV() : generateImportTemplate();
-    const blob = new Blob([content], { type: 'text/tab-separated-values' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `item_import_template.${format}`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const handleDownloadTemplate = (format: 'tsv' | 'csv' | 'xlsx' = 'tsv') => {
+    if (format === 'xlsx') {
+      const buffer = generateImportTemplateXLSX();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'item_import_template.xlsx';
+      a.click();
+      URL.revokeObjectURL(url);
+    } else {
+      const content = format === 'csv' ? generateImportTemplateCSV() : generateImportTemplate();
+      const mimeType = format === 'csv' ? 'text/csv' : 'text/tab-separated-values';
+      const blob = new Blob([content], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `item_import_template.${format}`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
   };
 
   const handleDownloadSample = () => {
@@ -292,6 +305,13 @@ export default function BulkImportModal({ open, onClose, materials, warehouses, 
                 onClick={() => handleDownloadTemplate('csv')}
               >
                 Download Template (CSV)
+              </Button>
+              <Button
+                variant="outlined"
+                startIcon={<DownloadIcon />}
+                onClick={() => handleDownloadTemplate('xlsx')}
+              >
+                Download Template (XLSX)
               </Button>
               <Button
                 variant="outlined"
