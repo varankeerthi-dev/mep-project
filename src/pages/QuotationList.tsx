@@ -14,13 +14,11 @@ import {
   TextField,
   Chip,
   IconButton,
-  Tooltip,
 } from '@mui/material';
 import {
   Add as AddIcon,
   Description as DescriptionIcon,
   MoreVert as MoreVertIcon,
-  Visibility as VisibilityIcon,
 } from '@mui/icons-material';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 
@@ -296,9 +294,24 @@ export default function QuotationList() {
   const [searchTerm,  setSearchTerm]  = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [startIndex,  setStartIndex]  = useState(0);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   const sidebarScrollRef = useRef<HTMLDivElement>(null);
   const userClearedRef   = useRef(false);
+
+  useEffect(() => {
+    if (!openMenuId) return undefined;
+    const handleCloseMenu = () => setOpenMenuId(null);
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpenMenuId(null);
+    };
+    document.addEventListener('click', handleCloseMenu);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('click', handleCloseMenu);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [openMenuId]);
 
   // ── Queries ─────────────────────────────────────────────────────────────────
 
@@ -537,11 +550,121 @@ export default function QuotationList() {
                       </span>
                     </TableCell>
                     <TableCell>
-                      <Tooltip title="View Details">
-                        <IconButton size="small" onClick={(e) => { e.stopPropagation(); setSelectedQuotationId(q.id); }}>
-                          <VisibilityIcon fontSize="small" />
+                      <div style={{ position: 'relative' }} onClick={(e) => e.stopPropagation()}>
+                        <IconButton 
+                          size="small" 
+                          onClick={() => setOpenMenuId(openMenuId === q.id ? null : q.id)}
+                        >
+                          <MoreVertIcon fontSize="small" />
                         </IconButton>
-                      </Tooltip>
+                        {openMenuId === q.id && (
+                          <div style={{
+                            position: 'absolute',
+                            right: 0,
+                            top: '100%',
+                            zIndex: 50,
+                            minWidth: '160px',
+                            background: '#fff',
+                            border: '1px solid #e5e7eb',
+                            borderRadius: '6px',
+                            padding: '4px 0',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                          }}>
+                            <button
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                width: '100%',
+                                padding: '6px 12px',
+                                border: 'none',
+                                background: 'transparent',
+                                cursor: 'pointer',
+                                fontSize: '6px',
+                                color: '#374151',
+                                textAlign: 'left',
+                              }}
+                              onClick={() => {
+                                setOpenMenuId(null);
+                                alert('Download PDF - Coming soon');
+                              }}
+                              onMouseEnter={(e) => e.currentTarget.style.background = '#f3f4f6'}
+                              onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                            >
+                              Download PDF
+                            </button>
+                            <button
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                width: '100%',
+                                padding: '6px 12px',
+                                border: 'none',
+                                background: 'transparent',
+                                cursor: 'pointer',
+                                fontSize: '6px',
+                                color: '#374151',
+                                textAlign: 'left',
+                              }}
+                              onClick={() => {
+                                setOpenMenuId(null);
+                                alert('Print PDF - Coming soon');
+                              }}
+                              onMouseEnter={(e) => e.currentTarget.style.background = '#f3f4f6'}
+                              onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                            >
+                              Print PDF
+                            </button>
+                            <button
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                width: '100%',
+                                padding: '6px 12px',
+                                border: 'none',
+                                background: 'transparent',
+                                cursor: 'pointer',
+                                fontSize: '6px',
+                                color: '#374151',
+                                textAlign: 'left',
+                              }}
+                              onClick={() => {
+                                setOpenMenuId(null);
+                                alert('Convert to Invoice - Coming soon');
+                              }}
+                              onMouseEnter={(e) => e.currentTarget.style.background = '#f3f4f6'}
+                              onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                            >
+                              Convert to Invoice
+                            </button>
+                            <button
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                width: '100%',
+                                padding: '6px 12px',
+                                border: 'none',
+                                background: 'transparent',
+                                cursor: 'pointer',
+                                fontSize: '6px',
+                                color: '#374151',
+                                textAlign: 'left',
+                              }}
+                              onClick={() => {
+                                setOpenMenuId(null);
+                                alert('Convert to Delivery Challan - Coming soon');
+                              }}
+                              onMouseEnter={(e) => e.currentTarget.style.background = '#f3f4f6'}
+                              onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                            >
+                              Convert to Delivery Challan
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))
