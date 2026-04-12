@@ -301,6 +301,7 @@ function getIcon(id: string) {
 
 export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, mobileOpen }: SidebarProps) {
   const isCollapsed = collapsed && !mobileOpen;
+  const pathKey = (currentPath || '').split('?')[0];
 
   // Compute which menus to expand on first render only
   // (useState ignores the initial value after mount, so recomputing on path change was wasted work)
@@ -309,7 +310,7 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
     menuData.forEach(section => {
       section.items.forEach(item => {
         if (item.submenu) {
-          const isActive = item.submenu.some(sub => currentPath === sub.path || currentPath.startsWith(sub.path));
+          const isActive = item.submenu.some(sub => pathKey === sub.path || pathKey.startsWith(sub.path));
           if (isActive) defaults.push(item.id);
         }
       });
@@ -331,8 +332,9 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
   const handleClick = useCallback((item: MenuItem) => {
     if (item.submenu) {
       // When the sidebar is collapsed, submenus aren't visible. Navigate to the parent path instead.
-      if (isCollapsed && item.path) {
-        onNavigate(item.path);
+      if (isCollapsed) {
+        const target = item.path || item.submenu?.[0]?.path;
+        if (target) onNavigate(target);
         return;
       }
       toggleMenu(item.id);
@@ -347,17 +349,17 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
 
   const handleOverlayClick = useCallback(() => {
     // Just close the overlay; don't re-navigate
-    onNavigate(currentPath);
-  }, [onNavigate, currentPath]);
+    onNavigate(pathKey);
+  }, [onNavigate, pathKey]);
 
   const isParentActive = useCallback((item: MenuItem) => {
     if (item.submenu) {
-      return item.submenu.some(sub => currentPath === sub.path);
+      return item.submenu.some(sub => pathKey === sub.path);
     }
-    return item.path && currentPath === item.path;
-  }, [currentPath]);
+    return item.path && pathKey === item.path;
+  }, [pathKey]);
 
-  const isActive = useCallback((path: string) => currentPath === path, [currentPath]);
+  const isActive = useCallback((path: string) => pathKey === path, [pathKey]);
 
   return (
     <>
