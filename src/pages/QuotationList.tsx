@@ -1,63 +1,25 @@
-import { useState, useMemo, useEffect, useRef, memo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../supabase';
 import { useNavigate } from 'react-router-dom';
 import { formatDate, formatCurrency } from '../utils/formatters';
 import { useAuth } from '../App';
-import { getPrintSettings } from '../utils/printSettings';
 import { timedSupabaseQuery } from '../utils/queryTimeout';
 import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import { generateQuotationTally } from './QuotationTallyTemplate';
 import { generateProfessionalTemplate } from './ProfessionalTemplate';
 import { generateZohoTemplate } from './ZohoTemplate';
 import { generateProGridQuotationPdf } from '../pdf/proGridQuotationPdf';
 import { generateGridMinimalQuotationPdfBlob } from '../pdf/grid-minimal/quotation';
 import {
-  Box,
-  Paper,
-  Typography,
-  Button,
-  TextField,
-  Chip,
-  IconButton,
-} from '@mui/material';
-import {
-  Add as AddIcon,
-  Description as DescriptionIcon,
-  MoreVert as MoreVertIcon,
-} from '@mui/icons-material';
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
+  Search as SearchIcon,
+  Plus as PlusIcon,
+  Download as DownloadIcon,
+  Eye as EyeIcon,
+  MoreHorizontal as MoreHorizontalIcon,
+} from 'lucide-react';
 
 const QUOTATION_STATUSES = ['All', 'Draft', 'Sent', 'Under Negotiation', 'Approved', 'Rejected', 'Converted', 'Cancelled', 'Expired'];
-
-const ITEM_HEIGHT = 68;
-const VISIBLE     = 10;
-const BUFFER      = 3;
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function numberToWords(num: number): string {
-  const a = ['', 'One ', 'Two ', 'Three ', 'Four ', 'Five ', 'Six ', 'Seven ', 'Eight ', 'Nine ', 'Ten ',
-    'Eleven ', 'Twelve ', 'Thirteen ', 'Fourteen ', 'Fifteen ', 'Sixteen ', 'Seventeen ', 'Eighteen ', 'Nineteen '];
-  const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
-
-  const inWords = (n: number): string => {
-    const s = n.toString();
-    if (s.length > 9) return 'overflow';
-    const nArr = ('000000000' + s).substr(-9).match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
-    if (!nArr) return '';
-    let str = '';
-    str += +nArr[1] ? (a[+nArr[1]] || b[+nArr[1][0]] + ' ' + a[+nArr[1][1]]) + 'Crore '    : '';
-    str += +nArr[2] ? (a[+nArr[2]] || b[+nArr[2][0]] + ' ' + a[+nArr[2][1]]) + 'Lakh '     : '';
-    str += +nArr[3] ? (a[+nArr[3]] || b[+nArr[3][0]] + ' ' + a[+nArr[3][1]]) + 'Thousand ' : '';
-    str += +nArr[4] ? (a[+nArr[4]] || b[+nArr[4][0]] + ' ' + a[+nArr[4][1]]) + 'Hundred '  : '';
-    str += +nArr[5] ? ((str ? 'and ' : '') + (a[+nArr[5]] || b[+nArr[5][0]] + ' ' + a[+nArr[5][1]])) : '';
-    return str.trim() + ' Only';
-  };
-
-  return inWords(Math.round(num));
-}
 
 const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
   Draft:              { bg: '#f3f4f6', color: '#6b7280' },
@@ -74,253 +36,36 @@ const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
 const getStatusColor = (status?: string) =>
   STATUS_COLORS[status ?? ''] ?? STATUS_COLORS['Draft'];
 
-// ─── Quotation Preview Component (Memoized) ───────────────────────────────────
-
-const QuotationPreview = memo(({ 
-  quotation, 
-  organisation, 
-  printMargins, 
-  printColors 
-}: { 
-  quotation: any; 
-  organisation: any;
-  printMargins: any;
-  printColors: any;
-}) => {
-  const margins = printMargins || { top: 15, right: 15, bottom: 15, left: 15 };
-  const colors = printColors || { text: '#1f2937' };
-  const stampStatus = quotation.status === 'Converted' ? 'INVOICED' : quotation.status;
-
-  return (
-    <div
-      className="pdf-container shadow-lg"
-      style={{
-        width: '210mm',
-        minHeight: '297mm',
-        background: '#fff',
-        padding: `${margins.top}mm ${margins.right}mm ${margins.bottom}mm ${margins.left}mm`,
-        position: 'relative',
-        border: '1px solid #000',
-        margin: '0 auto',
-        fontFamily: "'Inter', sans-serif",
-        color: colors.text,
-      }}
-    >
-      {/* Inner border */}
-      <div style={{
-        position: 'absolute', top: '1mm', left: '1mm', right: '1mm', bottom: '1mm',
-        border: '0.2mm solid #000', pointerEvents: 'none',
-      }} />
-
-      {/* Watermark */}
-      <div style={{
-        position: 'absolute', top: '60mm', left: '20mm',
-        transform: 'rotate(-45deg)',
-        border: `3px solid ${getStatusColor(stampStatus).color}`,
-        color: getStatusColor(stampStatus).color,
-        padding: '8px 20px', fontSize: '24px', fontWeight: 900,
-        borderRadius: '8px', opacity: 0.15, zIndex: 10,
-      }}>
-        {stampStatus.toUpperCase()}
-      </div>
-
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '2px solid #3b82f6', paddingBottom: '20px', marginBottom: '20px' }}>
-        <div style={{ width: '65%' }}>
-          {organisation?.logo_url && (
-            <img src={organisation.logo_url} alt="Logo" width={150} height={50} fetchPriority="high" style={{ height: '50px', marginBottom: '12px', objectFit: 'contain' }} />
-          )}
-          <h1 style={{ margin: 0, fontSize: '20px', fontWeight: 800, color: '#1e3a8a', textTransform: 'uppercase' }}>
-            {organisation?.name || 'ARUN PIPES & FITTINGS'}
-          </h1>
-          <p style={{ fontSize: '11px', color: '#4b5563', margin: '4px 0', whiteSpace: 'pre-line', lineHeight: '1.4' }}>
-            {organisation?.address || '69, Babu Naidu garden, Perumalagaram, Thiruverkadu, Chennai, Tamil Nadu-600077, India'}
-          </p>
-          <p style={{ fontSize: '12px', fontWeight: 700, marginTop: '8px', textTransform: 'uppercase' }}>
-            GSTIN: {organisation?.gstin || '33AGZPA3632P1ZY'}
-          </p>
-        </div>
-        <div style={{ textAlign: 'right', width: '35%' }}>
-          <h2 style={{ fontSize: '28px', fontWeight: 900, color: '#d1d5db', margin: '0 0 15px 0', textTransform: 'uppercase', letterSpacing: '-0.05em' }}>
-            Quotation
-          </h2>
-          <div style={{ fontSize: '12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <p><span style={{ fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', fontSize: '10px' }}>Quote No:</span> <span style={{ fontWeight: 700 }}>{quotation.quotation_no}</span></p>
-            <p><span style={{ fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', fontSize: '10px' }}>Quote Date:</span> <span style={{ fontWeight: 700 }}>{formatDate(quotation.date)}</span></p>
-            {quotation.valid_till && (
-              <p><span style={{ fontWeight: 600, color: '#6b7280', textTransform: 'uppercase', fontSize: '10px' }}>Valid Till:</span> <span style={{ fontWeight: 700 }}>{formatDate(quotation.valid_till)}</span></p>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Remarks */}
-      {quotation.remarks && (
-        <div style={{ marginBottom: '20px', padding: '10px 15px', background: '#f9fafb', borderLeft: '4px solid #3b82f6', fontSize: '12px' }}>
-          <span style={{ fontWeight: 700, fontSize: '10px', color: '#6b7280', textTransform: 'uppercase', display: 'block', marginBottom: '2px' }}>Remarks / Reference:</span>
-          {quotation.remarks}
-        </div>
-      )}
-
-      {/* Bill To / Ship To */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '25px' }}>
-        {[
-          { title: 'Bill To (Buyer)', address: quotation.billing_address, extra: `GSTIN: ${quotation.gstin || '-'}` },
-          { title: 'Ship To (Receiver)', address: quotation.billing_address, extra: `Contact: ${quotation.client?.contact || '-'}` },
-        ].map(({ title, address, extra }) => (
-          <div key={title} style={{ padding: '12px', border: '1px solid #e5e7eb', borderRadius: '8px' }}>
-            <h3 style={{ fontSize: '10px', fontWeight: 700, color: '#3b82f6', textTransform: 'uppercase', marginBottom: '8px', borderBottom: '1px solid #eee', paddingBottom: '4px' }}>{title}</h3>
-            <div style={{ fontSize: '12px', lineHeight: '1.5' }}>
-              <p style={{ fontWeight: 800, fontSize: '14px', marginBottom: '4px' }}>{quotation.client?.client_name}</p>
-              <p style={{ color: '#4b5563', whiteSpace: 'pre-line' }}>{address}</p>
-              <p style={{ fontWeight: 700, marginTop: '8px' }}>{extra}</p>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Items table */}
-      <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '25px' }}>
-        <thead>
-          <tr style={{ background: '#3b82f6', color: '#fff' }}>
-            {['S.No', 'Item & Description', 'HSN', 'Qty', 'Rate/Unit', 'GST%', 'Amount'].map(h => (
-              <th key={h} style={{ padding: '10px 8px', fontSize: '11px', border: '1px solid #3b82f6', textAlign: h === 'Item & Description' ? 'left' : h === 'Amount' || h === 'Rate/Unit' ? 'right' : 'center' }}>{h}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {quotation.items?.map((item: any, idx: number) => (
-            <tr key={item.id}>
-              <td style={{ padding: '8px', textAlign: 'center', fontSize: '11px', border: '1px solid #e5e7eb' }}>{idx + 1}</td>
-              <td style={{ padding: '8px', border: '1px solid #e5e7eb' }}>
-                <div style={{ fontWeight: 600, fontSize: '12px', marginBottom: '2px' }}>{item.description}</div>
-                {item.make && <div style={{ fontSize: '10px', color: '#6b7280' }}>Make: {item.make}</div>}
-              </td>
-              <td style={{ padding: '8px', textAlign: 'center', fontSize: '11px', border: '1px solid #e5e7eb' }}>{item.hsn_code || '3917'}</td>
-              <td style={{ padding: '8px', textAlign: 'center', fontSize: '11px', border: '1px solid #e5e7eb' }}>
-                <div style={{ fontWeight: 600 }}>{item.qty}</div>
-                <div style={{ fontSize: '9px', color: '#6b7280' }}>{item.uom}</div>
-              </td>
-              <td style={{ padding: '8px', textAlign: 'right', fontSize: '11px', border: '1px solid #e5e7eb' }}>₹{(item.rate || 0).toFixed(2)}</td>
-              <td style={{ padding: '8px', textAlign: 'center', fontSize: '11px', border: '1px solid #e5e7eb' }}>{item.tax_percent}%</td>
-              <td style={{ padding: '8px', textAlign: 'right', fontSize: '12px', fontWeight: 700, border: '1px solid #e5e7eb' }}>₹{(item.line_total || 0).toFixed(2)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-
-      {/* Totals + Bank */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div style={{ width: '55%' }}>
-          <p style={{ fontSize: '10px', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', marginBottom: '4px' }}>Amount in Words:</p>
-          <p style={{ fontSize: '12px', fontWeight: 600, fontStyle: 'italic', textDecoration: 'underline', textDecorationColor: 'rgba(59,130,246,0.3)' }}>
-            {numberToWords(quotation.grand_total)} Only
-          </p>
-          <div style={{ marginTop: '30px', padding: '12px', background: '#f9fafb', borderRadius: '8px', border: '1px dashed #d1d5db' }}>
-            <h4 style={{ fontSize: '10px', fontWeight: 900, textTransform: 'uppercase', color: '#3b82f6', marginBottom: '8px' }}>Bank Account Details</h4>
-            <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr', gap: '4px', fontSize: '11px' }}>
-              <span style={{ color: '#6b7280', textTransform: 'uppercase' }}>Bank:</span> <span style={{ fontWeight: 700 }}>{organisation?.bank_name || '-'}</span>
-              <span style={{ color: '#6b7280', textTransform: 'uppercase' }}>A/c No:</span> <span style={{ fontWeight: 700, fontSize: '12px' }}>{organisation?.bank_account_no || '-'}</span>
-              <span style={{ color: '#6b7280', textTransform: 'uppercase' }}>IFSC:</span> <span style={{ fontWeight: 700, color: '#1d4ed8', textTransform: 'uppercase' }}>{organisation?.bank_ifsc || '-'}</span>
-              <span style={{ color: '#6b7280', textTransform: 'uppercase' }}>Branch:</span> <span>{organisation?.bank_branch || '-'}</span>
-            </div>
-          </div>
-        </div>
-
-        <div style={{ width: '40%' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: '#6b7280' }}>Basic Amount:</span>
-              <span style={{ fontWeight: 600 }}>₹{(quotation.subtotal || 0).toFixed(2)}</span>
-            </div>
-            {quotation.total_item_discount > 0 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6b7280' }}>
-                <span>Total Discount:</span>
-                <span>- ₹{(quotation.total_item_discount || 0).toFixed(2)}</span>
-              </div>
-            )}
-            <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6b7280' }}>
-              <span style={{ textTransform: 'uppercase' }}>Total Tax (GST):</span>
-              <span>₹{(quotation.total_tax || 0).toFixed(2)}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6b7280' }}>
-              <span>Round off:</span>
-              <span>₹{(quotation.round_off || 0).toFixed(2)}</span>
-            </div>
-            <div style={{
-              display: 'flex', justifyContent: 'space-between',
-              paddingTop: '10px', marginTop: '5px',
-              borderTop: '2px solid #3b82f6',
-              fontSize: '18px', fontWeight: 800, color: '#3b82f6',
-            }}>
-              <span>Net Value:</span>
-              <span>{formatCurrency(quotation.grand_total)}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Footer */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '60px' }}>
-        <div style={{ fontSize: '10px', color: '#9ca3af' }}>
-          <p>This is a computer generated quotation.</p>
-        </div>
-        <div style={{ width: '240px', textAlign: 'center' }}>
-          <p style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '50px', color: '#4b5563' }}>
-            For {organisation?.name || 'ARUN PIPES & FITTINGS'}
-          </p>
-          <div style={{ borderTop: '1px solid #9ca3af', paddingTop: '8px' }}>
-            <p style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase' }}>Authorized Signatory</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}, (prevProps, nextProps) => {
-  // Custom comparison to prevent unnecessary re-renders
-  return (
-    prevProps.quotation?.id === nextProps.quotation?.id &&
-    prevProps.quotation?.status === nextProps.quotation?.status &&
-    prevProps.organisation?.id === nextProps.organisation?.id &&
-    JSON.stringify(prevProps.printMargins) === JSON.stringify(nextProps.printMargins) &&
-    JSON.stringify(prevProps.printColors) === JSON.stringify(nextProps.printColors)
-  );
-});
-
-QuotationPreview.displayName = 'QuotationPreview';
-
-// ─── Component ────────────────────────────────────────────────────────────────
-
 export default function QuotationList() {
-  const navigate        = useNavigate();
+  const navigate = useNavigate();
   const { organisation } = useAuth();
-  const queryClient     = useQueryClient();
+  const queryClient = useQueryClient();
 
-  const [selectedQuotationId, setSelectedQuotationId] = useState<string | null>(null);
-  const [activeTab,   setActiveTab]   = useState('details');
-  const [searchTerm,  setSearchTerm]  = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
-  const [startIndex,  setStartIndex]  = useState(0);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-
-  const sidebarScrollRef = useRef<HTMLDivElement>(null);
-  const userClearedRef   = useRef(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!openMenuId) return undefined;
-    const handleCloseMenu = () => setOpenMenuId(null);
+    if (!openMenuId) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setOpenMenuId(null);
+      }
+    };
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setOpenMenuId(null);
     };
-    document.addEventListener('click', handleCloseMenu);
+    document.addEventListener('mousedown', handleClickOutside);
     document.addEventListener('keydown', handleEscape);
     return () => {
-      document.removeEventListener('click', handleCloseMenu);
+      document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleEscape);
     };
   }, [openMenuId]);
 
   const downloadQuotationPDF = async (quotationId: string) => {
+    setOpenMenuId(null);
     if (!organisation) {
       alert('Organisation data not available');
       return;
@@ -431,8 +176,6 @@ export default function QuotationList() {
     }
   };
 
-  // ── Queries ─────────────────────────────────────────────────────────────────
-
   const quotationsQuery = useQuery({
     queryKey: ['quotations', statusFilter],
     queryFn: async () => {
@@ -452,79 +195,14 @@ export default function QuotationList() {
           : q
       );
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes - increased from 3
-    gcTime: 10 * 60 * 1000, // 10 minutes cache time
-    refetchOnWindowFocus: false, // CRITICAL: Prevents refetch on tab switch
-    refetchOnMount: false, // Only refetch if data is stale
-  });
-
-  const printSettingsQuery = useQuery({
-    queryKey: ['printSettings', 'Quotation'],
-    queryFn: () => getPrintSettings('Quotation'),
-    staleTime: 10 * 60 * 1000,
-    gcTime: 15 * 60 * 1000,
-    refetchOnWindowFocus: false,
-  });
-
-  const quotationDetailsQuery = useQuery({
-    queryKey: ['quotation', selectedQuotationId],
-    queryFn: async ({ queryKey }) => {
-      const [, quotationId] = queryKey;
-
-      const cachedHeader = queryClient
-        .getQueryData<any[]>(['quotations', statusFilter])
-        ?.find(q => q.id === quotationId);
-
-      if (cachedHeader?.items?.length > 0) return cachedHeader;
-
-      const data = await timedSupabaseQuery(
-        supabase
-          .from('quotation_header')
-          .select(`
-            *,
-            client:clients(*),
-            project:projects(id, project_name, project_code),
-            items:quotation_items(
-              *,
-              item:materials(id, item_code, display_name, name, hsn_code)
-            )
-          `)
-          .eq('id', quotationId)
-          .single(),
-        'Quotation details',
-      );
-      return data;
-    },
-    enabled: !!selectedQuotationId,
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
     refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 
-  const quotations      = quotationsQuery.data || [];
-  const loading         = quotationsQuery.isPending && !quotationsQuery.data;
-  const previewLoading  = quotationDetailsQuery.isFetching && !quotationDetailsQuery.data;
-  const selectedQuotation = quotationDetailsQuery.data || null;
-
-  const printSettings   = printSettingsQuery.data?.style_settings;
-  const printMargins    = printSettings?.margins;
-  const printColors     = printSettings?.colors;
-
-  const quotationsError = quotationsQuery.error instanceof Error ? quotationsQuery.error.message : '';
-  const previewError    = quotationDetailsQuery.error instanceof Error ? quotationDetailsQuery.error.message : '';
-
-  // No auto-select - table shows all, clicking opens sidebar
-  useEffect(() => {
-    userClearedRef.current = false;
-  }, [statusFilter]);
-
-  // ── Virtual scroll ──────────────────────────────────────────────────────────
-
-  const onSidebarScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    const scrollTop = (e.target as HTMLDivElement).scrollTop;
-    const newStartIndex = Math.max(0, Math.floor(scrollTop / ITEM_HEIGHT) - BUFFER);
-    setStartIndex(newStartIndex);
-  };
+  const quotations = quotationsQuery.data || [];
+  const loading = quotationsQuery.isPending && !quotationsQuery.data;
 
   const filteredQuotations = useMemo(() => {
     const q = searchTerm.toLowerCase();
@@ -534,371 +212,205 @@ export default function QuotationList() {
     );
   }, [quotations, searchTerm]);
 
-  const totalHeight = filteredQuotations.length * ITEM_HEIGHT;
-
-  const virtualItems = useMemo(() => {
-    const end   = Math.min(startIndex + VISIBLE + BUFFER * 2, filteredQuotations.length);
-    const slice = filteredQuotations.slice(startIndex, end);
-    return slice.map((q: any, idx: number) => ({
-      ...q,
-      offset: (startIndex + idx) * ITEM_HEIGHT,
-    }));
-  }, [filteredQuotations, startIndex]);
-
-  useEffect(() => {
-    setStartIndex(0);
-    sidebarScrollRef.current?.scrollTo?.({ top: 0 });
-  }, [searchTerm, statusFilter]);
-
-  // ── Render ──────────────────────────────────────────────────────────────────
-
   return (
-    <div style={{ display: 'flex', height: 'calc(100vh - 60px)', margin: '-24px', background: '#fff' }}>
-
-      {/* ── Main Table View ── */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        
-        {/* Header */}
-        <Paper elevation={0} sx={{ p: 2, borderRadius: 0, borderBottom: '1px solid', borderColor: 'divider' }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <DescriptionIcon color="primary" sx={{ fontSize: 20 }} />
-              <Typography variant="h6" fontFamily="Inter" fontWeight={600} fontSize="14px">
-                Quotations
-              </Typography>
-              <Chip
-                label={filteredQuotations.length}
-                size="small"
-                sx={{ fontSize: '11px', height: '20px', bgcolor: 'grey.100' }}
-              />
-            </Box>
-            <Box sx={{ display: 'flex', gap: 1 }}>
-              <TextField
-                size="small"
-                placeholder="Search..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                sx={{ width: 200, '& .MuiInputBase-input': { fontSize: '12px' } }}
-              />
-              <Button
-                variant="contained"
-                size="small"
-                startIcon={<AddIcon />}
-                onClick={() => navigate('/quotation/create')}
-                sx={{ fontSize: '12px', textTransform: 'none' }}
-              >
-                Create Quotation
-              </Button>
-            </Box>
-          </Box>
-
-          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-            {QUOTATION_STATUSES.slice(0, 6).map((status) => (
-              <Button
-                key={status}
-                size="small"
-                variant={statusFilter === status ? 'contained' : 'text'}
-                onClick={() => setStatusFilter(status)}
-                sx={{
-                  fontSize: '11px',
-                  textTransform: 'none',
-                  minWidth: 'auto',
-                  px: 1.5,
-                  py: 0.5,
-                  bgcolor: statusFilter === status ? 'primary.main' : 'transparent',
-                  color: statusFilter === status ? 'primary.contrastText' : 'text.secondary',
-                }}
-              >
-                {status}
-              </Button>
-            ))}
-          </Box>
-        </Paper>
-
-        {/* Table */}
-        <div style={{ flex: 1, overflowY: 'auto' }}>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Quote No</TableHead>
-                <TableHead>Client</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Valid Till</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell colSpan={7}>Loading...</TableCell>
-                </TableRow>
-              ) : filteredQuotations.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} style={{ textAlign: 'center', padding: '40px', color: '#6b7280' }}>
-                    No quotations found
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredQuotations.map((q: any) => (
-                  <TableRow 
-                    key={q.id} 
-                    onClick={() => setSelectedQuotationId(q.id)}
-                    style={{ 
-                      cursor: 'pointer',
-                      background: selectedQuotationId === q.id ? '#f0f7ff' : 'transparent',
-                    }}
-                  >
-                    <TableCell style={{ fontWeight: 500 }}>{q.quotation_no}</TableCell>
-                    <TableCell>{q.client?.client_name || '-'}</TableCell>
-                    <TableCell>{formatDate(q.date)}</TableCell>
-                    <TableCell>{q.valid_till ? formatDate(q.valid_till) : '-'}</TableCell>
-                    <TableCell style={{ fontWeight: 500 }}>{formatCurrency(q.grand_total)}</TableCell>
-                    <TableCell>
-                      <span style={{
-                        fontSize: '10px',
-                        fontWeight: 600,
-                        padding: '2px 8px',
-                        borderRadius: '4px',
-                        background: getStatusColor(q.status).bg,
-                        color: getStatusColor(q.status).color,
-                      }}>
-                        {q.status}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <div style={{ position: 'relative' }} onClick={(e) => e.stopPropagation()}>
-                        <IconButton 
-                          size="small" 
-                          onClick={() => setOpenMenuId(openMenuId === q.id ? null : q.id)}
-                        >
-                          <MoreVertIcon fontSize="small" />
-                        </IconButton>
-                        {openMenuId === q.id && (
-                          <div style={{
-                            position: 'absolute',
-                            right: 0,
-                            top: '100%',
-                            zIndex: 50,
-                            minWidth: '160px',
-                            background: '#fff',
-                            border: '1px solid #e5e7eb',
-                            borderRadius: '6px',
-                            padding: '4px 0',
-                            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                          }}>
-                            <button
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '8px',
-                                width: '100%',
-                                padding: '6px 12px',
-                                border: 'none',
-                                background: 'transparent',
-                                cursor: 'pointer',
-                                fontSize: '6px',
-                                color: '#374151',
-                                textAlign: 'left',
-                              }}
-                              onClick={() => {
-                                setOpenMenuId(null);
-                                downloadQuotationPDF(q.id);
-                              }}
-                              onMouseEnter={(e) => e.currentTarget.style.background = '#f3f4f6'}
-                              onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                            >
-                              Download PDF
-                            </button>
-                            <button
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '8px',
-                                width: '100%',
-                                padding: '6px 12px',
-                                border: 'none',
-                                background: 'transparent',
-                                cursor: 'pointer',
-                                fontSize: '6px',
-                                color: '#374151',
-                                textAlign: 'left',
-                              }}
-                              onClick={() => {
-                                setOpenMenuId(null);
-                                alert('Print PDF - Coming soon');
-                              }}
-                              onMouseEnter={(e) => e.currentTarget.style.background = '#f3f4f6'}
-                              onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                            >
-                              Print PDF
-                            </button>
-                            <button
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '8px',
-                                width: '100%',
-                                padding: '6px 12px',
-                                border: 'none',
-                                background: 'transparent',
-                                cursor: 'pointer',
-                                fontSize: '6px',
-                                color: '#374151',
-                                textAlign: 'left',
-                              }}
-                              onClick={() => {
-                                setOpenMenuId(null);
-                                alert('Convert to Invoice - Coming soon');
-                              }}
-                              onMouseEnter={(e) => e.currentTarget.style.background = '#f3f4f6'}
-                              onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                            >
-                              Convert to Invoice
-                            </button>
-                            <button
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '8px',
-                                width: '100%',
-                                padding: '6px 12px',
-                                border: 'none',
-                                background: 'transparent',
-                                cursor: 'pointer',
-                                fontSize: '6px',
-                                color: '#374151',
-                                textAlign: 'left',
-                              }}
-                              onClick={() => {
-                                setOpenMenuId(null);
-                                alert('Convert to Delivery Challan - Coming soon');
-                              }}
-                              onMouseEnter={(e) => e.currentTarget.style.background = '#f3f4f6'}
-                              onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                            >
-                              Convert to Delivery Challan
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+    <div className="flex flex-col h-full bg-white">
+      {/* Header */}
+      <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200">
+        <div className="flex items-center gap-3">
+          <h1 className="text-base font-semibold text-zinc-900">Quotations</h1>
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-zinc-100 text-zinc-600">
+            {filteredQuotations.length}
+          </span>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+            <input
+              type="text"
+              placeholder="Search quotations..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9 pr-4 py-2 w-64 text-sm border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            />
+          </div>
+          <button
+            onClick={() => navigate('/quotation/create')}
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors"
+          >
+            <PlusIcon className="w-4 h-4" />
+            Create Quotation
+          </button>
         </div>
       </div>
 
-      {/* ── Right Sidebar (shows when quotation selected) ── */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#f9fafb' }}>
-        {selectedQuotation ? (
-          <>
-            <div style={{ padding: '12px 24px', background: '#fff', borderBottom: '1px solid #e5e7eb' }}>
-              <div style={{ fontSize: '11px', color: '#6b7280', marginBottom: '4px' }}>Branch: Head Office</div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 700 }}>{selectedQuotation.quotation_no}</h2>
-                <div style={{ display: 'flex', gap: '12px' }}>
-                  <button style={{ background: 'none', border: 'none', cursor: 'pointer' }}>📎</button>
-                  <button style={{ background: 'none', border: 'none', cursor: 'pointer' }}>📄</button>
-                  <button
-                    style={{ background: 'none', border: 'none', cursor: 'pointer' }}
-                    onClick={() => {
-                      userClearedRef.current = true;
-                      setSelectedQuotationId(null);
-                    }}
-                  >×</button>
-                </div>
-              </div>
+      {/* Status Filters */}
+      <div className="flex items-center gap-2 px-6 py-3 border-b border-zinc-100 bg-zinc-50/50">
+        {QUOTATION_STATUSES.slice(0, 8).map((status) => (
+          <button
+            key={status}
+            onClick={() => setStatusFilter(status)}
+            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+              statusFilter === status
+                ? 'bg-indigo-600 text-white'
+                : 'text-zinc-600 hover:bg-zinc-100'
+            }`}
+          >
+            {status}
+          </button>
+        ))}
+      </div>
 
-              <div style={{ display: 'flex', gap: '16px', marginTop: '12px', alignItems: 'center' }}>
-                {[
-                  { icon: '✎', label: 'Edit', onClick: () => navigate(`/quotation/edit?id=${selectedQuotation.id}`) },
-                  { icon: '📋', label: 'Duplicate', onClick: () => navigate(`/quotation/create?duplicateId=${selectedQuotation.id}`) },
-                  { icon: '🗑️', label: 'Delete', onClick: async () => {
-                    if (window.confirm('Are you sure you want to delete this quotation?')) {
-                      await supabase.from('quotation_header').delete().eq('id', selectedQuotation.id);
-                      queryClient.invalidateQueries({ queryKey: ['quotations'] });
-                      setSelectedQuotationId(null);
-                    }
-                  } },
-                ].map(({ icon, label, onClick }) => (
-                  <button key={label} onClick={onClick} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', background: 'none', border: 'none', cursor: 'pointer', color: '#4b5563' }}>
-                    {icon} {label}
-                  </button>
-                ))}
-                {['✉ Mails ▼', '🔗 Share', '🖨 PDF/Print ▼', '🔄 Convert to Invoice'].map(label => (
-                  <button key={label} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', background: 'none', border: 'none', cursor: 'pointer', color: '#4b5563' }}>{label}</button>
-                ))}
-                <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#4b5563' }}>...</button>
-              </div>
-            </div>
-
-            <div style={{ padding: '8px 24px', background: '#fff', borderBottom: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#6b7280' }}>
-              <span>Approved by:</span>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#111827', fontWeight: 500 }}>
-                <div style={{ width: '20px', height: '20px', background: '#d1fae5', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', color: '#047857' }}>K</div>
-                Karthik
-              </span>
-              <span style={{ color: '#2563eb', cursor: 'pointer', marginLeft: '8px' }}>View Approval Details</span>
-            </div>
-
-            <div style={{ padding: '0 24px', background: '#fff', display: 'flex', gap: '24px', borderBottom: '1px solid #e5e7eb' }}>
-              {[
-                { key: 'details', label: 'Quote Details' },
-                { key: 'invoices', label: 'Invoices' },
-                { key: 'activity', label: 'Activity Logs' },
-              ].map(({ key, label }) => (
-                <button
-                  key={key}
-                  onClick={() => setActiveTab(key)}
-                  style={{
-                    padding: '12px 0',
-                    borderBottom: activeTab === key ? '2px solid #2563eb' : '2px solid transparent',
-                    background: 'none', borderTop: 'none', borderLeft: 'none', borderRight: 'none',
-                    fontSize: '13px',
-                    fontWeight: activeTab === key ? 600 : 500,
-                    color: activeTab === key ? '#2563eb' : '#6b7280',
-                    cursor: 'pointer',
-                  }}
+      {/* Table */}
+      <div className="flex-1 overflow-auto">
+        <table className="w-full caption-bottom text-sm">
+          <thead className="border-b border-zinc-200 bg-zinc-50/80">
+            <tr className="border-b border-zinc-200">
+              <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">
+                Quote No
+              </th>
+              <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">
+                Client
+              </th>
+              <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">
+                Date
+              </th>
+              <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">
+                Valid Till
+              </th>
+              <th className="h-10 px-3 text-right align-middle text-xs font-medium text-zinc-500">
+                Amount
+              </th>
+              <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">
+                Status
+              </th>
+              <th className="h-10 px-3 text-right align-middle text-xs font-medium text-zinc-500 min-w-[120px]">
+                Action
+              </th>
+            </tr>
+          </thead>
+          <tbody className="[&_tr:last-child]:border-0">
+            {loading ? (
+              <tr>
+                <td colSpan={7} className="px-3 py-8 text-center text-sm text-zinc-500">
+                  Loading quotations...
+                </td>
+              </tr>
+            ) : filteredQuotations.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="px-3 py-8 text-center text-sm text-zinc-500">
+                  No quotations found
+                </td>
+              </tr>
+            ) : (
+              filteredQuotations.map((q: any) => (
+                <tr
+                  key={q.id}
+                  className="border-b border-zinc-100 hover:bg-zinc-50/80 cursor-pointer transition-colors"
+                  onClick={() => navigate(`/quotation/view?id=${q.id}`)}
                 >
-                  {label}
-                </button>
-              ))}
-            </div>
-
-            <div style={{ flex: 1, padding: '24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <div style={{ width: '100%', maxWidth: '850px', display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
-                <div style={{ display: 'flex', background: '#fff', borderRadius: '4px', border: '1px solid #e5e7eb', overflow: 'hidden' }}>
-                  <button style={{ padding: '4px 12px', fontSize: '11px', border: 'none', background: '#f3f4f6', borderRight: '1px solid #e5e7eb' }}>Details</button>
-                  <button style={{ padding: '4px 12px', fontSize: '11px', border: 'none', background: '#fff' }}>PDF</button>
-                </div>
-              </div>
-
-              {previewLoading ? (
-                <div style={{ padding: '40px' }}>Loading...</div>
-              ) : quotationDetailsQuery.isError ? (
-                <div style={{ padding: '40px', textAlign: 'center', color: '#b91c1c' }}>
-                  <div style={{ marginBottom: '12px' }}>{previewError || 'Unable to load quotation details.'}</div>
-                  <button type="button" className="btn btn-primary" onClick={() => quotationDetailsQuery.refetch()}>Retry</button>
-                </div>
-              ) : (
-                <QuotationPreview
-                  quotation={selectedQuotation}
-                  organisation={organisation}
-                  printMargins={printMargins}
-                  printColors={printColors}
-                />
-              )}
-            </div>
-          </>
-        ) : (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#9ca3af' }}>
-            Select a quotation to view details
-          </div>
-        )}
+                  <td className="px-3 py-3 align-middle text-sm font-medium text-zinc-900 whitespace-nowrap">
+                    {q.quotation_no}
+                  </td>
+                  <td className="px-3 py-3 align-middle text-sm text-zinc-600 whitespace-nowrap">
+                    {q.client?.client_name || '-'}
+                  </td>
+                  <td className="px-3 py-3 align-middle text-sm text-zinc-500 whitespace-nowrap">
+                    {formatDate(q.date)}
+                  </td>
+                  <td className="px-3 py-3 align-middle text-sm text-zinc-500 whitespace-nowrap">
+                    {q.valid_till ? formatDate(q.valid_till) : '-'}
+                  </td>
+                  <td className="px-3 py-3 align-middle text-sm font-medium text-zinc-900 text-right whitespace-nowrap">
+                    {formatCurrency(q.grand_total)}
+                  </td>
+                  <td className="px-3 py-3 align-middle whitespace-nowrap">
+                    <span
+                      className="inline-flex px-2 py-0.5 text-xs font-medium rounded"
+                      style={{
+                        backgroundColor: getStatusColor(q.status).bg,
+                        color: getStatusColor(q.status).color,
+                      }}
+                    >
+                      {q.status}
+                    </span>
+                  </td>
+                  <td className="px-3 py-3 align-middle text-right">
+                    <div className="relative inline-block" ref={openMenuId === q.id ? menuRef : null}>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setOpenMenuId(openMenuId === q.id ? null : q.id);
+                        }}
+                        className="inline-flex items-center justify-center w-8 h-8 rounded hover:bg-zinc-100 transition-colors"
+                      >
+                        <MoreHorizontalIcon className="w-4 h-4 text-zinc-500" />
+                      </button>
+                      {openMenuId === q.id && (
+                        <div className="absolute right-0 top-full mt-1 z-50 min-w-[160px] bg-white border border-zinc-200 rounded-lg shadow-lg py-1">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/quotation/view?id=${q.id}`);
+                            }}
+                            className="flex items-center gap-2 w-full px-3 py-2 text-xs text-zinc-700 hover:bg-zinc-50 transition-colors"
+                          >
+                            <EyeIcon className="w-3.5 h-3.5" />
+                            View Details
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              downloadQuotationPDF(q.id);
+                            }}
+                            className="flex items-center gap-2 w-full px-3 py-2 text-xs text-zinc-700 hover:bg-zinc-50 transition-colors"
+                          >
+                            <DownloadIcon className="w-3.5 h-3.5" />
+                            Download PDF
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenMenuId(null);
+                              navigate(`/quotation/edit?id=${q.id}`);
+                            }}
+                            className="flex items-center gap-2 w-full px-3 py-2 text-xs text-zinc-700 hover:bg-zinc-50 transition-colors"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenMenuId(null);
+                              navigate(`/quotation/create?duplicateId=${q.id}`);
+                            }}
+                            className="flex items-center gap-2 w-full px-3 py-2 text-xs text-zinc-700 hover:bg-zinc-50 transition-colors"
+                          >
+                            Duplicate
+                          </button>
+                          <div className="border-t border-zinc-100 my-1" />
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenMenuId(null);
+                              if (confirm('Are you sure you want to delete this quotation?')) {
+                                supabase.from('quotation_header').delete().eq('id', q.id).then(() => {
+                                  queryClient.invalidateQueries({ queryKey: ['quotations'] });
+                                });
+                              }
+                            }}
+                            className="flex items-center gap-2 w-full px-3 py-2 text-xs text-red-600 hover:bg-red-50 transition-colors"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
       </div>
     </div>
   );
