@@ -6,6 +6,13 @@ import { formatDate, formatCurrency } from '../utils/formatters';
 import { useAuth } from '../App';
 import { getPrintSettings } from '../utils/printSettings';
 import { timedSupabaseQuery } from '../utils/queryTimeout';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { generateQuotationTally } from './QuotationTallyTemplate';
+import { generateProfessionalTemplate } from './ProfessionalTemplate';
+import { generateZohoTemplate } from './ZohoTemplate';
+import { generateProGridQuotationPdf } from '../pdf/proGridQuotationPdf';
+import { generateGridMinimalQuotationPdfBlob } from '../pdf/grid-minimal/quotation';
 import {
   Box,
   Paper,
@@ -313,6 +320,117 @@ export default function QuotationList() {
     };
   }, [openMenuId]);
 
+  const downloadQuotationPDF = async (quotationId: string) => {
+    if (!organisation) {
+      alert('Organisation data not available');
+      return;
+    }
+    const org = organisation;
+
+    try {
+      const { data: quotation, error: quoteError } = await supabase
+        .from('quotation_header')
+        .select(`
+          *,
+          client:clients(*),
+          project:projects(id, project_name, project_code),
+          items:quotation_items(
+            *,
+            item:materials(id, item_code, display_name, name, hsn_code)
+          )
+        `)
+        .eq('id', quotationId)
+        .single();
+      
+      if (quoteError) throw quoteError;
+      if (!quotation) {
+        alert('Quotation not found');
+        return;
+      }
+
+      let template = null;
+      if (quotation.template_id) {
+        const { data, error } = await supabase
+          .from('document_templates')
+          .select('*')
+          .eq('id', quotation.template_id)
+          .single();
+        if (!error) template = data;
+      }
+      
+      if (!template) {
+        const { data, error } = await supabase
+          .from('document_templates')
+          .select('*')
+          .eq('document_type', 'Quotation')
+          .eq('is_default', true)
+          .single();
+        if (error) throw error;
+        template = data;
+      }
+
+      if (!template) {
+        alert('No template found. Please select a template from Template Settings.');
+        return;
+      }
+
+      const safeFileName = String(quotation.quotation_no || 'quotation')
+        .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
+        .replace(/\s+/g, '_');
+
+      if (template?.column_settings?.print?.style === 'grid_minimal') {
+        const blob = await generateGridMinimalQuotationPdfBlob(quotation, org, template);
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${safeFileName}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        return;
+      }
+
+      if (template.template_code === 'QTN_TALLY') {
+        const doc = generateQuotationTally(quotation, org, template);
+        doc.save(`${safeFileName}.pdf`);
+        return;
+      }
+
+      if (template.template_code === 'QTN_PROFESSIONAL') {
+        const doc = generateProfessionalTemplate(quotation, org, template);
+        doc.save(`${safeFileName}.pdf`);
+        return;
+      }
+
+      if (template.template_code === 'QTN_ZOHO') {
+        const doc = generateZohoTemplate(quotation, org, template);
+        doc.save(`${safeFileName}.pdf`);
+        return;
+      }
+
+      if (template.template_code === 'QTN_GRID_PRO') {
+        const doc = generateProGridQuotationPdf(quotation, org, template);
+        doc.save(`${safeFileName}.pdf`);
+        return;
+      }
+
+      const doc = new jsPDF();
+      doc.setFontSize(16);
+      doc.text('Quotation', 10, 10);
+      doc.setFontSize(12);
+      doc.text(`Quote No: ${quotation.quotation_no}`, 10, 25);
+      doc.text(`Date: ${formatDate(quotation.date)}`, 10, 35);
+      if (quotation.client?.client_name) {
+        doc.text(`Client: ${quotation.client.client_name}`, 10, 45);
+      }
+      doc.save(`${safeFileName}.pdf`);
+    } catch (err: any) {
+      console.error('Error downloading PDF:', err);
+      alert('Error downloading PDF: ' + (err?.message || 'Unknown error'));
+    }
+  };
+
   // ── Queries ─────────────────────────────────────────────────────────────────
 
   const quotationsQuery = useQuery({
@@ -586,7 +704,7 @@ export default function QuotationList() {
                               }}
                               onClick={() => {
                                 setOpenMenuId(null);
-                                alert('Download PDF - Coming soon');
+                                downloadQuotationPDF(q.id);
                               }}
                               onMouseEnter={(e) => e.currentTarget.style.background = '#f3f4f6'}
                               onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
