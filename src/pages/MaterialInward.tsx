@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../supabase';
 import { timedSupabaseQuery } from '../utils/queryTimeout';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 
 const createEmptyItem = (id) => ({
   id,
@@ -22,6 +23,8 @@ export default function MaterialInward({ onSuccess, onCancel }) {
   const [pasteData, setPasteData] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
+  const [viewMode, setViewMode] = useState('form'); // 'form' or 'list'
+  const [selectedInward, setSelectedInward] = useState<any>(null);
   const [formData, setFormData] = useState({
     invoice_date: '',
     inward_date: new Date().toISOString().split('T')[0],
@@ -91,6 +94,16 @@ export default function MaterialInward({ onSuccess, onCancel }) {
     () => variants.filter((variant) => variant.variant_name !== 'No Variant'),
     [variants],
   );
+
+  const inwardsQuery = useQuery({
+    queryKey: ['materialInwardList'],
+    queryFn: async () => {
+      return timedSupabaseQuery(
+        supabase.from('material_inward').select('*, warehouse:warehouses(warehouse_name), items:material_inward_items(*, item:materials(name, display_name))').order('created_at', { ascending: false }),
+        'Material inward list'
+      );
+    }
+  });
 
   const getMaterial = (id) => materials.find((material) => material.id === id);
 
@@ -364,11 +377,130 @@ export default function MaterialInward({ onSuccess, onCancel }) {
     );
   }
 
+  const handleView = (inward: any) => {
+    setSelectedInward(inward);
+    setViewMode('view');
+  };
+
+  const handleEdit = (inward: any) => {
+    setSelectedInward(inward);
+    setViewMode('edit');
+  };
+
+  const handleDelete = async (id: string) => {
+    if (window.confirm('Are you sure you want to delete this inward entry?')) {
+      await supabase.from('material_inward').delete().eq('id', id);
+      inwardsQuery.refetch();
+    }
+  };
+
+  const formatDate = (date: string) => date ? new Date(date).toLocaleDateString() : '-';
+
+  if (viewMode === 'list' || viewMode === 'view' || viewMode === 'edit') {
+    return (
+      <div>
+        <div className="page-header">
+          <h1 className="page-title">Material Inward {viewMode === 'list' ? ' - Past Entries' : ''}</h1>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            {viewMode !== 'list' && (
+              <button className="btn btn-secondary" onClick={() => { setViewMode('list'); setSelectedInward(null); }}>Back to List</button>
+            )}
+            <button className="btn btn-primary" onClick={() => { setViewMode('form'); setSelectedInward(null); }}>+ New Entry</button>
+          </div>
+        </div>
+
+        {viewMode === 'list' && (
+          <div className="card">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Invoice No</TableHead>
+                  <TableHead>Vendor</TableHead>
+                  <TableHead>Warehouse</TableHead>
+                  <TableHead>Items</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {inwardsQuery.isLoading ? (
+                  <TableRow><TableCell colSpan={6}>Loading...</TableCell></TableRow>
+                ) : inwardsQuery.data?.length === 0 ? (
+                  <TableRow><TableCell colSpan={6} style={{ textAlign: 'center', padding: '40px' }}>No entries found</TableCell></TableRow>
+                ) : (
+                  inwardsQuery.data?.map((inward: any) => (
+                    <TableRow key={inward.id}>
+                      <TableCell>{formatDate(inward.received_date)}</TableCell>
+                      <TableCell>{inward.invoice_no}</TableCell>
+                      <TableCell>{inward.vendor_name}</TableCell>
+                      <TableCell>{inward.warehouse?.warehouse_name || '-'}</TableCell>
+                      <TableCell>{inward.items?.length || 0} items</TableCell>
+                      <TableCell>
+                        <button className="btn btn-sm btn-secondary" style={{ marginRight: '4px' }} onClick={() => handleView(inward)}>View</button>
+                        <button className="btn btn-sm btn-secondary" style={{ marginRight: '4px' }} onClick={() => handleEdit(inward)}>Edit</button>
+                        <button className="btn btn-sm btn-secondary" onClick={() => handleDelete(inward.id)}>Delete</button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+
+        {viewMode === 'view' && selectedInward && (
+          <div className="card">
+            <h3 style={{ marginBottom: '16px' }}>Inward Details</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
+              <div><strong>Invoice No:</strong> {selectedInward.invoice_no}</div>
+              <div><strong>Vendor:</strong> {selectedInward.vendor_name}</div>
+              <div><strong>Date:</strong> {formatDate(selectedInward.received_date)}</div>
+              <div><strong>Warehouse:</strong> {selectedInward.warehouse?.warehouse_name || '-'}</div>
+            </div>
+            <h4 style={{ marginBottom: '8px' }}>Items</h4>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Item</TableHead>
+                  <TableHead>Qty</TableHead>
+                  <TableHead>Rate</TableHead>
+                  <TableHead>Amount</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {selectedInward.items?.map((item: any, idx: number) => (
+                  <TableRow key={idx}>
+                    <TableCell>{item.item?.display_name || item.item?.name || '-'}</TableCell>
+                    <TableCell>{item.quantity}</TableCell>
+                    <TableCell>{item.rate}</TableCell>
+                    <TableCell>{(item.quantity * item.rate).toFixed(2)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+
+        {viewMode === 'edit' && selectedInward && (
+          <div className="card">
+            <h3>Edit Inward - {selectedInward.invoice_no}</h3>
+            {/* Edit mode - pre-populate form with selectedInward data */}
+            {/* For now, show message. Full edit implementation will need more work */}
+            <p style={{ color: '#666', padding: '20px' }}>Edit functionality coming soon...</p>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div>
       <div className="page-header">
         <h1 className="page-title">Material Inward</h1>
-        <button className="btn btn-secondary" onClick={() => setShowPasteModal(true)}>Paste From Excel</button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button className="btn btn-secondary" onClick={() => setViewMode('list')}>View Past Entries</button>
+          <button className="btn btn-secondary" onClick={() => setShowPasteModal(true)}>Paste From Excel</button>
+        </div>
       </div>
 
       {saveError && (
@@ -432,40 +564,40 @@ export default function MaterialInward({ onSuccess, onCancel }) {
           </div>
         </div>
 
-        <div style={{ overflowX: 'auto' }}>
-          <table className="table" style={{ margin: 0 }}>
+        <div style={{ overflowX: 'auto', border: '1px solid #e5e7eb', borderRadius: '8px' }}>
+          <table className="grid-table" style={{ margin: 0, borderCollapse: 'collapse' }}>
             <thead>
-              <tr>
-                <th style={{ width: '40px' }}>#</th>
-                <th style={{ minWidth: '180px' }}>Item</th>
-                <th style={{ width: '90px' }}>Type</th>
-                <th style={{ width: '120px' }}>Variant</th>
-                <th style={{ width: '150px' }}>Project</th>
-                <th style={{ width: '70px' }}>Qty</th>
-                <th style={{ width: '80px' }}>Rate</th>
-                <th style={{ width: '90px' }}>Amount</th>
-                <th style={{ width: '40px' }}></th>
+              <tr style={{ background: '#f8fafc' }}>
+                <th style={{ width: '40px', textAlign: 'center', fontSize: '11px', padding: '8px' }}>#</th>
+                <th style={{ minWidth: '200px', fontSize: '11px', padding: '8px' }}>Item</th>
+                <th style={{ width: '100px', fontSize: '11px', padding: '8px' }}>Type</th>
+                <th style={{ width: '120px', fontSize: '11px', padding: '8px' }}>Variant</th>
+                <th style={{ width: '150px', fontSize: '11px', padding: '8px' }}>Project</th>
+                <th style={{ width: '80px', fontSize: '11px', padding: '8px', textAlign: 'right' }}>Qty</th>
+                <th style={{ width: '90px', fontSize: '11px', padding: '8px', textAlign: 'right' }}>Rate</th>
+                <th style={{ width: '100px', fontSize: '11px', padding: '8px', textAlign: 'right' }}>Amount</th>
+                <th style={{ width: '40px', fontSize: '11px', padding: '8px' }}></th>
               </tr>
             </thead>
             <tbody>
               {items.map((item, index) => {
                 const itemSupplyType = item.supply_type || formData.supply_type;
                 return (
-                  <tr key={item.id} style={{ background: !item.valid && item.item_id ? '#fff3cd' : 'transparent' }}>
-                    <td style={{ textAlign: 'center', color: '#666' }}>{index + 1}</td>
-                    <td>
-                      <select value={item.item_id} onChange={(e) => updateItem(item.id, 'item_id', e.target.value)} style={{ width: '100%', padding: '6px', borderRadius: '4px', border: '1px solid #ddd' }}>
+                  <tr key={item.id} style={{ background: !item.valid && item.item_id ? '#fff3cd' : '#fff', borderBottom: '1px solid #e5e7eb' }}>
+                    <td style={{ textAlign: 'center', color: '#666', padding: '8px', fontSize: '12px' }}>{index + 1}</td>
+                    <td style={{ padding: '6px' }}>
+                      <select value={item.item_id} onChange={(e) => updateItem(item.id, 'item_id', e.target.value)} style={{ width: '100%', padding: '6px', borderRadius: '4px', border: '1px solid #ddd', fontSize: '12px' }}>
                         <option value="">Select Item</option>
                         {materials.map((material) => <option key={material.id} value={material.id}>{material.display_name || material.name}</option>)}
                       </select>
                     </td>
-                    <td>
+                    <td style={{ padding: '6px' }}>
                       <select value={item.supply_type || formData.supply_type} onChange={(e) => updateItem(item.id, 'supply_type', e.target.value)} style={{ width: '100%', padding: '6px', borderRadius: '4px', border: '1px solid #ddd', fontSize: '12px' }}>
                         <option value="WAREHOUSE">Warehouse</option>
                         <option value="DIRECT_SUPPLY">Direct</option>
                       </select>
                     </td>
-                    <td>
+                    <td style={{ padding: '6px' }}>
                       <select
                         value={item.variant_id || ''}
                         onChange={(e) => updateItem(item.id, 'variant_id', e.target.value)}
@@ -476,7 +608,7 @@ export default function MaterialInward({ onSuccess, onCancel }) {
                         {activeVariants.map((variant) => <option key={variant.id} value={variant.id}>{variant.variant_name}</option>)}
                       </select>
                     </td>
-                    <td>
+                    <td style={{ padding: '6px' }}>
                       <select
                         value={item.project_id || ''}
                         onChange={(e) => updateItem(item.id, 'project_id', e.target.value)}
@@ -487,10 +619,10 @@ export default function MaterialInward({ onSuccess, onCancel }) {
                         {projects.map((project) => <option key={project.id} value={project.id}>{project.project_name || project.name}</option>)}
                       </select>
                     </td>
-                    <td>
+                    <td style={{ padding: '6px', textAlign: 'right' }}>
                       <input type="number" value={item.quantity} onChange={(e) => updateItem(item.id, 'quantity', e.target.value)} placeholder="0" style={{ width: '100%', padding: '6px', borderRadius: '4px', border: '1px solid #ddd', textAlign: 'right', fontSize: '12px' }} />
                     </td>
-                    <td>
+                    <td style={{ padding: '6px', textAlign: 'right' }}>
                       <input type="number" value={item.rate} onChange={(e) => updateItem(item.id, 'rate', e.target.value)} placeholder="0" step="0.01" style={{ width: '100%', padding: '6px', borderRadius: '4px', border: '1px solid #ddd', textAlign: 'right', fontSize: '12px' }} />
                     </td>
                     <td style={{ textAlign: 'right', fontWeight: '600', padding: '6px', fontSize: '12px' }}>

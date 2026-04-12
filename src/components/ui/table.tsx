@@ -18,9 +18,18 @@ export function TableRow({ className, ...props }: HTMLAttributes<HTMLTableRowEle
 }
 
 export function TableHead({ className, ...props }: HTMLAttributes<HTMLTableCellElement>) {
-  return <th className={cn('px-4 py-3 text-left text-xs uppercase tracking-wide', className)} {...props} />
+  return <th className={cn('px-3 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wide', className)} {...props} />
 }
 
-export function TableCell({ className, ...props }: HTMLAttributes<HTMLTableCellElement>) {
-  return <td className={cn('px-4 py-3', className)} {...props} />
+export function TableCell({ className, colSpan, style, ...props }: HTMLAttributes<HTMLTableCellElement> & { colSpan?: number }) {
+  return <td className={cn('px-3 py-2', className)} colSpan={colSpan} style={style} {...props} />
+}
+
+// Dense variant for compact rows
+export function TableRowDense({ className, ...props }: HTMLAttributes<HTMLTableRowElement>) {
+  return <tr className={cn('border-b border-slate-100 hover:bg-slate-50 cursor-pointer', className)} {...props} />
+}
+
+export function TableCellDense({ className, ...props }: HTMLAttributes<HTMLTableCellElement>) {
+  return <td className={cn('px-3 py-1.5 text-sm', className)} {...props} />
 }

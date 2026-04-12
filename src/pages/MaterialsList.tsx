@@ -1279,16 +1279,25 @@ function ItemsTab() {
   const deleteMaterial = async (id) => {
     setDeleteInProgress(true);
     try {
+      const linkedTables: string[] = [];
+      
       const checks = await Promise.allSettled([
-        supabase.from('quotation_items').select('id').eq('item_id', id).limit(1),
-        supabase.from('delivery_challan_items').select('id').eq('material_id', id).limit(1),
-        supabase.from('material_inward_items').select('id').eq('material_id', id).limit(1),
-        supabase.from('quick_check_items').select('id').eq('item_id', id).limit(1),
-      ]);
+        { table: 'quotation_items', key: 'item_id', name: 'Quotations' },
+        { table: 'delivery_challan_items', key: 'material_id', name: 'Delivery Challans' },
+        { table: 'material_inward_items', key: 'material_id', name: 'Material Inward' },
+        { table: 'material_outward_items', key: 'material_id', name: 'Material Outward' },
+        { table: 'invoice_items', key: 'material_id', name: 'Invoices' },
+        { table: 'purchase_order_items', key: 'material_id', name: 'Purchase Orders' },
+        { table: 'purchase_bill_items', key: 'material_id', name: 'Purchase Bills' },
+        { table: 'stock_transfer_items', key: 'material_id', name: 'Stock Transfers' },
+        { table: 'quick_check_items', key: 'item_id', name: 'Quick Check' },
+        { table: 'boq_items', key: 'material_id', name: 'BOQ' },
+      ].map(async ({ table, key, name }) => {
+        const { data } = await supabase.from(table).select('id').eq(key, id).limit(1);
+        if (data?.length) linkedTables.push(name);
+      }));
 
-      const hasLinkedRecords = checks.some((r) => r.status === 'fulfilled' && (r.value.data?.length || 0) > 0);
-
-      if (!hasLinkedRecords) {
+      if (linkedTables.length === 0) {
         await supabase.from('item_variant_pricing').delete().eq('item_id', id);
         await supabase.from('item_stock').delete().eq('item_id', id);
 
@@ -1311,7 +1320,7 @@ function ItemsTab() {
             item.id === id ? { ...item, is_active: false, updated_at: new Date().toISOString() } : item
           )
         );
-        alert('Item is linked with transactions, so it was archived (disabled) instead of hard delete.');
+        alert(`Item is linked with:\n- ${linkedTables.join('\n- ')}\n\nIt has been archived (disabled) instead of hard delete.`);
       }
     } catch (err) {
       console.error('Delete item error:', err);

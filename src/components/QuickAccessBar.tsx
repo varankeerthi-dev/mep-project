@@ -3,6 +3,7 @@ import type { ReactElement } from 'react';
 
 type OrganisationSummary = {
   name?: string | null;
+  id?: string;
 };
 
 type QuickAction =
@@ -60,7 +61,7 @@ export default function QuickAccessBar({ onQuickAction, organisation, onLogout, 
   }, [onLogout]);
 
   return (
-    <header className="top-navbar">
+    <header className="quick-access-bar">
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
         <button className="mobile-menu-btn" onClick={onMenuToggle}>
           {icons.menu}
@@ -115,10 +116,26 @@ export default function QuickAccessBar({ onQuickAction, organisation, onLogout, 
 
         {showDropdown && (
           <div className="user-dropdown">
-            <div className="user-dropdown-item" style={{ cursor: 'default', color: 'var(--text-secondary)' }}>
+            <div className="user-dropdown-item" style={{ cursor: 'default', color: 'var(--text-secondary)', fontSize: '12px' }}>
               {icons.building}
               <span>{organisation?.name}</span>
             </div>
+            {organisation?.id && (
+              <>
+                <div className="user-dropdown-divider" />
+                <div 
+                  className="user-dropdown-item" 
+                  style={{ cursor: 'pointer', fontSize: '8px' }}
+                  onClick={() => {
+                    navigator.clipboard.writeText(organisation?.id || '');
+                  }}
+                  title="Click to copy Organisation ID"
+                >
+                  {icons.file}
+                  <span style={{ flex: 1 }}>Org ID: {organisation?.id}</span>
+                </div>
+              </>
+            )}
             <div className="user-dropdown-divider" />
             <a href="/settings" className="user-dropdown-item" onClick={handleSettingsClick}>
               {icons.settings}

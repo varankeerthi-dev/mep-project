@@ -20,7 +20,9 @@ import {
   Add as AddIcon,
   Description as DescriptionIcon,
   MoreVert as MoreVertIcon,
+  Visibility as VisibilityIcon,
 } from '@mui/icons-material';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 
 const QUOTATION_STATUSES = ['All', 'Draft', 'Sent', 'Under Negotiation', 'Approved', 'Rejected', 'Converted', 'Cancelled', 'Expired'];
 
@@ -380,23 +382,7 @@ export default function QuotationList() {
   const quotationsError = quotationsQuery.error instanceof Error ? quotationsQuery.error.message : '';
   const previewError    = quotationDetailsQuery.error instanceof Error ? quotationDetailsQuery.error.message : '';
 
-  // ── Auto-select first quotation ─────────────────────────────────────────────
-  useEffect(() => {
-    if (quotations.length === 0) {
-      setSelectedQuotationId(null);
-      userClearedRef.current = false;
-      return;
-    }
-    setSelectedQuotationId(prev => {
-      if (!prev) {
-        if (userClearedRef.current) return prev;
-        return quotations[0].id;
-      }
-      if (!quotations.some((q: any) => q.id === prev)) return quotations[0].id;
-      return prev;
-    });
-  }, [quotations]);
-
+  // No auto-select - table shows all, clicking opens sidebar
   useEffect(() => {
     userClearedRef.current = false;
   }, [statusFilter]);
@@ -438,8 +424,10 @@ export default function QuotationList() {
   return (
     <div style={{ display: 'flex', height: 'calc(100vh - 60px)', margin: '-24px', background: '#fff' }}>
 
-      {/* ── Left Sidebar ── */}
-      <div style={{ width: '350px', borderRight: '1px solid #e5e7eb', display: 'flex', flexDirection: 'column' }}>
+      {/* ── Main Table View ── */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        
+        {/* Header */}
         <Paper elevation={0} sx={{ p: 2, borderRadius: 0, borderBottom: '1px solid', borderColor: 'divider' }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -454,11 +442,13 @@ export default function QuotationList() {
               />
             </Box>
             <Box sx={{ display: 'flex', gap: 1 }}>
-              <Tooltip title="More options">
-                <IconButton size="small" sx={{ color: 'text.secondary' }}>
-                  <MoreVertIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
+              <TextField
+                size="small"
+                placeholder="Search..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                sx={{ width: 200, '& .MuiInputBase-input': { fontSize: '12px' } }}
+              />
               <Button
                 variant="contained"
                 size="small"
@@ -471,7 +461,7 @@ export default function QuotationList() {
             </Box>
           </Box>
 
-          <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
             {QUOTATION_STATUSES.slice(0, 6).map((status) => (
               <Button
                 key={status}
@@ -486,79 +476,82 @@ export default function QuotationList() {
                   py: 0.5,
                   bgcolor: statusFilter === status ? 'primary.main' : 'transparent',
                   color: statusFilter === status ? 'primary.contrastText' : 'text.secondary',
-                  '&:hover': {
-                    bgcolor: statusFilter === status ? 'primary.dark' : 'action.hover',
-                  },
                 }}
               >
                 {status}
               </Button>
             ))}
           </Box>
-
-          <TextField
-            fullWidth
-            size="small"
-            placeholder="Search by quote number or client..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            sx={{
-              '& .MuiInputBase-input': { fontSize: '12px' },
-            }}
-          />
         </Paper>
 
-        <div style={{ flex: 1, overflowY: 'auto' }} ref={sidebarScrollRef} onScroll={onSidebarScroll}>
-          {loading ? (
-            <div style={{ padding: '20px', textAlign: 'center' }}>Loading...</div>
-          ) : quotationsQuery.isError ? (
-            <div style={{ padding: '20px', textAlign: 'center', color: '#b91c1c' }}>
-              <div style={{ marginBottom: '12px' }}>{quotationsError || 'Unable to load quotations.'}</div>
-              <button type="button" className="btn btn-primary" onClick={() => quotationsQuery.refetch()}>Retry</button>
-            </div>
-          ) : filteredQuotations.length === 0 ? (
-            <div style={{ padding: '20px', textAlign: 'center', color: '#6b7280' }}>No quotations found.</div>
-          ) : (
-            <div style={{ height: totalHeight, position: 'relative' }}>
-              {virtualItems.map((q: any) => (
-                <div
-                  key={q.id}
-                  onClick={() => setSelectedQuotationId(q.id)}
-                  style={{
-                    position: 'absolute',
-                    top: q.offset,
-                    left: 0, right: 0,
-                    height: ITEM_HEIGHT,
-                    padding: '12px 16px',
-                    cursor: 'pointer',
-                    background: selectedQuotationId === q.id ? '#f0f7ff' : '#fff',
-                    borderLeft: selectedQuotationId === q.id ? '3px solid #2563eb' : '3px solid transparent',
-                    borderBottom: '1px solid #f3f4f6',
-                    boxSizing: 'border-box',
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                    <span style={{ fontWeight: 600, color: '#111827', fontSize: '13px' }}>{q.client?.client_name}</span>
-                    <span style={{ fontWeight: 600, color: '#111827', fontSize: '13px' }}>{formatCurrency(q.grand_total)}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ color: '#6b7280', fontSize: '11px' }}>{q.quotation_no} • {formatDate(q.date)}</div>
-                    <span style={{
-                      fontSize: '9px', fontWeight: 700,
-                      color: getStatusColor(q.status === 'Converted' ? 'INVOICED' : q.status).color,
-                      textTransform: 'uppercase',
-                    }}>
-                      {q.status === 'Converted' ? 'INVOICED' : q.status}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+        {/* Table */}
+        <div style={{ flex: 1, overflowY: 'auto' }}>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Quote No</TableHead>
+                <TableHead>Client</TableHead>
+                <TableHead>Date</TableHead>
+                <TableHead>Valid Till</TableHead>
+                <TableHead>Amount</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={7}>Loading...</TableCell>
+                </TableRow>
+              ) : filteredQuotations.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} style={{ textAlign: 'center', padding: '40px', color: '#6b7280' }}>
+                    No quotations found
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredQuotations.map((q: any) => (
+                  <TableRow 
+                    key={q.id} 
+                    onClick={() => setSelectedQuotationId(q.id)}
+                    style={{ 
+                      cursor: 'pointer',
+                      background: selectedQuotationId === q.id ? '#f0f7ff' : 'transparent',
+                    }}
+                  >
+                    <TableCell style={{ fontWeight: 500 }}>{q.quotation_no}</TableCell>
+                    <TableCell>{q.client?.client_name || '-'}</TableCell>
+                    <TableCell>{formatDate(q.date)}</TableCell>
+                    <TableCell>{q.valid_till ? formatDate(q.valid_till) : '-'}</TableCell>
+                    <TableCell style={{ fontWeight: 500 }}>{formatCurrency(q.grand_total)}</TableCell>
+                    <TableCell>
+                      <span style={{
+                        fontSize: '10px',
+                        fontWeight: 600,
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        background: getStatusColor(q.status).bg,
+                        color: getStatusColor(q.status).color,
+                      }}>
+                        {q.status}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <Tooltip title="View Details">
+                        <IconButton size="small" onClick={(e) => { e.stopPropagation(); setSelectedQuotationId(q.id); }}>
+                          <VisibilityIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
         </div>
       </div>
 
-      {/* ── Right Preview ── */}
+      {/* ── Right Sidebar (shows when quotation selected) ── */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: '#f9fafb' }}>
         {selectedQuotation ? (
           <>
@@ -583,6 +576,13 @@ export default function QuotationList() {
                 {[
                   { icon: '✎', label: 'Edit', onClick: () => navigate(`/quotation/edit?id=${selectedQuotation.id}`) },
                   { icon: '📋', label: 'Duplicate', onClick: () => navigate(`/quotation/create?duplicateId=${selectedQuotation.id}`) },
+                  { icon: '🗑️', label: 'Delete', onClick: async () => {
+                    if (window.confirm('Are you sure you want to delete this quotation?')) {
+                      await supabase.from('quotation_header').delete().eq('id', selectedQuotation.id);
+                      queryClient.invalidateQueries({ queryKey: ['quotations'] });
+                      setSelectedQuotationId(null);
+                    }
+                  } },
                 ].map(({ icon, label, onClick }) => (
                   <button key={label} onClick={onClick} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', background: 'none', border: 'none', cursor: 'pointer', color: '#4b5563' }}>
                     {icon} {label}

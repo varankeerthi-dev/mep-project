@@ -650,6 +650,14 @@ export default function App() {
     <AuthContext.Provider value={{ user, organisation, organisations, handleLogout }}>
       <div className="app-container">
         <QuickAccessBar onQuickAction={handleQuickAction} organisation={organisation} onLogout={handleLogout} onMenuToggle={handleMenuToggle} />
+        
+        {/* Mobile backdrop - closes sidebar when clicked */}
+        <div 
+          className={`sidebar-backdrop ${mobileSidebarOpen ? 'active' : ''}`}
+          onClick={() => setMobileSidebarOpen(false)}
+          aria-hidden="true"
+        />
+        
         <Sidebar currentPath={currentPath} onNavigate={handleSidebarNavigate} collapsed={sidebarCollapsed} onToggle={handleSidebarToggle} mobileOpen={mobileSidebarOpen} />
         <main className={`main-content ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
           <Suspense fallback={<PageSkeleton />}>
