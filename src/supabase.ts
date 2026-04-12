@@ -288,24 +288,6 @@ export const updateProfile = async (
     .eq('user_id', userId)
   return { data, error }
 }
-
-export const initStorageBuckets = async (): Promise<void> => {
-  try {
-    const buckets = ['site-visit-photos', 'site-visit-documents']
-    
-    for (const bucketName of buckets) {
-      const { data: existing } = await supabase.storage.getBucket(bucketName)
-      if (!existing) {
-        await supabase.storage.createBucket(bucketName, {
-          public: true
-        })
-      }
-    }
-  } catch (err) {
-    console.log('Storage bucket init skipped:', (err as Error).message)
-  }
-}
-
 export const getSites = async (organizationId: string): Promise<{ data: Site[] | null; error: Error | null }> => {
   const { data, error } = await supabase
     .from('sites')

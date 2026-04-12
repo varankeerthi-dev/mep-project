@@ -198,6 +198,7 @@ function ItemsTab() {
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [hideInactive, setHideInactive] = useState(false);
   const [saveNotice, setSaveNotice] = useState('');
+  const [materialSavePending, setMaterialSavePending] = useState(false);
   const [bulkPriceText, setBulkPriceText] = useState('');
   const [bulkPreviewRows, setBulkPreviewRows] = useState([]);
   const [bulkParseErrors, setBulkParseErrors] = useState([]);
@@ -1022,15 +1023,20 @@ function ItemsTab() {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    e?.preventDefault?.();
+
+    if (materialSavePending) return;
+    setMaterialSavePending(true);
     
     if (formData.uses_variant && variantPricing.length === 0) {
       alert('Please add at least one variant pricing before saving.');
+      setMaterialSavePending(false);
       return;
     }
 
     if (formData.hsn_code && !/^\d{1,10}$/.test(formData.hsn_code)) {
       alert('HSN/SAC must be numeric and up to 10 digits.');
+      setMaterialSavePending(false);
       return;
     }
 
@@ -1174,7 +1180,9 @@ function ItemsTab() {
       }
       resetForm();
     } catch (err) {
-      alert('Error saving: ' + err.message);
+      alert('Error saving: ' + (err?.message || String(err)));
+    } finally {
+      setMaterialSavePending(false);
     }
   };
 
@@ -2142,7 +2150,12 @@ function ItemsTab() {
         </div>
       )}
       {showForm && (
-        <div className="modal-overlay open" onClick={resetForm}>
+        <div
+          className="modal-overlay open"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) resetForm();
+          }}
+        >
           <div className="modal-content item-modal" onClick={e => e.stopPropagation()} style={{ width: '92vw', maxWidth: '1100px', maxHeight: '92vh', overflowY: 'auto', background: '#fff' }}>
             <div className="modal-header">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
@@ -2472,8 +2485,12 @@ function ItemsTab() {
               )}
 
               <div className="item-form-footer">
-                <button type="submit" className="btn btn-primary">{editingMaterial ? 'Update Item' : 'Save Item'}</button>
-                <button type="button" className="btn btn-secondary" onClick={resetForm}>Cancel</button>
+                <button type="submit" className="btn btn-primary" disabled={materialSavePending}>
+                  {materialSavePending ? 'Saving...' : (editingMaterial ? 'Update Item' : 'Save Item')}
+                </button>
+                <button type="button" className="btn btn-secondary" onClick={resetForm} disabled={materialSavePending}>
+                  Cancel
+                </button>
               </div>
             </form>
             </div>

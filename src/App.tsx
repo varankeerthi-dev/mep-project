@@ -4,7 +4,7 @@ import type { User } from '@supabase/supabase-js';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import QuickAccessBar from './components/QuickAccessBar';
-import { supabase, getUserOrganisations, createOrganisation, signOut, initStorageBuckets } from './supabase';
+import { supabase, getUserOrganisations, createOrganisation, signOut } from './supabase';
 import { queryClient } from './queryClient';
 import LandingPage from './pages/LandingPage';
 import { AuthContext, type AuthContextValue, type Organisation, type OrganisationMember } from './contexts/AuthContext';
@@ -452,7 +452,6 @@ export default function App() {
     const init = async () => {
       unsubscribeAuth = await initAuth();
       await checkDatabase();
-      initStorageBuckets().catch(() => {});
     };
 
     init();
