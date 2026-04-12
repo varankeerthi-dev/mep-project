@@ -18,7 +18,7 @@ export default function DailyUpdates() {
 
   return (
     <div>
-      <div className="page-header"><h1 className="page-title">Daily Updates</h1><button className="btn btn-primary" onClick={() => setShowForm(!showForm)}>{showForm ? 'Cancel' : '+ Add Update'}</button></div>
+      <button className="btn btn-primary" onClick={() => setShowForm(!showForm)} style={{ margin: '20px 24px' }}>{showForm ? 'Cancel' : '+ Add Update'}</button>
       {showForm && (
         <div className="card">
           <form onSubmit={handleSubmit}>

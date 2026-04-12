@@ -5,6 +5,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import QuickAccessBar from './components/QuickAccessBar';
 import { supabase, getUserOrganisations, createOrganisation, signOut, initStorageBuckets } from './supabase';
+import { queryClient } from './queryClient';
 import LandingPage from './pages/LandingPage';
 import { AuthContext, type AuthContextValue, type Organisation, type OrganisationMember } from './contexts/AuthContext';
 
@@ -241,6 +242,123 @@ export default function App() {
   const lastCheckRef = useRef(0);
   const isCheckingRef = useRef(false);
   const heartbeatAbortRef = useRef<AbortController | null>(null);
+  // Stable ref to latest user so the focus handler never captures a stale closure
+  const userRef = useRef(user);
+  useEffect(() => { userRef.current = user; }, [user]);
+
+  const navigate = useCallback((path?: string) => {
+    routerNavigate(path || '/');
+  }, [routerNavigate]);
+
+  const handleQuickAction = useCallback((action: QuickAction) => {
+    switch (action) {
+      case 'new-dc': navigate('/dc/create'); break;
+      case 'daily-updates': navigate('/projects/daily-updates'); break;
+      case 'approvals': navigate('/approvals'); break;
+      case 'remind': navigate('/remindme'); break;
+      case 'search': navigate('/dc/list'); break;
+      case 'export': navigate('/dc/list'); break;
+      default: break;
+    }
+  }, [navigate]);
+
+  const handleSidebarNavigate = useCallback((path: string) => {
+    navigate(path);
+    setMobileSidebarOpen(false);
+  }, [navigate]);
+
+  const handleSidebarToggle = useCallback(() => {
+    setSidebarCollapsed(prev => !prev);
+  }, []);
+
+  const handleMenuToggle = useCallback(() => {
+    setMobileSidebarOpen(prev => !prev);
+  }, []);
+
+  const renderedPage = useMemo(() => {
+    const pathKey = (currentPath || '/').split('?')[0];
+    
+    switch (pathKey) {
+      case '/': 
+        return user ? <Dashboard onNavigate={navigate} /> : <LandingPage />;
+      case '/login': 
+        return user ? <Dashboard onNavigate={navigate} /> : <Login onLogin={() => {}} onSwitch={() => setAuthView('signup')} />;
+      case '/dashboard': 
+        return <Dashboard onNavigate={navigate} />;
+      case '/projects': return <Projects />;
+      case '/projects/new': return <CreateProject onSuccess={() => navigate('/projects')} onCancel={() => navigate('/projects')} />;
+      case '/projects/edit': return <Projects />;
+      case '/projects/daily-updates': return <Projects />;
+      case '/projects/site-materials': return <Projects />;
+      case '/todo': return <TodoList />;
+      case '/remindme': return <RemindMe />;
+      case '/approvals': return <Approvals />;
+      case '/clients/new': return <CreateClient onSuccess={() => navigate('/clients')} onCancel={() => navigate('/clients')} />;
+      case '/clients/edit': return <CreateClientEdit onSuccess={() => navigate('/clients')} onCancel={() => navigate('/clients')} />;
+      case '/clients': return <ClientList />;
+      case '/meetings': return <MeetingsDashboard onNavigate={navigate} />;
+      case '/meetings/create': return <CreateMeeting onSuccess={() => navigate('/meetings')} onCancel={() => navigate('/meetings')} />;
+      case '/meetings/edit': return <CreateMeeting onSuccess={() => navigate('/meetings')} onCancel={() => navigate('/meetings')} editMode={true} />;
+      case '/site-visits': return <SiteVisits />;
+      case '/site-reports': return <SiteReport />;
+      case '/client-communication': return <ClientCommunication />;
+      case '/subcontractors': return <SubcontractorDashboard onNavigate={navigate} />;
+      case '/subcontractors/new': return <CreateSubcontractor onSuccess={() => navigate('/subcontractors')} onCancel={() => navigate('/subcontractors')} />;
+      case '/subcontractors/view': return <SubcontractorView onNavigate={navigate} />;
+      case '/subcontractors/edit': return <SubcontractorEdit onNavigate={navigate} />;
+      default:
+        if (pathKey.startsWith('/dc/edit/')) {
+          const dcId = pathKey.split('/dc/edit/')[1];
+          return <DCEdit dcId={dcId} onCancel={() => navigate('/dc/list')} />;
+        }
+        if (pathKey.startsWith('/nb-dc/edit/')) {
+          const dcId = pathKey.split('/nb-dc/edit/')[1];
+          return <NonBillableDCEdit dcId={dcId} onCancel={() => navigate('/nb-dc/list')} />;
+        }
+        return <Dashboard onNavigate={navigate} />;
+    }
+  }, [currentPath, navigate, user]);
+
+  const handleLogout = async () => {
+    await signOut();
+    setUser(null);
+    setOrganisation(null);
+    setOrganisations([]);
+    setAuthView('login');
+  };
+
+  const handleSelectOrganisation = (org: Organisation) => {
+    setOrganisation(org);
+  };
+
+  const handleCreateOrganisation = async (orgName: string) => {
+    if (!user) return;
+
+    const { data, error } = (await createOrganisation(orgName, user.id)) as CreateOrganisationResult;
+    if (error) {
+      console.error('Create org error:', error);
+      alert('Error creating organisation: ' + (error.message || 'Unknown error'));
+      return;
+    }
+    if (data) {
+      const { data: orgs } = await getUserOrganisations(user.id);
+      setOrganisations(orgs || []);
+      setOrganisation(orgs?.[0]?.organisation);
+    }
+  };
+
+  const refreshMemberships = useCallback(async () => {
+    if (!user) return;
+    const { data: orgs } = await getUserOrganisations(user.id);
+    setOrganisations(orgs || []);
+    if (orgs && orgs.length > 0) {
+      // If current org is still valid keep it, otherwise default to the first active org.
+      const stillValid = organisation?.id && orgs.some((m) => (m.organisation as any)?.id === organisation.id);
+      setOrganisation(stillValid ? organisation : (orgs[0].organisation as Organisation));
+    } else {
+      setOrganisation(null);
+    }
+  }, [user, organisation]);
 
   const checkDatabase = async () => {
     try {
@@ -316,46 +434,46 @@ export default function App() {
 
     init();
 
-    // Optimized heartbeat check - throttled and non-blocking
+    // --- SESSION HEARTBEAT ---
+    // handleFocus reads userRef (always current) instead of capturing `user` from closure.
+    // This avoids the need to re-register event listeners when `user` changes.
     const handleFocus = async () => {
       const now = Date.now();
-      
-      // Throttle: max once every 10 minutes (reduced from 5 min to reduce lock contention)
+
+      // Throttle: max once every 10 minutes
       if (now - lastCheckRef.current < 600000) return;
-      
+
       // Prevent concurrent checks
       if (isCheckingRef.current) return;
-      
+
       lastCheckRef.current = now;
       isCheckingRef.current = true;
 
       // Abort previous heartbeat if still running
       heartbeatAbortRef.current?.abort();
       heartbeatAbortRef.current = new AbortController();
+      const ctrl = heartbeatAbortRef.current;
 
       try {
-        // Use a shorter timeout to avoid LockManager contention
         const sessionPromise = supabase.auth.getSession();
-        const timeoutPromise = new Promise((_, reject) => {
+        const timeoutPromise = new Promise<never>((_, reject) => {
           const timer = setTimeout(() => reject(new Error('Session check timeout')), 5000);
-          heartbeatAbortRef.current?.signal.addEventListener('abort', () => {
+          ctrl.signal.addEventListener('abort', () => {
             clearTimeout(timer);
             reject(new Error('Aborted'));
           });
         });
-        
+
         const { data: { session }, error } = await Promise.race([sessionPromise, timeoutPromise]) as any;
-        
+
         if (!error && session?.user) {
-          setUser(prev => {
-            // Only update if user ID actually changed
-            if (prev?.id !== session.user.id) return session.user;
-            return prev;
-          });
+          // Only update state if the user ID actually changed
+          if (userRef.current?.id !== session.user.id) {
+            setUser(session.user);
+          }
         }
-      } catch (e) {
-        // Silently ignore - auth will refresh on next interaction
-        console.log('Session check skipped (lock busy or timeout)');
+      } catch {
+        // Silently ignore — auth will refresh on next real interaction
       } finally {
         isCheckingRef.current = false;
         heartbeatAbortRef.current = null;
@@ -364,7 +482,6 @@ export default function App() {
 
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') {
-        // Use requestIdleCallback if available to not block main thread
         if ('requestIdleCallback' in window) {
           requestIdleCallback(() => handleFocus(), { timeout: 2000 });
         } else {
@@ -381,216 +498,9 @@ export default function App() {
       window.removeEventListener('focus', handleFocus);
       window.removeEventListener('visibilitychange', handleVisibility);
     };
+    // ⚠️ INTENTIONALLY empty deps [] — listeners must only be registered ONCE at mount.
+    // We use refs (userRef, lastCheckRef, isCheckingRef) to read latest values without re-subscribing.
   }, []);
-
-  const handleLogout = async () => {
-    await signOut();
-    setUser(null);
-    setOrganisation(null);
-    setOrganisations([]);
-    setAuthView('login');
-  };
-
-  const handleSelectOrganisation = (org: Organisation) => {
-    setOrganisation(org);
-  };
-
-  const handleCreateOrganisation = async (orgName: string) => {
-    if (!user) return;
-
-    const { data, error } = (await createOrganisation(orgName, user.id)) as CreateOrganisationResult;
-    if (error) {
-      console.error('Create org error:', error);
-      alert('Error creating organisation: ' + (error.message || 'Unknown error'));
-      return;
-    }
-    if (data) {
-      const { data: orgs } = await getUserOrganisations(user.id);
-      setOrganisations(orgs || []);
-      setOrganisation(orgs?.[0]?.organisation);
-    }
-  };
-
-  const refreshMemberships = useCallback(async () => {
-    if (!user) return;
-    const { data: orgs } = await getUserOrganisations(user.id);
-    setOrganisations(orgs || []);
-    if (orgs && orgs.length > 0) {
-      // If current org is still valid keep it, otherwise default to the first active org.
-      const stillValid = organisation?.id && orgs.some((m) => (m.organisation as any)?.id === organisation.id);
-      setOrganisation(stillValid ? organisation : (orgs[0].organisation as Organisation));
-    } else {
-      setOrganisation(null);
-    }
-  }, [user, organisation]);
-
-  const navigate = useCallback((path?: string) => {
-    routerNavigate(path || '/');
-  }, [routerNavigate]);
-
-  const handleQuickAction = useCallback((action: QuickAction) => {
-    switch (action) {
-      case 'new-dc': navigate('/dc/create'); break;
-      case 'daily-updates': navigate('/projects/daily-updates'); break;
-      case 'approvals': navigate('/approvals'); break;
-      case 'remind': navigate('/remindme'); break;
-      case 'search': navigate('/dc/list'); break;
-      case 'export': navigate('/dc/list'); break;
-      default: break;
-    }
-  }, [navigate]);
-
-  const handleSidebarNavigate = useCallback((path: string) => {
-    navigate(path);
-    setMobileSidebarOpen(false);
-  }, [navigate]);
-
-  const handleSidebarToggle = useCallback(() => {
-    setSidebarCollapsed(prev => !prev);
-  }, []);
-
-  const handleMenuToggle = useCallback(() => {
-    setMobileSidebarOpen(prev => !prev);
-  }, []);
-
-  const renderPage = useCallback((authUser: User | null, authOrg: Organisation | null) => {
-    const pathKey = currentPath.split('?')[0];
-    
-    switch (pathKey) {
-      case '/': 
-        return authUser ? <Dashboard onNavigate={navigate} /> : <LandingPage />;
-      case '/login': 
-        return authUser ? <Dashboard onNavigate={navigate} /> : <Login onLogin={() => {}} onSwitch={() => setAuthView('signup')} />;
-      case '/projects': return <Projects />;
-      case '/projects/new': return <Projects />;
-      case '/projects/edit': return <Projects />;
-      case '/projects/daily-updates': return <Projects />;
-      case '/projects/site-materials': return <Projects />;
-      case '/todo': return <TodoList />;
-      case '/remindme': return <RemindMe />;
-      case '/approvals': return <Approvals />;
-      case '/clients/new': return <CreateClient onSuccess={() => navigate('/clients')} onCancel={() => navigate('/clients')} />;
-      case '/clients/edit': return <CreateClientEdit onSuccess={() => navigate('/clients')} onCancel={() => navigate('/clients')} />;
-      case '/clients': return <ClientList />;
-      case '/meetings': return <MeetingsDashboard onNavigate={navigate} />;
-      case '/meetings/create': return <CreateMeeting onSuccess={() => navigate('/meetings')} onCancel={() => navigate('/meetings')} />;
-      case '/meetings/edit': return <CreateMeeting onSuccess={() => navigate('/meetings')} onCancel={() => navigate('/meetings')} editMode={true} />;
-      case '/site-visits': return <SiteVisits />;
-      case '/site-reports': return <SiteReport />;
-      case '/client-communication': return <ClientCommunication />;
-      case '/subcontractors': return <SubcontractorDashboard onNavigate={navigate} />;
-      case '/subcontractors/new': return <CreateSubcontractor onSuccess={() => navigate('/subcontractors')} onCancel={() => navigate('/subcontractors')} />;
-      case '/subcontractors/view': return <SubcontractorView onNavigate={navigate} />;
-      case '/subcontractors/edit': return <SubcontractorEdit onNavigate={navigate} />;
-      case '/subcontractors/attendance': return <SubcontractorAttendance onNavigate={navigate} />;
-      case '/subcontractors/workorders': return <SubcontractorWorkOrders onNavigate={navigate} />;
-      case '/subcontractors/work-orders': return <WorkOrderDetailView onBack={() => navigate('/subcontractors/workorders')} />;
-      case '/subcontractors/dailylogs': return <SubcontractorDailyLogs onNavigate={navigate} />;
-      case '/subcontractors/payments': return <SubcontractorPayments onNavigate={navigate} />;
-      case '/subcontractors/invoices': return <SubcontractorInvoices onNavigate={navigate} />;
-      case '/subcontractors/documents': return <SubcontractorDocuments onNavigate={navigate} />;
-      case '/client-requests': return <ClientRequests />;
-      case '/quotation': return <QuotationList />;
-      case '/quotation/create': return <CreateQuotation />;
-      case '/quotation/edit': return <CreateQuotation />;
-      case '/quotation/view': return <QuotationView />;
-      case '/settings/discounts': return <DiscountSettings />;
-      case '/boq': return <BOQList />;
-      case '/boq/create': return <BOQ />;
-      case '/issue': return <IssueList />;
-      case '/client-comm': return <ClientComm />;
-      case '/documents': return <Documents />;
-      case '/store/materials': return <MaterialsList />;
-      case '/store/inward': return <MaterialInward onSuccess={() => navigate('/store/stock')} onCancel={() => navigate('/store/stock')} />;
-      case '/store/outward': return <MaterialOutward onSuccess={() => navigate('/store/stock')} onCancel={() => navigate('/store/stock')} />;
-      case '/store/transfer': return <StockTransfer onCancel={() => navigate('/store/stock')} />;
-      case '/store/stock': return <StockBalance />;
-      case '/tools': return <ToolsList />;
-      case '/purchase': return <PurchaseModule />;
-      case '/dc/create': return <CreateDC onSuccess={() => navigate('/dc/list')} onCancel={() => navigate('/dc/list')} />;
-      case '/dc/list': return <DCList />;
-      case '/dc/consolidation/date': return <DateWiseConsolidation />;
-      case '/dc/consolidation/material': return <MaterialWiseConsolidation />;
-      case '/nb-dc/create': return <CreateNonBillableDC onSuccess={() => navigate('/nb-dc/list')} onCancel={() => navigate('/nb-dc/list')} />;
-      case '/nb-dc/list': return <NonBillableDCList />;
-      case '/reports/stock': return <StockReport />;
-      case '/reports/purchase': return <PurchaseReport />;
-      case '/reports/sales': return <SalesReport />;
-      case '/settings': return <SettingsPage />;
-      case '/settings/print': return <PrintSettings />;
-      case '/settings/organisation': return <OrganisationSettings organisation={authOrg} userId={authUser?.id} />;
-      case '/settings/document-series': return <TransactionNumberSeries />;
-      case '/settings/template': return <TemplateSettings />;
-      case '/settings/quick-quote': return <QuickQuoteSettings />;
-      case '/settings/access-control': return <AccessControlPage />;
-      case '/quick-stock-check': return <QuickStockCheckList />;
-      case '/quick-stock-check/create': return <QuickStockCheck />;
-      case '/quick-stock-check/edit': return <QuickStockCheck />;
-      case '/quick-stock-check/view': return <QuickStockCheck />;
-      case '/procurement': return <ProcurementList />;
-      case '/procurement/detail': return <ProcurementDetail />;
-      case '/client-po': return <POList />;
-      case '/client-po/create': return <CreatePO />;
-      case '/client-po/details': return <PODetails />;
-      case '/invoices': return <InvoiceListPage />;
-      case '/invoices/create': return <InvoiceEditorPage />;
-      case '/invoices/edit': return <InvoiceEditorPage />;
-      case '/ledger': return <LedgerDashboard />;
-      case '/employee/checkin': return <EmployeeCheckIn />;
-      case '/hr/dashboard': return <HRAdminDashboard />;
-      default:
-        if (pathKey.startsWith('/dc/edit/')) {
-          const dcId = pathKey.split('/dc/edit/')[1];
-          return <DCEdit dcId={dcId} onCancel={() => navigate('/dc/list')} />;
-        }
-        if (pathKey.startsWith('/nb-dc/edit/')) {
-          const dcId = pathKey.split('/nb-dc/edit/')[1];
-          return <NonBillableDCEdit dcId={dcId} onCancel={() => navigate('/nb-dc/list')} />;
-        }
-        return <Dashboard onNavigate={navigate} />;
-    }
-  }, [currentPath, navigate]);
-
-  // Memoize rendered page with stable dependencies
-  const renderedPage = useMemo(
-    () => renderPage(user, organisation),
-    [currentPath, user?.id, organisation?.id, renderPage]
-  );
-
-  // --- AUTO-PRELOAD: Current section routes on idle ---
-  useEffect(() => {
-    const pathKey = (currentPath || '').split('?')[0];
-    const currentSection = pathKey.split('/')[1]; // 'dc', 'quotation', 'store', etc.
-    
-    const routesToPreload = ROUTE_SECTIONS[currentSection];
-    if (!routesToPreload || routesToPreload.length === 0) return;
-
-    // Use requestIdleCallback to preload when browser is idle
-    const preloadSection = () => {
-      routesToPreload.forEach(importFn => {
-        // Preload but don't execute - just warm the cache
-        importFn().catch(() => {});
-      });
-    };
-
-    let handle: number | undefined;
-    if ('requestIdleCallback' in window) {
-      handle = requestIdleCallback(preloadSection, { timeout: 3000 });
-    } else {
-      // Fallback: delay preloading to not block initial render
-      handle = window.setTimeout(preloadSection, 500) as unknown as number;
-    }
-
-    return () => {
-      if (handle) {
-        if ('cancelIdleCallback' in window) {
-          cancelIdleCallback(handle);
-        } else {
-          clearTimeout(handle);
-        }
-      }
-    };
-  }, [currentPath]);
 
   if (loading) {
     return (

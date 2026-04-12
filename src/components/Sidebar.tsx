@@ -302,7 +302,9 @@ function getIcon(id: string) {
 export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, mobileOpen }: SidebarProps) {
   const isCollapsed = collapsed && !mobileOpen;
 
-  const defaultExpandedMenus = useMemo(() => {
+  // Compute which menus to expand on first render only
+  // (useState ignores the initial value after mount, so recomputing on path change was wasted work)
+  const initialExpandedMenus = useMemo(() => {
     const defaults: string[] = [];
     menuData.forEach(section => {
       section.items.forEach(item => {
@@ -313,9 +315,10 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
       });
     });
     return defaults;
-  }, [currentPath]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only on mount — user controls expansion after that
 
-  const [expandedMenus, setExpandedMenus] = useState<string[]>(defaultExpandedMenus);
+  const [expandedMenus, setExpandedMenus] = useState<string[]>(initialExpandedMenus);
 
   const toggleMenu = useCallback((menuId: string) => {
     setExpandedMenus(prev => 
@@ -343,6 +346,7 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
   }, [onNavigate]);
 
   const handleOverlayClick = useCallback(() => {
+    // Just close the overlay; don't re-navigate
     onNavigate(currentPath);
   }, [onNavigate, currentPath]);
 

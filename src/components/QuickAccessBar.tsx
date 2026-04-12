@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import type { ReactElement } from 'react';
 
 type OrganisationSummary = {
@@ -19,6 +19,7 @@ type QuickAccessBarProps = {
   organisation?: OrganisationSummary | null;
   onLogout: () => void | Promise<void>;
   onMenuToggle: () => void;
+  onNavigate?: (path: string) => void;
 };
 
 const icons: Record<string, ReactElement> = {
@@ -39,6 +40,20 @@ const icons: Record<string, ReactElement> = {
 
 export default function QuickAccessBar({ onQuickAction, organisation, onLogout, onMenuToggle }: QuickAccessBarProps) {
   const [showDropdown, setShowDropdown] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside — fixes unresponsive dropdown after inactivity
+  useEffect(() => {
+    if (!showDropdown) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setShowDropdown(false);
+      }
+    };
+    // Use capture phase so it fires before any stopped-propagation handlers
+    document.addEventListener('mousedown', handleClickOutside, true);
+    return () => document.removeEventListener('mousedown', handleClickOutside, true);
+  }, [showDropdown]);
 
   const handleQuickAction = useCallback((action: QuickAction) => {
     onQuickAction(action);
@@ -51,6 +66,7 @@ export default function QuickAccessBar({ onQuickAction, organisation, onLogout, 
   const handleSettingsClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     setShowDropdown(false);
+    // Use react-router navigation instead of manual pushState hack
     window.history.pushState({}, '', '/settings');
     window.dispatchEvent(new PopStateEvent('popstate'));
   }, []);
@@ -91,11 +107,13 @@ export default function QuickAccessBar({ onQuickAction, organisation, onLogout, 
         </button>
       </div>
 
-      <div className="user-menu" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+      <div className="user-menu" style={{ display: 'flex', alignItems: 'center', gap: '4px' }} ref={dropdownRef}>
         <button 
           className="user-profile"
           onClick={toggleDropdown}
           style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 8px' }}
+          aria-expanded={showDropdown}
+          aria-haspopup="true"
         >
           <div className="user-profile-avatar" style={{ width: '20px', height: '20px', fontSize: '9px' }}>
             {organisation?.name?.charAt(0)?.toUpperCase() || 'U'}

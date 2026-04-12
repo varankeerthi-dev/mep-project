@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Folder, Plus, ClipboardList, Package, ArrowLeft } from 'lucide-react';
 import { supabase } from '../supabase';
 import { useQuery } from '@tanstack/react-query';
@@ -14,9 +14,7 @@ const SiteMaterials = () => import('./ProjectManagementInternal').then(m => ({ d
 
 const TABS = [
   { id: 'list', label: 'List', icon: Folder, component: ProjectList },
-  { id: 'new', label: 'New', icon: Plus, component: CreateProject },
-  { id: 'daily-updates', label: 'Daily Updates', icon: ClipboardList, component: DailyUpdates },
-  { id: 'site-materials', label: 'Site Materials', icon: Package, component: SiteMaterials },
+  { id: 'new', label: 'New', icon: Plus, component: null },
   { id: 'material-management', label: 'Material', icon: Package, component: null },
 ];
 
@@ -26,17 +24,15 @@ function BarChart() { return <svg width="18" height="18" viewBox="0 0 24 24" fil
 
 export default function Projects() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'list');
   const [Component, setComponent] = useState<React.ComponentType | null>(null);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [organisationId, setOrganisationId] = useState<string>('');
   const [projectName, setProjectName] = useState<string>('');
 
-  useEffect(() => {
-    const tab = searchParams.get('tab') || 'list';
-    setActiveTab(tab);
-    
-    const tabConfig = TABS.find(t => t.id === tab);
+  const loadComponent = (tabId: string) => {
+    const tabConfig = TABS.find(t => t.id === tabId);
     if (tabConfig && tabConfig.component) {
       tabConfig.component().then(mod => {
         setComponent(() => mod.default);
@@ -44,9 +40,30 @@ export default function Projects() {
     } else {
       setComponent(null);
     }
+  };
+
+  useEffect(() => {
+    const tab = searchParams.get('tab') || 'list';
+    setActiveTab(tab);
+    loadComponent(tab);
   }, [searchParams]);
 
   const handleTabChange = (tabId: string) => {
+    console.log('Tab clicked:', tabId); // Debug log
+    console.log('Navigate function available:', typeof navigate); // Debug navigate availability
+    
+    if (tabId === 'new') {
+      // Navigate to create project page immediately
+      console.log('Attempting to navigate to /projects/new'); // Debug log
+      try {
+        navigate('/projects/new');
+        console.log('Navigation call successful'); // Debug log
+      } catch (error) {
+        console.error('Navigation error:', error); // Debug error
+      }
+      return;
+    }
+    // For other tabs, update URL params normally
     setSearchParams({ tab: tabId });
     if (tabId !== 'material-management') {
       setSelectedProjectId(null);
@@ -77,11 +94,16 @@ export default function Projects() {
             return (
               <button
                 key={tab.id}
-                onClick={() => handleTabChange(tab.id)}
+                onClick={(e) => {
+                  e.preventDefault();
+                  console.log('Button clicked:', tab.id);
+                  handleTabChange(tab.id);
+                }}
                 style={{
                   display: 'flex', alignItems: 'center', gap: '8px', padding: '16px 20px', border: 'none',
                   borderBottom: `2px solid ${isActive ? '#1d4ed8' : 'transparent'}`, background: 'transparent',
                   color: isActive ? '#1d4ed8' : '#6b7280', fontSize: '14px', fontWeight: isActive ? 600 : 500, cursor: 'pointer',
+                  ...(tab.id === 'new' ? { background: '#10b981', color: 'white', borderRadius: '6px' } : {})
                 }}
               >
                 <Icon size={18} />
