@@ -2143,15 +2143,26 @@ function ItemsTab() {
       )}
       {showForm && (
         <div className="modal-overlay open" onClick={resetForm}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ width: '92vw', maxWidth: '1100px', maxHeight: '92vh', overflowY: 'auto', background: '#fff' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h2>{editingMaterial ? 'Edit Item' : 'Add Item'}</h2>
-              <button onClick={resetForm} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}>×</button>
+          <div className="modal-content item-modal" onClick={e => e.stopPropagation()} style={{ width: '92vw', maxWidth: '1100px', maxHeight: '92vh', overflowY: 'auto', background: '#fff' }}>
+            <div className="modal-header">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                <div>
+                  <div className="modal-title">{editingMaterial ? 'Edit Item' : 'Add Item'}</div>
+                  <div className="item-modal-subtitle">Fast, compact details for quotation, purchase, and inventory.</div>
+                </div>
+                <button type="button" onClick={resetForm} className="item-modal-close" aria-label="Close">
+                  {'\u00D7'}
+                </button>
+              </div>
             </div>
-            
+
+            <div className="modal-body">
             <form onSubmit={handleSubmit}>
-              <div style={{ background: '#f8f9fa', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
-                <h4 style={{ marginBottom: '15px', color: '#3498db' }}>Basic Information</h4>
+              <div className="item-form-section">
+                <div className="item-form-section-header">
+                  <h4 className="item-form-section-title">Basic Information</h4>
+                  <span className="item-form-section-hint">Required</span>
+                </div>
                 <div className="form-row">
                   <div className="form-group">
                     <label className="form-label">Item Name *</label>
@@ -2179,8 +2190,11 @@ function ItemsTab() {
                 </div>
               </div>
 
-              <div style={{ background: '#e8f4f8', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
-                <h4 style={{ marginBottom: '15px', color: '#3498db' }}>Technical Attributes (Internal Use Only)</h4>
+              <div className="item-form-section">
+                <div className="item-form-section-header">
+                  <h4 className="item-form-section-title">Technical Attributes</h4>
+                  <span className="item-form-section-hint">Internal use</span>
+                </div>
                 <div className="form-row">
                   <div className="form-group">
                     <label className="form-label">Size</label>
@@ -2213,8 +2227,11 @@ function ItemsTab() {
                 </div>
               </div>
 
-              <div style={{ background: '#e8f8e8', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
-                <h4 style={{ marginBottom: '15px', color: '#28a745' }}>Commercial</h4>
+              <div className="item-form-section">
+                <div className="item-form-section-header">
+                  <h4 className="item-form-section-title">Commercial</h4>
+                  <span className="item-form-section-hint">Pricing + GST</span>
+                </div>
                 <div className="form-row">
                   <div className="form-group">
                     <label className="form-label">Unit</label>
@@ -2262,8 +2279,11 @@ function ItemsTab() {
                 </div>
               </div>
 
-              <div style={{ background: '#fff3e0', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
-                <h4 style={{ marginBottom: '15px', color: '#f39c12' }}>Inventory Tracking</h4>
+              <div className="item-form-section">
+                <div className="item-form-section-header">
+                  <h4 className="item-form-section-title">Inventory Tracking</h4>
+                  <span className="item-form-section-hint">Optional</span>
+                </div>
                 <div className="form-row">
                   <div className="form-group">
                     <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
@@ -2273,7 +2293,7 @@ function ItemsTab() {
                   </div>
                 </div>
                 {formData.track_inventory && (
-                  <div style={{ marginTop: '15px' }}>
+                  <div style={{ marginTop: '10px' }}>
                     {(() => {
                       const activeVariantIds = formData.uses_variant 
                         ? Array.from(new Set(variantPricing.map(p => p.company_variant_id || 'no_variant')))
@@ -2282,8 +2302,8 @@ function ItemsTab() {
                       return activeVariantIds.map(vId => {
                         const vName = vId === 'no_variant' ? (formData.uses_variant ? 'No Variant' : 'Standard Inventory') : variants.find(v => v.id === vId)?.variant_name || 'Unknown Variant';
                         return (
-                          <div key={vId} style={{ marginBottom: '20px' }}>
-                            {formData.uses_variant && <h5 style={{ color: '#555', marginBottom: '10px' }}>{vName} Integration</h5>}
+                          <div key={vId} style={{ marginBottom: '12px' }}>
+                            {formData.uses_variant && <h5 style={{ color: '#555', marginBottom: '6px' }}>{vName} Integration</h5>}
                             <table className="table" style={{ background: '#fff', fontSize: '13px' }}>
                               <thead>
                                 <tr>
@@ -2331,45 +2351,58 @@ function ItemsTab() {
                 )}
               </div>
 
-              <div className="form-group">
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                  <input type="checkbox" checked={formData.is_active} onChange={e => setFormData({...formData, is_active: e.target.checked})} />
-                  Active
-                </label>
-              </div>
+              <div className="item-form-section">
+                <div className="item-form-section-header">
+                  <h4 className="item-form-section-title">Variants & Status</h4>
+                  <span className="item-form-section-hint">Optional</span>
+                </div>
 
-              <div style={{ background: formData.uses_variant ? '#e8f4f8' : '#f8f9fa', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: '500' }}>
-                  <input 
-                    type="checkbox" 
-                    checked={formData.uses_variant} 
-                    onChange={e => {
-                      const checked = e.target.checked;
-                      if (editingMaterial) {
-                        handleUsesVariantChange(checked);
-                      } else {
-                        setFormData({
-                          ...formData, 
-                          uses_variant: checked,
-                          sale_price: checked ? '0' : formData.sale_price
-                        });
-                      }
-                    }}
-                  />
-                  This item uses Variant
-                </label>
-                <p style={{ fontSize: '12px', color: '#666', marginTop: '8px' }}>
-                  {formData.uses_variant 
+                <div className="item-toggle-row">
+                  <label className="item-checkbox-row">
+                    <input
+                      type="checkbox"
+                      checked={formData.is_active}
+                      onChange={e => setFormData({ ...formData, is_active: e.target.checked })}
+                    />
+                    Active
+                  </label>
+
+                  <label className="item-checkbox-row">
+                    <input
+                      type="checkbox"
+                      checked={formData.uses_variant}
+                      onChange={e => {
+                        const checked = e.target.checked;
+                        if (editingMaterial) {
+                          handleUsesVariantChange(checked);
+                        } else {
+                          setFormData({
+                            ...formData,
+                            uses_variant: checked,
+                            sale_price: checked ? '0' : formData.sale_price
+                          });
+                        }
+                      }}
+                    />
+                    This item uses Variant
+                  </label>
+                </div>
+
+                <p className="item-form-helper">
+                  {formData.uses_variant
                     ? 'Prices will be set per variant below. At least one variant price is required before saving.'
                     : 'Enable to set different prices for different variants (Retail, Wholesale, Special, etc.)'}
                 </p>
               </div>
 
               {formData.uses_variant && (
-                <div style={{ background: '#f0f7ff', padding: '15px', borderRadius: '8px', marginBottom: '20px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-                    <h4 style={{ margin: 0, color: '#1976d2' }}>Variant Pricing (by Variant & Make)</h4>
-                    <button type="button" className="btn btn-sm btn-primary" onClick={addVariantPricingRow}>+ Add Pricing Row</button>
+                <div className="item-form-section">
+                  <div className="item-form-section-header">
+                    <div>
+                      <h4 className="item-form-section-title">Variant Pricing</h4>
+                      <div className="item-form-section-hint">By variant &amp; make (brand)</div>
+                    </div>
+                    <button type="button" className="btn btn-sm btn-primary" onClick={addVariantPricingRow}>+ Add Row</button>
                   </div>
                   <table className="table">
                     <thead>
@@ -2443,6 +2476,7 @@ function ItemsTab() {
                 <button type="button" className="btn btn-secondary" onClick={resetForm}>Cancel</button>
               </div>
             </form>
+            </div>
           </div>
         </div>
       )}
