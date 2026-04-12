@@ -29,6 +29,9 @@ export interface ImportValidationResult {
 const REQUIRED_COLUMNS = ['item_code', 'name'];
 
 // All available columns for import
+// Variant columns (uses_variant, variant_name, variant_make, variant_sale_price, variant_purchase_price)
+// use the "Option A" flat exploded format:
+//   one row per item-variant pair. The importer groups by item_code and upserts item_variant_pricing.
 const IMPORT_COLUMNS = [
   { key: 'item_code', label: 'Item Code', required: true, type: 'string' },
   { key: 'name', label: 'Item Name', required: true, type: 'string' },
@@ -59,6 +62,12 @@ const IMPORT_COLUMNS = [
   { key: 'low_stock_level', label: 'Low Stock Level', required: false, type: 'number' },
   { key: 'current_stock', label: 'Current Stock', required: false, type: 'number' },
   { key: 'warehouse', label: 'Warehouse', required: false, type: 'string' },
+  // --- Variant pricing columns (flat/exploded format) ---
+  { key: 'uses_variant', label: 'Uses Variant', required: false, type: 'boolean' },
+  { key: 'variant_name', label: 'Variant Name', required: false, type: 'string' },
+  { key: 'variant_make', label: 'Variant Make/Brand', required: false, type: 'string' },
+  { key: 'variant_sale_price', label: 'Variant Sale Price', required: false, type: 'number' },
+  { key: 'variant_purchase_price', label: 'Variant Purchase Price', required: false, type: 'number' },
 ];
 
 // Column mapping for flexible header matching
@@ -90,6 +99,12 @@ const COLUMN_ALIASES: Record<string, string[]> = {
   'low_stock_level': ['low_stock_level', 'low stock', 'reorder level', 'min stock'],
   'current_stock': ['current_stock', 'stock', 'quantity', 'qty', 'current qty', 'stock qty'],
   'warehouse': ['warehouse', 'location', 'store', 'godown'],
+  // Variant columns
+  'uses_variant': ['uses_variant', 'uses variant', 'variant item', 'has variant', 'is variant'],
+  'variant_name': ['variant_name', 'variant name', 'variant', 'color', 'colour', 'grade'],
+  'variant_make': ['variant_make', 'variant make', 'variant brand', 'variant manufacturer'],
+  'variant_sale_price': ['variant_sale_price', 'variant sale price', 'variant selling price'],
+  'variant_purchase_price': ['variant_purchase_price', 'variant purchase price', 'variant cost'],
 };
 
 export const validateNumeric = (value: any): number | null => {
@@ -124,6 +139,7 @@ export const mapColumnHeader = (header: string): string | null => {
 
 export const generateImportTemplate = (): string => {
   const headers = IMPORT_COLUMNS.map(col => col.label);
+  // Row 1: flat item (no variant)
   const sampleRow1 = IMPORT_COLUMNS.map(col => {
     if (col.key === 'item_code') return 'ITEM-001';
     if (col.key === 'name') return 'Sample Item';
@@ -136,27 +152,35 @@ export const generateImportTemplate = (): string => {
     if (col.key === 'is_active') return 'Yes';
     if (col.key === 'taxable') return 'taxable';
     if (col.key === 'inventory_account') return 'inventory asset';
+    if (col.key === 'uses_variant') return 'No';
     return '';
   });
-  
+  // Row 2: variant item - Green
   const sampleRow2 = IMPORT_COLUMNS.map(col => {
-    if (col.key === 'item_code') return 'ITEM-002';
-    if (col.key === 'name') return 'Another Item';
-    if (col.key === 'display_name') return 'Another Display';
-    if (col.key === 'main_category') return 'PIPE';
-    if (col.key === 'sub_category') return 'GI Pipe';
-    if (col.key === 'size') return '2 inch';
-    if (col.key === 'unit') return 'mtr';
-    if (col.key === 'sale_price') return '250.00';
-    if (col.key === 'purchase_price') return '200.00';
+    if (col.key === 'item_code') return 'COUP-32MM';
+    if (col.key === 'name') return 'Coupling 32mm';
+    if (col.key === 'main_category') return 'FITTING';
+    if (col.key === 'unit') return 'nos';
     if (col.key === 'gst_rate') return '18';
-    if (col.key === 'part_number') return 'PN-12345';
-    if (col.key === 'weight') return '5.5';
     if (col.key === 'is_active') return 'Yes';
+    if (col.key === 'uses_variant') return 'Yes';
+    if (col.key === 'variant_name') return 'Green';
+    if (col.key === 'variant_sale_price') return '150.00';
+    if (col.key === 'variant_purchase_price') return '120.00';
+    return '';
+  });
+  // Row 3: variant item - Blue (same item_code, second variant)
+  const sampleRow3 = IMPORT_COLUMNS.map(col => {
+    if (col.key === 'item_code') return 'COUP-32MM';
+    if (col.key === 'name') return 'Coupling 32mm';
+    if (col.key === 'uses_variant') return 'Yes';
+    if (col.key === 'variant_name') return 'Blue';
+    if (col.key === 'variant_sale_price') return '160.00';
+    if (col.key === 'variant_purchase_price') return '130.00';
     return '';
   });
   
-  return [headers.join('\t'), sampleRow1.join('\t'), sampleRow2.join('\t')].join('\n');
+  return [headers.join('\t'), sampleRow1.join('\t'), sampleRow2.join('\t'), sampleRow3.join('\t')].join('\n');
 };
 
 export const generateImportTemplateCSV = (): string => {
@@ -168,27 +192,165 @@ export const generateImportTemplateCSV = (): string => {
     if (col.key === 'unit') return 'nos';
     if (col.key === 'sale_price') return '100.00';
     if (col.key === 'is_active') return 'true';
+    if (col.key === 'uses_variant') return 'false';
+    return '';
+  });
+  const sampleRow2 = IMPORT_COLUMNS.map(col => {
+    if (col.key === 'item_code') return 'COUP-32MM';
+    if (col.key === 'name') return 'Coupling 32mm';
+    if (col.key === 'main_category') return 'FITTING';
+    if (col.key === 'unit') return 'nos';
+    if (col.key === 'uses_variant') return 'true';
+    if (col.key === 'variant_name') return 'Green';
+    if (col.key === 'variant_sale_price') return '150.00';
+    if (col.key === 'variant_purchase_price') return '120.00';
+    return '';
+  });
+  const sampleRow3 = IMPORT_COLUMNS.map(col => {
+    if (col.key === 'item_code') return 'COUP-32MM';
+    if (col.key === 'uses_variant') return 'true';
+    if (col.key === 'variant_name') return 'Blue';
+    if (col.key === 'variant_sale_price') return '160.00';
+    if (col.key === 'variant_purchase_price') return '130.00';
     return '';
   });
   
-  return [headers.join(','), sampleRow1.join(',')].join('\n');
+  return [headers.join(','), sampleRow1.join(','), sampleRow2.join(','), sampleRow3.join(',')].join('\n');
 };
 
 export const generateImportTemplateXLSX = (): ArrayBuffer => {
-  const headers = IMPORT_COLUMNS.map(col => col.key);
+  const headers = IMPORT_COLUMNS.map(col => col.label);
+  // Row 1: flat item
   const sampleRow1 = IMPORT_COLUMNS.map(col => {
     if (col.key === 'item_code') return 'ITEM-001';
     if (col.key === 'name') return 'Sample Item';
     if (col.key === 'main_category') return 'VALVE';
     if (col.key === 'unit') return 'nos';
     if (col.key === 'sale_price') return 100.00;
-    if (col.key === 'is_active') return true;
+    if (col.key === 'purchase_price') return 80.00;
+    if (col.key === 'gst_rate') return 18;
+    if (col.key === 'is_active') return 'Yes';
+    if (col.key === 'uses_variant') return 'No';
+    return '';
+  });
+  // Row 2: coupling Green
+  const sampleRow2 = IMPORT_COLUMNS.map(col => {
+    if (col.key === 'item_code') return 'COUP-32MM';
+    if (col.key === 'name') return 'Coupling 32mm';
+    if (col.key === 'main_category') return 'FITTING';
+    if (col.key === 'unit') return 'nos';
+    if (col.key === 'gst_rate') return 18;
+    if (col.key === 'is_active') return 'Yes';
+    if (col.key === 'uses_variant') return 'Yes';
+    if (col.key === 'variant_name') return 'Green';
+    if (col.key === 'variant_sale_price') return 150.00;
+    if (col.key === 'variant_purchase_price') return 120.00;
+    return '';
+  });
+  // Row 3: coupling Blue (repeat item_code, different variant)
+  const sampleRow3 = IMPORT_COLUMNS.map(col => {
+    if (col.key === 'item_code') return 'COUP-32MM';
+    if (col.key === 'name') return 'Coupling 32mm';
+    if (col.key === 'uses_variant') return 'Yes';
+    if (col.key === 'variant_name') return 'Blue';
+    if (col.key === 'variant_sale_price') return 160.00;
+    if (col.key === 'variant_purchase_price') return 130.00;
     return '';
   });
 
-  const ws = XLSX.utils.aoa_to_sheet([headers, sampleRow1]);
+  const ws = XLSX.utils.aoa_to_sheet([headers, sampleRow1, sampleRow2, sampleRow3]);
+  // Column widths
+  ws['!cols'] = IMPORT_COLUMNS.map(col =>
+    ['variant_name','variant_make','variant_sale_price','variant_purchase_price','uses_variant'].includes(col.key)
+      ? { wch: 20 }
+      : { wch: 16 }
+  );
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Items Template');
+  // Add Notes sheet
+  const notesData = [
+    ['Column', 'Notes'],
+    ['Item Code', 'Required. Unique identifier. For variant items: repeat Item Code on each variant row.'],
+    ['Item Name', 'Required on first row of each item. Can be blank on subsequent variant rows.'],
+    ['Uses Variant', 'Yes / No. If Yes, fill Variant Name, Variant Sale Price, Variant Purchase Price.'],
+    ['Variant Name', 'e.g. Green, Blue, Retail, Wholesale. One variant per row.'],
+    ['Variant Make/Brand', 'Optional brand per variant row.'],
+    ['Variant Sale Price', 'Sale price for this specific variant.'],
+    ['Variant Purchase Price', 'Purchase price for this specific variant.'],
+    ['Sale Price', 'Default sale price (used when Uses Variant = No).'],
+    ['Purchase Price', 'Default purchase price (used when Uses Variant = No).'],
+    ['Warehouse', 'Name of warehouse for Current Stock column.'],
+  ];
+  const wsNotes = XLSX.utils.aoa_to_sheet(notesData);
+  wsNotes['!cols'] = [{ wch: 26 }, { wch: 70 }];
+  XLSX.utils.book_append_sheet(wb, wsNotes, 'Notes');
+  return XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+};
+
+// Generate XLSX export from existing items including variant pricing rows
+export const generateExportXLSX = async (materials: any[]): Promise<ArrayBuffer> => {
+  // Fetch all variant pricing for these items in one query
+  const itemIds = materials.filter(m => m.uses_variant).map(m => m.id);
+  let variantPricingMap: Record<string, any[]> = {};
+  if (itemIds.length > 0) {
+    try {
+      const { data } = await supabase
+        .from('item_variant_pricing')
+        .select('*, company_variants(variant_name)')
+        .in('item_id', itemIds);
+      (data || []).forEach(row => {
+        if (!variantPricingMap[row.item_id]) variantPricingMap[row.item_id] = [];
+        variantPricingMap[row.item_id].push(row);
+      });
+    } catch { /* ignore */ }
+  }
+
+  const headers = IMPORT_COLUMNS.map(col => col.label);
+  const dataRows: any[][] = [];
+
+  for (const item of materials) {
+    const baseRow = (col: typeof IMPORT_COLUMNS[0]) => {
+      const v = item[col.key];
+      if (col.key === 'is_active') return item.is_active !== false ? 'Yes' : 'No';
+      if (col.key === 'uses_variant') return item.uses_variant ? 'Yes' : 'No';
+      if (['variant_name','variant_make','variant_sale_price','variant_purchase_price'].includes(col.key)) return '';
+      if (v === null || v === undefined) return '';
+      if (typeof v === 'boolean') return v ? 'Yes' : 'No';
+      return v;
+    };
+
+    if (item.uses_variant) {
+      const pricingRows = variantPricingMap[item.id] || [];
+      if (pricingRows.length === 0) {
+        // No pricing rows yet – export one skeleton row
+        dataRows.push(IMPORT_COLUMNS.map(col => {
+          if (col.key === 'uses_variant') return 'Yes';
+          if (col.key === 'variant_name') return '';
+          if (['variant_make','variant_sale_price','variant_purchase_price'].includes(col.key)) return '';
+          return baseRow(col);
+        }));
+      } else {
+        pricingRows.forEach((pr, idx) => {
+          dataRows.push(IMPORT_COLUMNS.map(col => {
+            if (idx > 0 && !['item_code','uses_variant','variant_name','variant_make','variant_sale_price','variant_purchase_price'].includes(col.key)) return '';
+            if (col.key === 'uses_variant') return 'Yes';
+            if (col.key === 'variant_name') return pr.company_variants?.variant_name || '';
+            if (col.key === 'variant_make') return pr.make || '';
+            if (col.key === 'variant_sale_price') return pr.sale_price ?? '';
+            if (col.key === 'variant_purchase_price') return pr.purchase_price ?? '';
+            return baseRow(col);
+          }));
+        });
+      }
+    } else {
+      dataRows.push(IMPORT_COLUMNS.map(col => baseRow(col)));
+    }
+  }
+
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...dataRows]);
+  ws['!cols'] = IMPORT_COLUMNS.map(() => ({ wch: 16 }));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Items Export');
   return XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
 };
 
@@ -299,7 +461,8 @@ export const parseExcelData = async (
     const columnDef = IMPORT_COLUMNS.find(col => col.key === 'sale_price');
     
     // Validate numeric fields
-    ['sale_price', 'purchase_price', 'gst_rate', 'weight', 'low_stock_level', 'current_stock'].forEach(field => {
+    ['sale_price', 'purchase_price', 'gst_rate', 'weight', 'low_stock_level', 'current_stock',
+     'variant_sale_price', 'variant_purchase_price'].forEach(field => {
       if (rowData[field] !== undefined) {
         const num = validateNumeric(rowData[field]);
         if (num !== null) {
@@ -315,6 +478,9 @@ export const parseExcelData = async (
     // Validate boolean fields
     if (rowData.is_active !== undefined) {
       rowData.is_active = validateBoolean(rowData.is_active);
+    }
+    if (rowData.uses_variant !== undefined) {
+      rowData.uses_variant = validateBoolean(rowData.uses_variant);
     }
     
     // Validate dropdown fields
@@ -437,6 +603,7 @@ export const applyBulkImport = async (
       if (rowData.inventory_account) dbData.inventory_account = rowData.inventory_account;
       if (rowData.is_active !== undefined) dbData.is_active = rowData.is_active;
       if (rowData.low_stock_level !== undefined) dbData.low_stock_level = rowData.low_stock_level;
+      if (rowData.uses_variant !== undefined) dbData.uses_variant = rowData.uses_variant;
       
       let itemId: string;
       
@@ -464,7 +631,6 @@ export const applyBulkImport = async (
       // Update stock if provided
       if (rowData.current_stock !== undefined && rowData.warehouse_id) {
         try {
-          // Check if stock record exists
           const { data: existingStock } = await supabase
             .from('item_stock')
             .select('id')
@@ -473,13 +639,11 @@ export const applyBulkImport = async (
             .maybeSingle();
           
           if (existingStock) {
-            // Update existing stock
             await supabase
               .from('item_stock')
               .update({ current_stock: rowData.current_stock, updated_at: nowIso })
               .eq('id', existingStock.id);
           } else {
-            // Create new stock record
             await supabase
               .from('item_stock')
               .insert({
@@ -492,6 +656,52 @@ export const applyBulkImport = async (
           }
         } catch (stockError) {
           console.warn('Stock update failed for row', row.rowNo, stockError);
+        }
+      }
+
+      // Update variant pricing if provided
+      if (rowData.variant_name && rowData.variant_name.trim()) {
+        try {
+          // Resolve company_variant_id by name
+          const { data: variantData } = await supabase
+            .from('company_variants')
+            .select('id')
+            .ilike('variant_name', rowData.variant_name.trim())
+            .maybeSingle();
+
+          if (variantData?.id) {
+            const pricingPayload: any = {
+              item_id: itemId,
+              company_variant_id: variantData.id,
+              updated_at: nowIso,
+            };
+            if (rowData.variant_sale_price !== undefined) pricingPayload.sale_price = rowData.variant_sale_price;
+            if (rowData.variant_purchase_price !== undefined) pricingPayload.purchase_price = rowData.variant_purchase_price;
+            if (rowData.variant_make) pricingPayload.make = rowData.variant_make;
+
+            // Upsert by (item_id, company_variant_id)
+            const { data: existingPricing } = await supabase
+              .from('item_variant_pricing')
+              .select('id')
+              .eq('item_id', itemId)
+              .eq('company_variant_id', variantData.id)
+              .maybeSingle();
+
+            if (existingPricing) {
+              await supabase
+                .from('item_variant_pricing')
+                .update(pricingPayload)
+                .eq('id', existingPricing.id);
+            } else {
+              await supabase
+                .from('item_variant_pricing')
+                .insert({ ...pricingPayload, created_at: nowIso });
+            }
+          } else {
+            console.warn(`Variant "${rowData.variant_name}" not found in company_variants. Skipping pricing row.`);
+          }
+        } catch (variantError) {
+          console.warn('Variant pricing update failed for row', row.rowNo, variantError);
         }
       }
       

@@ -85,6 +85,11 @@ const styles = StyleSheet.create({
     display: 'flex',
     flexDirection: 'column',
   },
+  contentWrapper: {
+    borderLeft: '1 solid #9ca3af',
+    borderRight: '1 solid #9ca3af',
+    borderBottom: '1 solid #9ca3af',
+  },
   title: {
     textAlign: 'center',
     fontSize: 12,
@@ -97,8 +102,6 @@ const styles = StyleSheet.create({
   headerOuter: {
     display: 'flex',
     flexDirection: 'row',
-    borderLeft: '1 solid #9ca3af',
-    borderRight: '1 solid #9ca3af',
     borderBottom: '1 solid #9ca3af',
   },
   headerLeft: {
@@ -123,7 +126,6 @@ const styles = StyleSheet.create({
   logoBox: {
     width: 44,
     height: 44,
-    border: '1 solid #9ca3af',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -202,8 +204,6 @@ const styles = StyleSheet.create({
   itemsWrap: { flexGrow: 1 },
   table: {
     width: '100%',
-    borderLeft: '1 solid #9ca3af',
-    borderRight: '1 solid #9ca3af',
     borderBottom: '1 solid #9ca3af',
   },
   tableHeader: {
@@ -244,8 +244,6 @@ const styles = StyleSheet.create({
     display: 'flex',
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    borderLeft: '1 solid #9ca3af',
-    borderRight: '1 solid #9ca3af',
     borderBottom: '1 solid #9ca3af',
   },
   totalsInner: {
@@ -370,7 +368,8 @@ export function GridMinimalDocument({ vm, columns }: { vm: GridMinimalVM; column
       <Page size="A4" style={styles.page}>
         <Text style={styles.title}>{vm.title}</Text>
 
-        <View style={styles.headerOuter}>
+        <View style={styles.contentWrapper}>
+          <View style={styles.headerOuter}>
           <View style={styles.headerLeft}>
             <View style={styles.orgBlock}>
               <View style={styles.logoBox}>
@@ -480,38 +479,38 @@ export function GridMinimalDocument({ vm, columns }: { vm: GridMinimalVM; column
           <View style={styles.totalsOuter}>
             <View style={styles.totalsInner}>
               <View style={styles.totalsRow}>
-                <Text>Basic Amount</Text>
-                <Text>? {fmt(vm.totals.basicAmount)}</Text>
+                <Text>Sub-total</Text>
+                <Text>₹ {fmt(vm.totals.basicAmount)}</Text>
               </View>
               {vm.showTax && vm.totals.sgst !== undefined ? (
                 <View style={styles.totalsRow}>
                   <Text>SGST</Text>
-                  <Text>? {fmt(vm.totals.sgst)}</Text>
+                  <Text>₹ {fmt(vm.totals.sgst)}</Text>
                 </View>
               ) : null}
               {vm.showTax && vm.totals.cgst !== undefined ? (
                 <View style={styles.totalsRow}>
                   <Text>CGST</Text>
-                  <Text>? {fmt(vm.totals.cgst)}</Text>
+                  <Text>₹ {fmt(vm.totals.cgst)}</Text>
                 </View>
               ) : null}
               {vm.showTax && vm.totals.igst !== undefined && vm.totals.igst > 0 ? (
                 <View style={styles.totalsRow}>
                   <Text>IGST</Text>
-                  <Text>? {fmt(vm.totals.igst)}</Text>
+                  <Text>₹ {fmt(vm.totals.igst)}</Text>
                 </View>
               ) : null}
-              {vm.totals.roundOff !== undefined && Math.abs(vm.totals.roundOff) > 0.001 ? (
+              {vm.totals.roundOff !== undefined ? (
                 <View style={styles.totalsRow}>
                   <Text>Round Off</Text>
                   <Text>
-                    {vm.totals.roundOff > 0 ? '+' : ''}? {fmt(vm.totals.roundOff)}
+                    {vm.totals.roundOff > 0 ? '+' : ''}₹ {fmt(vm.totals.roundOff)}
                   </Text>
                 </View>
               ) : null}
               <View style={[styles.totalsRow, styles.totalsNet]}>
                 <Text>Net Value</Text>
-                <Text>? {fmt(vm.totals.netValue)}</Text>
+                <Text>₹ {fmt(vm.totals.netValue)}</Text>
               </View>
             </View>
           </View>
@@ -558,6 +557,7 @@ export function GridMinimalDocument({ vm, columns }: { vm: GridMinimalVM; column
               <Text style={styles.signLabel}>{vm.authorisedSignLabel || 'Authorised Signatory'}</Text>
             </View>
           </View>
+        </View>
         </View>
       </Page>
     </Document>

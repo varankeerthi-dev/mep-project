@@ -51,6 +51,10 @@ export async function generateGridMinimalQuotationPdfBlob(
   const totalTax = toNum(quotation.total_tax);
   const grandTotal = toNum(quotation.grand_total);
   const subtotal = toNum(quotation.subtotal);
+  
+  // Calculate round-off to nearest integer
+  const roundedNetValue = Math.round(grandTotal);
+  const roundOff = roundedNetValue - grandTotal;
 
   const companyState = safe(organisation?.state, '');
   const clientState = safe(quotation?.state, '');
@@ -106,8 +110,9 @@ export async function generateGridMinimalQuotationPdfBlob(
       sgst: totalTax ? sgst : undefined,
       cgst: totalTax ? cgst : undefined,
       igst: totalTax ? igst : undefined,
-      netValue: grandTotal,
-      amountInWords: numberToInrWords(grandTotal),
+      roundOff: roundOff,
+      netValue: roundedNetValue,
+      amountInWords: numberToInrWords(roundedNetValue),
     },
     showTax: totalTax > 0,
     authorisedSignLabel: 'Authorised Signatory',

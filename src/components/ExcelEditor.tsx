@@ -83,6 +83,7 @@ const EDITABLE_COLUMNS: { key: string; label: string; width: number; editable: b
   { key: 'ean', label: 'EAN', width: 120, editable: true },
   { key: 'inventory_account', label: 'Inv Account', width: 130, editable: true },
   { key: 'is_active', label: 'Active', width: 80, editable: true, type: 'boolean' },
+  { key: 'uses_variant', label: 'Uses Variant', width: 100, editable: true, type: 'boolean' },
   { key: 'low_stock_level', label: 'Low Stock', width: 100, editable: true, type: 'number' },
 ];
 
@@ -589,8 +590,8 @@ export function FieldSelector({ warehouses, selectedFields, onChange }: FieldSel
       fields: EDITABLE_COLUMNS.filter(c => ['upc', 'mpn', 'ean', 'inventory_account'].includes(c.key)),
     },
     {
-      title: 'Stock Settings',
-      fields: EDITABLE_COLUMNS.filter(c => ['low_stock_level', 'is_active'].includes(c.key)),
+      title: 'Stock Settings & Status',
+      fields: EDITABLE_COLUMNS.filter(c => ['low_stock_level', 'is_active', 'uses_variant'].includes(c.key)),
     },
   ];
 

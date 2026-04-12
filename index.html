@@ -1,6 +1,15 @@
 <!doctype html>
 <html lang="en">
   <head>
+    <!-- React Scan (dev-only): helps spot unnecessary re-renders / slow components -->
+    <script type="module">
+      if (import.meta.env.DEV) {
+        const s = document.createElement('script');
+        s.src = 'https://unpkg.com/react-scan/dist/auto.global.js';
+        s.crossOrigin = 'anonymous';
+        document.head.appendChild(s);
+      }
+    </script>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />

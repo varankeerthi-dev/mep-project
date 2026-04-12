@@ -2576,6 +2576,7 @@ function ItemsTab() {
                     'EAN': 'ean',
                     'Inv Account': 'inventory_account',
                     'Active': 'is_active',
+                    'Uses Variant': 'uses_variant',
                     'Low Stock': 'low_stock_level',
                   };
                   
