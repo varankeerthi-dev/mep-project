@@ -28,6 +28,12 @@ import {
   TableHeader,
   TableRow
 } from '@/components/ui';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { 
   Plus, 
   Trash2, 
@@ -46,7 +52,11 @@ import {
   LayoutDashboard,
   Building2,
   FileSearch,
-  ArrowLeft
+  ArrowLeft,
+  MoreHorizontal,
+  Pencil,
+  Download,
+  Clipboard
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '../App';
@@ -427,64 +437,33 @@ export function SiteReport() {
 
   if (view === 'list') {
     return (
-      <div className="space-y-6">
-        <Paper 
-          elevation={0} 
-          sx={{ 
-            p: 3, 
-            borderRadius: 2, 
-            backgroundColor: 'background.paper',
-            border: '1px solid',
-            borderColor: 'divider'
-          }}
-        >
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <ConstructionIcon color="primary" sx={{ fontSize: 32 }} />
-              <Box>
-                <Typography 
-                  variant="h5" 
-                  component="h1" 
-                  sx={{ 
-                    fontFamily: 'Inter, sans-serif', 
-                    fontWeight: 600,
-                    fontSize: '20px',
-                    color: 'text.primary'
-                  }}
-                >
-                  Site Reports
-                </Typography>
-                <Typography 
-                  variant="body2" 
-                  sx={{ 
-                    fontSize: '12px', 
-                    color: 'text.secondary',
-                    mt: 0.5 
-                  }}
-                >
-                  View and manage daily progress reports
-                </Typography>
-              </Box>
+      <div className="min-h-screen bg-zinc-50/50">
+        <div className="mx-auto max-w-7xl px-6 py-8">
+          {/* Header */}
+          <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <span className="text-xs font-medium uppercase tracking-widest text-zinc-400">
+                Site Operations
+              </span>
+              <h1 className="mt-2 text-2xl font-semibold tracking-tight text-zinc-950">
+                Site Reports
+              </h1>
+              <p className="mt-1 text-sm text-zinc-500">
+                View and manage daily progress reports
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2">
+                <Input 
+                  placeholder="Search reports..." 
+                  className="h-8 w-48 border-0 bg-transparent p-0 text-xs shadow-none focus-visible:ring-0"
+                />
+              </div>
               <Chip 
-                label={reports?.length || 0} 
+                label={`${reports?.length || 0} reports`} 
                 size="small" 
-                color="primary" 
-                sx={{ fontSize: '12px', ml: 1 }}
+                sx={{ fontSize: '11px' }}
               />
-            </Box>
-            
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <TextField 
-                placeholder="Search reports..." 
-                size="small" 
-                sx={{ 
-                  width: 200,
-                  '& .MuiInputBase-input': {
-                    fontSize: '12px'
-                  }
-                }}
-              />
-              
               <Button 
                 variant="contained" 
                 startIcon={<AddIcon />}
@@ -503,54 +482,109 @@ export function SiteReport() {
               >
                 Create Report
               </Button>
-            </Box>
-          </Box>
-        </Paper>
+            </div>
+          </div>
 
-        <Card className="border-slate-200">
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader className="bg-slate-50">
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Client</TableHead>
-                  <TableHead>Project</TableHead>
-                  <TableHead>Engineer</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {reportsLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-slate-500">Loading reports...</TableCell>
+          {/* Table */}
+          <div className="rounded-lg border border-zinc-200 bg-white shadow-sm">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-b border-zinc-200 bg-zinc-50/80">
+                    <TableHead className="h-10 px-4 text-left align-middle text-[11px] font-medium text-zinc-500">Date</TableHead>
+                    <TableHead className="h-10 px-4 text-left align-middle text-[11px] font-medium text-zinc-500">Client</TableHead>
+                    <TableHead className="h-10 px-4 text-left align-middle text-[11px] font-medium text-zinc-500">Project</TableHead>
+                    <TableHead className="h-10 px-4 text-left align-middle text-[11px] font-medium text-zinc-500">Engineer</TableHead>
+                    <TableHead className="h-10 px-4 text-left align-middle text-[11px] font-medium text-zinc-500">Status</TableHead>
+                    <TableHead className="h-10 px-4 text-right align-middle text-[11px] font-medium text-zinc-500">Actions</TableHead>
                   </TableRow>
-                ) : reports?.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-slate-500">No reports found. Create your first report!</TableCell>
-                  </TableRow>
-                ) : (
-                  reports?.map((report: any) => (
-                    <TableRow key={report.id} className="hover:bg-slate-50/50 cursor-pointer">
-                      <TableCell className="font-medium">{new Date(report.report_date).toLocaleDateString()}</TableCell>
-                      <TableCell>{report.clients?.client_name}</TableCell>
-                      <TableCell>{report.projects?.project_name}</TableCell>
-                      <TableCell>{report.engineer_name}</TableCell>
-                      <TableCell>
-                        <Badge variant={report.pm_status === 'Reported' ? 'default' : 'secondary'}>
-                          {report.pm_status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <ShadcnButton variant="ghost" size="sm">View</ShadcnButton>
+                </TableHeader>
+                <TableBody className="[&_tr:last-child]:border-0">
+                  {reportsLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="px-4 py-12 text-center text-xs text-zinc-500">Loading reports...</TableCell>
+                    </TableRow>
+                  ) : reports?.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="px-4 py-12 text-center">
+                        <div className="mx-auto max-w-sm space-y-2">
+                          <div className="text-sm font-medium text-zinc-950">No reports found</div>
+                          <div className="text-xs text-zinc-500">Create your first site report to get started.</div>
+                        </div>
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+                  ) : (
+                    reports?.map((report: any) => (
+                      <TableRow key={report.id} className="border-b border-zinc-100 hover:bg-zinc-50/50">
+                        <TableCell className="px-4 py-3.5 align-middle">
+                          <span className="text-sm font-medium text-zinc-950">{new Date(report.report_date).toLocaleDateString()}</span>
+                        </TableCell>
+                        <TableCell className="px-4 py-3.5 align-middle">
+                          <span className="text-sm text-zinc-700">{report.clients?.client_name}</span>
+                        </TableCell>
+                        <TableCell className="px-4 py-3.5 align-middle">
+                          <span className="text-sm text-zinc-700">{report.projects?.project_name}</span>
+                        </TableCell>
+                        <TableCell className="px-4 py-3.5 align-middle">
+                          <span className="text-sm text-zinc-700">{report.engineer_name}</span>
+                        </TableCell>
+                        <TableCell className="px-4 py-3.5 align-middle">
+                          <Badge variant={report.pm_status === 'Reported' ? 'default' : 'neutral'}>
+                            {report.pm_status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="px-4 py-3.5 text-right align-middle">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button
+                                type="button"
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50"
+                              >
+                                <MoreHorizontal size={14} />
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-40">
+                              <DropdownMenuItem 
+                                className="flex items-center gap-2 text-xs"
+                                onClick={() => {
+                                  // Handle view
+                                  console.log('View report:', report.id);
+                                }}
+                              >
+                                <Clipboard size={14} />
+                                View
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                className="flex items-center gap-2 text-xs"
+                                onClick={() => {
+                                  // Handle edit
+                                  console.log('Edit report:', report.id);
+                                }}
+                              >
+                                <Pencil size={14} />
+                                Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                className="flex items-center gap-2 text-xs"
+                                onClick={() => {
+                                  // Handle download
+                                  console.log('Download report:', report.id);
+                                }}
+                              >
+                                <Download size={14} />
+                                Download
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
