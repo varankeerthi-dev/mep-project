@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, memo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { flexRender, getCoreRowModel, useReactTable } from '@tanstack/react-table';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -17,6 +17,7 @@ import { Inventory as InventoryIcon, Add as AddIcon, CloudUpload as UploadIcon, 
 import { supabase } from '../supabase';
 import { formatDate, formatCurrency } from '../utils/formatters';
 import { timedSupabaseQuery } from '../utils/queryTimeout';
+import { useMaterialsPageData } from '../hooks/useMaterialsPageData';
 import BulkImportModal from '../components/BulkImportModal';
 import ExcelEditor, { FieldSelector } from '../components/ExcelEditor';
 
@@ -248,161 +249,41 @@ function ItemsTab() {
     return formatCurrency(value);
   };
 
-  const materialsQuery = useQuery({
-    queryKey: ['materials', 'product'],
-    queryFn: () =>
-      timedSupabaseQuery(
-        supabase
-          .from('materials')
-          .select('*')
-          .eq('item_type', 'product')
-          .order('name'),
-        'Materials'
-      ).then((data) => data || []),
-    staleTime: 5 * 60 * 1000
-  });
-
-  const stockQuery = useQuery({
-    queryKey: ['itemStock'],
-    queryFn: async () => {
-      try {
-        const data = await timedSupabaseQuery(
-          supabase.from('item_stock').select('*'),
-          'Item Stock'
-        );
-        return data || [];
-      } catch (error) {
-        if (isMissingRelationError(error)) {
-          console.log('item_stock table not found');
-          return [];
-        }
-        throw error;
-      }
-    },
-    staleTime: 5 * 60 * 1000
-  });
-
-  const categoriesQuery = useQuery({
-    queryKey: ['itemCategories'],
-    queryFn: async () => {
-      try {
-        const data = await timedSupabaseQuery(
-          supabase.from('item_categories').select('*').eq('is_active', true).order('category_name'),
-          'Item Categories'
-        );
-        return data || [];
-      } catch (error) {
-        if (isMissingRelationError(error)) {
-          console.log('item_categories table not found, using defaults');
-          return [];
-        }
-        throw error;
-      }
-    },
-    staleTime: 10 * 60 * 1000
-  });
-
-  const unitsQuery = useQuery({
-    queryKey: ['itemUnits'],
-    queryFn: async () => {
-      try {
-        const data = await timedSupabaseQuery(
-          supabase.from('item_units').select('*').eq('is_active', true).order('unit_name'),
-          'Item Units'
-        );
-        return data || [];
-      } catch (error) {
-        if (isMissingRelationError(error)) {
-          console.log('item_units table not found, using defaults');
-          return [{ unit_code: 'nos', unit_name: 'Numbers' }];
-        }
-        throw error;
-      }
-    },
-    staleTime: 10 * 60 * 1000
-  });
-
-  const variantsQuery = useQuery({
-    queryKey: ['companyVariants'],
-    queryFn: async () => {
-      try {
-        const data = await timedSupabaseQuery(
-          supabase.from('company_variants').select('*').eq('is_active', true).order('variant_name'),
-          'Company Variants'
-        );
-        return data || [];
-      } catch (error) {
-        if (isMissingRelationError(error)) {
-          console.log('company_variants table not found');
-          return [];
-        }
-        throw error;
-      }
-    },
-    staleTime: 10 * 60 * 1000
-  });
-
-  const warehousesQuery = useQuery({
-    queryKey: ['warehouses'],
-    queryFn: async () => {
-      try {
-        const data = await timedSupabaseQuery(
-          supabase.from('warehouses').select('*').eq('is_active', true).order('warehouse_name'),
-          'Warehouses'
-        );
-        return data || [];
-      } catch (error) {
-        if (isMissingRelationError(error)) {
-          console.log('warehouses table not found');
-          return [];
-        }
-        throw error;
-      }
-    },
-    staleTime: 10 * 60 * 1000
-  });
-
-  const materials = materialsQuery.data || [];
-  const categories = categoriesQuery.data || [];
-  const units = unitsQuery.data || [];
-  const variants = variantsQuery.data || [];
-  const warehouses = warehousesQuery.data || [];
+  // PARALLEL QUERY: Single hook replaces 6 sequential queries
+  const { data: pageData, isLoading, isError, error, refetch } = useMaterialsPageData();
+  
+  // Extract datasets from parallel query result
+  const materials = pageData?.materials ?? [];
+  const stock = pageData?.stock ?? [];
+  const categories = pageData?.categories ?? [];
+  const units = pageData?.units ?? [];
+  const variants = pageData?.variants ?? [];
+  const warehouses = pageData?.warehouses ?? [];
+  
   const categoryOptions = categories.length > 0 ? categories.map((c) => c.category_name) : MAIN_CATEGORIES;
-  const materialsError = materialsQuery.error instanceof Error ? materialsQuery.error.message : '';
-  const auxiliaryQueryError =
-    (stockQuery.error instanceof Error && stockQuery.error.message) ||
-    (categoriesQuery.error instanceof Error && categoriesQuery.error.message) ||
-    (unitsQuery.error instanceof Error && unitsQuery.error.message) ||
-    (variantsQuery.error instanceof Error && variantsQuery.error.message) ||
-    '';
+  const materialsError = error instanceof Error ? error.message : '';
+  
+  // Memoized stock data map for performance
   const stockData = useMemo(() => {
-    const stockMap = {};
-    (stockQuery.data || []).forEach((s) => {
+    const stockMap: Record<string, number> = {};
+    stock.forEach((s) => {
       if (!stockMap[s.item_id]) stockMap[s.item_id] = 0;
       stockMap[s.item_id] += parseFloat(s.current_stock) || 0;
     });
     return stockMap;
-  }, [stockQuery.data]);
-
-  const loading = materialsQuery.isPending && materials.length === 0;
+  }, [stock]);
 
   useEffect(() => {
-    if (materialsQuery.isError) {
+    if (isError) {
       setSelectedMaterialId(null);
       setShowItemWorkspace(false);
       setItemTransactions(emptyItemTransactions());
       setDetailError('');
     }
-  }, [materialsQuery.isError]);
+  }, [isError]);
 
   const retryItemDependencies = async () => {
-    await Promise.allSettled([
-      materialsQuery.refetch(),
-      stockQuery.refetch(),
-      categoriesQuery.refetch(),
-      unitsQuery.refetch(),
-      variantsQuery.refetch(),
-    ]);
+    await refetch();
   };
 
   useEffect(() => {
@@ -416,11 +297,8 @@ function ItemsTab() {
   }, [saveNotice]);
 
   const refreshMaterials = useCallback(async () => {
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ['materials', 'product'] }),
-      queryClient.invalidateQueries({ queryKey: ['itemStock'] })
-    ]);
-  }, [queryClient]);
+    await refetch();
+  }, [refetch]);
 
   const updateMaterialsCache = useCallback((updater) => {
     queryClient.setQueryData(['materials', 'product'], (old) => {
@@ -1214,7 +1092,7 @@ function ItemsTab() {
     let hasStock = false;
     let wStock = {};
     if (warehouses) {
-      const itemStockRecords = stockQuery.data ? stockQuery.data.filter(s => s.item_id === material.id) : [];
+      const itemStockRecords = stock ? stock.filter((s: any) => s.item_id === material.id) : [];
       if (itemStockRecords.length > 0) hasStock = true;
       
       itemStockRecords.forEach(record => {
@@ -1602,21 +1480,12 @@ function ItemsTab() {
         <div className="alert alert-success">{saveNotice}</div>
       )}
 
-      {auxiliaryQueryError && !materialsQuery.isError && (
-        <div className="alert alert-error" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
-          <span>{auxiliaryQueryError}</span>
-          <button type="button" className="btn btn-secondary" onClick={retryItemDependencies}>
-            Retry Data Load
-          </button>
-        </div>
-      )}
-
-      {loading ? (
+      {isLoading ? (
         <div style={{ padding: '100px', textAlign: 'center' }}>
           <div className="loading-spinner"></div>
           <p style={{ marginTop: '10px', color: '#666' }}>Loading items...</p>
         </div>
-      ) : materialsQuery.isError ? (
+      ) : isError ? (
         <div style={{ padding: '100px', textAlign: 'center' }}>
           <p style={{ marginBottom: '12px', color: '#b91c1c', fontWeight: 600 }}>{materialsError || 'Unable to load materials.'}</p>
           <button type="button" className="btn btn-primary" onClick={retryItemDependencies}>
@@ -2125,7 +1994,7 @@ function ItemsTab() {
         open={showBulkImportModal}
         onClose={() => setShowBulkImportModal(false)}
         materials={materials}
-        warehouses={warehousesQuery.data || []}
+        warehouses={warehouses}
         onSuccess={() => {
           refreshMaterials();
           setSaveNotice('Bulk import completed successfully');
