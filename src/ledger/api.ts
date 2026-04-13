@@ -54,7 +54,7 @@ export async function listLedgerClients(orgId: string): Promise<LedgerClient[]> 
   const { data, error } = await supabase
     .from('clients')
     .select('id, org_id, client_name, name, gstin, gst_number, state, email, contact')
-    .or(`org_id.eq.${orgId},org_id.is.null`)
+    .eq('org_id', orgId)
     .order('name', { ascending: true });
 
   if (error) throw error;
