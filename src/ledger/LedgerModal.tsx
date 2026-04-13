@@ -84,10 +84,11 @@ function buildLedgerPdfDoc(
   // Table
   autoTable(doc, {
     startY: 180,
-    head: [['Date', 'Type', 'Remarks', 'Debit Amount', 'Credit Amount']],
+    head: [['Date', 'Type', 'Payment Type', 'Remarks', 'Debit Amount', 'Credit Amount']],
     body: rows.map((row) => [
       formatDisplayDate(row.date),
       row.type,
+      row.paymentType && row.paymentType !== '-' ? row.paymentType : '-',
       row.remarks,
       row.debit ? formatCurrencyExplicit(row.debit) : '-',
       row.credit ? formatCurrencyExplicit(row.credit) : '-',
@@ -107,8 +108,8 @@ function buildLedgerPdfDoc(
       fontStyle: 'bold',
     },
     columnStyles: {
-      3: { halign: 'right' },
       4: { halign: 'right' },
+      5: { halign: 'right' },
     },
   });
 
@@ -282,6 +283,7 @@ export default function LedgerModal({
                   <tr className="bg-cream-100 font-body text-left text-xs font-semibold uppercase tracking-[0.15em] text-navy-600">
                     <th className="px-4 py-3">Date</th>
                     <th className="px-4 py-3">Type</th>
+                    <th className="px-4 py-3">Payment Type</th>
                     <th className="px-4 py-3">Remarks</th>
                     <th className="px-4 py-3 text-right">Debit</th>
                     <th className="px-4 py-3 text-right">Credit</th>
@@ -290,7 +292,7 @@ export default function LedgerModal({
                 <tbody>
                   {rows.length === 0 && (
                     <tr>
-                      <td colSpan={5} className="px-4 py-12 text-center">
+                      <td colSpan={6} className="px-4 py-12 text-center">
                         <span className="font-body text-sm text-navy-500">No ledger entries in this date range.</span>
                       </td>
                     </tr>
@@ -310,6 +312,7 @@ export default function LedgerModal({
                           {row.type}
                         </span>
                       </td>
+                      <td className="px-4 py-3 text-navy-600">{row.paymentType && row.paymentType !== '-' ? row.paymentType : '-'}</td>
                       <td className="px-4 py-3">{row.remarks}</td>
                       <td className="px-4 py-3 text-right font-display font-medium text-navy-950">
                         {row.debit ? formatCurrency(row.debit) : '-'}

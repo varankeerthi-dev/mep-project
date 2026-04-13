@@ -2,11 +2,29 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { endOfMonth, format, subMonths, subYears, startOfMonth } from 'date-fns';
-import { Eye, Filter, Landmark, Loader2, Search, Wallet } from 'lucide-react';
+import { ChevronDown, Filter, Landmark, Loader2, MoreHorizontal, Plus, Search, Wallet } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  TableRowDense,
+  TableCellDense,
+} from '@/components/ui/table';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Select } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
 import LedgerModal from './LedgerModal';
 import { createReceipt, listLedgerClients, listLedgerInvoices, listLedgerReceipts, type LedgerClient } from './api';
 import { buildLedgerSummaries, formatCurrency, formatDisplayDate, type LedgerSummaryRow } from './utils';
@@ -19,6 +37,7 @@ const recordPaymentSchema = z.object({
   client_id: z.string().min(1, 'Select a client'),
   amount: z.coerce.number().positive('Amount must be greater than zero'),
   receipt_date: z.string().min(1, 'Date is required'),
+  payment_type: z.string().optional(),
   remarks: z.string().min(2, 'Remarks are required'),
 });
 
@@ -109,6 +128,7 @@ export default function LedgerDashboard() {
   const [saveAsDefault, setSaveAsDefault] = useState(Boolean(storedDefault));
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const clientsQuery = useQuery({
     queryKey: ['ledger', 'clients', orgId],
@@ -135,6 +155,7 @@ export default function LedgerDashboard() {
       client_id: '',
       amount: undefined,
       receipt_date: toDateInput(new Date()),
+      payment_type: '',
       remarks: '',
     },
   });
@@ -146,6 +167,7 @@ export default function LedgerDashboard() {
         client_id: values.client_id,
         amount: values.amount,
         receipt_date: values.receipt_date,
+        payment_type: values.payment_type || null,
         remarks: values.remarks,
       }),
     onSuccess: () => {
@@ -154,6 +176,7 @@ export default function LedgerDashboard() {
         client_id: '',
         amount: undefined,
         receipt_date: toDateInput(new Date()),
+        payment_type: '',
         remarks: '',
       });
 
@@ -219,9 +242,10 @@ export default function LedgerDashboard() {
     setEndDate(range.endDate);
   };
 
-  const handleSearch = () => {
+  const handleApplyFilters = () => {
     setAppliedStartDate(startDate);
     setAppliedEndDate(endDate);
+    setFiltersOpen(false);
   };
 
   const handleView = (clientId: string) => {
@@ -331,79 +355,105 @@ export default function LedgerDashboard() {
 
         {/* Main Content */}
         <section className="animate-fade-up animation-delay-3 rounded-2xl border border-navy-100 bg-white shadow-sm">
-          {/* Filters */}
+          {/* Header with Filter Dropdown */}
           <div className="border-b border-navy-100 p-6">
-            <div className="grid gap-6 lg:grid-cols-[1fr_auto_auto] lg:items-end">
-              <div className="space-y-3">
-                <span className="font-body text-xs font-semibold uppercase tracking-[0.15em] text-navy-500">
-                  Date Range
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div className="font-display text-lg font-semibold text-navy-950">
+                Client Ledger
+                <span className="ml-3 font-body text-sm font-normal text-navy-500">
+                  {rangeLabel}
                 </span>
-                <div className="flex flex-wrap gap-2">
-                  {(['monthly', 'financial-year', 'last-3-months', 'last-6-months', 'last-2-years'] as RangePreset[]).map((preset) => (
-                    <button
-                      key={preset}
-                      type="button"
-                      onClick={() => handlePreset(preset)}
-                      className={`font-body rounded-full px-4 py-2 text-xs font-semibold transition-all ${
-                        selectedPreset === preset
-                          ? 'bg-navy-950 text-white'
-                          : 'border border-navy-200 bg-white text-navy-600 hover:bg-cream-50'
-                      }`}
+              </div>
+
+              <DropdownMenu open={filtersOpen} onOpenChange={setFiltersOpen}>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="font-body inline-flex items-center gap-2 rounded-lg border border-navy-200 bg-white px-4 py-2.5 text-sm font-semibold text-navy-700 transition hover:bg-cream-50"
+                  >
+                    <Filter size={16} />
+                    Filters
+                    <ChevronDown size={14} />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-80 p-4">
+                  <div className="space-y-4">
+                    <div className="font-body text-xs font-semibold uppercase tracking-[0.15em] text-navy-500">
+                      Presets
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {(['monthly', 'financial-year', 'last-3-months', 'last-6-months', 'last-2-years'] as RangePreset[]).map((preset) => (
+                        <button
+                          key={preset}
+                          type="button"
+                          onClick={() => handlePreset(preset)}
+                          className={`font-body rounded-full px-3 py-1.5 text-xs font-semibold transition-all ${
+                            selectedPreset === preset
+                              ? 'bg-navy-950 text-white'
+                              : 'border border-navy-200 bg-white text-navy-600 hover:bg-cream-50'
+                          }`}
+                        >
+                          {getPresetLabel(preset)}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="border-t border-slate-200 pt-4">
+                      <div className="font-body text-xs font-semibold uppercase tracking-[0.15em] text-navy-500 mb-3">
+                        Custom Range
+                      </div>
+                      <div className="grid gap-3">
+                        <div className="space-y-1">
+                          <label className="font-body block text-xs font-medium text-navy-600">From</label>
+                          <input
+                            type="date"
+                            value={startDate}
+                            onChange={(event) => {
+                              setSelectedPreset(null);
+                              setStartDate(event.target.value);
+                            }}
+                            className="font-body h-9 w-full rounded-md border border-navy-200 bg-white px-3 text-sm text-navy-900 outline-none transition focus:border-navy-500 focus:ring-1 focus:ring-navy-100"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="font-body block text-xs font-medium text-navy-600">To</label>
+                          <input
+                            type="date"
+                            value={endDate}
+                            onChange={(event) => {
+                              setSelectedPreset(null);
+                              setEndDate(event.target.value);
+                            }}
+                            className="font-body h-9 w-full rounded-md border border-navy-200 bg-white px-3 text-sm text-navy-900 outline-none transition focus:border-navy-500 focus:ring-1 focus:ring-navy-100"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="border-t border-slate-200 pt-4">
+                      <label className="font-body flex cursor-pointer items-center gap-2 text-sm text-navy-600">
+                        <input
+                          type="checkbox"
+                          checked={saveAsDefault}
+                          onChange={(event) => setSaveAsDefault(event.target.checked)}
+                          className="h-4 w-4 rounded border-navy-300 text-navy-950 focus:ring-navy-500"
+                        />
+                        Save as default
+                      </label>
+                    </div>
+
+                    <Button
+                      size="sm"
+                      onClick={handleApplyFilters}
+                      disabled={!hasPendingFilterChanges}
+                      leftIcon={<Search size={14} />}
+                      className="w-full"
                     >
-                      {getPresetLabel(preset)}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex gap-3">
-                <div className="space-y-1.5">
-                  <span className="font-body block text-xs font-semibold uppercase tracking-[0.15em] text-navy-500">From</span>
-                  <input
-                    type="date"
-                    value={startDate}
-                    onChange={(event) => {
-                      setSelectedPreset(null);
-                      setStartDate(event.target.value);
-                    }}
-                    className="font-body h-10 w-36 rounded-lg border border-navy-200 bg-white px-3 text-sm text-navy-900 outline-none transition focus:border-navy-500 focus:ring-2 focus:ring-navy-100"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <span className="font-body block text-xs font-semibold uppercase tracking-[0.15em] text-navy-500">To</span>
-                  <input
-                    type="date"
-                    value={endDate}
-                    onChange={(event) => {
-                      setSelectedPreset(null);
-                      setEndDate(event.target.value);
-                    }}
-                    className="font-body h-10 w-36 rounded-lg border border-navy-200 bg-white px-3 text-sm text-navy-900 outline-none transition focus:border-navy-500 focus:ring-2 focus:ring-navy-100"
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-end gap-3">
-                <label className="font-body flex cursor-pointer items-center gap-2 rounded-lg border border-navy-200 px-3 py-2.5 text-sm text-navy-600 transition hover:bg-cream-50">
-                  <input
-                    type="checkbox"
-                    checked={saveAsDefault}
-                    onChange={(event) => setSaveAsDefault(event.target.checked)}
-                    className="h-4 w-4 rounded border-navy-300 text-navy-950 focus:ring-navy-500"
-                  />
-                  Save as default
-                </label>
-
-                <button
-                  type="button"
-                  onClick={handleSearch}
-                  disabled={!hasPendingFilterChanges}
-                  className="font-body inline-flex items-center justify-center gap-2 rounded-lg bg-navy-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-navy-900 disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  <Search size={14} />
-                  Apply
-                </button>
-              </div>
+                      Apply Filters
+                    </Button>
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
 
@@ -411,73 +461,81 @@ export default function LedgerDashboard() {
           <div className="grid gap-6 p-6 xl:grid-cols-[1fr_340px]">
             {/* Table */}
             <div className="overflow-hidden rounded-xl border border-navy-100">
-              <table className="w-full">
-                <thead>
-                  <tr className="bg-cream-100 font-body text-left text-xs font-semibold uppercase tracking-[0.15em] text-navy-600">
-                    <th className="px-5 py-4">Client Name</th>
-                    <th className="px-4 py-4 text-right">Outstanding</th>
-                    <th className="px-4 py-4">Oldest Due</th>
-                    <th className="px-4 py-4">Status</th>
-                    <th className="px-5 py-4 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Client Name</TableHead>
+                    <TableHead className="text-right">Outstanding</TableHead>
+                    <TableHead>Oldest Due</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {isLoading && (
-                    <tr>
-                      <td colSpan={5} className="px-5 py-16 text-center">
+                    <TableRow>
+                      <TableCell colSpan={5} className="py-16 text-center">
                         <span className="font-body inline-flex items-center gap-2 text-sm text-navy-500">
                           <Loader2 className="animate-spin" size={14} />
                           Loading ledger data...
                         </span>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   )}
 
                   {!isLoading && summaries.length === 0 && (
-                    <tr>
-                      <td colSpan={5} className="px-5 py-16 text-center">
+                    <TableRow>
+                      <TableCell colSpan={5} className="py-16 text-center">
                         <div className="mx-auto max-w-md space-y-3">
                           <div className="font-display text-base font-semibold text-navy-950">No ledger data found</div>
                           <div className="font-body text-sm text-navy-600">
                             Make sure your clients are linked to this organisation, then record invoices and receipts.
                           </div>
                         </div>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   )}
 
-                  {summaries.map((summary, idx) => (
-                    <tr 
-                      key={summary.clientId} 
-                      className="font-body border-t border-navy-100 text-sm text-navy-700 transition hover:bg-cream-50"
-                      style={{ animationDelay: `${idx * 0.05}s` }}
-                    >
-                      <td className="px-5 py-4">
+                  {summaries.map((summary) => (
+                    <TableRowDense key={summary.clientId}>
+                      <TableCellDense>
                         <div className="font-display font-medium text-navy-950">{summary.clientName}</div>
-                      </td>
-                      <td className="px-4 py-4 text-right font-display font-medium text-navy-950">
+                      </TableCellDense>
+                      <TableCellDense className="text-right font-display font-medium text-navy-950">
                         {formatCurrency(summary.outstanding)}
-                      </td>
-                      <td className="px-4 py-4 text-navy-600">{formatDisplayDate(summary.oldestDueDate)}</td>
-                      <td className="px-4 py-4">
+                      </TableCellDense>
+                      <TableCellDense className="text-navy-600">
+                        {formatDisplayDate(summary.oldestDueDate)}
+                      </TableCellDense>
+                      <TableCellDense>
                         <span className={`font-body inline-flex rounded-full px-3 py-1 text-xs font-semibold ${statusBadge(summary)}`}>
                           {summary.outstanding <= 0 ? 'Settled' : summary.overdue ? 'Overdue' : 'Pending'}
                         </span>
-                      </td>
-                      <td className="px-5 py-4 text-right">
-                        <button
-                          type="button"
-                          onClick={() => handleView(summary.clientId)}
-                          className="font-body inline-flex items-center gap-2 rounded-lg border border-navy-200 px-3 py-1.5 text-xs font-semibold text-navy-700 transition hover:border-navy-400 hover:bg-cream-50"
-                        >
-                          <Eye size={14} />
-                          View
-                        </button>
-                      </td>
-                    </tr>
+                      </TableCellDense>
+                      <TableCellDense className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button
+                              type="button"
+                              className="font-body inline-flex h-8 w-8 items-center justify-center rounded-lg border border-navy-200 text-navy-600 transition hover:bg-cream-50"
+                            >
+                              <MoreHorizontal size={16} />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleView(summary.clientId)}>
+                              View Ledger
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleEditLedger(summary.clientId)}>
+                              Record Payment
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCellDense>
+                    </TableRowDense>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
 
             {/* Payment Form */}
@@ -540,6 +598,18 @@ export default function LedgerDashboard() {
                   </div>
 
                   <div className="space-y-1.5">
+                    <span className="font-body block text-xs font-semibold uppercase tracking-[0.15em] text-navy-500">Payment Type</span>
+                    <select
+                      {...paymentForm.register('payment_type')}
+                      className="font-body h-11 w-full rounded-lg border border-navy-200 bg-white px-3 text-sm text-navy-900 outline-none transition focus:border-navy-500 focus:ring-2 focus:ring-navy-100"
+                    >
+                      <option value="">-- Select (Optional) --</option>
+                      <option value="Opening Balance">Opening Balance</option>
+                      <option value="Advance">Advance</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5">
                     <span className="font-body block text-xs font-semibold uppercase tracking-[0.15em] text-navy-500">Remarks</span>
                     <textarea
                       {...paymentForm.register('remarks')}
@@ -552,14 +622,15 @@ export default function LedgerDashboard() {
                     )}
                   </div>
 
-                  <button
+                  <Button
                     type="submit"
                     disabled={recordPaymentMutation.isPending || clients.length === 0}
-                    className="font-body inline-flex w-full items-center justify-center gap-2 rounded-lg bg-navy-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-navy-900 disabled:cursor-not-allowed disabled:opacity-40"
+                    isLoading={recordPaymentMutation.isPending}
+                    leftIcon={<Plus size={14} />}
+                    className="w-full"
                   >
-                    {recordPaymentMutation.isPending ? <Loader2 className="animate-spin" size={14} /> : <Wallet size={14} />}
                     Record Payment
-                  </button>
+                  </Button>
                 </form>
               </div>
             </div>

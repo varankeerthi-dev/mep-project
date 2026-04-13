@@ -53,10 +53,13 @@ create table if not exists public.receipts (
   receipt_no text,
   amount numeric(15,2) not null check (amount > 0),
   receipt_date date not null default current_date,
+  payment_type text,
   remarks text,
   created_by uuid null default auth.uid(),
   created_at timestamptz not null default now()
 );
+
+alter table public.receipts add column if not exists payment_type text;
 
 create index if not exists invoices_org_id_idx
   on public.invoices(org_id);

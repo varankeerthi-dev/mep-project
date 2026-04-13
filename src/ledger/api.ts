@@ -32,6 +32,7 @@ export type LedgerReceipt = {
   amount: number;
   receipt_date: string;
   remarks?: string | null;
+  payment_type?: string | null;
   created_at?: string | null;
 };
 
@@ -46,6 +47,7 @@ export type ReceiptInput = {
   amount: number;
   receipt_date: string;
   remarks: string;
+  payment_type?: string | null;
 };
 
 export async function listLedgerClients(orgId: string): Promise<LedgerClient[]> {
@@ -102,7 +104,7 @@ export async function listLedgerInvoices(orgId: string, range: LedgerDateRange):
 export async function listLedgerReceipts(orgId: string, range: LedgerDateRange): Promise<LedgerReceipt[]> {
   const { data, error } = await supabase
     .from('receipts')
-    .select('id, org_id, client_id, invoice_id, receipt_no, amount, receipt_date, remarks, created_at')
+    .select('id, org_id, client_id, invoice_id, receipt_no, amount, receipt_date, remarks, payment_type, created_at')
     .eq('org_id', orgId)
     .gte('receipt_date', range.startDate)
     .lte('receipt_date', range.endDate)
@@ -119,6 +121,7 @@ export async function listLedgerReceipts(orgId: string, range: LedgerDateRange):
     amount: Number(row.amount ?? 0),
     receipt_date: String(row.receipt_date),
     remarks: row.remarks ?? null,
+    payment_type: row.payment_type ?? null,
     created_at: row.created_at ?? null,
   }));
 }
@@ -132,8 +135,9 @@ export async function createReceipt(input: ReceiptInput): Promise<LedgerReceipt>
       amount: input.amount,
       receipt_date: input.receipt_date,
       remarks: input.remarks || null,
+      payment_type: input.payment_type || null,
     })
-    .select('id, org_id, client_id, invoice_id, receipt_no, amount, receipt_date, remarks, created_at')
+    .select('id, org_id, client_id, invoice_id, receipt_no, amount, receipt_date, remarks, payment_type, created_at')
     .single();
 
   if (error) throw error;
@@ -148,6 +152,7 @@ export async function createReceipt(input: ReceiptInput): Promise<LedgerReceipt>
     amount: Number(data.amount ?? 0),
     receipt_date: String(data.receipt_date),
     remarks: data.remarks ?? null,
+    payment_type: data.payment_type ?? null,
     created_at: data.created_at ?? null,
   };
 }

@@ -4,6 +4,7 @@ import type { LedgerClient, LedgerInvoice, LedgerReceipt } from './api';
 export type LedgerStatementRow = {
   id: string;
   date: string;
+  paymentType?: string | null;
   type: 'Debit' | 'Credit';
   remarks: string;
   debit: number;
@@ -65,6 +66,7 @@ export function buildLedgerStatementRows(invoices: LedgerInvoice[], receipts: Le
   const creditRows: LedgerStatementRow[] = receipts.map((receipt) => ({
     id: `rcpt-${receipt.id}`,
     date: receipt.receipt_date,
+    paymentType: receipt.payment_type || '-',
     type: 'Credit',
     remarks: receipt.remarks || receipt.receipt_no || 'Receipt',
     debit: 0,
