@@ -19,6 +19,7 @@ export type LedgerSummaryRow = {
   overdue: boolean;
   invoices: LedgerInvoice[];
   receipts: LedgerReceipt[];
+  openingBalance: number;
 };
 
 export function formatCurrency(value: number) {
@@ -136,6 +137,7 @@ export function buildLedgerSummaries(
   clients: LedgerClient[],
   invoices: LedgerInvoice[],
   receipts: LedgerReceipt[],
+  openingBalances?: OpeningBalance[],
   today = new Date(),
 ): LedgerSummaryRow[] {
   const receiptsByClient = new Map<string, LedgerReceipt[]>();
@@ -143,6 +145,11 @@ export function buildLedgerSummaries(
     const list = receiptsByClient.get(receipt.client_id) ?? [];
     list.push(receipt);
     receiptsByClient.set(receipt.client_id, list);
+  });
+
+  const openingBalanceByClient = new Map<string, OpeningBalance>();
+  openingBalances?.forEach((ob) => {
+    openingBalanceByClient.set(ob.client_id, ob);
   });
 
   return clients
@@ -168,7 +175,8 @@ export function buildLedgerSummaries(
 
       const totalInvoices = clientInvoices.reduce((sum, invoice) => sum + Number(invoice.total || 0), 0);
       const totalReceipts = clientReceipts.reduce((sum, receipt) => sum + Number(receipt.amount || 0), 0);
-      const outstanding = Number((totalInvoices - totalReceipts).toFixed(2));
+      const openingBalance = openingBalanceByClient.get(client.id)?.amount ?? 0;
+      const outstanding = Number((totalInvoices - totalReceipts + openingBalance).toFixed(2));
       const overdue = Boolean(oldestDueDate && isAfter(today, parseISO(oldestDueDate)));
 
       return {
@@ -179,6 +187,7 @@ export function buildLedgerSummaries(
         overdue,
         invoices: clientInvoices,
         receipts: clientReceipts,
+        openingBalance,
       };
     })
     .sort((left, right) => right.outstanding - left.outstanding);

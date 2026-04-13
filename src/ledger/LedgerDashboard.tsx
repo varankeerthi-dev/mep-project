@@ -337,8 +337,13 @@ export default function LedgerDashboard() {
   }, [clients, openingBalancesMap, selectedFy]);
 
   const summaries = useMemo(
-    () => buildLedgerSummaries(clients, invoicesQuery.data ?? [], receiptsQuery.data ?? []),
-    [clients, invoicesQuery.data, receiptsQuery.data],
+    () => buildLedgerSummaries(
+      clients,
+      invoicesQuery.data ?? [],
+      receiptsQuery.data ?? [],
+      openingBalances,
+    ),
+    [clients, invoicesQuery.data, receiptsQuery.data, openingBalances],
   );
 
   const selectedSummary = useMemo(
@@ -733,17 +738,17 @@ export default function LedgerDashboard() {
                   <Table>
                     <TableHeader>
                       <TableRow className="border-b border-zinc-200 bg-zinc-50/80">
-                        <TableHead className="h-9 px-3 text-left align-middle text-[11px] font-medium text-zinc-500">Client</TableHead>
-                        <TableHead className="h-9 px-3 text-right align-middle text-[11px] font-medium text-zinc-500">Outstanding</TableHead>
-                        <TableHead className="h-9 px-3 text-left align-middle text-[11px] font-medium text-zinc-500">Due Date</TableHead>
-                        <TableHead className="h-9 px-3 text-left align-middle text-[11px] font-medium text-zinc-500">Status</TableHead>
-                        <TableHead className="h-9 px-3 text-right align-middle text-[11px] font-medium text-zinc-500">Actions</TableHead>
+                        <TableHead className="h-10 px-4 text-left align-middle text-[11px] font-medium text-zinc-500">Client</TableHead>
+                        <TableHead className="h-10 px-4 text-right align-middle text-[11px] font-medium text-zinc-500">Outstanding</TableHead>
+                        <TableHead className="h-10 px-4 text-left align-middle text-[11px] font-medium text-zinc-500">Due Date</TableHead>
+                        <TableHead className="h-10 px-4 text-left align-middle text-[11px] font-medium text-zinc-500">Status</TableHead>
+                        <TableHead className="h-10 px-4 text-right align-middle text-[11px] font-medium text-zinc-500">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody className="[&_tr:last-child]:border-0">
                       {isLoading && (
                         <tr>
-                          <td colSpan={5} className="px-3 py-12 text-center">
+                          <td colSpan={5} className="px-4 py-12 text-center">
                             <span className="inline-flex items-center gap-1.5 text-xs text-zinc-500">
                               <Loader2 size={12} className="animate-spin" />
                               Loading ledger data...
@@ -754,7 +759,7 @@ export default function LedgerDashboard() {
 
                       {!isLoading && summaries.length === 0 && (
                         <tr>
-                          <td colSpan={5} className="px-3 py-12 text-center">
+                          <td colSpan={5} className="px-4 py-12 text-center">
                             <div className="mx-auto max-w-sm space-y-2">
                               <div className="text-sm font-medium text-zinc-950">No ledger data found</div>
                               <div className="text-xs text-zinc-500">
@@ -767,16 +772,16 @@ export default function LedgerDashboard() {
 
                       {summaries.map((summary) => (
                         <tr key={summary.clientId} className="border-b border-zinc-100 hover:bg-zinc-50/50">
-                          <td className="px-3 py-2.5 align-middle">
+                          <td className="px-4 py-3.5 align-middle">
                             <span className="text-sm font-medium text-zinc-950">{summary.clientName}</span>
                           </td>
-                          <td className="px-3 py-2.5 text-right align-middle">
+                          <td className="px-4 py-3.5 text-right align-middle">
                             <span className="text-sm font-medium text-zinc-950">{formatCurrency(summary.outstanding)}</span>
                           </td>
-                          <td className="px-3 py-2.5 align-middle">
+                          <td className="px-4 py-3.5 align-middle">
                             <span className="text-xs text-zinc-500">{formatDisplayDate(summary.oldestDueDate)}</span>
                           </td>
-                          <td className="px-3 py-2.5 align-middle">
+                          <td className="px-4 py-3.5 align-middle">
                             {(() => {
                               const status = statusBadge(summary);
                               const dotColors = {
@@ -792,7 +797,7 @@ export default function LedgerDashboard() {
                               );
                             })()}
                           </td>
-                          <td className="px-3 py-2.5 text-right align-middle">
+                          <td className="px-4 py-3.5 text-right align-middle">
                             <button
                               type="button"
                               onClick={() => handleView(summary.clientId)}
@@ -849,11 +854,11 @@ export default function LedgerDashboard() {
                         <Table>
                           <TableHeader>
                             <TableRow className="border-b border-zinc-200 bg-zinc-50/80">
-                              <TableHead className="h-9 px-3 text-left align-middle text-[11px] font-medium text-zinc-500">Date</TableHead>
-                              <TableHead className="h-9 px-3 text-left align-middle text-[11px] font-medium text-zinc-500">Payment Type</TableHead>
-                              <TableHead className="h-9 px-3 text-left align-middle text-[11px] font-medium text-zinc-500">Remarks</TableHead>
-                              <TableHead className="h-9 px-3 text-right align-middle text-[11px] font-medium text-zinc-500">Amount</TableHead>
-                              <TableHead className="h-9 px-3 text-right align-middle text-[11px] font-medium text-zinc-500">Actions</TableHead>
+                              <TableHead className="h-10 px-4 text-left align-middle text-[11px] font-medium text-zinc-500">Date</TableHead>
+                              <TableHead className="h-10 px-4 text-left align-middle text-[11px] font-medium text-zinc-500">Payment Type</TableHead>
+                              <TableHead className="h-10 px-4 text-left align-middle text-[11px] font-medium text-zinc-500">Remarks</TableHead>
+                              <TableHead className="h-10 px-4 text-right align-middle text-[11px] font-medium text-zinc-500">Amount</TableHead>
+                              <TableHead className="h-10 px-4 text-right align-middle text-[11px] font-medium text-zinc-500">Actions</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody className="[&_tr:last-child]:border-0">
@@ -864,13 +869,13 @@ export default function LedgerDashboard() {
                               if (isPendingDelete) {
                                 return (
                                   <tr key={receipt.id} className="bg-rose-50/50 border-b border-rose-100">
-                                    <td colSpan={4} className="px-3 py-2.5 text-xs text-rose-600">
+                                    <td colSpan={4} className="px-4 py-3 text-xs text-rose-600">
                                       <span className="line-through opacity-60">
                                         {formatDisplayDate(receipt.receipt_date)} — {receipt.remarks || 'Receipt'}
                                       </span>
                                       <span className="ml-2 text-[10px] font-semibold">(Marked for deletion)</span>
                                     </td>
-                                    <td className="px-3 py-2.5 text-right">
+                                    <td className="px-4 py-3 text-right">
                                       <button
                                         type="button"
                                         onClick={() => handleUndoDelete(receipt.id)}
@@ -887,49 +892,49 @@ export default function LedgerDashboard() {
                               if (isEditing && editingForm) {
                                 return (
                                   <tr key={receipt.id} className="bg-amber-50/50 border-b border-amber-100">
-                                    <td className="px-3 py-2">
+                                    <td className="px-4 py-2.5">
                                       <input
                                         type="date"
                                         value={editingForm.receipt_date}
                                         onChange={(e) => setEditingForm({ ...editingForm, receipt_date: e.target.value })}
-                                        className="h-7 w-full rounded border border-zinc-200 px-2 text-xs"
+                                        className="h-8 w-full rounded border border-zinc-200 px-2 text-xs"
                                       />
                                     </td>
-                                    <td className="px-3 py-2">
+                                    <td className="px-4 py-2.5">
                                       <select
                                         value={editingForm.payment_type}
                                         onChange={(e) => setEditingForm({ ...editingForm, payment_type: e.target.value })}
-                                        className="h-7 w-full rounded border border-zinc-200 px-2 text-xs"
+                                        className="h-8 w-full rounded border border-zinc-200 px-2 text-xs"
                                       >
                                         <option value="">-</option>
                                         <option value="Opening Balance">Opening Balance</option>
                                         <option value="Advance">Advance</option>
                                       </select>
                                     </td>
-                                    <td className="px-3 py-2">
+                                    <td className="px-4 py-2.5">
                                       <input
                                         type="text"
                                         value={editingForm.remarks}
                                         onChange={(e) => setEditingForm({ ...editingForm, remarks: e.target.value })}
-                                        className="h-7 w-full rounded border border-zinc-200 px-2 text-xs"
+                                        className="h-8 w-full rounded border border-zinc-200 px-2 text-xs"
                                       />
                                     </td>
-                                    <td className="px-3 py-2">
+                                    <td className="px-4 py-2.5">
                                       <input
                                         type="number"
                                         step="0.01"
                                         value={editingForm.amount}
                                         onChange={(e) => setEditingForm({ ...editingForm, amount: parseFloat(e.target.value) || 0 })}
-                                        className="h-7 w-24 rounded border border-zinc-200 px-2 text-right text-xs"
+                                        className="h-8 w-24 rounded border border-zinc-200 px-2 text-right text-xs"
                                       />
                                     </td>
-                                    <td className="px-3 py-2 text-right">
+                                    <td className="px-4 py-2.5 text-right">
                                       <div className="inline-flex items-center gap-1">
                                         <button
                                           type="button"
                                           onClick={handleSaveEdit}
                                           disabled={updateReceiptMutation.isPending}
-                                          className="inline-flex h-6 w-6 items-center justify-center rounded bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
+                                          className="inline-flex h-7 w-7 items-center justify-center rounded bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
                                         >
                                           {updateReceiptMutation.isPending ? (
                                             <Loader2 size={10} className="animate-spin" />
@@ -940,7 +945,7 @@ export default function LedgerDashboard() {
                                         <button
                                           type="button"
                                           onClick={handleCancelEdit}
-                                          className="inline-flex h-6 w-6 items-center justify-center rounded border border-zinc-200 text-zinc-600 hover:bg-zinc-100"
+                                          className="inline-flex h-7 w-7 items-center justify-center rounded border border-zinc-200 text-zinc-600 hover:bg-zinc-100"
                                         >
                                           <X size={10} />
                                         </button>
@@ -952,23 +957,23 @@ export default function LedgerDashboard() {
 
                               return (
                                 <tr key={receipt.id} className="border-b border-zinc-100 hover:bg-zinc-50/50">
-                                  <td className="px-3 py-2.5 text-xs text-zinc-600">{formatDisplayDate(receipt.receipt_date)}</td>
-                                  <td className="px-3 py-2.5 text-xs text-zinc-600">{receipt.payment_type || '-'}</td>
-                                  <td className="px-3 py-2.5 text-sm text-zinc-950">{receipt.remarks || 'Receipt'}</td>
-                                  <td className="px-3 py-2.5 text-right text-sm font-medium text-zinc-950">{formatCurrency(receipt.amount)}</td>
-                                  <td className="px-3 py-2.5 text-right">
+                                  <td className="px-4 py-3.5 text-xs text-zinc-600">{formatDisplayDate(receipt.receipt_date)}</td>
+                                  <td className="px-4 py-3.5 text-xs text-zinc-600">{receipt.payment_type || '-'}</td>
+                                  <td className="px-4 py-3.5 text-sm text-zinc-950">{receipt.remarks || 'Receipt'}</td>
+                                  <td className="px-4 py-3.5 text-right text-sm font-medium text-zinc-950">{formatCurrency(receipt.amount)}</td>
+                                  <td className="px-4 py-3.5 text-right">
                                     <div className="inline-flex items-center gap-1">
                                       <button
                                         type="button"
                                         onClick={() => handleStartEdit(receipt)}
-                                        className="inline-flex h-6 w-6 items-center justify-center rounded border border-zinc-200 text-zinc-600 hover:bg-zinc-100"
+                                        className="inline-flex h-7 w-7 items-center justify-center rounded border border-zinc-200 text-zinc-600 hover:bg-zinc-100"
                                       >
                                         <Pencil size={10} />
                                       </button>
                                       <button
                                         type="button"
                                         onClick={() => handleMarkDelete(receipt.id)}
-                                        className="inline-flex h-6 w-6 items-center justify-center rounded border border-rose-200 text-rose-600 hover:bg-rose-50"
+                                        className="inline-flex h-7 w-7 items-center justify-center rounded border border-rose-200 text-rose-600 hover:bg-rose-50"
                                       >
                                         <Trash2 size={10} />
                                       </button>
