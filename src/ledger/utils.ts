@@ -49,6 +49,39 @@ export function getClientName(client?: LedgerClient | null, fallback?: string | 
   return client?.name ?? fallback ?? 'Unknown client';
 }
 
+export function generateFyOptions(format: string, startMonth: number = 4): string[] {
+  const currentYear = new Date().getFullYear();
+  const options: string[] = [];
+  
+  for (let i = -2; i <= 3; i++) {
+    const year = currentYear + i;
+    const nextYear = year + 1;
+    const yearStr = year.toString();
+    const nextYearStr = nextYear.toString().slice(-2);
+    
+    let fy: string;
+    switch (format) {
+      case 'FY24-25':
+        fy = `FY${yearStr.slice(-2)}-${nextYearStr}`;
+        break;
+      case 'FY2024-25':
+        fy = `FY${yearStr}-${nextYearStr}`;
+        break;
+      case '2024-25':
+        fy = `${yearStr}-${nextYearStr}`;
+        break;
+      case '2024_25':
+        fy = `${yearStr}_${nextYearStr}`;
+        break;
+      default:
+        fy = `${yearStr.slice(-2)}-${nextYearStr}`;
+    }
+    options.push(fy);
+  }
+  
+  return options;
+}
+
 function normalizeDate(value?: string | null) {
   return value ?? '9999-12-31';
 }

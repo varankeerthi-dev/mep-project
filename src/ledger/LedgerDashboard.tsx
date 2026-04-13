@@ -42,7 +42,7 @@ import {
   type OpeningBalance,
   type BulkOpeningBalanceInput,
 } from './api';
-import { buildLedgerSummaries, formatCurrency, formatDisplayDate, type LedgerSummaryRow } from './utils';
+import { buildLedgerSummaries, formatCurrency, formatDisplayDate, generateFyOptions, type LedgerSummaryRow } from './utils';
 
 const DEFAULT_STORAGE_KEY = 'ledger.dashboard.default-range.v1';
 
@@ -172,8 +172,8 @@ export default function LedgerDashboard() {
   });
 
   useEffect(() => {
-    if (organisation?.fy_format && !selectedFy) {
-      setSelectedFy(String(organisation.fy_format));
+    if (organisation?.current_financial_year && !selectedFy) {
+      setSelectedFy(String(organisation.current_financial_year));
     }
   }, [organisation, selectedFy]);
 
@@ -602,13 +602,19 @@ export default function LedgerDashboard() {
                 {activeTab === 'opening-balance' && (
                   <div className="flex items-center gap-2">
                     <span className="font-body text-sm text-navy-500">FY:</span>
-                    <input
-                      type="text"
+                    <select
                       value={selectedFy}
                       onChange={(e) => setSelectedFy(e.target.value)}
-                      placeholder="FY24-25"
-                      className="font-body h-8 w-24 rounded border border-navy-200 px-2 text-sm text-navy-900 outline-none focus:border-navy-500"
-                    />
+                      className="font-body h-8 rounded border border-navy-200 bg-white px-2 text-sm text-navy-900 outline-none focus:border-navy-500"
+                    >
+                      <option value="">Select FY</option>
+                      {generateFyOptions(
+                        String(organisation?.financial_year_format || 'FY24-25'),
+                        Number(organisation?.financial_year_start_month ?? 4)
+                      ).map((fy) => (
+                        <option key={fy} value={fy}>{fy}</option>
+                      ))}
+                    </select>
                   </div>
                 )}
               </div>
