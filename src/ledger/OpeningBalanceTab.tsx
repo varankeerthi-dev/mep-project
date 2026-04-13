@@ -213,8 +213,12 @@ const OpeningBalanceTab = memo(function OpeningBalanceTab({
               variant="primary"
               onClick={() => {
                 const drafts = Object.values(openingBalanceDrafts);
-                if (drafts.length > 0) {
+                console.log('Saving opening balances:', { drafts, selectedFy });
+                if (drafts.length > 0 && selectedFy) {
                   saveOpeningBalancesMutation.mutate(drafts);
+                } else {
+                  console.warn('Cannot save:', { draftsLength: drafts.length, selectedFy });
+                  alert('Please select a Financial Year and ensure there are balances to save.');
                 }
               }}
               isLoading={saveOpeningBalancesMutation.isPending}

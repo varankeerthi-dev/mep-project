@@ -184,7 +184,10 @@ export default function LedgerDashboard() {
   });
 
   const saveOpeningBalancesMutation = useMutation({
-    mutationFn: (balances: BulkOpeningBalanceInput[]) => bulkUpsertOpeningBalances(orgId, selectedFy, balances),
+    mutationFn: async (balances: BulkOpeningBalanceInput[]) => {
+      console.log('Mutation called with:', { orgId, selectedFy, balances });
+      await bulkUpsertOpeningBalances(orgId, selectedFy, balances);
+    },
     onSuccess: () => {
       toast.success('Opening balances saved successfully.');
       setOpeningBalanceEditMode(false);
@@ -192,6 +195,7 @@ export default function LedgerDashboard() {
       void qc.invalidateQueries({ queryKey: ['ledger', 'opening-balances', orgId, selectedFy] });
     },
     onError: (error: any) => {
+      console.error('Save error:', error);
       toast.error(error?.message ?? 'Unable to save opening balances.');
     },
   });
