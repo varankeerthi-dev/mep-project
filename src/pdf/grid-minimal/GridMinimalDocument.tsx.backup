@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import {
   Document,
   Image,
@@ -75,7 +75,7 @@ const fmt = (value: number, decimals = 2) =>
 
 const styles = StyleSheet.create({
   page: {
-    paddingTop: 10,
+    paddingTop: 24,
     paddingRight: 28,
     paddingBottom: 24,
     paddingLeft: 28,
@@ -85,6 +85,11 @@ const styles = StyleSheet.create({
     display: 'flex',
     flexDirection: 'column',
   },
+  contentWrapper: {
+    borderLeft: '1 solid #9ca3af',
+    borderRight: '1 solid #9ca3af',
+    borderBottom: '1 solid #9ca3af',
+  },
   title: {
     textAlign: 'center',
     fontSize: 12,
@@ -92,16 +97,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1.8,
     textTransform: 'uppercase',
     paddingBottom: 6,
-    marginBottom: 14,
     borderBottom: '1.5 solid #111827',
-  },
-  contentWrapper: {
-    borderLeft: '1 solid #9ca3af',
-    borderRight: '1 solid #9ca3af',
-    borderBottom: '1 solid #9ca3af',
-    flexGrow: 1,
-    display: 'flex',
-    flexDirection: 'column',
   },
   headerOuter: {
     display: 'flex',
@@ -241,10 +237,8 @@ const styles = StyleSheet.create({
   cellRight: { textAlign: 'right' },
   desc: { fontWeight: 600 },
   footerWrap: {
-    position: 'absolute',
-    bottom: 24,
-    left: 28,
-    right: 28,
+    marginTop: 'auto',
+    borderTop: '1.5 solid #111827',
   },
   totalsOuter: {
     display: 'flex',
@@ -342,7 +336,7 @@ function getCellText(item: GridMinimalItem, key: string): string {
     case 'description':
       return item.description;
     case 'make':
-      return item.make || 'â\u20ac\u201d';
+      return item.make || '�';
     case 'qty':
       return fmt(item.qty, 0);
     case 'unit':
@@ -350,9 +344,9 @@ function getCellText(item: GridMinimalItem, key: string): string {
     case 'rate':
       return fmt(item.rate);
     case 'discPct':
-      return item.discPct && item.discPct > 0 ? ${fmt(item.discPct, 2)}% : 'â\u20ac\u201d';
+      return item.discPct && item.discPct > 0 ? `${fmt(item.discPct, 2)}%` : '�';
     case 'gst':
-      return item.gstPct !== undefined ? ${fmt(item.gstPct, 2)}% : 'â\u20ac\u201d';
+      return item.gstPct !== undefined ? `${fmt(item.gstPct, 2)}%` : '�';
     case 'amount':
       return fmt(item.amount);
     default:
@@ -361,24 +355,13 @@ function getCellText(item: GridMinimalItem, key: string): string {
 }
 
 function alignStyle(align?: 'left' | 'center' | 'right') {
-  switch (align) {
-    case 'center':
-      return styles.cellCenter;
-    case 'right':
-      return styles.cellRight;
-    default:
-      return undefined;
-  }
+  if (align === 'center') return styles.cellCenter;
+  if (align === 'right') return styles.cellRight;
+  return undefined;
 }
 
-export default function GridMinimalDocument({
-  vm,
-  columns,
-}: {
-  vm: GridMinimalVM;
-  columns: GridMinimalColumns;
-}) {
-  const visibleColumns = React.useMemo(() => buildVisibleColumns(columns), [columns]);
+export function GridMinimalDocument({ vm, columns }: { vm: GridMinimalVM; columns: GridMinimalColumns }) {
+  const visibleColumns = buildVisibleColumns(columns);
 
   return (
     <Document>
@@ -425,7 +408,7 @@ export default function GridMinimalDocument({
           <View style={styles.headerRight}>
             {vm.meta.map((row, idx) => (
               <View
-                key={${row.label}-}
+                key={`${row.label}-${idx}`}
                 style={[styles.metaRow, idx === vm.meta.length - 1 ? styles.metaRowLast : undefined]}
               >
                 <Text style={styles.metaLabel}>{row.label}</Text>
@@ -475,7 +458,7 @@ export default function GridMinimalDocument({
               <View key={item.id} style={{ display: 'flex', flexDirection: 'row' }}>
                 {visibleColumns.map((column, idx) => (
                   <Text
-                    key={${item.id}-}
+                    key={`${item.id}-${column.key}`}
                     style={[
                       styles.td,
                       alignStyle(column.align),
@@ -491,44 +474,43 @@ export default function GridMinimalDocument({
             ))}
           </View>
         </View>
-        </View>
 
         <View style={styles.footerWrap}>
           <View style={styles.totalsOuter}>
             <View style={styles.totalsInner}>
               <View style={styles.totalsRow}>
                 <Text>Sub-total</Text>
-                <Text>â\u20ac¹ {fmt(vm.totals.basicAmount)}</Text>
+                <Text>₹ {fmt(vm.totals.basicAmount)}</Text>
               </View>
               {vm.showTax && vm.totals.sgst !== undefined ? (
                 <View style={styles.totalsRow}>
                   <Text>SGST</Text>
-                  <Text>â\u20ac¹ {fmt(vm.totals.sgst)}</Text>
+                  <Text>₹ {fmt(vm.totals.sgst)}</Text>
                 </View>
               ) : null}
               {vm.showTax && vm.totals.cgst !== undefined ? (
                 <View style={styles.totalsRow}>
                   <Text>CGST</Text>
-                  <Text>â\u20ac¹ {fmt(vm.totals.cgst)}</Text>
+                  <Text>₹ {fmt(vm.totals.cgst)}</Text>
                 </View>
               ) : null}
               {vm.showTax && vm.totals.igst !== undefined && vm.totals.igst > 0 ? (
                 <View style={styles.totalsRow}>
                   <Text>IGST</Text>
-                  <Text>â\u20ac¹ {fmt(vm.totals.igst)}</Text>
+                  <Text>₹ {fmt(vm.totals.igst)}</Text>
                 </View>
               ) : null}
               {vm.totals.roundOff !== undefined ? (
                 <View style={styles.totalsRow}>
                   <Text>Round Off</Text>
                   <Text>
-                    {vm.totals.roundOff > 0 ? '+' : ''}â\u20ac¹ {fmt(vm.totals.roundOff)}
+                    {vm.totals.roundOff > 0 ? '+' : ''}₹ {fmt(vm.totals.roundOff)}
                   </Text>
                 </View>
               ) : null}
               <View style={[styles.totalsRow, styles.totalsNet]}>
                 <Text>Net Value</Text>
-                <Text>â\u20ac¹ {fmt(vm.totals.netValue)}</Text>
+                <Text>₹ {fmt(vm.totals.netValue)}</Text>
               </View>
             </View>
           </View>
@@ -575,6 +557,7 @@ export default function GridMinimalDocument({
               <Text style={styles.signLabel}>{vm.authorisedSignLabel || 'Authorised Signatory'}</Text>
             </View>
           </View>
+        </View>
         </View>
       </Page>
     </Document>
