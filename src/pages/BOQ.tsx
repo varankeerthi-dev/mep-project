@@ -465,7 +465,9 @@ const BoqRowComponent = memo(({
     prev.visibleColumns === next.visibleColumns &&
     prev.defaultVariantId === next.defaultVariantId &&
     prev.materialSearchActive === next.materialSearchActive &&
-    prev.baseDiscount === next.baseDiscount
+    prev.baseDiscount === next.baseDiscount &&
+    prev.materials === next.materials &&
+    prev.makes === next.makes
   );
 });
 
