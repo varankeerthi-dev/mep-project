@@ -385,11 +385,13 @@ export function OrganisationSettings({ organisation, userId }) {
   const [isAdmin, setIsAdmin] = useState(false)
 
   useEffect(() => {
+    if (!organisation?.id || !userId) return;
     loadMembers()
     checkAdmin()
-  }, [organisation.id, userId])
+  }, [organisation?.id, userId])
 
   const checkAdmin = async () => {
+    if (!organisation?.id || !userId) return;
     const { data } = await supabase
       .from('org_members')
       .select('role')
