@@ -96,12 +96,16 @@ const OpeningBalanceTab = memo(function OpeningBalanceTab({
                         onChange={(e) => {
                           const val = e.target.value;
                           const amount = val === '' ? 0 : parseFloat(val);
+                          const fyYear = parseInt(selectedFy.match(/\d{2}$/)?.[0] || '0');
+                          const century = Math.floor(new Date().getFullYear() / 100) * 100;
+                          const fullYear = century - 100 + fyYear;
+                          const defaultDate = `${fullYear}-04-01`;
                           setOpeningBalanceDrafts(prev => ({
                             ...prev,
                             [client.id]: {
                               client_id: client.id,
                               amount: isNaN(amount) ? 0 : amount,
-                              as_of_date: prev[client.id]?.as_of_date ?? obValue?.as_of_date ?? `${selectedFy.slice(-7).replace('-', '-04-01')}`,
+                              as_of_date: prev[client.id]?.as_of_date ?? obValue?.as_of_date ?? defaultDate,
                               remarks: prev[client.id]?.remarks ?? obValue?.remarks ?? '',
                             }
                           }));
@@ -144,12 +148,16 @@ const OpeningBalanceTab = memo(function OpeningBalanceTab({
                         type="text"
                         value={draftOb?.remarks ?? obValue?.remarks ?? ''}
                         onChange={(e) => {
+                          const fyYear = parseInt(selectedFy.match(/\d{2}$/)?.[0] || '0');
+                          const century = Math.floor(new Date().getFullYear() / 100) * 100;
+                          const fullYear = century - 100 + fyYear;
+                          const defaultDate = `${fullYear}-04-01`;
                           setOpeningBalanceDrafts(prev => ({
                             ...prev,
                             [client.id]: {
                               client_id: client.id,
                               amount: prev[client.id]?.amount ?? obValue?.amount ?? 0,
-                              as_of_date: prev[client.id]?.as_of_date ?? obValue?.as_of_date ?? '',
+                              as_of_date: prev[client.id]?.as_of_date ?? obValue?.as_of_date ?? defaultDate,
                               remarks: e.target.value,
                             }
                           }));
