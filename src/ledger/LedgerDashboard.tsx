@@ -586,6 +586,23 @@ export default function LedgerDashboard() {
                     {selectedClient.name}
                   </span>
                 )}
+                {activeTab === 'opening-balance' && (
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={selectedFy}
+                      onChange={(e) => setSelectedFy(e.target.value)}
+                      className="h-7 rounded border border-zinc-200 bg-white px-2 text-xs text-zinc-900 outline-none focus:border-zinc-400"
+                    >
+                      <option value="">Select FY</option>
+                      {generateFyOptions(
+                        String(organisation?.financial_year_format || 'FY24-25'),
+                        Number(organisation?.financial_year_start_month ?? 4)
+                      ).map((fy) => (
+                        <option key={fy} value={fy}>{fy}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center gap-2">
@@ -613,14 +630,16 @@ export default function LedgerDashboard() {
                 )}
 
                 {/* Opening Balance Button */}
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => setActiveTab('opening-balance')}
-                  leftIcon={<Calculator size={12} />}
-                >
-                  Opening Balance
-                </Button>
+                {activeTab !== 'opening-balance' && (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => setActiveTab('opening-balance')}
+                    leftIcon={<Calculator size={12} />}
+                  >
+                    Opening Balance
+                  </Button>
+                )}
 
                 {activeTab === 'ledger' && filtersOpen && (
                   <div className="filter-dropdown-container absolute right-6 top-full z-50 mt-2 w-72 rounded-lg border border-zinc-200 bg-white p-3 shadow-lg">
