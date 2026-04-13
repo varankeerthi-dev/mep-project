@@ -127,8 +127,18 @@ The App.tsx is already importing the global queryClient with the optimized setti
 
 1. **Sidebar.tsx**: Changed icon imports to wildcard, replaced `.bind()` with useCallback, updated icon map to use string-based lookup
 2. **queryClient.ts**: Already optimized with global settings
+3. **CreateDC.tsx**: Applied enterprise upgrades:
+   - ✅ Added org ID check before loadData (fixes race condition)
+   - ✅ Added loading check to "No clients" message (fixes flicker)
+   - ✅ Added organisation filter to all queries (projects, materials, warehouses, clients)
+   - ✅ Added O(1) lookup maps (materialMap, clientMap, warehouseMap)
+   - ✅ Memoized derived values (activeVariants, validItems, totalQty, totalAmount)
 
 **Next:** Run tests and verify performance improvements.
+
+---
+
+**Completed:** 2026-04-13
 
 ---
 

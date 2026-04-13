@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import type { FormEvent } from 'react';
 import { format } from 'date-fns';
 import { supabase } from '../supabase';
@@ -142,7 +142,10 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [isDirty, loading]);
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    if (!organisation?.id) return;
+    loadData();
+  }, [organisation?.id]);
   
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -170,19 +173,24 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
   }, [editDC]);
 
   const loadData = async () => {
+    if (!organisation?.id) return;
+    
     try {
+      const orgId = organisation.id;
       const [projData, matData, whData, varData, stockData, clientData, unitsData, variantPricingData] = await Promise.all([
         supabase
           .from('projects')
           .select('id, project_name, name, client_name, site_address')
+          .eq('organisation_id', orgId)
           .order('project_name'),
-        supabase.from('materials').select('id, display_name, name, unit, uses_variant, sale_price, item_type').order('name'),
-        supabase.from('warehouses').select('id, warehouse_name, name').order('warehouse_name'),
+        supabase.from('materials').select('id, display_name, name, unit, uses_variant, sale_price, item_type').eq('organisation_id', orgId).order('name'),
+        supabase.from('warehouses').select('id, warehouse_name, name').eq('organisation_id', orgId).order('warehouse_name'),
         supabase.from('company_variants').select('id, variant_name, is_active').eq('is_active', true).order('variant_name'),
         supabase.from('item_stock').select('item_id, warehouse_id, company_variant_id, current_stock'),
         supabase
           .from('clients')
           .select('id, client_name, address1, address2, shipping_address, city, state, gstin, contact')
+          .eq('organisation_id', orgId)
           .order('client_name'),
         supabase.from('item_units').select('id, unit_code, unit_name').order('unit_name'),
         supabase.from('item_variant_pricing').select('item_id, company_variant_id')
@@ -318,6 +326,25 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
   };
 
   const getMaterial = (id) => materials.find(m => m.id === id);
+  
+  // O(1) lookup maps - Memoized for performance
+  const materialMap = useMemo(() => {
+    const map: Record<string, any> = {};
+    materials.forEach(m => { map[m.id] = m; });
+    return map;
+  }, [materials]);
+  
+  const clientMap = useMemo(() => {
+    const map: Record<string, any> = {};
+    clients.forEach(c => { map[c.client_name] = c; });
+    return map;
+  }, [clients]);
+  
+  const warehouseMap = useMemo(() => {
+    const map: Record<string, any> = {};
+    warehouses.forEach(w => { map[w.id] = w; });
+    return map;
+  }, [warehouses]);
   
   const getAvailableQty = (itemId, variantId) => {
     if (formData.source_type !== 'WAREHOUSE') return 0;
@@ -801,10 +828,26 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
     doc.save(`${dc.dc_number}.pdf`);
   };
 
-  const activeVariants = variants.filter(v => v.variant_name !== 'No Variant');
-  const validItems = items.filter(i => i.valid);
-  const totalQty = validItems.reduce((sum, i) => sum + (parseFloat(i.quantity) || 0), 0);
-  const totalAmount = validItems.reduce((sum, i) => sum + (i.amount || 0), 0);
+  // Memoized derived values - skip recalc on every render
+  const activeVariants = useMemo(
+    () => variants.filter(v => v.variant_name !== 'No Variant'),
+    [variants]
+  );
+  
+  const validItems = useMemo(
+    () => items.filter(i => i.valid),
+    [items]
+  );
+  
+  const totalQty = useMemo(
+    () => validItems.reduce((sum, i) => sum + (parseFloat(i.quantity) || 0), 0),
+    [validItems]
+  );
+  
+  const totalAmount = useMemo(
+    () => validItems.reduce((sum, i) => sum + (i.amount || 0), 0),
+    [validItems]
+  );
 
   return (
     <div className="card">
@@ -824,7 +867,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
         </label>
       </div>
       
-      {clients.length === 0 && (
+      {!loading && clients.length === 0 && (
         <div style={{ padding: '10px', background: '#ffcccc', margin: '10px' }}>
           No clients found. Please create clients in database.
         </div>
