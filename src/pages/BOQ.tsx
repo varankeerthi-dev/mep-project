@@ -525,18 +525,17 @@ export function BOQ() {
 
   const priceMapQuery = useQuery<Map<string, number>>({
     queryKey: ['boqPriceMap', boqData.variantId],
-    enabled: !!boqData.variantId,
     staleTime: 10 * 60 * 1000,
     queryFn: async () => {
       const [variantPrices, makePrices] = await Promise.all([
-        timedSupabaseQuery(
+        boqData.variantId ? timedSupabaseQuery(
           supabase
             .from('item_variant_pricing')
             .select('item_id, sale_price, make')
             .eq('company_variant_id', boqData.variantId)
             .eq('is_active', true),
           'BOQ price map variant',
-        ),
+        ) : Promise.resolve(null),
         timedSupabaseQuery(
           supabase
             .from('item_variant_pricing')
@@ -856,6 +855,7 @@ export function BOQ() {
       row.description = material.name || row.description;
       row.hsn_sac = material.hsn_code || material.hsn || material.hsn_sac || row.hsn_sac || '';
       row.unit = material.unit || row.unit || '';
+      row.make = material.make || row.make || '';
       if (!row.variantId && boqData.variantId) {
         row.variantId = boqData.variantId;
         row.variantName = getVariantNameById(boqData.variantId);
