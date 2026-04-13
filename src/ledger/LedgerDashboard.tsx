@@ -14,8 +14,6 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-  TableRowDense,
-  TableCellDense,
 } from '@/components/ui/table';
 
 import { Button } from '@/components/ui/button';
@@ -466,7 +464,7 @@ export default function LedgerDashboard() {
   if (!orgId) {
     return (
       <div className="mx-auto max-w-4xl px-8 py-16">
-        <div className="rounded-2xl border border-indigo-100 bg-white p-8 text-sm text-indigo-900/70 shadow-sm">
+        <div className="rounded-lg border border-zinc-200 bg-white p-8 text-sm text-zinc-500 shadow-sm">
           Select an organisation to open the ledger dashboard.
         </div>
       </div>
@@ -474,152 +472,122 @@ export default function LedgerDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-cream-50">
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
-        
-        .font-display { font-family: 'Space Grotesk', system-ui, sans-serif; }
-        .font-body { font-family: 'IBM Plex Sans', system-ui, sans-serif; }
-        
-        .bg-cream-50 { background-color: oklch(0.97 0.01 85); }
-        .bg-cream-100 { background-color: oklch(0.94 0.02 85); }
-        .bg-navy-950 { background-color: oklch(0.18 0.03 260); }
-        .bg-navy-900 { background-color: oklch(0.25 0.04 260); }
-        .bg-navy-800 { background-color: oklch(0.32 0.05 260); }
-        .text-navy-950 { color: oklch(0.18 0.03 260); }
-        .text-navy-900 { color: oklch(0.25 0.04 260); }
-        .text-navy-600 { color: oklch(0.45 0.06 260); }
-        .text-navy-500 { color: oklch(0.55 0.06 260); }
-        .border-navy-200 { border-color: oklch(0.85 0.04 260); }
-        .border-navy-100 { border-color: oklch(0.91 0.03 260); }
-        .bg-amber-accent { background-color: oklch(0.75 0.15 80); }
-        .text-amber-accent { color: oklch(0.55 0.12 80); }
-        
-        @keyframes fadeUp {
-          from { opacity: 0; transform: translateY(12px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fade-up { animation: fadeUp 0.5s ease-out forwards; }
-        .animation-delay-1 { animation-delay: 0.1s; }
-        .animation-delay-2 { animation-delay: 0.2s; }
-        .animation-delay-3 { animation-delay: 0.3s; }
-      `}</style>
-
-      <div className="mx-auto max-w-7xl px-8 py-12">
+    <div className="min-h-screen bg-zinc-50/50">
+      <div className="mx-auto max-w-7xl px-6 py-8">
         {/* Header */}
-        <div className="mb-10 flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
+        <div className="mb-8 flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <span className="font-body text-xs font-semibold uppercase tracking-[0.2em] text-navy-500">
+            <span className="text-xs font-medium uppercase tracking-widest text-zinc-400">
               Ledger Overview
             </span>
-            <h1 className="font-display mt-3 text-4xl font-semibold tracking-tight text-navy-950">
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-zinc-950">
               Outstanding & Receipts
             </h1>
-            <p className="font-body mt-2 max-w-xl text-sm leading-relaxed text-navy-600">
+            <p className="mt-2 max-w-xl text-sm leading-relaxed text-zinc-500">
               Org-scoped client ledger with outstanding balances, overdue aging, payment capture, and printable statements.
             </p>
           </div>
         </div>
 
         {/* Stats Cards */}
-        <section className="mb-10 grid gap-5 md:grid-cols-3">
-          <div className="animate-fade-up rounded-2xl border border-navy-100 bg-white p-6 shadow-sm">
-            <div className="mb-4 inline-flex rounded-xl bg-cream-100 p-3 text-navy-900">
-              <Wallet size={18} strokeWidth={1.5} />
+        <section className="mb-8 grid gap-4 md:grid-cols-3">
+          <div className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
+            <div className="mb-3 inline-flex rounded-lg bg-zinc-100 p-2.5 text-zinc-600">
+              <Wallet size={16} strokeWidth={1.5} />
             </div>
-            <div className="font-body text-xs font-semibold uppercase tracking-wider text-navy-500">Outstanding</div>
-            <div className="font-display mt-2 text-3xl font-semibold tracking-tight text-navy-950">
+            <div className="text-xs font-medium uppercase tracking-wider text-zinc-400">Outstanding</div>
+            <div className="mt-1.5 text-2xl font-semibold tracking-tight text-zinc-950">
               {formatCurrency(dashboardTotals.totalOutstanding)}
             </div>
           </div>
 
-          <div className="animate-fade-up animation-delay-1 rounded-2xl border border-navy-100 bg-white p-6 shadow-sm">
-            <div className="mb-4 inline-flex rounded-xl bg-cream-100 p-3 text-navy-900">
-              <Landmark size={18} strokeWidth={1.5} />
+          <div className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
+            <div className="mb-3 inline-flex rounded-lg bg-zinc-100 p-2.5 text-zinc-600">
+              <Landmark size={16} strokeWidth={1.5} />
             </div>
-            <div className="font-body text-xs font-semibold uppercase tracking-wider text-navy-500">Invoice Debits</div>
-            <div className="font-display mt-2 text-3xl font-semibold tracking-tight text-navy-950">
+            <div className="text-xs font-medium uppercase tracking-wider text-zinc-400">Invoice Debits</div>
+            <div className="mt-1.5 text-2xl font-semibold tracking-tight text-zinc-950">
               {formatCurrency(dashboardTotals.totalDebits)}
             </div>
           </div>
 
-          <div className="animate-fade-up animation-delay-2 rounded-2xl border border-navy-100 bg-white p-6 shadow-sm">
-            <div className="mb-4 inline-flex rounded-xl bg-cream-100 p-3 text-navy-900">
-              <Filter size={18} strokeWidth={1.5} />
+          <div className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
+            <div className="mb-3 inline-flex rounded-lg bg-zinc-100 p-2.5 text-zinc-600">
+              <Filter size={16} strokeWidth={1.5} />
             </div>
-            <div className="font-body text-xs font-semibold uppercase tracking-wider text-navy-500">Receipt Credits</div>
-            <div className="font-display mt-2 text-3xl font-semibold tracking-tight text-navy-950">
+            <div className="text-xs font-medium uppercase tracking-wider text-zinc-400">Receipt Credits</div>
+            <div className="mt-1.5 text-2xl font-semibold tracking-tight text-zinc-950">
               {formatCurrency(dashboardTotals.totalCredits)}
             </div>
           </div>
         </section>
 
         {/* Main Content */}
-        <section className="animate-fade-up animation-delay-3 rounded-2xl border border-navy-100 bg-white shadow-sm">
+        <section className="rounded-lg border border-zinc-200 bg-white shadow-sm">
           {/* Header with Filter Dropdown and Tabs */}
-          <div className="border-b border-navy-100 p-6">
+          <div className="border-b border-zinc-200 p-4">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div className="flex items-center gap-6">
+              <div className="flex items-center gap-4">
                 {/* Tabs */}
-                <div className="flex rounded-lg border border-navy-200 bg-white p-1">
+                <div className="flex rounded-md border border-zinc-200 bg-zinc-50/50 p-0.5">
                   <button
                     type="button"
                     onClick={() => setActiveTab('ledger')}
-                    className={`font-body inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-semibold transition ${
+                    className={`inline-flex items-center gap-1.5 rounded px-3 py-1.5 text-xs font-medium transition ${
                       activeTab === 'ledger'
-                        ? 'bg-navy-950 text-white'
-                        : 'text-navy-600 hover:bg-cream-50'
+                        ? 'bg-white text-zinc-950 shadow-sm'
+                        : 'text-zinc-500 hover:text-zinc-700'
                     }`}
                   >
-                    <FileText size={16} />
+                    <FileText size={13} />
                     Client Ledger
                   </button>
                   <button
                     type="button"
                     onClick={() => setActiveTab('details')}
-                    className={`font-body inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-semibold transition ${
+                    className={`inline-flex items-center gap-1.5 rounded px-3 py-1.5 text-xs font-medium transition ${
                       activeTab === 'details'
-                        ? 'bg-navy-950 text-white'
-                        : 'text-navy-600 hover:bg-cream-50'
+                        ? 'bg-white text-zinc-950 shadow-sm'
+                        : 'text-zinc-500 hover:text-zinc-700'
                     }`}
                   >
-                    <Pencil size={16} />
+                    <Pencil size={13} />
                     Details
                     {hasPendingDetailsChanges && (
-                      <span className="ml-1 h-2 w-2 rounded-full bg-amber-500" />
+                      <span className="ml-1 h-1.5 w-1.5 rounded-full bg-amber-500" />
                     )}
                   </button>
                   <button
                     type="button"
                     onClick={() => setActiveTab('opening-balance')}
-                    className={`font-body inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-semibold transition ${
+                    className={`inline-flex items-center gap-1.5 rounded px-3 py-1.5 text-xs font-medium transition ${
                       activeTab === 'opening-balance'
-                        ? 'bg-navy-950 text-white'
-                        : 'text-navy-600 hover:bg-cream-50'
+                        ? 'bg-white text-zinc-950 shadow-sm'
+                        : 'text-zinc-500 hover:text-zinc-700'
                     }`}
                   >
-                    <Calculator size={16} />
+                    <Calculator size={13} />
                     Opening Balance
                   </button>
                 </div>
 
                 {activeTab === 'ledger' && (
-                  <span className="font-body text-sm text-navy-500">
+                  <span className="text-xs text-zinc-500">
                     {rangeLabel}
                   </span>
                 )}
                 {activeTab === 'details' && selectedClient && (
-                  <span className="font-display text-sm font-medium text-navy-950">
+                  <span className="text-sm font-medium text-zinc-950">
                     {selectedClient.name}
                   </span>
                 )}
                 {activeTab === 'opening-balance' && (
                   <div className="flex items-center gap-2">
-                    <span className="font-body text-sm text-navy-500">FY:</span>
+                    <span className="text-xs text-zinc-500">FY:</span>
                     <select
                       value={selectedFy}
                       onChange={(e) => setSelectedFy(e.target.value)}
-                      className="font-body h-8 rounded border border-navy-200 bg-white px-2 text-sm text-navy-900 outline-none focus:border-navy-500"
+                      className="h-7 rounded border border-zinc-200 bg-white px-2 text-xs text-zinc-900 outline-none focus:border-zinc-400"
                     >
                       <option value="">Select FY</option>
                       {generateFyOptions(
@@ -633,14 +601,14 @@ export default function LedgerDashboard() {
                 )}
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
                 {activeTab === 'details' && hasPendingDetailsChanges && (
                   <Button
                     size="sm"
                     variant="primary"
                     onClick={handleSaveAllChanges}
                     isLoading={deleteReceiptMutation.isPending}
-                    leftIcon={<Save size={14} />}
+                    leftIcon={<Save size={12} />}
                   >
                     Save Changes
                   </Button>
@@ -651,7 +619,7 @@ export default function LedgerDashboard() {
                     size="sm"
                     variant="secondary"
                     onClick={handleStartOpeningBalanceEdit}
-                    leftIcon={<Pencil size={14} />}
+                    leftIcon={<Pencil size={12} />}
                   >
                     Edit
                   </Button>
@@ -662,28 +630,28 @@ export default function LedgerDashboard() {
                     <DropdownMenuTrigger asChild>
                       <button
                         type="button"
-                        className="font-body inline-flex items-center gap-2 rounded-lg border border-navy-200 bg-white px-4 py-2.5 text-sm font-semibold text-navy-700 transition hover:bg-cream-50"
+                        className="inline-flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50"
                       >
-                        <Filter size={16} />
+                        <Filter size={13} />
                         Filters
-                        <ChevronDown size={14} />
+                        <ChevronDown size={11} />
                       </button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-80 p-4">
-                      <div className="space-y-4">
-                        <div className="font-body text-xs font-semibold uppercase tracking-[0.15em] text-navy-500">
+                    <DropdownMenuContent align="end" className="w-72 p-3">
+                      <div className="space-y-3">
+                        <div className="text-[10px] font-medium uppercase tracking-wider text-zinc-400">
                           Presets
                         </div>
-                        <div className="flex flex-wrap gap-2">
+                        <div className="flex flex-wrap gap-1.5">
                           {(['monthly', 'financial-year', 'last-3-months', 'last-6-months', 'last-2-years'] as RangePreset[]).map((preset) => (
                             <button
                               key={preset}
                               type="button"
                               onClick={() => handlePreset(preset)}
-                              className={`font-body rounded-full px-3 py-1.5 text-xs font-semibold transition-all ${
+                              className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition ${
                                 selectedPreset === preset
-                                  ? 'bg-navy-950 text-white'
-                                  : 'border border-navy-200 bg-white text-navy-600 hover:bg-cream-50'
+                                  ? 'bg-zinc-900 text-white'
+                                  : 'border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50'
                               }`}
                             >
                               {getPresetLabel(preset)}
@@ -691,13 +659,13 @@ export default function LedgerDashboard() {
                           ))}
                         </div>
 
-                        <div className="border-t border-slate-200 pt-4">
-                          <div className="font-body text-xs font-semibold uppercase tracking-[0.15em] text-navy-500 mb-3">
+                        <div className="border-t border-zinc-100 pt-3">
+                          <div className="mb-2 text-[10px] font-medium uppercase tracking-wider text-zinc-400">
                             Custom Range
                           </div>
-                          <div className="grid gap-3">
+                          <div className="grid gap-2">
                             <div className="space-y-1">
-                              <label className="font-body block text-xs font-medium text-navy-600">From</label>
+                              <label className="block text-[11px] font-medium text-zinc-500">From</label>
                               <input
                                 type="date"
                                 value={startDate}
@@ -705,11 +673,11 @@ export default function LedgerDashboard() {
                                   setSelectedPreset(null);
                                   setStartDate(event.target.value);
                                 }}
-                                className="font-body h-9 w-full rounded-md border border-navy-200 bg-white px-3 text-sm text-navy-900 outline-none transition focus:border-navy-500 focus:ring-1 focus:ring-navy-100"
+                                className="h-8 w-full rounded border border-zinc-200 bg-white px-2.5 text-xs text-zinc-900 outline-none transition focus:border-zinc-400"
                               />
                             </div>
                             <div className="space-y-1">
-                              <label className="font-body block text-xs font-medium text-navy-600">To</label>
+                              <label className="block text-[11px] font-medium text-zinc-500">To</label>
                               <input
                                 type="date"
                                 value={endDate}
@@ -717,19 +685,19 @@ export default function LedgerDashboard() {
                                   setSelectedPreset(null);
                                   setEndDate(event.target.value);
                                 }}
-                                className="font-body h-9 w-full rounded-md border border-navy-200 bg-white px-3 text-sm text-navy-900 outline-none transition focus:border-navy-500 focus:ring-1 focus:ring-navy-100"
+                                className="h-8 w-full rounded border border-zinc-200 bg-white px-2.5 text-xs text-zinc-900 outline-none transition focus:border-zinc-400"
                               />
                             </div>
                           </div>
                         </div>
 
-                        <div className="border-t border-slate-200 pt-4">
-                          <label className="font-body flex cursor-pointer items-center gap-2 text-sm text-navy-600">
+                        <div className="border-t border-zinc-100 pt-3">
+                          <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-600">
                             <input
                               type="checkbox"
                               checked={saveAsDefault}
                               onChange={(event) => setSaveAsDefault(event.target.checked)}
-                              className="h-4 w-4 rounded border-navy-300 text-navy-950 focus:ring-navy-500"
+                              className="h-3.5 w-3.5 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-500"
                             />
                             Save as default
                           </label>
@@ -739,7 +707,7 @@ export default function LedgerDashboard() {
                           size="sm"
                           onClick={handleApplyFilters}
                           disabled={!hasPendingFilterChanges}
-                          leftIcon={<Search size={14} />}
+                          leftIcon={<Search size={12} />}
                           className="w-full"
                         >
                           Apply Filters
@@ -753,102 +721,104 @@ export default function LedgerDashboard() {
           </div>
 
           {/* Content Area */}
-          <div className="grid gap-6 p-6 xl:grid-cols-[1fr_340px]">
+          <div className="grid gap-5 p-4 xl:grid-cols-[1fr_320px]">
             {/* Main Table Area */}
-            <div className="overflow-hidden rounded-xl border border-navy-100">
+            <div className="overflow-hidden rounded-lg border border-zinc-200">
               {activeTab === 'ledger' && (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="text-gray-400 font-normal">Client</TableHead>
-                      <TableHead className="text-right text-gray-400 font-normal">Outstanding</TableHead>
-                      <TableHead className="text-gray-400 font-normal">Due Date</TableHead>
-                      <TableHead className="text-gray-400 font-normal">Status</TableHead>
-                      <TableHead className="text-right text-gray-400 font-normal">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {isLoading && (
-                      <TableRow>
-                        <TableCell colSpan={5} className="py-16 text-center">
-                          <span className="font-body inline-flex items-center gap-2 text-sm text-navy-500">
-                            <Loader2 className="animate-spin" size={14} />
-                            Loading ledger data...
-                          </span>
-                        </TableCell>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-b border-zinc-200 bg-zinc-50/80">
+                        <TableHead className="h-9 px-3 text-left align-middle text-[11px] font-medium text-zinc-500">Client</TableHead>
+                        <TableHead className="h-9 px-3 text-right align-middle text-[11px] font-medium text-zinc-500">Outstanding</TableHead>
+                        <TableHead className="h-9 px-3 text-left align-middle text-[11px] font-medium text-zinc-500">Due Date</TableHead>
+                        <TableHead className="h-9 px-3 text-left align-middle text-[11px] font-medium text-zinc-500">Status</TableHead>
+                        <TableHead className="h-9 px-3 text-right align-middle text-[11px] font-medium text-zinc-500">Actions</TableHead>
                       </TableRow>
-                    )}
+                    </TableHeader>
+                    <TableBody className="[&_tr:last-child]:border-0">
+                      {isLoading && (
+                        <tr>
+                          <td colSpan={5} className="px-3 py-12 text-center">
+                            <span className="inline-flex items-center gap-1.5 text-xs text-zinc-500">
+                              <Loader2 size={12} className="animate-spin" />
+                              Loading ledger data...
+                            </span>
+                          </td>
+                        </tr>
+                      )}
 
-                    {!isLoading && summaries.length === 0 && (
-                      <TableRow>
-                        <TableCell colSpan={5} className="py-16 text-center">
-                          <div className="mx-auto max-w-md space-y-3">
-                            <div className="font-display text-base font-semibold text-navy-950">No ledger data found</div>
-                            <div className="font-body text-sm text-navy-600">
-                              Make sure your clients are linked to this organisation, then record invoices and receipts.
+                      {!isLoading && summaries.length === 0 && (
+                        <tr>
+                          <td colSpan={5} className="px-3 py-12 text-center">
+                            <div className="mx-auto max-w-sm space-y-2">
+                              <div className="text-sm font-medium text-zinc-950">No ledger data found</div>
+                              <div className="text-xs text-zinc-500">
+                                Make sure your clients are linked to this organisation, then record invoices and receipts.
+                              </div>
                             </div>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    )}
+                          </td>
+                        </tr>
+                      )}
 
-                    {summaries.map((summary) => (
-                      <TableRowDense key={summary.clientId}>
-                        <TableCellDense>
-                          <div className="font-display font-medium text-navy-950">{summary.clientName}</div>
-                        </TableCellDense>
-                        <TableCellDense className="text-right font-display font-medium text-navy-950">
-                          {formatCurrency(summary.outstanding)}
-                        </TableCellDense>
-                        <TableCellDense className="text-navy-600">
-                          {formatDisplayDate(summary.oldestDueDate)}
-                        </TableCellDense>
-                        <TableCellDense>
-                          {(() => {
-                            const status = statusBadge(summary);
-                            const dotColors = {
-                              emerald: 'bg-emerald-400',
-                              rose: 'bg-rose-400',
-                              amber: 'bg-amber-400',
-                            };
-                            return (
-                              <span className={`font-body inline-flex items-center gap-2 text-xs ${status.color}`}>
-                                <span className={`h-1.5 w-1.5 rounded-full ${dotColors[status.icon as keyof typeof dotColors]}`} />
-                                {status.label}
-                              </span>
-                            );
-                          })()}
-                        </TableCellDense>
-                        <TableCellDense className="text-right">
-                          <button
-                            type="button"
-                            onClick={() => handleView(summary.clientId)}
-                            className="font-body text-xs text-navy-600 underline underline-offset-2 hover:text-navy-900"
-                          >
-                            View Ledger
-                          </button>
-                          <span className="mx-2 text-gray-300">·</span>
-                          <button
-                            type="button"
-                            onClick={() => handleEditLedger(summary.clientId)}
-                            className="font-body text-xs text-navy-600 underline underline-offset-2 hover:text-navy-900"
-                          >
-                            Edit Details
-                          </button>
-                        </TableCellDense>
-                      </TableRowDense>
-                    ))}
-                  </TableBody>
-                </Table>
+                      {summaries.map((summary) => (
+                        <tr key={summary.clientId} className="border-b border-zinc-100 hover:bg-zinc-50/50">
+                          <td className="px-3 py-2.5 align-middle">
+                            <span className="text-sm font-medium text-zinc-950">{summary.clientName}</span>
+                          </td>
+                          <td className="px-3 py-2.5 text-right align-middle">
+                            <span className="text-sm font-medium text-zinc-950">{formatCurrency(summary.outstanding)}</span>
+                          </td>
+                          <td className="px-3 py-2.5 align-middle">
+                            <span className="text-xs text-zinc-500">{formatDisplayDate(summary.oldestDueDate)}</span>
+                          </td>
+                          <td className="px-3 py-2.5 align-middle">
+                            {(() => {
+                              const status = statusBadge(summary);
+                              const dotColors = {
+                                emerald: 'bg-emerald-500',
+                                rose: 'bg-rose-500',
+                                amber: 'bg-amber-500',
+                              };
+                              return (
+                                <span className={`inline-flex items-center gap-1.5 text-xs ${status.color}`}>
+                                  <span className={`h-1.5 w-1.5 rounded-full ${dotColors[status.icon as keyof typeof dotColors]}`} />
+                                  {status.label}
+                                </span>
+                              );
+                            })()}
+                          </td>
+                          <td className="px-3 py-2.5 text-right align-middle">
+                            <button
+                              type="button"
+                              onClick={() => handleView(summary.clientId)}
+                              className="text-[11px] text-zinc-500 underline underline-offset-2 hover:text-zinc-700"
+                            >
+                              View Ledger
+                            </button>
+                            <span className="mx-1.5 text-zinc-300">·</span>
+                            <button
+                              type="button"
+                              onClick={() => handleEditLedger(summary.clientId)}
+                              className="text-[11px] text-zinc-500 underline underline-offset-2 hover:text-zinc-700"
+                            >
+                              Edit Details
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               )}
 
               {activeTab === 'details' && (
-                <div className="p-6">
+                <div className="p-4">
                   {!selectedClient && (
                     <div className="py-12 text-center">
-                      <div className="mx-auto max-w-md space-y-3">
-                        <div className="font-display text-base font-semibold text-navy-950">Select a client</div>
-                        <div className="font-body text-sm text-navy-600">
+                      <div className="mx-auto max-w-sm space-y-2">
+                        <div className="text-sm font-medium text-zinc-950">Select a client</div>
+                        <div className="text-xs text-zinc-500">
                           Click on a client from the Client Ledger tab, or select "Edit Details" from the actions menu.
                         </div>
                       </div>
@@ -857,9 +827,9 @@ export default function LedgerDashboard() {
 
                   {selectedClient && selectedClientReceipts.length === 0 && !isLoading && (
                     <div className="py-12 text-center">
-                      <div className="mx-auto max-w-md space-y-3">
-                        <div className="font-display text-base font-semibold text-navy-950">No receipts found</div>
-                        <div className="font-body text-sm text-navy-600">
+                      <div className="mx-auto max-w-sm space-y-2">
+                        <div className="text-sm font-medium text-zinc-950">No receipts found</div>
+                        <div className="text-xs text-zinc-500">
                           This client has no receipt records in the selected date range.
                         </div>
                       </div>
@@ -868,150 +838,144 @@ export default function LedgerDashboard() {
 
                   {selectedClient && selectedClientReceipts.length > 0 && (
                     <div className="space-y-4">
-                      <div className="font-display text-sm font-semibold text-navy-500 uppercase tracking-wider">
+                      <div className="text-[11px] font-medium uppercase tracking-wider text-zinc-400">
                         Receipts for {selectedClient.name}
                       </div>
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Date</TableHead>
-                            <TableHead>Payment Type</TableHead>
-                            <TableHead>Remarks</TableHead>
-                            <TableHead className="text-right">Amount</TableHead>
-                            <TableHead className="text-right">Actions</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {selectedClientReceipts.map((receipt) => {
-                            const isEditing = editingReceiptId === receipt.id;
-                            const isPendingDelete = pendingDeletes.has(receipt.id);
+                      <div className="overflow-x-auto rounded-lg border border-zinc-200">
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="border-b border-zinc-200 bg-zinc-50/80">
+                              <TableHead className="h-9 px-3 text-left align-middle text-[11px] font-medium text-zinc-500">Date</TableHead>
+                              <TableHead className="h-9 px-3 text-left align-middle text-[11px] font-medium text-zinc-500">Payment Type</TableHead>
+                              <TableHead className="h-9 px-3 text-left align-middle text-[11px] font-medium text-zinc-500">Remarks</TableHead>
+                              <TableHead className="h-9 px-3 text-right align-middle text-[11px] font-medium text-zinc-500">Amount</TableHead>
+                              <TableHead className="h-9 px-3 text-right align-middle text-[11px] font-medium text-zinc-500">Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody className="[&_tr:last-child]:border-0">
+                            {selectedClientReceipts.map((receipt) => {
+                              const isEditing = editingReceiptId === receipt.id;
+                              const isPendingDelete = pendingDeletes.has(receipt.id);
 
-                            if (isPendingDelete) {
-                              return (
-                                <TableRow key={receipt.id} className="bg-rose-50/50">
-                                  <TableCellDense colSpan={4} className="text-rose-600">
-                                    <span className="line-through opacity-60">
-                                      {formatDisplayDate(receipt.receipt_date)} — {receipt.remarks || 'Receipt'}
-                                    </span>
-                                    <span className="ml-2 text-xs font-semibold">(Marked for deletion)</span>
-                                  </TableCellDense>
-                                  <TableCellDense className="text-right">
-                                    <button
-                                      type="button"
-                                      onClick={() => handleUndoDelete(receipt.id)}
-                                      className="font-body inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-navy-600 hover:bg-cream-100"
-                                    >
-                                      <X size={12} />
-                                      Undo
-                                    </button>
-                                  </TableCellDense>
-                                </TableRow>
-                              );
-                            }
-
-                            if (isEditing && editingForm) {
-                              return (
-                                <TableRow key={receipt.id} className="bg-amber-50/50">
-                                  <TableCellDense>
-                                    <input
-                                      type="date"
-                                      value={editingForm.receipt_date}
-                                      onChange={(e) => setEditingForm({ ...editingForm, receipt_date: e.target.value })}
-                                      className="font-body h-8 w-full rounded border border-navy-200 px-2 text-sm"
-                                    />
-                                  </TableCellDense>
-                                  <TableCellDense>
-                                    <select
-                                      value={editingForm.payment_type}
-                                      onChange={(e) => setEditingForm({ ...editingForm, payment_type: e.target.value })}
-                                      className="font-body h-8 w-full rounded border border-navy-200 px-2 text-sm"
-                                    >
-                                      <option value="">-</option>
-                                      <option value="Opening Balance">Opening Balance</option>
-                                      <option value="Advance">Advance</option>
-                                    </select>
-                                  </TableCellDense>
-                                  <TableCellDense>
-                                    <input
-                                      type="text"
-                                      value={editingForm.remarks}
-                                      onChange={(e) => setEditingForm({ ...editingForm, remarks: e.target.value })}
-                                      className="font-body h-8 w-full rounded border border-navy-200 px-2 text-sm"
-                                    />
-                                  </TableCellDense>
-                                  <TableCellDense className="text-right">
-                                    <input
-                                      type="number"
-                                      step="0.01"
-                                      value={editingForm.amount}
-                                      onChange={(e) => setEditingForm({ ...editingForm, amount: parseFloat(e.target.value) || 0 })}
-                                      className="font-body h-8 w-28 rounded border border-navy-200 px-2 text-sm text-right"
-                                    />
-                                  </TableCellDense>
-                                  <TableCellDense className="text-right">
-                                    <div className="flex items-center justify-end gap-2">
+                              if (isPendingDelete) {
+                                return (
+                                  <tr key={receipt.id} className="bg-rose-50/50 border-b border-rose-100">
+                                    <td colSpan={4} className="px-3 py-2.5 text-xs text-rose-600">
+                                      <span className="line-through opacity-60">
+                                        {formatDisplayDate(receipt.receipt_date)} — {receipt.remarks || 'Receipt'}
+                                      </span>
+                                      <span className="ml-2 text-[10px] font-semibold">(Marked for deletion)</span>
+                                    </td>
+                                    <td className="px-3 py-2.5 text-right">
                                       <button
                                         type="button"
-                                        onClick={handleSaveEdit}
-                                        disabled={updateReceiptMutation.isPending}
-                                        className="font-body inline-flex h-7 w-7 items-center justify-center rounded-md bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
+                                        onClick={() => handleUndoDelete(receipt.id)}
+                                        className="inline-flex items-center gap-1 rounded px-2 py-1 text-[11px] font-medium text-zinc-600 hover:bg-zinc-100"
                                       >
-                                        {updateReceiptMutation.isPending ? (
-                                          <Loader2 size={14} className="animate-spin" />
-                                        ) : (
-                                          <Save size={14} />
-                                        )}
+                                        <X size={10} />
+                                        Undo
+                                      </button>
+                                    </td>
+                                  </tr>
+                                );
+                              }
+
+                              if (isEditing && editingForm) {
+                                return (
+                                  <tr key={receipt.id} className="bg-amber-50/50 border-b border-amber-100">
+                                    <td className="px-3 py-2">
+                                      <input
+                                        type="date"
+                                        value={editingForm.receipt_date}
+                                        onChange={(e) => setEditingForm({ ...editingForm, receipt_date: e.target.value })}
+                                        className="h-7 w-full rounded border border-zinc-200 px-2 text-xs"
+                                      />
+                                    </td>
+                                    <td className="px-3 py-2">
+                                      <select
+                                        value={editingForm.payment_type}
+                                        onChange={(e) => setEditingForm({ ...editingForm, payment_type: e.target.value })}
+                                        className="h-7 w-full rounded border border-zinc-200 px-2 text-xs"
+                                      >
+                                        <option value="">-</option>
+                                        <option value="Opening Balance">Opening Balance</option>
+                                        <option value="Advance">Advance</option>
+                                      </select>
+                                    </td>
+                                    <td className="px-3 py-2">
+                                      <input
+                                        type="text"
+                                        value={editingForm.remarks}
+                                        onChange={(e) => setEditingForm({ ...editingForm, remarks: e.target.value })}
+                                        className="h-7 w-full rounded border border-zinc-200 px-2 text-xs"
+                                      />
+                                    </td>
+                                    <td className="px-3 py-2">
+                                      <input
+                                        type="number"
+                                        step="0.01"
+                                        value={editingForm.amount}
+                                        onChange={(e) => setEditingForm({ ...editingForm, amount: parseFloat(e.target.value) || 0 })}
+                                        className="h-7 w-24 rounded border border-zinc-200 px-2 text-right text-xs"
+                                      />
+                                    </td>
+                                    <td className="px-3 py-2 text-right">
+                                      <div className="inline-flex items-center gap-1">
+                                        <button
+                                          type="button"
+                                          onClick={handleSaveEdit}
+                                          disabled={updateReceiptMutation.isPending}
+                                          className="inline-flex h-6 w-6 items-center justify-center rounded bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
+                                        >
+                                          {updateReceiptMutation.isPending ? (
+                                            <Loader2 size={10} className="animate-spin" />
+                                          ) : (
+                                            <Save size={10} />
+                                          )}
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={handleCancelEdit}
+                                          className="inline-flex h-6 w-6 items-center justify-center rounded border border-zinc-200 text-zinc-600 hover:bg-zinc-100"
+                                        >
+                                          <X size={10} />
+                                        </button>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                );
+                              }
+
+                              return (
+                                <tr key={receipt.id} className="border-b border-zinc-100 hover:bg-zinc-50/50">
+                                  <td className="px-3 py-2.5 text-xs text-zinc-600">{formatDisplayDate(receipt.receipt_date)}</td>
+                                  <td className="px-3 py-2.5 text-xs text-zinc-600">{receipt.payment_type || '-'}</td>
+                                  <td className="px-3 py-2.5 text-sm text-zinc-950">{receipt.remarks || 'Receipt'}</td>
+                                  <td className="px-3 py-2.5 text-right text-sm font-medium text-zinc-950">{formatCurrency(receipt.amount)}</td>
+                                  <td className="px-3 py-2.5 text-right">
+                                    <div className="inline-flex items-center gap-1">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleStartEdit(receipt)}
+                                        className="inline-flex h-6 w-6 items-center justify-center rounded border border-zinc-200 text-zinc-600 hover:bg-zinc-100"
+                                      >
+                                        <Pencil size={10} />
                                       </button>
                                       <button
                                         type="button"
-                                        onClick={handleCancelEdit}
-                                        className="font-body inline-flex h-7 w-7 items-center justify-center rounded-md border border-navy-200 text-navy-600 hover:bg-cream-100"
+                                        onClick={() => handleMarkDelete(receipt.id)}
+                                        className="inline-flex h-6 w-6 items-center justify-center rounded border border-rose-200 text-rose-600 hover:bg-rose-50"
                                       >
-                                        <X size={14} />
+                                        <Trash2 size={10} />
                                       </button>
                                     </div>
-                                  </TableCellDense>
-                                </TableRow>
+                                  </td>
+                                </tr>
                               );
-                            }
-
-                            return (
-                              <TableRowDense key={receipt.id}>
-                                <TableCellDense className="text-navy-600">
-                                  {formatDisplayDate(receipt.receipt_date)}
-                                </TableCellDense>
-                                <TableCellDense className="text-navy-600">
-                                  {receipt.payment_type || '-'}
-                                </TableCellDense>
-                                <TableCellDense className="text-navy-950">
-                                  {receipt.remarks || 'Receipt'}
-                                </TableCellDense>
-                                <TableCellDense className="text-right font-display font-medium text-navy-950">
-                                  {formatCurrency(receipt.amount)}
-                                </TableCellDense>
-                                <TableCellDense className="text-right">
-                                  <div className="flex items-center justify-end gap-2">
-                                    <button
-                                      type="button"
-                                      onClick={() => handleStartEdit(receipt)}
-                                      className="font-body inline-flex h-7 w-7 items-center justify-center rounded-md border border-navy-200 text-navy-600 hover:bg-cream-100"
-                                    >
-                                      <Pencil size={14} />
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleMarkDelete(receipt.id)}
-                                      className="font-body inline-flex h-7 w-7 items-center justify-center rounded-md border border-rose-200 text-rose-600 hover:bg-rose-50"
-                                    >
-                                      <Trash2 size={14} />
-                                    </button>
-                                  </div>
-                                </TableCellDense>
-                              </TableRowDense>
-                            );
-                          })}
-                        </TableBody>
-                      </Table>
+                            })}
+                          </TableBody>
+                        </Table>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -1036,23 +1000,23 @@ export default function LedgerDashboard() {
 
             {/* Payment Form - Hidden for opening-balance tab */}
             {activeTab !== 'opening-balance' && (
-            <div ref={paymentCardRef} className="h-fit rounded-xl border border-navy-100 bg-cream-50 p-1">
-              <div className="rounded-lg border border-navy-100 bg-white p-5 shadow-sm">
-                <span className="font-body text-xs font-semibold uppercase tracking-[0.15em] text-navy-500">Record Payment</span>
-                <h2 className="font-display mt-2 text-xl font-semibold tracking-tight text-navy-950">Add receipt</h2>
-                <p className="font-body mt-1 text-sm leading-relaxed text-navy-600">
+            <div ref={paymentCardRef} className="h-fit rounded-lg border border-zinc-200 bg-zinc-50/50 p-0.5">
+              <div className="rounded-md border border-zinc-200 bg-white p-4 shadow-sm">
+                <span className="text-[10px] font-medium uppercase tracking-wider text-zinc-400">Record Payment</span>
+                <h2 className="mt-1.5 text-lg font-semibold tracking-tight text-zinc-950">Add receipt</h2>
+                <p className="mt-1 text-xs leading-relaxed text-zinc-500">
                   Receipts refresh the ledger immediately after save.
                 </p>
 
                 <form
                   onSubmit={paymentForm.handleSubmit((values) => recordPaymentMutation.mutate(values))}
-                  className="mt-5 space-y-4"
+                  className="mt-4 space-y-3"
                 >
-                  <div className="space-y-1.5">
-                    <span className="font-body block text-xs font-semibold uppercase tracking-[0.15em] text-navy-500">Client</span>
+                  <div className="space-y-1">
+                    <span className="block text-[11px] font-medium uppercase tracking-wider text-zinc-400">Client</span>
                     <select
                       {...paymentForm.register('client_id')}
-                      className="font-body h-11 w-full rounded-lg border border-navy-200 bg-white px-3 text-sm text-navy-900 outline-none transition focus:border-navy-500 focus:ring-2 focus:ring-navy-100"
+                      className="h-9 w-full rounded-md border border-zinc-200 bg-white px-2.5 text-xs text-zinc-900 outline-none transition focus:border-zinc-400"
                     >
                       <option value="">Select client</option>
                       {clients.map((client) => (
@@ -1062,43 +1026,43 @@ export default function LedgerDashboard() {
                       ))}
                     </select>
                     {paymentForm.formState.errors.client_id && (
-                      <p className="font-body text-xs text-rose-600">{paymentForm.formState.errors.client_id.message}</p>
+                      <p className="text-[11px] text-rose-600">{paymentForm.formState.errors.client_id.message}</p>
                     )}
                   </div>
 
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div className="space-y-1.5">
-                      <span className="font-body block text-xs font-semibold uppercase tracking-[0.15em] text-navy-500">Amount</span>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <span className="block text-[11px] font-medium uppercase tracking-wider text-zinc-400">Amount</span>
                       <input
                         type="number"
                         step="0.01"
                         {...paymentForm.register('amount')}
-                        className="font-body h-11 w-full rounded-lg border border-navy-200 bg-white px-3 text-sm text-navy-900 outline-none transition focus:border-navy-500 focus:ring-2 focus:ring-navy-100"
+                        className="h-9 w-full rounded-md border border-zinc-200 bg-white px-2.5 text-xs text-zinc-900 outline-none transition focus:border-zinc-400"
                         placeholder="0.00"
                       />
                       {paymentForm.formState.errors.amount && (
-                        <p className="font-body text-xs text-rose-600">{paymentForm.formState.errors.amount.message}</p>
+                        <p className="text-[11px] text-rose-600">{paymentForm.formState.errors.amount.message}</p>
                       )}
                     </div>
 
-                    <div className="space-y-1.5">
-                      <span className="font-body block text-xs font-semibold uppercase tracking-[0.15em] text-navy-500">Date</span>
+                    <div className="space-y-1">
+                      <span className="block text-[11px] font-medium uppercase tracking-wider text-zinc-400">Date</span>
                       <input
                         type="date"
                         {...paymentForm.register('receipt_date')}
-                        className="font-body h-11 w-full rounded-lg border border-navy-200 bg-white px-3 text-sm text-navy-900 outline-none transition focus:border-navy-500 focus:ring-2 focus:ring-navy-100"
+                        className="h-9 w-full rounded-md border border-zinc-200 bg-white px-2.5 text-xs text-zinc-900 outline-none transition focus:border-zinc-400"
                       />
                       {paymentForm.formState.errors.receipt_date && (
-                        <p className="font-body text-xs text-rose-600">{paymentForm.formState.errors.receipt_date.message}</p>
+                        <p className="text-[11px] text-rose-600">{paymentForm.formState.errors.receipt_date.message}</p>
                       )}
                     </div>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <span className="font-body block text-xs font-semibold uppercase tracking-[0.15em] text-navy-500">Payment Type</span>
+                  <div className="space-y-1">
+                    <span className="block text-[11px] font-medium uppercase tracking-wider text-zinc-400">Payment Type</span>
                     <select
                       {...paymentForm.register('payment_type')}
-                      className="font-body h-11 w-full rounded-lg border border-navy-200 bg-white px-3 text-sm text-navy-900 outline-none transition focus:border-navy-500 focus:ring-2 focus:ring-navy-100"
+                      className="h-9 w-full rounded-md border border-zinc-200 bg-white px-2.5 text-xs text-zinc-900 outline-none transition focus:border-zinc-400"
                     >
                       <option value="">-- Select (Optional) --</option>
                       <option value="Opening Balance">Opening Balance</option>
@@ -1106,16 +1070,16 @@ export default function LedgerDashboard() {
                     </select>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <span className="font-body block text-xs font-semibold uppercase tracking-[0.15em] text-navy-500">Remarks</span>
+                  <div className="space-y-1">
+                    <span className="block text-[11px] font-medium uppercase tracking-wider text-zinc-400">Remarks</span>
                     <textarea
                       {...paymentForm.register('remarks')}
-                      rows={3}
-                      className="font-body w-full rounded-lg border border-navy-200 bg-white px-3 py-2.5 text-sm text-navy-900 outline-none transition focus:border-navy-500 focus:ring-2 focus:ring-navy-100"
+                      rows={2}
+                      className="w-full rounded-md border border-zinc-200 bg-white px-2.5 py-2 text-xs text-zinc-900 outline-none transition focus:border-zinc-400"
                       placeholder="Advance, part payment, retention release..."
                     />
                     {paymentForm.formState.errors.remarks && (
-                      <p className="font-body text-xs text-rose-600">{paymentForm.formState.errors.remarks.message}</p>
+                      <p className="text-[11px] text-rose-600">{paymentForm.formState.errors.remarks.message}</p>
                     )}
                   </div>
 
@@ -1123,7 +1087,7 @@ export default function LedgerDashboard() {
                     type="submit"
                     disabled={recordPaymentMutation.isPending || clients.length === 0}
                     isLoading={recordPaymentMutation.isPending}
-                    leftIcon={<Plus size={14} />}
+                    leftIcon={<Plus size={12} />}
                     className="w-full"
                   >
                     Record Payment
