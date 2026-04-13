@@ -44,9 +44,9 @@ function buildLedgerPdfDoc(
   rangeLabel: string,
 ) {
   const doc = new jsPDF({ unit: 'pt', format: 'a4' });
-  const netBalance = summary.outstanding;
   const totalDebit = rows.reduce((sum, row) => sum + row.debit, 0);
   const totalCredit = rows.reduce((sum, row) => sum + row.credit, 0);
+  const netBalance = totalDebit - totalCredit;
 
   // Header area
   doc.setDrawColor(226, 232, 240);
@@ -184,7 +184,7 @@ export default function LedgerModal({
 
   const totalDebit = rows.reduce((sum, row) => sum + row.debit, 0);
   const totalCredit = rows.reduce((sum, row) => sum + row.credit, 0);
-  const netBalance = Number(((summary?.outstanding ?? 0)).toFixed(2));
+  const netBalance = Number(((totalDebit - totalCredit)).toFixed(2));
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
