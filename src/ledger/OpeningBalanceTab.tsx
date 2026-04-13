@@ -40,6 +40,9 @@ const OpeningBalanceTab = memo(function OpeningBalanceTab({
         </div>
         <div className="font-body mt-1 text-xs text-navy-600">
           Set the opening balance for each client at the start of the financial year.
+          <span className="ml-2 text-navy-400">
+            (Positive = Debit/Owed, Negative = Credit/Advance)
+          </span>
         </div>
       </div>
       
@@ -91,11 +94,13 @@ const OpeningBalanceTab = memo(function OpeningBalanceTab({
                         step="0.01"
                         value={draftOb?.amount ?? obValue?.amount ?? 0}
                         onChange={(e) => {
+                          const val = e.target.value;
+                          const amount = val === '' ? 0 : parseFloat(val);
                           setOpeningBalanceDrafts(prev => ({
                             ...prev,
                             [client.id]: {
                               client_id: client.id,
-                              amount: parseFloat(e.target.value) || 0,
+                              amount: isNaN(amount) ? 0 : amount,
                               as_of_date: prev[client.id]?.as_of_date ?? obValue?.as_of_date ?? `${selectedFy.slice(-7).replace('-', '-04-01')}`,
                               remarks: prev[client.id]?.remarks ?? obValue?.remarks ?? '',
                             }
@@ -104,7 +109,7 @@ const OpeningBalanceTab = memo(function OpeningBalanceTab({
                         className="font-body h-8 w-32 rounded border border-navy-200 px-2 text-right text-sm"
                       />
                     ) : (
-                      <span className="font-display font-medium text-navy-950">
+                      <span className={`font-display font-medium ${(obValue?.amount ?? 0) < 0 ? 'text-emerald-600' : 'text-navy-950'}`}>
                         {formatCurrency(obValue?.amount ?? 0)}
                       </span>
                     )}

@@ -94,14 +94,15 @@ export function buildLedgerStatementRows(
 ): LedgerStatementRow[] {
   const rows: LedgerStatementRow[] = [];
 
-  if (openingBalance && openingBalance.amount > 0) {
+  if (openingBalance && openingBalance.amount !== 0) {
+    const amount = Number(openingBalance.amount || 0);
     rows.push({
       id: `ob-${openingBalance.id}`,
       date: openingBalance.as_of_date || '',
       type: 'Opening Balance' as const,
-      remarks: openingBalance.remarks || `Opening Balance`,
-      debit: Number(openingBalance.amount || 0),
-      credit: 0,
+      remarks: openingBalance.remarks || (amount < 0 ? `Advance/Excess Payment` : `Opening Balance`),
+      debit: amount > 0 ? amount : 0,
+      credit: amount < 0 ? Math.abs(amount) : 0,
     });
   }
 
