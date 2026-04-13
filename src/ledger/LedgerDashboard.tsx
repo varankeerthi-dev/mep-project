@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { endOfMonth, format, subMonths, subYears, startOfMonth } from 'date-fns';
-import { ChevronDown, FileText, Filter, Landmark, Loader2, MoreHorizontal, Pencil, Plus, Save, Search, Trash2, Wallet, X } from 'lucide-react';
+import { ChevronDown, FileText, Filter, Landmark, Loader2, Pencil, Plus, Save, Search, Trash2, Wallet, X } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { toast } from 'sonner';
@@ -17,13 +17,13 @@ import {
   TableRowDense,
   TableCellDense,
 } from '@/components/ui/table';
+
+import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Button } from '@/components/ui/button';
 import LedgerModal from './LedgerModal';
 import {
   createReceipt,
@@ -123,10 +123,14 @@ function readStoredDefault() {
   }
 }
 
-function statusBadge(summary: LedgerSummaryRow) {
-  if (summary.outstanding <= 0) return 'bg-emerald-100 text-emerald-800';
-  if (summary.overdue) return 'bg-rose-100 text-rose-800';
-  return 'bg-amber-100 text-amber-800';
+function statusBadge(summary: LedgerSummaryRow): { color: string; bg: string; label: string; icon: string } {
+  if (summary.outstanding <= 0) {
+    return { color: 'text-emerald-600', bg: 'bg-emerald-50', label: 'Settled', icon: 'emerald' };
+  }
+  if (summary.overdue) {
+    return { color: 'text-rose-600', bg: 'bg-rose-50', label: 'Overdue', icon: 'rose' };
+  }
+  return { color: 'text-amber-600', bg: 'bg-amber-50', label: 'Pending', icon: 'amber' };
 }
 
 export default function LedgerDashboard() {
@@ -622,11 +626,11 @@ export default function LedgerDashboard() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Client Name</TableHead>
-                      <TableHead className="text-right">Outstanding</TableHead>
-                      <TableHead>Oldest Due</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+                      <TableHead className="text-gray-400 font-normal">Client</TableHead>
+                      <TableHead className="text-right text-gray-400 font-normal">Outstanding</TableHead>
+                      <TableHead className="text-gray-400 font-normal">Due Date</TableHead>
+                      <TableHead className="text-gray-400 font-normal">Status</TableHead>
+                      <TableHead className="text-right text-gray-400 font-normal">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -666,29 +670,37 @@ export default function LedgerDashboard() {
                           {formatDisplayDate(summary.oldestDueDate)}
                         </TableCellDense>
                         <TableCellDense>
-                          <span className={`font-body inline-flex rounded-full px-3 py-1 text-xs font-semibold ${statusBadge(summary)}`}>
-                            {summary.outstanding <= 0 ? 'Settled' : summary.overdue ? 'Overdue' : 'Pending'}
-                          </span>
+                          {(() => {
+                            const status = statusBadge(summary);
+                            const dotColors = {
+                              emerald: 'bg-emerald-400',
+                              rose: 'bg-rose-400',
+                              amber: 'bg-amber-400',
+                            };
+                            return (
+                              <span className={`font-body inline-flex items-center gap-2 text-xs ${status.color}`}>
+                                <span className={`h-1.5 w-1.5 rounded-full ${dotColors[status.icon as keyof typeof dotColors]}`} />
+                                {status.label}
+                              </span>
+                            );
+                          })()}
                         </TableCellDense>
                         <TableCellDense className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <button
-                                type="button"
-                                className="font-body inline-flex h-8 w-8 items-center justify-center rounded-lg border border-navy-200 text-navy-600 transition hover:bg-cream-50"
-                              >
-                                <MoreHorizontal size={16} />
-                              </button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => handleView(summary.clientId)}>
-                                View Ledger
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleEditLedger(summary.clientId)}>
-                                Edit Details
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                          <button
+                            type="button"
+                            onClick={() => handleView(summary.clientId)}
+                            className="font-body text-xs text-navy-600 underline underline-offset-2 hover:text-navy-900"
+                          >
+                            View Ledger
+                          </button>
+                          <span className="mx-2 text-gray-300">·</span>
+                          <button
+                            type="button"
+                            onClick={() => handleEditLedger(summary.clientId)}
+                            className="font-body text-xs text-navy-600 underline underline-offset-2 hover:text-navy-900"
+                          >
+                            Edit Details
+                          </button>
                         </TableCellDense>
                       </TableRowDense>
                     ))}
