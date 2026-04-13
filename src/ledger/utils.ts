@@ -125,6 +125,5 @@ export function buildLedgerSummaries(
         receipts: clientReceipts,
       };
     })
-    .filter((row) => row.invoices.length > 0 || row.receipts.length > 0)
     .sort((left, right) => right.outstanding - left.outstanding);
 }
