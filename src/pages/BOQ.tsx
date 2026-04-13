@@ -134,6 +134,7 @@ type BoqRowProps = {
   index: number;
   sno: number;
   visibleColumns: ColumnSetting[];
+  columnWidths: Record<string, number>;
   sheetId: string;
   variants: VariantOption[];
   makes: (string | null | undefined)[];
@@ -156,7 +157,7 @@ type BoqRowProps = {
 };
 
 const BoqRowComponent = memo(({
-  row, index, sno, visibleColumns, sheetId, variants, makes,
+  row, index, sno, visibleColumns, columnWidths, sheetId, variants, makes,
   defaultVariantId, baseDiscount, priceMap,
   onUpdate, onDelete, onInsert, onDragStart, onDrop, onFocus,
   onMaterialPick, materials, inputRefs,
@@ -241,6 +242,9 @@ const BoqRowComponent = memo(({
       {visibleColumns.map(col => (
         <td key={col.key} style={{
           ...excelCellStyle,
+          width: columnWidths[col.key] || col.width,
+          minWidth: columnWidths[col.key] || col.width,
+          maxWidth: columnWidths[col.key] || col.width,
           ...(col.key === 'rowControl' || col.key === 'sno' ? excelRowHeaderCellStyle : {}),
         }}>
           {col.key === 'rowControl' && (
@@ -463,6 +467,7 @@ const BoqRowComponent = memo(({
     prev.row === next.row &&
     prev.sno === next.sno &&
     prev.visibleColumns === next.visibleColumns &&
+    prev.columnWidths === next.columnWidths &&
     prev.defaultVariantId === next.defaultVariantId &&
     prev.materialSearchActive === next.materialSearchActive &&
     prev.baseDiscount === next.baseDiscount &&
@@ -1058,6 +1063,11 @@ export function BOQ() {
   // ─── Column helpers ────────────────────────────────────────────────────────
 
   const visibleColumns = useMemo(() => columnSettings.filter(c => c.visible), [columnSettings]);
+  const columnWidths = useMemo(() => {
+    const widths: Record<string, number> = {};
+    visibleColumns.forEach(col => { widths[col.key] = col.width; });
+    return widths;
+  }, [visibleColumns]);
   const exportColumnList = useMemo(() => columnSettings.filter(c => exportColumns[c.key]), [columnSettings, exportColumns]);
   const exportSheetList = useMemo(() => sheets.filter(s => exportSheets[s.id]), [sheets, exportSheets]);
   const columnLetters = useMemo(() => visibleColumns.map((_, i) => getColumnLabel(i)), [visibleColumns]);
@@ -1582,6 +1592,7 @@ export function BOQ() {
                               index={virtualRow.index}
                               sno={snoMap[virtualRow.index] || 0}
                               visibleColumns={visibleColumns}
+                              columnWidths={columnWidths}
                               sheetId={activeSheetId}
                               variants={variants}
                               makes={makes}
