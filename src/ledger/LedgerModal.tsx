@@ -20,7 +20,7 @@ type Props = {
   client: LedgerClient | null;
   summary: LedgerSummaryRow | null;
   rangeLabel: string;
-  onEditLedger: (clientId: string) => void;
+  onManageDetails: (clientId: string) => void;
 };
 
 function getOrganisationLine(organisation: Record<string, unknown> | null) {
@@ -172,7 +172,7 @@ export default function LedgerModal({
   client,
   summary,
   rangeLabel,
-  onEditLedger,
+  onManageDetails,
 }: Props) {
   const orgDetails = useMemo(() => getOrganisationLine(organisation), [organisation]);
   const rows = useMemo(
@@ -238,12 +238,17 @@ export default function LedgerModal({
             </button>
             <button
               type="button"
-              onClick={() => client && onEditLedger(client.id)}
+              onClick={() => {
+                if (client) {
+                  onManageDetails(client.id);
+                  onOpenChange(false);
+                }
+              }}
               disabled={!client}
               className="font-body inline-flex items-center gap-2 rounded-lg bg-navy-950 px-3 py-2 text-xs font-semibold text-white transition hover:bg-navy-900 disabled:cursor-not-allowed disabled:opacity-40"
             >
               <FilePenLine size={14} />
-              Edit
+              Manage Details
             </button>
             <button
               type="button"

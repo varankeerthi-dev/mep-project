@@ -156,3 +156,46 @@ export async function createReceipt(input: ReceiptInput): Promise<LedgerReceipt>
     created_at: data.created_at ?? null,
   };
 }
+
+export type UpdateReceiptInput = {
+  id: string;
+  amount?: number;
+  receipt_date?: string;
+  remarks?: string;
+  payment_type?: string | null;
+};
+
+export async function updateReceipt(input: UpdateReceiptInput): Promise<LedgerReceipt> {
+  const { data, error } = await supabase
+    .from('receipts')
+    .update({
+      amount: input.amount,
+      receipt_date: input.receipt_date,
+      remarks: input.remarks || null,
+      payment_type: input.payment_type || null,
+    })
+    .eq('id', input.id)
+    .select('id, org_id, client_id, invoice_id, receipt_no, amount, receipt_date, remarks, payment_type, created_at')
+    .single();
+
+  if (error) throw error;
+  if (!data) throw new Error('Unable to update receipt.');
+
+  return {
+    id: String(data.id),
+    org_id: String(data.org_id),
+    client_id: String(data.client_id),
+    invoice_id: data.invoice_id ?? null,
+    receipt_no: data.receipt_no ?? null,
+    amount: Number(data.amount ?? 0),
+    receipt_date: String(data.receipt_date),
+    remarks: data.remarks ?? null,
+    payment_type: data.payment_type ?? null,
+    created_at: data.created_at ?? null,
+  };
+}
+
+export async function deleteReceipt(id: string): Promise<void> {
+  const { error } = await supabase.from('receipts').delete().eq('id', id);
+  if (error) throw error;
+}

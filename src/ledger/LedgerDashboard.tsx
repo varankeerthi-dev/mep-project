@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { endOfMonth, format, subMonths, subYears, startOfMonth } from 'date-fns';
-import { ChevronDown, Filter, Landmark, Loader2, MoreHorizontal, Plus, Search, Wallet } from 'lucide-react';
+import { ChevronDown, FileText, Filter, Landmark, Loader2, MoreHorizontal, Pencil, Plus, Save, Search, Trash2, Wallet, X } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { toast } from 'sonner';
@@ -23,15 +23,31 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Select } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import LedgerModal from './LedgerModal';
-import { createReceipt, listLedgerClients, listLedgerInvoices, listLedgerReceipts, type LedgerClient } from './api';
+import {
+  createReceipt,
+  listLedgerClients,
+  listLedgerInvoices,
+  listLedgerReceipts,
+  updateReceipt,
+  deleteReceipt,
+  type LedgerClient,
+  type LedgerReceipt,
+} from './api';
 import { buildLedgerSummaries, formatCurrency, formatDisplayDate, type LedgerSummaryRow } from './utils';
 
 const DEFAULT_STORAGE_KEY = 'ledger.dashboard.default-range.v1';
 
 type RangePreset = 'monthly' | 'financial-year' | 'last-3-months' | 'last-6-months' | 'last-2-years';
+type TabType = 'ledger' | 'details';
+type EditingReceipt = {
+  id: string;
+  amount: number;
+  receipt_date: string;
+  payment_type: string;
+  remarks: string;
+};
 
 const recordPaymentSchema = z.object({
   client_id: z.string().min(1, 'Select a client'),
@@ -129,6 +145,10 @@ export default function LedgerDashboard() {
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<TabType>('ledger');
+  const [editingReceiptId, setEditingReceiptId] = useState<string | null>(null);
+  const [editingForm, setEditingForm] = useState<EditingReceipt | null>(null);
+  const [pendingDeletes, setPendingDeletes] = useState<Set<string>>(new Set());
 
   const clientsQuery = useQuery({
     queryKey: ['ledger', 'clients', orgId],
@@ -188,6 +208,30 @@ export default function LedgerDashboard() {
     },
   });
 
+  const updateReceiptMutation = useMutation({
+    mutationFn: updateReceipt,
+    onSuccess: () => {
+      toast.success('Receipt updated successfully.');
+      setEditingReceiptId(null);
+      setEditingForm(null);
+      void qc.invalidateQueries({ queryKey: ['ledger', 'receipts', orgId] });
+    },
+    onError: (error: any) => {
+      toast.error(error?.message ?? 'Unable to update receipt.');
+    },
+  });
+
+  const deleteReceiptMutation = useMutation({
+    mutationFn: deleteReceipt,
+    onSuccess: () => {
+      toast.success('Receipt deleted successfully.');
+      void qc.invalidateQueries({ queryKey: ['ledger', 'receipts', orgId] });
+    },
+    onError: (error: any) => {
+      toast.error(error?.message ?? 'Unable to delete receipt.');
+    },
+  });
+
   useEffect(() => {
     if (saveAsDefault) {
       window.localStorage.setItem(
@@ -220,6 +264,11 @@ export default function LedgerDashboard() {
     [clients, selectedClientId],
   );
 
+  const selectedClientReceipts = useMemo(() => {
+    if (!selectedClientId) return [];
+    return (receiptsQuery.data ?? []).filter((r) => r.client_id === selectedClientId);
+  }, [receiptsQuery.data, selectedClientId]);
+
   const dashboardTotals = useMemo(() => {
     const totalOutstanding = summaries.reduce((sum, row) => sum + row.outstanding, 0);
     const totalDebits = (invoicesQuery.data ?? []).reduce((sum, row) => sum + Number(row.total || 0), 0);
@@ -234,6 +283,7 @@ export default function LedgerDashboard() {
 
   const rangeLabel = `${formatDisplayDate(appliedStartDate)} to ${formatDisplayDate(appliedEndDate)}`;
   const hasPendingFilterChanges = startDate !== appliedStartDate || endDate !== appliedEndDate;
+  const hasPendingDetailsChanges = editingReceiptId !== null || pendingDeletes.size > 0;
 
   const handlePreset = (preset: RangePreset) => {
     const range = getPresetRange(preset);
@@ -250,14 +300,68 @@ export default function LedgerDashboard() {
 
   const handleView = (clientId: string) => {
     setSelectedClientId(clientId);
+    setActiveTab('ledger');
     setModalOpen(true);
   };
 
   const handleEditLedger = (clientId: string) => {
     setSelectedClientId(clientId);
-    paymentForm.setValue('client_id', clientId, { shouldDirty: true, shouldValidate: true });
-    setModalOpen(false);
-    paymentCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setActiveTab('details');
+  };
+
+  const handleStartEdit = (receipt: LedgerReceipt) => {
+    setEditingReceiptId(receipt.id);
+    setEditingForm({
+      id: receipt.id,
+      amount: receipt.amount,
+      receipt_date: receipt.receipt_date,
+      payment_type: receipt.payment_type || '',
+      remarks: receipt.remarks || '',
+    });
+    setPendingDeletes((prev) => {
+      const next = new Set(prev);
+      next.delete(receipt.id);
+      return next;
+    });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingReceiptId(null);
+    setEditingForm(null);
+  };
+
+  const handleMarkDelete = (id: string) => {
+    setPendingDeletes((prev) => new Set(prev).add(id));
+    if (editingReceiptId === id) {
+      setEditingReceiptId(null);
+      setEditingForm(null);
+    }
+  };
+
+  const handleUndoDelete = (id: string) => {
+    setPendingDeletes((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  };
+
+  const handleSaveEdit = () => {
+    if (!editingForm) return;
+    updateReceiptMutation.mutate({
+      id: editingForm.id,
+      amount: editingForm.amount,
+      receipt_date: editingForm.receipt_date,
+      payment_type: editingForm.payment_type || null,
+      remarks: editingForm.remarks,
+    });
+  };
+
+  const handleSaveAllChanges = async () => {
+    const deletePromises = Array.from(pendingDeletes).map((id) => deleteReceiptMutation.mutateAsync(id));
+    await Promise.all(deletePromises);
+    setPendingDeletes(new Set());
+    toast.success('All changes saved successfully.');
   };
 
   const isLoading = clientsQuery.isLoading || invoicesQuery.isLoading || receiptsQuery.isLoading;
@@ -355,187 +459,417 @@ export default function LedgerDashboard() {
 
         {/* Main Content */}
         <section className="animate-fade-up animation-delay-3 rounded-2xl border border-navy-100 bg-white shadow-sm">
-          {/* Header with Filter Dropdown */}
+          {/* Header with Filter Dropdown and Tabs */}
           <div className="border-b border-navy-100 p-6">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div className="font-display text-lg font-semibold text-navy-950">
-                Client Ledger
-                <span className="ml-3 font-body text-sm font-normal text-navy-500">
-                  {rangeLabel}
-                </span>
-              </div>
-
-              <DropdownMenu open={filtersOpen} onOpenChange={setFiltersOpen}>
-                <DropdownMenuTrigger asChild>
+              <div className="flex items-center gap-6">
+                {/* Tabs */}
+                <div className="flex rounded-lg border border-navy-200 bg-white p-1">
                   <button
                     type="button"
-                    className="font-body inline-flex items-center gap-2 rounded-lg border border-navy-200 bg-white px-4 py-2.5 text-sm font-semibold text-navy-700 transition hover:bg-cream-50"
+                    onClick={() => setActiveTab('ledger')}
+                    className={`font-body inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-semibold transition ${
+                      activeTab === 'ledger'
+                        ? 'bg-navy-950 text-white'
+                        : 'text-navy-600 hover:bg-cream-50'
+                    }`}
                   >
-                    <Filter size={16} />
-                    Filters
-                    <ChevronDown size={14} />
+                    <FileText size={16} />
+                    Client Ledger
                   </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-80 p-4">
-                  <div className="space-y-4">
-                    <div className="font-body text-xs font-semibold uppercase tracking-[0.15em] text-navy-500">
-                      Presets
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {(['monthly', 'financial-year', 'last-3-months', 'last-6-months', 'last-2-years'] as RangePreset[]).map((preset) => (
-                        <button
-                          key={preset}
-                          type="button"
-                          onClick={() => handlePreset(preset)}
-                          className={`font-body rounded-full px-3 py-1.5 text-xs font-semibold transition-all ${
-                            selectedPreset === preset
-                              ? 'bg-navy-950 text-white'
-                              : 'border border-navy-200 bg-white text-navy-600 hover:bg-cream-50'
-                          }`}
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('details')}
+                    className={`font-body inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-semibold transition ${
+                      activeTab === 'details'
+                        ? 'bg-navy-950 text-white'
+                        : 'text-navy-600 hover:bg-cream-50'
+                    }`}
+                  >
+                    <Pencil size={16} />
+                    Details
+                    {hasPendingDetailsChanges && (
+                      <span className="ml-1 h-2 w-2 rounded-full bg-amber-500" />
+                    )}
+                  </button>
+                </div>
+
+                {activeTab === 'ledger' && (
+                  <span className="font-body text-sm text-navy-500">
+                    {rangeLabel}
+                  </span>
+                )}
+                {activeTab === 'details' && selectedClient && (
+                  <span className="font-display text-sm font-medium text-navy-950">
+                    {selectedClient.name}
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-3">
+                {activeTab === 'details' && hasPendingDetailsChanges && (
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    onClick={handleSaveAllChanges}
+                    isLoading={deleteReceiptMutation.isPending}
+                    leftIcon={<Save size={14} />}
+                  >
+                    Save Changes
+                  </Button>
+                )}
+
+                {activeTab === 'ledger' && (
+                  <DropdownMenu open={filtersOpen} onOpenChange={setFiltersOpen}>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        type="button"
+                        className="font-body inline-flex items-center gap-2 rounded-lg border border-navy-200 bg-white px-4 py-2.5 text-sm font-semibold text-navy-700 transition hover:bg-cream-50"
+                      >
+                        <Filter size={16} />
+                        Filters
+                        <ChevronDown size={14} />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-80 p-4">
+                      <div className="space-y-4">
+                        <div className="font-body text-xs font-semibold uppercase tracking-[0.15em] text-navy-500">
+                          Presets
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {(['monthly', 'financial-year', 'last-3-months', 'last-6-months', 'last-2-years'] as RangePreset[]).map((preset) => (
+                            <button
+                              key={preset}
+                              type="button"
+                              onClick={() => handlePreset(preset)}
+                              className={`font-body rounded-full px-3 py-1.5 text-xs font-semibold transition-all ${
+                                selectedPreset === preset
+                                  ? 'bg-navy-950 text-white'
+                                  : 'border border-navy-200 bg-white text-navy-600 hover:bg-cream-50'
+                              }`}
+                            >
+                              {getPresetLabel(preset)}
+                            </button>
+                          ))}
+                        </div>
+
+                        <div className="border-t border-slate-200 pt-4">
+                          <div className="font-body text-xs font-semibold uppercase tracking-[0.15em] text-navy-500 mb-3">
+                            Custom Range
+                          </div>
+                          <div className="grid gap-3">
+                            <div className="space-y-1">
+                              <label className="font-body block text-xs font-medium text-navy-600">From</label>
+                              <input
+                                type="date"
+                                value={startDate}
+                                onChange={(event) => {
+                                  setSelectedPreset(null);
+                                  setStartDate(event.target.value);
+                                }}
+                                className="font-body h-9 w-full rounded-md border border-navy-200 bg-white px-3 text-sm text-navy-900 outline-none transition focus:border-navy-500 focus:ring-1 focus:ring-navy-100"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="font-body block text-xs font-medium text-navy-600">To</label>
+                              <input
+                                type="date"
+                                value={endDate}
+                                onChange={(event) => {
+                                  setSelectedPreset(null);
+                                  setEndDate(event.target.value);
+                                }}
+                                className="font-body h-9 w-full rounded-md border border-navy-200 bg-white px-3 text-sm text-navy-900 outline-none transition focus:border-navy-500 focus:ring-1 focus:ring-navy-100"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="border-t border-slate-200 pt-4">
+                          <label className="font-body flex cursor-pointer items-center gap-2 text-sm text-navy-600">
+                            <input
+                              type="checkbox"
+                              checked={saveAsDefault}
+                              onChange={(event) => setSaveAsDefault(event.target.checked)}
+                              className="h-4 w-4 rounded border-navy-300 text-navy-950 focus:ring-navy-500"
+                            />
+                            Save as default
+                          </label>
+                        </div>
+
+                        <Button
+                          size="sm"
+                          onClick={handleApplyFilters}
+                          disabled={!hasPendingFilterChanges}
+                          leftIcon={<Search size={14} />}
+                          className="w-full"
                         >
-                          {getPresetLabel(preset)}
-                        </button>
-                      ))}
-                    </div>
-
-                    <div className="border-t border-slate-200 pt-4">
-                      <div className="font-body text-xs font-semibold uppercase tracking-[0.15em] text-navy-500 mb-3">
-                        Custom Range
+                          Apply Filters
+                        </Button>
                       </div>
-                      <div className="grid gap-3">
-                        <div className="space-y-1">
-                          <label className="font-body block text-xs font-medium text-navy-600">From</label>
-                          <input
-                            type="date"
-                            value={startDate}
-                            onChange={(event) => {
-                              setSelectedPreset(null);
-                              setStartDate(event.target.value);
-                            }}
-                            className="font-body h-9 w-full rounded-md border border-navy-200 bg-white px-3 text-sm text-navy-900 outline-none transition focus:border-navy-500 focus:ring-1 focus:ring-navy-100"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="font-body block text-xs font-medium text-navy-600">To</label>
-                          <input
-                            type="date"
-                            value={endDate}
-                            onChange={(event) => {
-                              setSelectedPreset(null);
-                              setEndDate(event.target.value);
-                            }}
-                            className="font-body h-9 w-full rounded-md border border-navy-200 bg-white px-3 text-sm text-navy-900 outline-none transition focus:border-navy-500 focus:ring-1 focus:ring-navy-100"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="border-t border-slate-200 pt-4">
-                      <label className="font-body flex cursor-pointer items-center gap-2 text-sm text-navy-600">
-                        <input
-                          type="checkbox"
-                          checked={saveAsDefault}
-                          onChange={(event) => setSaveAsDefault(event.target.checked)}
-                          className="h-4 w-4 rounded border-navy-300 text-navy-950 focus:ring-navy-500"
-                        />
-                        Save as default
-                      </label>
-                    </div>
-
-                    <Button
-                      size="sm"
-                      onClick={handleApplyFilters}
-                      disabled={!hasPendingFilterChanges}
-                      leftIcon={<Search size={14} />}
-                      className="w-full"
-                    >
-                      Apply Filters
-                    </Button>
-                  </div>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+              </div>
             </div>
           </div>
 
-          {/* Table + Payment Form */}
+          {/* Content Area */}
           <div className="grid gap-6 p-6 xl:grid-cols-[1fr_340px]">
-            {/* Table */}
+            {/* Main Table Area */}
             <div className="overflow-hidden rounded-xl border border-navy-100">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Client Name</TableHead>
-                    <TableHead className="text-right">Outstanding</TableHead>
-                    <TableHead>Oldest Due</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {isLoading && (
+              {activeTab === 'ledger' && (
+                <Table>
+                  <TableHeader>
                     <TableRow>
-                      <TableCell colSpan={5} className="py-16 text-center">
-                        <span className="font-body inline-flex items-center gap-2 text-sm text-navy-500">
-                          <Loader2 className="animate-spin" size={14} />
-                          Loading ledger data...
-                        </span>
-                      </TableCell>
+                      <TableHead>Client Name</TableHead>
+                      <TableHead className="text-right">Outstanding</TableHead>
+                      <TableHead>Oldest Due</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
-                  )}
+                  </TableHeader>
+                  <TableBody>
+                    {isLoading && (
+                      <TableRow>
+                        <TableCell colSpan={5} className="py-16 text-center">
+                          <span className="font-body inline-flex items-center gap-2 text-sm text-navy-500">
+                            <Loader2 className="animate-spin" size={14} />
+                            Loading ledger data...
+                          </span>
+                        </TableCell>
+                      </TableRow>
+                    )}
 
-                  {!isLoading && summaries.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={5} className="py-16 text-center">
-                        <div className="mx-auto max-w-md space-y-3">
-                          <div className="font-display text-base font-semibold text-navy-950">No ledger data found</div>
-                          <div className="font-body text-sm text-navy-600">
-                            Make sure your clients are linked to this organisation, then record invoices and receipts.
+                    {!isLoading && summaries.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={5} className="py-16 text-center">
+                          <div className="mx-auto max-w-md space-y-3">
+                            <div className="font-display text-base font-semibold text-navy-950">No ledger data found</div>
+                            <div className="font-body text-sm text-navy-600">
+                              Make sure your clients are linked to this organisation, then record invoices and receipts.
+                            </div>
                           </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+
+                    {summaries.map((summary) => (
+                      <TableRowDense key={summary.clientId}>
+                        <TableCellDense>
+                          <div className="font-display font-medium text-navy-950">{summary.clientName}</div>
+                        </TableCellDense>
+                        <TableCellDense className="text-right font-display font-medium text-navy-950">
+                          {formatCurrency(summary.outstanding)}
+                        </TableCellDense>
+                        <TableCellDense className="text-navy-600">
+                          {formatDisplayDate(summary.oldestDueDate)}
+                        </TableCellDense>
+                        <TableCellDense>
+                          <span className={`font-body inline-flex rounded-full px-3 py-1 text-xs font-semibold ${statusBadge(summary)}`}>
+                            {summary.outstanding <= 0 ? 'Settled' : summary.overdue ? 'Overdue' : 'Pending'}
+                          </span>
+                        </TableCellDense>
+                        <TableCellDense className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button
+                                type="button"
+                                className="font-body inline-flex h-8 w-8 items-center justify-center rounded-lg border border-navy-200 text-navy-600 transition hover:bg-cream-50"
+                              >
+                                <MoreHorizontal size={16} />
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleView(summary.clientId)}>
+                                View Ledger
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleEditLedger(summary.clientId)}>
+                                Edit Details
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCellDense>
+                      </TableRowDense>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+
+              {activeTab === 'details' && (
+                <div className="p-6">
+                  {!selectedClient && (
+                    <div className="py-12 text-center">
+                      <div className="mx-auto max-w-md space-y-3">
+                        <div className="font-display text-base font-semibold text-navy-950">Select a client</div>
+                        <div className="font-body text-sm text-navy-600">
+                          Click on a client from the Client Ledger tab, or select "Edit Details" from the actions menu.
                         </div>
-                      </TableCell>
-                    </TableRow>
+                      </div>
+                    </div>
                   )}
 
-                  {summaries.map((summary) => (
-                    <TableRowDense key={summary.clientId}>
-                      <TableCellDense>
-                        <div className="font-display font-medium text-navy-950">{summary.clientName}</div>
-                      </TableCellDense>
-                      <TableCellDense className="text-right font-display font-medium text-navy-950">
-                        {formatCurrency(summary.outstanding)}
-                      </TableCellDense>
-                      <TableCellDense className="text-navy-600">
-                        {formatDisplayDate(summary.oldestDueDate)}
-                      </TableCellDense>
-                      <TableCellDense>
-                        <span className={`font-body inline-flex rounded-full px-3 py-1 text-xs font-semibold ${statusBadge(summary)}`}>
-                          {summary.outstanding <= 0 ? 'Settled' : summary.overdue ? 'Overdue' : 'Pending'}
-                        </span>
-                      </TableCellDense>
-                      <TableCellDense className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <button
-                              type="button"
-                              className="font-body inline-flex h-8 w-8 items-center justify-center rounded-lg border border-navy-200 text-navy-600 transition hover:bg-cream-50"
-                            >
-                              <MoreHorizontal size={16} />
-                            </button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleView(summary.clientId)}>
-                              View Ledger
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleEditLedger(summary.clientId)}>
-                              Record Payment
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCellDense>
-                    </TableRowDense>
-                  ))}
-                </TableBody>
-              </Table>
+                  {selectedClient && selectedClientReceipts.length === 0 && !isLoading && (
+                    <div className="py-12 text-center">
+                      <div className="mx-auto max-w-md space-y-3">
+                        <div className="font-display text-base font-semibold text-navy-950">No receipts found</div>
+                        <div className="font-body text-sm text-navy-600">
+                          This client has no receipt records in the selected date range.
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedClient && selectedClientReceipts.length > 0 && (
+                    <div className="space-y-4">
+                      <div className="font-display text-sm font-semibold text-navy-500 uppercase tracking-wider">
+                        Receipts for {selectedClient.name}
+                      </div>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Date</TableHead>
+                            <TableHead>Payment Type</TableHead>
+                            <TableHead>Remarks</TableHead>
+                            <TableHead className="text-right">Amount</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {selectedClientReceipts.map((receipt) => {
+                            const isEditing = editingReceiptId === receipt.id;
+                            const isPendingDelete = pendingDeletes.has(receipt.id);
+
+                            if (isPendingDelete) {
+                              return (
+                                <TableRow key={receipt.id} className="bg-rose-50/50">
+                                  <TableCellDense colSpan={4} className="text-rose-600">
+                                    <span className="line-through opacity-60">
+                                      {formatDisplayDate(receipt.receipt_date)} — {receipt.remarks || 'Receipt'}
+                                    </span>
+                                    <span className="ml-2 text-xs font-semibold">(Marked for deletion)</span>
+                                  </TableCellDense>
+                                  <TableCellDense className="text-right">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleUndoDelete(receipt.id)}
+                                      className="font-body inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-navy-600 hover:bg-cream-100"
+                                    >
+                                      <X size={12} />
+                                      Undo
+                                    </button>
+                                  </TableCellDense>
+                                </TableRow>
+                              );
+                            }
+
+                            if (isEditing && editingForm) {
+                              return (
+                                <TableRow key={receipt.id} className="bg-amber-50/50">
+                                  <TableCellDense>
+                                    <input
+                                      type="date"
+                                      value={editingForm.receipt_date}
+                                      onChange={(e) => setEditingForm({ ...editingForm, receipt_date: e.target.value })}
+                                      className="font-body h-8 w-full rounded border border-navy-200 px-2 text-sm"
+                                    />
+                                  </TableCellDense>
+                                  <TableCellDense>
+                                    <select
+                                      value={editingForm.payment_type}
+                                      onChange={(e) => setEditingForm({ ...editingForm, payment_type: e.target.value })}
+                                      className="font-body h-8 w-full rounded border border-navy-200 px-2 text-sm"
+                                    >
+                                      <option value="">-</option>
+                                      <option value="Opening Balance">Opening Balance</option>
+                                      <option value="Advance">Advance</option>
+                                    </select>
+                                  </TableCellDense>
+                                  <TableCellDense>
+                                    <input
+                                      type="text"
+                                      value={editingForm.remarks}
+                                      onChange={(e) => setEditingForm({ ...editingForm, remarks: e.target.value })}
+                                      className="font-body h-8 w-full rounded border border-navy-200 px-2 text-sm"
+                                    />
+                                  </TableCellDense>
+                                  <TableCellDense className="text-right">
+                                    <input
+                                      type="number"
+                                      step="0.01"
+                                      value={editingForm.amount}
+                                      onChange={(e) => setEditingForm({ ...editingForm, amount: parseFloat(e.target.value) || 0 })}
+                                      className="font-body h-8 w-28 rounded border border-navy-200 px-2 text-sm text-right"
+                                    />
+                                  </TableCellDense>
+                                  <TableCellDense className="text-right">
+                                    <div className="flex items-center justify-end gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={handleSaveEdit}
+                                        disabled={updateReceiptMutation.isPending}
+                                        className="font-body inline-flex h-7 w-7 items-center justify-center rounded-md bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
+                                      >
+                                        {updateReceiptMutation.isPending ? (
+                                          <Loader2 size={14} className="animate-spin" />
+                                        ) : (
+                                          <Save size={14} />
+                                        )}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={handleCancelEdit}
+                                        className="font-body inline-flex h-7 w-7 items-center justify-center rounded-md border border-navy-200 text-navy-600 hover:bg-cream-100"
+                                      >
+                                        <X size={14} />
+                                      </button>
+                                    </div>
+                                  </TableCellDense>
+                                </TableRow>
+                              );
+                            }
+
+                            return (
+                              <TableRowDense key={receipt.id}>
+                                <TableCellDense className="text-navy-600">
+                                  {formatDisplayDate(receipt.receipt_date)}
+                                </TableCellDense>
+                                <TableCellDense className="text-navy-600">
+                                  {receipt.payment_type || '-'}
+                                </TableCellDense>
+                                <TableCellDense className="text-navy-950">
+                                  {receipt.remarks || 'Receipt'}
+                                </TableCellDense>
+                                <TableCellDense className="text-right font-display font-medium text-navy-950">
+                                  {formatCurrency(receipt.amount)}
+                                </TableCellDense>
+                                <TableCellDense className="text-right">
+                                  <div className="flex items-center justify-end gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleStartEdit(receipt)}
+                                      className="font-body inline-flex h-7 w-7 items-center justify-center rounded-md border border-navy-200 text-navy-600 hover:bg-cream-100"
+                                    >
+                                      <Pencil size={14} />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleMarkDelete(receipt.id)}
+                                      className="font-body inline-flex h-7 w-7 items-center justify-center rounded-md border border-rose-200 text-rose-600 hover:bg-rose-50"
+                                    >
+                                      <Trash2 size={14} />
+                                    </button>
+                                  </div>
+                                </TableCellDense>
+                              </TableRowDense>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Payment Form */}
@@ -644,7 +978,7 @@ export default function LedgerDashboard() {
           client={selectedClient}
           summary={selectedSummary}
           rangeLabel={rangeLabel}
-          onEditLedger={handleEditLedger}
+          onManageDetails={handleEditLedger}
         />
       </div>
     </div>
