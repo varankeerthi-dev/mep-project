@@ -225,11 +225,11 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
         });
       }
       
-      // Generate DC No if new record
-      if (!editDC) {
-        const dcNumber = await generateDCNo();
-        setFormData(prev => ({ ...prev, dc_number: dcNumber }));
-      }
+      // Don't generate DC number here - generate it on save to prevent number jumping on refresh
+      // if (!editDC) {
+      //   const dcNumber = await generateDCNo();
+      //   setFormData(prev => ({ ...prev, dc_number: dcNumber }));
+      // }
       
       const priceMap = {};
       stockData.data?.forEach(s => {
@@ -676,7 +676,11 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
         dcId = editDC.id;
         await supabase.from('delivery_challan_items').delete().eq('delivery_challan_id', dcId);
       } else {
-        const { data, error } = await supabase.from('delivery_challans').insert(dcData).select().single();
+        // Generate and reserve DC number on save
+        const dcNumber = await generateDCNo(true); // true = reserve the number
+        const dcDataWithNumber = { ...dcData, dc_number: dcNumber };
+        
+        const { data, error } = await supabase.from('delivery_challans').insert(dcDataWithNumber).select().single();
         
         if (error) {
           console.error('Error creating DC:', error);
@@ -739,7 +743,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
     }
   };
 
-  const generateDCNo = async () => {
+  const generateDCNo = async (reserveNumber = false) => {
     // First try to get from new document_series table
     const { data: seriesData } = await supabase
       .from('document_series')
@@ -753,10 +757,12 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
       const padding = parseInt(config.padding) || 4;
       const paddedNum = String(currentNum).padStart(padding, '0');
       
-      // Update current number for next time
-      await supabase.from('document_series').update({ 
-        current_number: currentNum + 1 
-      }).eq('is_default', true);
+      // Only reserve the number when actually saving
+      if (reserveNumber) {
+        await supabase.from('document_series').update({ 
+          current_number: currentNum + 1 
+        }).eq('is_default', true);
+      }
       
       // Get FY prefix if auto
       let prefix = config.prefix || '';
@@ -771,7 +777,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
       return `${prefix}${paddedNum}${config.suffix || ''}`;
     }
     
-    // Fallback to old settings
+    // Fallback to old settings - just return preview, don't reserve
     const { count } = await supabase
       .from('delivery_challans')
       .select('id', { count: 'exact', head: true });
