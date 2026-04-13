@@ -1341,13 +1341,13 @@ const exportToExcel = useCallback(async () => {
 
       const savedId = await withTimeout(
         saveBOQWithItems(boqSaveData, sheets, items),
-        30000,
+        60000, // Increased to 60 seconds for large BOQs
         'BOQ save',
       );
 
       const savedHeader = await withTimeout(
         fetchBOQById(savedId),
-        15000,
+        30000,
         'BOQ refresh',
       );
 
