@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, memo } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import * as HeroIcons from '@heroicons/react/24/outline';
 
 type SubmenuItem = {
@@ -320,10 +320,6 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
     }
   }, [isCollapsed, toggleMenu, onNavigate]);
 
-  const handleSubmenuClick = useCallback((path: string) => {
-    onNavigate(path);
-  }, [onNavigate]);
-
   const handleOverlayClick = useCallback(() => {
     // Just close the overlay; don't re-navigate
     onNavigate(pathKey);
@@ -338,7 +334,7 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
 
   const isActive = useCallback((path: string) => pathKey === path, [pathKey]);
 
-  const { ChevronRightIcon, ChevronLeftIcon } = HeroIcons;
+  const { ChevronDownIcon, ChevronRightIcon, ChevronLeftIcon } = HeroIcons;
 
   return (
     <>
@@ -362,7 +358,6 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
                 const parentActive = isParentActive(item);
                 const isExpanded = expandedMenus.includes(item.id);
                 const Icon = getIconComponent(item.id);
-                const { ChevronDownIcon, ChevronRightIcon, ChevronLeftIcon } = HeroIcons;
 
                 return (
                   <div key={item.id}>
