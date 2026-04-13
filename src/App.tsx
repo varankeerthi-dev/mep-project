@@ -306,7 +306,17 @@ export default function App() {
       case '/subcontractors/new': return <CreateSubcontractor onSuccess={() => navigate('/subcontractors')} onCancel={() => navigate('/subcontractors')} />;
       case '/subcontractors/view': return <SubcontractorView onNavigate={navigate} />;
       case '/subcontractors/edit': return <SubcontractorEdit onNavigate={navigate} />;
+      case '/subcontractors/workorders': return <SubcontractorWorkOrders />;
+      case '/subcontractors/attendance': return <SubcontractorAttendance />;
+      case '/subcontractors/dailylogs': return <SubcontractorDailyLogs />;
+      case '/subcontractors/payments': return <SubcontractorPayments />;
+      case '/subcontractors/invoices': return <SubcontractorInvoices />;
+      case '/subcontractors/documents': return <SubcontractorDocuments />;
+      // Client PO
+      case '/client-po': return <POList />;
+      case '/client-po/create': return <CreatePO onSuccess={() => navigate('/client-po')} onCancel={() => navigate('/client-po')} />;
       // Sales
+      case '/client-po/view': return <PODetails />;
       case '/quotation': return <QuotationList />;
       case '/quotation/create': return <CreateQuotation onSuccess={() => navigate('/quotation')} onCancel={() => navigate('/quotation')} />;
       case '/quotation/view': return <QuotationView />;
@@ -318,6 +328,7 @@ export default function App() {
       case '/boq/create': return <BOQ onSuccess={() => navigate('/boq')} onCancel={() => navigate('/boq')} />;
       case '/documents': return <Documents />;
       case '/issue': return <IssueList />;
+      case '/purchase': return <ProcurementList />;
       // Inventory
       case '/procurement': return <ProcurementList />;
       case '/store/materials': return <MaterialsList />;
@@ -329,6 +340,8 @@ export default function App() {
       // Delivery Challan
       case '/dc/create': return <CreateDC onCancel={() => navigate('/dc/list')} />;
       case '/dc/list': return <DCList />;
+      case '/dc/consolidation/date': return <DateWiseConsolidation />;
+      case '/dc/consolidation/material': return <MaterialWiseConsolidation />;
       case '/nb-dc/list': return <NonBillableDCList />;
       case '/nb-dc/create': return <CreateNonBillableDC onCancel={() => navigate('/nb-dc/list')} />;
       // Settings
@@ -348,6 +361,13 @@ export default function App() {
         if (pathKey.startsWith('/nb-dc/edit/')) {
           const dcId = pathKey.split('/nb-dc/edit/')[1];
           return <NonBillableDCEdit dcId={dcId} onCancel={() => navigate('/nb-dc/list')} />;
+        }
+        if (pathKey.startsWith('/client-po/view')) {
+          return <PODetails />;
+        }
+        if (pathKey.startsWith('/subcontractors/workorders/')) {
+          const id = pathKey.split('/subcontractors/workorders/')[1];
+          return <WorkOrderDetailView />;
         }
         return <Dashboard onNavigate={navigate} />;
     }
