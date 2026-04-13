@@ -55,6 +55,7 @@ export function generateFyOptions(format: string, startMonth: number = 4): strin
   
   for (let i = -2; i <= 3; i++) {
     const year = currentYear + i;
+    if (year > 2060) continue;
     const nextYear = year + 1;
     const yearStr = year.toString();
     const nextYearStr = nextYear.toString().slice(-2);
