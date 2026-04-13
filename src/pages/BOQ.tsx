@@ -150,7 +150,8 @@ type BoqRowProps = {
   onDrop: (index: number) => void;
   onFocus: (index: number) => void;
   onMaterialPick: (index: number, mat: MaterialOption) => void;
-  onShowDropdown: (show: boolean, items: MaterialOption[], rect: { top: number; left: number; width: number }) => void;
+  onShowDropdown: (show: boolean, items: MaterialOption[], rect: { top: number; left: number; width: number }, rowIndex: number) => void;
+  rowIndex: number;
   materials: MaterialOption[];
   inputRefs: React.MutableRefObject<Record<string, HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | null>>;
   materialSearchActive: { sheetId: string; index: number } | null;
@@ -162,7 +163,7 @@ const BoqRowComponent = memo(({
   row, index, sno, visibleColumns, columnWidths, sheetId, variants, makes,
   defaultVariantId, baseDiscount, priceMap,
   onUpdate, onDelete, onInsert, onDragStart, onDrop, onFocus,
-  onMaterialPick, onShowDropdown, materials, inputRefs,
+  onMaterialPick, onShowDropdown, rowIndex, materials, inputRefs,
   materialSearchActive, setMaterialSearchActive, getVariantDiscount,
 }: BoqRowProps) => {
   // Local search state — lives inside this row only, no global re-render
@@ -269,18 +270,18 @@ const BoqRowComponent = memo(({
                 key={`${row.id}-desc`}
                 onFocus={(e) => {
                   const rect = e.target.getBoundingClientRect();
-                  onShowDropdown(true, filteredMats, { top: rect.bottom, left: rect.left, width: rect.width });
+                  onShowDropdown(true, filteredMats, { top: rect.bottom, left: rect.left, width: rect.width }, rowIndex);
                   onFocus(index);
                   e.target.select();
                 }}
                 onChange={(e) => {
                   setLocalSearch(e.target.value);
                   const rect = e.target.getBoundingClientRect();
-                  onShowDropdown(true, filteredMats, { top: rect.bottom, left: rect.left, width: rect.width });
+                  onShowDropdown(true, filteredMats, { top: rect.bottom, left: rect.left, width: rect.width }, rowIndex);
                 }}
                 onBlur={(e) => {
                   setTimeout(() => {
-                    onShowDropdown(false, [], { top: 0, left: 0, width: 0 });
+                    onShowDropdown(false, [], { top: 0, left: 0, width: 0 }, rowIndex);
                     const value = e.target.value.trim();
                     onUpdate(index, 'description', value);
                   }, 200);
@@ -497,7 +498,7 @@ export function BOQ() {
   const [selectedSheets, setSelectedSheets] = useState<Record<string, boolean>>({});
   const [launchingStockCheck, setLaunchingStockCheck] = useState(false);
   const [materialSearchActive, setMaterialSearchActive] = useState<{ sheetId: string; index: number } | null>(null);
-  const [dropdownPortal, setDropdownPortal] = useState<{ sheetId: string; index: number; items: MaterialOption[]; position: { top: number; left: number; width: number } } | null>(null);
+  const [dropdownPortal, setDropdownPortal] = useState<{ sheetId: string; rowIndex: number; items: MaterialOption[]; position: { top: number; left: number; width: number } } | null>(null);
 
   const inputRefs = useRef<Record<string, HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | null>>({});
   const prevDefaultVariantRef = useRef('');
@@ -868,11 +869,11 @@ export function BOQ() {
     });
   }, [activeSheetId, boqData.variantId, getVariantDiscount, getVariantNameById, getPriceFromMap, pushUndo]);
 
-  const handleShowDropdown = useCallback((show: boolean, items: MaterialOption[], rect: { top: number; left: number; width: number }) => {
+  const handleShowDropdown = useCallback((show: boolean, items: MaterialOption[], rect: { top: number; left: number; width: number }, rowIndex: number) => {
     if (show) {
       setDropdownPortal({
         sheetId: activeSheetId,
-        index: -1,
+        rowIndex,
         items,
         position: rect,
       });
@@ -883,9 +884,9 @@ export function BOQ() {
 
   const handleDropdownItemClick = useCallback((material: MaterialOption) => {
     if (dropdownPortal) {
-      const { sheetId, index } = dropdownPortal;
-      if (sheetId === activeSheetId && index >= 0) {
-        handleMaterialPick(index, material);
+      const { sheetId, rowIndex } = dropdownPortal;
+      if (sheetId === activeSheetId && rowIndex >= 0) {
+        handleMaterialPick(rowIndex, material);
       }
     }
     setDropdownPortal(null);
@@ -1611,6 +1612,7 @@ export function BOQ() {
                               onFocus={setActiveRowIndex}
                               onMaterialPick={handleMaterialPick}
                               onShowDropdown={handleShowDropdown}
+                              rowIndex={virtualRow.index}
                               materials={materials}
                               inputRefs={inputRefs}
                               materialSearchActive={materialSearchActive}
