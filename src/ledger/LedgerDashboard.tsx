@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { endOfMonth, format, subMonths, subYears, startOfMonth } from 'date-fns';
-import { ChevronDown, FileText, Filter, Landmark, Loader2, Pencil, Plus, Save, Search, Trash2, Wallet, X } from 'lucide-react';
+import { ChevronDown, FileText, Filter, Landmark, Loader2, Pencil, Plus, Save, Search, Trash2, Wallet, X, Calculator } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { toast } from 'sonner';
@@ -25,6 +25,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import LedgerModal from './LedgerModal';
+import OpeningBalanceTab from './OpeningBalanceTab';
 import {
   createReceipt,
   listLedgerClients,
@@ -32,15 +33,21 @@ import {
   listLedgerReceipts,
   updateReceipt,
   deleteReceipt,
+  getOpeningBalances,
+  bulkUpsertOpeningBalances,
+  getOrAutoCreateOpeningBalance,
+  getPreviousFinancialYear,
   type LedgerClient,
   type LedgerReceipt,
+  type OpeningBalance,
+  type BulkOpeningBalanceInput,
 } from './api';
 import { buildLedgerSummaries, formatCurrency, formatDisplayDate, type LedgerSummaryRow } from './utils';
 
 const DEFAULT_STORAGE_KEY = 'ledger.dashboard.default-range.v1';
 
 type RangePreset = 'monthly' | 'financial-year' | 'last-3-months' | 'last-6-months' | 'last-2-years';
-type TabType = 'ledger' | 'details';
+type TabType = 'ledger' | 'details' | 'opening-balance';
 type EditingReceipt = {
   id: string;
   amount: number;
@@ -153,6 +160,9 @@ export default function LedgerDashboard() {
   const [editingReceiptId, setEditingReceiptId] = useState<string | null>(null);
   const [editingForm, setEditingForm] = useState<EditingReceipt | null>(null);
   const [pendingDeletes, setPendingDeletes] = useState<Set<string>>(new Set());
+  const [selectedFy, setSelectedFy] = useState<string>('');
+  const [openingBalanceEditMode, setOpeningBalanceEditMode] = useState(false);
+  const [openingBalanceDrafts, setOpeningBalanceDrafts] = useState<Record<string, BulkOpeningBalanceInput>>({});
 
   const clientsQuery = useQuery({
     queryKey: ['ledger', 'clients', orgId],
@@ -160,6 +170,58 @@ export default function LedgerDashboard() {
     enabled: Boolean(orgId),
     staleTime: 5 * 60 * 1000,
   });
+
+  useEffect(() => {
+    if (organisation?.fy_format && !selectedFy) {
+      setSelectedFy(String(organisation.fy_format));
+    }
+  }, [organisation, selectedFy]);
+
+  const openingBalancesQuery = useQuery({
+    queryKey: ['ledger', 'opening-balances', orgId, selectedFy],
+    queryFn: () => getOpeningBalances(orgId, selectedFy),
+    enabled: Boolean(orgId) && Boolean(selectedFy),
+  });
+
+  const saveOpeningBalancesMutation = useMutation({
+    mutationFn: (balances: BulkOpeningBalanceInput[]) => bulkUpsertOpeningBalances(orgId, selectedFy, balances),
+    onSuccess: () => {
+      toast.success('Opening balances saved successfully.');
+      setOpeningBalanceEditMode(false);
+      setOpeningBalanceDrafts({});
+      void qc.invalidateQueries({ queryKey: ['ledger', 'opening-balances', orgId, selectedFy] });
+    },
+    onError: (error: any) => {
+      toast.error(error?.message ?? 'Unable to save opening balances.');
+    },
+  });
+
+  const autoPopulateMutation = useMutation({
+    mutationFn: async () => {
+      const prevFy = getPreviousFinancialYear(selectedFy);
+      const clientIds = clients.map((c) => c.id);
+      const promises = clientIds.map((clientId) =>
+        getOrAutoCreateOpeningBalance(clientId, orgId, selectedFy, prevFy)
+      );
+      await Promise.all(promises);
+    },
+    onSuccess: () => {
+      toast.success('Opening balances auto-populated from previous year.');
+      void qc.invalidateQueries({ queryKey: ['ledger', 'opening-balances', orgId, selectedFy] });
+    },
+    onError: (error: any) => {
+      toast.error(error?.message ?? 'Unable to auto-populate opening balances.');
+    },
+  });
+
+  const openingBalances = openingBalancesQuery.data ?? [];
+  const openingBalancesMap = useMemo(() => {
+    const map: Record<string, OpeningBalance> = {};
+    openingBalances.forEach((ob) => {
+      map[ob.client_id] = ob;
+    });
+    return map;
+  }, [openingBalances]);
 
   const invoicesQuery = useQuery({
     queryKey: ['ledger', 'invoices', orgId, appliedStartDate, appliedEndDate],
@@ -368,6 +430,23 @@ export default function LedgerDashboard() {
     toast.success('All changes saved successfully.');
   };
 
+  const handleStartOpeningBalanceEdit = () => {
+    setOpeningBalanceEditMode(true);
+    const drafts: Record<string, BulkOpeningBalanceInput> = {};
+    clients.forEach((client) => {
+      const existingOb = openingBalancesMap[client.id];
+      if (existingOb) {
+        drafts[client.id] = {
+          client_id: client.id,
+          amount: existingOb.amount,
+          as_of_date: existingOb.as_of_date,
+          remarks: existingOb.remarks || '',
+        };
+      }
+    });
+    setOpeningBalanceDrafts(drafts);
+  };
+
   const isLoading = clientsQuery.isLoading || invoicesQuery.isLoading || receiptsQuery.isLoading;
 
   if (!orgId) {
@@ -496,6 +575,18 @@ export default function LedgerDashboard() {
                       <span className="ml-1 h-2 w-2 rounded-full bg-amber-500" />
                     )}
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('opening-balance')}
+                    className={`font-body inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-semibold transition ${
+                      activeTab === 'opening-balance'
+                        ? 'bg-navy-950 text-white'
+                        : 'text-navy-600 hover:bg-cream-50'
+                    }`}
+                  >
+                    <Calculator size={16} />
+                    Opening Balance
+                  </button>
                 </div>
 
                 {activeTab === 'ledger' && (
@@ -507,6 +598,18 @@ export default function LedgerDashboard() {
                   <span className="font-display text-sm font-medium text-navy-950">
                     {selectedClient.name}
                   </span>
+                )}
+                {activeTab === 'opening-balance' && (
+                  <div className="flex items-center gap-2">
+                    <span className="font-body text-sm text-navy-500">FY:</span>
+                    <input
+                      type="text"
+                      value={selectedFy}
+                      onChange={(e) => setSelectedFy(e.target.value)}
+                      placeholder="FY24-25"
+                      className="font-body h-8 w-24 rounded border border-navy-200 px-2 text-sm text-navy-900 outline-none focus:border-navy-500"
+                    />
+                  </div>
                 )}
               </div>
 
@@ -520,6 +623,17 @@ export default function LedgerDashboard() {
                     leftIcon={<Save size={14} />}
                   >
                     Save Changes
+                  </Button>
+                )}
+
+                {activeTab === 'opening-balance' && !openingBalanceEditMode && selectedFy && (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={handleStartOpeningBalanceEdit}
+                    leftIcon={<Pencil size={14} />}
+                  >
+                    Edit
                   </Button>
                 )}
 
@@ -882,9 +996,26 @@ export default function LedgerDashboard() {
                   )}
                 </div>
               )}
+
+              {activeTab === 'opening-balance' && (
+                <OpeningBalanceTab
+                  clients={clients}
+                  selectedFy={selectedFy}
+                  openingBalances={openingBalances}
+                  openingBalancesMap={openingBalancesMap}
+                  openingBalanceDrafts={openingBalanceDrafts}
+                  openingBalanceEditMode={openingBalanceEditMode}
+                  openingBalancesQuery={openingBalancesQuery}
+                  autoPopulateMutation={autoPopulateMutation}
+                  saveOpeningBalancesMutation={saveOpeningBalancesMutation}
+                  setOpeningBalanceEditMode={setOpeningBalanceEditMode}
+                  setOpeningBalanceDrafts={setOpeningBalanceDrafts}
+                />
+              )}
             </div>
 
-            {/* Payment Form */}
+            {/* Payment Form - Hidden for opening-balance tab */}
+            {activeTab !== 'opening-balance' && (
             <div ref={paymentCardRef} className="h-fit rounded-xl border border-navy-100 bg-cream-50 p-1">
               <div className="rounded-lg border border-navy-100 bg-white p-5 shadow-sm">
                 <span className="font-body text-xs font-semibold uppercase tracking-[0.15em] text-navy-500">Record Payment</span>
@@ -980,6 +1111,7 @@ export default function LedgerDashboard() {
                 </form>
               </div>
             </div>
+            )}
           </div>
         </section>
 
@@ -991,6 +1123,7 @@ export default function LedgerDashboard() {
           summary={selectedSummary}
           rangeLabel={rangeLabel}
           onManageDetails={handleEditLedger}
+          openingBalance={selectedClientId ? openingBalancesMap[selectedClientId] ?? null : null}
         />
       </div>
     </div>
