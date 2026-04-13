@@ -1,11 +1,11 @@
 import { format, isAfter, parseISO } from 'date-fns';
-import type { LedgerClient, LedgerInvoice, LedgerReceipt } from './api';
+import type { LedgerClient, LedgerInvoice, LedgerReceipt, OpeningBalance } from './api';
 
 export type LedgerStatementRow = {
   id: string;
   date: string;
   paymentType?: string | null;
-  type: 'Debit' | 'Credit';
+  type: 'Debit' | 'Credit' | 'Opening Balance';
   remarks: string;
   debit: number;
   credit: number;
@@ -53,11 +53,28 @@ function normalizeDate(value?: string | null) {
   return value ?? '9999-12-31';
 }
 
-export function buildLedgerStatementRows(invoices: LedgerInvoice[], receipts: LedgerReceipt[]): LedgerStatementRow[] {
+export function buildLedgerStatementRows(
+  invoices: LedgerInvoice[], 
+  receipts: LedgerReceipt[],
+  openingBalance?: OpeningBalance | null
+): LedgerStatementRow[] {
+  const rows: LedgerStatementRow[] = [];
+
+  if (openingBalance && openingBalance.amount > 0) {
+    rows.push({
+      id: `ob-${openingBalance.id}`,
+      date: openingBalance.as_of_date || '',
+      type: 'Opening Balance' as const,
+      remarks: openingBalance.remarks || `Opening Balance`,
+      debit: Number(openingBalance.amount || 0),
+      credit: 0,
+    });
+  }
+
   const debitRows: LedgerStatementRow[] = invoices.map((invoice) => ({
     id: `inv-${invoice.id}`,
     date: invoice.invoice_date ?? invoice.created_at?.slice(0, 10) ?? '',
-    type: 'Debit',
+    type: 'Debit' as const,
     remarks: invoice.remarks || invoice.invoice_no || 'Invoice',
     debit: Number(invoice.total || 0),
     credit: 0,
@@ -67,13 +84,17 @@ export function buildLedgerStatementRows(invoices: LedgerInvoice[], receipts: Le
     id: `rcpt-${receipt.id}`,
     date: receipt.receipt_date,
     paymentType: receipt.payment_type || '-',
-    type: 'Credit',
+    type: 'Credit' as const,
     remarks: receipt.remarks || receipt.receipt_no || 'Receipt',
     debit: 0,
     credit: Number(receipt.amount || 0),
   }));
 
-  return [...debitRows, ...creditRows].sort((left, right) => normalizeDate(left.date).localeCompare(normalizeDate(right.date)));
+  return [...rows, ...debitRows, ...creditRows].sort((left, right) => {
+    if (left.type === 'Opening Balance') return -1;
+    if (right.type === 'Opening Balance') return 1;
+    return normalizeDate(left.date).localeCompare(normalizeDate(right.date));
+  });
 }
 
 export function buildLedgerSummaries(

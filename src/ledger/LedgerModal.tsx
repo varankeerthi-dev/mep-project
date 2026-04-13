@@ -9,7 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import type { LedgerClient } from './api';
+import type { LedgerClient, OpeningBalance } from './api';
 import type { LedgerSummaryRow } from './utils';
 import { buildLedgerStatementRows, formatCurrency, formatCurrencyExplicit, formatDisplayDate } from './utils';
 
@@ -21,6 +21,7 @@ type Props = {
   summary: LedgerSummaryRow | null;
   rangeLabel: string;
   onManageDetails: (clientId: string) => void;
+  openingBalance?: OpeningBalance | null;
 };
 
 function getOrganisationLine(organisation: Record<string, unknown> | null) {
@@ -173,11 +174,12 @@ export default function LedgerModal({
   summary,
   rangeLabel,
   onManageDetails,
+  openingBalance,
 }: Props) {
   const orgDetails = useMemo(() => getOrganisationLine(organisation), [organisation]);
   const rows = useMemo(
-    () => buildLedgerStatementRows(summary?.invoices ?? [], summary?.receipts ?? []),
-    [summary],
+    () => buildLedgerStatementRows(summary?.invoices ?? [], summary?.receipts ?? [], openingBalance),
+    [summary, openingBalance],
   );
 
   const totalDebit = rows.reduce((sum, row) => sum + row.debit, 0);
@@ -304,12 +306,12 @@ export default function LedgerModal({
                   )}
 
                   {rows.map((row) => (
-                    <tr key={row.id} className="font-body border-t border-navy-100 text-sm text-navy-700 transition hover:bg-cream-50">
+                    <tr key={row.id} className={`font-body border-t border-navy-100 text-sm text-navy-700 transition hover:bg-cream-50 ${row.type === 'Opening Balance' ? 'bg-blue-50' : ''}`}>
                       <td className="px-4 py-3">{formatDisplayDate(row.date)}</td>
                       <td className="px-4 py-3">
                         <span
                           className={`font-body inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
-                            row.type === 'Debit'
+                            row.type === 'Debit' || row.type === 'Opening Balance'
                               ? 'bg-rose-100 text-rose-800'
                               : 'bg-emerald-100 text-emerald-800'
                           }`}

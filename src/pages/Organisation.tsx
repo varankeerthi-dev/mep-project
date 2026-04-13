@@ -11,6 +11,36 @@ const INDIAN_STATES = [
   'Delhi', 'Jammu and Kashmir', 'Ladakh', 'Puducherry'
 ];
 
+function generateFyOptions(format: string, startMonth: number): string[] {
+  const currentYear = new Date().getFullYear();
+  const options: string[] = [];
+  
+  for (let i = -2; i <= 3; i++) {
+    const year = currentYear + i;
+    const nextYear = year + 1;
+    const yearStr = year.toString();
+    const nextYearStr = nextYear.toString().slice(-2);
+    
+    let fy: string;
+    switch (format) {
+      case 'FY24-25':
+        fy = `FY${yearStr.slice(-2)}-${nextYearStr}`;
+        break;
+      case 'FY2024-25':
+        fy = `FY${yearStr}-${nextYearStr}`;
+        break;
+      case '2024_25':
+        fy = `${yearStr}_${nextYearStr}`;
+        break;
+      default:
+        fy = `${yearStr}-${nextYearStr}`;
+    }
+    options.push(fy);
+  }
+  
+  return options;
+}
+
 function DocumentNumberingSettings() {
   const [settings, setSettings] = useState({
     dc_prefix: 'DC',
@@ -236,7 +266,10 @@ export function OrganisationSettings({ organisation, userId }) {
     logo_url: organisation?.logo_url || '',
     signatures: organisation?.signatures || [],
     allow_access_requests: organisation?.allow_access_requests ?? true,
-    is_listed: organisation?.is_listed ?? false
+    is_listed: organisation?.is_listed ?? false,
+    financial_year_format: organisation?.financial_year_format || 'FY24-25',
+    financial_year_start_month: organisation?.financial_year_start_month ?? 4,
+    current_financial_year: organisation?.current_financial_year || 'FY24-25'
   })
 
   useEffect(() => {
@@ -255,7 +288,10 @@ export function OrganisationSettings({ organisation, userId }) {
       logo_url: organisation.logo_url || '',
       signatures: organisation.signatures || [],
       allow_access_requests: organisation.allow_access_requests ?? true,
-      is_listed: organisation.is_listed ?? false
+      is_listed: organisation.is_listed ?? false,
+      financial_year_format: organisation.financial_year_format || 'FY24-25',
+      financial_year_start_month: organisation.financial_year_start_month ?? 4,
+      current_financial_year: organisation.current_financial_year || 'FY24-25'
     })
   }, [organisation])
   
@@ -391,6 +427,9 @@ export function OrganisationSettings({ organisation, userId }) {
           signatures: orgDetails.signatures,
           allow_access_requests: orgDetails.allow_access_requests,
           is_listed: orgDetails.is_listed,
+          financial_year_format: orgDetails.financial_year_format,
+          financial_year_start_month: orgDetails.financial_year_start_month,
+          current_financial_year: orgDetails.current_financial_year,
           updated_at: new Date().toISOString()
         })
         .eq('id', organisation.id)
@@ -622,6 +661,72 @@ export function OrganisationSettings({ organisation, userId }) {
         <p style={{ color: '#666', marginBottom: '16px' }}>Configure how document numbers are generated automatically.</p>
         
         <DocumentNumberingSettings />
+      </div>
+
+      {/* Financial Year Settings */}
+      <div className="card" style={{ marginTop: '24px' }}>
+        <h3 className="card-title">Financial Year Settings</h3>
+        <p style={{ color: '#666', marginBottom: '16px' }}>Configure how financial years are defined for ledger and reporting. This affects opening balance calculations.</p>
+        
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
+          <div className="form-group">
+            <label className="form-label">FY Format</label>
+            <select
+              className="form-select"
+              value={orgDetails.financial_year_format}
+              onChange={(e) => setOrgDetails({ ...orgDetails, financial_year_format: e.target.value })}
+              disabled={!isAdmin}
+            >
+              <option value="FY24-25">FY24-25 (e.g., FY24-25)</option>
+              <option value="FY2024-25">FY2024-25 (e.g., FY2024-25)</option>
+              <option value="2024-25">2024-25 (e.g., 2024-25)</option>
+              <option value="2024_25">2024_25 (e.g., 2024_25)</option>
+            </select>
+            <p style={{ fontSize: '11px', color: '#888', marginTop: '4px' }}>Format for displaying financial year in reports</p>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">FY Start Month</label>
+            <select
+              className="form-select"
+              value={orgDetails.financial_year_start_month}
+              onChange={(e) => setOrgDetails({ ...orgDetails, financial_year_start_month: parseInt(e.target.value) })}
+              disabled={!isAdmin}
+            >
+              <option value={1}>January (Calendar Year)</option>
+              <option value={4}>April (Indian FY)</option>
+            </select>
+            <p style={{ fontSize: '11px', color: '#888', marginTop: '4px' }}>
+              {orgDetails.financial_year_start_month === 1 
+                ? 'Jan 2024 - Dec 2024'
+                : 'Apr 2024 - Mar 2025'
+              }
+            </p>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Current Financial Year</label>
+            <select
+              className="form-select"
+              value={orgDetails.current_financial_year}
+              onChange={(e) => setOrgDetails({ ...orgDetails, current_financial_year: e.target.value })}
+              disabled={!isAdmin}
+            >
+              {generateFyOptions(orgDetails.financial_year_format, orgDetails.financial_year_start_month).map(fy => (
+                <option key={fy} value={fy}>{fy}</option>
+              ))}
+            </select>
+            <p style={{ fontSize: '11px', color: '#888', marginTop: '4px' }}>Active FY used in ledger calculations</p>
+          </div>
+        </div>
+
+        {isAdmin && (
+          <div style={{ marginTop: '16px', padding: '12px', background: '#f0f9ff', borderRadius: '8px', border: '1px solid #bae6fd' }}>
+            <p style={{ fontSize: '12px', color: '#0369a1', margin: 0 }}>
+              <strong>Note:</strong> Opening balances are calculated based on these settings. Changing FY settings after data entry may affect ledger reports.
+            </p>
+          </div>
+        )}
       </div>
 
       <div className="card" style={{ marginTop: '24px' }}>
