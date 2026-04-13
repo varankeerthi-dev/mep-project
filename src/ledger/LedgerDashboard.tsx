@@ -22,6 +22,7 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { cn } from '@/lib/utils';
 import LedgerModal from './LedgerModal';
 import OpeningBalanceTab from './OpeningBalanceTab';
 import {
@@ -170,10 +171,21 @@ export default function LedgerDashboard() {
   });
 
   useEffect(() => {
-    if (organisation?.current_financial_year && !selectedFy) {
+    if (organisation?.current_financial_year) {
       setSelectedFy(String(organisation.current_financial_year));
     }
-  }, [organisation, selectedFy]);
+  }, [organisation]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (filtersOpen && !target.closest('.filter-dropdown-container')) {
+        setFiltersOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [filtersOpen]);
 
   const openingBalancesQuery = useQuery({
     queryKey: ['ledger', 'opening-balances', orgId, selectedFy],
@@ -525,7 +537,7 @@ export default function LedgerDashboard() {
         {/* Main Content */}
         <section className="rounded-lg border border-zinc-200 bg-white shadow-sm">
           {/* Header with Filter Dropdown and Tabs */}
-          <div className="border-b border-zinc-200 p-4">
+          <div className="relative border-b border-zinc-200 p-4">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex items-center gap-4">
                 {/* Tabs */}
@@ -557,47 +569,22 @@ export default function LedgerDashboard() {
                       <span className="ml-1 h-1.5 w-1.5 rounded-full bg-amber-500" />
                     )}
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('opening-balance')}
-                    className={`inline-flex items-center gap-1.5 rounded px-3 py-1.5 text-xs font-medium transition ${
-                      activeTab === 'opening-balance'
-                        ? 'bg-white text-zinc-950 shadow-sm'
-                        : 'text-zinc-500 hover:text-zinc-700'
-                    }`}
-                  >
-                    <Calculator size={13} />
-                    Opening Balance
-                  </button>
                 </div>
 
                 {activeTab === 'ledger' && (
-                  <span className="text-xs text-zinc-500">
-                    {rangeLabel}
-                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setFiltersOpen(!filtersOpen)}
+                    className="filter-dropdown-container inline-flex items-center gap-2 rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50"
+                  >
+                    <span>{rangeLabel}</span>
+                    <ChevronDown size={11} className={`transition-transform ${filtersOpen ? 'rotate-180' : ''}`} />
+                  </button>
                 )}
                 {activeTab === 'details' && selectedClient && (
                   <span className="text-sm font-medium text-zinc-950">
                     {selectedClient.name}
                   </span>
-                )}
-                {activeTab === 'opening-balance' && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-zinc-500">FY:</span>
-                    <select
-                      value={selectedFy}
-                      onChange={(e) => setSelectedFy(e.target.value)}
-                      className="h-7 rounded border border-zinc-200 bg-white px-2 text-xs text-zinc-900 outline-none focus:border-zinc-400"
-                    >
-                      <option value="">Select FY</option>
-                      {generateFyOptions(
-                        String(organisation?.financial_year_format || 'FY24-25'),
-                        Number(organisation?.financial_year_start_month ?? 4)
-                      ).map((fy) => (
-                        <option key={fy} value={fy}>{fy}</option>
-                      ))}
-                    </select>
-                  </div>
                 )}
               </div>
 
@@ -625,96 +612,94 @@ export default function LedgerDashboard() {
                   </Button>
                 )}
 
-                {activeTab === 'ledger' && (
-                  <DropdownMenu open={filtersOpen} onOpenChange={setFiltersOpen}>
-                    <DropdownMenuTrigger asChild>
-                      <button
-                        type="button"
-                        className="inline-flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50"
-                      >
-                        <Filter size={13} />
-                        Filters
-                        <ChevronDown size={11} />
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-72 p-3">
-                      <div className="space-y-3">
-                        <div className="text-[10px] font-medium uppercase tracking-wider text-zinc-400">
-                          Presets
-                        </div>
-                        <div className="flex flex-wrap gap-1.5">
-                          {(['monthly', 'financial-year', 'last-3-months', 'last-6-months', 'last-2-years'] as RangePreset[]).map((preset) => (
-                            <button
-                              key={preset}
-                              type="button"
-                              onClick={() => handlePreset(preset)}
-                              className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition ${
-                                selectedPreset === preset
-                                  ? 'bg-zinc-900 text-white'
-                                  : 'border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50'
-                              }`}
-                            >
-                              {getPresetLabel(preset)}
-                            </button>
-                          ))}
-                        </div>
+                {/* Opening Balance Button */}
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setActiveTab('opening-balance')}
+                  leftIcon={<Calculator size={12} />}
+                >
+                  Opening Balance
+                </Button>
 
-                        <div className="border-t border-zinc-100 pt-3">
-                          <div className="mb-2 text-[10px] font-medium uppercase tracking-wider text-zinc-400">
-                            Custom Range
-                          </div>
-                          <div className="grid gap-2">
-                            <div className="space-y-1">
-                              <label className="block text-[11px] font-medium text-zinc-500">From</label>
-                              <input
-                                type="date"
-                                value={startDate}
-                                onChange={(event) => {
-                                  setSelectedPreset(null);
-                                  setStartDate(event.target.value);
-                                }}
-                                className="h-8 w-full rounded border border-zinc-200 bg-white px-2.5 text-xs text-zinc-900 outline-none transition focus:border-zinc-400"
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <label className="block text-[11px] font-medium text-zinc-500">To</label>
-                              <input
-                                type="date"
-                                value={endDate}
-                                onChange={(event) => {
-                                  setSelectedPreset(null);
-                                  setEndDate(event.target.value);
-                                }}
-                                className="h-8 w-full rounded border border-zinc-200 bg-white px-2.5 text-xs text-zinc-900 outline-none transition focus:border-zinc-400"
-                              />
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="border-t border-zinc-100 pt-3">
-                          <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-600">
-                            <input
-                              type="checkbox"
-                              checked={saveAsDefault}
-                              onChange={(event) => setSaveAsDefault(event.target.checked)}
-                              className="h-3.5 w-3.5 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-500"
-                            />
-                            Save as default
-                          </label>
-                        </div>
-
-                        <Button
-                          size="sm"
-                          onClick={handleApplyFilters}
-                          disabled={!hasPendingFilterChanges}
-                          leftIcon={<Search size={12} />}
-                          className="w-full"
-                        >
-                          Apply Filters
-                        </Button>
+                {activeTab === 'ledger' && filtersOpen && (
+                  <div className="filter-dropdown-container absolute right-6 top-full z-50 mt-2 w-72 rounded-lg border border-zinc-200 bg-white p-3 shadow-lg">
+                    <div className="space-y-3">
+                      <div className="text-[10px] font-medium uppercase tracking-wider text-zinc-400">
+                        Presets
                       </div>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                      <div className="flex flex-wrap gap-1.5">
+                        {(['monthly', 'financial-year', 'last-3-months', 'last-6-months', 'last-2-years'] as RangePreset[]).map((preset) => (
+                          <button
+                            key={preset}
+                            type="button"
+                            onClick={() => handlePreset(preset)}
+                            className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition ${
+                              selectedPreset === preset
+                                ? 'bg-zinc-900 text-white'
+                                : 'border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50'
+                            }`}
+                          >
+                            {getPresetLabel(preset)}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="border-t border-zinc-100 pt-3">
+                        <div className="mb-2 text-[10px] font-medium uppercase tracking-wider text-zinc-400">
+                          Custom Range
+                        </div>
+                        <div className="grid gap-2">
+                          <div className="space-y-1">
+                            <label className="block text-[11px] font-medium text-zinc-500">From</label>
+                            <input
+                              type="date"
+                              value={startDate}
+                              onChange={(event) => {
+                                setSelectedPreset(null);
+                                setStartDate(event.target.value);
+                              }}
+                              className="h-8 w-full rounded border border-zinc-200 bg-white px-2.5 text-xs text-zinc-900 outline-none transition focus:border-zinc-400"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="block text-[11px] font-medium text-zinc-500">To</label>
+                            <input
+                              type="date"
+                              value={endDate}
+                              onChange={(event) => {
+                                setSelectedPreset(null);
+                                setEndDate(event.target.value);
+                              }}
+                              className="h-8 w-full rounded border border-zinc-200 bg-white px-2.5 text-xs text-zinc-900 outline-none transition focus:border-zinc-400"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="border-t border-zinc-100 pt-3">
+                        <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-600">
+                          <input
+                            type="checkbox"
+                            checked={saveAsDefault}
+                            onChange={(event) => setSaveAsDefault(event.target.checked)}
+                            className="h-3.5 w-3.5 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-500"
+                          />
+                          Save as default
+                        </label>
+                      </div>
+
+                      <Button
+                        size="sm"
+                        onClick={handleApplyFilters}
+                        disabled={!hasPendingFilterChanges}
+                        leftIcon={<Search size={12} />}
+                        className="w-full"
+                      >
+                        Apply Filters
+                      </Button>
+                    </div>
+                  </div>
                 )}
               </div>
             </div>
