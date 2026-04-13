@@ -299,6 +299,10 @@ export function OrganisationSettings({ organisation, userId }) {
   const [uploading, setUploading] = useState(false)
 
   const uploadImage = async (file, path) => {
+    if (!organisation?.id) {
+      alert('Organisation not loaded yet');
+      return null;
+    }
     try {
       setUploading(true)
       const fileExt = file.name.split('.').pop()
@@ -403,6 +407,7 @@ export function OrganisationSettings({ organisation, userId }) {
   }
 
   const loadMembers = async () => {
+    if (!organisation?.id) return;
     setLoading(true)
     const { data, error } = await getOrganisationMembers(organisation.id)
     if (!error) setMembers(data || [])
@@ -410,6 +415,10 @@ export function OrganisationSettings({ organisation, userId }) {
   }
 
   const handleUpdateOrg = async () => {
+    if (!organisation?.id) {
+      alert('Organisation not loaded yet');
+      return;
+    }
     try {
       console.log('Updating organisation with:', orgDetails);
       const { data, error } = await supabase
