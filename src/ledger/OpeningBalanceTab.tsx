@@ -1,5 +1,5 @@
 import React, { memo } from 'react';
-import { Loader2, Plus, Save } from 'lucide-react';
+import { Loader2, Pencil, Plus, Save } from 'lucide-react';
 import { Table, TableBody, TableCellDense, TableHead, TableHeader, TableRow, TableRowDense } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { formatCurrency, formatDisplayDate } from './utils';
@@ -194,15 +194,30 @@ const OpeningBalanceTab = memo(function OpeningBalanceTab({
 
       <div className="mt-6 flex items-center gap-3 border-t border-navy-100 pt-4">
         {!openingBalanceEditMode && (
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={() => autoPopulateMutation.mutate()}
-            isLoading={autoPopulateMutation.isPending}
-            leftIcon={<Plus size={14} />}
-          >
-            Auto-populate from Previous FY
-          </Button>
+          <>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => autoPopulateMutation.mutate()}
+              isLoading={autoPopulateMutation.isPending}
+              leftIcon={<Plus size={14} />}
+            >
+              Auto-populate from Previous FY
+            </Button>
+            {selectedFy && (
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => {
+                  const event = new CustomEvent('startOpeningBalanceEdit');
+                  window.dispatchEvent(event);
+                }}
+                leftIcon={<Pencil size={14} />}
+              >
+                Edit / Add New Client
+              </Button>
+            )}
+          </>
         )}
         {openingBalanceEditMode && (
           <>

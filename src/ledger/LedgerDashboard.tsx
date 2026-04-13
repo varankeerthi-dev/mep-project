@@ -319,6 +319,13 @@ export default function LedgerDashboard() {
   }, [appliedEndDate, appliedStartDate, saveAsDefault, selectedPreset]);
 
   const clients = clientsQuery.data ?? [];
+
+  useEffect(() => {
+    const handleStartEdit = () => handleStartOpeningBalanceEdit();
+    window.addEventListener('startOpeningBalanceEdit', handleStartEdit);
+    return () => window.removeEventListener('startOpeningBalanceEdit', handleStartEdit);
+  }, [clients, openingBalancesMap, selectedFy]);
+
   const summaries = useMemo(
     () => buildLedgerSummaries(clients, invoicesQuery.data ?? [], receiptsQuery.data ?? []),
     [clients, invoicesQuery.data, receiptsQuery.data],
@@ -437,16 +444,19 @@ export default function LedgerDashboard() {
   const handleStartOpeningBalanceEdit = () => {
     setOpeningBalanceEditMode(true);
     const drafts: Record<string, BulkOpeningBalanceInput> = {};
+    const fyYear = parseInt(selectedFy.match(/\d{2}$/)?.[0] || '0');
+    const century = Math.floor(new Date().getFullYear() / 100) * 100;
+    const fullYear = century - 100 + fyYear;
+    const defaultDate = `${fullYear}-04-01`;
+    
     clients.forEach((client) => {
       const existingOb = openingBalancesMap[client.id];
-      if (existingOb) {
-        drafts[client.id] = {
-          client_id: client.id,
-          amount: existingOb.amount,
-          as_of_date: existingOb.as_of_date,
-          remarks: existingOb.remarks || '',
-        };
-      }
+      drafts[client.id] = {
+        client_id: client.id,
+        amount: existingOb?.amount ?? 0,
+        as_of_date: existingOb?.as_of_date ?? defaultDate,
+        remarks: existingOb?.remarks || '',
+      };
     });
     setOpeningBalanceDrafts(drafts);
   };
