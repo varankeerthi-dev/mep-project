@@ -1,6 +1,7 @@
-import {
+import React, {
   useState, useEffect, useCallback, useMemo, useRef, memo,
 } from 'react';
+import ReactDOM from 'react-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -149,6 +150,7 @@ type BoqRowProps = {
   onDrop: (index: number) => void;
   onFocus: (index: number) => void;
   onMaterialPick: (index: number, mat: MaterialOption) => void;
+  onShowDropdown: (show: boolean, items: MaterialOption[], rect: { top: number; left: number; width: number }) => void;
   materials: MaterialOption[];
   inputRefs: React.MutableRefObject<Record<string, HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | null>>;
   materialSearchActive: { sheetId: string; index: number } | null;
@@ -160,7 +162,7 @@ const BoqRowComponent = memo(({
   row, index, sno, visibleColumns, columnWidths, sheetId, variants, makes,
   defaultVariantId, baseDiscount, priceMap,
   onUpdate, onDelete, onInsert, onDragStart, onDrop, onFocus,
-  onMaterialPick, materials, inputRefs,
+  onMaterialPick, onShowDropdown, materials, inputRefs,
   materialSearchActive, setMaterialSearchActive, getVariantDiscount,
 }: BoqRowProps) => {
   // Local search state — lives inside this row only, no global re-render
@@ -260,56 +262,33 @@ const BoqRowComponent = memo(({
             </div>
           )}
           {col.key === 'description' && (
-            <div style={{ position: 'relative' }}>
-              {/* Uncontrolled — local value, flush on blur */}
+            <div style={{ position: 'relative', overflow: 'visible' }}>
               <input
                 type="text"
                 defaultValue={row.description || ''}
                 key={`${row.id}-desc`}
                 onFocus={(e) => {
-                  setLocalSearch(e.target.value);
-                  setShowDropdown(true);
+                  const rect = e.target.getBoundingClientRect();
+                  onShowDropdown(true, filteredMats, { top: rect.bottom, left: rect.left, width: rect.width });
                   onFocus(index);
                   e.target.select();
                 }}
                 onChange={(e) => {
                   setLocalSearch(e.target.value);
-                  setShowDropdown(true);
+                  const rect = e.target.getBoundingClientRect();
+                  onShowDropdown(true, filteredMats, { top: rect.bottom, left: rect.left, width: rect.width });
                 }}
                 onBlur={(e) => {
                   setTimeout(() => {
-                    setShowDropdown(false);
+                    onShowDropdown(false, [], { top: 0, left: 0, width: 0 });
                     const value = e.target.value.trim();
                     onUpdate(index, 'description', value);
-                    if (!row.itemId && value) {
-                      const match = materials.find(m => m.name?.toLowerCase() === value.toLowerCase());
-                      if (match) {
-                        onMaterialPick(index, match);
-                      }
-                    }
                   }, 200);
                 }}
                 style={cellInputStyle}
                 ref={(el) => { inputRefs.current[`${sheetId}-${index}-itemId`] = el; }}
                 onKeyDown={(e) => handleKeyDown(e, 'itemId')}
               />
-              {showDropdown && filteredMats.length > 0 && (
-                <div style={autocompleteStyle}>
-                  {filteredMats.map(m => (
-                    <div
-                      key={m.id}
-                      onMouseDown={() => {
-                        onMaterialPick(index, m);
-                        setShowDropdown(false);
-                        setLocalSearch('');
-                      }}
-                      style={autocompleteItemStyle}
-                    >
-                      {m.name}
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
           )}
           {col.key === 'hsn_sac' && (
@@ -472,7 +451,8 @@ const BoqRowComponent = memo(({
     prev.materialSearchActive === next.materialSearchActive &&
     prev.baseDiscount === next.baseDiscount &&
     prev.materials === next.materials &&
-    prev.makes === next.makes
+    prev.makes === next.makes &&
+    prev.onShowDropdown === next.onShowDropdown
   );
 });
 
@@ -517,6 +497,7 @@ export function BOQ() {
   const [selectedSheets, setSelectedSheets] = useState<Record<string, boolean>>({});
   const [launchingStockCheck, setLaunchingStockCheck] = useState(false);
   const [materialSearchActive, setMaterialSearchActive] = useState<{ sheetId: string; index: number } | null>(null);
+  const [dropdownPortal, setDropdownPortal] = useState<{ sheetId: string; index: number; items: MaterialOption[]; position: { top: number; left: number; width: number } } | null>(null);
 
   const inputRefs = useRef<Record<string, HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | null>>({});
   const prevDefaultVariantRef = useRef('');
@@ -886,6 +867,29 @@ export function BOQ() {
       return { ...prev, [activeSheetId]: list };
     });
   }, [activeSheetId, boqData.variantId, getVariantDiscount, getVariantNameById, getPriceFromMap, pushUndo]);
+
+  const handleShowDropdown = useCallback((show: boolean, items: MaterialOption[], rect: { top: number; left: number; width: number }) => {
+    if (show) {
+      setDropdownPortal({
+        sheetId: activeSheetId,
+        index: -1,
+        items,
+        position: rect,
+      });
+    } else {
+      setDropdownPortal(null);
+    }
+  }, [activeSheetId]);
+
+  const handleDropdownItemClick = useCallback((material: MaterialOption) => {
+    if (dropdownPortal) {
+      const { sheetId, index } = dropdownPortal;
+      if (sheetId === activeSheetId && index >= 0) {
+        handleMaterialPick(index, material);
+      }
+    }
+    setDropdownPortal(null);
+  }, [dropdownPortal, activeSheetId, handleMaterialPick]);
 
   const insertRow = useCallback((afterIndex: number) => {
     const newRow: BoqRow = {
@@ -1606,6 +1610,7 @@ export function BOQ() {
                               onDrop={handleRowDrop}
                               onFocus={setActiveRowIndex}
                               onMaterialPick={handleMaterialPick}
+                              onShowDropdown={handleShowDropdown}
                               materials={materials}
                               inputRefs={inputRefs}
                               materialSearchActive={materialSearchActive}
@@ -1777,6 +1782,35 @@ export function BOQ() {
           </div>
         </div>
       )}
+
+      {dropdownPortal && ReactDOM.createPortal(
+        <div style={{
+          position: 'fixed',
+          top: dropdownPortal.position.top,
+          left: dropdownPortal.position.left,
+          width: dropdownPortal.position.width,
+          background: 'white',
+          border: '1px solid #ddd',
+          borderRadius: '4px',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          maxHeight: '200px',
+          overflowY: 'auto',
+          zIndex: 9999,
+        }}>
+          {dropdownPortal.items.map(m => (
+            <div
+              key={m.id}
+              onClick={() => handleDropdownItemClick(m)}
+              style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '13px', borderBottom: '1px solid #f0f0f0' }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = '#f3f4f6')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'white')}
+            >
+              {m.name}
+            </div>
+          ))}
+        </div>,
+        document.body,
+      )}
     </div>
   );
 }
@@ -1799,7 +1833,7 @@ const modalStyle: React.CSSProperties = { background: 'white', borderRadius: '8p
 const closeBtnStyle: React.CSSProperties = { border: 'none', background: 'transparent', cursor: 'pointer', padding: '4px', color: '#666' };
 const dropdownItemStyle: React.CSSProperties = { width: '100%', padding: '10px 15px', border: 'none', background: 'transparent', cursor: 'pointer', textAlign: 'left', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px' };
 const variantDiscountBoxStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: '5px', background: 'white', padding: '5px 10px', borderRadius: '4px', border: '1px solid #ddd' };
-const autocompleteStyle: React.CSSProperties = { position: 'absolute', top: '100%', left: 0, right: 0, background: 'white', border: '1px solid #ddd', borderRadius: '4px', boxShadow: '0 4px 8px rgba(0,0,0,0.15)', maxHeight: '200px', overflowY: 'auto', zIndex: 1000 };
+const autocompleteStyle: React.CSSProperties = { position: 'absolute', top: '100%', left: 0, right: 0, background: 'white', border: '1px solid #ddd', borderRadius: '4px', boxShadow: '0 4px 8px rgba(0,0,0,0.15)', maxHeight: '200px', overflowY: 'auto', zIndex: 9999 };
 const autocompleteItemStyle: React.CSSProperties = { padding: '8px 12px', cursor: 'pointer', fontSize: '13px', borderBottom: '1px solid #f0f0f0' };
 const excelColumnHeaderCellStyle: React.CSSProperties = { padding: '2px 4px', textAlign: 'center', fontWeight: '700', fontSize: '11px', color: '#374151', borderBottom: '1px solid #cbd5e1', borderRight: '1px solid #d1d5db', background: '#e5e7eb' };
 const excelCellStyle: React.CSSProperties = { padding: '2px 4px', borderBottom: '1px solid #e2e8f0', borderRight: '1px solid #e2e8f0', borderLeft: '1px solid #e2e8f0', background: '#fff' };
