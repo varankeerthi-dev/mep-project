@@ -1,5 +1,31 @@
-import { useState, useCallback, useMemo, memo } from 'react';
-import * as HeroIcons from '@heroicons/react/24/outline';
+import { useState, useCallback, useMemo } from 'react';
+import {
+  HomeIcon,
+  FolderIcon,
+  ClipboardDocumentCheckIcon,
+  ShieldCheckIcon,
+  UsersIcon,
+  DocumentTextIcon,
+  CalendarDaysIcon,
+  MapPinIcon,
+  UserGroupIcon,
+  InboxIcon,
+  DocumentDuplicateIcon,
+  TableCellsIcon,
+  FolderOpenIcon,
+  ExclamationTriangleIcon,
+  ChatBubbleLeftRightIcon,
+  CubeIcon,
+  WrenchScrewdriverIcon,
+  TruckIcon,
+  ChartBarIcon,
+  Cog6ToothIcon,
+  ChevronDownIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  ShoppingCartIcon,
+  ClipboardDocumentListIcon
+} from '@heroicons/react/24/outline';
 
 type SubmenuItem = {
   id: string;
@@ -240,41 +266,38 @@ const menuData: MenuSection[] = [
   }
 ];
 
-const ICON_MAP: Record<string, keyof typeof HeroIcons> = {
-  dashboard: 'HomeIcon',
-  projects: 'FolderIcon',
-  todo: 'ClipboardDocumentCheckIcon',
-  approvals: 'ShieldCheckIcon',
-  clients: 'UsersIcon',
-  'client-po': 'DocumentTextIcon',
-  meetings: 'CalendarDaysIcon',
-  'site-visit': 'MapPinIcon',
-  'site-report': 'ClipboardDocumentCheckIcon',
-  'client-communication': 'ChatBubbleLeftRightIcon',
-  subcontractor: 'UserGroupIcon',
-  'client-requests': 'InboxIcon',
-  quotation: 'DocumentDuplicateIcon',
-  invoice: 'DocumentTextIcon',
-  ledger: 'DocumentTextIcon',
-  boq: 'TableCellsIcon',
-  documents: 'FolderOpenIcon',
-  issue: 'ExclamationTriangleIcon',
-  store: 'CubeIcon',
-  purchase: 'ShoppingCartIcon',
-  procurement: 'ClipboardDocumentListIcon',
-  dc: 'TruckIcon',
-  'non-billable-dc': 'TruckIcon',
-  reports: 'ChartBarIcon',
-  settings: 'Cog6ToothIcon'
+const iconMap = {
+  dashboard: HomeIcon,
+  projects: FolderIcon,
+  todo: ClipboardDocumentCheckIcon,
+  approvals: ShieldCheckIcon,
+  clients: UsersIcon,
+  'client-po': DocumentTextIcon,
+  meetings: CalendarDaysIcon,
+  'site-visit': MapPinIcon,
+  'site-report': ClipboardDocumentCheckIcon,
+  subcontractor: UserGroupIcon,
+  'client-requests': InboxIcon,
+  quotation: DocumentDuplicateIcon,
+  invoice: DocumentTextIcon,
+  ledger: DocumentTextIcon,
+  boq: TableCellsIcon,
+  documents: FolderOpenIcon,
+  issue: ExclamationTriangleIcon,
+  store: CubeIcon,
+  purchase: ShoppingCartIcon,
+  procurement: ClipboardDocumentListIcon,
+  dc: TruckIcon,
+  'non-billable-dc': TruckIcon,
+  reports: ChartBarIcon,
+  settings: Cog6ToothIcon
 };
 
 const cx = (...classes: Array<string | false | null | undefined>) => classes.filter(Boolean).join(' ');
 
-// Memoized icon getter
-const getIconComponent = (id: string) => {
-  const iconName = ICON_MAP[id] || 'HomeIcon';
-  return HeroIcons[iconName as keyof typeof HeroIcons];
-};
+function getIcon(id: string) {
+  return iconMap[id as keyof typeof iconMap] || HomeIcon;
+}
 
 export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, mobileOpen }: SidebarProps) {
   const isCollapsed = collapsed && !mobileOpen;
@@ -306,7 +329,7 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
     );
   }, []);
 
-  const handleClick = useCallback((item: MenuItem) => () => {
+  const handleClick = useCallback((item: MenuItem) => {
     if (item.submenu) {
       // When the sidebar is collapsed, submenus aren't visible. Navigate to the parent path instead.
       if (isCollapsed) {
@@ -338,8 +361,6 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
 
   const isActive = useCallback((path: string) => pathKey === path, [pathKey]);
 
-  const { ChevronRightIcon, ChevronLeftIcon } = HeroIcons;
-
   return (
     <>
       {mobileOpen && <div className="sidebar-overlay" onClick={handleOverlayClick} />}
@@ -361,8 +382,7 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
               {section.items.map(item => {
                 const parentActive = isParentActive(item);
                 const isExpanded = expandedMenus.includes(item.id);
-                const Icon = getIconComponent(item.id);
-                const { ChevronDownIcon, ChevronRightIcon, ChevronLeftIcon } = HeroIcons;
+                const Icon = getIcon(item.id);
 
                 return (
                   <div key={item.id}>
@@ -372,7 +392,7 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
                         parentActive && 'active',
                         isExpanded && 'expanded'
                       )}
-                      onClick={handleClick(item)}
+                      onClick={handleClick.bind(null, item)}
                       type="button"
                     >
                       <span className="sidebar-item-icon">
@@ -395,7 +415,7 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
                               'sidebar-submenu-item',
                               isActive(subItem.path) && 'active'
                             )}
-                            onClick={() => onNavigate(subItem.path)}
+                            onClick={handleSubmenuClick.bind(null, subItem.path)}
                             type="button"
                           >
                             <span className="sidebar-item-label">{subItem.label}</span>
