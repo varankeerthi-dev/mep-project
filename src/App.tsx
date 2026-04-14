@@ -3,7 +3,6 @@ import type { ComponentType, LazyExoticComponent } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
-import QuickAccessBar from './components/QuickAccessBar';
 import { supabase, getUserOrganisations, createOrganisation, signOut } from './supabase';
 import { queryClient } from './queryClient';
 import LandingPage from './pages/LandingPage';
@@ -250,18 +249,7 @@ export default function App() {
     routerNavigate(path || '/');
   }, [routerNavigate]);
 
-  const handleQuickAction = useCallback((action: QuickAction) => {
-    switch (action) {
-      case 'new-dc': navigate('/dc/create'); break;
-      case 'daily-updates': navigate('/projects/daily-updates'); break;
-      case 'approvals': navigate('/approvals'); break;
-      case 'remind': navigate('/remindme'); break;
-      case 'search': navigate('/dc/list'); break;
-      case 'export': navigate('/dc/list'); break;
-      default: break;
-    }
-  }, [navigate]);
-
+  
   const handleSidebarNavigate = useCallback((path: string) => {
     navigate(path);
     setMobileSidebarOpen(false);
@@ -271,10 +259,7 @@ export default function App() {
     setSidebarCollapsed(prev => !prev);
   }, []);
 
-  const handleMenuToggle = useCallback(() => {
-    setMobileSidebarOpen(prev => !prev);
-  }, []);
-
+  
   const renderedPage = useMemo(() => {
     const pathKey = (currentPath || '/').split('?')[0];
     
@@ -612,8 +597,7 @@ export default function App() {
   return (
     <AuthContext.Provider value={{ user, organisation, organisations, handleLogout }}>
       <div className="app-container">
-        <QuickAccessBar onQuickAction={handleQuickAction} organisation={organisation} onLogout={handleLogout} onMenuToggle={handleMenuToggle} />
-        
+                
         {/* Mobile backdrop - closes sidebar when clicked */}
         <div 
           className={`sidebar-backdrop ${mobileSidebarOpen ? 'active' : ''}`}
