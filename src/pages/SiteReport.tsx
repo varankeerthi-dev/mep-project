@@ -5,6 +5,7 @@ import * as z from 'zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { toast } from 'sonner';
+import { generateProGridSiteReportPdf } from '@/pdf/proGridSiteReportPdf';
 import {
   Badge,
   Button as ShadcnButton,
@@ -470,6 +471,57 @@ export function SiteReport() {
     }
   }, []);
 
+  const handlePrintPDF = useCallback(() => {
+    const { organisation } = useAuth();
+    if (!organisation) {
+      toast.error("Organization not found");
+      return;
+    }
+
+    const siteReportData = {
+      id: form.getValues('id') || 'temp-' + Date.now(),
+      report_date: form.getValues('date'),
+      client_name: clients.find(c => c.id === form.getValues('client'))?.client_name,
+      project_name: projects.find(p => p.id === form.getValues('projectName'))?.project_name,
+      pm_name: form.getValues('pmName'),
+      pm_status: form.getValues('pmStatus'),
+      weather: form.getValues('weather'),
+      manpower: {
+        subContractors: form.getValues('manpower.subContractors') || [],
+        workCarriedOut: form.getValues('workCarriedOut') || [],
+        milestonesCompleted: form.getValues('milestonesCompleted') || []
+      },
+      photos: photos.map(p => ({
+        file_name: p.name,
+        file_path: URL.createObjectURL(p)
+      })),
+      footer: {
+        enginear: form.getValues('footer.engineer'),
+        signatureDate: form.getValues('footer.signatureDate')
+      }
+    };
+
+    const doc = generateProGridSiteReportPdf({
+      siteReport: siteReportData,
+      organisation,
+      orientation: 'portrait',
+      pageFormat: 'a4'
+    });
+
+    // Create blob and download
+    const pdfBlob = doc.output('blob');
+    const url = URL.createObjectURL(pdfBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `site-report-${form.getValues('date')}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+    toast.success("PDF generated successfully");
+  }, [form, clients, projects, photos]);
+
   if (view === 'list') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-zinc-50">
@@ -545,6 +597,31 @@ export function SiteReport() {
                 }}
               >
                 Create Report
+              </Button>
+              <Button 
+                variant="contained" 
+                startIcon={<FileText />}
+                onClick={handlePrintPDF}
+                disabled={view !== 'edit'}
+                sx={{ 
+                  fontSize: '14px',
+                  fontWeight: 600,
+                  textTransform: 'none',
+                  bgcolor: 'linear-gradient(135deg, #dc2626 0%, #16a34a 100%)',
+                  color: 'white',
+                  py: 1.5,
+                  px: 3,
+                  borderRadius: 2,
+                  boxShadow: '0 4px 12px rgba(15, 23, 42, 0.25)',
+                  '&:hover': { 
+                    bgcolor: 'linear-gradient(135deg, #16a34a 0%, #1e40af 100%)',
+                    transform: 'translateY(-1px)',
+                    boxShadow: '0 8px 20px rgba(15, 23, 42, 0.35)'
+                  },
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                Print PDF
               </Button>
             </div>
           </div>
