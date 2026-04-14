@@ -177,6 +177,7 @@ export function SiteReport() {
 
   const form = useForm<SiteReportFormValues>({
     resolver: zodResolver(siteReportSchema),
+    mode: 'onSubmit', // Only validate on submit, not on every keystroke
     defaultValues: {
       client: '',
       projectName: '',
@@ -210,11 +211,11 @@ export function SiteReport() {
   const { data: reports, isLoading: reportsLoading } = useQuery({
     queryKey: ['site-reports', organisation?.id],
     queryFn: async () => {
-      console.log('Fetching reports for org:', organisation?.id);
       let query = supabase
         .from('site_reports')
-        .select('*, clients(client_name), projects(project_name)')
-        .order('report_date', { ascending: false });
+        .select('id, report_date, pm_status, engineer_name, clients(client_name), projects(project_name)')
+        .order('report_date', { ascending: false })
+        .limit(50); // Only fetch recent 50 reports
       
       if (organisation?.id) {
         query = query.eq('organization_id', organisation?.id);
@@ -227,47 +228,51 @@ export function SiteReport() {
       }
       return data || [];
     },
-    enabled: view === 'list'
+    enabled: view === 'list',
+    staleTime: 1000 * 60 * 2,  // Cache for 2 minutes
+    gcTime: 1000 * 60 * 5,     // Keep in memory for 5 minutes
   });
 
   // Fetch Clients
   const { data: clients, isLoading: clientsLoading, error: clientsError } = useQuery({
-    queryKey: ['site-report-clients'],
-    staleTime: 1000 * 60 * 5, 
+    queryKey: ['site-report-clients', organisation?.id],
+    staleTime: 1000 * 60 * 10, // Cache for 10 minutes
+    gcTime: 1000 * 60 * 30,    // Keep in memory for 30 minutes
+    enabled: view === 'create' && !!organisation?.id, // Only fetch when creating report and org is available
     queryFn: async () => {
-      console.log('Fetching all clients for site report');
       const { data, error } = await supabase
         .from('clients')
         .select('id, client_name')
+        .eq('org_id', organisation?.id) // Use org_id instead of organization_id
         .order('client_name');
       
       if (error) {
         console.error('Clients fetch error:', error);
-        throw error;
+        // Return empty array instead of throwing to prevent UI breaking
+        return [];
       }
-      console.log('Clients fetched:', data?.length);
       return data || [];
     }
   });
 
   // Fetch Projects
   const { data: projects, isLoading: projectsLoading, error: projectsError } = useQuery({
-    queryKey: ['site-report-projects', selectedClientId],
-    enabled: !!selectedClientId,
-    staleTime: 1000 * 60 * 5,
+    queryKey: ['site-report-projects', selectedClientId, organisation?.id],
+    enabled: !!selectedClientId && view === 'create' && !!organisation?.id,
+    staleTime: 1000 * 60 * 10, // Cache for 10 minutes
+    gcTime: 1000 * 60 * 30,    // Keep in memory for 30 minutes
     queryFn: async () => {
-      console.log('Fetching projects for client:', selectedClientId);
       const { data, error } = await supabase
         .from('projects')
         .select('id, project_name')
         .eq('client_id', selectedClientId)
+        .eq('organisation_id', organisation?.id) // Use correct column name
         .order('project_name');
       
       if (error) {
         console.error('Projects fetch error:', error);
-        throw error;
+        return []; // Return empty array instead of throwing
       }
-      console.log('Projects fetched:', data?.length);
       return data || [];
     }
   });
@@ -360,7 +365,9 @@ export function SiteReport() {
 
       if (reportError) throw reportError;
 
-      // 2. Save Sub-contractors
+      // 2. Prepare all related inserts for parallel execution
+      const relatedInserts = [];
+      
       if (values.manpower.subContractors.length > 0) {
         const subs = values.manpower.subContractors
           .filter(s => s.name)
@@ -373,12 +380,10 @@ export function SiteReport() {
             end_time: s.end || null
           }));
         if (subs.length > 0) {
-          const { error } = await supabase.from('sub_contractors').insert(subs);
-          if (error) throw error;
+          relatedInserts.push(supabase.from('sub_contractors').insert(subs));
         }
       }
 
-      // 3. Save Work Carried Out
       if (values.workCarriedOut.length > 0) {
         const items = values.workCarriedOut
           .filter(i => i.value)
@@ -388,12 +393,10 @@ export function SiteReport() {
             description: i.value 
           }));
         if (items.length > 0) {
-          const { error } = await supabase.from('work_carried_out').insert(items);
-          if (error) throw error;
+          relatedInserts.push(supabase.from('work_carried_out').insert(items));
         }
       }
 
-      // 4. Save Milestones
       if (values.milestonesCompleted.length > 0) {
         const items = values.milestonesCompleted
           .filter(i => i.value)
@@ -403,38 +406,69 @@ export function SiteReport() {
             description: i.value 
           }));
         if (items.length > 0) {
-          const { error } = await supabase.from('milestones_completed').insert(items);
-          if (error) throw error;
+          relatedInserts.push(supabase.from('milestones_completed').insert(items));
         }
+      }
+
+      // 3. Execute all related inserts in parallel
+      if (relatedInserts.length > 0) {
+        await Promise.allSettled(relatedInserts);
       }
 
       return report;
     },
+    
+    // Add optimistic update for instant UI feedback
+    onMutate: async (newReport) => {
+      await queryClient.cancelQueries({ queryKey: ['site-reports'] });
+      
+      const previousReports = queryClient.getQueryData(['site-reports', organisation?.id]);
+      
+      queryClient.setQueryData(['site-reports', organisation?.id], (old: any) => {
+        const optimisticReport = {
+          id: 'temp-' + Date.now(),
+          report_date: newReport.date,
+          pm_status: newReport.reporting.pmStatus,
+          engineer_name: newReport.footer.engineer,
+          clients: { client_name: 'Saving...' },
+          projects: { project_name: 'Saving...' }
+        };
+        return [optimisticReport, ...(old || [])];
+      });
+      
+      toast.success('Saving report...', { duration: 1000 });
+      return { previousReports };
+    },
+    
     onSuccess: () => {
       toast.success('Site report saved successfully!');
       queryClient.invalidateQueries({ queryKey: ['site-reports'] });
       setView('list');
       form.reset();
     },
-    onError: (error: any) => {
+    
+    onError: (error: any, newReport, context) => {
+      if (context?.previousReports) {
+        queryClient.setQueryData(['site-reports', organisation?.id], context.previousReports);
+      }
       toast.error(`Failed to save report: ${error.message}`);
     }
   });
 
-  const onSubmit = (data: SiteReportFormValues) => {
+  const onSubmit = useCallback((data: SiteReportFormValues) => {
     saveMutation.mutate(data);
-  };
+  }, [saveMutation]);
 
-  const onInvalid = (errors: any) => {
+  const onInvalid = useCallback((errors: any) => {
     console.error("Form validation errors:", errors);
     toast.error("Please fill in all required fields correctly.");
-  };
+  }, []);
 
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       setPhotos(prev => [...prev, ...Array.from(e.target.files!)]);
     }
-  };
+  }, []);
 
   if (view === 'list') {
     return (

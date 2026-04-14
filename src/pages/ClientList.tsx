@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '../supabase';
 import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useClients } from '../hooks/useClients';
 import { flexRender, getCoreRowModel, getSortedRowModel, getFilteredRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
 import { ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -239,32 +240,19 @@ export default function ClientList() {
   const [txSearch, setTxSearch] = useState('');
   const [txDateFrom, setTxDateFrom] = useState('');
   const [txDateTo, setTxDateTo] = useState('');
-  const clientsQuery = useQuery({
-    queryKey: CLIENT_QUERY_KEYS.list(),
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('clients')
-        .select('id, client_name, client_id, contact, email, gstin, state, city, category, address1, address2, pincode')
-        .order('client_name');
-      if (error) throw error;
-      return data || [];
-    },
-    staleTime: 30 * 1000,
-    gcTime: 5 * 60 * 1000,
-    refetchOnMount: 'always',
-    refetchOnWindowFocus: true
-  });
-
+  // Use shared hook instead of inline query
+  const clientsQuery = useClients();
   const clients = clientsQuery.data || [];
 
  useEffect(() => {
-  if (clients.length === 0) return;
-  setActiveClientId(prev => {
-    if (!prev) return clients[0].id;
-    if (!clients.some(c => c.id === prev)) return clients[0].id;
-    return prev; // no change, won't trigger re-render
-  });
-}, [clients]); // ← only clients, not activeClientId
+    if (clientsQuery.isLoading) return; // Don't run while loading
+    if (clients.length === 0) return;
+    setActiveClientId(prev => {
+      if (!prev) return clients[0].id;
+      if (!clients.some(c => c.id === prev)) return clients[0].id;
+      return prev; // no change, won't trigger re-render
+    });
+}, [clients, clientsQuery.isLoading]); // Add isLoading to deps
 
   const activeClient = useMemo(
     () => clients.find(c => c.id === activeClientId) || null,
@@ -284,9 +272,7 @@ const txQueries = useQueries({
         if (error) throw error;
         return data || [];
       },
-      staleTime: 30 * 1000,
-      gcTime: 5 * 60 * 1000,
-      refetchOnMount: 'always',
+      // No overrides! Use global defaults from queryClient.ts
       enabled: activeTab === 'reports'
     },
     {
@@ -300,9 +286,7 @@ const txQueries = useQueries({
         if (error) throw error;
         return data || [];
       },
-      staleTime: 30 * 1000,
-      gcTime: 5 * 60 * 1000,
-      refetchOnMount: 'always',
+      // No overrides! Use global defaults from queryClient.ts
       enabled: activeTab === 'reports'
     },
     {
@@ -316,9 +300,7 @@ const txQueries = useQueries({
         if (error) throw error;
         return data || [];
       },
-      staleTime: 30 * 1000,
-      gcTime: 5 * 60 * 1000,
-      refetchOnMount: 'always',
+      // No overrides! Use global defaults from queryClient.ts
       enabled: activeTab === 'reports'
     },
     {
@@ -332,9 +314,7 @@ const txQueries = useQueries({
         if (error) throw error;
         return data || [];
       },
-      staleTime: 30 * 1000,
-      gcTime: 5 * 60 * 1000,
-      refetchOnMount: 'always',
+      // No overrides! Use global defaults from queryClient.ts
       enabled: activeTab === 'reports'
     },
     {
@@ -348,9 +328,7 @@ const txQueries = useQueries({
         if (error) throw error;
         return data || [];
       },
-      staleTime: 30 * 1000,
-      gcTime: 5 * 60 * 1000,
-      refetchOnMount: 'always',
+      // No overrides! Use global defaults from queryClient.ts
       enabled: activeTab === 'reports'
     },
     {
@@ -364,9 +342,7 @@ const txQueries = useQueries({
         if (error) throw error;
         return data || [];
       },
-      staleTime: 30 * 1000,
-      gcTime: 5 * 60 * 1000,
-      refetchOnMount: 'always',
+      // No overrides! Use global defaults from queryClient.ts
       enabled: activeTab === 'reports'
     }
   ] : []) as any

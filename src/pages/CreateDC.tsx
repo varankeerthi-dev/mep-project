@@ -4,6 +4,7 @@ import { format } from 'date-fns';
 import { supabase } from '../supabase';
 import { useAuth } from '../App';
 import { generateProGridDeliveryChallanPdf } from '../pdf/proGridDeliveryChallanPdf';
+import { useClients } from '../hooks/useClients';
 
 type CreateDCProps = {
   onSuccess: () => void
@@ -22,7 +23,9 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
   const [stock, setStock] = useState<any[]>([]);
   const [pricing, setPricing] = useState<Record<string, any>>({});
   const [variantPricingMap, setVariantPricingMap] = useState<Record<string, any>>({});
-  const [clients, setClients] = useState<any[]>([]);
+  // Use shared hook - NO local client state needed
+  const clientsQuery = useClients();
+  const clients = clientsQuery.data || [];
   
   // Multiple Item Picker State
   const [showItemPicker, setShowItemPicker] = useState(false);
@@ -177,7 +180,9 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
     
     try {
       const orgId = organisation.id;
-      const [projData, matData, whData, varData, stockData, clientData, unitsData, variantPricingData] = await Promise.all([
+      
+      // ❌ REMOVED: clientData from Promise.all - it comes from hook now
+      const [projData, matData, whData, varData, stockData, unitsData, variantPricingData] = await Promise.all([
         supabase
           .from('projects')
           .select('id, project_name, name, client_name, site_address')
@@ -187,11 +192,6 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
         supabase.from('warehouses').select('id, warehouse_name, name').eq('organisation_id', orgId).order('warehouse_name'),
         supabase.from('company_variants').select('id, variant_name, is_active').eq('is_active', true).order('variant_name'),
         supabase.from('item_stock').select('item_id, warehouse_id, company_variant_id, current_stock'),
-        supabase
-          .from('clients')
-          .select('id, client_name, address1, address2, shipping_address, city, state, gstin, contact')
-          .eq('organisation_id', orgId)
-          .order('client_name'),
         supabase.from('item_units').select('id, unit_code, unit_name').order('unit_name'),
         supabase.from('item_variant_pricing').select('item_id, company_variant_id')
       ]);
@@ -202,7 +202,7 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
       setVariants(varData.data || []);
       setUnits(unitsData.data || []);
       setStock(stockData.data || []);
-      setClients(clientData.data || []);
+      // ❌ REMOVED: setClients(clientData.data || []);
       
       const vpm = {};
       variantPricingData.data?.forEach(row => {
@@ -873,9 +873,21 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
         </label>
       </div>
       
-      {!loading && clients.length === 0 && (
-        <div style={{ padding: '10px', background: '#ffcccc', margin: '10px' }}>
-          No clients found. Please create clients in database.
+      {clientsQuery.isLoading && (
+        <div style={{ padding: '10px', background: '#fef3c7', margin: '10px', borderRadius: '6px' }}>
+          Loading clients...
+        </div>
+      )}
+      
+      {clientsQuery.isError && (
+        <div style={{ padding: '10px', background: '#fee2e2', margin: '10px', borderRadius: '6px', color: '#991b1b' }}>
+          Error loading clients: {(clientsQuery.error as Error)?.message}
+        </div>
+      )}
+      
+      {!clientsQuery.isLoading && !clientsQuery.isError && clients.length === 0 && (
+        <div style={{ padding: '10px', background: '#ffcccc', margin: '10px', borderRadius: '6px' }}>
+          No clients found. Please create clients first.
         </div>
       )}
       
