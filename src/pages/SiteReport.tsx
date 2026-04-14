@@ -56,7 +56,8 @@ import {
   MoreHorizontal,
   Pencil,
   Download,
-  Clipboard
+  Clipboard,
+  Search
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '../App';
@@ -437,32 +438,52 @@ export function SiteReport() {
 
   if (view === 'list') {
     return (
-      <div className="min-h-screen bg-zinc-50/50">
-        <div className="mx-auto max-w-7xl px-6 py-8">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-zinc-50">
+        <div className="mx-auto max-w-7xl px-6 sm:px-8 lg:px-12 py-8">
           {/* Header */}
-          <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <span className="text-xs font-medium uppercase tracking-widest text-zinc-400">
-                Site Operations
-              </span>
-              <h1 className="mt-2 text-2xl font-semibold tracking-tight text-zinc-950">
-                Site Reports
-              </h1>
-              <p className="mt-1 text-sm text-zinc-500">
-                View and manage daily progress reports
-              </p>
+          <div className="mb-8 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+            <div className="space-y-4">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/25">
+                  <FileSearch className="w-7 h-7 text-white" />
+                </div>
+                <div className="space-y-1">
+                  <span className="text-xs font-bold uppercase tracking-wider text-emerald-600">
+                    Site Operations
+                  </span>
+                  <h1 className="text-3xl font-bold tracking-tight text-zinc-900">
+                    Site Reports
+                  </h1>
+                  <p className="text-sm text-zinc-600 font-medium">
+                    View and manage daily progress reports
+                  </p>
+                </div>
+              </div>
             </div>
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-white/80 backdrop-blur-sm px-4 py-3 shadow-sm hover:shadow-md transition-all duration-200">
+                <Search className="w-4 h-4 text-zinc-400" />
                 <Input 
                   placeholder="Search reports..." 
-                  className="h-8 w-48 border-0 bg-transparent p-0 text-xs shadow-none focus-visible:ring-0"
+                  className="h-8 w-56 border-0 bg-transparent p-0 text-sm shadow-none focus-visible:ring-0 placeholder:text-zinc-400"
                 />
               </div>
               <Chip 
                 label={`${reports?.length || 0} reports`} 
-                size="small" 
-                sx={{ fontSize: '11px' }}
+                size="medium"
+                sx={{ 
+                  fontSize: '13px', 
+                  height: 32,
+                  fontWeight: 600,
+                  bgcolor: '#f1f5f9',
+                  color: '#475569',
+                  border: '1px solid #e2e8f0',
+                  '&:hover': {
+                    bgcolor: '#f8fafc',
+                    transform: 'translateY(-1px)'
+                  },
+                  transition: 'all 0.2s ease'
+                }}
               />
               <Button 
                 variant="contained" 
@@ -472,12 +493,21 @@ export function SiteReport() {
                   setView('create');
                 }}
                 sx={{ 
-                  fontSize: '12px',
+                  fontSize: '14px',
+                  fontWeight: 600,
                   textTransform: 'none',
-                  bgcolor: '#2563eb',
-                  '&:hover': {
-                    bgcolor: '#1d4ed8'
-                  }
+                  bgcolor: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+                  color: 'white',
+                  py: 1.5,
+                  px: 3,
+                  borderRadius: 2,
+                  boxShadow: '0 4px 12px rgba(15, 23, 42, 0.25)',
+                  '&:hover': { 
+                    bgcolor: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)',
+                    transform: 'translateY(-1px)',
+                    boxShadow: '0 8px 20px rgba(15, 23, 42, 0.35)'
+                  },
+                  transition: 'all 0.3s ease'
                 }}
               >
                 Create Report
@@ -590,23 +620,28 @@ export function SiteReport() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50/50 pb-20">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-zinc-50 pb-20">
       {/* Sticky Top Header */}
-      <div className="bg-white border-b border-slate-200 px-6 py-4 sticky top-0 z-20 shadow-sm">
+      <div className="bg-white/90 backdrop-blur-md border-b border-slate-200 px-6 sm:px-8 lg:px-12 py-4 sticky top-0 z-20 shadow-lg">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-4">
             <ShadcnButton 
               variant="ghost" 
               size="sm" 
               onClick={() => setView('list')}
-              className="text-slate-600 hover:bg-slate-100"
+              className="text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-all duration-200"
             >
               <ArrowLeft className="w-4 h-4 mr-2" /> Back
             </ShadcnButton>
             <div className="h-6 w-px bg-slate-200" />
-            <div>
-              <h1 className="text-lg font-bold text-slate-900 leading-none">Daily Site Report</h1>
-              <p className="text-[11px] text-slate-500 mt-1 font-medium">Capturing progress for site operations</p>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/25">
+                <FileSearch className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-slate-900 leading-none">Daily Site Report</h1>
+                <p className="text-xs text-slate-500 mt-1 font-medium">Capturing progress for site operations</p>
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-3">
