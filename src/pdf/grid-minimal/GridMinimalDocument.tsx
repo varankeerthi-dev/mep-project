@@ -350,9 +350,9 @@ function getCellText(item: GridMinimalItem, key: string): string {
     case 'rate':
       return fmt(item.rate);
     case 'discPct':
-      return item.discPct && item.discPct > 0 ? ${fmt(item.discPct, 2)}% : 'â\u20ac\u201d';
+      return item.discPct && item.discPct > 0 ? `${fmt(item.discPct, 2)}%` : 'â\u20ac\u201d';
     case 'gst':
-      return item.gstPct !== undefined ? ${fmt(item.gstPct, 2)}% : 'â\u20ac\u201d';
+      return item.gstPct !== undefined ? `${fmt(item.gstPct, 2)}%` : 'â\u20ac\u201d';
     case 'amount':
       return fmt(item.amount);
     default:
@@ -425,7 +425,7 @@ export default function GridMinimalDocument({
           <View style={styles.headerRight}>
             {vm.meta.map((row, idx) => (
               <View
-                key={${row.label}-}
+                key={`${row.label}-`}
                 style={[styles.metaRow, idx === vm.meta.length - 1 ? styles.metaRowLast : undefined]}
               >
                 <Text style={styles.metaLabel}>{row.label}</Text>
@@ -475,7 +475,7 @@ export default function GridMinimalDocument({
               <View key={item.id} style={{ display: 'flex', flexDirection: 'row' }}>
                 {visibleColumns.map((column, idx) => (
                   <Text
-                    key={${item.id}-}
+                    key={`${item.id}-`}
                     style={[
                       styles.td,
                       alignStyle(column.align),
@@ -580,3 +580,5 @@ export default function GridMinimalDocument({
     </Document>
   );
 }
+
+export { GridMinimalDocument };
