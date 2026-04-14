@@ -1210,7 +1210,9 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
                         disabled={isLocked}
                       >
                         <option value="">Select Item</option>
-                        {materials.map(m => (
+                        {materials.length === 0 ? (
+                          <option value="">Loading materials...</option>
+                        ) : materials.map(m => (
                           <option key={m.id} value={m.id}>{m.display_name || m.name}</option>
                         ))}
                       </select>
@@ -1405,47 +1407,6 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
                 </div>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>
-                <div style={{ padding: '12px', borderBottom: '1px solid #e5e7eb', fontWeight: 600 }}>
-                  Selected Items ({pickerItems.length})
-                </div>
-                <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', padding: '12px', scrollBehavior: 'smooth' }}>
-                  {pickerItems.length === 0 ? (
-                    <div style={{ textAlign: 'center', color: '#6b7280', padding: '40px' }}>
-                      Click items from left panel to add here
-                    </div>
-                  ) : (
-                    pickerItems.map((p) => (
-                      <div key={p.item_id} style={{ padding: '10px', border: '1px solid #e5e7eb', borderRadius: '6px', marginBottom: '8px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                          <span style={{ fontWeight: 500, fontSize: '12px', lineHeight: 1.2 }}>{p.material?.display_name || p.material?.name}</span>
-                          <button onClick={() => handleRemoveFromPicker(p.item_id)} style={{ background: 'none', border: 'none', color: '#dc2626', cursor: 'pointer' }}>x</button>
-                        </div>
-
-                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', borderTop: '1px solid #f1f5f9', paddingTop: '8px' }}>
-                          <button onClick={() => handlePickerQtyChange(p.item_id, -1)} style={{ width: '28px', height: '28px', border: '1px solid #e5e7eb', borderRadius: '4px', background: '#fff', cursor: 'pointer' }}>-</button>
-                          <span style={{ width: '30px', textAlign: 'center' }}>{p.qty}</span>
-                          <button onClick={() => handlePickerQtyChange(p.item_id, 1)} style={{ width: '28px', height: '28px', border: '1px solid #e5e7eb', borderRadius: '4px', background: '#fff', cursor: 'pointer' }}>+</button>
-                          <span style={{ marginLeft: 'auto', fontWeight: 500 }}>₹{((parseFloat(p.qty) || 0) * (parseFloat(p.rate) || 0)).toFixed(2)}</span>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-                <div style={{ padding: '12px', borderTop: '1px solid #e5e7eb', background: '#fafafa', position: 'sticky', bottom: 0 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', fontWeight: 600 }}>
-                    <span>Selected Total</span>
-                    <span>₹{pickerItems.reduce((sum, p) => sum + ((parseFloat(p.qty) || 0) * (parseFloat(p.rate) || 0)), 0).toFixed(2)}</span>
-                  </div>
-                  <button
-                    type="button"
-                    className='btn btn-primary'
-                    style={{ width: '100%' }}
-                    onClick={handleAddItemsToDC}
-                    disabled={pickerItems.length === 0}
-                  >
-                    Submit & Add {pickerItems.length} Item{pickerItems.length !== 1 ? 's' : ''} to Delivery Challan
-                  </button>
                 </div>
               </div>
             </div>
