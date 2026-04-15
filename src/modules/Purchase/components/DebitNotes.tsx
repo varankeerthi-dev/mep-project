@@ -26,7 +26,7 @@ import {
   SelectValue 
 } from '../../../components/ui/select';
 import { Label } from '../../../components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/Card';
 import { cn } from '../../../lib/utils';
 
 import { useAuth } from '../../../contexts/AuthContext';
