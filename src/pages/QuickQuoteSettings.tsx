@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { useMaterials } from '../hooks/useMaterials';
+import { useVariants } from '../hooks/useVariants';
 import {
   loadQuickQuoteConfig,
   saveQuickQuoteSettings,
@@ -10,6 +12,8 @@ import {
 import type { QuickQuoteSettings, QuickQuoteSizeMapping } from '../quotation/quick-quote/types';
 
 export default function QuickQuoteSettings() {
+  const { data: materials = [] } = useMaterials();
+  const { data: variants = [] } = useVariants();
   const { organisation } = useAuth();
   const queryClient = useQueryClient();
   const orgId = organisation?.id || '';
@@ -22,14 +26,7 @@ export default function QuickQuoteSettings() {
     queryKey: ['quickQuoteSettingsPage', orgId],
     enabled: Boolean(orgId),
     queryFn: async () => {
-      const [config, materialsResult, variantsResult] = await Promise.all([
-        loadQuickQuoteConfig(orgId),
-        supabase.from('materials').select('id, display_name, name').order('display_name'),
-        supabase.from('company_variants').select('id, variant_name').eq('is_active', true).order('variant_name'),
-      ]);
-
-      if (materialsResult.error) throw materialsResult.error;
-      if (variantsResult.error) throw variantsResult.error;
+      const config = await loadQuickQuoteConfig(orgId);
 
       const fallbackSettings: QuickQuoteSettings = {
         org_id: orgId,
@@ -43,20 +40,19 @@ export default function QuickQuoteSettings() {
 
       return {
         config,
-        materials: materialsResult.data || [],
-        variants: variantsResult.data || [],
+        materials,
+        variants,
         settings: config.settings || fallbackSettings,
         mappings: config.mappings.filter((row) => row.org_id === orgId),
       };
     },
-    staleTime: 60_000,
   });
 
   useEffect(() => {
     if (!settingsQuery.data) return;
     setSettingsForm(settingsQuery.data.settings);
-    setSizeMappings(settingsQuery.data.mappings.length > 0 ? settingsQuery.data.mappings : [{ org_id: orgId, mm_size: '', inch_size: '' }]);
-  }, [settingsQuery.data, orgId]);
+    setSizeMappings(settingsQuery.data.mappings);
+  }, [settingsQuery.data]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -76,9 +72,7 @@ export default function QuickQuoteSettings() {
   if (!orgId) return <div style={{ padding: '24px' }}>Organisation not found.</div>;
   if (settingsQuery.isPending || !settingsForm) return <div style={{ padding: '24px' }}>Loading Quick Quote settings...</div>;
 
-  const materials = settingsQuery.data?.materials || [];
-  const variants = settingsQuery.data?.variants || [];
-
+  
   return (
     <div style={{ maxWidth: '1120px', margin: '0 auto', padding: '16px' }}>
       <div className="page-header">

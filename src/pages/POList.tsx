@@ -294,7 +294,7 @@ export default function POList() {
       .from('client_purchase_orders')
       .select(`
         *,
-        client:clients(client_name)
+        client_id
       `)
       .order('created_at', { ascending: false });
 

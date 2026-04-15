@@ -16,6 +16,10 @@ import {
 import { openSansRegular, openSansBold } from '../fonts/openSans';
 import { saveBOQWithItems, fetchBOQById } from '../api';
 import { timedSupabaseQuery, withTimeout } from '../utils/queryTimeout';
+import { useMaterials } from '../hooks/useMaterials';
+import { useClients } from '../hooks/useClients';
+import { useProjects } from '../hooks/useProjects';
+import { useVariants } from '../hooks/useVariants';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -462,6 +466,11 @@ BoqRowComponent.displayName = 'BoqRowComponent';
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function BOQ() {
+  const { data: materials = [] } = useMaterials();
+  const { data: clients = [] } = useClients();
+  const { data: projects = [] } = useProjects();
+  const { data: variants = [] } = useVariants();
+  
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -525,7 +534,6 @@ export function BOQ() {
 
   const priceMapQuery = useQuery<Map<string, number>>({
     queryKey: ['boqPriceMap', boqData.variantId],
-    staleTime: 10 * 60 * 1000,
     queryFn: async () => {
       const [variantPrices, makePrices] = await Promise.all([
         boqData.variantId ? timedSupabaseQuery(
@@ -624,35 +632,24 @@ export function BOQ() {
   const initQuery = useQuery<BoqInitData>({
     queryKey: ['boqInit', editId || 'new'],
     queryFn: async () => {
-      const [clientsData, projectsData, variantsData, materialsData, headerOrBoqNo] = await Promise.all([
-        timedSupabaseQuery(supabase.from('clients').select('id, client_name').order('client_name'), 'BOQ clients'),
-        timedSupabaseQuery(supabase.from('projects').select('id, project_name, name').order('project_name'), 'BOQ projects'),
-        timedSupabaseQuery(supabase.from('company_variants').select('id, variant_name').order('variant_name'), 'BOQ variants'),
-        timedSupabaseQuery(supabase.from('materials').select('id, name, sale_price, make, hsn_code, unit').order('name'), 'BOQ materials'),
-        editId ? withTimeout(fetchBOQById(editId), 15000, 'BOQ details') : generateBoqNumber(),
-      ]);
+      const headerOrBoqNo = await Promise.resolve(
+        editId ? withTimeout(fetchBOQById(editId), 15000, 'BOQ details') : generateBoqNumber()
+      );
       return {
-        clients: (clientsData || []) as ClientOption[],
-        projects: (projectsData || []) as ProjectOption[],
-        variants: (variantsData || []) as VariantOption[],
-        materials: (materialsData || []) as MaterialOption[],
+        clients: clients as ClientOption[],
+        projects: projects as ProjectOption[],
+        variants: variants as VariantOption[],
+        materials: materials as MaterialOption[],
         header: editId ? (headerOrBoqNo as LoadedBoqHeader) : null,
         newBoqNo: editId ? null : String(headerOrBoqNo || ''),
       };
     },
-    staleTime: 5 * 60 * 1000,
   });
-
-  const clients = initQuery.data?.clients || [];
-  const projects = initQuery.data?.projects || [];
-  const variants = initQuery.data?.variants || [];
-  const materials = initQuery.data?.materials || [];
   const makes = useMemo(() => [...new Set(materials.map(m => m.make).filter(Boolean))], [materials]);
 
   const clientDiscountsQuery = useQuery<DiscountMap>({
     queryKey: ['boqClientDiscounts', boqData.clientId],
     enabled: !!boqData.clientId,
-    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const client = await timedSupabaseQuery(
         supabase.from('clients').select('id, discount_profile_id, custom_discounts').eq('id', boqData.clientId).single(),

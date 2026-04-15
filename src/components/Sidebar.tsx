@@ -54,17 +54,15 @@ const menuData: MenuSection[] = [
         id: 'clients', 
         label: 'Client', 
         submenu: [
-          { id: 'clients-new', label: 'Create Client', path: '/clients/new' },
-          { id: 'clients-list', label: 'Client List', path: '/clients' }
+          { id: 'clients-new', label: 'New Client', path: '/clients/new' },
+          { id: 'clients-list', label: 'Client List', path: '/clients' },
+          { id: 'client-po-list', label: 'Purchase Orders', path: '/client-po' }
         ]
       },
       {
         id: 'client-po',
-        label: 'Client Purchase Orders',
-        submenu: [
-          { id: 'client-po-list', label: 'PO List', path: '/client-po' },
-          { id: 'client-po-create', label: 'Create PO', path: '/client-po/create' }
-        ]
+        label: 'Create PO',
+        path: '/client-po/create'
       },
       {
         id: 'meetings',

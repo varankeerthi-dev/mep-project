@@ -580,7 +580,7 @@ export default function ProjectList() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('projects')
-        .select('*, client:clients(client_name)')
+        .select('*, client_id')
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data ?? [];

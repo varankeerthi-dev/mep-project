@@ -5,6 +5,9 @@ import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import html2canvas from 'html2canvas';
 import { formatDate } from '../utils/formatters';
+import { useMaterials } from '../hooks/useMaterials';
+import { useWarehouses } from '../hooks/useWarehouses';
+import { useVariants } from '../hooks/useVariants';
 
 const VARIANT_FILTERS = ['All', 'Green', 'Blue', 'Non-Variant'];
 
@@ -17,11 +20,12 @@ export default function QuickStockCheck() {
   const viewId = new URLSearchParams(query).get('id');
   const isViewMode = currentPath.includes('/quick-stock-check/view') || hashPath.includes('/quick-stock-check/view');
   
+  const { data: materials = [] } = useMaterials();
+  const { data: warehouses = [] } = useWarehouses();
+  const { data: variants = [] } = useVariants();
+  
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [warehouses, setWarehouses] = useState([]);
-  const [materials, setMaterials] = useState([]);
-  const [variants, setVariants] = useState([]);
   const [showPreview, setShowPreview] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [emailTo, setEmailTo] = useState('');
@@ -59,16 +63,6 @@ export default function QuickStockCheck() {
   const loadInitialData = async () => {
     setLoading(true);
     try {
-      const [warehouseData, materialData, variantData] = await Promise.all([
-        supabase.from('warehouses').select('*').eq('is_active', true).order('warehouse_name'),
-        supabase.from('materials').select('id, display_name, name, item_code, uses_variant').eq('is_active', true).order('display_name'),
-        supabase.from('company_variants').select('*').eq('is_active', true).order('variant_name')
-      ]);
-
-      setWarehouses(warehouseData.data || []);
-      setMaterials(materialData.data || []);
-      setVariants(variantData.data || []);
-
       if (editId) {
         await loadQuickCheck(editId);
       } else if (viewId) {

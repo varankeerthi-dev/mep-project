@@ -8,7 +8,8 @@ import { timedSupabaseQuery } from '../utils/queryTimeout';
 import { jsPDF } from 'jspdf';
 import { generateQuotationTally } from './QuotationTallyTemplate';
 import { generateProfessionalTemplate } from './ProfessionalTemplate';
-import { generateZohoTemplate } from './ZohoTemplate';
+import { renderTemplateToPdf } from '../utils/htmlTemplateRenderer';
+import { generateClassicQuotationTemplate } from './ClassicQuotationTemplate';
 import { generateProGridQuotationPdf } from '../pdf/proGridQuotationPdf';
 import { generateGridMinimalQuotationPdfBlob } from '../pdf/grid-minimal/quotation';
 import {
@@ -123,6 +124,84 @@ export default function QuotationList() {
         .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
         .replace(/\s+/g, '_');
 
+      // Handle HTML templates
+      if (template.template_type === 'html') {
+        const htmlData = {
+          document_type: 'QUOTATION',
+          quotation_no: quotation.quotation_no || '',
+          revision_no: quotation.revision_no || '00',
+          date: quotation.date || '',
+          valid_till: quotation.valid_till || '',
+          remarks: quotation.remarks || '',
+          payment_terms: quotation.payment_terms || '',
+          
+          // Organisation details
+          organisation_name: org.name || '',
+          organisation_address: org.address || '',
+          organisation_phone: org.phone || '',
+          organisation_email: org.email || '',
+          organisation_gstin: org.gstin || '',
+          organisation_cin: org.cin || '',
+          organisation_pan: org.pan || '',
+          organisation_ie_code: org.ie_code || '',
+          
+          // Client details
+          client_name: quotation.client?.client_name || quotation.client?.name || '',
+          client_contact_person: quotation.contact_person || '',
+          client_address: quotation.billing_address || quotation.client?.address || '',
+          client_city: quotation.client?.city || '',
+          client_pincode: quotation.client?.pincode || '',
+          client_gstin: quotation.client?.gstin || quotation.gstin || '',
+          client_phone: quotation.client?.phone || '',
+          
+          // Shipping details
+          shipping_company_name: quotation.shipping_company_name || quotation.client?.client_name || '',
+          shipping_address: quotation.shipping_address || quotation.billing_address || '',
+          shipping_city: quotation.shipping_city || quotation.client?.city || '',
+          shipping_pincode: quotation.shipping_pincode || quotation.client?.pincode || '',
+          shipping_phone: quotation.shipping_phone || quotation.client?.phone || '',
+          
+          // Items
+          items: (quotation.items || []).map((item: any, idx: number) => ({
+            index: idx + 1,
+            hsn: item.item?.hsn_code || '',
+            description: item.description || item.item?.display_name || item.item?.name || '',
+            qty: String(item.qty || ''),
+            uom: item.uom || '',
+            rate: formatCurrency(item.rate || 0),
+            gst_percent: item.tax_percent ? `${item.tax_percent}%` : '18%',
+            amount: formatCurrency(item.line_total || 0)
+          })),
+          
+          // Totals
+          subtotal: formatCurrency(quotation.subtotal || 0),
+          cgst_amount: formatCurrency(quotation.cgst_amount || 0),
+          sgst_amount: formatCurrency(quotation.sgst_amount || 0),
+          round_off: quotation.round_off ? formatCurrency(quotation.round_off) : '0.00',
+          grand_total: formatCurrency(quotation.grand_total || 0),
+          amount_in_words: quotation.amount_in_words || '',
+          
+          // Bank details
+          bank_name: org.bank_name || '',
+          bank_branch: org.bank_branch || '',
+          bank_account_no: org.bank_account_no || '',
+          bank_account_type: org.bank_account_type || '',
+          bank_ifsc: org.bank_ifsc || '',
+          bank_micr: org.bank_micr || '',
+          bank_swift: org.bank_swift || '',
+          bank_upi: org.bank_upi || '',
+          
+          // Signatory
+          signatory_designation: org.signatory_designation || 'Director / Manager',
+          
+          // Terms & conditions
+          terms_conditions: quotation.terms_conditions || org.terms_conditions || ''
+        };
+        
+        await renderTemplateToPdf(template.template_content || '', htmlData, `${safeFileName}.pdf`);
+        return;
+      }
+
       if (template?.column_settings?.print?.style === 'grid_minimal') {
         const blob = await generateGridMinimalQuotationPdfBlob(quotation, org, template);
         const url = URL.createObjectURL(blob);
@@ -150,6 +229,11 @@ export default function QuotationList() {
 
       if (template.template_code === 'QTN_ZOHO') {
         const doc = generateZohoTemplate(quotation, org, template);
+        doc.save(`${safeFileName}.pdf`);
+        return;
+      }
+if (template.template_code === 'QTN_CLASSIC') {
+        const doc = generateClassicQuotationTemplate(quotation, org, template);
         doc.save(`${safeFileName}.pdf`);
         return;
       }

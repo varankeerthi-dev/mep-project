@@ -1,22 +1,29 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabase';
 import { useAuth } from '../App';
+import { useMaterials } from '../hooks/useMaterials';
+import { useProjects } from '../hooks/useProjects';
+import { useWarehouses } from '../hooks/useWarehouses';
+import { useVariants } from '../hooks/useVariants';
+import { useUnits } from '../hooks/useUnits';
+import { useClients } from '../hooks/useClients';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { createDeliveryChallan } from '../api';
 
 export default function CreateNonBillableDC({ onSuccess, onCancel, editDC }) {
+  const { data: materials = [] } = useMaterials();
+  const { data: projects = [] } = useProjects();
+  const { data: warehouses = [] } = useWarehouses();
+  const { data: variants = [] } = useVariants();
+  const { data: units = [] } = useUnits();
+  const { data: clients = [] } = useClients();
+  
   const { organisation } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [projects, setProjects] = useState([]);
-  const [materials, setMaterials] = useState([]);
-  const [warehouses, setWarehouses] = useState([]);
-  const [variants, setVariants] = useState([]);
-  const [units, setUnits] = useState([]);
   const [stock, setStock] = useState([]);
   const [pricing, setPricing] = useState({});
   const [variantPricingMap, setVariantPricingMap] = useState({});
-  const [clients, setClients] = useState([]);
   
   // Multiple Item Picker State
   const [showItemPicker, setShowItemPicker] = useState(false);
@@ -153,30 +160,12 @@ export default function CreateNonBillableDC({ onSuccess, onCancel, editDC }) {
 
   const loadData = async () => {
     try {
-      const [projData, matData, whData, varData, stockData, clientData, unitsData, variantPricingData] = await Promise.all([
-        supabase
-          .from('projects')
-          .select('id, project_name, name, client_name, site_address')
-          .order('project_name'),
-        supabase.from('materials').select('id, display_name, name, unit, uses_variant, sale_price, item_type').order('name'),
-        supabase.from('warehouses').select('id, warehouse_name, name').order('warehouse_name'),
-        supabase.from('company_variants').select('id, variant_name, is_active').eq('is_active', true).order('variant_name'),
+      const [stockData, variantPricingData] = await Promise.all([
         supabase.from('item_stock').select('item_id, warehouse_id, company_variant_id, current_stock'),
-        supabase
-          .from('clients')
-          .select('id, client_name, address1, address2, shipping_address, city, state, gstin, contact')
-          .order('client_name'),
-        supabase.from('item_units').select('id, unit_code, unit_name').order('unit_name'),
         supabase.from('item_variant_pricing').select('item_id, company_variant_id')
       ]);
       
-      setProjects(projData.data || []);
-      setMaterials(matData.data || []);
-      setWarehouses(whData.data || []);
-      setVariants(varData.data || []);
-      setUnits(unitsData.data || []);
       setStock(stockData.data || []);
-      setClients(clientData.data || []);
       
       const vpm = {};
       variantPricingData.data?.forEach(row => {

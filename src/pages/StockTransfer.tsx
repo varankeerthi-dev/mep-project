@@ -2,6 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../supabase';
 import { timedSupabaseQuery, withTimeout } from '../utils/queryTimeout';
+import { useMaterials } from '../hooks/useMaterials';
+import { useWarehouses } from '../hooks/useWarehouses';
+import { useVariants } from '../hooks/useVariants';
 
 const createEmptyItem = (id) => ({
   id,
@@ -23,6 +26,10 @@ const createInitialFormData = () => ({
 });
 
 export default function StockTransfer({ onCancel }) {
+  const { data: materials = [] } = useMaterials();
+  const { data: warehouses = [] } = useWarehouses();
+  const { data: variants = [] } = useVariants();
+  
   const [view, setView] = useState('list');
   const [editingTransfer, setEditingTransfer] = useState(null);
   const [formData, setFormData] = useState(createInitialFormData);
@@ -40,38 +47,18 @@ export default function StockTransfer({ onCancel }) {
       );
       return rows || [];
     },
-    staleTime: 60 * 1000,
   });
 
   const formInitQuery = useQuery({
     queryKey: ['stockTransferInit'],
     enabled: view === 'form',
     queryFn: async () => {
-      const [materials, warehouses, variants] = await Promise.all([
-        timedSupabaseQuery(
-          supabase
-            .from('materials')
-            .select('id, item_code, display_name, name, unit, uses_variant')
-            .order('name'),
-          'Stock transfer items',
-        ),
-        timedSupabaseQuery(
-          supabase.from('warehouses').select('id, warehouse_name, name').order('warehouse_name'),
-          'Stock transfer warehouses',
-        ),
-        timedSupabaseQuery(
-          supabase.from('company_variants').select('id, variant_name, is_active').order('variant_name'),
-          'Stock transfer variants',
-        ),
-      ]);
-
       return {
-        materials: materials || [],
-        warehouses: warehouses || [],
-        variants: (variants || []).filter((variant) => variant.is_active !== false),
+        materials,
+        warehouses,
+        variants: variants.filter((variant) => variant.is_active !== false),
       };
     },
-    staleTime: 5 * 60 * 1000,
   });
 
   const stockQuery = useQuery({
@@ -87,7 +74,6 @@ export default function StockTransfer({ onCancel }) {
       );
       return rows || [];
     },
-    staleTime: 60 * 1000,
   });
 
   const editItemsQuery = useQuery({
@@ -107,9 +93,6 @@ export default function StockTransfer({ onCancel }) {
   });
 
   const transfers = transfersQuery.data || [];
-  const materials = formInitQuery.data?.materials || [];
-  const warehouses = formInitQuery.data?.warehouses || [];
-  const variants = formInitQuery.data?.variants || [];
   const stockRows = stockQuery.data || [];
   const isEditing = !!editingTransfer;
   const isLocked = editingTransfer?.status && editingTransfer.status !== 'DRAFT';

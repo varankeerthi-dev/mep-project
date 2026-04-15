@@ -5,6 +5,11 @@ import { supabase } from '../supabase';
 import { useAuth } from '../App';
 import { generateProGridDeliveryChallanPdf } from '../pdf/proGridDeliveryChallanPdf';
 import { useClients } from '../hooks/useClients';
+import { useMaterials } from '../hooks/useMaterials';
+import { useProjects } from '../hooks/useProjects';
+import { useWarehouses } from '../hooks/useWarehouses';
+import { useVariants } from '../hooks/useVariants';
+import { useUnits } from '../hooks/useUnits';
 
 type CreateDCProps = {
   onSuccess: () => void
@@ -15,17 +20,18 @@ type CreateDCProps = {
 export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps) {
   const { organisation } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [projects, setProjects] = useState<any[]>([]);
-  const [materials, setMaterials] = useState<any[]>([]);
-  const [warehouses, setWarehouses] = useState<any[]>([]);
-  const [variants, setVariants] = useState<any[]>([]);
-  const [units, setUnits] = useState<any[]>([]);
   const [stock, setStock] = useState<any[]>([]);
   const [pricing, setPricing] = useState<Record<string, any>>({});
   const [variantPricingMap, setVariantPricingMap] = useState<Record<string, any>>({});
-  // Use shared hook - NO local client state needed
+  // Use shared hooks - NO local state needed
   const clientsQuery = useClients();
   const clients = clientsQuery.data || [];
+  
+  const { data: materials = [] } = useMaterials();
+  const { data: projects = [] } = useProjects();
+  const { data: warehouses = [] } = useWarehouses();
+  const { data: variants = [] } = useVariants();
+  const { data: units = [] } = useUnits();
   
   // Multiple Item Picker State
   const [showItemPicker, setShowItemPicker] = useState(false);
@@ -181,28 +187,14 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
     try {
       const orgId = organisation.id;
       
-      // ❌ REMOVED: clientData from Promise.all - it comes from hook now
-      const [projData, matData, whData, varData, stockData, unitsData, variantPricingData] = await Promise.all([
-        supabase
-          .from('projects')
-          .select('id, project_name, name, client_name, site_address')
-          .eq('organisation_id', orgId)
-          .order('project_name'),
-        supabase.from('materials').select('id, display_name, name, unit, uses_variant, sale_price, item_type').eq('organisation_id', orgId).order('name'),
-        supabase.from('warehouses').select('id, warehouse_name, name').eq('organisation_id', orgId).order('warehouse_name'),
-        supabase.from('company_variants').select('id, variant_name, is_active').eq('is_active', true).order('variant_name'),
+      // Only fetch data NOT available from hooks
+      const [stockData, variantPricingData] = await Promise.all([
         supabase.from('item_stock').select('item_id, warehouse_id, company_variant_id, current_stock'),
-        supabase.from('item_units').select('id, unit_code, unit_name').order('unit_name'),
         supabase.from('item_variant_pricing').select('item_id, company_variant_id')
       ]);
       
-      setProjects(projData.data || []);
-      setMaterials(matData.data || []);
-      setWarehouses(whData.data || []);
-      setVariants(varData.data || []);
-      setUnits(unitsData.data || []);
+      // Materials, projects, warehouses, variants, units now come from hooks!
       setStock(stockData.data || []);
-      // ❌ REMOVED: setClients(clientData.data || []);
       
       const vpm = {};
       variantPricingData.data?.forEach(row => {
@@ -210,8 +202,6 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
         vpm[row.item_id][row.company_variant_id] = true;
       });
       setVariantPricingMap(vpm);
-      
-      console.log('Clients loaded:', clientData.data?.length);
       
       // Load DC settings
       const { data: settingsData } = await supabase.from('settings').select('key, value');
@@ -1404,9 +1394,6 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
                       <button style={{ background: '#2563eb', color: '#fff', border: 'none', borderRadius: '4px', padding: '3px 10px', cursor: 'pointer', fontSize: '12px' }}>+</button>
                     </div>
                   ))}
-                </div>
-              </div>
-
                 </div>
               </div>
             </div>

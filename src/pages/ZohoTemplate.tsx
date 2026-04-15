@@ -48,7 +48,31 @@ const {
    const pageWidth = doc.internal.pageSize.width;
    const pageHeight = doc.internal.pageSize.height;
    const margin = 15; // Increased margin for more breathing room
-   const contentWidth = pageWidth - (2 * margin);
+
+  // Dynamic header labels from settings
+  const headerLabels = templateSettings?.column_settings?.header_labels || {
+    document_no: 'Quotation No',
+    document_date: 'Quotation Date',
+    po_no: 'PO No',
+    po_date: 'PO Date',
+    remarks: 'Remarks',
+    eway_bill: 'E-Way Bill'
+  };
+
+  const colSettings = templateSettings?.column_settings || {
+    sno: true,
+    item: true,
+    hsn_code: false,
+    qty: true,
+    rate: true,
+    line_total: true
+  };
+
+  const labels = templateSettings?.column_settings?.labels || {
+    rate_after_discount: 'Rate'
+  };
+
+  const contentWidth = pageWidth - (2 * margin);
    const columnWidth = contentWidth / 2;
 
    // --- PAGE BORDER ---

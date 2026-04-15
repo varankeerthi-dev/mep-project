@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../supabase';
 import { useAuth } from '../App';
+import { useProjects } from '../hooks/useProjects';
 import { format, formatDistanceToNow, isToday, parseISO, startOfMonth, endOfMonth } from 'date-fns';
 import {
   MapPin,
@@ -307,8 +308,6 @@ function StatsOverview() {
         activeProjects: activeProjectsRes.count || 0,
       };
     },
-    staleTime: 2 * 60 * 1000,
-    refetchOnWindowFocus: false,
   });
 
   if (isLoading) {
@@ -391,15 +390,13 @@ function TodaySiteCard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('site_visits')
-        .select('id, status, purpose, visited_by, engineer, in_time, clients(client_name)')
+        .select('id, status, purpose, visited_by, engineer, in_time, client_id')
         .eq('visit_date', today)
         .order('in_time', { ascending: true });
       if (error) throw error;
       return data || [];
     },
-    staleTime: 2 * 60 * 1000,
-    refetchOnWindowFocus: false,
-  });
+      });
 
   if (isLoading) return <CardSkeleton rows={3} />;
 
@@ -472,16 +469,14 @@ function ApprovalsCard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('quotation_header')
-        .select('id, quotation_no, client:clients(client_name), status, created_at, approval_status')
+        .select('id, quotation_no, client_id, status, created_at, approval_status')
         .in('status', ['Pending Approval', 'Draft'])
         .order('created_at', { ascending: false })
         .limit(10);
       if (error) throw error;
       return data || [];
     },
-    staleTime: 2 * 60 * 1000,
-    refetchOnWindowFocus: false,
-  });
+      });
 
   if (isLoading) return <CardSkeleton rows={3} />;
 
@@ -549,9 +544,7 @@ function ClientCommunicationCard() {
       if (error) throw error;
       return data || [];
     },
-    staleTime: 2 * 60 * 1000,
-    refetchOnWindowFocus: false,
-  });
+      });
 
   const { data: clients = [] } = useQuery({
     queryKey: DASHBOARD_QUERY_KEYS.clientsLookup(),
@@ -560,8 +553,6 @@ function ClientCommunicationCard() {
       if (error) throw error;
       return data || [];
     },
-    staleTime: 10 * 60 * 1000,
-    refetchOnWindowFocus: false,
   });
 
   const clientMap = useMemo(() => {
@@ -632,7 +623,7 @@ function SiteVisitPlanCard() {
       const today = format(new Date(), 'yyyy-MM-dd');
       const { data, error } = await supabase
         .from('site_visits')
-        .select('id, visit_date, visited_by, engineer, status, clients(client_name)')
+        .select('id, visit_date, visited_by, engineer, status, client_id')
         .gte('visit_date', today)
         .in('status', ['pending', 'scheduled'])
         .order('visit_date', { ascending: true })
@@ -640,9 +631,7 @@ function SiteVisitPlanCard() {
       if (error) throw error;
       return data || [];
     },
-    staleTime: 2 * 60 * 1000,
-    refetchOnWindowFocus: false,
-  });
+      });
 
   if (isLoading) return <CardSkeleton rows={4} />;
 
@@ -714,16 +703,14 @@ function QuotationApprovalCard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('quotation_header')
-        .select('id, quotation_no, status, client:clients(client_name), created_at, approval_status')
+        .select('id, quotation_no, status, client_id, created_at, approval_status')
         .in('status', ['Pending Approval', 'Approved', 'Rejected'])
         .order('created_at', { ascending: false })
         .limit(8);
       if (error) throw error;
       return data || [];
     },
-    staleTime: 2 * 60 * 1000,
-    refetchOnWindowFocus: false,
-  });
+      });
 
   if (isLoading) return <CardSkeleton rows={3} />;
 
@@ -786,9 +773,7 @@ function InvoiceCard() {
       if (error) throw error;
       return data || [];
     },
-    staleTime: 2 * 60 * 1000,
-    refetchOnWindowFocus: false,
-  });
+      });
 
   if (isLoading) return <CardSkeleton rows={3} />;
 
@@ -860,9 +845,7 @@ function DeliveryChallanCard() {
       if (error) throw error;
       return data || [];
     },
-    staleTime: 2 * 60 * 1000,
-    refetchOnWindowFocus: false,
-  });
+      });
 
   if (isLoading) return <CardSkeleton rows={3} />;
 
@@ -936,7 +919,7 @@ function RecentUpdates() {
           .limit(5),
         supabase
           .from('site_visits')
-          .select('id, visit_date, visited_by, status, created_at, clients(client_name)')
+          .select('id, visit_date, visited_by, status, created_at, client_id')
           .order('created_at', { ascending: false })
           .limit(5),
         supabase
@@ -946,7 +929,7 @@ function RecentUpdates() {
           .limit(5),
         supabase
           .from('quotation_header')
-          .select('id, quotation_no, status, created_at, client:clients(client_name)')
+          .select('id, quotation_no, status, created_at, client_id')
           .order('created_at', { ascending: false })
           .limit(5),
       ]);
@@ -969,9 +952,7 @@ function RecentUpdates() {
       items.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
       return items.slice(0, 20);
     },
-    staleTime: 2 * 60 * 1000,
-    refetchOnWindowFocus: false,
-  });
+      });
 
   return (
     <Card style={{ height: 'calc(100vh - 140px)', display: 'flex', flexDirection: 'column' }}>

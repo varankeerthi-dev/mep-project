@@ -214,7 +214,7 @@ export function SiteReport() {
     queryFn: async () => {
       let query = supabase
         .from('site_reports')
-        .select('id, report_date, pm_status, engineer_name, clients(client_name), projects(project_name)')
+        .select('id, report_date, pm_status, engineer_name, client_id, project_id')
         .order('report_date', { ascending: false })
         .limit(50); // Only fetch recent 50 reports
       

@@ -17,7 +17,9 @@ export type AuthContextValue = {
   user: User | null;
   organisation: Organisation | null;
   organisations: OrganisationMember[];
+  selectedOrganisation: Organisation | null;
   handleLogout: () => Promise<void>;
+  switchOrganisation: (orgId: string) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);

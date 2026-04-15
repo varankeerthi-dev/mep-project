@@ -2,6 +2,10 @@ import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../supabase';
 import { timedSupabaseQuery } from '../utils/queryTimeout';
+import { useMaterials } from '../hooks/useMaterials';
+import { useWarehouses } from '../hooks/useWarehouses';
+import { useVariants } from '../hooks/useVariants';
+import { useProjects } from '../hooks/useProjects';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 
 const createEmptyItem = (id) => ({
@@ -19,6 +23,11 @@ const createEmptyItem = (id) => ({
 });
 
 export default function MaterialInward({ onSuccess, onCancel }) {
+  const { data: materials = [] } = useMaterials();
+  const { data: warehouses = [] } = useWarehouses();
+  const { data: variants = [] } = useVariants();
+  const { data: projects = [] } = useProjects();
+  
   const [showPasteModal, setShowPasteModal] = useState(false);
   const [pasteData, setPasteData] = useState('');
   const [saving, setSaving] = useState(false);
@@ -45,26 +54,10 @@ export default function MaterialInward({ onSuccess, onCancel }) {
   const initQuery = useQuery({
     queryKey: ['materialInwardInit'],
     queryFn: async () => {
-      const [materials, warehouses, variants, pricingRows, projects] = await Promise.all([
-        timedSupabaseQuery(
-          supabase.from('materials').select('id, item_code, display_name, name, unit, uses_variant, sale_price, item_type').order('name'),
-          'Material inward items',
-        ),
-        timedSupabaseQuery(
-          supabase.from('warehouses').select('*').order('warehouse_name'),
-          'Material inward warehouses',
-        ),
-        timedSupabaseQuery(
-          supabase.from('company_variants').select('*').order('variant_name'),
-          'Material inward variants',
-        ),
+      const [pricingRows] = await Promise.all([
         timedSupabaseQuery(
           supabase.from('item_variant_pricing').select('item_id, company_variant_id, sale_price'),
           'Material inward pricing',
-        ),
-        timedSupabaseQuery(
-          supabase.from('projects').select('id, project_name, name').order('project_name'),
-          'Material inward projects',
         ),
       ]);
 
@@ -75,20 +68,15 @@ export default function MaterialInward({ onSuccess, onCancel }) {
       });
 
       return {
-        materials: materials || [],
-        warehouses: warehouses || [],
-        variants: variants || [],
-        projects: projects || [],
+        materials,
+        warehouses,
+        variants,
+        projects,
         pricingMap,
       };
     },
-    staleTime: 5 * 60 * 1000
   });
 
-  const materials = initQuery.data?.materials || [];
-  const warehouses = initQuery.data?.warehouses || [];
-  const variants = initQuery.data?.variants || [];
-  const projects = initQuery.data?.projects || [];
   const pricing = initQuery.data?.pricingMap || {};
   const activeVariants = useMemo(
     () => variants.filter((variant) => variant.variant_name !== 'No Variant'),

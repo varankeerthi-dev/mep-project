@@ -87,16 +87,9 @@ export function CreateClientEdit({ onSuccess, onCancel }: CreateClientEditProps)
 
   if (clientQuery.isLoading) {
     return (
-      <div className="min-h-screen bg-slate-50/80 p-6 md:p-10">
-        <div className="mx-auto max-w-4xl space-y-5">
-          <Skeleton className="h-8 w-56 rounded-lg" />
-          <Skeleton className="h-4 w-80 rounded" />
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-4">
-            <Skeleton className="h-12 w-full rounded-lg" />
-            <Skeleton className="h-12 w-full rounded-lg" />
-            <Skeleton className="h-12 w-full rounded-lg" />
-            <Skeleton className="h-12 w-full rounded-lg" />
-          </div>
+      <div className="min-h-screen bg-slate-50/80 p-6 md:p-10 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-lg text-slate-600 mb-4">Loading...</p>
         </div>
       </div>
     );

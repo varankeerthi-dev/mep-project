@@ -18,6 +18,10 @@ import { supabase } from '../supabase';
 import { formatDate, formatCurrency } from '../utils/formatters';
 import { timedSupabaseQuery } from '../utils/queryTimeout';
 import { useMaterialsPageData } from '../hooks/useMaterialsPageData';
+import { useMaterials } from '../hooks/useMaterials';
+import { useWarehouses } from '../hooks/useWarehouses';
+import { useVariants } from '../hooks/useVariants';
+import { useUnits } from '../hooks/useUnits';
 import BulkImportModal from '../components/BulkImportModal';
 import ExcelEditor, { FieldSelector } from '../components/ExcelEditor';
 
@@ -2526,8 +2530,8 @@ function ItemsTab() {
 }
 
 function ServiceTab() {
-  const [services, setServices] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { data: allMaterials = [], isLoading: loading } = useMaterials();
+  const services = useMemo(() => allMaterials.filter(m => m.item_type === 'service'), [allMaterials]);
   const [showForm, setShowForm] = useState(false);
   const [editingService, setEditingService] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -2536,20 +2540,6 @@ function ServiceTab() {
     service_code: '', service_name: '', description: '', unit: 'nos',
     sale_price: '', purchase_price: '', hsn_code: '', tax_rate: 18, is_active: true
   });
-
-  useEffect(() => { loadServices(); }, []);
-
-  const loadServices = async () => {
-    setLoading(true);
-    try {
-      const { data } = await supabase.from('materials').select('*').eq('item_type', 'service').order('name');
-      setServices(data || []);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const generateServiceCode = () => 'SVC-' + Date.now().toString(36).toUpperCase();
 
@@ -2578,7 +2568,6 @@ function ServiceTab() {
         if (error) throw error;
       }
       resetForm();
-      loadServices();
     } catch (err) {
       alert('Error saving service: ' + err.message);
     }
@@ -2609,7 +2598,6 @@ function ServiceTab() {
   const deleteService = async (id) => {
     if (confirm('Delete this service?')) {
       await supabase.from('materials').delete().eq('id', id);
-      loadServices();
     }
   };
 
@@ -2754,27 +2742,12 @@ function CategoryTab() {
 }
 
 function UnitTab() {
-  const [units, setUnits] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { data: units = [], isLoading: loading } = useUnits();
   const [showForm, setShowForm] = useState(false);
   const [editingUnit, setEditingUnit] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
 
   const [formData, setFormData] = useState({ unit_name: '', unit_code: '', description: '', is_active: true });
-
-  useEffect(() => { loadUnits(); }, []);
-
-  const loadUnits = async () => {
-    setLoading(true);
-    try {
-      const { data } = await supabase.from('item_units').select('*').order('unit_name');
-      setUnits(data || []);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -2787,7 +2760,6 @@ function UnitTab() {
         if (error) throw error;
       }
       resetForm();
-      loadUnits();
     } catch (err) {
       alert('Error saving unit: ' + err.message);
     }
@@ -2796,7 +2768,7 @@ function UnitTab() {
   const resetForm = () => { setShowForm(false); setEditingUnit(null); setFormData({ unit_name: '', unit_code: '', description: '', is_active: true }); };
 
   const editUnit = (unit) => { setEditingUnit(unit); setFormData({ unit_name: unit.unit_name, unit_code: unit.unit_code, description: unit.description || '', is_active: unit.is_active !== false }); setShowForm(true); };
-  const deleteUnit = async (id) => { if (confirm('Delete this unit?')) { await supabase.from('item_units').delete().eq('id', id); loadUnits(); }};
+  const deleteUnit = async (id) => { if (confirm('Delete this unit?')) { await supabase.from('item_units').delete().eq('id', id); }};
 
   const filteredUnits = units.filter(u => u.unit_name?.toLowerCase().includes(searchTerm.toLowerCase()) || u.unit_code?.toLowerCase().includes(searchTerm.toLowerCase()));
 
@@ -2835,27 +2807,12 @@ function UnitTab() {
 }
 
 function WarehousesTab() {
-  const [warehouses, setWarehouses] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { data: warehouses = [], isLoading: loading } = useWarehouses();
   const [showForm, setShowForm] = useState(false);
   const [editingWarehouse, setEditingWarehouse] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
 
   const [formData, setFormData] = useState({ warehouse_code: '', warehouse_name: '', location: '', is_default: false, is_active: true });
-
-  useEffect(() => { loadWarehouses(); }, []);
-
-  const loadWarehouses = async () => {
-    setLoading(true);
-    try {
-      const { data } = await supabase.from('warehouses').select('*').order('warehouse_name');
-      setWarehouses(data || []);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const generateWarehouseCode = () => 'WH-' + Date.now().toString(36).toUpperCase();
 
@@ -2879,13 +2836,12 @@ function WarehousesTab() {
       await supabase.from('warehouses').insert(data);
     }
     resetForm();
-    loadWarehouses();
   };
 
   const resetForm = () => { setShowForm(false); setEditingWarehouse(null); setFormData({ warehouse_code: '', warehouse_name: '', location: '', is_default: false, is_active: true }); };
 
   const editWarehouse = (w) => { setEditingWarehouse(w); setFormData({ warehouse_code: w.warehouse_code || '', warehouse_name: w.warehouse_name, location: w.location || '', is_default: w.is_default || false, is_active: w.is_active !== false }); setShowForm(true); };
-  const deleteWarehouse = async (id) => { if (confirm('Delete this warehouse?')) { await supabase.from('warehouses').delete().eq('id', id); loadWarehouses(); }};
+  const deleteWarehouse = async (id) => { if (confirm('Delete this warehouse?')) { await supabase.from('warehouses').delete().eq('id', id); }};
 
   const filteredWarehouses = warehouses.filter(w => w.warehouse_name?.toLowerCase().includes(searchTerm.toLowerCase()) || w.warehouse_code?.toLowerCase().includes(searchTerm.toLowerCase()));
 
@@ -2925,27 +2881,12 @@ function WarehousesTab() {
 }
 
 function VariantsTab() {
-  const [variants, setVariants] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { data: variants = [], isLoading: loading } = useVariants();
   const [showForm, setShowForm] = useState(false);
   const [editingVariant, setEditingVariant] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
 
   const [formData, setFormData] = useState({ variant_name: '', is_active: true });
-
-  useEffect(() => { loadVariants(); }, []);
-
-  const loadVariants = async () => {
-    setLoading(true);
-    try {
-      const { data } = await supabase.from('company_variants').select('*').order('variant_name');
-      setVariants(data || []);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -2955,13 +2896,12 @@ function VariantsTab() {
       await supabase.from('company_variants').insert(formData);
     }
     resetForm();
-    loadVariants();
   };
 
   const resetForm = () => { setShowForm(false); setEditingVariant(null); setFormData({ variant_name: '', is_active: true }); };
 
   const editVariant = (v) => { setEditingVariant(v); setFormData({ variant_name: v.variant_name, is_active: v.is_active !== false }); setShowForm(true); };
-  const deleteVariant = async (id) => { if (confirm('Delete this variant? This may affect existing pricing.')) { await supabase.from('company_variants').delete().eq('id', id); loadVariants(); }};
+  const deleteVariant = async (id) => { if (confirm('Delete this variant? This may affect existing pricing.')) { await supabase.from('company_variants').delete().eq('id', id); }};
 
   const filteredVariants = variants.filter(v => v.variant_name?.toLowerCase().includes(searchTerm.toLowerCase()));
 

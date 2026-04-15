@@ -2,8 +2,9 @@ import { useState, useEffect, useMemo, useCallback, lazy, Suspense, useRef } fro
 import type { ComponentType, LazyExoticComponent } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import Sidebar from './components/Sidebar';
-import { supabase, getUserOrganisations, createOrganisation, signOut } from './supabase';
+import { supabase, getUserOrganisations, createOrganization, signOut } from './supabase';
 import { queryClient } from './queryClient';
 import LandingPage from './pages/LandingPage';
 import { AuthContext, type AuthContextValue, type Organisation, type OrganisationMember } from './contexts/AuthContext';
@@ -48,6 +49,8 @@ const ROUTE_SECTIONS: Record<string, ImportFactory[]> = {
   clients: [
     () => import('./pages/ClientList'),
     () => import('./pages/ClientManagement'),
+    () => import('./pages/OrganizationManagement'),
+    () => import('./pages/AcceptInvitation'),
   ],
   subcontractors: [
     () => import('./pages/Subcontractors').then(m => ({ default: m.SubcontractorDashboard })),
@@ -336,7 +339,7 @@ export default function App() {
       case '/settings/discounts': return <DiscountSettings />;
       case '/settings/quick-quote': return <QuickQuoteSettings />;
       case '/settings/document-series': return <TransactionNumberSeries />;
-      case '/settings/organisation': return <OrganisationSettings organisation={organisation} userId={user.id} />;
+      case '/settings/organisation': return <OrganisationSettings organisation={organisation} userId={user?.id} />;
       case '/settings/access-control': return <AccessControlPage />;
       default:
         if (pathKey.startsWith('/dc/edit/')) {
@@ -373,7 +376,7 @@ export default function App() {
   const handleCreateOrganisation = async (orgName: string) => {
     if (!user) return;
 
-    const { data, error } = (await createOrganisation(orgName, user.id)) as CreateOrganisationResult;
+    const { data, error } = (await createOrganization(orgName, user.id)) as CreateOrganisationResult;
     if (error) {
       console.error('Create org error:', error);
       alert('Error creating organisation: ' + (error.message || 'Unknown error'));
@@ -612,6 +615,7 @@ export default function App() {
           </Suspense>
         </main>
       </div>
+      <ReactQueryDevtools initialIsOpen={false} />
     </AuthContext.Provider>
   );
 }

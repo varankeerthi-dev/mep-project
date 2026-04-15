@@ -2,6 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../supabase';
 import { timedSupabaseQuery } from '../utils/queryTimeout';
+import { useMaterials } from '../hooks/useMaterials';
+import { useWarehouses } from '../hooks/useWarehouses';
+import { useVariants } from '../hooks/useVariants';
+import { useProjects } from '../hooks/useProjects';
 
 const createEmptyItem = (id) => ({
   id,
@@ -13,6 +17,11 @@ const createEmptyItem = (id) => ({
 });
 
 export default function MaterialOutward({ onSuccess, onCancel }) {
+  const { data: materials = [] } = useMaterials();
+  const { data: warehouses = [] } = useWarehouses();
+  const { data: variants = [] } = useVariants();
+  const { data: projects = [] } = useProjects();
+  
   const [formData, setFormData] = useState({
     outward_date: new Date().toISOString().split('T')[0],
     project_id: '',
@@ -28,33 +37,7 @@ export default function MaterialOutward({ onSuccess, onCancel }) {
   const initQuery = useQuery({
     queryKey: ['materialOutwardInit'],
     queryFn: async () => {
-      const [materials, warehouses, variants, projects] = await Promise.all([
-        timedSupabaseQuery(
-          supabase
-            .from('materials')
-            .select('id, display_name, name, item_type, unit')
-            .eq('is_active', true)
-            .order('name'),
-          'Material outward items',
-        ),
-        timedSupabaseQuery(
-          supabase.from('warehouses').select('id, warehouse_name, name').order('warehouse_name'),
-          'Material outward warehouses',
-        ),
-        timedSupabaseQuery(
-          supabase
-            .from('company_variants')
-            .select('id, variant_name, is_active')
-            .eq('is_active', true)
-            .order('variant_name'),
-          'Material outward variants',
-        ),
-        timedSupabaseQuery(
-          supabase.from('projects').select('id, project_name, name').order('project_name'),
-          'Material outward projects',
-        ),
-      ]);
-
+      
       return {
         materials: materials || [],
         warehouses: warehouses || [],
@@ -62,7 +45,6 @@ export default function MaterialOutward({ onSuccess, onCancel }) {
         projects: projects || [],
       };
     },
-    staleTime: 5 * 60 * 1000,
   });
 
   const stockQuery = useQuery({
@@ -80,14 +62,9 @@ export default function MaterialOutward({ onSuccess, onCancel }) {
 
       return stockRows || [];
     },
-    staleTime: 60 * 1000,
   });
 
-  const materials = initQuery.data?.materials || [];
-  const warehouses = initQuery.data?.warehouses || [];
-  const variants = initQuery.data?.variants || [];
-  const projects = initQuery.data?.projects || [];
-  const stockRows = stockQuery.data || [];
+    const stockRows = stockQuery.data || [];
 
   const stockMap = useMemo(() => {
     const map = {};

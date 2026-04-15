@@ -6,6 +6,10 @@ import { formatCurrency } from '../utils/formatters';
 import { useQuery } from '@tanstack/react-query';
 import { flexRender, getCoreRowModel, useReactTable } from '@tanstack/react-table';
 import { timedSupabaseQuery } from '../utils/queryTimeout';
+import { useMaterials } from '../hooks/useMaterials';
+import { useClients } from '../hooks/useClients';
+import { useProjects } from '../hooks/useProjects';
+import { useVariants } from '../hooks/useVariants';
 import { generateQuickQuoteItems } from '../quotation/quick-quote/engine';
 import { loadQuickQuoteConfig, normalizeQuickQuoteConfig } from '../quotation/quick-quote/api';
 import type { QuickQuoteConfig } from '../quotation/quick-quote/types';
@@ -32,7 +36,7 @@ function numberToWords(num) {
   const inWords = (n) => {
     if ((n = n.toString()).length > 9) return 'overflow';
     let nArr = ('000000000' + n).substr(-9).match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
-    if (!nArr) return '';
+    if (!nArr || nArr.length < 6) return '';
     let str = '';
     str += nArr[1] != 0 ? (a[Number(nArr[1])] || b[nArr[1][0]] + ' ' + a[nArr[1][1]]) + 'Crore ' : '';
     str += nArr[2] != 0 ? (a[Number(nArr[2])] || b[nArr[2][0]] + ' ' + a[nArr[2][1]]) + 'Lakh ' : '';
@@ -53,10 +57,10 @@ export default function CreateQuotation() {
   const { organisation } = useAuth();
   
   const [saving, setSaving] = useState(false);
-  const [clients, setClients] = useState([]);
-  const [projects, setProjects] = useState([]);
-  const [materials, setMaterials] = useState([]);
-  const [variants, setVariants] = useState([]);
+  const { data: clients = [] } = useClients();
+  const { data: projects = [] } = useProjects();
+  const { data: materials = [] } = useMaterials();
+  const { data: variants = [] } = useVariants();
   const [variantPricing, setVariantPricing] = useState({});
   const [itemMakes, setItemMakes] = useState({});
   const [companyState, setCompanyState] = useState(organisation?.state || 'Maharashtra');
@@ -101,6 +105,7 @@ export default function CreateQuotation() {
     client_contact: '',
     variant_id: '',
     reference: '',
+    prepared_by: '',
     extra_discount_percent: 0,
     extra_discount_amount: 0,
     round_off: 0,
@@ -117,28 +122,26 @@ export default function CreateQuotation() {
   const initQuery = useQuery({
     queryKey: ['quotationInit', organisation?.id],
     queryFn: async () => {
-      const [clients, projects, materials, variants, pricing, settings, template, quickQuoteConfig] = await Promise.all([
+      const [pricing, settings, template, quickQuoteConfig] = await Promise.all([
         timedSupabaseQuery(
-          supabase
-            .from('clients')
-            .select('id, client_name, address1, address2, city, state, pincode, gstin, contact, email, contact_person, contact_person_email, contact_person_2, contact_person_2_email, purchase_person, purchase_email, custom_discounts, discount_type, standard_pricelist_id, discount_profile_id')
-            .order('client_name'),
-          'Quotation clients',
-        ),
-        timedSupabaseQuery(
-          supabase.from('projects').select('id, project_name, project_code, client_id').order('project_name'),
-          'Quotation projects',
+          supabase.from('item_variant_pricing').select('item_id, company_variant_id, sale_price, make'),
+          'Quotation pricing',
         ),
         timedSupabaseQuery(
           supabase
-            .from('materials')
-            .select('id, item_code, display_name, name, hsn_code, sale_price, unit, gst_rate, make, item_type, uses_variant')
-            .order('name'),
-          'Quotation materials',
+            .from('discount_settings')
+            .select('variant_id, default_discount_percent, min_discount_percent, max_discount_percent')
+            .eq('is_active', true),
+          'Quotation discount settings',
         ),
         timedSupabaseQuery(
-          supabase.from('company_variants').select('id, variant_name').eq('is_active', true).order('variant_name'),
-          'Quotation variants',
+          supabase
+            .from('document_templates')
+            .select('id, column_settings')
+            .eq('document_type', 'Quotation')
+            .eq('is_default', true)
+            .maybeSingle(),
+          'Quotation template',
         ),
         timedSupabaseQuery(
           supabase.from('item_variant_pricing').select('item_id, company_variant_id, sale_price, make'),
@@ -164,17 +167,16 @@ export default function CreateQuotation() {
       ]);
 
       return {
-        clients: clients || [],
-        projects: projects || [],
-        materials: materials || [],
-        variants: variants || [],
+        clients,
+        projects,
+        materials,
+        variants,
         pricing: pricing || [],
         settings: settings || [],
         template: template || null,
         quickQuoteConfig: quickQuoteConfig || null
       };
     },
-    staleTime: 5 * 60 * 1000
   });
 
   const initLoading = initQuery.isPending && !initQuery.data;
@@ -183,18 +185,13 @@ export default function CreateQuotation() {
   useEffect(() => {
     if (!initQuery.data) return;
 
-    const { clients, projects, materials, variants, pricing, settings, template, quickQuoteConfig } = initQuery.data;
+    const { pricing, settings, template, quickQuoteConfig } = initQuery.data;
 
-    setClients(clients);
-    setProjects(projects);
-
-    const mappedItems = materials.map(item => ({
+    const materialsWithService = materials.map(item => ({
       ...item,
       isService: item.item_type === 'service'
     }));
-    setMaterials(mappedItems);
 
-    setVariants(variants);
     const pricingMap = {};
     const makesMap = {};
     
@@ -229,9 +226,9 @@ export default function CreateQuotation() {
     setItemMakes(finalMakesMap);
 
     if (quickQuoteConfig) {
-      const normalizedQuickQuote = normalizeQuickQuoteConfig(quickQuoteConfig, mappedItems, pricing || []);
+      const normalizedQuickQuote = normalizeQuickQuoteConfig(quickQuoteConfig, materialsWithService, pricing || []);
       setQuickQuoteConfig(normalizedQuickQuote);
-      setQuickQuoteTemplateId((prev) => prev || normalizedQuickQuote.templates[0]?.id || '');
+      setQuickQuoteTemplateId((prev) => prev || (normalizedQuickQuote.templates && normalizedQuickQuote.templates.length > 0 ? normalizedQuickQuote.templates[0]?.id : ''));
       setQuickQuoteVariantId((prev) => prev || normalizedQuickQuote.settings?.default_variant || '');
       setQuickQuoteMake((prev) => prev || normalizedQuickQuote.settings?.default_make || '');
       setQuickQuoteSpec((prev) => prev || normalizedQuickQuote.settings?.default_spec || '');
@@ -684,6 +681,7 @@ const loadQuoteNoPreview = useCallback(async () => {
         client_contact: '',
         variant_id: data.variant_id || '',
         reference: data.remarks || data.reference || '',
+        prepared_by: data.prepared_by || '',
         extra_discount_percent: data.extra_discount_percent || 0,
         extra_discount_amount: data.extra_discount_amount || 0,
         round_off: data.round_off || 0,
@@ -1281,6 +1279,7 @@ const loadQuoteNoPreview = useCallback(async () => {
         variant_id: formData.variant_id || null,
         remarks: formData.reference || null,
         reference: formData.reference,
+        prepared_by: formData.prepared_by || null,
         subtotal: calculations.subtotal,
         total_item_discount: calculations.totalItemDiscount,
         extra_discount_percent: parseFloat(formData.extra_discount_percent) || 0,
@@ -1425,6 +1424,7 @@ const loadQuoteNoPreview = useCallback(async () => {
           client_contact: '',
           variant_id: '',
           reference: '',
+          prepared_by: '',
           extra_discount_percent: 0,
           extra_discount_amount: 0,
           round_off: 0,
@@ -1541,6 +1541,9 @@ const loadQuoteNoPreview = useCallback(async () => {
           ))}
           {renderHeaderField('Remarks:', (
             <input type="text" className="form-input" style={compactFieldStyle} value={formData.reference} onChange={(e) => setFormData({ ...formData, reference: e.target.value })} placeholder="Remarks" />
+          ))}
+          {renderHeaderField('Prepared By:', (
+            <input type="text" className="form-input" style={compactFieldStyle} value={formData.prepared_by} onChange={(e) => setFormData({ ...formData, prepared_by: e.target.value })} placeholder="Prepared By" />
           ))}
         </div>
       </div>
@@ -1685,7 +1688,7 @@ const loadQuoteNoPreview = useCallback(async () => {
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               <select className="form-select" style={{ minWidth: '170px', height: '32px', fontSize: '12px' }} value={quickQuoteTemplateId} onChange={(e) => setQuickQuoteTemplateId(e.target.value)}>
                 <option value="">Template</option>
-                {quickQuoteConfig.templates.map((tpl) => (
+                {(quickQuoteConfig?.templates || []).map((tpl) => (
                   <option key={tpl.id} value={tpl.id}>{tpl.name}</option>
                 ))}
               </select>

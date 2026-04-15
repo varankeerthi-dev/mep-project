@@ -1,11 +1,15 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import type { User, AuthResponse, OAuthResponse, UserResponse, Session } from '@supabase/supabase-js'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://rujqejtisqermjyqqgoj.supabase.co'
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-if (!supabaseKey) {
-  console.warn('Supabase anon key is not set. Set VITE_SUPABASE_ANON_KEY in your environment. Do NOT commit secret keys.')
+if (!supabaseUrl || !supabaseKey) {
+  throw new Error(
+    `Missing Supabase credentials. Please check your .env file.\n` +
+    `URL: ${supabaseUrl ? '✓ SET' : '✗ MISSING'}\n` +
+    `Key: ${supabaseKey ? '✓ SET' : '✗ MISSING'}`
+  )
 }
 
 export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseKey, {
@@ -183,24 +187,26 @@ export const getUserOrganisations = async (
   return { data: data as OrganisationMember[] | null, error }
 }
 
-export const createOrganisation = async (
+export const createOrganization = async (
   orgName: string,
   userId: string
 ): Promise<{ data: Organisation | null; error: Error | null }> => {
   const { data: org, error: orgError } = await supabase
     .from('organisations')
-    .insert({ name: orgName })
+    .insert({ name: orgName, is_trial: true, trial_period_days: 30 })
     .select()
     .single()
   
   if (orgError) throw orgError
   
   const { error: memberError } = await supabase
-    .from('org_members')
+    .from('user_organisations')
     .insert({
       organisation_id: org.id,
       user_id: userId,
-      role: 'admin'
+      role: 'admin',
+      is_default: true,
+      trial_ends_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
     })
   
   if (memberError) throw memberError
@@ -248,6 +254,67 @@ export const updateUserRole = async (
     .eq('id', memberId)
   return { data, error }
 }
+
+export const createInvitation = async (
+  organisationId: string,
+  email: string,
+  role: string = 'member',
+  invitedByUserId: string
+): Promise<{ data: any | null; error: Error | null }> => {
+  const token = Math.random().toString(36).substring(2) + Date.now().toString(36);
+  
+  const { data, error } = await supabase
+    .from('invitations')
+    .insert({
+      organisation_id: organisationId,
+      email,
+      role,
+      invited_by_user_id: invitedByUserId,
+      token,
+      status: 'pending'
+    })
+    .select()
+    .single();
+    
+  return { data, error };
+}
+
+export const getInvitationByToken = async (
+  token: string
+): Promise<{ data: any | null; error: Error | null }> => {
+  const { data, error } = await supabase
+    .from('invitations')
+    .select('*, organisation:organisations(*)')
+    .eq('token', token)
+    .single();
+    
+  return { data, error };
+}
+
+export const acceptInvitation = async (
+  token: string,
+  userId: string
+): Promise<{ data: any | null; error: Error | null }> => {
+  // Get invitation details
+  const { data: invitation, error: inviteError } = await getInvitationByToken(token);
+  if (inviteError || !invitation) {
+    return { data: null, error: inviteError || new Error('Invalid invitation') };
+  }
+  
+  // Check if invitation is still valid
+  if (invitation.status !== 'pending' || new Date(invitation.expires_at) < new Date()) {
+    return { data: null, error: new Error('Invitation expired') };
+  }
+  
+  // Start transaction to accept invitation and add user to organization
+  const { data: acceptData, error: acceptError } = await supabase.rpc('accept_invitation', {
+    token,
+    user_id: userId
+  });
+  
+  return { data: acceptData, error: acceptError };
+}
+
 
 export const removeMember = async (
   memberId: string
