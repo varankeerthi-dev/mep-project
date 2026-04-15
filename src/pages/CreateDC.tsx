@@ -27,7 +27,10 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
   const clientsQuery = useClients();
   const clients = clientsQuery.data || [];
   
-  const { data: materials = [] } = useMaterials();
+  const materialsQuery = useMaterials();
+  const materials = materialsQuery.data || [];
+  const materialsLoading = materialsQuery.isLoading;
+  
   const { data: projects = [] } = useProjects();
   const { data: warehouses = [] } = useWarehouses();
   const { data: variants = [] } = useVariants();
@@ -1197,12 +1200,10 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
                         className="cell-select"
                         value={item.material_id} 
                         onChange={(e) => handleItemChange(item.id, 'material_id', e.target.value)}
-                        disabled={isLocked}
+                        disabled={isLocked || materialsLoading}
                       >
-                        <option value="">Select Item</option>
-                        {materials.length === 0 ? (
-                          <option value="">Loading materials...</option>
-                        ) : materials.map(m => (
+                        <option value="">{materialsLoading ? 'Loading materials...' : 'Select Item'}</option>
+                        {materials.map(m => (
                           <option key={m.id} value={m.id}>{m.display_name || m.name}</option>
                         ))}
                       </select>
