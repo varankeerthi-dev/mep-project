@@ -355,25 +355,25 @@ export default function QuotationList() {
         <table className="w-full caption-bottom text-sm">
           <thead className="border-b border-zinc-200 bg-zinc-50/80">
             <tr className="border-b border-zinc-200">
-              <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">
+              <th className="h-10 px-3 text-left align-middle text-[14px] font-medium text-zinc-500">
                 Quote No
               </th>
-              <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">
+              <th className="h-10 px-3 text-left align-middle text-[14px] font-medium text-zinc-500">
                 Client
               </th>
-              <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">
+              <th className="h-10 px-3 text-left align-middle text-[14px] font-medium text-zinc-500">
                 Date
               </th>
-              <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">
+              <th className="h-10 px-3 text-left align-middle text-[14px] font-medium text-zinc-500">
                 Valid Till
               </th>
-              <th className="h-10 px-3 text-right align-middle text-xs font-medium text-zinc-500">
+              <th className="h-10 px-3 text-right align-middle text-[14px] font-medium text-zinc-500">
                 Amount
               </th>
-              <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">
+              <th className="h-10 px-3 text-left align-middle text-[14px] font-medium text-zinc-500">
                 Status
               </th>
-              <th className="h-10 px-3 text-right align-middle text-xs font-medium text-zinc-500 min-w-[120px]">
+              <th className="h-10 px-3 text-right align-middle text-[14px] font-medium text-zinc-500 min-w-[120px]">
                 Action
               </th>
             </tr>
