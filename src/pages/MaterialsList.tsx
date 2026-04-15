@@ -1894,6 +1894,7 @@ function ItemsTab() {
              </div>
           </div>
         </div>
+      )}
 
       {/* Bulk Price / Import Modals are already Tailwind-ified in components, but the triggers in this file use standard Div/State based overlays */}
       
