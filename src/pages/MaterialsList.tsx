@@ -16,6 +16,10 @@ import {
   AlertCircle as AlertIcon,
   ChevronRight as ChevronIcon,
   MoreVertical as MoreIcon,
+  Settings2 as ServiceIcon,
+  Tag as CategoryIcon,
+  Ruler as UnitIcon,
+  Warehouse as WarehouseIcon,
 } from 'lucide-react';
 import { supabase } from '../supabase';
 import { formatDate, formatCurrency } from '../utils/formatters';
@@ -256,7 +260,8 @@ function ItemsTab() {
 
   const { data: pageData, isLoading, isError, error, refetch } = useMaterialsPageData();
   
-  const materials = pageData?.materials ?? [];
+  const allMaterials = pageData?.materials ?? [];
+  const materials = useMemo(() => allMaterials.filter(m => m.item_type !== 'service'), [allMaterials]);
   const stock = pageData?.stock ?? [];
   const categories = pageData?.categories ?? [];
   const units = pageData?.units ?? [];
@@ -1158,127 +1163,172 @@ function ItemsTab() {
   }, [selectedMaterialId, stockData, itemTransactions]);
 
   // Table Columns Setup
-  const columns = useMemo(() => [
-    {
-      accessorKey: 'name',
-      header: 'Item Details',
-      cell: ({ row }) => {
-        const m = row.original;
-        const currentStock = stockData[m.id] || 0;
-        return (
-          <div className="flex items-center gap-3">
-             <div className={cn(
-                "w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-sm",
-                m.is_active === false ? "bg-slate-300" : "bg-indigo-600 shadow-indigo-600/20"
-             )}>
-                <InventoryIcon size={18} />
-             </div>
-             <div className="flex flex-col">
-                <span className="font-black text-slate-800 uppercase text-[12px] tracking-tight leading-tight">
-                  {m.display_name || m.name}
-                </span>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
-                  {m.item_code || 'No Code'} • {m.main_category || 'Uncategorized'}
-                </span>
-             </div>
+  const columns = useMemo(() => {
+    const colList = [
+      {
+        id: 'name',
+        header: 'Item Details',
+        visible: visibleColumns.includes('name'),
+        cell: ({ row }) => {
+          const m = row.original;
+          return (
+            <div className="flex items-center gap-3">
+               <div className={cn(
+                  "w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-sm",
+                  m.is_active === false ? "bg-slate-300" : "bg-indigo-600 shadow-indigo-600/20"
+               )}>
+                  <InventoryIcon size={18} />
+               </div>
+               <div className="flex flex-col">
+                  <span className="font-black text-slate-800 uppercase text-[12px] tracking-tight leading-tight">
+                    {m.display_name || m.name}
+                  </span>
+                  {/* Show metadata only if separate columns aren't visible to save space */}
+                  {(!visibleColumns.includes('code') || !visibleColumns.includes('category')) && (
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
+                      {m.item_code || 'No Code'} • {m.main_category || 'Uncategorized'}
+                    </span>
+                  )}
+               </div>
+            </div>
+          );
+        }
+      },
+      {
+        id: 'code',
+        header: 'Item Code',
+        visible: visibleColumns.includes('code'),
+        cell: ({ row }) => <span className="font-bold text-slate-600 text-[11px] font-mono">{row.original.item_code || '---'}</span>
+      },
+      {
+        id: 'category',
+        header: 'Category',
+        visible: visibleColumns.includes('category'),
+        cell: ({ row }) => <span className="font-bold text-slate-400 text-[10px] uppercase tracking-widest">{row.original.main_category || '---'}</span>
+      },
+      {
+        id: 'sub_category',
+        header: 'Sub Category',
+        visible: visibleColumns.includes('sub_category'),
+        cell: ({ row }) => <span className="text-slate-500 text-[11px]">{row.original.sub_category || '---'}</span>
+      },
+      {
+        id: 'size',
+        header: 'Size',
+        visible: visibleColumns.includes('size'),
+        cell: ({ row }) => <span className="font-bold text-slate-700 text-[11px]">{row.original.size || '---'}</span>
+      },
+      {
+        id: 'make',
+        header: 'Make',
+        visible: visibleColumns.includes('make'),
+        cell: ({ row }) => <span className="text-slate-600 text-[11px] font-bold">{row.original.make || '---'}</span>
+      },
+      {
+        id: 'unit',
+        header: 'Unit',
+        visible: visibleColumns.includes('unit'),
+        headerClassName: 'text-center',
+        cell: ({ row }) => (
+          <div className="text-center font-bold text-slate-500 uppercase text-[11px] tracking-widest bg-slate-100 px-2 py-1 rounded-lg">
+            {row.original.unit}
           </div>
-        );
-      }
-    },
-    {
-      accessorKey: 'unit',
-      header: 'Unit',
-      headerClassName: 'text-center',
-      cell: ({ row }) => (
-        <div className="text-center font-bold text-slate-500 uppercase text-[11px] tracking-widest bg-slate-100 px-2 py-1 rounded-lg">
-          {row.original.unit}
-        </div>
-      )
-    },
-    {
-      accessorKey: 'stock',
-      header: 'Stock Status',
-      headerClassName: 'text-center',
-      cell: ({ row }) => {
-        const m = row.original;
-        const currentStock = stockData[m.id] || 0;
-        return (
-          <div className="flex flex-col items-center">
-            <span className={cn(
-              "font-black text-[13px]",
-              currentStock <= 0 ? "text-rose-600" : currentStock < 10 ? "text-amber-600" : "text-emerald-600"
-            )}>
-              {currentStock.toLocaleString()}
-            </span>
-            <span className="text-[9px] font-black text-slate-300 uppercase tracking-tighter">Current Stock</span>
+        )
+      },
+      {
+        id: 'stock',
+        header: 'Stock',
+        visible: visibleColumns.includes('stock'),
+        headerClassName: 'text-center',
+        cell: ({ row }) => {
+          const m = row.original;
+          const currentStock = stockData[m.id] || 0;
+          return (
+            <div className="flex flex-col items-center">
+              <span className={cn(
+                "font-black text-[13px]",
+                currentStock <= 0 ? "text-rose-600" : currentStock < 10 ? "text-amber-600" : "text-emerald-600"
+              )}>
+                {currentStock.toLocaleString()}
+              </span>
+              <span className="text-[9px] font-black text-slate-300 uppercase tracking-tighter leading-none">Actual</span>
+            </div>
+          )
+        }
+      },
+      {
+        id: 'sale_price',
+        header: 'Sale Price',
+        visible: visibleColumns.includes('sale_price'),
+        cell: ({ row }) => <span className="font-black text-slate-900 text-[12px]">{formatCurrencyOrDash(row.original.sale_price)}</span>
+      },
+      {
+        id: 'purchase_price',
+        header: 'Purchase Price',
+        visible: visibleColumns.includes('purchase_price'),
+        cell: ({ row }) => <span className="font-bold text-slate-400 text-[11px]">{formatCurrencyOrDash(row.original.purchase_price)}</span>
+      },
+      {
+        id: 'hsn_code',
+        header: 'HSN/SAC',
+        visible: visibleColumns.includes('hsn_code'),
+        cell: ({ row }) => <span className="text-slate-500 text-[11px]">{row.original.hsn_code || '---'}</span>
+      },
+      {
+        id: 'status',
+        header: 'Status',
+        visible: visibleColumns.includes('status'),
+        headerClassName: 'text-center',
+        cell: ({ row }) => {
+          const active = row.original.is_active !== false;
+          return (
+            <div className="flex justify-center">
+               <span className={cn(
+                  "px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border",
+                  active 
+                    ? "bg-emerald-50 text-emerald-700 border-emerald-100" 
+                    : "bg-slate-50 text-slate-400 border-slate-100"
+               )}>
+                  {active ? 'Active' : 'Inactive'}
+               </span>
+            </div>
+          )
+        }
+      },
+      {
+        id: 'actions',
+        header: '',
+        visible: true,
+        cell: ({ row }) => (
+          <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all">
+            <button 
+              onClick={() => openItemWorkspace(row.original)}
+              className="p-2 hover:bg-white rounded-lg text-indigo-600 shadow-sm border border-transparent hover:border-indigo-100"
+              title="Item History"
+            >
+              <MoreIcon size={16} />
+            </button>
+            <button 
+              onClick={() => handleEditMaterial(row.original)}
+              className="p-2 hover:bg-white rounded-lg text-amber-600 shadow-sm border border-transparent hover:border-amber-100"
+              title="Edit Item"
+            >
+              <EditIcon size={16} />
+            </button>
+            <button 
+              onClick={() => handleDeleteMaterial(row.original)}
+              className="p-2 hover:bg-white rounded-lg text-rose-600 shadow-sm border border-transparent hover:border-rose-100"
+              title="Delete Item"
+            >
+              <DeleteIcon size={16} />
+            </button>
           </div>
         )
       }
-    },
-    {
-      accessorKey: 'commercial',
-      header: 'Pricing (Sale/Purchase)',
-      cell: ({ row }) => (
-        <div className="flex flex-col gap-0.5">
-          <div className="flex items-center font-black text-slate-900 text-[12px]">
-            <span className="text-slate-400 mr-1 text-[10px]">S</span> {formatCurrencyOrDash(row.original.sale_price)}
-          </div>
-          <div className="flex items-center font-black text-slate-400 text-[11px]">
-            <span className="text-slate-200 mr-1 text-[9px]">P</span> {formatCurrencyOrDash(row.original.purchase_price)}
-          </div>
-        </div>
-      )
-    },
-    {
-      accessorKey: 'status',
-      header: 'Status',
-      headerClassName: 'text-center',
-      cell: ({ row }) => {
-        const active = row.original.is_active !== false;
-        return (
-          <div className="flex justify-center">
-             <span className={cn(
-                "px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border",
-                active 
-                  ? "bg-emerald-50 text-emerald-700 border-emerald-100" 
-                  : "bg-slate-50 text-slate-400 border-slate-100"
-             )}>
-                {active ? 'Active' : 'Inactive'}
-             </span>
-          </div>
-        )
-      }
-    },
-    {
-      id: 'actions',
-      header: '',
-      cell: ({ row }) => (
-        <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all">
-          <button 
-            onClick={() => openItemWorkspace(row.original)}
-            className="p-2 hover:bg-white rounded-lg text-indigo-600 shadow-sm border border-transparent hover:border-indigo-100"
-            title="Item History"
-          >
-            <MoreIcon size={16} />
-          </button>
-          <button 
-            onClick={() => handleEditMaterial(row.original)}
-            className="p-2 hover:bg-white rounded-lg text-amber-600 shadow-sm border border-transparent hover:border-amber-100"
-            title="Edit Item"
-          >
-            <EditIcon size={16} />
-          </button>
-          <button 
-            onClick={() => handleDeleteMaterial(row.original)}
-            className="p-2 hover:bg-white rounded-lg text-rose-600 shadow-sm border border-transparent hover:border-rose-100"
-            title="Delete Item"
-          >
-            <DeleteIcon size={16} />
-          </button>
-        </div>
-      )
-    }
-  ], [stockData, handleEditMaterial, handleDeleteMaterial, openItemWorkspace]);
+    ];
+
+    return colList.filter(c => c.visible !== false);
+  }, [visibleColumns, stockData, handleEditMaterial, handleDeleteMaterial, openItemWorkspace, formatCurrencyOrDash]);
 
   return (
     <div className="flex flex-col h-full overflow-hidden bg-slate-50 animate-in fade-in duration-500">
@@ -1300,26 +1350,25 @@ function ItemsTab() {
           </div>
           
           <div className="flex items-center gap-3">
-             <div className="flex bg-slate-100 p-1 rounded-xl">
-                <button 
-                   onClick={() => setExcelEditMode(false)}
-                   className={cn(
-                      "px-4 py-2 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all",
-                      !excelEditMode ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600"
-                   )}
-                >
-                   Standard
-                </button>
-                <button 
-                   onClick={() => setExcelEditMode(true)}
-                   className={cn(
-                      "px-4 py-2 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all",
-                      excelEditMode ? "bg-white text-emerald-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
-                   )}
-                >
-                   Excel Mode
-                </button>
-             </div>
+          <div className="flex items-center gap-2">
+             <button 
+                onClick={openBulkPriceModal}
+                className="h-11 px-6 bg-slate-900 text-white rounded-xl font-black text-[11px] uppercase tracking-widest shadow-lg shadow-slate-900/10 transition-all flex items-center gap-2"
+             >
+                <EditIcon size={16} /> Bulk Edit
+             </button>
+             <button 
+                onClick={() => setExcelEditMode(!excelEditMode)}
+                className={cn(
+                  "h-11 px-6 rounded-xl font-black text-[11px] uppercase tracking-widest transition-all flex items-center gap-2 border-2",
+                  excelEditMode 
+                    ? "bg-emerald-50 text-emerald-600 border-emerald-100 shadow-lg shadow-emerald-600/5" 
+                    : "bg-white text-slate-600 border-slate-50 hover:border-slate-200"
+                )}
+             >
+                <ExcelIcon size={16} /> Excel Edit
+             </button>
+          </div>
              <button 
                 onClick={() => setShowForm(true)}
                 className="h-11 px-6 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-[11px] uppercase tracking-widest shadow-lg shadow-indigo-600/10 transition-all flex items-center gap-2"
@@ -1359,6 +1408,9 @@ function ItemsTab() {
               </button>
               <button onClick={openBulkPriceModal} className="flex items-center gap-2 h-11 px-5 border-2 border-slate-50 text-slate-600 rounded-xl hover:border-emerald-100 hover:text-emerald-600 transition-all text-[10px] font-black uppercase tracking-widest uppercase tracking-widest">
                  <ExcelIcon size={14} /> Bulk Price
+              </button>
+              <button onClick={() => setShowColumnSettings(true)} className="flex items-center gap-2 h-11 px-5 border-2 border-slate-50 text-amber-600 rounded-xl hover:border-amber-100 hover:bg-amber-50/50 transition-all text-[10px] font-black uppercase tracking-widest uppercase tracking-widest ml-1">
+                 <FilterIcon size={14} /> Columns
               </button>
            </div>
         </div>
@@ -1772,6 +1824,77 @@ function ItemsTab() {
         </div>
       )}
 
+      {/* Column Settings Modal */}
+      {showColumnSettings && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white rounded-[32px] w-full max-w-md shadow-2xl overflow-hidden border border-slate-100 animate-in zoom-in-95 duration-200">
+             <div className="p-8 border-b border-slate-50 flex items-center justify-between bg-white/50 backdrop-blur-md sticky top-0 z-10">
+                <div className="flex items-center gap-3">
+                   <div className="w-10 h-10 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-600/20">
+                      <FilterIcon size={18} />
+                   </div>
+                   <div>
+                      <h3 className="text-xl font-black text-slate-900 leading-none">Custom Columns</h3>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1.5">Select columns to display in table</p>
+                   </div>
+                </div>
+                <button onClick={() => setShowColumnSettings(false)} className="p-2 hover:bg-slate-100 rounded-xl text-slate-400 transition-all"><CloseIcon size={20} /></button>
+             </div>
+             <div className="p-8 max-h-[60vh] overflow-y-auto custom-scrollbar">
+                <div className="grid grid-cols-1 gap-3">
+                   {ITEM_TABLE_COLUMNS.map((col) => {
+                      const isVisible = visibleColumns.includes(col.key);
+                      return (
+                        <label key={col.key} className={cn(
+                           "flex items-center justify-between p-4 rounded-2xl border-2 transition-all cursor-pointer group",
+                           isVisible 
+                             ? "bg-indigo-50/50 border-indigo-100 hover:border-indigo-200" 
+                             : "bg-white border-slate-50 hover:border-slate-100"
+                        )}>
+                           <div className="flex items-center gap-3">
+                              <div className={cn(
+                                "w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-all",
+                                isVisible ? "bg-indigo-600 border-indigo-600 text-white" : "border-slate-200 group-hover:border-indigo-400"
+                              )}>
+                                 {isVisible && <CheckIcon size={12} strokeWidth={4} />}
+                              </div>
+                              <span className={cn(
+                                 "text-[12px] font-black uppercase tracking-tight",
+                                 isVisible ? "text-indigo-900" : "text-slate-500"
+                              )}>
+                                 {col.label}
+                              </span>
+                           </div>
+                           <input 
+                             type="checkbox" 
+                             className="hidden" 
+                             checked={isVisible} 
+                             disabled={col.locked}
+                             onChange={() => toggleColumn(col.key)}
+                           />
+                           {col.locked && <span className="text-[8px] font-black text-indigo-400 uppercase tracking-[0.2em] bg-indigo-50 px-2 py-1 rounded-md">Locked</span>}
+                        </label>
+                      );
+                   })}
+                </div>
+             </div>
+             <div className="p-8 bg-slate-50 flex gap-4">
+                <button 
+                   onClick={() => setVisibleColumns(ITEM_TABLE_COLUMNS.filter(c => c.default).map(c => c.key))}
+                   className="flex-1 h-12 rounded-2xl border-2 border-slate-200 bg-white font-black text-[11px] uppercase tracking-widest text-slate-600 hover:bg-slate-50 transition-all"
+                >
+                   Reset Defaults
+                </button>
+                <button 
+                   onClick={() => setShowColumnSettings(false)}
+                   className="flex-1 h-12 rounded-2xl bg-slate-900 font-black text-[11px] uppercase tracking-widest text-white shadow-lg shadow-slate-900/10 hover:shadow-slate-900/20 active:scale-95 transition-all"
+                >
+                   Done
+                </button>
+             </div>
+          </div>
+        </div>
+
       {/* Bulk Price / Import Modals are already Tailwind-ified in components, but the triggers in this file use standard Div/State based overlays */}
       
       {/* Save Toast Notification */}
@@ -1787,4 +1910,376 @@ function ItemsTab() {
   );
 }
 
-export default memo(ItemsTab);
+function MaterialsList() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const activeTab = useMemo(() => getMaterialsTabFromSearch(location.search), [location.search]);
+
+  const handleTabChange = (tab: string) => {
+    navigate(`?tab=${tab}`);
+  };
+
+  const tabs = [
+    { id: 'items', label: 'Items Material', icon: InventoryIcon },
+    { id: 'service', label: 'Service', icon: ServiceIcon },
+    { id: 'category', label: 'Categories', icon: CategoryIcon },
+    { id: 'unit', label: 'Units', icon: UnitIcon },
+    { id: 'warehouses', label: 'Warehouses', icon: WarehouseIcon },
+  ];
+
+  return (
+    <div className="flex flex-col h-screen overflow-hidden bg-slate-50">
+      {/* Top Tab Bar */}
+      <div className="bg-white border-b border-slate-100 px-8 flex-shrink-0 flex items-center justify-between">
+        <div className="flex items-center gap-1">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            const active = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => handleTabChange(tab.id)}
+                className={cn(
+                  "flex items-center gap-3 px-6 py-5 text-[11px] font-black uppercase tracking-[0.2em] transition-all relative border-b-2",
+                  active 
+                    ? "text-indigo-600 border-indigo-600 bg-indigo-50/30" 
+                    : "text-slate-400 border-transparent hover:text-slate-600 hover:bg-slate-50"
+                )}
+              >
+                <Icon size={16} />
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-hidden">
+        {activeTab === 'items' && <ItemsTab />}
+        {activeTab === 'service' && <ServiceTab />}
+        {activeTab === 'category' && <CategoryTab />}
+        {activeTab === 'unit' && <UnitTab />}
+        {activeTab === 'warehouses' && <WarehouseTab />}
+        {activeTab === 'variants' && <ItemsTab />} {/* Fallback or specific variants view if needed */}
+      </div>
+    </div>
+  );
+}
+
+// ---- Sub-Tab Components (Placeholders to be filled) ----
+
+function ServiceTab() {
+  const { data: pageData, isLoading, refetch } = useMaterialsPageData();
+  const [searchTerm, setSearchTerm] = useState('');
+  
+  const services = useMemo(() => {
+    const list = (pageData?.materials ?? []).filter(m => m.item_type === 'service');
+    if (!searchTerm) return list;
+    const q = searchTerm.toLowerCase();
+    return list.filter(s => 
+      (s.name || '').toLowerCase().includes(q) || 
+      (s.display_name || '').toLowerCase().includes(q) ||
+      (s.item_code || '').toLowerCase().includes(q)
+    );
+  }, [pageData, searchTerm]);
+
+  if (isLoading) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center bg-white p-20">
+         <div className="w-16 h-16 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+         <p className="mt-6 text-sm font-black text-slate-400 uppercase tracking-[0.2em] animate-pulse">Syncing Services...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col h-full overflow-hidden bg-slate-50">
+      <div className="bg-white border-b border-slate-100 p-8 flex-shrink-0">
+        <div className="flex items-center justify-between gap-6">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-[20px] bg-slate-900 flex items-center justify-center text-white shadow-xl shadow-slate-900/20">
+              <ServiceIcon className="w-7 h-7" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-black text-slate-900 tracking-tight leading-none">Service Registry</h1>
+              <p className="mt-2 text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">{services.length} Active Services</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+             <div className="relative group w-80">
+                <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-indigo-600" />
+                <input 
+                  type="text" 
+                  placeholder="Search services..." 
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                  className="w-full h-12 pl-12 pr-4 bg-slate-50 border-2 border-slate-50 rounded-2xl outline-none group-focus-within:bg-white group-focus-within:border-indigo-600 transition-all font-bold text-slate-600 text-[13px]"
+                />
+             </div>
+             <button className="h-12 px-8 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-lg shadow-indigo-600/10 transition-all flex items-center gap-2">
+                <AddIcon size={16} /> Add Service
+             </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-hidden p-8 pt-0">
+        <div className="h-full border border-slate-100 rounded-[32px] overflow-hidden bg-white shadow-sm flex flex-col">
+          <div className="flex-1 overflow-auto">
+            <table className="w-full text-left border-collapse">
+              <thead className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur-md">
+                <tr>
+                  <th className="px-8 py-5 font-black text-slate-400 uppercase tracking-widest text-[10px]">Service Details</th>
+                  <th className="px-8 py-5 font-black text-slate-400 uppercase tracking-widest text-[10px]">Reference Code</th>
+                  <th className="px-8 py-5 font-black text-slate-400 uppercase tracking-widest text-[10px]">UOM</th>
+                  <th className="px-8 py-5 font-black text-slate-400 uppercase tracking-widest text-[10px]">Price (SAC)</th>
+                  <th className="px-8 py-5 font-black text-slate-400 uppercase tracking-widest text-[10px] text-center">Status</th>
+                  <th className="px-8 py-5"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {services.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="p-32 text-center">
+                      <div className="flex flex-col items-center gap-4 opacity-30">
+                        <ServiceIcon className="w-20 h-20 text-slate-200" />
+                        <h3 className="text-2xl font-black text-slate-900">No Services Found</h3>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  services.map(s => (
+                    <tr key={s.id} className="group hover:bg-slate-50/50 transition-colors">
+                      <td className="px-8 py-5">
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-sm">
+                            <ServiceIcon size={18} />
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="font-black text-slate-800 uppercase text-[12px] tracking-tight">{s.display_name || s.name}</span>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{s.main_category || 'General Service'}</span>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-8 py-5 font-bold text-slate-500 text-[11px] uppercase tracking-widest">{s.item_code || '-'}</td>
+                      <td className="px-8 py-5 font-bold text-slate-400 text-[11px] uppercase tracking-widest">{s.unit || 'nos'}</td>
+                      <td className="px-8 py-5">
+                        <div className="flex flex-col">
+                           <span className="font-black text-slate-900 text-[12px]">{formatCurrencyOrDash(s.sale_price)}</span>
+                           <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">SAC: {s.hsn_code || '---'}</span>
+                        </div>
+                      </td>
+                      <td className="px-8 py-5">
+                        <div className="flex justify-center">
+                          <span className={cn(
+                            "px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border",
+                            s.is_active !== false ? "bg-emerald-50 text-emerald-700 border-emerald-100" : "bg-slate-50 text-slate-400 border-slate-100"
+                          )}>
+                            {s.is_active !== false ? 'Live' : 'Inactive'}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-8 py-5 text-right">
+                         <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                            <button className="p-2 hover:bg-white rounded-lg text-amber-600 shadow-sm border border-transparent hover:border-amber-100"><EditIcon size={16} /></button>
+                            <button className="p-2 hover:bg-white rounded-lg text-rose-600 shadow-sm border border-transparent hover:border-rose-100"><DeleteIcon size={16} /></button>
+                         </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CategoryTab() {
+  const { data: pageData, isLoading } = useMaterialsPageData();
+  const categories = pageData?.categories ?? [];
+
+  if (isLoading) return <LoadingPlaceholder label="Categories" />;
+
+  return (
+    <RegistryLayout 
+      title="Category Registry" 
+      icon={CategoryIcon} 
+      count={categories.length}
+      onAdd={() => {}}
+      addButtonLabel="Add Category"
+    >
+      <table className="w-full text-left border-collapse">
+        <thead className="bg-slate-50/95 sticky top-0 z-10">
+          <tr>
+            <th className="px-8 py-5 font-black text-slate-400 uppercase tracking-widest text-[10px]">Category Name</th>
+            <th className="px-8 py-5 font-black text-slate-400 uppercase tracking-widest text-[10px]">Hsn/Sac Default</th>
+            <th className="px-8 py-5 font-black text-slate-400 uppercase tracking-widest text-[10px] text-center">Status</th>
+            <th className="px-8 py-5"></th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-50">
+          {categories.map(c => (
+            <tr key={c.id} className="group hover:bg-slate-50/50 transition-colors">
+              <td className="px-8 py-5 font-black text-slate-700 uppercase text-[12px] tracking-tight">{c.category_name}</td>
+              <td className="px-8 py-5 font-bold text-slate-400 text-[11px] uppercase tracking-widest">{c.hsn_sac_code || '---'}</td>
+              <td className="px-8 py-5 text-center">
+                <span className="px-3 py-1 bg-emerald-50 text-emerald-700 text-[9px] font-black uppercase tracking-widest rounded-full border border-emerald-100">Active</span>
+              </td>
+              <td className="px-8 py-5 text-right opacity-0 group-hover:opacity-100 transition-all">
+                <button className="p-2 text-slate-400 hover:text-indigo-600"><EditIcon size={16} /></button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </RegistryLayout>
+  );
+}
+
+function UnitTab() {
+  const { data: pageData, isLoading } = useMaterialsPageData();
+  const units = pageData?.units ?? [];
+
+  if (isLoading) return <LoadingPlaceholder label="Units" />;
+
+  return (
+    <RegistryLayout 
+      title="Unit of Measurement" 
+      icon={UnitIcon} 
+      count={units.length}
+      onAdd={() => {}}
+      addButtonLabel="Add unit"
+    >
+      <table className="w-full text-left border-collapse">
+        <thead className="bg-slate-50/95 sticky top-0 z-10">
+          <tr>
+            <th className="px-8 py-5 font-black text-slate-400 uppercase tracking-widest text-[10px]">Short Code</th>
+            <th className="px-8 py-5 font-black text-slate-400 uppercase tracking-widest text-[10px]">Full Name</th>
+            <th className="px-8 py-5 font-black text-slate-400 uppercase tracking-widest text-[10px] text-center">Status</th>
+            <th className="px-8 py-5"></th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-50">
+          {units.map(u => (
+            <tr key={u.id} className="group hover:bg-slate-50/50 transition-colors">
+              <td className="px-8 py-5"><span className="px-4 py-2 bg-slate-900 text-white font-black text-[11px] rounded-lg tracking-widest uppercase">{u.unit_code}</span></td>
+              <td className="px-8 py-5 font-bold text-slate-700 text-[12px] uppercase tracking-tight">{u.unit_name}</td>
+              <td className="px-8 py-5 text-center">
+                <span className="px-3 py-1 bg-emerald-50 text-emerald-700 text-[9px] font-black uppercase tracking-widest rounded-full border border-emerald-100">Live</span>
+              </td>
+              <td className="px-8 py-5 text-right opacity-0 group-hover:opacity-100 transition-all">
+                <button className="p-2 text-slate-400 hover:text-indigo-600"><EditIcon size={16} /></button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </RegistryLayout>
+  );
+}
+
+function WarehouseTab() {
+  const { data: pageData, isLoading } = useMaterialsPageData();
+  const warehouses = pageData?.warehouses ?? [];
+
+  if (isLoading) return <LoadingPlaceholder label="Storage" />;
+
+  return (
+    <RegistryLayout 
+      title="Warehouse Locations" 
+      icon={WarehouseIcon} 
+      count={warehouses.length}
+      onAdd={() => {}}
+      addButtonLabel="New Warehouse"
+    >
+      <table className="w-full text-left border-collapse">
+        <thead className="bg-slate-50/95 sticky top-0 z-10">
+          <tr>
+            <th className="px-8 py-5 font-black text-slate-400 uppercase tracking-widest text-[10px]">Location Name</th>
+            <th className="px-8 py-5 font-black text-slate-400 uppercase tracking-widest text-[10px]">Contact Sync</th>
+            <th className="px-8 py-5 font-black text-slate-400 uppercase tracking-widest text-[10px] text-center">Status</th>
+            <th className="px-8 py-5"></th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-50">
+          {warehouses.map(w => (
+            <tr key={w.id} className="group hover:bg-slate-50/50 transition-colors">
+              <td className="px-8 py-5">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-2xl bg-slate-900 flex items-center justify-center text-white"><WarehouseIcon size={18} /></div>
+                  <div className="flex flex-col">
+                    <span className="font-black text-slate-800 uppercase text-[12px] tracking-tight">{w.warehouse_name}</span>
+                    <span className="text-[9px] font-bold text-slate-400">{w.contact_name || 'No Contact Assigned'}</span>
+                  </div>
+                </div>
+              </td>
+              <td className="px-8 py-5 font-bold text-slate-500 text-[11px] uppercase tracking-widest">{w.phone_number || '---'}</td>
+              <td className="px-8 py-5 text-center">
+                <span className="px-3 py-1 bg-emerald-50 text-emerald-700 text-[9px] font-black uppercase tracking-widest rounded-full border border-emerald-100">Operational</span>
+              </td>
+              <td className="px-8 py-5 text-right opacity-0 group-hover:opacity-100 transition-all">
+                <button className="p-2 text-slate-400 hover:text-indigo-600"><EditIcon size={16} /></button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </RegistryLayout>
+  );
+}
+
+// ---- Common Helper Components for Tabs ----
+
+function LoadingPlaceholder({ label }: { label: string }) {
+  return (
+    <div className="flex-1 flex flex-col items-center justify-center bg-white p-20">
+       <div className="w-16 h-16 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+       <p className="mt-6 text-sm font-black text-slate-400 uppercase tracking-[0.2em] animate-pulse italic">Syncing {label} Registry...</p>
+    </div>
+  );
+}
+
+function RegistryLayout({ title, icon: Icon, count, onAdd, addButtonLabel, children }: { 
+  title: string; 
+  icon: any; 
+  count: number; 
+  onAdd: () => void; 
+  addButtonLabel: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col h-full overflow-hidden bg-slate-50">
+      <div className="bg-white border-b border-slate-100 p-8 flex-shrink-0">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-[20px] bg-slate-900 flex items-center justify-center text-white shadow-xl shadow-slate-900/20">
+              <Icon className="w-7 h-7" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-black text-slate-900 tracking-tight leading-none uppercase">{title}</h1>
+              <p className="mt-2 text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">{count} Total Entries</p>
+            </div>
+          </div>
+          <button 
+            onClick={onAdd}
+            className="h-12 px-8 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-lg shadow-indigo-600/10 transition-all flex items-center gap-2"
+          >
+            <AddIcon size={16} /> {addButtonLabel}
+          </button>
+        </div>
+      </div>
+      <div className="flex-1 overflow-hidden p-8 pt-0">
+        <div className="h-full border border-slate-100 rounded-[32px] overflow-hidden bg-white shadow-sm flex flex-col">
+          <div className="flex-1 overflow-auto">
+            {children}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default memo(MaterialsList);

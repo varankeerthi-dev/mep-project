@@ -27,6 +27,7 @@ import { PaymentQueue } from './components/PaymentQueue';
 
 
 export const PurchaseModule: React.FC = () => {
+  const { organisation } = useAuth();
   const tabs = [
     { value: 'vendors', label: 'Vendors', icon: Building2, component: Vendors },
     { value: 'orders', label: 'Purchase Orders', icon: ShoppingCart, component: PurchaseOrders },

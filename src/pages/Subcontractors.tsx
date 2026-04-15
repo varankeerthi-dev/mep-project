@@ -45,6 +45,8 @@ export const SUBCONTRACTOR_QUERY_KEYS = {
 // StaleTime configuration (2 minutes)
 const STALE_TIME = 2 * 60 * 1000;
 
+const getCurrentQueryParams = () => new URLSearchParams(window.location.search);
+
 type NavigateFn = (path: string) => void
 type WithNavigate = { onNavigate: NavigateFn }
 type CreateSubcontractorProps = {

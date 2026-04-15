@@ -612,7 +612,14 @@ export default function App() {
   }
 
   return (
-    <AuthContext.Provider value={{ user, organisation, organisations, handleLogout }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      organisation, 
+      organisations, 
+      selectedOrganisation: organisation,
+      handleLogout,
+      switchOrganisation: handleSelectOrganisation
+    }}>
       <div className="app-container">
                 
         {/* Mobile backdrop - closes sidebar when clicked */}

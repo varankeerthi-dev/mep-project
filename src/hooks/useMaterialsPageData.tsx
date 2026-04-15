@@ -35,7 +35,6 @@ export function useMaterialsPageData() {
           supabase
             .from('materials')
             .select('*')
-            .eq('item_type', 'product')
             .order('name'),
           'Materials'
         ),

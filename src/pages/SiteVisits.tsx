@@ -294,10 +294,15 @@ export function SiteVisits() {
   };
 
   const handleFormSubmit = async () => {
+    const payload = {
+      ...formData,
+      organization_id: organisation?.id,
+    };
+    
     if (selectedVisit) {
-      updateVisitMutation.mutate({ id: selectedVisit.id, ...formData });
+      updateVisitMutation.mutate({ id: selectedVisit.id, ...payload });
     } else {
-      addVisitMutation.mutate(formData);
+      addVisitMutation.mutate(payload);
     }
   };
 
@@ -934,7 +939,7 @@ export function SiteVisits() {
             {/* Footer Navigation - Refined */}
             <div className="p-10 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between">
               <Button
-                variant="outline"
+                variant="secondary"
                 onClick={() => currentStep > 1 ? setCurrentStep(currentStep - 1) : setIsFormOpen(false)}
                 className="h-14 px-8 rounded-2xl border-2 border-slate-200 font-black text-[13px] text-slate-600 hover:bg-white hover:border-slate-300 transition-all uppercase tracking-widest"
               >
