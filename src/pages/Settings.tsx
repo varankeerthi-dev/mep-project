@@ -1,21 +1,13 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { useAuth } from '../App';
-import { Settings as SettingsIcon, User, FileText, LogOut, Save, Plus, Trash2 } from 'lucide-react';
+import { Settings as SettingsIcon, User, FileText, LogOut, Save, Plus, Trash2, Hash, FileCode, Receipt, Truck } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '../components/ui/Card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/Tabs';
 import { Label } from '../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
-
-const pushPath = (path) => {
-  const nextPath = path || '/';
-  if (`${window.location.pathname}${window.location.search}` !== nextPath || window.location.hash) {
-    window.history.pushState({}, '', nextPath);
-    window.dispatchEvent(new Event('locationchange'));
-  }
-};
 
 export default function SettingsPage() {
   const { user, organisation, handleLogout } = useAuth();
@@ -40,9 +32,16 @@ export default function SettingsPage() {
     invoice_start_number: 1,
     invoice_suffix: '',
     invoice_padding: 4,
+    quotation_prefix: 'QT',
+    quotation_start_number: 1,
+    quotation_suffix: '',
+    quotation_padding: 4,
+    nb_dc_prefix: 'NBDC',
+    nb_dc_start_number: 1,
+    nb_dc_suffix: '',
+    nb_dc_padding: 4,
   });
   
-  const [loadingDocSettings, setLoadingDocSettings] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => { 
@@ -77,6 +76,14 @@ export default function SettingsPage() {
         invoice_start_number: data.invoice_start_number || 1,
         invoice_suffix: data.invoice_suffix || '',
         invoice_padding: data.invoice_padding || 4,
+        quotation_prefix: data.quotation_prefix || 'QT',
+        quotation_start_number: data.quotation_start_number || 1,
+        quotation_suffix: data.quotation_suffix || '',
+        quotation_padding: data.quotation_padding || 4,
+        nb_dc_prefix: data.nb_dc_prefix || 'NBDC',
+        nb_dc_start_number: data.nb_dc_start_number || 1,
+        nb_dc_suffix: data.nb_dc_suffix || '',
+        nb_dc_padding: data.nb_dc_padding || 4,
       });
     }
   };
@@ -116,132 +123,197 @@ export default function SettingsPage() {
     }
   };
 
-  const generatePreview = (prefix, startNum, padding, suffix) => {
-    const paddedNum = String(startNum).padStart(padding, '0');
-    return `${prefix}${paddedNum}${suffix}`;
+  const docTypes = [
+    { key: 'vendor', label: 'Vendor', icon: User },
+    { key: 'po', label: 'Purchase Order', icon: FileCode },
+    { key: 'dc', label: 'Delivery Challan', icon: Truck },
+    { key: 'nb_dc', label: 'Non-Billable DC', icon: Truck },
+    { key: 'invoice', label: 'Invoice', icon: Receipt },
+    { key: 'quotation', label: 'Quotation', icon: FileText },
+  ];
+
+  const getPreview = (key: string) => {
+    const prefix = docSettings[`${key}_prefix`];
+    const start = docSettings[`${key}_start_number`];
+    const pad = docSettings[`${key}_padding`];
+    const suffix = docSettings[`${key}_suffix`];
+    return `${prefix}${String(start).padStart(pad, '0')}${suffix}`;
+  };
+
+  const updateSetting = (key: string, field: string, value: any) => {
+    setDocSettings(prev => ({ ...prev, [`${key}_${field}`]: value }));
   };
 
   return (
-    <div style={{ fontFamily: 'Helvetica, Arial, sans-serif', padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
+    <div style={{ fontFamily: 'Helvetica, Arial, sans-serif', padding: '24px', maxWidth: '1400px', margin: '0 auto' }}>
       <div style={{ marginBottom: '32px' }}>
-        <h1 style={{ fontSize: '24px', fontWeight: 600, margin: 0, letterSpacing: '-0.5px' }}>
-          Settings
-        </h1>
-        <p style={{ color: '#666', marginTop: '4px', fontSize: '14px' }}>
-          Manage your organisation settings and preferences
-        </p>
+        <h1 style={{ fontSize: '24px', fontWeight: 600, margin: 0, letterSpacing: '-0.5px' }}>Settings</h1>
+        <p style={{ color: '#666', marginTop: '4px', fontSize: '14px' }}>Manage your organisation settings and preferences</p>
       </div>
 
-      <Tabs defaultValue="general" style={{ minHeight: '500px' }}>
+      <Tabs defaultValue="documents" style={{ minHeight: '500px' }}>
         <TabsList style={{ background: '#f5f5f5', padding: '4px', borderRadius: '8px' }}>
-          <TabsTrigger value="general" style={{ fontSize: '13px', padding: '8px 16px' }}>General</TabsTrigger>
           <TabsTrigger value="documents" style={{ fontSize: '13px', padding: '8px 16px' }}>Documents</TabsTrigger>
+          <TabsTrigger value="general" style={{ fontSize: '13px', padding: '8px 16px' }}>General</TabsTrigger>
           <TabsTrigger value="users" style={{ fontSize: '13px', padding: '8px 16px' }}>Users</TabsTrigger>
         </TabsList>
-
-        <TabsContent value="general">
-          <Card style={{ border: '1px solid #e5e5e5', borderRadius: '8px' }}>
-            <CardHeader style={{ padding: '20px 24px', borderBottom: '1px solid #e5e5e5' }}>
-              <CardTitle style={{ fontSize: '16px', fontWeight: 600 }}>Account</CardTitle>
-              <CardDescription style={{ fontSize: '13px', color: '#666' }}>Your account information</CardDescription>
-            </CardHeader>
-            <CardContent style={{ padding: '24px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-                <div style={{ 
-                  width: '64px', 
-                  height: '64px', 
-                  borderRadius: '50%', 
-                  background: '#1a1a1a', 
-                  color: '#fff', 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'center', 
-                  fontSize: '24px', 
-                  fontWeight: 600 
-                }}>
-                  {(user?.email || '?').charAt(0).toUpperCase()}
-                </div>
-                <div>
-                  <div style={{ fontWeight: 500, fontSize: '15px' }}>{user?.email}</div>
-                  <div style={{ color: '#666', fontSize: '13px', marginTop: '2px' }}>{organisation?.name}</div>
-                </div>
-              </div>
-            </CardContent>
-            <CardFooter style={{ padding: '16px 24px', borderTop: '1px solid #e5e5e5', background: '#fafafa' }}>
-              <Button variant="secondary" onClick={handleLogout} style={{ fontSize: '13px' }}>
-                <LogOut size={14} style={{ marginRight: '8px' }} />
-                Sign Out
-              </Button>
-            </CardFooter>
-          </Card>
-        </TabsContent>
 
         <TabsContent value="documents">
           <Card style={{ border: '1px solid #e5e5e5', borderRadius: '8px' }}>
             <CardHeader style={{ padding: '20px 24px', borderBottom: '1px solid #e5e5e5' }}>
               <CardTitle style={{ fontSize: '16px', fontWeight: 600 }}>Document Number Series</CardTitle>
               <CardDescription style={{ fontSize: '13px', color: '#666' }}>
-                Configure prefixes, starting numbers, and padding for document numbering
+                Configure how document numbers are generated across your organisation
               </CardDescription>
             </CardHeader>
             <CardContent style={{ padding: '24px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px' }}>
-                <NumberSeriesBlock 
-                  title="Vendor" 
-                  prefix={docSettings.vendor_prefix}
-                  setPrefix={(v) => setDocSettings({...docSettings, vendor_prefix: v})}
-                  startNumber={docSettings.vendor_start_number}
-                  setStartNumber={(v) => setDocSettings({...docSettings, vendor_start_number: v})}
-                  suffix={docSettings.vendor_suffix}
-                  setSuffix={(v) => setDocSettings({...docSettings, vendor_suffix: v})}
-                  padding={docSettings.vendor_padding}
-                  setPadding={(v) => setDocSettings({...docSettings, vendor_padding: v})}
-                  preview={generatePreview(docSettings.vendor_prefix, docSettings.vendor_start_number, docSettings.vendor_padding, docSettings.vendor_suffix)}
-                />
-                <NumberSeriesBlock 
-                  title="Purchase Order" 
-                  prefix={docSettings.po_prefix}
-                  setPrefix={(v) => setDocSettings({...docSettings, po_prefix: v})}
-                  startNumber={docSettings.po_start_number}
-                  setStartNumber={(v) => setDocSettings({...docSettings, po_start_number: v})}
-                  suffix={docSettings.po_suffix}
-                  setSuffix={(v) => setDocSettings({...docSettings, po_suffix: v})}
-                  padding={docSettings.po_padding}
-                  setPadding={(v) => setDocSettings({...docSettings, po_padding: v})}
-                  preview={generatePreview(docSettings.po_prefix, docSettings.po_start_number, docSettings.po_padding, docSettings.po_suffix)}
-                />
-                <NumberSeriesBlock 
-                  title="Delivery Challan" 
-                  prefix={docSettings.dc_prefix}
-                  setPrefix={(v) => setDocSettings({...docSettings, dc_prefix: v})}
-                  startNumber={docSettings.dc_start_number}
-                  setStartNumber={(v) => setDocSettings({...docSettings, dc_start_number: v})}
-                  suffix={docSettings.dc_suffix}
-                  setSuffix={(v) => setDocSettings({...docSettings, dc_suffix: v})}
-                  padding={docSettings.dc_padding}
-                  setPadding={(v) => setDocSettings({...docSettings, dc_padding: v})}
-                  preview={generatePreview(docSettings.dc_prefix, docSettings.dc_start_number, docSettings.dc_padding, docSettings.dc_suffix)}
-                />
-                <NumberSeriesBlock 
-                  title="Invoice" 
-                  prefix={docSettings.invoice_prefix}
-                  setPrefix={(v) => setDocSettings({...docSettings, invoice_prefix: v})}
-                  startNumber={docSettings.invoice_start_number}
-                  setStartNumber={(v) => setDocSettings({...docSettings, invoice_start_number: v})}
-                  suffix={docSettings.invoice_suffix}
-                  setSuffix={(v) => setDocSettings({...docSettings, invoice_suffix: v})}
-                  padding={docSettings.invoice_padding}
-                  setPadding={(v) => setDocSettings({...docSettings, invoice_padding: v})}
-                  preview={generatePreview(docSettings.invoice_prefix, docSettings.invoice_start_number, docSettings.invoice_padding, docSettings.invoice_suffix)}
-                />
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid #e5e5e5' }}>
+                      <th style={{ textAlign: 'left', padding: '12px 16px', fontWeight: 500, color: '#666', background: '#fafafa', width: '140px' }}>Document Type</th>
+                      <th style={{ textAlign: 'left', padding: '12px 16px', fontWeight: 500, color: '#666', background: '#fafafa', width: '100px' }}>Prefix</th>
+                      <th style={{ textAlign: 'left', padding: '12px 16px', fontWeight: 500, color: '#666', background: '#fafafa', width: '100px' }}>Start #</th>
+                      <th style={{ textAlign: 'left', padding: '12px 16px', fontWeight: 500, color: '#666', background: '#fafafa', width: '80px' }}>Padding</th>
+                      <th style={{ textAlign: 'left', padding: '12px 16px', fontWeight: 500, color: '#666', background: '#fafafa', width: '100px' }}>Suffix</th>
+                      <th style={{ textAlign: 'left', padding: '12px 16px', fontWeight: 500, color: '#666', background: '#fafafa' }}>Preview</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {docTypes.map(({ key, label, icon: Icon }) => (
+                      <tr key={key} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                        <td style={{ padding: '12px 16px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <div style={{ width: '28px', height: '28px', borderRadius: '6px', background: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <Icon size={14} style={{ color: '#666' }} />
+                            </div>
+                            <span style={{ fontWeight: 500 }}>{label}</span>
+                          </div>
+                        </td>
+                        <td style={{ padding: '12px 16px' }}>
+                          <Input 
+                            value={docSettings[`${key}_prefix`]} 
+                            onChange={(e) => updateSetting(key, 'prefix', e.target.value)}
+                            style={{ width: '80px', fontSize: '13px', fontFamily: 'monospace' }}
+                          />
+                        </td>
+                        <td style={{ padding: '12px 16px' }}>
+                          <Input 
+                            type="number"
+                            value={docSettings[`${key}_start_number`]} 
+                            onChange={(e) => updateSetting(key, 'start_number', parseInt(e.target.value) || 1)}
+                            style={{ width: '80px', fontSize: '13px' }}
+                          />
+                        </td>
+                        <td style={{ padding: '12px 16px' }}>
+                          <Input 
+                            type="number"
+                            value={docSettings[`${key}_padding`]} 
+                            onChange={(e) => updateSetting(key, 'padding', parseInt(e.target.value) || 3)}
+                            min={1}
+                            max={10}
+                            style={{ width: '60px', fontSize: '13px' }}
+                          />
+                        </td>
+                        <td style={{ padding: '12px 16px' }}>
+                          <Input 
+                            value={docSettings[`${key}_suffix`]} 
+                            onChange={(e) => updateSetting(key, 'suffix', e.target.value)}
+                            placeholder="-2024"
+                            style={{ width: '80px', fontSize: '13px', fontFamily: 'monospace' }}
+                          />
+                        </td>
+                        <td style={{ padding: '12px 16px' }}>
+                          <span style={{ 
+                            fontFamily: 'monospace', 
+                            fontSize: '14px', 
+                            fontWeight: 600,
+                            background: '#f5f5f5',
+                            padding: '4px 10px',
+                            borderRadius: '4px',
+                            letterSpacing: '0.5px'
+                          }}>
+                            {getPreview(key)}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </CardContent>
             <CardFooter style={{ padding: '16px 24px', borderTop: '1px solid #e5e5e5', background: '#fafafa' }}>
-              <Button onClick={saveDocSettings} disabled={saving} style={{ fontSize: '13px' }}>
+              <Button onClick={saveDocSettings} disabled={saving}>
                 <Save size={14} style={{ marginRight: '8px' }} />
                 {saving ? 'Saving...' : 'Save Changes'}
               </Button>
             </CardFooter>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="general">
+          <Card style={{ border: '1px solid #e5e5e5', borderRadius: '8px' }}>
+            <CardContent style={{ padding: 0 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', minHeight: '280px' }}>
+                <div style={{ 
+                  background: '#0f0f0f', 
+                  padding: '32px 24px', 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '16px'
+                }}>
+                  <div style={{ 
+                    width: '72px', 
+                    height: '72px', 
+                    borderRadius: '50%', 
+                    background: '#fff', 
+                    color: '#0f0f0f', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    fontSize: '28px', 
+                    fontWeight: 600,
+                    letterSpacing: '-0.5px'
+                  }}>
+                    {(user?.email || '?').charAt(0).toUpperCase()}
+                  </div>
+                  <div style={{ color: '#fff', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px', opacity: 0.6 }}>
+                    Account
+                  </div>
+                </div>
+                <div style={{ padding: '32px' }}>
+                  <div style={{ marginBottom: '32px' }}>
+                    <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px', color: '#999', marginBottom: '6px' }}>
+                      Email
+                    </div>
+                    <div style={{ fontSize: '15px', fontWeight: 500 }}>{user?.email}</div>
+                  </div>
+                  <div style={{ marginBottom: '32px' }}>
+                    <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px', color: '#999', marginBottom: '6px' }}>
+                      Organisation
+                    </div>
+                    <div style={{ fontSize: '15px', fontWeight: 500 }}>{organisation?.name}</div>
+                  </div>
+                  <div style={{ paddingTop: '16px', borderTop: '1px solid #e5e5e5' }}>
+                    <Button 
+                      variant="ghost" 
+                      onClick={handleLogout}
+                      style={{ 
+                        color: '#666', 
+                        fontSize: '13px',
+                        padding: '8px 0',
+                        marginLeft: '-8px'
+                      }}
+                    >
+                      <LogOut size={14} style={{ marginRight: '8px' }} />
+                      Sign out
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
           </Card>
         </TabsContent>
 
@@ -342,65 +414,6 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
       </Tabs>
-    </div>
-  );
-}
-
-function NumberSeriesBlock({ title, prefix, setPrefix, startNumber, setStartNumber, suffix, setSuffix, padding, setPadding, preview }) {
-  return (
-    <div style={{ padding: '20px', background: '#fafafa', borderRadius: '8px', border: '1px solid #e5e5e5' }}>
-      <h4 style={{ fontSize: '14px', fontWeight: 600, marginBottom: '16px' }}>{title} Number</h4>
-      
-      <div style={{ display: 'grid', gap: '12px' }}>
-        <div>
-          <Label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', color: '#666' }}>Prefix</Label>
-          <Input 
-            value={prefix} 
-            onChange={(e) => setPrefix(e.target.value)} 
-            placeholder="PREFIX"
-            style={{ fontSize: '13px' }}
-          />
-        </div>
-        
-        <div>
-          <Label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', color: '#666' }}>Starting Number</Label>
-          <Input 
-            type="number"
-            value={startNumber} 
-            onChange={(e) => setStartNumber(parseInt(e.target.value) || 1)} 
-            style={{ fontSize: '13px' }}
-          />
-        </div>
-        
-        <div>
-          <Label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', color: '#666' }}>Suffix (optional)</Label>
-          <Input 
-            value={suffix} 
-            onChange={(e) => setSuffix(e.target.value)} 
-            placeholder="-2024"
-            style={{ fontSize: '13px' }}
-          />
-        </div>
-        
-        <div>
-          <Label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', color: '#666' }}>Padding (digits)</Label>
-          <Input 
-            type="number"
-            value={padding} 
-            onChange={(e) => setPadding(parseInt(e.target.value) || 3)}
-            min="1"
-            max="10"
-            style={{ fontSize: '13px' }}
-          />
-        </div>
-      </div>
-
-      <div style={{ marginTop: '16px', padding: '12px', background: '#fff', borderRadius: '6px', border: '1px solid #e5e5e5', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ fontSize: '12px', color: '#666' }}>Preview:</span>
-        <span style={{ fontSize: '16px', fontWeight: 600, fontFamily: 'monospace', letterSpacing: '0.5px' }}>
-          {preview}
-        </span>
-      </div>
     </div>
   );
 }
