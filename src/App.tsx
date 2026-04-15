@@ -1,3 +1,4 @@
+// src/App.tsx
 import { useState, useEffect, useMemo, useCallback, lazy, Suspense, useRef } from 'react';
 import type { ComponentType, LazyExoticComponent } from 'react';
 import type { User } from '@supabase/supabase-js';
@@ -475,7 +476,7 @@ export default function App() {
 
     init();
 
-    // --- SESSION HEARTBEAT ---
+    // --- SESSION HEARTBEAT + QUERY INVALIDATION ---
     // handleFocus reads userRef (always current) instead of capturing `user` from closure.
     // This avoids the need to re-register event listeners when `user` changes.
     const handleFocus = async () => {
@@ -512,6 +513,9 @@ export default function App() {
           if (userRef.current?.id !== session.user.id) {
             setUser(session.user);
           }
+          
+          // 🔥 INVALIDATE ALL QUERIES WHEN TAB BECOMES ACTIVE
+          queryClient.invalidateQueries();
         }
       } catch {
         // Silently ignore — auth will refresh on next real interaction
@@ -538,6 +542,7 @@ export default function App() {
       unsubscribeAuth?.();
       window.removeEventListener('focus', handleFocus);
       window.removeEventListener('visibilitychange', handleVisibility);
+      heartbeatAbortRef.current?.abort();
     };
     // ⚠️ INTENTIONALLY empty deps [] — listeners must only be registered ONCE at mount.
     // We use refs (userRef, lastCheckRef, isCheckingRef) to read latest values without re-subscribing.
