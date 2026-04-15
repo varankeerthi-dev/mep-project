@@ -167,7 +167,6 @@ export const PaymentQueue: React.FC = () => {
   const overdueAmount = filteredBills.filter((b: any) => calculateDaysOverdue(b.due_date) > 0).reduce((sum: number, b: any) => sum + (b.balance_amount || 0), 0);
   const criticalCount = filteredBills.filter((b: any) => calculateDaysOverdue(b.due_date) > 0 || (new Date(b.due_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24) <= 7).length;
 
-  return (
   const summaryCards = [
     { label: 'Total Payable', value: `₹${totalPayable.toLocaleString()}`, icon: Wallet, color: 'text-rose-600', bg: 'bg-rose-50' },
     { label: 'Overdue Amount', value: `₹${overdueAmount.toLocaleString()}`, icon: BadgeAlert, color: 'text-rose-700', bg: 'bg-rose-100' },
