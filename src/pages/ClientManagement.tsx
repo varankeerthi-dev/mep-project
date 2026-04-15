@@ -668,7 +668,6 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                             </div>
                          </div>
                       </FieldGroup>
-FieldGroup>
 
                       <FieldGroup label="GSTIN" error={gstError}>
                         <CompactInput value={val('gstin')} onChange={handleGstChange} placeholder="15 Digit GSTIN" maxLength={15} className="font-mono text-[14px] font-semibold tracking-wider placeholder:tracking-normal placeholder:font-sans uppercase" />
