@@ -299,6 +299,7 @@ export default function QuotationView() {
       });
       return;
     }
+    /*
     if (template.template_code === 'QTN_TALLY') {
       const doc = generateQuotationTally(quotation, organisation, template);
       const pdfBlob = doc.output('blob');
@@ -313,6 +314,7 @@ export default function QuotationView() {
       window.open(url, '_blank');
       return;
     }
+    */
     if (template.template_code === 'QTN_ZOHO') {
       const doc = generateZohoTemplate(quotation, organisation, template);
       const pdfBlob = doc.output('blob');
@@ -423,6 +425,7 @@ export default function QuotationView() {
         return;
       }
 
+      /*
       if (template?.column_settings?.print?.style === 'grid_minimal') {
         const safeFileName = String(quotation.quotation_no || 'quotation')
           .replace(/[<>:\"/\\\\|?*\\x00-\\x1F]/g, '_')
@@ -443,7 +446,9 @@ export default function QuotationView() {
         });
         return;
       }
+      */
 
+      /*
       // Special handling for Tally Template
       if (template.template_code === 'QTN_TALLY') {
         const tallyDoc = generateQuotationTally(quotation, organisation, template);
@@ -463,6 +468,7 @@ export default function QuotationView() {
         profDoc.save(`${safeFileName}.pdf`);
         return;
       }
+      */
 
       // Special handling for Zoho Template
       if (template.template_code === 'QTN_ZOHO') {
@@ -484,6 +490,7 @@ export default function QuotationView() {
         return;
       }
 
+      /*
       // Special handling for Grid Pro Template
       if (template.template_code === 'QTN_GRID_PRO') {
         const gridDoc = generateProGridQuotationPdf(quotation, organisation, template);
@@ -493,6 +500,7 @@ export default function QuotationView() {
         gridDoc.save(`${safeFileName}.pdf`);
         return;
       }
+      */
 
       const isLandscape = template.orientation === 'Landscape';
       const doc = new jsPDF({

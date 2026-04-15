@@ -202,6 +202,7 @@ export default function QuotationList() {
         return;
       }
 
+      /*
       if (template?.column_settings?.print?.style === 'grid_minimal') {
         const blob = await generateGridMinimalQuotationPdfBlob(quotation, org, template);
         const url = URL.createObjectURL(blob);
@@ -214,7 +215,9 @@ export default function QuotationList() {
         setTimeout(() => URL.revokeObjectURL(url), 1000);
         return;
       }
+      */
 
+      /*
       if (template.template_code === 'QTN_TALLY') {
         const doc = generateQuotationTally(quotation, org, template);
         doc.save(`${safeFileName}.pdf`);
@@ -226,23 +229,26 @@ export default function QuotationList() {
         doc.save(`${safeFileName}.pdf`);
         return;
       }
+      */
 
       if (template.template_code === 'QTN_ZOHO') {
         const doc = generateZohoTemplate(quotation, org, template);
         doc.save(`${safeFileName}.pdf`);
         return;
       }
-if (template.template_code === 'QTN_CLASSIC') {
+      if (template.template_code === 'QTN_CLASSIC') {
         const doc = generateClassicQuotationTemplate(quotation, org, template);
         doc.save(`${safeFileName}.pdf`);
         return;
       }
 
+      /*
       if (template.template_code === 'QTN_GRID_PRO') {
         const doc = generateProGridQuotationPdf(quotation, org, template);
         doc.save(`${safeFileName}.pdf`);
         return;
       }
+      */
 
       const doc = new jsPDF();
       doc.setFontSize(16);

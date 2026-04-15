@@ -12,8 +12,10 @@ import {
   IconButton,
   Tooltip,
   Alert,
+  Select,
+  MenuItem,
 } from '@mui/material';
-import { Inventory as InventoryIcon, Add as AddIcon, CloudUpload as UploadIcon, TableChart as ExcelIcon } from '@mui/icons-material';
+import { Inventory as InventoryIcon, Add as AddIcon, CloudUpload as UploadIcon, TableChart as ExcelIcon, FilterList as FilterIcon } from '@mui/icons-material';
 import { supabase } from '../supabase';
 import { formatDate, formatCurrency } from '../utils/formatters';
 import { timedSupabaseQuery } from '../utils/queryTimeout';
@@ -1434,17 +1436,24 @@ function ItemsTab() {
             />
           </Box>
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
-            {MAIN_CATEGORIES.slice(0, 6).map((cat) => (
-              <Button
-                key={cat}
-                size="small"
-                variant={categoryFilter === cat ? 'contained' : 'outlined'}
-                onClick={() => setCategoryFilter(categoryFilter === cat ? 'All' : cat)}
-                sx={{ fontSize: '11px', minWidth: 'auto', textTransform: 'none', fontFamily: 'Inter' }}
-              >
-                {cat}
-              </Button>
-            ))}
+            <Select
+              size="small"
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              displayEmpty
+              sx={{ fontSize: '12px', minWidth: 160, fontFamily: 'Inter', height: '32px' }}
+            >
+              <MenuItem value="All" sx={{ fontSize: '12px', fontFamily: 'Inter' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <FilterIcon sx={{ fontSize: 16 }} /> All Categories
+                </Box>
+              </MenuItem>
+              {categoryOptions.map((cat) => (
+                <MenuItem key={cat} value={cat} sx={{ fontSize: '12px', fontFamily: 'Inter' }}>
+                  {cat}
+                </MenuItem>
+              ))}
+            </Select>
             <TextField
               size="small"
               placeholder="Search materials..."
