@@ -100,8 +100,7 @@ const menuData: MenuSection[] = [
           { id: 'subcontractor-dailylogs', label: 'Daily Logs', path: '/subcontractors/dailylogs' },
           { id: 'subcontractor-payments', label: 'Payments', path: '/subcontractors/payments' },
           { id: 'subcontractor-invoices', label: 'Invoices', path: '/subcontractors/invoices' },
-          { id: 'subcontractor-documents', label: 'Documents', path: '/subcontractors/documents' },
-          { id: 'subcontractor-measurement', label: 'Measurement', path: '/subcontractors/measurement' }
+          { id: 'subcontractor-documents', label: 'Documents', path: '/subcontractors/documents' }
         ]
       }
     ]
