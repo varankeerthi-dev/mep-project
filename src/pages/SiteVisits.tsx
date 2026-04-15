@@ -25,6 +25,7 @@ import {
   ArrowRight,
   Check
 } from 'lucide-react';
+import { QuickAddClientModal } from '../components/QuickAddClientModal';
 import { 
   Box, 
   Paper, 
@@ -1056,76 +1057,13 @@ export function SiteVisits() {
       )}
 
       {/* Add Client Modal */}
-      {isAddClientModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
-            <h3 className="text-lg font-semibold mb-4">Add New Client</h3>
-            <form onSubmit={handleAddClient} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Client Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  name="client_name"
-                  required
-                  placeholder="e.g. Acme Corporation"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Contact Person
-                </label>
-                <input
-                  type="text"
-                  name="contact_person"
-                  placeholder="e.g. John Doe"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Phone
-                </label>
-                <input
-                  type="tel"
-                  name="phone"
-                  placeholder="e.g. +91 98765 43210"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  name="email"
-                  placeholder="e.g. contact@acme.com"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                />
-              </div>
-              <div className="flex justify-end gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setIsAddClientModalOpen(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={addClientMutation.isPending}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 text-sm"
-                >
-                  {addClientMutation.isPending ? 'Adding...' : 'Add Client'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <QuickAddClientModal
+        isOpen={isAddClientModalOpen}
+        onClose={() => setIsAddClientModalOpen(false)}
+        onSuccess={(client) => {
+          setFormData(prev => ({ ...prev, client_id: client.id }));
+        }}
+      />
 
       {/* Add Purpose Modal */}
       {isAddPurposeModalOpen && (

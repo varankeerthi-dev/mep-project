@@ -8,6 +8,7 @@ import { Button, IconButton } from '../components/ui/Button';
 import { Badge, PriorityBadge, StatusBadge } from '../components/ui/Badge';
 import { Input, Select, TextArea } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
+import { QuickAddClientModal } from '../components/QuickAddClientModal';
 import { Tabs, TabList, Tab, TabPanel } from '../components/ui/Tabs';
 import { Calendar } from '../components/ui/Calendar';
 import {
@@ -1113,93 +1114,14 @@ export function ClientCommunication() {
         </div>
       </Modal>
 
-      {/* Add Client Modal */}
-      <Modal
-        isOpen={showAddClientModal}
+      {/* Site Visit Modal */}
+      <QuickAddClientModal 
+        isOpen={showAddClientModal} 
         onClose={() => setShowAddClientModal(false)}
-        title="Add New Client"
-        size="md"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setShowAddClientModal(false)}>
-              Cancel
-            </Button>
-            <Button
-              variant="primary"
-              onClick={() =>
-                createClientMutation.mutate({
-                  ...newClientData,
-                  created_at: new Date().toISOString(),
-                })
-              }
-              isLoading={createClientMutation.isPending}
-              disabled={!newClientData.client_name}
-            >
-              Add Client
-            </Button>
-          </>
-        }
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <Input
-            label="Client Name *"
-            value={newClientData.client_name}
-            onChange={(e) => setNewClientData({ ...newClientData, client_name: e.target.value })}
-            placeholder="Enter client name"
-          />
-          <Input
-            label="Client ID (optional)"
-            value={newClientData.client_id}
-            onChange={(e) => setNewClientData({ ...newClientData, client_id: e.target.value })}
-            placeholder="Auto-generated if empty"
-          />
-          <Input
-            label="Client Type"
-            value={newClientData.client_type}
-            onChange={(e) => setNewClientData({ ...newClientData, client_type: e.target.value })}
-            placeholder="e.g., Corporate, Individual"
-          />
-          <Input
-            label="Contact Person"
-            value={newClientData.contact}
-            onChange={(e) => setNewClientData({ ...newClientData, contact: e.target.value })}
-            placeholder="Primary contact person"
-          />
-          <Input
-            label="Phone"
-            value={newClientData.phone}
-            onChange={(e) => setNewClientData({ ...newClientData, phone: e.target.value })}
-            placeholder="Contact number"
-          />
-          <Input
-            label="Email"
-            type="email"
-            value={newClientData.email}
-            onChange={(e) => setNewClientData({ ...newClientData, email: e.target.value })}
-            placeholder="Email address"
-          />
-          <Input
-            label="City"
-            value={newClientData.city}
-            onChange={(e) => setNewClientData({ ...newClientData, city: e.target.value })}
-            placeholder="City"
-          />
-          <Input
-            label="State"
-            value={newClientData.state}
-            onChange={(e) => setNewClientData({ ...newClientData, state: e.target.value })}
-            placeholder="State"
-          />
-          <TextArea
-            label="Address"
-            value={newClientData.address1}
-            onChange={(e) => setNewClientData({ ...newClientData, address1: e.target.value })}
-            placeholder="Full address"
-          />
-        </div>
-      </Modal>
-
-      {/* Detail Modal */}
+        onSuccess={(client) => {
+          setFormData(prev => ({ ...prev, client_id: client.id }));
+        }}
+      />
       <Modal
         isOpen={!!selectedCommunication}
         onClose={() => setSelectedCommunication(null)}
