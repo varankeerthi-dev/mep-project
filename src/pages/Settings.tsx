@@ -1,6 +1,13 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../App';
+import { Settings as SettingsIcon, User, FileText, LogOut, Save, Plus, Trash2 } from 'lucide-react';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '../components/ui/Card';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/Tabs';
+import { Label } from '../components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 
 const pushPath = (path) => {
   const nextPath = path || '/';
@@ -13,10 +20,9 @@ const pushPath = (path) => {
 export default function SettingsPage() {
   const { user, organisation, handleLogout } = useAuth();
   const [users, setUsers] = useState([]);
-  const [showForm, setShowForm] = useState(false);
+  const [showUserForm, setShowUserForm] = useState(false);
   const [formData, setFormData] = useState({ emp_name: '', email: '', role: 'Assistant' });
   
-  // Document Settings state
   const [docSettings, setDocSettings] = useState({
     vendor_prefix: 'VEN',
     vendor_start_number: 1,
@@ -26,272 +32,375 @@ export default function SettingsPage() {
     po_start_number: 1,
     po_suffix: '',
     po_padding: 4,
+    dc_prefix: 'DC',
+    dc_start_number: 1,
+    dc_suffix: '',
+    dc_padding: 4,
+    invoice_prefix: 'INV',
+    invoice_start_number: 1,
+    invoice_suffix: '',
+    invoice_padding: 4,
   });
+  
   const [loadingDocSettings, setLoadingDocSettings] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => { 
-    supabase.from('users').select('*').order('created_at', { ascending: false }).then(({ data }) => setUsers(data || [])); 
-    
-    // Load document settings
+    loadUsers();
     if (organisation?.id) {
-      supabase.from('document_settings').select('*').eq('organisation_id', organisation.id).single().then(({ data }) => {
-        if (data) {
-          setDocSettings({
-            vendor_prefix: data.vendor_prefix || 'VEN',
-            vendor_start_number: data.vendor_start_number || 1,
-            vendor_suffix: data.vendor_suffix || '',
-            vendor_padding: data.vendor_padding || 3,
-            po_prefix: data.po_prefix || 'PO',
-            po_start_number: data.po_start_number || 1,
-            po_suffix: data.po_suffix || '',
-            po_padding: data.po_padding || 4
-          });
-        }
-      });
+      loadDocSettings();
     }
   }, [organisation?.id]);
 
-  const handleSubmit = async (e) => {
+  const loadUsers = async () => {
+    const { data } = await supabase.from('users').select('*').order('created_at', { ascending: false });
+    setUsers(data || []);
+  };
+
+  const loadDocSettings = async () => {
+    const { data } = await supabase.from('document_settings').select('*').eq('organisation_id', organisation.id).single();
+    if (data) {
+      setDocSettings({
+        vendor_prefix: data.vendor_prefix || 'VEN',
+        vendor_start_number: data.vendor_start_number || 1,
+        vendor_suffix: data.vendor_suffix || '',
+        vendor_padding: data.vendor_padding || 3,
+        po_prefix: data.po_prefix || 'PO',
+        po_start_number: data.po_start_number || 1,
+        po_suffix: data.po_suffix || '',
+        po_padding: data.po_padding || 4,
+        dc_prefix: data.dc_prefix || 'DC',
+        dc_start_number: data.dc_start_number || 1,
+        dc_suffix: data.dc_suffix || '',
+        dc_padding: data.dc_padding || 4,
+        invoice_prefix: data.invoice_prefix || 'INV',
+        invoice_start_number: data.invoice_start_number || 1,
+        invoice_suffix: data.invoice_suffix || '',
+        invoice_padding: data.invoice_padding || 4,
+      });
+    }
+  };
+
+  const handleUserSubmit = async (e) => {
     e.preventDefault();
     const empId = 'EMP-' + Date.now().toString().slice(-6);
     await supabase.from('users').insert({ ...formData, emp_id: empId });
-    setShowForm(false); setFormData({ emp_name: '', email: '', role: 'Assistant' });
-    supabase.from('users').select('*').order('created_at', { ascending: false }).then(({ data }) => setUsers(data || []));
+    setShowUserForm(false);
+    setFormData({ emp_name: '', email: '', role: 'Assistant' });
+    loadUsers();
   };
 
-  const deleteUser = async (id) => { if (confirm('Delete this user?')) { await supabase.from('users').delete().eq('id', id); supabase.from('users').select('*').order('created_at', { ascending: false }).then(({ data }) => setUsers(data || [])); }};
+  const deleteUser = async (id) => { 
+    if (confirm('Delete this user?')) { 
+      await supabase.from('users').delete().eq('id', id); 
+      loadUsers();
+    }
+  };
 
   const saveDocSettings = async () => {
-    setLoadingDocSettings(true);
+    setSaving(true);
     try {
       const { error } = await supabase.from('document_settings').upsert({
         organisation_id: organisation?.id,
-        vendor_prefix: docSettings.vendor_prefix,
-        vendor_start_number: docSettings.vendor_start_number,
-        vendor_suffix: docSettings.vendor_suffix,
-        vendor_padding: docSettings.vendor_padding,
-        po_prefix: docSettings.po_prefix,
-        po_start_number: docSettings.po_start_number,
-        po_suffix: docSettings.po_suffix,
-        po_padding: docSettings.po_padding,
+        ...docSettings,
         updated_at: new Date().toISOString()
       }, { onConflict: 'organisation_id' });
       
       if (error) throw error;
-      alert('Document settings saved successfully!');
+      alert('Settings saved successfully!');
     } catch (error) {
-      console.error('Error saving document settings:', error);
+      console.error('Error saving settings:', error);
       alert('Error saving settings: ' + error.message);
     } finally {
-      setLoadingDocSettings(false);
+      setSaving(false);
     }
   };
 
-  const generatePreview = () => {
-    const startNum = parseInt(docSettings.vendor_start_number) || 1;
-    const paddedNum = String(startNum).padStart(parseInt(docSettings.vendor_padding) || 3, '0');
-    return `${docSettings.vendor_prefix || 'VEN'}${paddedNum}${docSettings.vendor_suffix || ''}`;
+  const generatePreview = (prefix, startNum, padding, suffix) => {
+    const paddedNum = String(startNum).padStart(padding, '0');
+    return `${prefix}${paddedNum}${suffix}`;
   };
 
   return (
-    <div>
-      <div className="page-header"><h1 className="page-title">Settings</h1></div>
-      
-      <div className="card" style={{ marginBottom: '20px' }}>
-        <h3 className="card-title">Account</h3>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
-          <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: '#3498db', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', fontWeight: 'bold' }}>
-            {(user?.email || '?').charAt(0).toUpperCase()}
-          </div>
-          <div>
-            <div style={{ fontWeight: 'bold' }}>{user?.email}</div>
-            <div style={{ color: '#666', fontSize: '14px' }}>{organisation?.name}</div>
-          </div>
-        </div>
-        <button onClick={handleLogout} className="btn btn-secondary">Sign Out</button>
-      </div>
-
-      {/* Document Settings Section */}
-      <div className="card" style={{ marginBottom: '20px' }}>
-        <h3 className="card-title">Document Settings</h3>
-        <p style={{ color: '#666', fontSize: '14px', marginBottom: '16px' }}>
-          Configure number series for documents. Changes will apply to new documents only.
+    <div style={{ fontFamily: 'Helvetica, Arial, sans-serif', padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
+      <div style={{ marginBottom: '32px' }}>
+        <h1 style={{ fontSize: '24px', fontWeight: 600, margin: 0, letterSpacing: '-0.5px' }}>
+          Settings
+        </h1>
+        <p style={{ color: '#666', marginTop: '4px', fontSize: '14px' }}>
+          Manage your organisation settings and preferences
         </p>
-        
-        <div style={{ marginBottom: '24px' }}>
-          <h4 style={{ marginBottom: '16px', fontSize: '16px', color: '#333', borderBottom: '2px solid #3498db', paddingBottom: '8px' }}>Vendor Number Series</h4>
-          
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div className="form-group" style={{ width: '100%' }}>
-              <label className="form-label">Prefix</label>
-              <input 
-                type="text" 
-                className="form-input" 
-                value={docSettings.vendor_prefix}
-                onChange={e => setDocSettings({...docSettings, vendor_prefix: e.target.value})}
-                placeholder="VEN (e.g., VEN, SUP, ACME)"
-                style={{ maxWidth: '300px' }}
-              />
-            </div>
-            
-            <div className="form-group" style={{ width: '100%' }}>
-              <label className="form-label">Starting Number</label>
-              <input 
-                type="number" 
-                className="form-input" 
-                value={docSettings.vendor_start_number}
-                onChange={e => setDocSettings({...docSettings, vendor_start_number: parseInt(e.target.value) || 1})}
-                placeholder="1"
-                style={{ maxWidth: '300px' }}
-              />
-            </div>
-            
-            <div className="form-group" style={{ width: '100%' }}>
-              <label className="form-label">Suffix</label>
-              <input 
-                type="text" 
-                className="form-input" 
-                value={docSettings.vendor_suffix}
-                onChange={e => setDocSettings({...docSettings, vendor_suffix: e.target.value})}
-                placeholder="(optional, e.g., -M, -2024)"
-                style={{ maxWidth: '300px' }}
-              />
-            </div>
-            
-            <div className="form-group" style={{ width: '100%' }}>
-              <label className="form-label">Padding (digits)</label>
-              <input 
-                type="number" 
-                className="form-input" 
-                value={docSettings.vendor_padding}
-                onChange={e => setDocSettings({...docSettings, vendor_padding: parseInt(e.target.value) || 3})}
-                min="1"
-                max="10"
-                placeholder="3"
-                style={{ maxWidth: '300px' }}
-              />
-              <small style={{ display: 'block', marginTop: '4px', color: '#666', fontSize: '12px' }}>
-                Number of digits with leading zeros (e.g., 3 = 001, 4 = 0001)
-              </small>
-            </div>
-          </div>
-          
-          <div style={{ marginTop: '20px', padding: '16px', background: '#f0f8ff', borderRadius: '8px', border: '2px solid #3498db', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '14px', color: '#555' }}>Next vendor number will be:</span>
-            <span style={{ fontSize: '22px', fontWeight: 'bold', color: '#2c3e50', fontFamily: 'monospace', letterSpacing: '1px' }}>
-              {generatePreview()}
-            </span>
-          </div>
-          
-          <div style={{ marginTop: '24px' }}>
-            <h4 style={{ marginBottom: '16px', fontSize: '16px', color: '#333', borderBottom: '2px solid #27ae60', paddingBottom: '8px' }}>Purchase Order Number Series</h4>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div className="form-group" style={{ width: '100%' }}>
-                <label className="form-label">PO Prefix</label>
-                <input 
-                  type="text" 
-                  className="form-input" 
-                  value={docSettings.po_prefix}
-                  onChange={e => setDocSettings({...docSettings, po_prefix: e.target.value})}
-                  placeholder="PO (e.g., PO, PUR, ORDER)"
-                  style={{ maxWidth: '300px' }}
-                />
-              </div>
-              
-              <div className="form-group" style={{ width: '100%' }}>
-                <label className="form-label">PO Starting Number</label>
-                <input 
-                  type="number" 
-                  className="form-input" 
-                  value={docSettings.po_start_number}
-                  onChange={e => setDocSettings({...docSettings, po_start_number: parseInt(e.target.value) || 1})}
-                  placeholder="1"
-                  style={{ maxWidth: '300px' }}
-                />
-              </div>
-              
-              <div className="form-group" style={{ width: '100%' }}>
-                <label className="form-label">PO Suffix</label>
-                <input 
-                  type="text" 
-                  className="form-input" 
-                  value={docSettings.po_suffix}
-                  onChange={e => setDocSettings({...docSettings, po_suffix: e.target.value})}
-                  placeholder="(optional, e.g., -2024, -FY24)"
-                  style={{ maxWidth: '300px' }}
-                />
-              </div>
-              
-              <div className="form-group" style={{ width: '100%' }}>
-                <label className="form-label">PO Padding (digits)</label>
-                <input 
-                  type="number" 
-                  className="form-input" 
-                  value={docSettings.po_padding}
-                  onChange={e => setDocSettings({...docSettings, po_padding: parseInt(e.target.value) || 4})}
-                  min="1"
-                  max="10"
-                  placeholder="4"
-                  style={{ maxWidth: '300px' }}
-                />
-                <small style={{ display: 'block', marginTop: '4px', color: '#666', fontSize: '12px' }}>
-                  Number of digits with leading zeros (e.g., 4 = 0001, 5 = 00001)
-                </small>
-              </div>
-            </div>
-            
-            <div style={{ marginTop: '20px', padding: '16px', background: '#f0fff4', borderRadius: '8px', border: '2px solid #27ae60', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '14px', color: '#555' }}>Next PO number will be:</span>
-              <span style={{ fontSize: '22px', fontWeight: 'bold', color: '#2c3e50', fontFamily: 'monospace', letterSpacing: '1px' }}>
-                {(() => {
-                  const startNum = parseInt(docSettings.po_start_number) || 1;
-                  const paddedNum = String(startNum).padStart(parseInt(docSettings.po_padding) || 4, '0');
-                  return `${docSettings.po_prefix || 'PO'}${paddedNum}${docSettings.po_suffix || ''}`;
-                })()}
-              </span>
-            </div>
-          </div>
-          
-          <button 
-            onClick={saveDocSettings}
-            disabled={loadingDocSettings}
-            className="btn btn-primary"
-            style={{ marginTop: '20px', padding: '12px 24px' }}
-          >
-            {loadingDocSettings ? 'Saving...' : 'Save Document Settings'}
-          </button>
-        </div>
       </div>
 
-      <div className="card">
-        <div className="page-header" style={{ marginBottom: '16px' }}>
-          <h3 className="card-title" style={{ margin: 0 }}>User Access Rights</h3>
-          <button className="btn btn-primary" onClick={() => setShowForm(!showForm)}>{showForm ? 'Cancel' : '+ Add User'}</button>
-        </div>
-        
-        {showForm && (
-          <div className="card" style={{ marginBottom: '16px' }}>
-            <form onSubmit={handleSubmit}>
-              <div className="form-row">
-                <div className="form-group"><label className="form-label">Employee Name *</label><input type="text" className="form-input" value={formData.emp_name} onChange={e => setFormData({...formData, emp_name: e.target.value})} required /></div>
-                <div className="form-group"><label className="form-label">Email *</label><input type="email" className="form-input" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} required /></div>
-                <div className="form-group"><label className="form-label">Role *</label><select className="form-select" value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})}><option value="Admin">Admin</option><option value="Engineer">Engineer</option><option value="Manager">Manager</option><option value="Assistant">Assistant</option><option value="Stores">Stores</option><option value="Site Engineer">Site Engineer</option></select></div>
-              </div>
-              <button type="submit" className="btn btn-primary">Save User</button>
-            </form>
-          </div>
-        )}
+      <Tabs defaultValue="general" style={{ minHeight: '500px' }}>
+        <TabsList style={{ background: '#f5f5f5', padding: '4px', borderRadius: '8px' }}>
+          <TabsTrigger value="general" style={{ fontSize: '13px', padding: '8px 16px' }}>General</TabsTrigger>
+          <TabsTrigger value="documents" style={{ fontSize: '13px', padding: '8px 16px' }}>Documents</TabsTrigger>
+          <TabsTrigger value="users" style={{ fontSize: '13px', padding: '8px 16px' }}>Users</TabsTrigger>
+        </TabsList>
 
-        <div className="table-container">
-          <table className="table">
-            <thead><tr><th>Emp ID</th><th>Emp Name</th><th>Email</th><th>Role</th><th>Actions</th></tr></thead>
-            <tbody>{users.map(u => (<tr key={u.id}><td>{u.emp_id}</td><td>{u.emp_name}</td><td>{u.email}</td><td>{u.role}</td><td><button className="btn btn-sm btn-secondary" onClick={() => deleteUser(u.id)}>Delete</button></td></tr>))}</tbody>
-          </table>
-        </div>
-      </div>
+        <TabsContent value="general">
+          <Card style={{ border: '1px solid #e5e5e5', borderRadius: '8px' }}>
+            <CardHeader style={{ padding: '20px 24px', borderBottom: '1px solid #e5e5e5' }}>
+              <CardTitle style={{ fontSize: '16px', fontWeight: 600 }}>Account</CardTitle>
+              <CardDescription style={{ fontSize: '13px', color: '#666' }}>Your account information</CardDescription>
+            </CardHeader>
+            <CardContent style={{ padding: '24px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                <div style={{ 
+                  width: '64px', 
+                  height: '64px', 
+                  borderRadius: '50%', 
+                  background: '#1a1a1a', 
+                  color: '#fff', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center', 
+                  fontSize: '24px', 
+                  fontWeight: 600 
+                }}>
+                  {(user?.email || '?').charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <div style={{ fontWeight: 500, fontSize: '15px' }}>{user?.email}</div>
+                  <div style={{ color: '#666', fontSize: '13px', marginTop: '2px' }}>{organisation?.name}</div>
+                </div>
+              </div>
+            </CardContent>
+            <CardFooter style={{ padding: '16px 24px', borderTop: '1px solid #e5e5e5', background: '#fafafa' }}>
+              <Button variant="secondary" onClick={handleLogout} style={{ fontSize: '13px' }}>
+                <LogOut size={14} style={{ marginRight: '8px' }} />
+                Sign Out
+              </Button>
+            </CardFooter>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="documents">
+          <Card style={{ border: '1px solid #e5e5e5', borderRadius: '8px' }}>
+            <CardHeader style={{ padding: '20px 24px', borderBottom: '1px solid #e5e5e5' }}>
+              <CardTitle style={{ fontSize: '16px', fontWeight: 600 }}>Document Number Series</CardTitle>
+              <CardDescription style={{ fontSize: '13px', color: '#666' }}>
+                Configure prefixes, starting numbers, and padding for document numbering
+              </CardDescription>
+            </CardHeader>
+            <CardContent style={{ padding: '24px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px' }}>
+                <NumberSeriesBlock 
+                  title="Vendor" 
+                  prefix={docSettings.vendor_prefix}
+                  setPrefix={(v) => setDocSettings({...docSettings, vendor_prefix: v})}
+                  startNumber={docSettings.vendor_start_number}
+                  setStartNumber={(v) => setDocSettings({...docSettings, vendor_start_number: v})}
+                  suffix={docSettings.vendor_suffix}
+                  setSuffix={(v) => setDocSettings({...docSettings, vendor_suffix: v})}
+                  padding={docSettings.vendor_padding}
+                  setPadding={(v) => setDocSettings({...docSettings, vendor_padding: v})}
+                  preview={generatePreview(docSettings.vendor_prefix, docSettings.vendor_start_number, docSettings.vendor_padding, docSettings.vendor_suffix)}
+                />
+                <NumberSeriesBlock 
+                  title="Purchase Order" 
+                  prefix={docSettings.po_prefix}
+                  setPrefix={(v) => setDocSettings({...docSettings, po_prefix: v})}
+                  startNumber={docSettings.po_start_number}
+                  setStartNumber={(v) => setDocSettings({...docSettings, po_start_number: v})}
+                  suffix={docSettings.po_suffix}
+                  setSuffix={(v) => setDocSettings({...docSettings, po_suffix: v})}
+                  padding={docSettings.po_padding}
+                  setPadding={(v) => setDocSettings({...docSettings, po_padding: v})}
+                  preview={generatePreview(docSettings.po_prefix, docSettings.po_start_number, docSettings.po_padding, docSettings.po_suffix)}
+                />
+                <NumberSeriesBlock 
+                  title="Delivery Challan" 
+                  prefix={docSettings.dc_prefix}
+                  setPrefix={(v) => setDocSettings({...docSettings, dc_prefix: v})}
+                  startNumber={docSettings.dc_start_number}
+                  setStartNumber={(v) => setDocSettings({...docSettings, dc_start_number: v})}
+                  suffix={docSettings.dc_suffix}
+                  setSuffix={(v) => setDocSettings({...docSettings, dc_suffix: v})}
+                  padding={docSettings.dc_padding}
+                  setPadding={(v) => setDocSettings({...docSettings, dc_padding: v})}
+                  preview={generatePreview(docSettings.dc_prefix, docSettings.dc_start_number, docSettings.dc_padding, docSettings.dc_suffix)}
+                />
+                <NumberSeriesBlock 
+                  title="Invoice" 
+                  prefix={docSettings.invoice_prefix}
+                  setPrefix={(v) => setDocSettings({...docSettings, invoice_prefix: v})}
+                  startNumber={docSettings.invoice_start_number}
+                  setStartNumber={(v) => setDocSettings({...docSettings, invoice_start_number: v})}
+                  suffix={docSettings.invoice_suffix}
+                  setSuffix={(v) => setDocSettings({...docSettings, invoice_suffix: v})}
+                  padding={docSettings.invoice_padding}
+                  setPadding={(v) => setDocSettings({...docSettings, invoice_padding: v})}
+                  preview={generatePreview(docSettings.invoice_prefix, docSettings.invoice_start_number, docSettings.invoice_padding, docSettings.invoice_suffix)}
+                />
+              </div>
+            </CardContent>
+            <CardFooter style={{ padding: '16px 24px', borderTop: '1px solid #e5e5e5', background: '#fafafa' }}>
+              <Button onClick={saveDocSettings} disabled={saving} style={{ fontSize: '13px' }}>
+                <Save size={14} style={{ marginRight: '8px' }} />
+                {saving ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </CardFooter>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="users">
+          <Card style={{ border: '1px solid #e5e5e5', borderRadius: '8px' }}>
+            <CardHeader style={{ padding: '20px 24px', borderBottom: '1px solid #e5e5e5' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <CardTitle style={{ fontSize: '16px', fontWeight: 600 }}>User Access</CardTitle>
+                  <CardDescription style={{ fontSize: '13px', color: '#666' }}>Manage team members and their roles</CardDescription>
+                </div>
+                <Button variant="secondary" onClick={() => setShowUserForm(!showUserForm)} size="sm">
+                  <Plus size={14} style={{ marginRight: '6px' }} />
+                  Add User
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent style={{ padding: showUserForm ? '24px 24px 0 24px' : '24px' }}>
+              {showUserForm && (
+                <form onSubmit={handleUserSubmit} style={{ marginBottom: '24px', padding: '20px', background: '#fafafa', borderRadius: '8px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+                      <div>
+                        <Label style={{ fontSize: '13px', display: 'block', marginBottom: '6px' }}>Employee Name</Label>
+                        <Input 
+                          value={formData.emp_name} 
+                          onChange={e => setFormData({...formData, emp_name: e.target.value})} 
+                          placeholder="John Doe"
+                          required 
+                        />
+                      </div>
+                      <div>
+                        <Label style={{ fontSize: '13px', display: 'block', marginBottom: '6px' }}>Email</Label>
+                        <Input 
+                          type="email"
+                          value={formData.email} 
+                          onChange={e => setFormData({...formData, email: e.target.value})} 
+                          placeholder="john@company.com"
+                          required 
+                        />
+                      </div>
+                      <div>
+                        <Label style={{ fontSize: '13px', display: 'block', marginBottom: '6px' }}>Role</Label>
+                        <Select value={formData.role} onValueChange={(v) => setFormData({...formData, role: v})}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Admin">Admin</SelectItem>
+                            <SelectItem value="Engineer">Engineer</SelectItem>
+                            <SelectItem value="Manager">Manager</SelectItem>
+                            <SelectItem value="Assistant">Assistant</SelectItem>
+                            <SelectItem value="Stores">Stores</SelectItem>
+                            <SelectItem value="Site Engineer">Site Engineer</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div style={{ marginTop: '16px', display: 'flex', gap: '12px' }}>
+                      <Button type="submit" size="sm">Save User</Button>
+                      <Button type="button" variant="ghost" size="sm" onClick={() => setShowUserForm(false)}>Cancel</Button>
+                    </div>
+                  </form>
+                )}
+
+              <div style={{ overflow: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid #e5e5e5' }}>
+                      <th style={{ textAlign: 'left', padding: '12px 16px', fontWeight: 500, color: '#666', background: '#fafafa' }}>Emp ID</th>
+                      <th style={{ textAlign: 'left', padding: '12px 16px', fontWeight: 500, color: '#666', background: '#fafafa' }}>Name</th>
+                      <th style={{ textAlign: 'left', padding: '12px 16px', fontWeight: 500, color: '#666', background: '#fafafa' }}>Email</th>
+                      <th style={{ textAlign: 'left', padding: '12px 16px', fontWeight: 500, color: '#666', background: '#fafafa' }}>Role</th>
+                      <th style={{ textAlign: 'right', padding: '12px 16px', fontWeight: 500, color: '#666', background: '#fafafa' }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {users.map(u => (
+                      <tr key={u.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                        <td style={{ padding: '12px 16px', fontWeight: 500 }}>{u.emp_id}</td>
+                        <td style={{ padding: '12px 16px' }}>{u.emp_name}</td>
+                        <td style={{ padding: '12px 16px', color: '#666' }}>{u.email}</td>
+                        <td style={{ padding: '12px 16px' }}>
+                          <span style={{ padding: '4px 10px', background: '#f5f5f5', borderRadius: '4px', fontSize: '12px' }}>
+                            {u.role}
+                          </span>
+                        </td>
+                        <td style={{ padding: '12px 16px', textAlign: 'right' }}>
+                          <Button variant="ghost" size="sm" onClick={() => deleteUser(u.id)} style={{ color: '#dc2626', fontSize: '12px' }}>
+                            <Trash2 size={14} />
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
 
+function NumberSeriesBlock({ title, prefix, setPrefix, startNumber, setStartNumber, suffix, setSuffix, padding, setPadding, preview }) {
+  return (
+    <div style={{ padding: '20px', background: '#fafafa', borderRadius: '8px', border: '1px solid #e5e5e5' }}>
+      <h4 style={{ fontSize: '14px', fontWeight: 600, marginBottom: '16px' }}>{title} Number</h4>
+      
+      <div style={{ display: 'grid', gap: '12px' }}>
+        <div>
+          <Label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', color: '#666' }}>Prefix</Label>
+          <Input 
+            value={prefix} 
+            onChange={(e) => setPrefix(e.target.value)} 
+            placeholder="PREFIX"
+            style={{ fontSize: '13px' }}
+          />
+        </div>
+        
+        <div>
+          <Label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', color: '#666' }}>Starting Number</Label>
+          <Input 
+            type="number"
+            value={startNumber} 
+            onChange={(e) => setStartNumber(parseInt(e.target.value) || 1)} 
+            style={{ fontSize: '13px' }}
+          />
+        </div>
+        
+        <div>
+          <Label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', color: '#666' }}>Suffix (optional)</Label>
+          <Input 
+            value={suffix} 
+            onChange={(e) => setSuffix(e.target.value)} 
+            placeholder="-2024"
+            style={{ fontSize: '13px' }}
+          />
+        </div>
+        
+        <div>
+          <Label style={{ fontSize: '12px', display: 'block', marginBottom: '4px', color: '#666' }}>Padding (digits)</Label>
+          <Input 
+            type="number"
+            value={padding} 
+            onChange={(e) => setPadding(parseInt(e.target.value) || 3)}
+            min="1"
+            max="10"
+            style={{ fontSize: '13px' }}
+          />
+        </div>
+      </div>
 
+      <div style={{ marginTop: '16px', padding: '12px', background: '#fff', borderRadius: '6px', border: '1px solid #e5e5e5', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ fontSize: '12px', color: '#666' }}>Preview:</span>
+        <span style={{ fontSize: '16px', fontWeight: 600, fontFamily: 'monospace', letterSpacing: '0.5px' }}>
+          {preview}
+        </span>
+      </div>
+    </div>
+  );
+}
