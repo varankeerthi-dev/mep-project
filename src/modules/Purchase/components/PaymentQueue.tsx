@@ -16,7 +16,7 @@ import { Button as ShadcnButton } from '../../../components/ui/button';
 import { Badge } from '../../../components/ui/Badge';
 import { AppTable } from '../../../components/ui/AppTable';
 import { Input } from '../../../components/ui/input';
-import { Card, CardHeader, CardTitle, CardContent } from '../../../components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent } from '../../../components/ui/Card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../../components/ui/Tabs';
 import { cn } from '../../../lib/utils';
 
