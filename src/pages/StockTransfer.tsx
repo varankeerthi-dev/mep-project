@@ -49,18 +49,6 @@ export default function StockTransfer({ onCancel }) {
     },
   });
 
-  const formInitQuery = useQuery({
-    queryKey: ['stockTransferInit'],
-    enabled: view === 'form',
-    queryFn: async () => {
-      return {
-        materials,
-        warehouses,
-        variants: variants.filter((variant) => variant.is_active !== false),
-      };
-    },
-  });
-
   const stockQuery = useQuery({
     queryKey: ['stockTransferStock', formData.from_warehouse_id],
     enabled: view === 'form' && !!formData.from_warehouse_id,
@@ -337,7 +325,7 @@ export default function StockTransfer({ onCancel }) {
   };
 
   const retryFormDependencies = async () => {
-    await Promise.all([formInitQuery.refetch(), stockQuery.refetch(), editItemsQuery.refetch()]);
+    await Promise.all([stockQuery.refetch(), editItemsQuery.refetch()]);
   };
 
   if (view === 'list') {
@@ -399,16 +387,11 @@ export default function StockTransfer({ onCancel }) {
     );
   }
 
-  if (formInitQuery.isPending && !formInitQuery.data) {
-    return <div style={{ padding: '40px', textAlign: 'center' }}>Loading transfer form...</div>;
-  }
-
-  if (formInitQuery.isError || editItemsQuery.isError) {
+  if (editItemsQuery.isError) {
     return (
       <div style={{ padding: '40px', textAlign: 'center' }}>
         <div style={{ color: '#b91c1c', fontWeight: 600, marginBottom: '12px' }}>
-          {(formInitQuery.error instanceof Error && formInitQuery.error.message)
-            || (editItemsQuery.error instanceof Error && editItemsQuery.error.message)
+          {(editItemsQuery.error instanceof Error && editItemsQuery.error.message)
             || 'Unable to load transfer form.'}
         </div>
         <div style={{ display: 'flex', justifyContent: 'center', gap: '12px' }}>

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import type { FormEvent } from 'react';
 import { format } from 'date-fns';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../supabase';
 import { useAuth } from '../App';
 import { generateProGridDeliveryChallanPdf } from '../pdf/proGridDeliveryChallanPdf';
@@ -20,9 +21,6 @@ type CreateDCProps = {
 export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps) {
   const { organisation } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [stock, setStock] = useState<any[]>([]);
-  const [pricing, setPricing] = useState<Record<string, any>>({});
-  const [variantPricingMap, setVariantPricingMap] = useState<Record<string, any>>({});
   // Use shared hooks - NO local state needed
   const clientsQuery = useClients();
   const clients = clientsQuery.data || [];
@@ -48,12 +46,50 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
     return saved === 'true';
   });
   
-  // DC Number Settings
-  const [dcSettings, setDcSettings] = useState({
-    prefix: 'DC',
-    suffix: '',
-    padding: '5'
+  const dcInitQuery = useQuery({
+    queryKey: ['dc-init', organisation?.id],
+    queryFn: async () => {
+      const [stockData, variantPricingData, settingsData] = await Promise.all([
+        supabase.from('item_stock').select('item_id, warehouse_id, company_variant_id, current_stock'),
+        supabase.from('item_variant_pricing').select('item_id, company_variant_id'),
+        supabase.from('settings').select('key, value')
+      ]);
+
+      const stockRows = stockData.data || [];
+
+      const vpm: Record<string, any> = {};
+      variantPricingData.data?.forEach(row => {
+        if (!vpm[row.item_id]) vpm[row.item_id] = {};
+        vpm[row.item_id][row.company_variant_id] = true;
+      });
+
+      const priceMap: Record<string, any> = {};
+      stockRows.forEach(s => {
+        if (!priceMap[s.item_id]) priceMap[s.item_id] = {};
+        priceMap[s.item_id][s.company_variant_id] = s.current_stock || 0;
+      });
+
+      const settings: Record<string, string> = {};
+      settingsData.data?.forEach(s => { settings[s.key] = s.value; });
+
+      return {
+        stock: stockRows,
+        variantPricingMap: vpm,
+        pricing: priceMap,
+        dcSettings: {
+          prefix: settings.dc_prefix || 'DC',
+          suffix: settings.dc_suffix || '',
+          padding: settings.dc_padding || '5'
+        }
+      };
+    },
+    enabled: !!organisation?.id,
   });
+
+  const stock = dcInitQuery.data?.stock || [];
+  const pricing = dcInitQuery.data?.pricing || {};
+  const variantPricingMap = dcInitQuery.data?.variantPricingMap || {};
+  const dcSettings = dcInitQuery.data?.dcSettings || { prefix: 'DC', suffix: '', padding: '5' };
   
   // Shipping address state
   const [shippingAddresses, setShippingAddresses] = useState<any[]>([]);
@@ -154,11 +190,6 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [isDirty, loading]);
 
-  useEffect(() => {
-    if (!organisation?.id) return;
-    loadData();
-  }, [organisation?.id]);
-  
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -183,57 +214,6 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
       loadExistingItems(editDC.id);
     }
   }, [editDC]);
-
-  const loadData = async () => {
-    if (!organisation?.id) return;
-    
-    try {
-      const orgId = organisation.id;
-      
-      // Only fetch data NOT available from hooks
-      const [stockData, variantPricingData] = await Promise.all([
-        supabase.from('item_stock').select('item_id, warehouse_id, company_variant_id, current_stock'),
-        supabase.from('item_variant_pricing').select('item_id, company_variant_id')
-      ]);
-      
-      // Materials, projects, warehouses, variants, units now come from hooks!
-      setStock(stockData.data || []);
-      
-      const vpm = {};
-      variantPricingData.data?.forEach(row => {
-        if (!vpm[row.item_id]) vpm[row.item_id] = {};
-        vpm[row.item_id][row.company_variant_id] = true;
-      });
-      setVariantPricingMap(vpm);
-      
-      // Load DC settings
-      const { data: settingsData } = await supabase.from('settings').select('key, value');
-      if (settingsData) {
-        const settings = {};
-        settingsData.forEach(s => { settings[s.key] = s.value; });
-        setDcSettings({
-          prefix: settings.dc_prefix || 'DC',
-          suffix: settings.dc_suffix || '',
-          padding: settings.dc_padding || '5'
-        });
-      }
-      
-      // Don't generate DC number here - generate it on save to prevent number jumping on refresh
-      // if (!editDC) {
-      //   const dcNumber = await generateDCNo();
-      //   setFormData(prev => ({ ...prev, dc_number: dcNumber }));
-      // }
-      
-      const priceMap = {};
-      stockData.data?.forEach(s => {
-        if (!priceMap[s.item_id]) priceMap[s.item_id] = {};
-        priceMap[s.item_id][s.company_variant_id] = s.current_stock || 0;
-      });
-      setPricing(priceMap);
-    } catch (error) {
-      console.error('Error loading data:', error);
-    }
-  };
 
   const loadExistingItems = async (dcId) => {
     const { data } = await supabase.from('delivery_challan_items').select('*').eq('delivery_challan_id', dcId);

@@ -2,13 +2,11 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../supabase';
 import { useAuth } from '../App';
 
-export const PROJECTS_QUERY_KEY = ['projects'] as const;
-
 export function useProjects() {
   const { organisation } = useAuth();
   
   return useQuery({
-    queryKey: PROJECTS_QUERY_KEY,
+    queryKey: ['projects', organisation?.id],
     queryFn: async () => {
       if (!organisation?.id) return [];
       const { data, error } = await supabase

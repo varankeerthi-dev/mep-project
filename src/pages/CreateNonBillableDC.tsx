@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../supabase';
 import { useAuth } from '../App';
 import { useMaterials } from '../hooks/useMaterials';
@@ -21,9 +22,6 @@ export default function CreateNonBillableDC({ onSuccess, onCancel, editDC }) {
   
   const { organisation } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [stock, setStock] = useState([]);
-  const [pricing, setPricing] = useState({});
-  const [variantPricingMap, setVariantPricingMap] = useState({});
   
   // Multiple Item Picker State
   const [showItemPicker, setShowItemPicker] = useState(false);
@@ -38,6 +36,36 @@ export default function CreateNonBillableDC({ onSuccess, onCancel, editDC }) {
   });
   
   // Shipping address state
+  const nbDcInitQuery = useQuery({
+    queryKey: ['nb-dc-init'],
+    queryFn: async () => {
+      const [stockData, variantPricingData] = await Promise.all([
+        supabase.from('item_stock').select('item_id, warehouse_id, company_variant_id, current_stock'),
+        supabase.from('item_variant_pricing').select('item_id, company_variant_id')
+      ]);
+
+      const stockRows = stockData.data || [];
+
+      const vpm = {};
+      variantPricingData.data?.forEach(row => {
+        if (!vpm[row.item_id]) vpm[row.item_id] = {};
+        vpm[row.item_id][row.company_variant_id] = true;
+      });
+
+      const priceMap = {};
+      stockRows.forEach(s => {
+        if (!priceMap[s.item_id]) priceMap[s.item_id] = {};
+        priceMap[s.item_id][s.company_variant_id] = s.current_stock || 0;
+      });
+
+      return { stock: stockRows, variantPricingMap: vpm, pricing: priceMap };
+    },
+  });
+
+  const stock = nbDcInitQuery.data?.stock || [];
+  const pricing = nbDcInitQuery.data?.pricing || {};
+  const variantPricingMap = nbDcInitQuery.data?.variantPricingMap || {};
+
   const [shippingAddresses, setShippingAddresses] = useState([]);
   const [selectedShippingIndex, setSelectedShippingIndex] = useState(-1);
   const [showShippingDropdown, setShowShippingDropdown] = useState(false);
@@ -133,7 +161,13 @@ export default function CreateNonBillableDC({ onSuccess, onCancel, editDC }) {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [isDirty, loading]);
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    if (!editDC) {
+      generateNBDCNo().then(dcNumber => {
+        setFormData(prev => ({ ...prev, dc_number: dcNumber }));
+      }).catch(err => console.error('Error generating NB-DC number:', err));
+    }
+  }, []);
   
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -157,39 +191,6 @@ export default function CreateNonBillableDC({ onSuccess, onCancel, editDC }) {
       loadExistingItems(editDC.id);
     }
   }, [editDC]);
-
-  const loadData = async () => {
-    try {
-      const [stockData, variantPricingData] = await Promise.all([
-        supabase.from('item_stock').select('item_id, warehouse_id, company_variant_id, current_stock'),
-        supabase.from('item_variant_pricing').select('item_id, company_variant_id')
-      ]);
-      
-      setStock(stockData.data || []);
-      
-      const vpm = {};
-      variantPricingData.data?.forEach(row => {
-        if (!vpm[row.item_id]) vpm[row.item_id] = {};
-        vpm[row.item_id][row.company_variant_id] = true;
-      });
-      setVariantPricingMap(vpm);
-      
-      // Generate NB-DC No if new record
-      if (!editDC) {
-        const dcNumber = await generateNBDCNo();
-        setFormData(prev => ({ ...prev, dc_number: dcNumber }));
-      }
-      
-      const priceMap = {};
-      stockData.data?.forEach(s => {
-        if (!priceMap[s.item_id]) priceMap[s.item_id] = {};
-        priceMap[s.item_id][s.company_variant_id] = s.current_stock || 0;
-      });
-      setPricing(priceMap);
-    } catch (error) {
-      console.error('Error loading data:', error);
-    }
-  };
 
   const loadExistingItems = async (dcId) => {
     const { data } = await supabase.from('delivery_challan_items').select('*').eq('delivery_challan_id', dcId);

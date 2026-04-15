@@ -476,14 +476,15 @@ export default function App() {
 
     init();
 
-    // --- SESSION HEARTBEAT + QUERY INVALIDATION ---
-    // handleFocus reads userRef (always current) instead of capturing `user` from closure.
-    // This avoids the need to re-register event listeners when `user` changes.
+    // --- SESSION HEARTBEAT ON TAB RETURN ---
+    // Validates auth session when user returns to tab after extended absence.
+    // React Query handles data freshness via refetchOnWindowFocus: 'always' + staleTime.
+    // This only checks if the Supabase session is still valid (token not expired).
     const handleFocus = async () => {
       const now = Date.now();
 
-      // Throttle: max once every 10 minutes
-      if (now - lastCheckRef.current < 600000) return;
+      // Throttle: max once every 5 minutes
+      if (now - lastCheckRef.current < 300000) return;
 
       // Prevent concurrent checks
       if (isCheckingRef.current) return;
@@ -509,13 +510,9 @@ export default function App() {
         const { data: { session }, error } = await Promise.race([sessionPromise, timeoutPromise]) as any;
 
         if (!error && session?.user) {
-          // Only update state if the user ID actually changed
           if (userRef.current?.id !== session.user.id) {
             setUser(session.user);
           }
-          
-          // 🔥 INVALIDATE ALL QUERIES WHEN TAB BECOMES ACTIVE
-          queryClient.invalidateQueries();
         }
       } catch {
         // Silently ignore — auth will refresh on next real interaction

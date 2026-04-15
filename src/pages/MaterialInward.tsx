@@ -51,15 +51,13 @@ export default function MaterialInward({ onSuccess, onCancel }) {
   const [items, setItems] = useState([createEmptyItem(1)]);
   const [nextId, setNextId] = useState(2);
 
-  const initQuery = useQuery({
-    queryKey: ['materialInwardInit'],
+  const pricingQuery = useQuery({
+    queryKey: ['materialInwardPricing'],
     queryFn: async () => {
-      const [pricingRows] = await Promise.all([
-        timedSupabaseQuery(
-          supabase.from('item_variant_pricing').select('item_id, company_variant_id, sale_price'),
-          'Material inward pricing',
-        ),
-      ]);
+      const pricingRows = await timedSupabaseQuery(
+        supabase.from('item_variant_pricing').select('item_id, company_variant_id, sale_price'),
+        'Material inward pricing',
+      );
 
       const pricingMap = {};
       (pricingRows || []).forEach((row) => {
@@ -67,17 +65,11 @@ export default function MaterialInward({ onSuccess, onCancel }) {
         pricingMap[row.item_id][row.company_variant_id || 'default'] = parseFloat(row.sale_price) || 0;
       });
 
-      return {
-        materials,
-        warehouses,
-        variants,
-        projects,
-        pricingMap,
-      };
+      return pricingMap;
     },
   });
 
-  const pricing = initQuery.data?.pricingMap || {};
+  const pricing = pricingQuery.data || {};
   const activeVariants = useMemo(
     () => variants.filter((variant) => variant.variant_name !== 'No Variant'),
     [variants],
@@ -347,18 +339,18 @@ export default function MaterialInward({ onSuccess, onCancel }) {
   const totalQty = items.filter((item) => item.valid).reduce((sum, item) => sum + (parseFloat(item.quantity) || 0), 0);
   const totalAmount = items.filter((item) => item.valid).reduce((sum, item) => sum + (item.amount || 0), 0);
 
-  if (initQuery.isPending && !initQuery.data) {
+  if (pricingQuery.isPending && !pricingQuery.data) {
     return <div style={{ padding: '40px', textAlign: 'center' }}>Loading inward data...</div>;
   }
 
-  if (initQuery.isError) {
+  if (pricingQuery.isError) {
     return (
       <div style={{ padding: '40px', textAlign: 'center' }}>
         <div style={{ color: '#b91c1c', fontWeight: 600, marginBottom: '12px' }}>
-          {(initQuery.error instanceof Error && initQuery.error.message) || 'Unable to load inward data.'}
+          {(pricingQuery.error instanceof Error && pricingQuery.error.message) || 'Unable to load inward data.'}
         </div>
         <div style={{ display: 'flex', justifyContent: 'center', gap: '12px' }}>
-          <button type="button" className="btn btn-primary" onClick={() => initQuery.refetch()}>Retry</button>
+          <button type="button" className="btn btn-primary" onClick={() => pricingQuery.refetch()}>Retry</button>
           <button type="button" className="btn btn-secondary" onClick={onCancel}>Back</button>
         </div>
       </div>

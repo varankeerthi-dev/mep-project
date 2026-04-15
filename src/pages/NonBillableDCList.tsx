@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../App';
-import { fetchDeliveryChallans, deleteDeliveryChallan, fetchProjects } from '../api';
+import { fetchDeliveryChallans, deleteDeliveryChallan } from '../api';
 import { format } from 'date-fns';
 import { exportDCToPDF } from '../utils/pdfExport';
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+import { useProjects } from '../hooks/useProjects';
 import { flexRender, getCoreRowModel, useReactTable } from '@tanstack/react-table';
 
 export default function NonBillableDCList() {
@@ -36,16 +37,12 @@ export default function NonBillableDCList() {
   }, [organisation]);
 
   const challansQuery = useQuery({
-    queryKey: ['deliveryChallans', appliedFilters],
+    queryKey: ['deliveryChallans', appliedFilters.projectId, appliedFilters.startDate, appliedFilters.endDate, appliedFilters.status, appliedFilters.dc_type, appliedFilters.organisation_id],
     queryFn: () => fetchDeliveryChallans(appliedFilters),
     placeholderData: keepPreviousData
   });
 
-  const projectsQuery = useQuery({
-    queryKey: ['projects'],
-    queryFn: fetchProjects,
-    staleTime: 10 * 60 * 1000
-  });
+  const projectsQuery = useProjects();
 
   const deleteMutation = useMutation({
     mutationFn: deleteDeliveryChallan,

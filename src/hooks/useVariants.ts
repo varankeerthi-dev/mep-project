@@ -1,11 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../supabase';
 
-export const VARIANTS_QUERY_KEY = ['variants'] as const;
-
 export function useVariants() {
   return useQuery({
-    queryKey: VARIANTS_QUERY_KEY,
+    queryKey: ['variants'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('company_variants')

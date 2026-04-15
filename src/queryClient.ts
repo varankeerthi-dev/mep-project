@@ -4,47 +4,27 @@ import { QueryClient } from '@tanstack/react-query';
 /**
  * Global React Query Client Configuration
  * 
- * ⚡ PERFORMANCE OPTIMIZED for tab-switching in multi-route apps
+ * How tab-return works (ZohoBooks-style):
+ * - staleTime: 5min → Data served instantly from cache, no loading spinner
+ * - refetchOnWindowFocus: 'always' → Background refetch when tab regains focus (only for stale data)
+ * - refetchOnMount: true → Refetch stale data when component mounts
+ * - gcTime: 30min → Cache survives long tab-away periods (no blank pages)
  * 
- * Key settings:
- * - staleTime: 5 minutes → Prevents refetch on tab switch
- * - refetchOnWindowFocus: false → Prevents refetch when returning to tab
- * - refetchOnMount: false → Only refetch if data is stale
- * - gcTime: 10 minutes → Keeps data in cache longer
- * 
- * 🎯 This fixes 90% of tab-switching lag issues
+ * Flow: User returns to tab → sees cached data immediately → fresh data swaps in 2-5s background
  */
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      // === PERFORMANCE CRITICAL ===
-      // Keep data fresh for 5 minutes without refetching
-      staleTime: 5 * 60 * 1000, // 5 minutes
-      
-      // Keep unused data in cache for 10 minutes
-      gcTime: 10 * 60 * 1000, // 10 minutes (replaces deprecated cacheTime)
-      
-      // 🔴 CRITICAL: Disable refetch on window focus
-      // This prevents refetch when switching browser tabs
-      refetchOnWindowFocus: false,
-      
-      // Only retry once on failure
+      staleTime: 5 * 60 * 1000,
+      gcTime: 30 * 60 * 1000,
+      refetchOnWindowFocus: 'always',
       retry: 1,
-      
-      // Don't refetch on mount if data exists and is not stale
-      refetchOnMount: false,
-      
-      // Enable refetch on reconnect for data integrity
+      refetchOnMount: true,
       refetchOnReconnect: 'always',
-      
-      // Network mode
       networkMode: 'online',
     },
     mutations: {
-      // Retry mutations once
       retry: 1,
-      
-      // Network mode for mutations
       networkMode: 'online',
     },
   },

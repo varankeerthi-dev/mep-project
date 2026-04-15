@@ -2,13 +2,11 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../supabase';
 import { useAuth } from '../App';
 
-export const WAREHOUSES_QUERY_KEY = ['warehouses'] as const;
-
 export function useWarehouses() {
   const { organisation } = useAuth();
   
   return useQuery({
-    queryKey: WAREHOUSES_QUERY_KEY,
+    queryKey: ['warehouses', organisation?.id],
     queryFn: async () => {
       if (!organisation?.id) return [];
       const { data, error } = await supabase

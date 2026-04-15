@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../App';
-import { fetchDeliveryChallans, deleteDeliveryChallan, fetchProjects } from '../api';
+import { fetchDeliveryChallans, deleteDeliveryChallan } from '../api';
 import { supabase } from '../supabase';
 import { format } from 'date-fns';
 import { generateZohoTemplate } from './ZohoTemplate';
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+import { useProjects } from '../hooks/useProjects';
 import {
   Box,
   Paper,
@@ -78,16 +79,12 @@ export default function DCList() {
   }, [organisation]);
 
   const challansQuery = useQuery({
-    queryKey: ['deliveryChallans', appliedFilters],
+    queryKey: ['deliveryChallans', appliedFilters.projectId, appliedFilters.startDate, appliedFilters.endDate, appliedFilters.status, appliedFilters.organisation_id],
     queryFn: () => fetchDeliveryChallans(appliedFilters),
     placeholderData: keepPreviousData
   });
 
-  const projectsQuery = useQuery({
-    queryKey: ['projects'],
-    queryFn: fetchProjects,
-    staleTime: 10 * 60 * 1000
-  });
+  const projectsQuery = useProjects();
 
   const templatesQuery = useQuery({
     queryKey: ['documentTemplates', 'Delivery Challan'],
@@ -100,7 +97,6 @@ export default function DCList() {
       if (error) throw error;
       return data || [];
     },
-    staleTime: 10 * 60 * 1000
   });
 
   const deleteMutation = useMutation({
