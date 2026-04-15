@@ -79,7 +79,7 @@ export default function MaterialInward({ onSuccess, onCancel }) {
     queryKey: ['materialInwardList'],
     queryFn: async () => {
       return timedSupabaseQuery(
-        supabase.from('material_inward').select('*, warehouse:warehouses(warehouse_name), items:material_inward_items(*, item:materials(name, display_name))').order('created_at', { ascending: false }),
+        supabase.from('material_inward').select('*, items:material_inward_items(*, item:materials(name, display_name))').order('created_at', { ascending: false }),
         'Material inward list'
       );
     }
@@ -413,7 +413,7 @@ export default function MaterialInward({ onSuccess, onCancel }) {
                       <TableCell>{formatDate(inward.received_date)}</TableCell>
                       <TableCell>{inward.invoice_no}</TableCell>
                       <TableCell>{inward.vendor_name}</TableCell>
-                      <TableCell>{inward.warehouse?.warehouse_name || '-'}</TableCell>
+                      <TableCell>{warehouses.find(w => w.id === inward.warehouse_id)?.warehouse_name || '-'}</TableCell>
                       <TableCell>{inward.items?.length || 0} items</TableCell>
                       <TableCell>
                         <button className="btn btn-sm btn-secondary" style={{ marginRight: '4px' }} onClick={() => handleView(inward)}>View</button>
@@ -435,7 +435,7 @@ export default function MaterialInward({ onSuccess, onCancel }) {
               <div><strong>Invoice No:</strong> {selectedInward.invoice_no}</div>
               <div><strong>Vendor:</strong> {selectedInward.vendor_name}</div>
               <div><strong>Date:</strong> {formatDate(selectedInward.received_date)}</div>
-              <div><strong>Warehouse:</strong> {selectedInward.warehouse?.warehouse_name || '-'}</div>
+              <div><strong>Warehouse:</strong> {warehouses.find(w => w.id === selectedInward.warehouse_id)?.warehouse_name || '-'}</div>
             </div>
             <h4 style={{ marginBottom: '8px' }}>Items</h4>
             <Table>

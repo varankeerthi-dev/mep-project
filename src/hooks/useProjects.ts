@@ -11,7 +11,7 @@ export function useProjects() {
       if (!organisation?.id) return [];
       const { data, error } = await supabase
         .from('projects')
-        .select('id, project_name, name, project_code, client_id, client_name, site_address')
+        .select('id, project_name, name, project_code, client_id, client_name')
         .eq('organisation_id', organisation.id)
         .order('project_name');
       if (error) throw error;
