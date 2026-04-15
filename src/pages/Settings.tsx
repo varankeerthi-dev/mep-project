@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { useAuth } from '../App';
-import { Settings as SettingsIcon, User, FileText, LogOut, Save, Plus, Trash2, Hash, FileCode, Receipt, Truck } from 'lucide-react';
+import { Settings as SettingsIcon, User, FileText, LogOut, Save, Plus, Trash2, Hash, FileCode, Receipt, Truck, Settings, LogOut as LogOutIcon } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '../components/ui/Card';
@@ -145,10 +145,56 @@ export default function SettingsPage() {
   };
 
   return (
-    <div style={{ fontFamily: 'Helvetica, Arial, sans-serif', padding: '24px', maxWidth: '1400px', margin: '0 auto' }}>
-      <div style={{ marginBottom: '32px' }}>
-        <h1 style={{ fontSize: '24px', fontWeight: 600, margin: 0, letterSpacing: '-0.5px' }}>Settings</h1>
-        <p style={{ color: '#666', marginTop: '4px', fontSize: '14px' }}>Manage your organisation settings and preferences</p>
+    <div style={{ fontFamily: 'Helvetica, Arial, sans-serif', padding: '24px', maxWidth: '100%', margin: '0 auto' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
+        <div>
+          <h1 style={{ fontSize: '24px', fontWeight: 600, margin: 0, letterSpacing: '-0.5px' }}>Settings</h1>
+          <p style={{ color: '#666', marginTop: '4px', fontSize: '14px' }}>Manage your organisation settings and preferences</p>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ 
+            width: '36px', 
+            height: '36px', 
+            borderRadius: '50%', 
+            background: '#1a1a1a', 
+            color: '#fff', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            cursor: 'pointer'
+          }}>
+            <Settings size={18} />
+          </div>
+          <div style={{ 
+            width: '36px', 
+            height: '36px', 
+            borderRadius: '50%', 
+            background: '#1a1a1a', 
+            color: '#fff', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            fontSize: '14px',
+            fontWeight: 600,
+            cursor: 'pointer'
+          }}>
+            {(user?.email || '?').charAt(0).toUpperCase()}
+          </div>
+          <button 
+            onClick={handleLogout}
+            style={{ 
+              background: 'none', 
+              border: 'none', 
+              cursor: 'pointer',
+              padding: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              color: '#666'
+            }}
+          >
+            <LogOutIcon size={18} />
+          </button>
+        </div>
       </div>
 
       <Tabs defaultValue="documents" style={{ minHeight: '500px' }}>
