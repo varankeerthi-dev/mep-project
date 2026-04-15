@@ -1079,85 +1079,98 @@ export default function TemplateSettings() {
         ))}
       </div>
 
-      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+      <div className="card">
         {templates.length === 0 ? (
           <div className="empty-state">
             <h3>No Templates</h3>
             <p>Create your first template to get started</p>
           </div>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-            <thead>
-              <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#374151', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Document Type</th>
-                <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#374151', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Template Name</th>
-                <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#374151', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Code</th>
-                <th style={{ padding: '12px 16px', textAlign: 'center', fontWeight: 600, color: '#374151', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Page</th>
-                <th style={{ padding: '12px 16px', textAlign: 'center', fontWeight: 600, color: '#374151', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Style</th>
-                <th style={{ padding: '12px 16px', textAlign: 'center', fontWeight: 600, color: '#374151', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Status</th>
-                <th style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 600, color: '#374151', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {templates
-                .filter(t => {
-                  if (styleFilter === 'all') return true;
-                  const templateStyle = t.column_settings?.print?.style || 'default';
-                  return templateStyle === styleFilter;
-                })
-                .map((template, idx) => (
-                <tr key={template.id} style={{ borderBottom: '1px solid #f1f5f9', background: template.is_default ? '#f0fdf4' : idx % 2 === 0 ? '#fff' : '#fafafa' }}>
-                  <td style={{ padding: '14px 16px', fontWeight: 500 }}>{getDocumentTypeIcon(template.document_type)} {template.document_type}</td>
-                  <td style={{ padding: '14px 16px', fontWeight: 500 }}>{template.template_name}</td>
-                  <td style={{ padding: '14px 16px', fontFamily: 'monospace', fontSize: '12px', color: '#64748b' }}>{template.template_code || '-'}</td>
-                  <td style={{ padding: '14px 16px', textAlign: 'center' }}>{template.page_size} {template.orientation === 'Landscape' ? 'L' : 'P'}</td>
-                  <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                    {template.column_settings?.print?.style === 'grid_minimal' && (
-                      <span style={{ background: '#7c3aed', color: '#fff', padding: '2px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 600 }}>GRID</span>
-                    )}
-                    {template.column_settings?.print?.style === 'pro_grid' && (
-                      <span style={{ background: '#ea580c', color: '#fff', padding: '2px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 600 }}>PRO</span>
-                    )}
-                    {(!template.column_settings?.print?.style || template.column_settings.print.style === 'default') && (
-                      <span style={{ background: '#e2e8f0', color: '#64748b', padding: '2px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 600 }}>DEFAULT</span>
-                    )}
-                  </td>
-                  <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                    {template.is_default && (
-                      <span style={{ background: '#16a34a', color: '#fff', padding: '2px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 600 }}>DEFAULT</span>
-                    )}
-                  </td>
-                  <td style={{ padding: '14px 16px', textAlign: 'right' }}>
-                    <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
-                      {!template.is_default && (
-                        <button
-                          className="btn btn-sm"
-                          onClick={() => handleSetDefault(template)}
-                          style={{ padding: '4px 8px', fontSize: '11px', border: '1px solid #d1d5db', background: '#fff', color: '#374151' }}
-                        >
-                          Default
-                        </button>
-                      )}
-                      <button
-                        className="btn btn-sm"
-                        onClick={() => handleEdit(template)}
-                        style={{ padding: '4px 8px', fontSize: '11px', border: '1px solid #d1d5db', background: '#fff', color: '#374151' }}
+          <div style={{ display: 'grid', gap: '12px' }}>
+            {DOCUMENT_TYPES.map(docType => {
+              const typeTemplates = templates.filter(t => {
+                if (t.document_type !== docType) return false;
+                if (styleFilter === 'all') return true;
+                const templateStyle = t.column_settings?.print?.style || 'default';
+                return templateStyle === styleFilter;
+              });
+              if (typeTemplates.length === 0) return null;
+
+              return (
+                <div key={docType}>
+                  <h3 style={{ marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span>{getDocumentTypeIcon(docType)}</span>
+                    <span>{docType}</span>
+                  </h3>
+                  <div style={{ display: 'grid', gap: '8px' }}>
+                    {typeTemplates.map(template => (
+                      <div
+                        key={template.id}
+                        style={{
+                          padding: '16px',
+                          background: template.is_default ? '#f0fdf4' : '#f9fafb',
+                          border: `1px solid ${template.is_default ? '#bbf7d0' : '#e5e7eb'}`,
+                          borderRadius: '8px',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center'
+                        }}
                       >
-                        Edit
-                      </button>
-                      <button
-                        className="btn btn-sm"
-                        onClick={() => handleDelete(template.id)}
-                        style={{ padding: '4px 8px', fontSize: '11px', border: '1px solid #fecaca', background: '#fff', color: '#dc2626' }}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                        <div>
+                          <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            {template.template_name}
+                            {template.is_default && (
+                              <span style={{ background: '#16a34a', color: '#fff', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 500 }}>
+                                DEFAULT
+                              </span>
+                            )}
+                            {template.column_settings?.print?.style === 'grid_minimal' && (
+                              <span style={{ background: '#7c3aed', color: '#fff', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 500 }}>
+                                GRID MINIMAL
+                              </span>
+                            )}
+                            {template.column_settings?.print?.style === 'pro_grid' && (
+                              <span style={{ background: '#ea580c', color: '#fff', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 500 }}>
+                                PRO GRID
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '4px' }}>
+                            {template.template_code && <span style={{ marginRight: '8px', fontFamily: 'monospace', background: '#e5e7eb', padding: '1px 4px', borderRadius: '2px' }}>{template.template_code}</span>}
+                            {template.page_size} | {template.orientation} | 
+                            {template.show_logo && ' Logo'}{template.show_bank_details && ' | Bank'}{template.show_terms && ' | Terms'}{template.show_signature && ' | Signature'}
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          {!template.is_default && (
+                            <button
+                              className="btn btn-sm btn-secondary"
+                              onClick={() => handleSetDefault(template)}
+                            >
+                              Set Default
+                            </button>
+                          )}
+                          <button
+                            className="btn btn-sm btn-secondary"
+                            onClick={() => handleEdit(template)}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            className="btn btn-sm btn-secondary"
+                            style={{ color: '#dc2626' }}
+                            onClick={() => handleDelete(template.id)}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         )}
       </div>
     </div>
