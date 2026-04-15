@@ -8,39 +8,18 @@ import { generateZohoTemplate } from './ZohoTemplate';
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useProjects } from '../hooks/useProjects';
 import {
-  Box,
-  Paper,
-  Typography,
-  Button,
-  TextField,
-  Chip,
-  IconButton,
-  Tooltip,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Menu,
-} from '@mui/material';
-import {
-  DataGrid,
-  GridColDef,
-  GridRenderCellParams,
-} from '@mui/x-data-grid';
-import {
-  LocalShipping as LocalShippingIcon,
-  Add as AddIcon,
-  Visibility as VisibilityIcon,
-  PictureAsPdf as PictureAsPdfIcon,
-  Delete as DeleteIcon,
-  FilterList as FilterListIcon,
+  Truck as LocalShippingIcon,
+  Plus as AddIcon,
+  Eye as VisibilityIcon,
+  FileText as PictureAsPdfIcon,
+  Trash2 as DeleteIcon,
+  Filter as FilterListIcon,
   Edit as EditIcon,
-  SwapHoriz as SwapHorizIcon,
-} from '@mui/icons-material';
+  ArrowRightLeft as SwapHorizIcon,
+  X as CloseIcon,
+  FileText,
+} from 'lucide-react';
+import { cn } from '../lib/utils';
 
 export default function DCList() {
   const navigate = useNavigate();
@@ -48,12 +27,11 @@ export default function DCList() {
   const queryClient = useQueryClient();
   const [showConvertModal, setShowConvertModal] = useState(false);
   const [convertDC, setConvertDC] = useState<any | null>(null);
-  const [openPrintMenuId, setOpenPrintMenuId] = useState<string | null>(null);
-  const [previewDC, setPreviewDC] = useState<any | null>(null);
-  const [previewHtml, setPreviewHtml] = useState('');
   const [showPreview, setShowPreview] = useState(false);
-  const [printAnchorEl, setPrintAnchorEl] = useState<null | HTMLElement>(null);
+  const [previewHtml, setPreviewHtml] = useState('');
+  const [showPrintMenu, setShowPrintMenu] = useState(false);
   const [printMenuDC, setPrintMenuDC] = useState<any | null>(null);
+  
   const [filters, setFilters] = useState(() => ({
     projectId: '',
     startDate: '',
@@ -111,7 +89,7 @@ export default function DCList() {
   const templates = templatesQuery.data || [];
   const loading = challansQuery.isLoading || projectsQuery.isLoading;
 
-  const handleFilterChange = (e: React.ChangeEvent<{ name?: string; value: unknown }>) => {
+  const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     if (name) {
       setFilters(prev => ({ ...prev, [name]: value }));
@@ -134,7 +112,6 @@ export default function DCList() {
   const handlePrintDC = async (challan: any, templateId: string | null = null) => {
     try {
       let template = null;
-      
       if (templateId) {
         const { data, error } = await supabase
           .from('document_templates')
@@ -160,15 +137,13 @@ export default function DCList() {
 
       const dcWithItems = await loadDCWithItems(challan.id);
 
-      // Special handling for Zoho Template
       if (template.template_code === 'DC_ZOHO') {
         const zohoDoc = generateZohoTemplate(dcWithItems, organisation, template);
         const safeFileName = String(dcWithItems.dc_number || 'dc')
           .replace(/[<>:"\/\\|?*\x00-\x1F]/g, '_')
           .replace(/\s+/g, '_');
         zohoDoc.save(`${safeFileName}.pdf`);
-        setOpenPrintMenuId(null);
-        setPrintAnchorEl(null);
+        setShowPrintMenu(false);
         return;
       }
 
@@ -220,8 +195,7 @@ export default function DCList() {
           pageFormat: template.page_size === 'Letter' ? 'letter' : 'a4',
         });
         gridDoc.save(`${challan.dc_number}.pdf`);
-        setOpenPrintMenuId(null);
-        setPrintAnchorEl(null);
+        setShowPrintMenu(false);
         return;
       }
 
@@ -229,7 +203,6 @@ export default function DCList() {
       const { default: jsPDF } = await import('jspdf');
       const autoTableModule = await import('jspdf-autotable');
       const autoTable = autoTableModule.default;
-      
       const doc = new jsPDF({
         orientation: isLandscape ? 'landscape' : 'portrait',
         unit: 'mm',
@@ -239,7 +212,6 @@ export default function DCList() {
       doc.setFontSize(18);
       doc.setFont('helvetica', 'bold');
       doc.text('DELIVERY CHALLAN', 105, 20, { align: 'center' });
-
       doc.setFontSize(11);
       doc.setFont('helvetica', 'bold');
       doc.text(`DC No: ${challan.dc_number}`, 14, 32);
@@ -258,7 +230,6 @@ export default function DCList() {
       doc.text(`Vehicle No: ${challan.vehicle_number || '-'}`, 14, yPos);
       yPos += 6;
       doc.text(`Driver: ${challan.driver_name || '-'}`, 14, yPos);
-
       yPos += 10;
 
       autoTable(doc, {
@@ -285,7 +256,6 @@ export default function DCList() {
 
       const finalY = (doc as any).lastAutoTable.finalY + 10;
       const totalAmount = (dcWithItems.items || []).reduce((sum: number, item: any) => sum + (parseFloat(item.amount) || 0), 0);
-
       doc.setFont('helvetica', 'bold');
       doc.text('Total Amount:', 140, finalY);
       doc.text(`₹${totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 175, finalY, { align: 'right' });
@@ -294,14 +264,11 @@ export default function DCList() {
         doc.setFont('helvetica', 'normal');
         doc.text(`Remarks: ${challan.remarks}`, 14, finalY + 15);
       }
-
       doc.setFontSize(10);
       doc.text('Authorized Signature', 140, finalY + 35);
       doc.line(130, finalY + 33, 190, finalY + 33);
-
       doc.save(`${challan.dc_number}.pdf`);
-      setOpenPrintMenuId(null);
-      setPrintAnchorEl(null);
+      setShowPrintMenu(false);
     } catch (error: any) {
       console.error('Error generating PDF:', error);
       alert('Error generating PDF: ' + error.message);
@@ -311,9 +278,7 @@ export default function DCList() {
   const handlePreview = async (challan: any) => {
     try {
       const dcWithItems = await loadDCWithItems(challan.id);
-      
       const totalAmount = (dcWithItems.items || []).reduce((sum: number, item: any) => sum + (parseFloat(item.amount) || 0), 0);
-      
       const itemsHtml = (dcWithItems.items || []).map((item: any, index: number) => `
         <tr>
           <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">${index + 1}</td>
@@ -405,8 +370,6 @@ export default function DCList() {
         </body>
         </html>
       `;
-
-      setPreviewDC(challan);
       setPreviewHtml(html);
       setShowPreview(true);
     } catch (error: any) {
@@ -426,14 +389,8 @@ export default function DCList() {
     }
   };
 
-  const handleConvertClick = (challan: any) => {
-    setConvertDC(challan);
-    setShowConvertModal(true);
-  };
-
   const handleConvertToQuotation = async () => {
     if (!convertDC) return;
-    
     try {
       const { data: existing } = await supabase
         .from('quotation_header')
@@ -448,7 +405,6 @@ export default function DCList() {
       }
 
       const dcWithItems = await loadDCWithItems(convertDC.id);
-
       const quotationData = {
         quotation_no: quotationNo,
         client_id: dcWithItems.client_id,
@@ -472,7 +428,6 @@ export default function DCList() {
         .single();
 
       if (error) throw error;
-
       if (dcWithItems.items && dcWithItems.items.length > 0) {
         const itemsToInsert = dcWithItems.items.map((item: any) => ({
           quotation_id: quotation.id,
@@ -489,10 +444,8 @@ export default function DCList() {
           line_total: item.amount,
           override_flag: false
         }));
-
         await supabase.from('quotation_items').insert(itemsToInsert);
       }
-
       alert('DC converted to Quotation successfully!');
       navigate(`/quotation/edit?id=${quotation.id}`);
     } catch (error: any) {
@@ -503,25 +456,9 @@ export default function DCList() {
     setConvertDC(null);
   };
 
-  const handleConvertToProforma = () => {
-    alert('Proforma Invoice feature coming soon!');
-    setShowConvertModal(false);
-    setConvertDC(null);
-  };
-
   const calculateTotal = (items: any[]) => {
     if (!items || items.length === 0) return 0;
     return items.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
-  };
-
-  const handlePrintMenuOpen = (event: React.MouseEvent<HTMLElement>, challan: any) => {
-    setPrintAnchorEl(event.currentTarget);
-    setPrintMenuDC(challan);
-  };
-
-  const handlePrintMenuClose = () => {
-    setPrintAnchorEl(null);
-    setPrintMenuDC(null);
   };
 
   const filteredChallans = useMemo(() => {
@@ -532,455 +469,344 @@ export default function DCList() {
     );
   }, [challans, searchTerm]);
 
-  const columns: GridColDef[] = [
-    {
-      field: 'dc_number',
-      headerName: 'DC No',
-      width: 120,
-      headerAlign: 'center',
-      align: 'center',
-      renderCell: (params: GridRenderCellParams) => (
-        <Typography variant="body2" fontWeight="500" fontFamily="Inter" sx={{ fontSize: '12px' }}>
-          {params.value}
-        </Typography>
-      ),
-    },
-    {
-      field: 'dc_date',
-      headerName: 'Date',
-      width: 110,
-      renderCell: (params: GridRenderCellParams) => (
-        <Typography variant="body2" fontFamily="Inter" sx={{ fontSize: '12px' }}>
-          {params.value ? format(new Date(params.value), 'dd/MM/yyyy') : '-'}
-        </Typography>
-      ),
-    },
-    {
-      field: 'project',
-      headerName: 'Project',
-      width: 180,
-      renderCell: (params: GridRenderCellParams) => (
-        <Typography variant="body2" fontFamily="Inter" sx={{ fontSize: '12px' }}>
-          {params.row.project?.project_name || params.row.project?.name || '-'}
-        </Typography>
-      ),
-    },
-    {
-      field: 'client_name',
-      headerName: 'Client',
-      width: 180,
-      renderCell: (params: GridRenderCellParams) => (
-        <Typography variant="body2" fontFamily="Inter" sx={{ fontSize: '12px' }}>
-          {params.value || '-'}
-        </Typography>
-      ),
-    },
-    {
-      field: 'items',
-      headerName: 'Items',
-      width: 80,
-      headerAlign: 'center',
-      align: 'center',
-      renderCell: (params: GridRenderCellParams) => (
-        <Chip
-          label={params.value?.length || 0}
-          size="small"
-          sx={{ fontSize: '11px', fontFamily: 'Inter', minWidth: '30px' }}
-        />
-      ),
-    },
-    {
-      field: 'items_total',
-      headerName: 'Total Amount',
-      width: 130,
-      renderCell: (params: GridRenderCellParams) => (
-        <Typography variant="body2" fontFamily="Inter" sx={{ fontSize: '12px', fontWeight: 500 }} align="right" width="100%">
-          ₹{calculateTotal(params.row.items).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-        </Typography>
-      ),
-    },
-    {
-      field: 'status',
-      headerName: 'Status',
-      width: 100,
-      headerAlign: 'center',
-      align: 'center',
-      renderCell: (params: GridRenderCellParams) => {
-        const status = params.value;
-        let color: 'success' | 'warning' | 'default' | 'error' = 'default';
-        let label = status;
-        
-        if (status === 'active' || status === 'Active' || status === 'Quoted') {
-          color = 'success';
-          label = status === 'active' ? 'Active' : status;
-        } else if (status === 'Not sent') {
-          color = 'warning';
-        } else if (status === 'cancelled') {
-          color = 'error';
-        }
-        
-        return (
-          <Chip
-            label={label}
-            size="small"
-            color={color}
-            sx={{ fontSize: '11px', fontFamily: 'Inter' }}
-          />
-        );
-      },
-    },
-    {
-      field: 'actions',
-      headerName: 'Actions',
-      width: 200,
-      sortable: false,
-      headerAlign: 'center',
-      align: 'center',
-      renderCell: (params: GridRenderCellParams) => (
-        <Box>
-          <Tooltip title="View">
-            <IconButton
-              size="small"
-              onClick={() => handlePreview(params.row)}
-              sx={{ color: 'primary.main' }}
-            >
-              <VisibilityIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="Download PDF">
-            <IconButton
-              size="small"
-              onClick={(e) => handlePrintMenuOpen(e, params.row)}
-              sx={{ color: 'primary.main' }}
-            >
-              <PictureAsPdfIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="Convert">
-            <IconButton
-              size="small"
-              onClick={() => handleConvertClick(params.row)}
-              sx={{ color: 'primary.main' }}
-            >
-              <SwapHorizIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="Edit">
-            <IconButton
-              size="small"
-              onClick={() => navigate(`/dc/edit/${params.row.id}`)}
-              sx={{ color: 'primary.main' }}
-            >
-              <EditIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="Delete">
-            <IconButton
-              size="small"
-              onClick={() => handleDelete(params.row.id, params.row.dc_number)}
-              sx={{ color: 'error.main' }}
-            >
-              <DeleteIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-        </Box>
-      ),
-    },
-  ];
+  const getStatusClass = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case 'active': return 'bg-emerald-100 text-emerald-700 font-bold';
+      case 'quoted': return 'bg-blue-100 text-blue-700 font-bold';
+      case 'not sent': return 'bg-amber-100 text-amber-700 font-bold';
+      case 'cancelled': return 'bg-rose-100 text-rose-700 font-bold';
+      default: return 'bg-slate-100 text-slate-700 font-bold';
+    }
+  };
 
   return (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <div className="h-full flex flex-col">
       {/* Header */}
-      <Paper
-        elevation={0}
-        sx={{
-          p: 2,
-          mb: 2,
-          borderRadius: 2,
-          border: '1px solid',
-          borderColor: 'divider',
-        }}
-      >
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <LocalShippingIcon color="primary" />
-            <Typography variant="h6" fontFamily="Inter" fontWeight={600} sx={{ fontSize: '18px' }}>
-              Delivery Challans
-            </Typography>
-            <Chip
-              label={`${filteredChallans.length} challans`}
-              size="small"
-              sx={{ ml: 1, fontFamily: 'Inter', fontSize: '12px' }}
-            />
-          </Box>
-          <Box sx={{ display: 'flex', gap: 2 }}>
-            <Button
-              variant={showFilters ? 'contained' : 'outlined'}
-              size="small"
-              startIcon={<FilterListIcon />}
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 mb-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-600/20">
+              <LocalShippingIcon className="w-6 h-6" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-black text-slate-900 tracking-tight">Delivery Challans</h1>
+              <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">{filteredChallans.length} records found</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
               onClick={() => setShowFilters(!showFilters)}
-              sx={{ fontSize: '12px', textTransform: 'none' }}
+              className={cn(
+                "h-12 px-6 rounded-xl border-2 transition-all flex items-center gap-2 font-black text-[13px] uppercase tracking-widest",
+                showFilters ? "bg-slate-900 border-slate-900 text-white" : "border-slate-100 text-slate-600 hover:border-slate-300 bg-slate-50"
+              )}
             >
-              Filters
-            </Button>
-            <TextField
-              size="small"
-              placeholder="Search challans..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              sx={{ width: 250, '& .MuiInputBase-input': { fontSize: '12px' } }}
-            />
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
+              <FilterListIcon className="w-4 h-4" /> Filters
+            </button>
+            <div className="relative group">
+              <input
+                type="text"
+                placeholder="Search challans..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="h-12 pl-12 pr-6 rounded-xl border-2 border-slate-100 group-focus-within:border-slate-900 focus:outline-none bg-slate-50 transition-all font-bold text-sm w-64"
+              />
+              <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-slate-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            <button
               onClick={() => navigate('/dc/new')}
-              sx={{ fontFamily: 'Inter', textTransform: 'none', fontSize: '12px' }}
+              className="h-12 px-8 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-[13px] uppercase tracking-widest shadow-lg shadow-indigo-600/20 transition-all flex items-center gap-2"
             >
-              Add DC
-            </Button>
-          </Box>
-        </Box>
+              <AddIcon className="w-5 h-5" /> Add New DC
+            </button>
+          </div>
+        </div>
 
-        {/* Filter Section */}
+        {/* Filters */}
         {showFilters && (
-          <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid', borderColor: 'divider' }}>
-            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-              <FormControl size="small" sx={{ minWidth: 180 }}>
-                <InputLabel sx={{ fontSize: '12px' }}>Project</InputLabel>
-                <Select
+          <div className="mt-6 pt-6 border-t border-slate-100 animate-in slide-in-from-top-4 duration-300">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Project</label>
+                <select
                   name="projectId"
                   value={filters.projectId}
                   onChange={handleFilterChange}
-                  label="Project"
-                  sx={{ fontSize: '12px' }}
+                  className="w-full h-12 px-4 rounded-xl border-2 border-slate-100 bg-slate-50 focus:border-slate-900 outline-none font-bold text-sm"
                 >
-                  <MenuItem value="" sx={{ fontSize: '12px' }}>All Projects</MenuItem>
+                  <option value="">All Projects</option>
                   {projects.map((p: any) => (
-                    <MenuItem key={p.id} value={p.id} sx={{ fontSize: '12px' }}>{p.name}</MenuItem>
+                    <option key={p.id} value={p.id}>{p.name}</option>
                   ))}
-                </Select>
-              </FormControl>
-
-              <TextField
-                size="small"
-                type="date"
-                name="startDate"
-                label="From Date"
-                value={filters.startDate}
-                onChange={handleFilterChange}
-                InputLabelProps={{ shrink: true }}
-                sx={{ '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' }, width: 150 }}
-              />
-
-              <TextField
-                size="small"
-                type="date"
-                name="endDate"
-                label="To Date"
-                value={filters.endDate}
-                onChange={handleFilterChange}
-                InputLabelProps={{ shrink: true }}
-                sx={{ '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' }, width: 150 }}
-              />
-
-              <FormControl size="small" sx={{ minWidth: 150 }}>
-                <InputLabel sx={{ fontSize: '12px' }}>Status</InputLabel>
-                <Select
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">From Date</label>
+                <input
+                  type="date"
+                  name="startDate"
+                  value={filters.startDate}
+                  onChange={handleFilterChange}
+                  className="w-full h-12 px-4 rounded-xl border-2 border-slate-100 bg-slate-50 focus:border-slate-900 outline-none font-bold text-sm"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">To Date</label>
+                <input
+                  type="date"
+                  name="endDate"
+                  value={filters.endDate}
+                  onChange={handleFilterChange}
+                  className="w-full h-12 px-4 rounded-xl border-2 border-slate-100 bg-slate-50 focus:border-slate-900 outline-none font-bold text-sm"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Status</label>
+                <select
                   name="status"
                   value={filters.status}
                   onChange={handleFilterChange}
-                  label="Status"
-                  sx={{ fontSize: '12px' }}
+                  className="w-full h-12 px-4 rounded-xl border-2 border-slate-100 bg-slate-50 focus:border-slate-900 outline-none font-bold text-sm"
                 >
-                  <MenuItem value="all" sx={{ fontSize: '12px' }}>All</MenuItem>
-                  <MenuItem value="active" sx={{ fontSize: '12px' }}>Active</MenuItem>
-                  <MenuItem value="Not sent" sx={{ fontSize: '12px' }}>Not sent</MenuItem>
-                  <MenuItem value="Quoted" sx={{ fontSize: '12px' }}>Quoted</MenuItem>
-                  <MenuItem value="cancelled" sx={{ fontSize: '12px' }}>Cancelled</MenuItem>
-                </Select>
-              </FormControl>
-
-              <Button
-                variant="contained"
-                size="small"
+                  <option value="all">All Status</option>
+                  <option value="active">Active</option>
+                  <option value="Not sent">Not sent</option>
+                  <option value="Quoted">Quoted</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex justify-end mt-4">
+              <button
                 onClick={applyFilters}
-                sx={{ fontSize: '12px', textTransform: 'none', alignSelf: 'flex-end' }}
+                className="btn bg-slate-900 text-white px-8 py-3 rounded-xl font-bold uppercase tracking-widest text-xs"
               >
                 Apply Filters
-              </Button>
-            </Box>
-          </Box>
+              </button>
+            </div>
+          </div>
         )}
-      </Paper>
+      </div>
 
-      {/* DataGrid */}
-      <Paper
-        elevation={0}
-        sx={{
-          flex: 1,
-          borderRadius: 2,
-          border: '1px solid',
-          borderColor: 'divider',
-          overflow: 'hidden',
-        }}
-      >
-        <DataGrid
-          rows={filteredChallans}
-          columns={columns}
-          loading={loading}
-          density="compact"
-          disableRowSelectionOnClick
-          hideFooterSelectedRowCount
-          sx={{
-            fontFamily: 'Inter, sans-serif',
-            '& .MuiDataGrid-cell': {
-              fontSize: '12px',
-              fontFamily: 'Inter, sans-serif',
-            },
-            '& .MuiDataGrid-columnHeader': {
-              fontSize: '12px',
-              fontWeight: 600,
-              fontFamily: 'Inter, sans-serif',
-              backgroundColor: 'grey.50',
-            },
-            '& .MuiDataGrid-row:hover': {
-              backgroundColor: 'action.hover',
-            },
-          }}
-          pageSizeOptions={[25, 50, 100]}
-          initialState={{
-            pagination: {
-              paginationModel: { pageSize: 25 },
-            },
-          }}
-        />
-      </Paper>
-
-      {/* Print Menu */}
-      <Menu
-        anchorEl={printAnchorEl}
-        open={Boolean(printAnchorEl)}
-        onClose={handlePrintMenuClose}
-        PaperProps={{
-          sx: { minWidth: 200 }
-        }}
-      >
-        <Box sx={{ px: 2, py: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
-          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '11px' }}>
-            Select Template
-          </Typography>
-        </Box>
-        {templates.length > 0 ? (
-          templates.map((t: any) => (
-            <MenuItem
-              key={t.id}
-              onClick={() => {
-                handlePrintDC(printMenuDC, t.id);
-                handlePrintMenuClose();
-              }}
-              sx={{ fontSize: '12px' }}
-            >
-              {t.template_name} {t.is_default && '(Default)'}
-            </MenuItem>
-          ))
-        ) : (
-          <MenuItem
-            onClick={() => {
-              handlePrintDC(printMenuDC, null);
-              handlePrintMenuClose();
-            }}
-            sx={{ fontSize: '12px' }}
-          >
-            Default Template
-          </MenuItem>
-        )}
-      </Menu>
+      {/* Main Table */}
+      <div className="bg-white rounded-[24px] shadow-sm border border-slate-100 flex-1 overflow-hidden flex flex-col">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-slate-50 border-b border-slate-100">
+                <th className="px-6 py-4 font-black text-slate-500 uppercase tracking-widest text-[10px] text-center">DC No</th>
+                <th className="px-6 py-4 font-black text-slate-500 uppercase tracking-widest text-[10px]">Date</th>
+                <th className="px-6 py-4 font-black text-slate-500 uppercase tracking-widest text-[10px]">Project</th>
+                <th className="px-6 py-4 font-black text-slate-500 uppercase tracking-widest text-[10px]">Client</th>
+                <th className="px-6 py-4 font-black text-slate-500 uppercase tracking-widest text-[10px] text-center">Items</th>
+                <th className="px-6 py-4 font-black text-slate-500 uppercase tracking-widest text-[10px] text-right">Total Amount</th>
+                <th className="px-6 py-4 font-black text-slate-500 uppercase tracking-widest text-[10px] text-center">Status</th>
+                <th className="px-6 py-4 font-black text-slate-500 uppercase tracking-widest text-[10px] text-center">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-50">
+              {loading ? (
+                <tr>
+                   <td colSpan={8} className="p-20 text-center">
+                      <div className="flex flex-col items-center gap-4">
+                         <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                         <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Hydrating Records...</p>
+                      </div>
+                   </td>
+                </tr>
+              ) : filteredChallans.length === 0 ? (
+                <tr>
+                   <td colSpan={8} className="p-20 text-center">
+                      <div className="flex flex-col items-center gap-4 opacity-30">
+                         <LocalShippingIcon className="w-16 h-16 text-slate-300" />
+                         <p className="text-xl font-black text-slate-900">No records found</p>
+                         <p className="text-sm font-bold text-slate-500">Try adjusting your filters or search term</p>
+                      </div>
+                   </td>
+                </tr>
+              ) : (
+                filteredChallans.map((challan: any) => (
+                  <tr key={challan.id} className="hover:bg-indigo-50/30 transition-colors group">
+                    <td className="px-6 py-4 text-center">
+                      <span className="font-mono text-xs font-black p-1.5 px-3 bg-slate-900 text-white rounded-lg shadow-sm">
+                        {challan.dc_number}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 font-bold text-slate-600 text-[13px]">
+                      {challan.dc_date ? format(new Date(challan.dc_date), 'dd/MM/yyyy') : '-'}
+                    </td>
+                    <td className="px-6 py-4">
+                      <p className="text-[13px] font-black text-slate-800">{challan.project?.project_name || challan.project?.name || '-'}</p>
+                    </td>
+                    <td className="px-6 py-4">
+                      <p className="text-[13px] font-bold text-slate-600">{challan.client_name || '-'}</p>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 text-slate-600 text-xs font-black">
+                        {challan.items?.length || 0}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <p className="text-[13px] font-black text-slate-900">
+                        ₹{calculateTotal(challan.items).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </p>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <span className={cn("px-3 py-1 rounded-full text-[10px] uppercase tracking-wider", getStatusClass(challan.status))}>
+                        {challan.status || 'Active'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                        <button onClick={() => handlePreview(challan)} title="View Preview" className="p-2 hover:bg-white rounded-lg text-indigo-600 shadow-sm border border-transparent hover:border-indigo-100">
+                          <VisibilityIcon size={18} />
+                        </button>
+                        <button 
+                          onClick={(e) => {
+                            setPrintMenuDC(challan);
+                            setShowPrintMenu(true);
+                          }} 
+                          title="Print/Download" 
+                          className="p-2 hover:bg-white rounded-lg text-emerald-600 shadow-sm border border-transparent hover:border-emerald-100"
+                        >
+                          <PictureAsPdfIcon size={18} />
+                        </button>
+                        <button onClick={() => {setConvertDC(challan); setShowConvertModal(true);}} title="Convert DC" className="p-2 hover:bg-white rounded-lg text-blue-600 shadow-sm border border-transparent hover:border-blue-100">
+                          <SwapHorizIcon size={18} />
+                        </button>
+                        <button onClick={() => navigate(`/dc/edit/${challan.id}`)} title="Edit DC" className="p-2 hover:bg-white rounded-lg text-amber-600 shadow-sm border border-transparent hover:border-amber-100">
+                          <EditIcon size={18} />
+                        </button>
+                        <button onClick={() => handleDelete(challan.id, challan.dc_number)} title="Delete DC" className="p-2 hover:bg-white rounded-lg text-rose-600 shadow-sm border border-transparent hover:border-rose-100">
+                          <DeleteIcon size={18} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
 
       {/* Convert Modal */}
-      <Dialog
-        open={showConvertModal}
-        onClose={() => setShowConvertModal(false)}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle sx={{ fontFamily: 'Inter', fontWeight: 600, fontSize: '16px' }}>
-          Convert DC: {convertDC?.dc_number}
-        </DialogTitle>
-        <DialogContent>
-          <Typography variant="body2" color="text.secondary" sx={{ fontSize: '12px', mb: 2 }}>
-            Select an option to convert this Delivery Challan
-          </Typography>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-            <Button
-              variant="contained"
-              onClick={handleConvertToQuotation}
-              sx={{ fontSize: '12px', textTransform: 'none' }}
-            >
-              Convert to Quotation
-            </Button>
-            <Button
-              variant="outlined"
-              onClick={handleConvertToProforma}
-              sx={{ fontSize: '12px', textTransform: 'none' }}
-            >
-              Convert to Proforma Invoice
-            </Button>
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button
-            onClick={() => setShowConvertModal(false)}
-            sx={{ fontSize: '12px', textTransform: 'none' }}
-          >
-            Cancel
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {showConvertModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+          <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="px-8 py-6 border-b border-slate-100 bg-slate-50/50">
+              <h3 className="text-xl font-black text-slate-900">Convert DC</h3>
+              <p className="text-sm font-bold text-slate-400 mt-1 uppercase tracking-widest">DC No: {convertDC?.dc_number}</p>
+            </div>
+            <div className="p-8 space-y-4">
+              <button 
+                onClick={handleConvertToQuotation}
+                className="w-full p-6 h-auto flex flex-col items-center justify-center gap-3 border-2 border-slate-100 hover:border-indigo-600 hover:bg-indigo-50/50 transition-all rounded-[24px]"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-indigo-100 text-indigo-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <FileText className="w-6 h-6" />
+                </div>
+                <div className="text-center">
+                  <p className="font-black text-slate-900 uppercase text-xs tracking-widest">Convert to Quotation</p>
+                  <p className="text-xs font-bold text-slate-500 mt-1">Generate a new quotation from this DC</p>
+                </div>
+              </button>
+              
+              <button 
+                onClick={() => { alert('Proforma feature coming soon!'); }}
+                className="w-full p-6 h-auto flex flex-col items-center justify-center gap-3 border-2 border-slate-100 hover:border-emerald-600 hover:bg-emerald-50/50 transition-all rounded-[24px]"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <LocalShippingIcon className="w-6 h-6" />
+                </div>
+                <div className="text-center">
+                  <p className="font-black text-slate-900 uppercase text-xs tracking-widest">Convert to Proforma</p>
+                  <p className="text-xs font-bold text-slate-500 mt-1">Generate proforma invoice from this DC</p>
+                </div>
+              </button>
+            </div>
+            <div className="px-8 py-6 border-t border-slate-100 flex justify-end">
+              <button 
+                onClick={() => { setShowConvertModal(false); setConvertDC(null); }}
+                className="px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest text-slate-500 hover:bg-slate-50 transition-all"
+              >
+                Cancel Conversion
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Preview Modal */}
-      <Dialog
-        open={showPreview}
-        onClose={() => setShowPreview(false)}
-        maxWidth="lg"
-        fullWidth
-        PaperProps={{
-          sx: { height: '90vh' }
-        }}
-      >
-        <DialogTitle sx={{ fontFamily: 'Inter', fontWeight: 600, fontSize: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span>Preview: {previewDC?.dc_number}</span>
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            <Button
-              variant="contained"
-              size="small"
-              onClick={() => {
-                const printWindow = window.open('', '_blank');
-                printWindow?.document.write(previewHtml);
-                printWindow?.document.close();
-                printWindow?.print();
-              }}
-              sx={{ fontSize: '12px', textTransform: 'none' }}
-            >
-              Print
-            </Button>
-            <IconButton onClick={() => setShowPreview(false)} size="small">
-              <DeleteIcon fontSize="small" />
-            </IconButton>
-          </Box>
-        </DialogTitle>
-        <DialogContent sx={{ p: 0, bgcolor: 'grey.100' }}>
-          <iframe
-            srcDoc={previewHtml}
-            title="Delivery Challan Preview"
-            style={{
-              width: '100%',
-              height: '100%',
-              border: 'none',
-              background: 'white',
-            }}
-          />
-        </DialogContent>
-      </Dialog>
-    </Box>
+      {showPreview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-8 bg-slate-900/50 backdrop-blur-sm">
+          <div className="bg-white rounded-[40px] shadow-2xl w-full max-w-5xl h-full flex flex-col overflow-hidden">
+            <div className="px-10 py-6 border-b border-slate-100 flex items-center justify-between">
+              <h3 className="text-2xl font-black text-slate-900">Document Preview</h3>
+              <div className="flex items-center gap-4">
+                <button 
+                  onClick={() => window.print()}
+                  className="px-6 py-2 bg-slate-900 text-white rounded-xl font-black text-[11px] uppercase tracking-widest hover:bg-slate-800 transition-all"
+                >
+                  Print Document
+                </button>
+                <button 
+                  onClick={() => setShowPreview(false)}
+                  className="p-3 hover:bg-rose-50 rounded-full text-slate-400 hover:text-rose-600 transition-all"
+                >
+                  <CloseIcon className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-auto bg-slate-50 p-10">
+              <div 
+                className="preview-content shadow-2xl"
+                dangerouslySetInnerHTML={{ __html: previewHtml }} 
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Print Options Modal */}
+      {showPrintMenu && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+          <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+             <div className="p-8 border-b border-slate-50">
+                <h3 className="text-xl font-black text-slate-900 mb-1">Print Options</h3>
+                <p className="text-sm font-bold text-slate-400 tracking-widest uppercase">Select DC Template</p>
+             </div>
+             <div className="p-8 space-y-3">
+                {templates.map((t: any) => (
+                   <button
+                      key={t.id}
+                      onClick={() => handlePrintDC(printMenuDC, t.id)}
+                      className="w-full p-5 text-left rounded-2xl border-2 border-slate-100 hover:border-indigo-600 hover:bg-indigo-50 transition-all group"
+                   >
+                      <div className="flex flex-col">
+                         <span className="font-black text-slate-900 group-hover:text-indigo-600 transition-colors uppercase text-xs tracking-widest">{t.template_name}</span>
+                         <span className="text-[10px] font-bold text-slate-400 mt-1">{t.template_code} • {t.orientation}</span>
+                      </div>
+                   </button>
+                ))}
+                <button
+                   onClick={() => handlePrintDC(printMenuDC)}
+                   className="w-full p-5 text-left rounded-2xl border-2 border-indigo-100 bg-indigo-50/50 hover:bg-indigo-50 transition-all group"
+                >
+                   <div className="flex flex-col">
+                      <span className="font-black text-indigo-600 uppercase text-xs tracking-widest">Default Template</span>
+                      <span className="text-[10px] font-bold text-indigo-400 mt-1">System default configuration</span>
+                   </div>
+                </button>
+             </div>
+             <div className="px-8 py-6 bg-slate-50 flex justify-end">
+                <button onClick={() => {setShowPrintMenu(false); setPrintMenuDC(null);}} className="text-xs font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-colors">Close</button>
+             </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

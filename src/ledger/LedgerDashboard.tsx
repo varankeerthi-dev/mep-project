@@ -5,7 +5,7 @@ import { endOfMonth, format, subMonths, subYears, startOfMonth } from 'date-fns'
 import { ChevronDown, FileText, Filter, Landmark, Loader2, Pencil, Plus, Save, Search, Trash2, Wallet, X, Calculator } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
-import { toast } from 'sonner';
+import { toast } from '@/lib/logger';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   Table,
