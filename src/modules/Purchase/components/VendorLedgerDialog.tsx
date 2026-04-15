@@ -1,18 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import {
-  Box,
-  Button,
-  Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Divider,
-  Paper,
-  TextField,
-  Typography,
-} from '@mui/material';
-import { Download as DownloadIcon } from '@mui/icons-material';
+import { Download, Calendar, Search, RotateCcw, FileText, ArrowUpRight, ArrowDownLeft, Wallet } from 'lucide-react';
+import { Modal } from '../../../components/ui/Modal';
+import { Button } from '../../../components/ui/button';
+import { Badge } from '../../../components/ui/Badge';
+import { Input } from '../../../components/ui/input';
+import { Card, StatCard } from '../../../components/ui/Card';
+import { AppTable } from '../../../components/ui/AppTable';
 import { useVendorLedger } from '../hooks/usePurchaseQueries';
 import {
   buildVendorLedgerEntries,
@@ -31,27 +24,6 @@ type VendorLedgerDialogProps = {
   organisationId?: string;
   vendor: VendorLedgerVendor | null;
 };
-
-const StatCard = ({ label, value }: { label: string; value: string }) => (
-  <Paper
-    elevation={0}
-    sx={{
-      border: '1px solid',
-      borderColor: 'divider',
-      borderRadius: 2,
-      p: 1.5,
-      minWidth: 140,
-      backgroundColor: '#fff',
-    }}
-  >
-    <Typography sx={{ fontSize: '11px', color: 'text.secondary', fontFamily: 'Inter, sans-serif' }}>
-      {label}
-    </Typography>
-    <Typography sx={{ mt: 0.5, fontSize: '14px', fontWeight: 600, fontFamily: 'Inter, sans-serif' }}>
-      {value}
-    </Typography>
-  </Paper>
-);
 
 export default function VendorLedgerDialog({
   open,
@@ -89,216 +61,215 @@ export default function VendorLedgerDialog({
     () => calculateVendorLedgerRangeSummary(entries),
     [entries]
   );
+  
   const hasActivityEntries = entries.some((entry) => entry.type !== 'Opening Balance');
 
+  const columns = [
+    {
+      key: 'date',
+      header: 'Date',
+      render: (entry: any) => (
+        <span className="text-sm">
+          {entry.type === 'Opening Balance' ? '-' : formatLedgerDate(entry.date)}
+        </span>
+      ),
+    },
+    {
+      key: 'type',
+      header: 'Type',
+      render: (entry: any) => (
+        <Badge variant={entry.type === 'Bill' ? 'warning' : entry.type === 'Opening Balance' ? 'secondary' : 'success'}>
+          {entry.type}
+        </Badge>
+      ),
+    },
+    {
+      key: 'reference',
+      header: 'Reference',
+      render: (entry: any) => (
+        <span className="font-semibold text-sm">{entry.reference}</span>
+      ),
+    },
+    {
+      key: 'remarks',
+      header: 'Remarks',
+      render: (entry: any) => (
+        <span className="text-sm text-slate-500 line-clamp-1 max-w-xs">{entry.remarks}</span>
+      ),
+    },
+    {
+      key: 'debit',
+      header: 'Debit',
+      align: 'right' as const,
+      render: (entry: any) => (
+        <span className="text-sm">{entry.debit ? formatLedgerCurrency(entry.debit) : '-'}</span>
+      ),
+    },
+    {
+      key: 'credit',
+      header: 'Credit',
+      align: 'right' as const,
+      render: (entry: any) => (
+        <span className="text-sm">{entry.credit ? formatLedgerCurrency(entry.credit) : '-'}</span>
+      ),
+    },
+    {
+      key: 'balance',
+      header: 'Balance',
+      align: 'right' as const,
+      render: (entry: any) => (
+        <span className={`text-sm font-bold ${entry.balance > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
+          {formatLedgerCurrency(entry.balance)}
+        </span>
+      ),
+    },
+  ];
+
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
-      <DialogTitle sx={{ px: 3, py: 2.5 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 2 }}>
-          <Box>
-            <Typography sx={{ fontSize: '16px', fontWeight: 700, fontFamily: 'Inter, sans-serif' }}>
-              Vendor Ledger
-            </Typography>
-            <Typography sx={{ mt: 0.5, fontSize: '12px', color: 'text.secondary', fontFamily: 'Inter, sans-serif' }}>
-              {vendor?.company_name || 'Select a vendor'} • {vendor?.vendor_code || '-'}
-            </Typography>
-          </Box>
+    <Modal
+      isOpen={open}
+      onClose={onClose}
+      title="Vendor Ledger"
+      maxWidth="6xl"
+    >
+      <div className="space-y-6">
+        {/* Header Info */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
+          <div>
+            <h2 className="text-lg font-bold text-slate-900">{vendor?.company_name || 'Select a vendor'}</h2>
+            <div className="flex items-center gap-2 mt-1 text-sm text-slate-500">
+              <span className="px-2 py-0.5 bg-slate-200 rounded text-slate-700 font-mono text-xs">{vendor?.vendor_code || '-'}</span>
+              <span>•</span>
+              <div className="flex items-center gap-1">
+                <FileText className="w-4 h-4" />
+                <span>Vendor Activity Log</span>
+              </div>
+            </div>
+          </div>
           <Button
-            variant="outlined"
-            startIcon={<DownloadIcon />}
+            variant="outline"
+            className="flex items-center gap-2"
             onClick={() => vendor && downloadVendorLedgerPdf(organisationName, vendor, summary, entries)}
             disabled={!vendor}
-            sx={{ textTransform: 'none', fontFamily: 'Inter, sans-serif', fontSize: '12px' }}
           >
-            Export PDF
+            <Download className="w-4 h-4" />
+            <span>Export PDF</span>
           </Button>
-        </Box>
-      </DialogTitle>
+        </div>
 
-      <DialogContent sx={{ px: 3, pb: 2 }}>
-        <Paper
-          elevation={0}
-          sx={{
-            mb: 2,
-            border: '1px solid',
-            borderColor: 'divider',
-            borderRadius: 2,
-            p: 1.5,
-            backgroundColor: 'grey.50',
-          }}
-        >
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, alignItems: 'flex-end' }}>
-            <TextField
-              type="date"
-              label="From"
-              size="small"
-              value={draftStartDate}
-              onChange={(event) => setDraftStartDate(event.target.value)}
-              InputLabelProps={{ shrink: true }}
-              sx={{ minWidth: 170 }}
-            />
-            <TextField
-              type="date"
-              label="To"
-              size="small"
-              value={draftEndDate}
-              onChange={(event) => setDraftEndDate(event.target.value)}
-              InputLabelProps={{ shrink: true }}
-              sx={{ minWidth: 170 }}
-            />
-            <Button
-              variant="contained"
-              onClick={() => {
-                setAppliedStartDate(draftStartDate);
-                setAppliedEndDate(draftEndDate);
-              }}
-              sx={{ textTransform: 'none', fontFamily: 'Inter, sans-serif', fontSize: '12px', minWidth: 110 }}
-            >
-              Submit
-            </Button>
-            <Button
-              variant="text"
-              onClick={() => {
-                setDraftStartDate('');
-                setDraftEndDate('');
-                setAppliedStartDate('');
-                setAppliedEndDate('');
-              }}
-              sx={{ textTransform: 'none', fontFamily: 'Inter, sans-serif', fontSize: '12px' }}
-            >
-              Reset
-            </Button>
-            {(appliedStartDate || appliedEndDate) ? (
-              <Typography sx={{ fontSize: '12px', color: 'text.secondary', fontFamily: 'Inter, sans-serif' }}>
-                Showing ledger activity for the selected date range.
-              </Typography>
-            ) : null}
-          </Box>
-        </Paper>
-
-        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, mb: 2.5 }}>
-          <StatCard label="Opening Balance" value={formatLedgerCurrency(summary.openingBalance)} />
-          <StatCard label="Bills" value={formatLedgerCurrency(summary.totalBills)} />
-          <StatCard label="Payments" value={formatLedgerCurrency(summary.totalPayments)} />
-          <StatCard label="Debit Notes" value={formatLedgerCurrency(summary.totalDebitNotes)} />
-          <StatCard label="Closing Balance" value={formatLedgerCurrency(summary.closingBalance)} />
-        </Box>
-
-        <Paper
-          elevation={0}
-          sx={{
-            border: '1px solid',
-            borderColor: 'divider',
-            borderRadius: 2,
-            overflow: 'hidden',
-          }}
-        >
-          <Box
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: '110px 90px 120px minmax(220px, 1fr) 110px 110px 120px',
-              gap: 0,
-              backgroundColor: 'grey.50',
-              borderBottom: '1px solid',
-              borderColor: 'divider',
-            }}
-          >
-            {['Date', 'Type', 'Reference', 'Remarks', 'Debit', 'Credit', 'Balance'].map((label) => (
-              <Typography
-                key={label}
-                sx={{
-                  px: 1.5,
-                  py: 1.25,
-                  fontSize: '11px',
-                  fontWeight: 700,
-                  color: 'text.secondary',
-                  fontFamily: 'Inter, sans-serif',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.04em',
+        {/* Filters */}
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+          <div className="flex flex-wrap items-end gap-4">
+            <div className="space-y-1.5 min-w-[180px]">
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider ml-1">From Date</label>
+              <div className="relative">
+                <Input
+                  type="date"
+                  value={draftStartDate}
+                  onChange={(e) => setDraftStartDate(e.target.value)}
+                  className="pl-3"
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5 min-w-[180px]">
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider ml-1">To Date</label>
+              <Input
+                type="date"
+                value={draftEndDate}
+                onChange={(e) => setDraftEndDate(e.target.value)}
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="primary"
+                onClick={() => {
+                  setAppliedStartDate(draftStartDate);
+                  setAppliedEndDate(draftEndDate);
+                }}
+                className="px-6"
+              >
+                Apply Range
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setDraftStartDate('');
+                  setDraftEndDate('');
+                  setAppliedStartDate('');
+                  setAppliedEndDate('');
                 }}
               >
-                {label}
-              </Typography>
-            ))}
-          </Box>
-
-          <Box sx={{ maxHeight: 460, overflow: 'auto' }}>
-            {isLoading ? (
-              <Box sx={{ p: 3 }}>
-                <Typography sx={{ fontSize: '12px', color: 'text.secondary', fontFamily: 'Inter, sans-serif' }}>
-                  Loading ledger entries...
-                </Typography>
-              </Box>
-            ) : !hasActivityEntries ? (
-              <Box sx={{ p: 3 }}>
-                <Typography sx={{ fontSize: '13px', fontWeight: 600, fontFamily: 'Inter, sans-serif' }}>
-                  No ledger entries found
-                </Typography>
-                <Typography sx={{ mt: 0.5, fontSize: '12px', color: 'text.secondary', fontFamily: 'Inter, sans-serif' }}>
-                  Bills, payments, and approved debit notes for this vendor will appear here.
-                </Typography>
-              </Box>
-            ) : (
-              entries.map((entry, index) => (
-                <React.Fragment key={entry.id}>
-                  <Box
-                    sx={{
-                      display: 'grid',
-                      gridTemplateColumns: '110px 90px 120px minmax(220px, 1fr) 110px 110px 120px',
-                      alignItems: 'center',
-                    }}
-                  >
-                    <Typography sx={{ px: 1.5, py: 1.25, fontSize: '12px', fontFamily: 'Inter, sans-serif' }}>
-                      {entry.type === 'Opening Balance' ? '-' : formatLedgerDate(entry.date)}
-                    </Typography>
-                    <Box sx={{ px: 1.5, py: 1.25 }}>
-                      <Chip
-                        size="small"
-                        label={entry.type}
-                        color={entry.type === 'Bill' ? 'warning' : entry.type === 'Opening Balance' ? 'default' : 'success'}
-                        variant={entry.type === 'Opening Balance' ? 'outlined' : 'filled'}
-                        sx={{ height: 22, fontSize: '10px', fontFamily: 'Inter, sans-serif' }}
-                      />
-                    </Box>
-                    <Typography sx={{ px: 1.5, py: 1.25, fontSize: '12px', fontWeight: 600, fontFamily: 'Inter, sans-serif' }}>
-                      {entry.reference}
-                    </Typography>
-                    <Typography sx={{ px: 1.5, py: 1.25, fontSize: '12px', color: 'text.secondary', fontFamily: 'Inter, sans-serif' }}>
-                      {entry.remarks}
-                    </Typography>
-                    <Typography sx={{ px: 1.5, py: 1.25, fontSize: '12px', textAlign: 'right', fontFamily: 'Inter, sans-serif' }}>
-                      {entry.debit ? formatLedgerCurrency(entry.debit) : '-'}
-                    </Typography>
-                    <Typography sx={{ px: 1.5, py: 1.25, fontSize: '12px', textAlign: 'right', fontFamily: 'Inter, sans-serif' }}>
-                      {entry.credit ? formatLedgerCurrency(entry.credit) : '-'}
-                    </Typography>
-                    <Typography
-                      sx={{
-                        px: 1.5,
-                        py: 1.25,
-                        fontSize: '12px',
-                        fontWeight: 700,
-                        textAlign: 'right',
-                        color: entry.balance > 0 ? 'warning.dark' : 'success.dark',
-                        fontFamily: 'Inter, sans-serif',
-                      }}
-                    >
-                      {formatLedgerCurrency(entry.balance)}
-                    </Typography>
-                  </Box>
-                  {index < entries.length - 1 ? <Divider /> : null}
-                </React.Fragment>
-              ))
+                <RotateCcw className="w-4 h-4 mr-2" />
+                Reset
+              </Button>
+            </div>
+            {(appliedStartDate || appliedEndDate) && (
+              <div className="flex-1 text-right italic text-sm text-slate-400">
+                Range filter active
+              </div>
             )}
-          </Box>
-        </Paper>
-      </DialogContent>
+          </div>
+        </div>
 
-      <DialogActions sx={{ px: 3, py: 2 }}>
-        <Button onClick={onClose} sx={{ textTransform: 'none', fontFamily: 'Inter, sans-serif', fontSize: '12px' }}>
-          Close
-        </Button>
-      </DialogActions>
-    </Dialog>
+        {/* Stats */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          <StatCard
+            label="Opening Bal."
+            value={formatLedgerCurrency(summary.openingBalance)}
+            icon={<Wallet className="w-5 h-5" />}
+            color="gray"
+          />
+          <StatCard
+            label="Total Bills"
+            value={formatLedgerCurrency(summary.totalBills)}
+            icon={<ArrowUpRight className="w-5 h-5" />}
+            color="amber"
+          />
+          <StatCard
+            label="Total Pmts"
+            value={formatLedgerCurrency(summary.totalPayments)}
+            icon={<ArrowDownLeft className="w-5 h-5" />}
+            color="green"
+          />
+          <StatCard
+            label="Debit Notes"
+            value={formatLedgerCurrency(summary.totalDebitNotes)}
+            icon={<FileText className="w-5 h-5" />}
+            color="blue"
+          />
+          <StatCard
+            label="Closing Bal."
+            value={formatLedgerCurrency(summary.closingBalance)}
+            icon={<Wallet className="w-5 h-5" />}
+            color={summary.closingBalance > 0 ? "amber" : "green"}
+          />
+        </div>
+
+        {/* Table */}
+        <Card className="p-0 overflow-hidden border-slate-200 shadow-sm">
+          <AppTable
+            columns={columns}
+            data={entries}
+            isLoading={isLoading}
+            emptyMessage={
+              <div className="py-12 text-center">
+                <FileText className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                <h3 className="text-lg font-semibold text-slate-900">No ledger entries found</h3>
+                <p className="text-slate-500 max-w-xs mx-auto">
+                  Bills, payments, and approved debit notes for this vendor will appear here.
+                </p>
+              </div>
+            }
+          />
+        </Card>
+
+        {/* Footer */}
+        <div className="flex justify-end pt-2">
+          <Button variant="ghost" onClick={onClose} className="px-8">
+            Close Ledger
+          </Button>
+        </div>
+      </div>
+    </Modal>
   );
 }

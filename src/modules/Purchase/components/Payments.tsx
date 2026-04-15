@@ -1,14 +1,41 @@
 import React, { useState } from 'react';
-import {
-  Box, Paper, Typography, Button, TextField, Dialog, DialogTitle, DialogContent, DialogActions,
-  Grid, FormControl, InputLabel, Select, MenuItem, Chip, IconButton, Autocomplete, Checkbox,
-  Stepper, Step, StepLabel, FormControlLabel,
-} from '@mui/material';
-import { DataGrid, GridColDef } from '@mui/x-data-grid';
-import {
-  Add as AddIcon, AccountBalance as AccountBalanceIcon, PictureAsPdf as PdfIcon,
-} from '@mui/icons-material';
-import { toast } from 'sonner';
+import { 
+  Plus, 
+  Search, 
+  Banknote, 
+  FileText, 
+  ArrowRight,
+  ArrowLeft,
+  CheckCircle2,
+  CalendarDays,
+  CreditCard,
+  PlusCircle,
+  X
+} from 'lucide-react';
+import { Button as ShadcnButton } from '../../../components/ui/button';
+import { Badge } from '../../../components/ui/Badge';
+import { AppTable } from '../../../components/ui/AppTable';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogFooter 
+} from '../../../components/ui/dialog';
+import { Input } from '../../../components/ui/input';
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from '../../../components/ui/select';
+import { Label } from '../../../components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card';
+import { Checkbox } from '../../../components/ui/checkbox';
+import { cn } from '../../../lib/utils';
+
+import { toast } from '@/lib/logger';
 import { useAuth } from '../../../contexts/AuthContext';
 import { usePayments, useVendors, useVendorOpenBills, useCreatePayment } from '../hooks/usePurchaseQueries';
 
@@ -153,194 +180,396 @@ export const Payments: React.FC = () => {
     }
   };
 
-  const columns: GridColDef[] = [
-    { field: 'voucher_no', headerName: 'Voucher #', width: 120, renderCell: (p) => <Typography fontWeight="600" color="success.main">{p.value}</Typography> },
-    { field: 'payment_date', headerName: 'Date', width: 100, renderCell: (p) => <Typography>{new Date(p.value).toLocaleDateString('en-IN')}</Typography> },
-    { field: 'vendor', headerName: 'Vendor', width: 180, renderCell: (p) => <Typography>{p.value?.company_name}</Typography> },
-    { field: 'payment_mode', headerName: 'Mode', width: 110, renderCell: (p) => <Chip label={p.value} size="small" variant="outlined" /> },
-    { field: 'amount', headerName: 'Amount', width: 130, renderCell: (p) => <Typography align="right" fontWeight="500" color="success.main">₹{Number(p.value).toLocaleString()}</Typography> },
-    { field: 'reference_no', headerName: 'Reference', width: 130 },
-    { field: 'is_advance', headerName: 'Type', width: 100, renderCell: (p) => p.value ? <Chip label="Advance" size="small" color="warning" /> : <Chip label="Against Bill" size="small" /> },
-    { field: 'actions', headerName: 'Actions', width: 100, sortable: false, renderCell: () => (
-      <Box><IconButton size="small"><PdfIcon fontSize="small" color="error" /></IconButton></Box>
-    )},
+  const columns = [
+    {
+      id: 'voucher_no',
+      header: 'Voucher #',
+      cell: ({ row }: any) => (
+        <span className="font-semibold text-emerald-600">
+          {row.original.voucher_no}
+        </span>
+      ),
+    },
+    {
+      id: 'payment_date',
+      header: 'Date',
+      cell: ({ row }: any) => new Date(row.original.payment_date).toLocaleDateString('en-IN'),
+    },
+    {
+      id: 'vendor',
+      header: 'Vendor',
+      cell: ({ row }: any) => row.original.vendor?.company_name || '-',
+    },
+    {
+      id: 'payment_mode',
+      header: 'Mode',
+      cell: ({ row }: any) => (
+        <Badge variant="outline" className="text-[10px] font-medium px-2 py-0 h-5 border-slate-200 text-slate-600 bg-slate-50">
+          {row.original.payment_mode}
+        </Badge>
+      ),
+    },
+    {
+      id: 'amount',
+      header: 'Amount',
+      cell: ({ row }: any) => (
+        <div className="font-medium text-right text-emerald-600">
+          ₹{Number(row.original.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+        </div>
+      ),
+    },
+    {
+      id: 'reference_no',
+      header: 'Reference',
+      cell: ({ row }: any) => row.original.reference_no || '-',
+    },
+    {
+      id: 'is_advance',
+      header: 'Type',
+      cell: ({ row }: any) => (
+        <Badge className={cn(
+          "text-[10px] font-medium px-2 py-0 h-5 border shadow-none",
+          row.original.is_advance ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-slate-50 text-slate-700 border-slate-200"
+        )}>
+          {row.original.is_advance ? 'Advance' : 'Against Bill'}
+        </Badge>
+      ),
+    },
+    {
+      id: 'actions',
+      header: 'Actions',
+      cell: () => (
+        <div className="flex items-center gap-1">
+          <ShadcnButton 
+            variant="ghost" 
+            size="icon" 
+            className="h-8 w-8 text-rose-600 hover:bg-rose-50"
+          >
+            <FileText className="h-4 w-4" />
+          </ShadcnButton>
+        </div>
+      ),
+    },
   ];
 
+
   return (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Paper sx={{ p: 2, mb: 2, borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <AccountBalanceIcon color="success" />
-            <Typography variant="h6" fontFamily="Inter" fontWeight={600}>Payments Made</Typography>
-          </Box>
-          <Box sx={{ display: 'flex', gap: 2 }}>
-            <Button variant="outlined" startIcon={<AddIcon />} onClick={handleCreateRequest}>Payment Request</Button>
-            <Button variant="contained" startIcon={<AddIcon />} onClick={handleAddPayment} color="success">Record Payment</Button>
-          </Box>
-        </Box>
-      </Paper>
+    <div className="h-full flex flex-col space-y-4 p-4 md:p-6 bg-slate-50/50">
+      <Card className="border-none shadow-sm overflow-hidden text-sm">
+        <CardHeader className="py-4 px-6 bg-white border-b">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-emerald-50 rounded-lg">
+                <Banknote className="h-5 w-5 text-emerald-600" />
+              </div>
+              <div>
+                <CardTitle className="text-lg font-bold text-slate-800">Payments Made</CardTitle>
+                <p className="text-xs text-slate-500 font-medium">Record and track vendor payments</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <ShadcnButton 
+                variant="outline"
+                onClick={handleCreateRequest} 
+                className="h-9 gap-2 shadow-sm font-semibold border-slate-200"
+              >
+                <Plus className="h-4 w-4" />
+                Payment Request
+              </ShadcnButton>
+              <ShadcnButton 
+                onClick={handleAddPayment} 
+                className="h-9 gap-2 shadow-sm font-semibold bg-emerald-600 hover:bg-emerald-700"
+              >
+                <Plus className="h-4 w-4" />
+                Record Payment
+              </ShadcnButton>
+            </div>
+          </div>
+        </CardHeader>
+      </Card>
 
-      <Paper sx={{ flex: 1, borderRadius: 2, border: '1px solid', borderColor: 'divider', overflow: 'hidden' }}>
-        <DataGrid rows={payments} columns={columns} loading={isLoading} density="compact" disableRowSelectionOnClick
-          sx={{ fontFamily: 'Inter, sans-serif', '& .MuiDataGrid-cell': { fontSize: '13px' }, '& .MuiDataGrid-columnHeader': { fontSize: '12px', fontWeight: 600, backgroundColor: 'grey.50' } }}
-          pageSizeOptions={[25, 50, 100]} initialState={{ pagination: { paginationModel: { pageSize: 25 } } }} />
-      </Paper>
+      <Card className="flex-1 border-none shadow-sm overflow-hidden bg-white">
+        <div className="h-[calc(100vh-220px)] overflow-auto p-1">
+          <AppTable
+            data={payments}
+            columns={columns}
+            loading={isLoading}
+          />
+        </div>
+      </Card>
 
-      <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="md" fullWidth>
-        <DialogTitle sx={{ fontFamily: 'Inter', fontWeight: 600 }}>Record Payment</DialogTitle>
-        <DialogContent sx={{ minHeight: 400 }}>
-          <Stepper activeStep={activeStep} sx={{ mb: 3 }}>
-            <Step><StepLabel>Select Vendor</StepLabel></Step>
-            <Step><StepLabel>Payment Details</StepLabel></Step>
-            <Step><StepLabel>Allocate to Bills</StepLabel></Step>
-          </Stepper>
+      {/* Record Payment Dialog */}
+      <Dialog open={openDialog} onOpenChange={(open) => !open && setOpenDialog(false)}>
+        <DialogContent className="max-w-4xl p-0 overflow-hidden">
+          <DialogHeader className="px-6 py-4 border-b bg-emerald-50/30">
+            <DialogTitle className="text-xl font-bold text-emerald-900">Record Payment</DialogTitle>
+          </DialogHeader>
 
-          {activeStep === 0 && (
-            <Grid container spacing={2}>
-              <Grid item xs={12}>
-                <Autocomplete options={vendors} getOptionLabel={(o: any) => o.company_name} onChange={(e, v) => {
-                  setVendorId(v?.id || '');
-                  setSelectedBillIds([]);
-                }}
-                  renderInput={(p) => (
-                    <TextField
-                      {...p}
-                      label="Select Vendor *"
-                      size="small"
-                      fullWidth
-                      sx={{
-                        '& .MuiInputBase-root': {
-                          minHeight: 40,
-                        },
-                      }}
+          <div className="p-0 flex flex-col h-[70vh]">
+            {/* Custom Stepper */}
+            <div className="flex items-center px-12 py-6 bg-white border-b gap-4">
+              {[0, 1, 2].map((step) => (
+                <div key={step} className="flex-1 flex items-center gap-2 group">
+                  <div className={cn(
+                    "h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold transition-all",
+                    activeStep === step ? "bg-emerald-600 text-white shadow-lg shadow-emerald-100 ring-4 ring-emerald-50" : 
+                    activeStep > step ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-400"
+                  )}>
+                    {activeStep > step ? <CheckCircle2 className="h-5 w-5" /> : step + 1}
+                  </div>
+                  <span className={cn(
+                    "text-[10px] font-bold uppercase tracking-wider",
+                    activeStep === step ? "text-slate-900" : "text-slate-400"
+                  )}>
+                    {step === 0 ? "Vendor" : step === 1 ? "Payment" : "Allocation"}
+                  </span>
+                  {step < 2 && <div className="flex-1 h-0.5 bg-slate-100" />}
+                </div>
+              ))}
+            </div>
+
+            <div className="flex-1 overflow-auto p-8 space-y-6">
+              {activeStep === 0 && (
+                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-bold uppercase text-slate-500">Select Vendor *</Label>
+                    <Select value={vendorId} onValueChange={(val) => { setVendorId(val); setSelectedBillIds([]); }}>
+                      <SelectTrigger className="h-10 border-slate-200">
+                        <SelectValue placeholder="Search and select vendor" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {vendors.map((v: any) => (
+                          <SelectItem key={v.id} value={v.id}>{v.company_name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="flex items-center space-x-2 bg-amber-50/50 p-4 rounded-xl border border-amber-100">
+                      <Checkbox id="advance" checked={isAdvance} onCheckedChange={(val) => setIsAdvance(!!val)} />
+                      <Label htmlFor="advance" className="text-sm font-semibold text-amber-700 cursor-pointer">
+                        Advance Payment (Without Bill)
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2 bg-primary/5 p-4 rounded-xl border border-primary/10">
+                      <Checkbox id="proforma" checked={hasVendorProforma} onCheckedChange={(val) => setHasVendorProforma(!!val)} />
+                      <Label htmlFor="proforma" className="text-sm font-semibold text-primary cursor-pointer">
+                        Proforma Invoice
+                      </Label>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeStep === 1 && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-bold uppercase text-slate-500">Payment Date</Label>
+                    <Input type="date" value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} className="h-10" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-bold uppercase text-slate-500">Payment Mode</Label>
+                    <Select value={paymentMode} onValueChange={setPaymentMode}>
+                      <SelectTrigger className="h-10">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PAYMENT_MODES.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-bold uppercase text-slate-500">Amount *</Label>
+                    <Input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} className="h-10 font-bold" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-bold uppercase text-slate-500">Reference / No</Label>
+                    <Input value={referenceNo} onChange={(e) => setReferenceNo(e.target.value)} placeholder="Txn ID, Cheque #, etc" className="h-10" />
+                  </div>
+                  <div className="md:col-span-2 space-y-1.5">
+                    <Label className="text-xs font-bold uppercase text-slate-500">Bank Account / Account Name</Label>
+                    <Input value={bankAccount} onChange={(e) => setBankAccount(e.target.value)} className="h-10" />
+                  </div>
+                  <div className="md:col-span-2 space-y-1.5">
+                    <Label className="text-xs font-bold uppercase text-slate-500">Narration</Label>
+                    <textarea 
+                      className="flex min-h-[80px] w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/20"
+                      value={narration}
+                      onChange={(e) => setNarration(e.target.value)}
                     />
-                  )} />
-              </Grid>
-              <Grid item xs={12}>
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-                  <FormControlLabel
-                    control={<Checkbox checked={isAdvance} onChange={(e) => setIsAdvance(e.target.checked)} />}
-                    label="Advance Payment (Without Bill)"
-                  />
-                  <FormControlLabel
-                    control={<Checkbox checked={hasVendorProforma} onChange={(e) => setHasVendorProforma(e.target.checked)} />}
-                    label="Proforma Invoice"
-                  />
-                </Box>
-              </Grid>
-            </Grid>
-          )}
+                  </div>
 
-          {activeStep === 1 && (
-            <Grid container spacing={2}>
-              <Grid item xs={12} md={4}><TextField fullWidth type="date" label="Payment Date" value={paymentDate} onChange={(e) => setPaymentDate(e.target.value)} size="small" InputLabelProps={{ shrink: true }} /></Grid>
-              <Grid item xs={12} md={4}>
-                <FormControl fullWidth size="small"><InputLabel>Payment Mode</InputLabel><Select value={paymentMode} onChange={(e) => setPaymentMode(e.target.value)} label="Payment Mode">
-                  {PAYMENT_MODES.map((m) => <MenuItem key={m} value={m}>{m}</MenuItem>)}
-                </Select></FormControl>
-              </Grid>
-              <Grid item xs={12} md={4}><TextField fullWidth type="number" label="Amount *" value={amount} onChange={(e) => setAmount(e.target.value)} size="small" /></Grid>
-              <Grid item xs={12} md={6}><TextField fullWidth label="Reference No / Cheque No" value={referenceNo} onChange={(e) => setReferenceNo(e.target.value)} size="small" /></Grid>
-              <Grid item xs={12} md={6}><TextField fullWidth label="Bank Account" value={bankAccount} onChange={(e) => setBankAccount(e.target.value)} size="small" /></Grid>
-              <Grid item xs={12}><TextField fullWidth multiline rows={2} label="Narration" value={narration} onChange={(e) => setNarration(e.target.value)} size="small" /></Grid>
-              {hasVendorProforma ? (
-                <>
-                  <Grid item xs={12} md={4}>
-                    <TextField
-                      fullWidth
-                      label="Vendor Proforma Invoice"
-                      value={vendorProformaInvoice}
-                      onChange={(e) => setVendorProformaInvoice(e.target.value)}
-                      size="small"
-                    />
-                  </Grid>
-                  <Grid item xs={12} md={4}>
-                    <TextField
-                      fullWidth
-                      type="date"
-                      label="Proforma Date"
-                      value={vendorProformaDate}
-                      onChange={(e) => setVendorProformaDate(e.target.value)}
-                      size="small"
-                      InputLabelProps={{ shrink: true }}
-                    />
-                  </Grid>
-                  <Grid item xs={12} md={4}>
-                    <TextField
-                      fullWidth
-                      type="number"
-                      label="Proforma Amount"
-                      value={vendorProformaAmount}
-                      onChange={(e) => setVendorProformaAmount(e.target.value)}
-                      size="small"
-                    />
-                  </Grid>
-                  <Grid item xs={12}>
-                    <Typography sx={{ fontSize: '11px', color: 'text.secondary', fontFamily: 'Inter, sans-serif' }}>
-                      Proforma details are stored only for tracking. They do not affect payment totals, vendor balance, or bill allocation.
-                    </Typography>
-                  </Grid>
-                </>
-              ) : null}
-            </Grid>
-          )}
+                  {hasVendorProforma && (
+                    <div className="md:col-span-2 bg-slate-50 p-6 rounded-2xl border border-slate-200 mt-2 space-y-4">
+                      <h4 className="text-xs font-black uppercase tracking-widest text-slate-400">Proforma Details</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="space-y-1.5">
+                          <Label className="text-[10px] font-bold text-slate-500 tracking-wider">PI Reference</Label>
+                          <Input value={vendorProformaInvoice} onChange={(e) => setVendorProformaInvoice(e.target.value)} className="h-9 text-xs" />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-[10px] font-bold text-slate-500 tracking-wider">PI Date</Label>
+                          <Input type="date" value={vendorProformaDate} onChange={(e) => setVendorProformaDate(e.target.value)} className="h-9 text-xs" />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-[10px] font-bold text-slate-500 tracking-wider">PI Amount</Label>
+                          <Input type="number" value={vendorProformaAmount} onChange={(e) => setVendorProformaAmount(e.target.value)} className="h-9 text-xs font-bold" />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
-          {activeStep === 2 && !isAdvance && (
-            <Box>
-              <Typography variant="subtitle2" sx={{ mb: 2 }}>Select Bills to Pay:</Typography>
-              <DataGrid rows={vendorBills} columns={[
-                { field: 'bill_number', headerName: 'Bill #', width: 110 },
-                { field: 'bill_date', headerName: 'Date', width: 100 },
-                { field: 'total_amount', headerName: 'Amount', width: 110, renderCell: (p) => <Typography align="right">₹{Number(p.value).toLocaleString()}</Typography> },
-                { field: 'balance_amount', headerName: 'Balance', width: 110, renderCell: (p) => <Typography align="right" color="error">₹{Number(p.value).toLocaleString()}</Typography> },
-              ]} density="compact" checkboxSelection hideFooterPagination rowSelectionModel={selectedBillIds}
-                onRowSelectionModelChange={(rowSelectionModel) => setSelectedBillIds(rowSelectionModel.map((id) => String(id)))}
-                sx={{ height: 300 }} />
-              <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                Payment amount will be allocated across selected bills in order, up to the entered amount.
-              </Typography>
-            </Box>
-          )}
+              {activeStep === 2 && !isAdvance && (
+                <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-bold text-slate-800">Select Bills to Settle</h3>
+                    <div className="text-xs text-slate-500 bg-slate-100 px-3 py-1 rounded-full font-semibold">
+                      Payment Amount: <span className="text-emerald-600">₹{Number(amount).toLocaleString()}</span>
+                    </div>
+                  </div>
+                  
+                  <div className="border border-slate-200 rounded-2xl overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-slate-50">
+                          <TableHead className="w-12"></TableHead>
+                          <TableHead>Bill #</TableHead>
+                          <TableHead>Date</TableHead>
+                          <TableHead className="text-right">Total</TableHead>
+                          <TableHead className="text-right">Balance</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {vendorBills.map((bill: any) => (
+                          <TableRow key={bill.id}>
+                            <TableCell>
+                              <Checkbox 
+                                checked={selectedBillIds.includes(String(bill.id))} 
+                                onCheckedChange={(val) => {
+                                  if (val) setSelectedBillIds([...selectedBillIds, String(bill.id)]);
+                                  else setSelectedBillIds(selectedBillIds.filter(id => id !== String(bill.id)));
+                                }} 
+                              />
+                            </TableCell>
+                            <TableCell className="font-semibold text-slate-700">{bill.bill_number}</TableCell>
+                            <TableCell className="text-xs text-slate-500 font-medium">{new Date(bill.bill_date).toLocaleDateString('en-IN')}</TableCell>
+                            <TableCell className="text-right font-medium">₹{Number(bill.total_amount).toLocaleString()}</TableCell>
+                            <TableCell className="text-right font-bold text-rose-600 italic">₹{Number(bill.balance_amount || bill.total_amount).toLocaleString()}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter className="px-6 py-4 border-t bg-slate-50/50 flex flex-row items-center justify-between">
+            <ShadcnButton variant="outline" onClick={() => setOpenDialog(false)} className="px-8 border-slate-200 font-semibold h-10">
+              Cancel
+            </ShadcnButton>
+            <div className="flex gap-3">
+              {activeStep > 0 && (
+                <ShadcnButton variant="ghost" onClick={() => setActiveStep(activeStep - 1)} className="gap-2 h-10 px-8">
+                  <ArrowLeft className="h-4 w-4" />
+                  Back
+                </ShadcnButton>
+              )}
+              {!isLastStep ? (
+                <ShadcnButton onClick={() => setActiveStep(activeStep + 1)} disabled={activeStep === 0 && !vendorId} className="gap-2 h-10 px-10">
+                  Continue
+                  <ArrowRight className="h-4 w-4" />
+                </ShadcnButton>
+              ) : (
+                <ShadcnButton 
+                  onClick={handleSave} 
+                  disabled={createPayment.isPending || !amount || Number(amount) <= 0}
+                  className="bg-emerald-600 hover:bg-emerald-700 gap-2 h-10 px-10 font-bold shadow-lg shadow-emerald-100"
+                >
+                  {createPayment.isPending ? 'Processing...' : 'Complete Payment'}
+                  <CheckCircle2 className="h-4 w-4" />
+                </ShadcnButton>
+              )}
+            </div>
+          </DialogFooter>
         </DialogContent>
-        <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
-          {activeStep > 0 && <Button onClick={() => setActiveStep(activeStep - 1)}>Back</Button>}
-          {!isLastStep ? (
-            <Button variant="contained" onClick={() => setActiveStep(activeStep + 1)} disabled={activeStep === 0 && !vendorId}>Next</Button>
-          ) : (
-            <Button variant="contained" color="success" onClick={handleSave} disabled={createPayment.isPending || !amount || Number(amount) <= 0}>
-              {createPayment.isPending ? 'Saving...' : 'Save Payment'}
-            </Button>
-          )}
-        </DialogActions>
       </Dialog>
 
-      <Dialog open={openRequestDialog} onClose={() => setOpenRequestDialog(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Create Payment Request</DialogTitle>
-        <DialogContent>
-          <Grid container spacing={2} sx={{ mt: 0.5 }}>
-            <Grid item xs={12}>
-              <Autocomplete options={vendors} getOptionLabel={(o: any) => o.company_name}
-                renderInput={(p) => <TextField {...p} label="Vendor" size="small" fullWidth />} />
-            </Grid>
-            <Grid item xs={12} md={6}><TextField fullWidth type="number" label="Amount Requested" size="small" /></Grid>
-            <Grid item xs={12} md={6}>
-              <FormControl fullWidth size="small"><InputLabel>Priority</InputLabel><Select label="Priority">
-                <MenuItem value="Low">Low</MenuItem><MenuItem value="Normal">Normal</MenuItem>
-                <MenuItem value="High">High</MenuItem><MenuItem value="Urgent">Urgent</MenuItem>
-              </Select></FormControl>
-            </Grid>
-            <Grid item xs={12} md={6}><TextField fullWidth type="date" label="Due Date" size="small" InputLabelProps={{ shrink: true }} /></Grid>
-            <Grid item xs={12}><TextField fullWidth multiline rows={2} label="Reason / Notes" size="small" /></Grid>
-          </Grid>
+      {/* Payment Request Dialog */}
+      <Dialog open={openRequestDialog} onOpenChange={(open) => !open && setOpenRequestDialog(false)}>
+        <DialogContent className="max-w-xl p-0 overflow-hidden">
+          <DialogHeader className="px-6 py-4 border-b bg-primary/5">
+            <DialogTitle className="text-xl font-bold flex items-center gap-2">
+              <PlusCircle className="h-5 w-5 text-primary" />
+              Create Payment Request
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="p-8 space-y-6">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold uppercase text-slate-500">Vendor</Label>
+              <Select>
+                <SelectTrigger className="h-10 border-slate-200">
+                  <SelectValue placeholder="Which vendor are we paying?" />
+                </SelectTrigger>
+                <SelectContent>
+                  {vendors.map((v: any) => (
+                    <SelectItem key={v.id} value={v.id}>{v.company_name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold uppercase text-slate-500">Amount Requested</Label>
+                <Input type="number" placeholder="0.00" className="h-10" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold uppercase text-slate-500">Priority</Label>
+                <Select defaultValue="Normal">
+                  <SelectTrigger className="h-10 border-slate-200">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Low">Low</SelectItem>
+                    <SelectItem value="Normal">Normal</SelectItem>
+                    <SelectItem value="High">High</SelectItem>
+                    <SelectItem value="Urgent">Urgent</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold uppercase text-slate-500">Expected Payment Date</Label>
+              <Input type="date" className="h-10" />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold uppercase text-slate-500">Reason / Notes</Label>
+              <textarea 
+                className="flex min-h-[100px] w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
+                placeholder="Brief description of what this payment is for..."
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="px-6 py-4 border-t bg-slate-50/50">
+            <ShadcnButton variant="outline" onClick={() => setOpenRequestDialog(false)} className="px-8 font-semibold border-slate-200">
+              Cancel
+            </ShadcnButton>
+            <ShadcnButton onClick={() => setOpenRequestDialog(false)} className="px-10 font-bold shadow-lg shadow-primary/10">
+              Submit Request
+            </ShadcnButton>
+          </DialogFooter>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenRequestDialog(false)}>Cancel</Button>
-          <Button variant="contained" onClick={() => setOpenRequestDialog(false)}>Submit Request</Button>
-        </DialogActions>
       </Dialog>
-    </Box>
+    </div>
+
   );
 };
 

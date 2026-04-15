@@ -1,14 +1,34 @@
 import React, { useState } from 'react';
-import {
-  Box, Paper, Typography, Button, TextField, Dialog, DialogTitle, DialogContent, DialogActions,
-  Grid, FormControl, InputLabel, Select, MenuItem, Chip, IconButton, Tooltip, Autocomplete,
-  Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-} from '@mui/material';
-import { DataGrid, GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
-import {
-  Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, NoteAdd as NoteAddIcon,
-  PictureAsPdf as PdfIcon,
-} from '@mui/icons-material';
+import { 
+  Plus, 
+  Search, 
+  FileEdit, 
+  FileText, 
+  PlusCircle,
+  X
+} from 'lucide-react';
+import { Button as ShadcnButton } from '../../../components/ui/button';
+import { Badge } from '../../../components/ui/Badge';
+import { AppTable } from '../../../components/ui/AppTable';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogFooter 
+} from '../../../components/ui/dialog';
+import { Input } from '../../../components/ui/input';
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from '../../../components/ui/select';
+import { Label } from '../../../components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card';
+import { cn } from '../../../lib/utils';
+
 import { useAuth } from '../../../contexts/AuthContext';
 import { useDebitNotes, usePurchaseBills, useVendors, useCreateDebitNote } from '../hooks/usePurchaseQueries';
 
@@ -37,60 +57,201 @@ export const DebitNotes: React.FC = () => {
     setItems([]);
   };
 
-  const columns: GridColDef[] = [
-    { field: 'dn_number', headerName: 'DN #', width: 110, renderCell: (p) => <Typography fontWeight="600" color="error">{p.value}</Typography> },
-    { field: 'dn_date', headerName: 'Date', width: 100, renderCell: (p) => <Typography>{new Date(p.value).toLocaleDateString('en-IN')}</Typography> },
-    { field: 'bill', headerName: 'Original Bill', width: 130, renderCell: (p) => <Typography>{p.value?.bill_number}</Typography> },
-    { field: 'vendor', headerName: 'Vendor', width: 180, renderCell: (p) => <Typography>{p.value?.company_name}</Typography> },
-    { field: 'dn_type', headerName: 'Type', width: 140, renderCell: (p) => <Chip label={p.value} size="small" color="warning" /> },
-    { field: 'total_amount', headerName: 'Amount', width: 120, renderCell: (p) => <Typography align="right" fontWeight="500" color="error">-₹{Number(p.value).toLocaleString()}</Typography> },
-    { field: 'approval_status', headerName: 'Status', width: 120, renderCell: (p) => <Chip label={p.value} size="small" color={p.value === 'Approved' ? 'success' : 'default'} /> },
-    { field: 'actions', headerName: 'Actions', width: 100, sortable: false, renderCell: () => (
-      <Box><IconButton size="small"><PdfIcon fontSize="small" color="error" /></IconButton></Box>
-    )},
+  const columns = [
+    {
+      id: 'dn_number',
+      header: 'DN #',
+      cell: ({ row }: any) => (
+        <span className="font-semibold text-rose-600">
+          {row.original.dn_number}
+        </span>
+      ),
+    },
+    {
+      id: 'dn_date',
+      header: 'Date',
+      cell: ({ row }: any) => new Date(row.original.dn_date).toLocaleDateString('en-IN'),
+    },
+    {
+      id: 'bill',
+      header: 'Original Bill',
+      cell: ({ row }: any) => row.original.bill?.bill_number || '-',
+    },
+    {
+      id: 'vendor',
+      header: 'Vendor',
+      cell: ({ row }: any) => row.original.vendor?.company_name || '-',
+    },
+    {
+      id: 'dn_type',
+      header: 'Type',
+      cell: ({ row }: any) => (
+        <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 text-[10px] font-medium px-2 py-0 h-5">
+          {row.original.dn_type}
+        </Badge>
+      ),
+    },
+    {
+      id: 'total_amount',
+      header: 'Amount',
+      cell: ({ row }: any) => (
+        <div className="font-medium text-right text-rose-600">
+          -₹{Number(row.original.total_amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+        </div>
+      ),
+    },
+    {
+      id: 'approval_status',
+      header: 'Status',
+      cell: ({ row }: any) => {
+        const val = row.original.approval_status;
+        const colors: any = {
+          'Approved': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+          'Pending': 'bg-slate-50 text-slate-700 border-slate-200',
+        };
+        return (
+          <Badge className={cn("text-[10px] font-medium px-2 py-0 h-5 border shadow-none", colors[val] || colors['Pending'])}>
+            {val}
+          </Badge>
+        );
+      },
+    },
+    {
+      id: 'actions',
+      header: 'Actions',
+      cell: () => (
+        <div className="flex items-center gap-1">
+          <ShadcnButton 
+            variant="ghost" 
+            size="icon" 
+            className="h-8 w-8 text-rose-600 hover:bg-rose-50"
+          >
+            <FileText className="h-4 w-4" />
+          </ShadcnButton>
+        </div>
+      ),
+    },
   ];
 
+
   return (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Paper sx={{ p: 2, mb: 2, borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <NoteAddIcon color="error" />
-            <Typography variant="h6" fontFamily="Inter" fontWeight={600}>Debit Notes</Typography>
-          </Box>
-          <Button variant="contained" startIcon={<AddIcon />} onClick={handleAdd} color="error">Create DN</Button>
-        </Box>
-      </Paper>
+    <div className="h-full flex flex-col space-y-4 p-4 md:p-6 bg-slate-50/50">
+      <Card className="border-none shadow-sm overflow-hidden text-sm">
+        <CardHeader className="py-4 px-6 bg-white border-b">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-rose-50 rounded-lg">
+                <FileEdit className="h-5 w-5 text-rose-600" />
+              </div>
+              <div>
+                <CardTitle className="text-lg font-bold text-slate-800">Debit Notes</CardTitle>
+                <p className="text-xs text-slate-500 font-medium">Manage purchase returns and adjustments</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Input
+                  placeholder="Search DN..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9 w-64 h-9 text-xs border-slate-200 focus:ring-rose-200"
+                />
+              </div>
+              <ShadcnButton 
+                onClick={handleAdd} 
+                className="h-9 gap-2 shadow-sm font-semibold bg-rose-600 hover:bg-rose-700"
+              >
+                <Plus className="h-4 w-4" />
+                Create DN
+              </ShadcnButton>
+            </div>
+          </div>
+        </CardHeader>
+      </Card>
 
-      <Paper sx={{ flex: 1, borderRadius: 2, border: '1px solid', borderColor: 'divider', overflow: 'hidden' }}>
-        <DataGrid rows={dns} columns={columns} loading={isLoading} density="compact" disableRowSelectionOnClick
-          sx={{ fontFamily: 'Inter, sans-serif', '& .MuiDataGrid-cell': { fontSize: '13px' }, '& .MuiDataGrid-columnHeader': { fontSize: '12px', fontWeight: 600, backgroundColor: 'grey.50' } }}
-          pageSizeOptions={[25, 50, 100]} initialState={{ pagination: { paginationModel: { pageSize: 25 } } }} />
-      </Paper>
+      <Card className="flex-1 border-none shadow-sm overflow-hidden bg-white">
+        <div className="h-[calc(100vh-220px)] overflow-auto p-1">
+          <AppTable
+            data={dns}
+            columns={columns}
+            loading={isLoading}
+          />
+        </div>
+      </Card>
 
-      <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="md" fullWidth>
-        <DialogTitle sx={{ fontFamily: 'Inter', fontWeight: 600, color: 'error.main' }}>Create Debit Note</DialogTitle>
-        <DialogContent>
-          <Grid container spacing={2} sx={{ mt: 0.5 }}>
-            <Grid item xs={12} md={6}>
-              <Autocomplete options={bills} getOptionLabel={(o: any) => `${o.bill_number} - ${o.vendor?.company_name}`} onChange={(e, v) => setBillId(v?.id || '')}
-                renderInput={(p) => <TextField {...p} label="Select Original Bill *" size="small" fullWidth />} />
-            </Grid>
-            <Grid item xs={12} md={3}>
-              <FormControl fullWidth size="small"><InputLabel>Type</InputLabel><Select value={dnType} onChange={(e) => setDnType(e.target.value)} label="Type">
-                {DN_TYPES.map((t) => <MenuItem key={t} value={t}>{t}</MenuItem>)}
-              </Select></FormControl>
-            </Grid>
-            <Grid item xs={12} md={3}><TextField fullWidth type="date" label="DN Date" value={dnDate} onChange={(e) => setDnDate(e.target.value)} size="small" InputLabelProps={{ shrink: true }} /></Grid>
-            <Grid item xs={12}><TextField fullWidth multiline rows={2} label="Reason *" value={reason} onChange={(e) => setReason(e.target.value)} size="small" placeholder="Reason for debit note..." /></Grid>
-          </Grid>
+      <Dialog open={openDialog} onOpenChange={(open) => !open && setOpenDialog(false)}>
+        <DialogContent className="max-w-3xl p-0 overflow-hidden">
+          <DialogHeader className="px-6 py-4 border-b bg-rose-50/30">
+            <DialogTitle className="text-xl font-bold text-rose-900">Create Debit Note</DialogTitle>
+          </DialogHeader>
+
+          <div className="p-6 space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="md:col-span-2 space-y-1.5 text-sm font-medium">
+                <Label className="text-xs font-bold uppercase text-slate-500 tracking-wider">Original Bill *</Label>
+                <Select value={billId} onValueChange={setBillId}>
+                  <SelectTrigger className="border-slate-200 h-10">
+                    <SelectValue placeholder="Select Original Bill" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-64">
+                    {bills.map((b: any) => (
+                      <SelectItem key={b.id} value={b.id}>
+                        <div className="flex flex-col py-0.5">
+                          <span className="font-bold text-slate-900">{b.bill_number}</span>
+                          <span className="text-[10px] text-slate-500">{b.vendor?.company_name}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold uppercase text-slate-500 tracking-wider">DN Type</Label>
+                <Select value={dnType} onValueChange={setDnType}>
+                  <SelectTrigger className="border-slate-200 h-10">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DN_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold uppercase text-slate-500 tracking-wider">DN Date</Label>
+                <Input type="date" value={dnDate} onChange={(e) => setDnDate(e.target.value)} className="border-slate-200 h-10" />
+              </div>
+
+              <div className="md:col-span-2 space-y-1.5">
+                <Label className="text-xs font-bold uppercase text-slate-500 tracking-wider">Reason *</Label>
+                <textarea 
+                  className="flex min-h-[80px] w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  placeholder="Explain the reason for this debit note..."
+                />
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="px-6 py-4 border-t bg-slate-50/50 flex flex-row items-center justify-between">
+            <ShadcnButton variant="outline" onClick={() => setOpenDialog(false)} className="px-8 border-slate-200 font-semibold">
+              Cancel
+            </ShadcnButton>
+            <ShadcnButton 
+              className="px-10 bg-rose-600 hover:bg-rose-700 font-bold shadow-lg shadow-rose-100"
+              disabled={!billId || !reason}
+            >
+              <FileEdit className="h-4 w-4 mr-2" />
+              Generate DN
+            </ShadcnButton>
+          </DialogFooter>
         </DialogContent>
-        <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
-          <Button variant="contained" color="error" disabled={!billId || !reason}>Create DN</Button>
-        </DialogActions>
       </Dialog>
-    </Box>
+    </div>
+
   );
 };
 

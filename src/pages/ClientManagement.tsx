@@ -58,14 +58,13 @@ type CreateClientProps = {
 const selectCn = 'h-[44px] w-full rounded-xl border border-slate-200/80 bg-white px-4 text-[14px] text-slate-800 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.02)] outline-none transition-all focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/15 hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-50 appearance-none';
 
 const SectionHeading = ({ icon, children, description }: { icon: React.ReactNode; children: React.ReactNode; description?: string }) => (
-  <div className="flex flex-col gap-1 mb-8 pb-5 border-b border-slate-100">
+  <div className="flex flex-col gap-1 mb-6 pb-4 border-b border-slate-100">
     <div className="flex items-center gap-3">
       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100/50 shadow-sm">
         {icon}
       </div>
       <div>
         <h3 className="text-[17px] font-bold text-slate-900 tracking-tight">{children}</h3>
-        {description && <p className="text-[13px] text-slate-500 mt-0.5 font-medium">{description}</p>}
       </div>
     </div>
   </div>
@@ -242,8 +241,8 @@ function ClientDiscountPortfolio({ formData, setFormData, isAdmin }: ClientDisco
     <div className="space-y-16 py-4">
       {/* Strategy Selector */}
       <section>
-        <SectionHeading icon={<CreditCard className="w-5 h-5" />} description="Choose the commercial pricing strategy applicable to this client globally.">
-          Strategic Discount Portfolio
+        <SectionHeading icon={<CreditCard className="w-5 h-5" />}>
+          Discount Strategy
         </SectionHeading>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-4xl">
           <FieldGroup label="Pricing Tier" required>
@@ -294,9 +293,9 @@ function ClientDiscountPortfolio({ formData, setFormData, isAdmin }: ClientDisco
           <div>
             <h3 className="text-[17px] font-bold text-slate-900 tracking-tight flex items-center gap-2">
                <Settings className="w-5 h-5 text-indigo-500" />
-               Custom Variant Definitions
+               Customized Discounts
             </h3>
-            <p className="text-[13px] text-slate-500 mt-1 font-medium">Override maximum limit allowed for particular products.</p>
+            <p className="text-[13px] text-slate-500 mt-1 font-medium">Override default discounts for specific variants.</p>
           </div>
           <Button 
             type="button"
@@ -328,8 +327,8 @@ function ClientDiscountPortfolio({ formData, setFormData, isAdmin }: ClientDisco
             <Table>
               <TableHeader className="bg-slate-50/80 sticky top-0 z-10 backdrop-blur-md">
                 <TableRow className="border-b-slate-200/80">
-                  <TableHead className="w-[60%] text-[13px] font-bold text-slate-600 uppercase tracking-wider py-4">Resource Variant</TableHead>
-                  <TableHead className="w-[40%] text-[13px] font-bold text-slate-600 uppercase tracking-wider py-4 text-right">Fixed Discount %</TableHead>
+                  <TableHead className="w-[60%] text-[13px] font-bold text-slate-600 uppercase tracking-wider py-4">Variant Name</TableHead>
+                  <TableHead className="w-[40%] text-[13px] font-bold text-slate-600 uppercase tracking-wider py-4 text-right">Discount %</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -361,8 +360,8 @@ function ClientDiscountPortfolio({ formData, setFormData, isAdmin }: ClientDisco
 
       {/* Projection Matrix */}
       <section className="pt-2">
-         <SectionHeading icon={<Archive className="w-5 h-5" />} description="Projection of maximum allowed thresholds resulting from the selected structure.">
-            Projection Matrix Preview
+         <SectionHeading icon={<Archive className="w-5 h-5" />}>
+            Discount Matrix Preview
          </SectionHeading>
 
         <div className="max-w-4xl">
@@ -618,8 +617,8 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                <Building2 className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="text-[32px] leading-none font-bold text-slate-900 tracking-tight">{editMode ? 'Edit Client Record' : 'Register External Client'}</h1>
-              <p className="text-[15px] font-medium text-slate-500 mt-2.5 max-w-lg">{editMode ? 'Manage identity properties, multiple shipping nodes, & robust discounting logic across your supply chains.' : 'Initiate a new client entity to unlock quoting mechanisms and comprehensive order routing.'}</p>
+              <h1 className="text-[32px] leading-none font-bold text-slate-900 tracking-tight">{editMode ? 'Edit Client' : 'Add New Client'}</h1>
+              <p className="text-[15px] font-medium text-slate-500 mt-2.5 max-w-lg">{editMode ? 'Update client information and discount settings.' : 'Create a new client profile to manage projects and quotations.'}</p>
             </div>
           </div>
         </div>
@@ -631,13 +630,13 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                  value="general" 
                  className="rounded-xl h-full px-8 text-[14px] font-bold text-slate-500 data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-md transition-all duration-300"
               >
-                Identification Profile
+                General Info
               </TabsTrigger>
               <TabsTrigger 
                  value="pricing" 
                  className="rounded-xl h-full px-8 text-[14px] font-bold text-slate-500 data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-md transition-all duration-300"
               >
-                Financial & Portfolio Rules
+                Discount Settings
               </TabsTrigger>
             </TabsList>
           </div>
@@ -651,52 +650,53 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                   
                   {/* Identity Block */}
                   <section>
-                    <SectionHeading icon={<Building2 className="w-5 h-5 pointer-events-none" />}>Corporate Indentity</SectionHeading>
+                    <SectionHeading icon={<Building2 className="w-5 h-5 pointer-events-none" />}>Client Information</SectionHeading>
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-12 gap-y-8">
-                      <FieldGroup label="Registered Name" required>
-                        <CompactInput value={val('client_name')} onChange={set('client_name')} required placeholder="e.g. Acme Corporation Pvt. Ltd." />
+                      <FieldGroup label="Client Name" required>
+                        <CompactInput value={val('client_name')} onChange={set('client_name')} required placeholder="Enter client name" />
                       </FieldGroup>
                       
-                      <FieldGroup label="Lifecycle Status">
+                      <FieldGroup label="Category">
                          <div className="relative">
                             <select className={selectCn} value={val('category') || 'Active'} onChange={e => setFormData({ ...formData, category: e.target.value })}>
-                              <option value="Active">Active Partner</option>
-                              <option value="Prospect">Warm Prospect</option>
-                              <option value="Inactive">Dormant / Inactive</option>
+                              <option value="Active">Active</option>
+                              <option value="Prospect">Prospect</option>
+                              <option value="Inactive">Inactive</option>
                             </select>
                             <div className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-slate-400">
                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
                             </div>
                          </div>
                       </FieldGroup>
+FieldGroup>
 
-                      <FieldGroup label="Federal GSTIN Structure" error={gstError}>
-                        <CompactInput value={val('gstin')} onChange={handleGstChange} placeholder="Enter exact 15-char structure" maxLength={15} className="font-mono text-[14px] font-semibold tracking-wider placeholder:tracking-normal placeholder:font-sans uppercase" />
+                      <FieldGroup label="GSTIN" error={gstError}>
+                        <CompactInput value={val('gstin')} onChange={handleGstChange} placeholder="15 Digit GSTIN" maxLength={15} className="font-mono text-[14px] font-semibold tracking-wider placeholder:tracking-normal placeholder:font-sans uppercase" />
                       </FieldGroup>
 
-                      <FieldGroup label="Legacy Vendor Record #">
-                        <CompactInput value={val('vendor_no')} onChange={set('vendor_no')} placeholder="Unique ledger alias if applicable" />
+                      <FieldGroup label="Vendor No">
+                        <CompactInput value={val('vendor_no')} onChange={set('vendor_no')} placeholder="Internal reference" />
                       </FieldGroup>
                     </div>
                   </section>
 
                   {/* Operational Nodes (Contacts) */}
                   <section>
-                    <SectionHeading icon={<Users className="w-5 h-5 pointer-events-none" />} description="Critical routing personnel designated to operational, secondary, and financial workflows.">
-                        Key Routing Personnel
+                    <SectionHeading icon={<Users className="w-5 h-5 pointer-events-none" />}>
+                        Contact Information
                     </SectionHeading>
                     
                     <div className="space-y-10">
                       <div>
                         <div className="flex items-center gap-3 mb-5">
                             <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-900 text-white text-[11px] font-black">1</span>
-                            <p className="text-[14px] font-bold text-slate-900 tracking-wide">Primary Representative</p>
+                            <p className="text-[14px] font-bold text-slate-900 tracking-wide">Primary Contact</p>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 pl-9">
-                          <CompactInput value={val('contact_person')} onChange={set('contact_person')} placeholder="FullName Identity" />
-                          <CompactInput value={val('contact_designation')} onChange={set('contact_designation')} placeholder="Role or Title" />
-                          <CompactInput value={val('contact')} onChange={set('contact')} placeholder="Primary Phone" />
-                          <CompactInput type="email" value={val('contact_person_email')} onChange={set('contact_person_email')} placeholder="Digital Inbox" />
+                          <CompactInput value={val('contact_person')} onChange={set('contact_person')} placeholder="Contact name" />
+                          <CompactInput value={val('contact_designation')} onChange={set('contact_designation')} placeholder="Designation" />
+                          <CompactInput value={val('contact')} onChange={set('contact')} placeholder="Phone number" />
+                          <CompactInput type="email" value={val('contact_person_email')} onChange={set('contact_person_email')} placeholder="Email address" />
                         </div>
                       </div>
 
@@ -705,7 +705,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                       <div>
                         <div className="flex items-center gap-3 mb-5">
                             <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-slate-400 text-[11px] font-black">2</span>
-                            <p className="text-[14px] font-bold text-slate-700 tracking-wide">Secondary Point</p>
+                            <p className="text-[14px] font-bold text-slate-700 tracking-wide">Secondary Contact</p>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 pl-9">
                           <CompactInput value={val('contact_person_2')} onChange={set('contact_person_2')} placeholder="FullName Identity" />
@@ -720,7 +720,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                       <div>
                         <div className="flex items-center gap-3 mb-5">
                             <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 text-[11px] font-black">$</span>
-                            <p className="text-[14px] font-bold text-slate-800 tracking-wide">Procurement / Desk</p>
+                            <p className="text-[14px] font-bold text-slate-800 tracking-wide">Purchase Contact</p>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 pl-9">
                           <CompactInput value={val('purchase_person')} onChange={set('purchase_person')} placeholder="Auth Agent" />
@@ -734,8 +734,8 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
 
                   {/* Physical Domains */}
                   <section>
-                    <SectionHeading icon={<MapPin className="w-5 h-5" />} description="Establish primary registration alongside flexible receiving nodes for deliveries.">
-                       Physical Geography Networks
+                    <SectionHeading icon={<MapPin className="w-5 h-5" />}>
+                       Address Details
                     </SectionHeading>
 
                     <div className="grid grid-cols-1 max-w-4xl gap-12">
@@ -775,7 +775,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                         <div className="flex items-center justify-between mb-6">
                           <div className="flex items-center gap-3">
                              <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                             <h4 className="text-[15px] font-bold text-slate-900 tracking-tight">Delivery Transfer Nodes (Shipping)</h4>
+                             <h4 className="text-[15px] font-bold text-slate-900 tracking-tight">Shipping Addresses</h4>
                           </div>
                           {shippingAddresses.length > 0 && (
                             <Button type="button" variant="ghost" size="sm" onClick={copyBillingToShipping} className="text-indigo-600 font-semibold hover:bg-indigo-50">

@@ -23,22 +23,18 @@ import {
   Pencil,
   ArrowLeft,
   ArrowRight,
-  Check
+  Check,
+  Map as MapIcon,
+  User
 } from 'lucide-react';
+import { cn } from '../lib/utils';
 import { QuickAddClientModal } from '../components/QuickAddClientModal';
-import { 
-  Box, 
-  Paper, 
-  Typography, 
-  Button, 
-  TextField, 
-  Chip, 
-  IconButton, 
-  Tooltip 
-} from '@mui/material';
-import MapIcon from '@mui/icons-material/Map';
-import AddIcon from '@mui/icons-material/Add';
-import { toast } from 'sonner';
+import { Button, IconButton } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Badge } from '../components/ui/Badge';
+import { Tabs, TabsList, TabsTrigger } from '../components/ui/Tabs';
+import { Card } from '../components/ui/Card';
+import { toast } from '@/lib/logger';
 import { 
   format, 
   startOfMonth, 
@@ -373,264 +369,200 @@ export function SiteVisits() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-zinc-50">
+    <div className="min-h-screen bg-[oklch(0.99_0.005_255)]">
       {/* Header */}
-      <Paper elevation={2} sx={{ borderBottom: 1, borderColor: 'divider', bgcolor: 'white/80', backdropFilter: 'blur(8px)' }}>
-        <Box sx={{ maxWidth: '1400px', mx: 'auto', px: { xs: 3, sm: 4, lg: 6 }, py: 3 }}>
-          {/* Title Row */}
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', py: 3, gap: 3 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-              <Box sx={{ 
-                width: 56, 
-                height: 56, 
-                borderRadius: 3, 
-                background: 'linear-gradient(135deg, #14b8a6 0%, #0d9488 100%)',
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center',
-                boxShadow: '0 4px 12px rgba(20, 184, 166, 0.25)',
-                transition: 'all 0.3s ease',
-                '&:hover': {
-                  transform: 'translateY(-2px)',
-                  boxShadow: '0 8px 20px rgba(20, 184, 166, 0.35)'
-                }
-              }}>
-                <MapIcon sx={{ fontSize: 28, color: 'white' }} />
-              </Box>
-              <Box sx={{ gap: 1 }}>
-                <Typography variant="h5" sx={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: '24px', lineHeight: 1.2, color: '#0f172a' }}>
+      <header className="sticky top-0 z-30 w-full border-b border-slate-200/60 bg-white/80 backdrop-blur-xl">
+        <div className="max-w-[1400px] mx-auto px-6 py-6">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-[oklch(0.96_0.03_260)] flex items-center justify-center text-indigo-600 shadow-[inset_0_2px_4px_rgba(0,0,0,0.05)] border border-indigo-100/50">
+                <MapIcon className="w-7 h-7" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-slate-900 tracking-tight leading-none mb-1.5">
                   Site Visits
-                </Typography>
-                <Typography variant="body2" sx={{ fontSize: '14px', color: '#64748b', fontWeight: 500 }}>
-                  Track and manage all site visits
-                </Typography>
-              </Box>
-              <Chip 
-                label={`${visits?.length || 0} visits`} 
-                size="medium" 
-                sx={{ 
-                  fontSize: '13px', 
-                  height: 32,
-                  fontWeight: 600,
-                  bgcolor: '#f1f5f9',
-                  color: '#475569',
-                  border: '1px solid #e2e8f0',
-                  '&:hover': {
-                    bgcolor: '#f8fafc',
-                    transform: 'translateY(-1px)'
-                  },
-                  transition: 'all 0.2s ease'
-                }}
-              />
-            </Box>
+                </h1>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium text-slate-500">
+                    Manage and track site visit records
+                  </p>
+                  <span className="w-1 h-1 rounded-full bg-slate-300" />
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[12px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                    {visits?.length || 0} Records
+                  </span>
+                </div>
+              </div>
+            </div>
+            
             <Button
-              variant="contained"
-              startIcon={<AddIcon />}
+              className="h-12 px-6 rounded-xl bg-slate-900 text-white font-bold text-[14px] shadow-xl shadow-slate-900/10 hover:bg-slate-800 transition-all flex items-center gap-2"
               onClick={() => {
                 resetForm();
                 setSelectedVisit(null);
                 setIsFormOpen(true);
               }}
-              sx={{ 
-                fontSize: '14px', 
-                fontWeight: 600,
-                textTransform: 'none',
-                bgcolor: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
-                color: 'white',
-                py: 1.5,
-                px: 3,
-                borderRadius: 2,
-                boxShadow: '0 4px 12px rgba(15, 23, 42, 0.25)',
-                '&:hover': { 
-                  bgcolor: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)',
-                  transform: 'translateY(-1px)',
-                  boxShadow: '0 8px 20px rgba(15, 23, 42, 0.35)'
-                },
-                transition: 'all 0.3s ease'
-              }}
             >
+              <Plus className="w-4 h-4" />
               Add Site Visit
             </Button>
-          </Box>
+          </div>
 
-          {/* Tabs and Filters Row */}
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 3, pb: 2, pt: 1 }}>
-            {/* Tabs */}
-            <Box sx={{ display: 'flex', gap: 1, bgcolor: '#f8fafc', p: 1, borderRadius: 2 }}>
-              <Button
+          <div className="flex items-center justify-between mt-8 gap-4 flex-wrap">
+            <div className="flex items-center gap-1 bg-slate-100/80 p-1 rounded-xl border border-slate-200/50">
+              <button
                 onClick={() => setActiveTab('dashboard')}
-                variant={activeTab === 'dashboard' ? 'contained' : 'text'}
-                size="small"
-                startIcon={<LayoutDashboard className="w-4 h-4" />}
-                sx={{ 
-                  fontSize: '13px', 
-                  fontWeight: 600,
-                  textTransform: 'none',
-                  bgcolor: activeTab === 'dashboard' ? 'white' : 'transparent',
-                  color: activeTab === 'dashboard' ? '#0f172a' : '#64748b',
-                  borderRadius: 1.5,
-                  py: 1,
-                  px: 2.5,
-                  boxShadow: activeTab === 'dashboard' ? '0 2px 8px rgba(0, 0, 0, 0.1)' : 'none',
-                  '&:hover': {
-                    bgcolor: activeTab === 'dashboard' ? 'white' : '#f1f5f9',
-                    color: '#0f172a'
-                  },
-                  transition: 'all 0.2s ease'
-                }}
+                className={cn(
+                  "px-4 py-2 text-[13px] font-bold rounded-lg transition-all",
+                  activeTab === 'dashboard' 
+                    ? "bg-white text-slate-900 shadow-sm" 
+                    : "text-slate-500 hover:text-slate-700 hover:bg-white/50"
+                )}
               >
                 Dashboard
-              </Button>
-              <Button
+              </button>
+              <button
                 onClick={() => setActiveTab('calendar')}
-                variant={activeTab === 'calendar' ? 'contained' : 'text'}
-                size="small"
-                startIcon={<CalendarDays className="w-4 h-4" />}
-                sx={{ 
-                  fontSize: '13px', 
-                  fontWeight: 600,
-                  textTransform: 'none',
-                  bgcolor: activeTab === 'calendar' ? 'white' : 'transparent',
-                  color: activeTab === 'calendar' ? '#0f172a' : '#64748b',
-                  borderRadius: 1.5,
-                  py: 1,
-                  px: 2.5,
-                  boxShadow: activeTab === 'calendar' ? '0 2px 8px rgba(0, 0, 0, 0.1)' : 'none',
-                  '&:hover': {
-                    bgcolor: activeTab === 'calendar' ? 'white' : '#f1f5f9',
-                    color: '#0f172a'
-                  },
-                  transition: 'all 0.2s ease'
-                }}
+                className={cn(
+                  "px-4 py-2 text-[13px] font-bold rounded-lg transition-all",
+                  activeTab === 'calendar' 
+                    ? "bg-white text-slate-900 shadow-sm" 
+                    : "text-slate-500 hover:text-slate-700 hover:bg-white/50"
+                )}
               >
                 Calendar
-              </Button>
-            </Box>
+              </button>
+            </div>
 
-            {/* Search and Filters */}
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-              <TextField
-                placeholder="Search by client, engineer, or person..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                size="small"
-                sx={{ 
-                  minWidth: 320,
-                  '& .MuiInputBase-input': { 
-                    fontSize: '14px',
-                    py: 1.5,
-                    px: 2
-                  },
-                  '& .MuiInputBase-root': { 
-                    height: 40,
-                    borderRadius: 2,
-                    bgcolor: 'white',
-                    border: '1px solid #e2e8f0',
-                    '&:hover': {
-                      border: '1px solid #cbd5e1'
-                    },
-                    '&.Mui-focused': {
-                      border: '1px solid #3b82f6',
-                      boxShadow: '0 0 0 3px rgba(59, 130, 246, 0.1)'
-                    },
-                    transition: 'all 0.2s ease'
-                  }
-                }}
-              />
-              <Box sx={{ display: 'flex', gap: 1, bgcolor: '#f8fafc', p: 1, borderRadius: 2 }}>
-                {['All', 'Pending', 'Scheduled', 'Completed', 'Postponed', 'Cancelled'].map((filter) => (
-                  <Button
+            <div className="flex items-center gap-3 flex-1 max-w-2xl">
+              <div className="relative flex-1">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <Input
+                  placeholder="Query clients, engineers, or personnel..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 h-11 bg-slate-50/50 border-slate-200/60 rounded-xl text-[14px] placeholder:text-slate-400 focus:bg-white transition-all"
+                />
+              </div>
+              
+              <div className="flex items-center gap-1 bg-slate-100/50 p-1 rounded-xl border border-slate-200/50">
+                {['All', 'Pending', 'Scheduled', 'Completed'].map((filter) => (
+                  <button
                     key={filter}
                     onClick={() => setStatusFilter(filter.toLowerCase())}
-                    variant={statusFilter === filter.toLowerCase() ? 'contained' : 'text'}
-                    size="small"
-                    sx={{ 
-                      fontSize: '12px', 
-                      fontWeight: 600,
-                      textTransform: 'none',
-                      minWidth: 'auto',
-                      px: 2,
-                      py: 1,
-                      height: 36,
-                      bgcolor: statusFilter === filter.toLowerCase() ? 'white' : 'transparent',
-                      color: statusFilter === filter.toLowerCase() ? '#0f172a' : '#64748b',
-                      borderRadius: 1.5,
-                      boxShadow: statusFilter === filter.toLowerCase() ? '0 2px 4px rgba(0, 0, 0, 0.1)' : 'none',
-                      '&:hover': {
-                        bgcolor: statusFilter === filter.toLowerCase() ? 'white' : '#f1f5f9',
-                        color: '#0f172a'
-                      },
-                      transition: 'all 0.2s ease'
-                    }}
+                    className={cn(
+                      "px-3 py-1.5 text-[12px] font-bold rounded-lg transition-all",
+                      statusFilter === filter.toLowerCase() 
+                        ? "bg-white text-slate-900 shadow-sm border border-slate-200/50" 
+                        : "text-slate-500 hover:text-slate-700"
+                    )}
                   >
                     {filter}
-                  </Button>
+                  </button>
                 ))}
-              </Box>
-            </Box>
-          </Box>
-        </Box>
-      </Paper>
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {activeTab === 'dashboard' ? (
-          <div className="space-y-6">
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
             {/* Visits List */}
             {isLoadingVisits ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="text-gray-500">Loading visits...</div>
+              <div className="flex flex-col items-center justify-center py-32 gap-4">
+                <div className="w-10 h-10 border-4 border-slate-200 border-t-indigo-600 rounded-full animate-spin" />
+                <p className="text-sm font-bold text-slate-500 tracking-tight">Loading site visits...</p>
               </div>
             ) : filteredVisits.length === 0 ? (
-              <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
-                <CalendarDays className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                <p className="text-gray-500 mb-2">No visits found</p>
-                <p className="text-sm text-gray-400">Create your first site visit to get started</p>
+              <div className="bg-white rounded-[32px] border border-slate-200/60 p-20 text-center shadow-sm">
+                <div className="w-20 h-20 bg-slate-50 rounded-[24px] flex items-center justify-center mx-auto mb-6 border border-slate-100">
+                  <CalendarDays className="w-10 h-10 text-slate-300" />
+                </div>
+                <h3 className="text-xl font-bold text-slate-900 mb-2">No visits found</h3>
+                <p className="text-slate-500 max-w-sm mx-auto font-medium">There are no site visit records matching your search filters.</p>
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="grid grid-cols-1 gap-4">
                 {filteredVisits.map((visit: any) => (
                   <div
                     key={visit.id}
                     onClick={() => openFormForEdit(visit)}
-                    className="bg-white rounded-lg border border-gray-200 p-4 hover:border-blue-300 hover:shadow-sm transition-all cursor-pointer"
+                    className="group relative bg-white rounded-[24px] border border-slate-200/60 p-6 hover:border-indigo-400/50 hover:shadow-[0_12px_24px_-8px_rgba(0,0,0,0.06)] transition-all cursor-pointer overflow-hidden"
                   >
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                      <div className="flex-1 space-y-2">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="font-medium text-gray-900">
-                            {visit.clients?.client_name || 'Unknown Client'}
+                    {/* Visual Accent */}
+                    <div className={cn(
+                      "absolute top-0 left-0 w-1.5 h-full opacity-0 group-hover:opacity-100 transition-opacity",
+                      visit.status === 'completed' ? "bg-emerald-500" :
+                      visit.status === 'scheduled' ? "bg-indigo-500" :
+                      visit.status === 'pending' ? "bg-amber-500" : "bg-slate-400"
+                    )} />
+
+                    <div className="flex items-start justify-between gap-6">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-4">
+                          <h3 className="text-[17px] font-bold text-slate-900 tracking-tight group-hover:text-indigo-600 transition-colors">
+                            {visit.clients?.client_name || 'Anonymous Project'}
                           </h3>
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[visit.status]}`}>
+                          <span className={cn(
+                            "inline-flex items-center px-2.5 py-0.5 rounded-lg text-[11px] font-black uppercase tracking-wider border",
+                            visit.status === 'completed' ? "bg-emerald-50 text-emerald-700 border-emerald-100" :
+                            visit.status === 'scheduled' ? "bg-indigo-50 text-indigo-700 border-indigo-100" :
+                            visit.status === 'pending' ? "bg-amber-50 text-amber-700 border-amber-100" :
+                            "bg-slate-50 text-slate-600 border-slate-100"
+                          )}>
                             {visit.status}
                           </span>
                         </div>
-                        <div className="flex flex-wrap gap-4 text-sm text-gray-500">
-                          <span className="flex items-center gap-1">
-                            <CalendarIcon className="w-3.5 h-3.5" />
-                            {format(parseISO(visit.visit_date), 'MMM dd, yyyy')}
-                          </span>
-                          {visit.visited_by && (
-                            <span className="flex items-center gap-1">
-                              <Clock className="w-3.5 h-3.5" />
-                              {visit.visited_by}
-                            </span>
-                          )}
-                          {visit.purpose && (
-                            <span className="text-gray-600">• {visit.purpose}</span>
-                          )}
+
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                          <div className="space-y-1">
+                            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Temporal</span>
+                            <div className="flex items-center gap-2 text-[14px] font-bold text-slate-700">
+                              <CalendarIcon className="w-3.5 h-3.5 text-slate-400" />
+                              {format(parseISO(visit.visit_date), 'MMM d, yyyy')}
+                            </div>
+                          </div>
+
+                          <div className="space-y-1">
+                            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Personnel</span>
+                            <div className="flex items-center gap-2 text-[14px] font-bold text-slate-700">
+                              <User className="w-3.5 h-3.5 text-slate-400" />
+                              {visit.visited_by || 'Unassigned'}
+                            </div>
+                          </div>
+
+                          <div className="space-y-1">
+                            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Intent</span>
+                            <div className="text-[14px] font-bold text-slate-700 flex items-center gap-1.5">
+                              <span className="w-1.5 h-1.5 rounded-full bg-indigo-500/20 shadow-[0_0_8px_rgba(99,102,241,0.4)]" />
+                              {visit.purpose || 'Discovery'}
+                            </div>
+                          </div>
+
+                          <div className="space-y-1">
+                            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Engineering</span>
+                            <div className="text-[14px] font-bold text-slate-600 italic">
+                               {visit.engineer || 'Standby'}
+                            </div>
+                          </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
+
+                      <div className="flex flex-col items-end gap-2">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             setVisitToDelete(visit);
                           }}
-                          className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                          className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-all border border-transparent hover:border-rose-100"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-4.5 h-4.5" />
                         </button>
+                        <div className="mt-auto">
+                           <ArrowRight className="w-5 h-5 text-slate-300 group-hover:text-indigo-500 group-hover:translate-x-1 transition-all" />
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -653,75 +585,62 @@ export function SiteVisits() {
 
       {/* Multi-Step Form Modal */}
       {isFormOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl my-8">
-            {/* Header */}
-            <div className="p-4 sm:p-6 border-b border-gray-200">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold text-gray-900">
-                  {selectedVisit ? 'Edit Site Visit' : 'New Site Visit'}
-                </h2>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 overflow-y-auto animate-in fade-in duration-500">
+          <div className="bg-white rounded-[40px] shadow-[0_48px_80px_-16px_rgba(0,0,0,0.25)] w-full max-w-2xl my-8 overflow-hidden border border-white/20 animate-in zoom-in-95 duration-400">
+            {/* Header section with refined topography */}
+            <div className="p-10 border-b border-slate-100 bg-linear-to-br from-slate-50/50 to-white">
+              <div className="flex items-center justify-between mb-10">
+                <div>
+                  <h2 className="text-[28px] font-[900] text-slate-900 tracking-[-0.03em] leading-tight">
+                    {selectedVisit ? 'Edit Site Visit' : 'Add New Site Visit'}
+                  </h2>
+                  <p className="text-[14px] font-semibold text-slate-500 mt-2 tracking-tight">
+                    {selectedVisit ? 'Update existing visit details' : 'Enter the details for a new site visit'}
+                  </p>
+                </div>
                 <button
                   onClick={() => setIsFormOpen(false)}
-                  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="w-12 h-12 flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-2xl transition-all border border-slate-100 hover:border-rose-100 hover:rotate-90"
                 >
-                  <XCircle className="w-5 h-5" />
+                  <XCircle className="w-6 h-6" />
                 </button>
               </div>
 
-              {/* Progress Steps - Mobile Optimized */}
-              <div className="relative">
-                {/* Mobile: Compact Progress Bar */}
-                <div className="sm:hidden">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-medium text-gray-600">
-                      Step {currentStep} of {steps.length}
-                    </span>
-                    <span className="text-xs text-gray-500">
-                      {steps[currentStep - 1].title}
-                    </span>
-                  </div>
-                  <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-blue-600 transition-all duration-300 ease-out rounded-full"
-                      style={{ width: `${(currentStep / steps.length) * 100}%` }}
-                    />
-                  </div>
-                </div>
-
-                {/* Desktop: Full Stepper */}
-                <div className="hidden sm:flex items-center justify-between">
+              {/* Progress Stepper - Distinctive Design */}
+              <div className="relative px-2">
+                <div className="flex items-center justify-between">
                   {steps.map((step, index) => (
                     <React.Fragment key={step.number}>
-                      <div className="flex flex-col items-center flex-1">
+                      <div className="flex flex-col items-center relative z-10">
                         <div
-                          className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${
+                          className={cn(
+                            "w-14 h-14 rounded-[20px] flex items-center justify-center transition-all duration-700 shadow-xl border-2",
                             currentStep > step.number
-                              ? 'bg-blue-600 text-white'
+                              ? "bg-emerald-500 border-emerald-400 text-white shadow-emerald-200/50"
                               : currentStep === step.number
-                              ? 'bg-blue-600 text-white ring-4 ring-blue-100'
-                              : 'bg-gray-100 text-gray-400'
-                          }`}
+                              ? "bg-slate-950 border-slate-900 text-white shadow-slate-300/40 ring-8 ring-slate-100"
+                              : "bg-white border-slate-200 text-slate-400"
+                          )}
                         >
                           {currentStep > step.number ? (
-                            <Check className="w-5 h-5" />
+                            <Check className="w-7 h-7 stroke-[4]" />
                           ) : (
-                            <step.icon className="w-5 h-5" />
+                            <step.icon className={cn("w-6 h-6", currentStep === step.number ? "animate-pulse" : "")} />
                           )}
                         </div>
                         <span
-                          className={`mt-2 text-xs font-medium transition-colors ${
-                            currentStep >= step.number ? 'text-gray-900' : 'text-gray-400'
-                          }`}
+                          className={cn(
+                            "mt-4 text-[10px] font-black uppercase tracking-[0.1em] transition-colors",
+                            currentStep >= step.number ? "text-slate-900" : "text-slate-400"
+                          )}
                         >
                           {step.title}
                         </span>
                       </div>
                       {index < steps.length - 1 && (
-                        <div className="flex-1 h-0.5 mx-2 mt-5 relative">
-                          <div className="absolute inset-0 bg-gray-200" />
+                        <div className="flex-1 h-[3px] mx-[-12px] mt-[-34px] relative bg-slate-100 self-center rounded-full overflow-hidden">
                           <div
-                            className="absolute inset-y-0 left-0 bg-blue-600 transition-all duration-300"
+                            className="absolute inset-y-0 left-0 bg-slate-950 transition-all duration-1000 ease-in-out"
                             style={{
                               width: currentStep > step.number ? '100%' : '0%'
                             }}
@@ -734,322 +653,314 @@ export function SiteVisits() {
               </div>
             </div>
 
-            {/* Form Content */}
-            <div className="p-4 sm:p-6">
-              <div className="min-h-[280px]">
-                {/* Step 1: Basic Info */}
+            {/* Form Canvas */}
+            <div className="p-10 bg-white">
+              <div className="min-h-[380px]">
+                {/* Step 1: Core Telemetry */}
                 {currentStep === 1 && (
-                  <div className="space-y-4 animate-fadeIn">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                        Client <span className="text-red-500">*</span>
+                  <div className="space-y-8 animate-in fade-in slide-in-from-right-8 duration-600">
+                    <div className="space-y-3">
+                      <label className="text-[12px] font-black uppercase tracking-[0.15em] text-slate-400 ml-1">
+                        Client <span className="text-rose-500">*</span>
                       </label>
-                      <select
-                        value={formData.client_id}
-                        onChange={(e) => setFormData({ ...formData, client_id: e.target.value })}
-                        className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                      >
-                        <option value="">Select a client</option>
-                        {clients?.map((client: any) => (
-                          <option key={client.id} value={client.id}>
-                            {client.client_name}
-                          </option>
-                        ))}
-                      </select>
+                      <div className="relative group">
+                        <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-slate-950 transition-colors" />
+                        <select
+                          value={formData.client_id}
+                          onChange={(e) => setFormData({ ...formData, client_id: e.target.value })}
+                          className="w-full pl-12 pr-10 py-4 bg-slate-50/50 border-2 border-slate-100 rounded-[24px] focus:ring-0 focus:border-slate-950 focus:bg-white transition-all text-sm font-bold text-slate-900 appearance-none shadow-sm"
+                        >
+                          <option value="">Select Client</option>
+                          {clients?.map((client: any) => (
+                            <option key={client.id} value={client.id}>
+                              {client.client_name}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 rotate-90" />
+                      </div>
                       <button
                         onClick={() => setIsAddClientModalOpen(true)}
-                        className="mt-2 text-xs text-blue-600 hover:text-blue-700 font-medium"
+                        className="flex items-center gap-2 px-2 text-[12px] text-indigo-600 hover:text-indigo-700 font-bold transition-all hover:translate-x-1"
                       >
-                        + Add new client
+                        <Plus className="w-3.5 h-3.5" />
+                        Add New Client
                       </button>
                     </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                        Visit Date <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="date"
-                        value={formData.visit_date}
-                        onChange={(e) => setFormData({ ...formData, visit_date: e.target.value })}
-                        className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                      />
-                    </div>
+                    <div className="grid grid-cols-2 gap-8">
+                      <div className="space-y-3">
+                        <label className="text-[12px] font-black uppercase tracking-[0.15em] text-slate-400 ml-1">
+                          Date <span className="text-rose-500">*</span>
+                        </label>
+                        <div className="relative group">
+                          <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-slate-950 transition-all" />
+                          <input
+                            type="date"
+                            value={formData.visit_date}
+                            onChange={(e) => setFormData({ ...formData, visit_date: e.target.value })}
+                            className="w-full pl-12 pr-4 py-4 bg-slate-50/50 border-2 border-slate-100 rounded-[24px] focus:ring-0 focus:border-slate-950 focus:bg-white transition-all text-sm font-bold text-slate-900 shadow-sm"
+                          />
+                        </div>
+                      </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                        Purpose <span className="text-red-500">*</span>
-                      </label>
-                      <select
-                        value={formData.purpose}
-                        onChange={(e) => {
-                          if (e.target.value === 'ADD_NEW') {
-                            setIsAddPurposeModalOpen(true);
-                          } else {
-                            setFormData({ ...formData, purpose: e.target.value });
-                          }
-                        }}
-                        className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                      >
-                        <option value="">Select purpose</option>
-                        {purposes?.map((p: any) => (
-                          <option key={p.id} value={p.name}>
-                            {p.name}
-                          </option>
-                        ))}
-                        <option value="ADD_NEW">+ Add new purpose</option>
-                      </select>
+                      <div className="space-y-3">
+                        <label className="text-[12px] font-black uppercase tracking-[0.15em] text-slate-400 ml-1">
+                          Purpose <span className="text-rose-500">*</span>
+                        </label>
+                        <div className="relative group">
+                          <FileText className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-slate-950 transition-all" />
+                          <select
+                            value={formData.purpose}
+                            onChange={(e) => {
+                              if (e.target.value === 'ADD_NEW') {
+                                setIsAddPurposeModalOpen(true);
+                              } else {
+                                setFormData({ ...formData, purpose: e.target.value });
+                              }
+                            }}
+                            className="w-full pl-12 pr-10 py-4 bg-slate-50/50 border-2 border-slate-100 rounded-[24px] focus:ring-0 focus:border-slate-950 focus:bg-white transition-all text-sm font-bold text-slate-900 appearance-none shadow-sm"
+                          >
+                            <option value="">Select Purpose</option>
+                            {purposes?.map((p: any) => (
+                              <option key={p.id} value={p.name}>
+                                {p.name}
+                              </option>
+                            ))}
+                            <option value="ADD_NEW">+ Add New Purpose</option>
+                          </select>
+                          <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 rotate-90" />
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}
 
-                {/* Step 2: Visit Details */}
+                {/* Step 2: Resource Allocation */}
                 {currentStep === 2 && (
-                  <div className="space-y-4 animate-fadeIn">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                        Visited By
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.visited_by}
-                        onChange={(e) => setFormData({ ...formData, visited_by: e.target.value })}
-                        placeholder="Name of person who visited"
-                        className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                      />
+                  <div className="space-y-8 animate-in fade-in slide-in-from-right-8 duration-600">
+                    <div className="grid grid-cols-2 gap-8">
+                      <div className="space-y-3">
+                        <label className="text-[12px] font-black uppercase tracking-[0.15em] text-slate-400 ml-1">
+                          Visited By
+                        </label>
+                        <Input
+                          value={formData.visited_by}
+                          onChange={(e) => setFormData({ ...formData, visited_by: e.target.value })}
+                          placeholder="Primary agent"
+                          className="h-14 rounded-[24px] bg-slate-50 border-2 border-slate-100 font-bold focus:bg-white focus:border-slate-950"
+                        />
+                      </div>
+
+                      <div className="space-y-3">
+                        <label className="text-[12px] font-black uppercase tracking-[0.15em] text-slate-400 ml-1">
+                          Engineer
+                        </label>
+                        <Input
+                          value={formData.engineer}
+                          onChange={(e) => setFormData({ ...formData, engineer: e.target.value })}
+                          placeholder="Specialist name"
+                          className="h-14 rounded-[24px] bg-slate-50 border-2 border-slate-100 font-bold focus:bg-white focus:border-slate-950"
+                        />
+                      </div>
                     </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                        Engineer
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.engineer}
-                        onChange={(e) => setFormData({ ...formData, engineer: e.target.value })}
-                        placeholder="Engineer name"
-                        className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                          In Time
+                    <div className="grid grid-cols-2 gap-8 bg-slate-50/80 p-8 rounded-[32px] border-2 border-slate-100 shadow-inner">
+                      <div className="space-y-3">
+                        <label className="text-[12px] font-black uppercase tracking-[0.15em] text-slate-500 ml-1">
+                          Time In
                         </label>
                         <input
                           type="time"
                           value={formData.in_time}
                           onChange={(e) => setFormData({ ...formData, in_time: e.target.value })}
-                          className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                          className="w-full px-6 py-4 bg-white border-2 border-slate-200 rounded-[20px] focus:ring-0 focus:border-slate-950 transition-all text-sm font-bold text-slate-900"
                         />
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                          Out Time
+                      <div className="space-y-3">
+                        <label className="text-[12px] font-black uppercase tracking-[0.15em] text-slate-500 ml-1">
+                          Time Out
                         </label>
                         <input
                           type="time"
                           value={formData.out_time}
                           onChange={(e) => setFormData({ ...formData, out_time: e.target.value })}
-                          className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                          className="w-full px-6 py-4 bg-white border-2 border-slate-200 rounded-[20px] focus:ring-0 focus:border-slate-950 transition-all text-sm font-bold text-slate-900"
                         />
                       </div>
                     </div>
                   </div>
                 )}
 
-                {/* Step 3: Location */}
+                {/* Step 3: Geographic Coordinates */}
                 {currentStep === 3 && (
-                  <div className="space-y-4 animate-fadeIn">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  <div className="space-y-8 animate-in fade-in slide-in-from-right-8 duration-600">
+                    <div className="space-y-3">
+                      <label className="text-[12px] font-black uppercase tracking-[0.15em] text-slate-400 ml-1">
                         Site Address
                       </label>
-                      <input
-                        type="text"
+                      <Input
                         value={formData.site_address}
                         onChange={(e) => setFormData({ ...formData, site_address: e.target.value })}
-                        placeholder="Full site address"
-                        className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                        placeholder="Enter the physical site address"
+                        className="h-14 rounded-[24px] bg-slate-50 border-2 border-slate-100 font-bold focus:bg-white focus:border-slate-950"
                       />
                     </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                        Location URL
+                    <div className="space-y-3">
+                      <label className="text-[12px] font-black uppercase tracking-[0.15em] text-slate-400 ml-1">
+                        Location (Google Maps URL)
                       </label>
-                      <div className="relative">
-                        <input
-                          type="url"
+                      <div className="relative group">
+                        <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-slate-950" />
+                        <Input
                           value={formData.location_url}
                           onChange={(e) => setFormData({ ...formData, location_url: e.target.value })}
-                          placeholder="Google Maps link"
-                          className="w-full px-3 py-2.5 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                          placeholder="Paste Google Maps link"
+                          className="pl-12 h-14 rounded-[24px] bg-slate-50 border-2 border-slate-100 font-bold focus:bg-white focus:border-slate-950"
                         />
-                        <MapPin className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                       </div>
-                      <p className="mt-1.5 text-xs text-gray-500">
-                        Share Google Maps location for easy navigation
+                      <p className="text-[11px] font-bold text-slate-400 px-2 tracking-tight">
+                        Provide a Google Maps link for easy navigation to the site.
                       </p>
                     </div>
                   </div>
                 )}
 
-                {/* Step 4: Notes */}
+                {/* Step 4: Notes & Measurements */}
                 {currentStep === 4 && (
-                  <div className="space-y-4 animate-fadeIn">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  <div className="space-y-8 animate-in fade-in slide-in-from-right-8 duration-600">
+                    <div className="space-y-3">
+                      <label className="text-[12px] font-black uppercase tracking-[0.15em] text-slate-400 ml-1">
                         Discussion
                       </label>
                       <textarea
                         value={formData.discussion}
                         onChange={(e) => setFormData({ ...formData, discussion: e.target.value })}
-                        placeholder="What was discussed with the client..."
-                        rows={4}
-                        className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm resize-none"
+                        placeholder="Enter the details of what was discussed..."
+                        className="w-full p-6 h-36 bg-slate-50/50 border-2 border-slate-200 rounded-[32px] focus:ring-0 focus:border-slate-950 focus:bg-white transition-all text-sm font-semibold text-slate-900 resize-none shadow-sm"
                       />
                     </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    <div className="space-y-3">
+                      <label className="text-[12px] font-black uppercase tracking-[0.15em] text-slate-400 ml-1">
                         Measurements
                       </label>
                       <textarea
                         value={formData.measurements}
                         onChange={(e) => setFormData({ ...formData, measurements: e.target.value })}
-                        placeholder="Site measurements and observations..."
-                        rows={4}
-                        className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm resize-none"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                        Next Step
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.next_step}
-                        onChange={(e) => setFormData({ ...formData, next_step: e.target.value })}
-                        placeholder="What needs to happen next?"
-                        className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                        placeholder="Enter measurements and technical details..."
+                        className="w-full p-6 h-36 bg-slate-50/50 border-2 border-slate-200 rounded-[32px] focus:ring-0 focus:border-slate-950 focus:bg-white transition-all text-sm font-bold text-slate-900 resize-none font-mono shadow-sm"
                       />
                     </div>
                   </div>
                 )}
 
-                {/* Step 5: Review */}
+                {/* Step 5: Review & Confirm */}
                 {currentStep === 5 && (
-                  <div className="space-y-4 animate-fadeIn">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                        Status <span className="text-red-500">*</span>
-                      </label>
-                      <select
-                        value={formData.status}
-                        onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                        className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                      >
-                        <option value="pending">Pending</option>
-                        <option value="scheduled">Scheduled</option>
-                        <option value="completed">Completed</option>
-                        <option value="postponed">Postponed</option>
-                        <option value="cancelled">Cancelled</option>
-                      </select>
-                    </div>
+                  <div className="space-y-8 animate-in fade-in slide-in-from-right-8 duration-600">
+                    <div className="bg-slate-900 rounded-[40px] p-10 text-white shadow-2xl relative overflow-hidden">
+                       {/* Background pattern */}
+                       <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 blur-[80px] rounded-full" />
+                       <div className="absolute bottom-0 left-0 w-48 h-48 bg-emerald-500/10 blur-[60px] rounded-full" />
 
-                    {/* Review Summary */}
-                    <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                      <h4 className="text-sm font-medium text-gray-900 mb-3">Review Summary</h4>
-                      <dl className="space-y-2 text-sm">
-                        <div className="flex justify-between">
-                          <dt className="text-gray-600">Client:</dt>
-                          <dd className="font-medium text-gray-900">
-                            {clients?.find(c => c.id === formData.client_id)?.client_name || 'Not selected'}
-                          </dd>
-                        </div>
-                        <div className="flex justify-between">
-                          <dt className="text-gray-600">Date:</dt>
-                          <dd className="font-medium text-gray-900">
-                            {formData.visit_date ? format(parseISO(formData.visit_date), 'MMM dd, yyyy') : 'Not set'}
-                          </dd>
-                        </div>
-                        <div className="flex justify-between">
-                          <dt className="text-gray-600">Purpose:</dt>
-                          <dd className="font-medium text-gray-900">
-                            {formData.purpose || 'Not specified'}
-                          </dd>
-                        </div>
-                        {formData.visited_by && (
-                          <div className="flex justify-between">
-                            <dt className="text-gray-600">Visited By:</dt>
-                            <dd className="font-medium text-gray-900">{formData.visited_by}</dd>
+                      <div className="relative z-10 space-y-8">
+                        <div className="flex items-center justify-between pb-6 border-b border-white/10">
+                          <div className="flex items-center gap-4">
+                             <div className="w-12 h-12 rounded-[18px] bg-white/10 backdrop-blur-md flex items-center justify-center text-emerald-400">
+                                <CheckCircle2 className="w-7 h-7" />
+                             </div>
+                             <div>
+                                <h4 className="text-xl font-black tracking-tight">Visit Summary</h4>
+                                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Review your entry</p>
+                             </div>
                           </div>
-                        )}
-                        <div className="flex justify-between">
-                          <dt className="text-gray-600">Status:</dt>
-                          <dd>
-                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${statusColors[formData.status]}`}>
-                              {formData.status}
-                            </span>
-                          </dd>
                         </div>
-                      </dl>
+
+                        <div className="grid grid-cols-2 gap-y-8 gap-x-12">
+                          <div className="space-y-1.5">
+                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">Client</span>
+                            <p className="text-[16px] font-black tracking-tight">
+                               {clients?.find(c => c.id === formData.client_id)?.client_name || 'Undefined'}
+                            </p>
+                          </div>
+                          <div className="space-y-1.5">
+                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">Date</span>
+                            <p className="text-[16px] font-black tracking-tight">
+                               {formData.visit_date ? format(parseISO(formData.visit_date), 'MMMM d, yyyy') : 'Indeterminate'}
+                            </p>
+                          </div>
+                          <div className="space-y-1.5">
+                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">Status</span>
+                            <div className="flex items-center gap-2">
+                               <div className={cn("w-2 h-2 rounded-full", 
+                                  formData.status === 'completed' ? "bg-emerald-400" : "bg-amber-400"
+                               )} />
+                               <select
+                                value={formData.status}
+                                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                                className="text-[15px] font-black text-indigo-400 bg-transparent border-none p-0 focus:ring-0 cursor-pointer hover:text-indigo-300 transition-colors"
+                              >
+                                <option className="bg-slate-900 border-none" value="pending">Pending</option>
+                                <option className="bg-slate-900" value="scheduled">Scheduled</option>
+                                <option className="bg-slate-900" value="completed">Completed</option>
+                                <option className="bg-slate-900" value="postponed">Postponed</option>
+                                <option className="bg-slate-900" value="cancelled">Cancelled</option>
+                              </select>
+                            </div>
+                          </div>
+                          <div className="space-y-1.5">
+                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">Purpose</span>
+                            <p className="text-[16px] font-black tracking-tight text-slate-200">{formData.purpose || 'Exploratory'}</p>
+                          </div>
+                        </div>
+
+                        <div className="pt-6 border-t border-white/10">
+                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] block mb-3">Next Step</label>
+                          <Input
+                            value={formData.next_step}
+                            onChange={(e) => setFormData({ ...formData, next_step: e.target.value })}
+                            placeholder="What needs to be done next?"
+                            className="bg-white/5 border-white/10 rounded-[20px] font-bold text-white placeholder:text-slate-600 focus:bg-white/10 h-14"
+                          />
+                        </div>
+                      </div>
                     </div>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Footer Navigation */}
-            <div className="p-4 sm:p-6 border-t border-gray-200 bg-gray-50 rounded-b-xl">
-              <div className="flex items-center justify-between gap-3">
-                <button
-                  onClick={() => {
-                    if (currentStep > 1) {
-                      setCurrentStep(currentStep - 1);
-                    } else {
-                      setIsFormOpen(false);
-                    }
-                  }}
-                  className="inline-flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-white border border-gray-300 rounded-lg transition-colors"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                  <span className="text-sm font-medium">{currentStep === 1 ? 'Cancel' : 'Back'}</span>
-                </button>
-
-                <div className="flex items-center gap-2">
-                  {currentStep < steps.length ? (
-                    <button
-                      onClick={() => setCurrentStep(currentStep + 1)}
-                      disabled={!canProceedToNextStep()}
-                      className="inline-flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
-                    >
-                      <span className="text-sm font-medium">Next</span>
-                      <ArrowRight className="w-4 h-4" />
-                    </button>
-                  ) : (
-                    <button
-                      onClick={handleFormSubmit}
-                      disabled={!canProceedToNextStep() || addVisitMutation.isPending || updateVisitMutation.isPending}
-                      className="inline-flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
-                    >
-                      {addVisitMutation.isPending || updateVisitMutation.isPending ? (
-                        <>
-                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                          <span className="text-sm font-medium">Saving...</span>
-                        </>
-                      ) : (
-                        <>
-                          <Check className="w-4 h-4" />
-                          <span className="text-sm font-medium">Save Visit</span>
-                        </>
-                      )}
-                    </button>
-                  )}
-                </div>
+            {/* Footer Navigation - Refined */}
+            <div className="p-10 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between">
+              <Button
+                variant="outline"
+                onClick={() => currentStep > 1 ? setCurrentStep(currentStep - 1) : setIsFormOpen(false)}
+                className="h-14 px-8 rounded-2xl border-2 border-slate-200 font-black text-[13px] text-slate-600 hover:bg-white hover:border-slate-300 transition-all uppercase tracking-widest"
+              >
+                {currentStep === 1 ? 'Cancel' : 'Previous Step'}
+              </Button>
+              <div className="flex items-center gap-4">
+                {currentStep < steps.length ? (
+                  <Button
+                    onClick={() => setCurrentStep(currentStep + 1)}
+                    disabled={!canProceedToNextStep()}
+                    className="h-14 px-10 rounded-[24px] bg-slate-950 hover:bg-slate-800 text-white font-black text-[13px] uppercase tracking-widest shadow-[0_20px_40px_-12px_rgba(0,0,0,0.2)] hover:shadow-[0_25px_50px_-12px_rgba(0,0,0,0.3)] disabled:opacity-50 transition-all flex items-center gap-3"
+                  >
+                    Next
+                    <ArrowRight className="w-5 h-5" />
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={handleFormSubmit}
+                    isLoading={addVisitMutation.isPending || updateVisitMutation.isPending}
+                    className="h-14 px-10 rounded-[24px] bg-indigo-600 hover:bg-indigo-700 text-white font-black text-[13px] uppercase tracking-widest shadow-[0_20px_40px_-12px_rgba(99,102,241,0.3)] hover:shadow-[0_25px_50px_-12px_rgba(99,102,241,0.4)] transition-all flex items-center gap-3"
+                  >
+                    {selectedVisit ? 'Save Changes' : 'Save Visit'}
+                    <CheckCircle2 className="w-5 h-5" />
+                  </Button>
+                )
+                  }
               </div>
             </div>
           </div>
@@ -1172,86 +1083,102 @@ function CalendarView({ visits, onDateClick, onVisitClick }: { visits: any[], on
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 sm:p-6 bg-gray-50 border-b border-gray-200 gap-4">
-        <div className="flex items-center gap-4">
-          <h2 className="text-xl sm:text-2xl font-semibold text-gray-900">
+    <div className="bg-white rounded-[32px] border border-slate-200/60 shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-700">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-8 bg-slate-50/50 border-b border-slate-100 gap-6">
+        <div className="flex items-center gap-6">
+          <h2 className="text-2xl font-[900] text-slate-900 tracking-tight">
             {format(currentMonth, 'MMMM yyyy')}
           </h2>
-          <div className="flex items-center bg-white border border-gray-200 rounded-lg shadow-sm">
-            <button onClick={prevMonth} className="p-2 hover:bg-gray-50 transition-colors rounded-l-lg">
-              <ChevronLeft className="w-4 h-4" />
+          <div className="flex items-center bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden p-1">
+            <button 
+              onClick={prevMonth} 
+              className="p-2 hover:bg-slate-50 text-slate-500 hover:text-slate-900 transition-all rounded-xl"
+            >
+              <ChevronLeft className="w-4.5 h-4.5" />
             </button>
-            <button onClick={() => setCurrentMonth(new Date())} className="px-3 py-2 text-xs font-medium hover:bg-gray-50 transition-colors border-x border-gray-200">
+            <button 
+              onClick={() => setCurrentMonth(new Date())} 
+              className="px-4 py-1.5 text-[11px] font-black uppercase tracking-widest text-slate-500 hover:text-indigo-600 transition-colors"
+            >
               Today
             </button>
-            <button onClick={nextMonth} className="p-2 hover:bg-gray-50 transition-colors rounded-r-lg">
-              <ChevronRight className="w-4 h-4" />
+            <button 
+              onClick={nextMonth} 
+              className="p-2 hover:bg-slate-50 text-slate-500 hover:text-slate-900 transition-all rounded-xl"
+            >
+              <ChevronRight className="w-4.5 h-4.5" />
             </button>
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-full text-xs font-medium text-gray-600">
-            <div className="w-2 h-2 rounded-full bg-amber-400" /> Pending
-          </div>
-          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-full text-xs font-medium text-gray-600">
-            <div className="w-2 h-2 rounded-full bg-blue-500" /> Scheduled
-          </div>
-          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-full text-xs font-medium text-gray-600">
-            <div className="w-2 h-2 rounded-full bg-emerald-500" /> Completed
-          </div>
+        <div className="flex flex-wrap items-center gap-3">
+          {[
+            { label: 'Pending', color: 'bg-amber-400' },
+            { label: 'Scheduled', color: 'bg-indigo-500' },
+            { label: 'Completed', color: 'bg-emerald-500' }
+          ].map(status => (
+            <div key={status.label} className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-100 rounded-full shadow-xs">
+              <div className={cn("w-2 h-2 rounded-full", status.color)} />
+              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{status.label}</span>
+            </div>
+          ))}
         </div>
       </div>
       
       {/* Calendar Grid */}
-      <div className="hidden sm:block">
-        <div className="grid grid-cols-7 border-b border-gray-200">
+      <div className="p-4 bg-white">
+        <div className="grid grid-cols-7 mb-2">
           {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-            <div key={day} className="py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider bg-gray-50">
+            <div key={day} className="py-3 text-center text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
               {day}
             </div>
           ))}
         </div>
-        <div className="grid grid-cols-7 auto-rows-[minmax(100px,auto)]">
+        <div className="grid grid-cols-7 gap-2">
           {calendarDays.map((day, idx) => {
             const dayVisits = getVisitsForDay(day);
             const isCurrentMonth = isSameMonth(day, monthStart);
+            const isTodayDay = isToday(day);
             
             return (
               <div 
                 key={day.toString()} 
-                className={`border-r border-b border-gray-100 p-2 transition-colors hover:bg-gray-50 group relative cursor-pointer ${
-                  !isCurrentMonth ? 'bg-gray-50/50' : ''
-                } ${idx % 7 === 6 ? 'border-r-0' : ''}`}
+                className={cn(
+                  "min-h-[120px] rounded-2xl p-3 transition-all cursor-pointer relative group border-2",
+                  !isCurrentMonth ? "bg-slate-50/30 border-transparent opacity-40 shadow-none" : "bg-white border-slate-50 hover:border-indigo-200 hover:shadow-lg shadow-indigo-100/20 shadow-sm",
+                  isTodayDay ? "border-indigo-500/20 bg-indigo-50/10" : ""
+                )}
                 onClick={() => onDateClick(day)}
               >
-                <div className="flex justify-between items-start mb-2">
-                  <span className={`text-sm font-semibold w-7 h-7 flex items-center justify-center rounded-full transition-colors ${
-                    isToday(day) ? 'bg-blue-600 text-white' : isCurrentMonth ? 'text-gray-700' : 'text-gray-400'
-                  }`}>
+                <div className="flex justify-between items-start mb-3">
+                  <span className={cn(
+                    "text-[13px] font-black w-7 h-7 flex items-center justify-center rounded-lg transition-all",
+                    isTodayDay ? "bg-indigo-600 text-white shadow-lg shadow-indigo-200" : isCurrentMonth ? "text-slate-900 group-hover:text-indigo-600" : "text-slate-300"
+                  )}>
                     {format(day, 'd')}
                   </span>
-                  <button className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-blue-600">
+                  <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-indigo-50 text-indigo-600 p-1 rounded-md">
                     <Plus className="w-3.5 h-3.5" />
-                  </button>
+                  </div>
                 </div>
 
-                <div className="space-y-1">
+                <div className="space-y-1.5">
                   {dayVisits.map((visit: any) => (
                     <div 
                       key={visit.id}
-                      className={`px-1.5 py-1 rounded text-[10px] font-medium border-l-2 transition-all hover:shadow-sm cursor-pointer ${
-                        visit.status === 'completed' ? 'bg-emerald-50 border-emerald-500 text-emerald-800' :
-                        visit.status === 'scheduled' ? 'bg-blue-50 border-blue-500 text-blue-800' :
-                        visit.status === 'pending' ? 'bg-amber-50 border-amber-500 text-amber-800' :
-                        'bg-gray-50 border-gray-400 text-gray-800'
-                      }`}
+                      className={cn(
+                        "px-2 py-1.5 rounded-lg text-[10px] font-bold border-l-[3px] transition-all hover:translate-x-0.5 shadow-xs mb-1",
+                        visit.status === 'completed' ? "bg-emerald-50 border-emerald-500 text-emerald-800" :
+                        visit.status === 'scheduled' ? "bg-indigo-50 border-indigo-500 text-indigo-800" :
+                        visit.status === 'pending' ? "bg-amber-50 border-amber-500 text-amber-800" :
+                        "bg-slate-50 border-slate-400 text-slate-800"
+                      )}
                       onClick={(e) => {
                         e.stopPropagation();
                         onVisitClick(visit);
                       }}
                     >
-                      <div className="truncate">{visit.clients?.client_name || 'Client'}</div>
+                      <div className="truncate tracking-tight">{visit.clients?.client_name || 'Project'}</div>
+                      <div className="text-[8px] opacity-70 uppercase mt-0.5 truncate">{visit.purpose || 'Discovery'}</div>
                     </div>
                   ))}
                 </div>
@@ -1259,58 +1186,6 @@ function CalendarView({ visits, onDateClick, onVisitClick }: { visits: any[], on
             );
           })}
         </div>
-      </div>
-
-      {/* Mobile Calendar View - List Style */}
-      <div className="sm:hidden divide-y divide-gray-100">
-        {calendarDays.filter(day => isSameMonth(day, monthStart)).map((day) => {
-          const dayVisits = getVisitsForDay(day);
-          
-          return (
-            <div key={day.toString()} className="p-4">
-              <div className="flex items-center gap-3 mb-3">
-                <div className={`w-12 h-12 rounded-lg flex flex-col items-center justify-center ${
-                  isToday(day) ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'
-                }`}>
-                  <span className="text-xs font-medium">{format(day, 'EEE')}</span>
-                  <span className="text-lg font-semibold">{format(day, 'd')}</span>
-                </div>
-                <button
-                  onClick={() => onDateClick(day)}
-                  className="ml-auto p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                >
-                  <Plus className="w-5 h-5" />
-                </button>
-              </div>
-
-              {dayVisits.length > 0 ? (
-                <div className="space-y-2">
-                  {dayVisits.map((visit: any) => (
-                    <div
-                      key={visit.id}
-                      onClick={() => onVisitClick(visit)}
-                      className={`p-3 rounded-lg border-l-4 cursor-pointer transition-all ${
-                        visit.status === 'completed' ? 'bg-emerald-50 border-emerald-500' :
-                        visit.status === 'scheduled' ? 'bg-blue-50 border-blue-500' :
-                        visit.status === 'pending' ? 'bg-amber-50 border-amber-500' :
-                        'bg-gray-50 border-gray-400'
-                      }`}
-                    >
-                      <div className="font-medium text-sm text-gray-900">
-                        {visit.clients?.client_name || 'Client'}
-                      </div>
-                      <div className="text-xs text-gray-600 mt-1">
-                        {visit.purpose || 'No purpose'}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-gray-400 text-center py-2">No visits</p>
-              )}
-            </div>
-          );
-        })}
       </div>
     </div>
   );

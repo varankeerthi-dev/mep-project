@@ -1,51 +1,41 @@
 import React, { useState, useEffect } from 'react';
-import {
-  Box,
-  Paper,
-  Typography,
-  Button,
-  TextField,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Chip,
-  IconButton,
-  Tooltip,
-  Stepper,
-  Step,
-  StepLabel,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Autocomplete,
-  Popper,
-} from '@mui/material';
-import {
-  DataGrid,
-  GridColDef,
-  GridRenderCellParams,
-} from '@mui/x-data-grid';
-import {
-  Add as AddIcon,
-  Edit as EditIcon,
-  Delete as DeleteIcon,
-  Visibility as VisibilityIcon,
-  PictureAsPdf as PdfIcon,
-  Email as EmailIcon,
-  Print as PrintIcon,
-  ShoppingCart as ShoppingCartIcon,
-} from '@mui/icons-material';
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { 
+  Plus, 
+  FileText, 
+  Mail, 
+  Printer, 
+  Eye, 
+  ShoppingCart, 
+  Edit, 
+  Trash2,
+  Filter,
+  Search,
+  ChevronRight,
+  ChevronLeft,
+  X
+} from 'lucide-react';
+import { Button as ShadcnButton } from '../../../components/ui/button';
+import { Badge } from '../../../components/ui/Badge';
+import { AppTable } from '../../../components/ui/AppTable';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogFooter 
+} from '../../../components/ui/dialog';
+import { Input } from '../../../components/ui/input';
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from '../../../components/ui/select';
+import { Label } from '../../../components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card';
+import { cn } from '../../../lib/utils';
+
 import { useAuth } from '../../../contexts/AuthContext';
 import { usePurchaseOrders, useVendors, useCreatePurchaseOrder, useUpdatePOStatus } from '../hooks/usePurchaseQueries';
 import { generatePOPDF, downloadPDF, openPDFPreview } from '../utils/pdfGenerator';
@@ -406,494 +396,520 @@ export const PurchaseOrders: React.FC = () => {
     }
   };
 
-  const columns: GridColDef[] = [
+  const columns = [
     {
-      field: 'po_number',
-      headerName: 'PO Number',
-      width: 130,
-      renderCell: (params: GridRenderCellParams) => (
-        <Typography variant="body2" fontWeight="600" fontFamily="Inter" color="primary">
-          {params.value}
-        </Typography>
+      id: 'po_number',
+      header: 'PO Number',
+      cell: ({ row }: any) => (
+        <span className="font-semibold text-primary hover:underline cursor-pointer">
+          {row.original.po_number}
+        </span>
       ),
     },
     {
-      field: 'po_date',
-      headerName: 'Date',
-      width: 100,
-      renderCell: (params: GridRenderCellParams) => (
-        <Typography variant="body2" fontFamily="Inter">
-          {new Date(params.value).toLocaleDateString('en-IN')}
-        </Typography>
+      id: 'po_date',
+      header: 'Date',
+      cell: ({ row }: any) => new Date(row.original.po_date).toLocaleDateString('en-IN'),
+    },
+    {
+      id: 'vendor',
+      header: 'Vendor',
+      cell: ({ row }: any) => row.original.vendor?.company_name || '-',
+    },
+    {
+      id: 'currency',
+      header: 'Curr',
+      cell: ({ row }: any) => (
+        <Badge variant="outline" className="text-[10px] font-medium px-1.5 py-0 h-5">
+          {row.original.currency}
+        </Badge>
       ),
     },
     {
-      field: 'vendor',
-      headerName: 'Vendor',
-      width: 200,
-      renderCell: (params: GridRenderCellParams) => (
-        <Typography variant="body2" fontFamily="Inter">
-          {params.value?.company_name}
-        </Typography>
-      ),
-    },
-    {
-      field: 'currency',
-      headerName: 'Curr',
-      width: 70,
-      renderCell: (params: GridRenderCellParams) => (
-        <Chip label={params.value} size="small" sx={{ fontSize: '11px' }} />
-      ),
-    },
-    {
-      field: 'total_amount',
-      headerName: 'Amount',
-      width: 130,
-      renderCell: (params: GridRenderCellParams) => (
-        <Typography variant="body2" fontFamily="Inter" align="right" fontWeight="500">
-          {params.row.currency === 'INR' ? '₹' : params.row.currency + ' '}
-          {Number(params.value).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-        </Typography>
-      ),
-    },
-    {
-      field: 'approval_status',
-      headerName: 'Status',
-      width: 130,
-      renderCell: (params: GridRenderCellParams) => {
-        const statusColors: any = {
-          'Draft': 'default',
-          'Pending Approval': 'warning',
-          'Approved': 'info',
-          'Sent': 'primary',
-          'Acknowledged': 'success',
-          'Completed': 'success',
-          'Cancelled': 'error',
-        };
+      id: 'total_amount',
+      header: 'Amount',
+      cell: ({ row }: any) => {
+        const amount = Number(row.original.total_amount);
+        const currency = row.original.currency === 'INR' ? '₹' : row.original.currency + ' ';
         return (
-          <Chip
-            label={params.value}
-            size="small"
-            color={statusColors[params.value] || 'default'}
-            sx={{ fontSize: '11px', fontFamily: 'Inter' }}
-          />
+          <div className="font-medium text-right">
+            {currency}{amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+          </div>
         );
       },
     },
     {
-      field: 'actions',
-      headerName: 'Actions',
-      width: 150,
-      sortable: false,
-      renderCell: (params: GridRenderCellParams) => (
-        <Box>
-          <Tooltip title="View PDF">
-            <IconButton size="small" onClick={() => handleViewPDF(params.row)} sx={{ color: 'error.main' }}>
-              <PdfIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="Email PO">
-            <IconButton size="small" sx={{ color: 'primary.main' }}>
-              <EmailIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="Edit">
-            <IconButton size="small" sx={{ color: 'text.secondary' }}>
-              <EditIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-        </Box>
+      id: 'status',
+      header: 'Status',
+      cell: ({ row }: any) => {
+        const val = row.original.status || row.original.approval_status;
+        const statusColors: any = {
+          'Draft': 'bg-gray-100 text-gray-700 border-gray-200',
+          'Pending Approval': 'bg-amber-50 text-amber-700 border-amber-200',
+          'Approved': 'bg-sky-50 text-sky-700 border-sky-200',
+          'Sent': 'bg-blue-50 text-blue-700 border-blue-200',
+          'Acknowledged': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+          'Completed': 'bg-green-50 text-green-700 border-green-200',
+          'Cancelled': 'bg-red-50 text-red-700 border-red-200',
+        };
+        return (
+          <Badge 
+            className={cn(
+              "text-[10px] font-medium px-2 py-0 h-5 border shadow-none",
+              statusColors[val] || "bg-gray-100 text-gray-700"
+            )}
+          >
+            {val}
+          </Badge>
+        );
+      },
+    },
+    {
+      id: 'actions',
+      header: 'Actions',
+      cell: ({ row }: any) => (
+        <div className="flex items-center gap-1">
+          <ShadcnButton 
+            variant="ghost" 
+            size="icon" 
+            className="h-8 w-8 text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+            onClick={() => handleViewPDF(row.original)}
+          >
+            <FileText className="h-4 w-4" />
+          </ShadcnButton>
+          <ShadcnButton 
+            variant="ghost" 
+            size="icon" 
+            className="h-8 w-8 text-primary hover:bg-primary/10"
+          >
+            <Mail className="h-4 w-4" />
+          </ShadcnButton>
+          <ShadcnButton 
+            variant="ghost" 
+            size="icon" 
+            className="h-8 w-8 text-slate-600 hover:bg-slate-100"
+          >
+            <Edit className="h-4 w-4" />
+          </ShadcnButton>
+        </div>
       ),
     },
   ];
 
-  return (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Paper elevation={0} sx={{ p: 2, mb: 2, borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <ShoppingCartIcon color="primary" />
-            <Typography variant="h6" fontFamily="Inter" fontWeight={600}>
-              Purchase Orders
-            </Typography>
-          </Box>
-          <Box sx={{ display: 'flex', gap: 2 }}>
-            <TextField
-              size="small"
-              placeholder="Search POs..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              sx={{ width: 250, '& .MuiInputBase-input': { fontSize: '12px' } }}
-            />
-            <Button variant="contained" startIcon={<AddIcon />} onClick={handleAdd} sx={{ fontSize: '12px' }}>
-              Create PO
-            </Button>
-          </Box>
-        </Box>
-      </Paper>
 
-      <Paper elevation={0} sx={{ flex: 1, borderRadius: 2, border: '1px solid', borderColor: 'divider', overflow: 'hidden' }}>
-        <DataGrid
-          rows={pos}
-          columns={columns}
-          loading={isLoading}
-          density="compact"
-          disableRowSelectionOnClick
-          sx={{
-            fontFamily: 'Inter, sans-serif',
-            '& .MuiDataGrid-cell': { fontSize: '13px', fontFamily: 'Inter' },
-            '& .MuiDataGrid-columnHeader': { fontSize: '12px', fontWeight: 600, fontFamily: 'Inter', backgroundColor: 'grey.50' },
-          }}
-          pageSizeOptions={[25, 50, 100]}
-          initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
-        />
-      </Paper>
+  return (
+    <div className="h-full flex flex-col space-y-4 p-4 md:p-6 bg-slate-50/50">
+      <Card className="border-none shadow-sm overflow-hidden">
+        <CardHeader className="py-4 px-6 bg-white border-b">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <ShoppingCart className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <CardTitle className="text-lg font-bold text-slate-800">Purchase Orders</CardTitle>
+                <p className="text-xs text-slate-500 font-medium">Manage your procurement workflow</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Input
+                  placeholder="Search POs..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9 w-64 h-9 text-sm border-slate-200 focus:ring-primary/20"
+                />
+              </div>
+              <ShadcnButton 
+                onClick={handleAdd} 
+                className="h-9 gap-2 shadow-sm font-semibold"
+              >
+                <Plus className="h-4 w-4" />
+                Create PO
+              </ShadcnButton>
+            </div>
+          </div>
+        </CardHeader>
+      </Card>
+
+      <Card className="flex-1 border-none shadow-sm overflow-hidden bg-white">
+        <div className="h-[calc(100vh-220px)] overflow-auto p-1">
+          <AppTable
+            data={pos}
+            columns={columns}
+            loading={isLoading}
+          />
+        </div>
+      </Card>
+
 
       {/* Create PO Dialog */}
-      <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="lg" fullWidth>
-        <DialogTitle sx={{ fontFamily: 'Inter', fontWeight: 600, fontSize: '16px' }}>
-          Create Purchase Order
-        </DialogTitle>
-        <DialogContent sx={{ minHeight: 500 }}>
-          <Stepper activeStep={activeStep} sx={{ mb: 3 }}>
-            <Step><StepLabel sx={{ '& .MuiStepLabel-label': { fontSize: '12px' } }}>PO Details</StepLabel></Step>
-            <Step><StepLabel sx={{ '& .MuiStepLabel-label': { fontSize: '12px' } }}>Items</StepLabel></Step>
-            <Step><StepLabel sx={{ '& .MuiStepLabel-label': { fontSize: '12px' } }}>Totals</StepLabel></Step>
-          </Stepper>
+      {/* Create PO Dialog */}
+      <Dialog open={openDialog} onOpenChange={(open) => !open && setOpenDialog(false)}>
+        <DialogContent className="max-w-6xl h-[90vh] flex flex-col p-0">
+          <DialogHeader className="px-6 py-4 border-b">
+            <DialogTitle className="text-xl font-bold">Create Purchase Order</DialogTitle>
+          </DialogHeader>
 
-          {activeStep === 0 && (
-            <LocalizationProvider dateAdapter={AdapterDateFns}>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                {/* Row 1: PO Number and Vendor - Horizontal layout */}
-                <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
-                  <TextField
-                    size="small"
-                    label="PO Number"
-                    value={poNumber}
-                    InputProps={{ readOnly: true }}
-                    sx={{ width: 200, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
-                  />
-                  <Box sx={{ flex: 1 }}>
-                    <Autocomplete
-                      options={vendors}
-                      getOptionLabel={(option) => option.company_name}
-                      onChange={(e, value) => setVendorId(value?.id || '')}
-                      renderInput={(params) => (
-                        <TextField {...params} label="Select Vendor *" size="small" fullWidth sx={{ '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }} />
+          <div className="flex-1 overflow-auto p-6">
+            <div className="flex items-center justify-center mb-8">
+              {[0, 1, 2].map((step) => (
+                <React.Fragment key={step}>
+                  <div className="flex flex-col items-center">
+                    <div 
+                      className={cn(
+                        "h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold transition-colors",
+                        activeStep === step ? "bg-primary text-white" : 
+                        activeStep > step ? "bg-emerald-500 text-white" : "bg-slate-200 text-slate-500"
                       )}
-                      sx={{ width: '100%' }}
-                    />
-                  </Box>
-                </Box>
-                
-                {/* Row 2: Dates with DatePicker */}
-                <Box sx={{ display: 'flex', gap: 2 }}>
-                  <DatePicker
-                    label="PO Date"
-                    value={poDate ? new Date(poDate) : null}
-                    onChange={(newValue) => {
-                      if (newValue) {
-                        setPoDate(newValue.toISOString().split('T')[0]);
-                      }
-                    }}
-                    slotProps={{
-                      textField: {
-                        size: 'small',
-                        fullWidth: true,
-                        sx: { flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }
-                      }
-                    }}
-                  />
-                  <DatePicker
-                    label="Delivery Date"
-                    value={deliveryDate ? new Date(deliveryDate) : null}
-                    onChange={(newValue) => {
-                      if (newValue) {
-                        setDeliveryDate(newValue.toISOString().split('T')[0]);
-                      }
-                    }}
-                    slotProps={{
-                      textField: {
-                        size: 'small',
-                        fullWidth: true,
-                        sx: { flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }
-                      }
-                    }}
-                  />
-                </Box>
-                
-                {/* Row 3: Currency, Exchange Rate, Terms */}
-                <Box sx={{ display: 'flex', gap: 2 }}>
-                  <FormControl size="small" sx={{ flex: 1 }}>
-                    <InputLabel sx={{ fontSize: '12px' }}>Currency</InputLabel>
-                    <Select value={currency} onChange={(e) => setCurrency(e.target.value)} label="Currency" sx={{ fontSize: '12px' }}>
-                      {CURRENCIES.map((c) => (
-                        <MenuItem key={c.code} value={c.code} sx={{ fontSize: '12px' }}>{c.code} ({c.symbol})</MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                  <TextField
-                    label="Exchange Rate"
-                    type="number"
-                    value={exchangeRate}
-                    onChange={(e) => setExchangeRate(Number(e.target.value))}
-                    size="small"
-                    disabled={currency === 'INR'}
-                    sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
-                  />
-                  <TextField
-                    label="Payment Terms"
-                    value={terms}
-                    onChange={(e) => setTerms(e.target.value)}
-                    size="small"
-                    sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
-                  />
-                </Box>
-              </Box>
-            </LocalizationProvider>
-          )}
+                    >
+                      {activeStep > step ? <Plus className="h-4 w-4 rotate-45" /> : step + 1}
+                    </div>
+                    <span className={cn(
+                      "text-[10px] mt-2 font-medium uppercase tracking-wider",
+                      activeStep === step ? "text-primary" : "text-slate-500"
+                    )}>
+                      {step === 0 ? "Details" : step === 1 ? "Items" : "Review"}
+                    </span>
+                  </div>
+                  {step < 2 && (
+                    <div className={cn(
+                      "h-[2px] w-24 mx-4 mb-4 mt-[-10px]",
+                      activeStep > step ? "bg-emerald-500" : "bg-slate-200"
+                    )} />
+                  )}
+                </React.Fragment>
+              ))}
+            </div>
 
-          {activeStep === 1 && (
-            <Box>
-              <Button variant="outlined" startIcon={<AddIcon />} onClick={addItem} sx={{ mb: 2, fontSize: '12px' }}>
-                Add Item
-              </Button>
-              <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 400 }}>
-                <Table size="small" stickyHeader>
-                  <TableHead>
-                    <TableRow sx={{ backgroundColor: 'grey.50' }}>
-                      <TableCell width={40} sx={{ fontSize: '12px', fontWeight: 600 }}>#</TableCell>
-                      <TableCell sx={{ fontSize: '12px', fontWeight: 600 }}>Item Name</TableCell>
-                      <TableCell width={100} sx={{ fontSize: '12px', fontWeight: 600 }}>Make</TableCell>
-                      <TableCell width={100} sx={{ fontSize: '12px', fontWeight: 600 }}>Variant</TableCell>
-                      <TableCell width={80} sx={{ fontSize: '12px', fontWeight: 600 }}>HSN</TableCell>
-                      <TableCell width={70} sx={{ fontSize: '12px', fontWeight: 600 }}>Qty</TableCell>
-                      <TableCell width={60} sx={{ fontSize: '12px', fontWeight: 600 }}>Unit</TableCell>
-                      <TableCell width={90} sx={{ fontSize: '12px', fontWeight: 600 }}>Rate</TableCell>
-                      <TableCell width={60} sx={{ fontSize: '12px', fontWeight: 600 }}>Disc%</TableCell>
-                      <TableCell width={60} sx={{ fontSize: '12px', fontWeight: 600 }}>GST%</TableCell>
-                      <TableCell width={90} align="right" sx={{ fontSize: '12px', fontWeight: 600 }}>Amount</TableCell>
-                      <TableCell width={50}></TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {items.map((item, index) => (
-                      <TableRow key={index}>
-                        <TableCell sx={{ fontSize: '12px' }}>{item.sr}</TableCell>
-                        <TableCell>
-                          <Autocomplete
-                            size="small"
-                            options={materials}
-                            getOptionLabel={(option) => option.display_name || option.name || ''}
-                            isOptionEqualToValue={(option, value) => option.id === value?.id}
-                            filterOptions={(options, state) => {
-                              // Always return all options if input is empty or show all on focus
-                              if (!state.inputValue) return options;
-                              return options.filter(option => 
-                                (option.display_name || option.name || '').toLowerCase().includes(state.inputValue.toLowerCase())
-                              );
-                            }}
-                            onChange={(e, value) => {
-                              if (value) {
-                                // Update item with selected material data
-                                updateItem(index, 'item_name', value.display_name || value.name);
-                                updateItem(index, 'item_id', value.id);
-                                updateItem(index, 'hsn_code', value.hsn_code || '');
-                                updateItem(index, 'unit', value.unit || 'Nos');
-                                updateItem(index, 'rate', value.purchase_price || value.sale_price || 0);
-                                updateItem(index, 'make', value.make || '');
-                                // Set default GST from item
-                                if (value.gst_rate) {
-                                  const gst = value.gst_rate;
-                                  updateItem(index, 'cgst_percent', gst / 2);
-                                  updateItem(index, 'sgst_percent', gst / 2);
-                                  updateItem(index, 'igst_percent', gst);
-                                }
-                              }
-                            }}
-                            renderInput={(params) => (
-                              <TextField {...params} placeholder="Search item..." sx={{ '& .MuiInputBase-input': { fontSize: '12px' } }} />
-                            )}
-                            PopperComponent={(props) => <Popper {...props} style={{ zIndex: 2000 }} />}
-                            sx={{ minWidth: 200 }}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <TextField
-                            size="small"
-                            fullWidth
-                            value={item.make}
-                            onChange={(e) => updateItem(index, 'make', e.target.value)}
-                            placeholder="Make"
-                            sx={{ '& .MuiInputBase-input': { fontSize: '12px' } }}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <FormControl size="small" fullWidth>
-                            <Select
-                              value={item.variant || ''}
-                              onChange={(e) => updateItem(index, 'variant', e.target.value)}
-                              displayEmpty
-                              sx={{ fontSize: '12px' }}
-                            >
-                              <MenuItem value="" sx={{ fontSize: '12px' }}>
-                                <em>Select</em>
-                              </MenuItem>
-                              {variants.map((v) => (
-                                <MenuItem key={v.id} value={v.variant_name} sx={{ fontSize: '12px' }}>
-                                  {v.variant_name}
-                                </MenuItem>
-                              ))}
-                            </Select>
-                          </FormControl>
-                        </TableCell>
-                        <TableCell>
-                          <TextField
-                            size="small"
-                            fullWidth
-                            value={item.hsn_code}
-                            onChange={(e) => updateItem(index, 'hsn_code', e.target.value)}
-                            sx={{ '& .MuiInputBase-input': { fontSize: '12px' } }}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <TextField
-                            size="small"
-                            type="number"
-                            value={item.quantity}
-                            onChange={(e) => {
-                              const value = Number(e.target.value);
-                              if (value > 0 && !isNaN(value)) {
-                                updateItem(index, 'quantity', value);
-                              }
-                            }}
-                            inputProps={{ min: 0.001, step: 0.001 }}
-                            sx={{ '& .MuiInputBase-input': { fontSize: '12px' } }}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <TextField
-                            size="small"
-                            value={item.unit}
-                            onChange={(e) => updateItem(index, 'unit', e.target.value)}
-                            sx={{ '& .MuiInputBase-input': { fontSize: '12px' } }}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <TextField
-                            size="small"
-                            type="number"
-                            value={item.rate}
-                            onChange={(e) => updateItem(index, 'rate', Number(e.target.value))}
-                            sx={{ '& .MuiInputBase-input': { fontSize: '12px' } }}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <TextField
-                            size="small"
-                            type="number"
-                            value={item.discount_percent}
-                            onChange={(e) => updateItem(index, 'discount_percent', Number(e.target.value))}
-                            sx={{ '& .MuiInputBase-input': { fontSize: '12px' } }}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <FormControl size="small" fullWidth>
-                            <Select
-                              value={item.cgst_percent + item.sgst_percent}
-                              onChange={(e) => {
-                                const gst = Number(e.target.value);
+            {activeStep === 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+                <div className="space-y-4">
+                  <div className="grid gap-1.5">
+                    <Label className="text-sm font-semibold">PO Number</Label>
+                    <Input value={poNumber} readOnly className="bg-slate-50 border-slate-200" />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label className="text-sm font-semibold">Vendor <span className="text-rose-500">*</span></Label>
+                    <Select value={vendorId} onValueChange={setVendorId}>
+                      <SelectTrigger className="border-slate-200">
+                        <SelectValue placeholder="Select a vendor" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {vendors.map((v: any) => (
+                          <SelectItem key={v.id} value={v.id}>{v.company_name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label className="text-sm font-semibold">PO Date</Label>
+                    <Input 
+                      type="date" 
+                      value={poDate} 
+                      onChange={(e) => setPoDate(e.target.value)} 
+                      className="border-slate-200"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <div className="grid gap-1.5">
+                    <Label className="text-sm font-semibold">Delivery Date</Label>
+                    <Input 
+                      type="date" 
+                      value={deliveryDate} 
+                      onChange={(e) => setDeliveryDate(e.target.value)} 
+                      className="border-slate-200"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-1.5">
+                      <Label className="text-sm font-semibold">Currency</Label>
+                      <Select value={currency} onValueChange={setCurrency}>
+                        <SelectTrigger className="border-slate-200">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {CURRENCIES.map((c) => (
+                            <SelectItem key={c.code} value={c.code}>{c.code} ({c.symbol})</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid gap-1.5">
+                      <Label className="text-sm font-semibold">Exchange Rate</Label>
+                      <Input 
+                        type="number" 
+                        value={exchangeRate} 
+                        onChange={(e) => setExchangeRate(Number(e.target.value))}
+                        disabled={currency === 'INR'}
+                        className="border-slate-200"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label className="text-sm font-semibold">Payment Terms</Label>
+                    <Input 
+                      value={terms} 
+                      onChange={(e) => setTerms(e.target.value)} 
+                      placeholder="e.g. Net 30"
+                      className="border-slate-200"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeStep === 1 && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-bold text-slate-700 uppercase tracking-tight">Order Items</h3>
+                  <ShadcnButton 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={addItem} 
+                    className="gap-2 h-8 text-xs font-semibold border-slate-200"
+                  >
+                    <Plus className="h-3 w-3" />
+                    Add Item
+                  </ShadcnButton>
+                </div>
+                <div className="border border-slate-200 rounded-lg overflow-hidden bg-white shadow-sm">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-50 border-b border-slate-200 text-slate-600">
+                      <tr>
+                        <th className="px-3 py-2.5 font-bold w-10">#</th>
+                        <th className="px-3 py-2.5 font-bold">Item & Description</th>
+                        <th className="px-3 py-2.5 font-bold w-24">HSN</th>
+                        <th className="px-3 py-2.5 font-bold w-20 text-center">Qty</th>
+                        <th className="px-3 py-2.5 font-bold w-16">Unit</th>
+                        <th className="px-3 py-2.5 font-bold w-24">Rate</th>
+                        <th className="px-3 py-2.5 font-bold w-16 text-center">GST%</th>
+                        <th className="px-3 py-2.5 font-bold w-28 text-right">Total</th>
+                        <th className="px-3 py-2.5 font-bold w-10"></th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {items.map((item, index) => (
+                        <tr key={index} className="hover:bg-slate-50/50">
+                          <td className="px-3 py-2 text-slate-400 font-medium">{item.sr}</td>
+                          <td className="px-3 py-2">
+                            <div className="space-y-1.5">
+                              <Select 
+                                value={item.item_id || ""} 
+                                onValueChange={(val) => {
+                                  const material = materials.find((m: any) => m.id === val);
+                                  if (material) {
+                                    updateItem(index, 'item_name', material.display_name || material.name);
+                                    updateItem(index, 'item_id', material.id);
+                                    updateItem(index, 'hsn_code', material.hsn_code || '');
+                                    updateItem(index, 'unit', material.unit || 'Nos');
+                                    updateItem(index, 'rate', material.purchase_price || material.sale_price || 0);
+                                    updateItem(index, 'make', material.make || '');
+                                    if (material.gst_rate) {
+                                      const gst = material.gst_rate;
+                                      updateItem(index, 'cgst_percent', gst / 2);
+                                      updateItem(index, 'sgst_percent', gst / 2);
+                                      updateItem(index, 'igst_percent', gst);
+                                    }
+                                  }
+                                }}
+                              >
+                                <SelectTrigger className="h-8 text-xs border-slate-100 bg-transparent shadow-none focus:ring-0">
+                                  <SelectValue placeholder="Select item" />
+                                </SelectTrigger>
+                                <SelectContent className="max-h-60">
+                                  {materials.map((m: any) => (
+                                    <SelectItem key={m.id} value={m.id} className="text-xs">
+                                      {m.display_name || m.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <Input 
+                                placeholder="Description/Make" 
+                                value={item.make} 
+                                onChange={(e) => updateItem(index, 'make', e.target.value)}
+                                className="h-7 text-[10px] border-slate-100 bg-transparent shadow-none rounded-sm px-2 focus:ring-0"
+                              />
+                            </div>
+                          </td>
+                          <td className="px-3 py-2">
+                            <Input 
+                              value={item.hsn_code} 
+                              onChange={(e) => updateItem(index, 'hsn_code', e.target.value)}
+                              className="h-8 text-xs border-slate-100 bg-transparent shadow-none focus:ring-0"
+                            />
+                          </td>
+                          <td className="px-3 py-2">
+                            <Input 
+                              type="number" 
+                              value={item.quantity} 
+                              onChange={(e) => updateItem(index, 'quantity', Number(e.target.value))}
+                              className="h-8 text-xs text-center border-slate-100 bg-transparent shadow-none focus:ring-0"
+                            />
+                          </td>
+                          <td className="px-3 py-2">
+                            <Input 
+                              value={item.unit} 
+                              onChange={(e) => updateItem(index, 'unit', e.target.value)}
+                              className="h-8 text-xs border-slate-100 bg-transparent shadow-none focus:ring-0"
+                            />
+                          </td>
+                          <td className="px-3 py-2">
+                            <Input 
+                              type="number" 
+                              value={item.rate} 
+                              onChange={(e) => updateItem(index, 'rate', Number(e.target.value))}
+                              className="h-8 text-xs border-slate-100 bg-transparent shadow-none focus:ring-0"
+                            />
+                          </td>
+                          <td className="px-3 py-2">
+                            <Select 
+                              value={String(item.cgst_percent + item.sgst_percent)} 
+                              onValueChange={(val) => {
+                                const gst = Number(val);
                                 updateItem(index, 'cgst_percent', gst / 2);
                                 updateItem(index, 'sgst_percent', gst / 2);
                                 updateItem(index, 'igst_percent', gst);
                               }}
-                              sx={{ fontSize: '12px' }}
                             >
-                              {GST_RATES.map((rate) => (
-                                <MenuItem key={rate} value={rate} sx={{ fontSize: '12px' }}>{rate}%</MenuItem>
-                              ))}
+                              <SelectTrigger className="h-8 text-xs border-slate-100 bg-transparent shadow-none text-center focus:ring-0 pr-1">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {GST_RATES.map((rate) => (
+                                  <SelectItem key={rate} value={String(rate)} className="text-xs">{rate}%</SelectItem>
+                                ))}
+                              </SelectContent>
                             </Select>
-                          </FormControl>
-                        </TableCell>
-                        <TableCell align="right">
-                          <Typography variant="body2" fontWeight="500" sx={{ fontSize: '12px' }}>
-                            {item.total_amount.toFixed(2)}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <IconButton size="small" color="error" onClick={() => removeItem(index)}>
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            </Box>
-          )}
+                          </td>
+                          <td className="px-3 py-2 text-right font-medium text-slate-700">
+                            {item.total_amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </td>
+                          <td className="px-3 py-2">
+                            <ShadcnButton 
+                              variant="ghost" 
+                              size="icon" 
+                              onClick={() => removeItem(index)}
+                              className="h-7 w-7 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-full"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </ShadcnButton>
+                          </td>
+                        </tr>
+                      ))}
+                      {items.length === 0 && (
+                        <tr>
+                          <td colSpan={9} className="px-3 py-10 text-center text-slate-400 italic">
+                            No items added. Click "Add Item" to start.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
 
-          {activeStep === 2 && (
-            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', mt: 4 }}>
-              <Paper sx={{ p: 2, minWidth: 350, border: '1px solid #ddd' }}>
-                <Typography variant="subtitle2" sx={{ mb: 2, fontFamily: 'Inter', fontWeight: 600, fontSize: '14px' }}>
-                  Order Summary
-                </Typography>
-                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1 }}>
-                  <Typography variant="body2" sx={{ fontFamily: 'Inter', fontSize: '12px' }}>Subtotal:</Typography>
-                  <Typography variant="body2" sx={{ fontFamily: 'Inter', fontSize: '12px' }} align="right">{totals.subtotal.toFixed(2)}</Typography>
-                  
-                  <Typography variant="body2" sx={{ fontFamily: 'Inter', fontSize: '12px' }}>Discount:</Typography>
-                  <Typography variant="body2" sx={{ fontFamily: 'Inter', fontSize: '12px' }} align="right">{totals.discount.toFixed(2)}</Typography>
-                  
-                  <Typography variant="body2" sx={{ fontFamily: 'Inter', fontWeight: 500, fontSize: '12px' }}>Taxable Value:</Typography>
-                  <Typography variant="body2" sx={{ fontFamily: 'Inter', fontSize: '12px' }} align="right" fontWeight="500">{totals.taxable.toFixed(2)}</Typography>
-                  
-                  <Typography variant="body2" sx={{ fontFamily: 'Inter', fontSize: '12px' }}>CGST:</Typography>
-                  <Typography variant="body2" sx={{ fontFamily: 'Inter', fontSize: '12px' }} align="right">{totals.cgst.toFixed(2)}</Typography>
-                  
-                  <Typography variant="body2" sx={{ fontFamily: 'Inter', fontSize: '12px' }}>SGST:</Typography>
-                  <Typography variant="body2" sx={{ fontFamily: 'Inter', fontSize: '12px' }} align="right">{totals.sgst.toFixed(2)}</Typography>
-                  
-                  {totals.igst > 0 && (
-                    <>
-                      <Typography variant="body2" sx={{ fontFamily: 'Inter', fontSize: '12px' }}>IGST:</Typography>
-                      <Typography variant="body2" sx={{ fontFamily: 'Inter', fontSize: '12px' }} align="right">{totals.igst.toFixed(2)}</Typography>
-                    </>
-                  )}
-                  
-                  <Box sx={{ gridColumn: '1 / -1', height: '1px', bgcolor: 'divider', my: 1 }} />
-                  
-                  <Typography variant="body1" sx={{ fontFamily: 'Inter', fontWeight: 700, fontSize: '14px' }}>TOTAL:</Typography>
-                  <Typography variant="body1" sx={{ fontFamily: 'Inter', fontWeight: 700, fontSize: '14px' }} align="right">
-                    {CURRENCIES.find(c => c.code === currency)?.symbol} {totals.total.toFixed(2)}
-                  </Typography>
-                  
-                  {currency !== 'INR' && (
-                    <Typography variant="body2" sx={{ fontFamily: 'Inter', color: 'text.secondary', fontSize: '12px', gridColumn: '1 / -1', textAlign: 'right' }}>
-                      (₹{totals.totalInr.toFixed(2)})
-                    </Typography>
-                  )}
-                </Box>
-              </Paper>
-            </Box>
-          )}
+            {activeStep === 2 && (
+              <div className="max-w-2xl mx-auto space-y-6">
+                <div className="bg-slate-50 border border-slate-100 rounded-xl p-6">
+                  <h3 className="text-sm font-bold text-slate-800 mb-6 flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-primary" />
+                    Order Summary
+                  </h3>
+                  <div className="space-y-3">
+                    <div className="flex justify-between text-sm text-slate-600">
+                      <span>Subtotal</span>
+                      <span className="font-medium">₹{totals.subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="flex justify-between text-sm text-slate-600">
+                      <span>Discount</span>
+                      <span className="font-medium text-rose-500">-₹{totals.discount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="h-px bg-slate-200 my-2" />
+                    <div className="flex justify-between text-sm text-slate-800 font-bold">
+                      <span>Taxable Value</span>
+                      <span>₹{totals.taxable.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="flex justify-between text-xs text-slate-500">
+                      <span>CGST</span>
+                      <span>₹{totals.cgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="flex justify-between text-xs text-slate-500">
+                      <span>SGST</span>
+                      <span>₹{totals.sgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                    {totals.igst > 0 && (
+                      <div className="flex justify-between text-xs text-slate-500">
+                        <span>IGST</span>
+                        <span>₹{totals.igst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                      </div>
+                    )}
+                    <div className="h-[2px] bg-slate-800 mt-6 mb-4" />
+                    <div className="flex justify-between items-center bg-slate-900 text-white rounded-lg p-4 shadow-lg shadow-slate-200">
+                      <span className="text-xs font-bold uppercase tracking-widest opacity-70 font-mono">Grand Total</span>
+                      <div className="text-right">
+                        <span className="text-2xl font-black">
+                          {CURRENCIES.find(c => c.code === currency)?.symbol} {totals.total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </span>
+                        {currency !== 'INR' && (
+                          <div className="text-[10px] uppercase opacity-70 mt-1">
+                            (~ ₹{totals.totalInr.toLocaleString('en-IN', { minimumFractionDigits: 2 })})
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="px-6 py-4 border-t bg-slate-50/50 flex flex-row items-center justify-between">
+            <ShadcnButton 
+              variant="outline" 
+              onClick={() => setOpenDialog(false)}
+              className="px-6 border-slate-200 font-semibold"
+            >
+              Cancel
+            </ShadcnButton>
+            <div className="flex gap-2">
+              {activeStep > 0 && (
+                <ShadcnButton 
+                  variant="outline" 
+                  onClick={() => setActiveStep(activeStep - 1)}
+                  className="gap-2 px-6 border-slate-200 font-semibold"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Back
+                </ShadcnButton>
+              )}
+              {activeStep < 2 ? (
+                <ShadcnButton 
+                  onClick={() => setActiveStep(activeStep + 1)}
+                  className="gap-2 px-8 font-semibold shadow-md"
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4" />
+                </ShadcnButton>
+              ) : (
+                <ShadcnButton 
+                  onClick={handleSave} 
+                  disabled={items.length === 0 || !vendorId}
+                  className="gap-2 px-10 bg-emerald-600 hover:bg-emerald-700 font-bold shadow-lg shadow-emerald-100"
+                >
+                  <ShoppingCart className="h-4 w-4" />
+                  Confirm and Save PO
+                </ShadcnButton>
+              )}
+            </div>
+          </DialogFooter>
         </DialogContent>
-        <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button onClick={() => setOpenDialog(false)} sx={{ fontSize: '12px' }}>Cancel</Button>
-          {activeStep > 0 && (
-            <Button onClick={() => setActiveStep(activeStep - 1)} sx={{ fontSize: '12px' }}>Back</Button>
-          )}
-          {activeStep < 2 ? (
-            <Button variant="contained" onClick={() => setActiveStep(activeStep + 1)} sx={{ fontSize: '12px' }}>Next</Button>
-          ) : (
-            <Button variant="contained" onClick={handleSave} disabled={items.length === 0 || !vendorId} sx={{ fontSize: '12px' }}>
-              Save PO
-            </Button>
-          )}
-        </DialogActions>
       </Dialog>
-    </Box>
+    </div>
   );
 };
 

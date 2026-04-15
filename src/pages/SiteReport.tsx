@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
-import { toast } from 'sonner';
+import { toast } from '@/lib/logger';
 import { generateProGridSiteReportPdf } from '@/pdf/proGridSiteReportPdf';
 import {
   Badge,
@@ -63,10 +63,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useAuth } from '../App';
 
-// Material-UI imports
-import { Box, Paper, Typography, Button, TextField, Chip, IconButton, Tooltip } from '@mui/material';
-import ConstructionIcon from '@mui/icons-material/Construction';
-import AddIcon from '@mui/icons-material/Add';
+// Removed Material-UI imports
 
 const siteReportSchema = z.object({
   client: z.string().min(1, "Client name is required"),
@@ -554,75 +551,31 @@ export function SiteReport() {
                   className="h-8 w-56 border-0 bg-transparent p-0 text-sm shadow-none focus-visible:ring-0 placeholder:text-zinc-400"
                 />
               </div>
-              <Chip 
-                label={`${reports?.length || 0} reports`} 
-                size="medium"
-                sx={{ 
-                  fontSize: '13px', 
-                  height: 32,
-                  fontWeight: 600,
-                  bgcolor: '#f1f5f9',
-                  color: '#475569',
-                  border: '1px solid #e2e8f0',
-                  '&:hover': {
-                    bgcolor: '#f8fafc',
-                    transform: 'translateY(-1px)'
-                  },
-                  transition: 'all 0.2s ease'
-                }}
-              />
-              <Button 
-                variant="contained" 
-                startIcon={<AddIcon />}
+              <Badge
+                variant="neutral"
+                className="text-[13px] h-8 font-bold px-3 bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-50 transition-all cursor-default"
+              >
+                {reportsLoading ? "..." : `${reports?.length || 0} reports`}
+              </Badge>
+              <ShadcnButton 
                 onClick={() => {
                   form.reset();
                   setView('create');
                 }}
-                sx={{ 
-                  fontSize: '14px',
-                  fontWeight: 600,
-                  textTransform: 'none',
-                  bgcolor: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
-                  color: 'white',
-                  py: 1.5,
-                  px: 3,
-                  borderRadius: 2,
-                  boxShadow: '0 4px 12px rgba(15, 23, 42, 0.25)',
-                  '&:hover': { 
-                    bgcolor: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)',
-                    transform: 'translateY(-1px)',
-                    boxShadow: '0 8px 20px rgba(15, 23, 42, 0.35)'
-                  },
-                  transition: 'all 0.3s ease'
-                }}
+                className="h-9 px-4 text-sm font-bold bg-slate-900 text-white hover:bg-slate-800 shadow-lg shadow-slate-900/10 transition-all active:scale-95"
               >
+                <Plus className="w-4 h-4 mr-2" />
                 Create Report
-              </Button>
-              <Button 
-                variant="contained" 
-                startIcon={<FileText />}
+              </ShadcnButton>
+              <ShadcnButton 
+                variant="outline"
                 onClick={handlePrintPDF}
                 disabled={view !== 'edit'}
-                sx={{ 
-                  fontSize: '14px',
-                  fontWeight: 600,
-                  textTransform: 'none',
-                  bgcolor: 'linear-gradient(135deg, #dc2626 0%, #16a34a 100%)',
-                  color: 'white',
-                  py: 1.5,
-                  px: 3,
-                  borderRadius: 2,
-                  boxShadow: '0 4px 12px rgba(15, 23, 42, 0.25)',
-                  '&:hover': { 
-                    bgcolor: 'linear-gradient(135deg, #16a34a 0%, #1e40af 100%)',
-                    transform: 'translateY(-1px)',
-                    boxShadow: '0 8px 20px rgba(15, 23, 42, 0.35)'
-                  },
-                  transition: 'all 0.3s ease'
-                }}
+                className="h-9 px-4 text-sm font-bold border-slate-200 text-slate-700 hover:bg-slate-50 transition-all active:scale-95 disabled:opacity-50"
               >
+                <FileText className="w-4 h-4 mr-2" />
                 Print PDF
-              </Button>
+              </ShadcnButton>
             </div>
           </div>
 

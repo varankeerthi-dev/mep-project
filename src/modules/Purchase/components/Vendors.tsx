@@ -1,38 +1,36 @@
-import React, { useState, useEffect } from 'react';
-import {
-  Box,
-  Paper,
-  Typography,
-  Button,
-  TextField,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Chip,
-  IconButton,
-  Tooltip,
-} from '@mui/material';
-import {
-  DataGrid,
-  GridColDef,
-  GridRenderCellParams,
-} from '@mui/x-data-grid';
-import {
-  Add as AddIcon,
-  Edit as EditIcon,
-  Search as SearchIcon,
-  Business as BusinessIcon,
-  MenuBook as MenuBookIcon,
-} from '@mui/icons-material';
+import React, { useState, useEffect, useMemo } from 'react';
+import { 
+  Plus, 
+  Search, 
+  Building2, 
+  BookOpen, 
+  FileEdit, 
+  User, 
+  Mail, 
+  Phone, 
+  MapPin, 
+  CreditCard, 
+  Landmark, 
+  MoreHorizontal,
+  ChevronRight,
+  ShieldCheck,
+  AlertCircle
+} from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useVendors, useCreateVendor, useUpdateVendor } from '../hooks/usePurchaseQueries';
 import { supabase } from '../../../supabase';
 import VendorLedgerDialog from './VendorLedgerDialog';
+
+// Import local UI components
+import { Modal } from '../../../components/ui/Modal';
+import { Button } from '../../../components/ui/button';
+import { Input } from '../../../components/ui/input';
+import { Badge } from '../../../components/ui/Badge';
+import { Card, CardContent } from '../../../components/ui/Card';
+import { AppTable } from '../../../components/ui/AppTable';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../components/ui/select';
+import { Textarea } from '../../../components/ui/textarea';
+import { cn } from '../../../lib/utils';
 
 import { 
   validateGSTIN, 
@@ -235,504 +233,472 @@ export const Vendors: React.FC = () => {
       setErrors({});
     } catch (error) {
       console.error('Error saving vendor:', error);
-      alert('Error saving vendor: ' + (error as Error).message);
     }
   };
 
-  const filteredVendors = vendors.filter((vendor: any) =>
-    vendor.company_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    vendor.gstin?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    vendor.remarks?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredVendors = useMemo(() => {
+    return vendors.filter((vendor: any) =>
+      vendor.company_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      vendor.gstin?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      vendor.remarks?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [vendors, searchTerm]);
 
-  const columns: GridColDef[] = [
+  const columns = [
     {
-      field: 'vendor_code',
-      headerName: 'Code',
-      width: 90,
-      headerAlign: 'center',
-      align: 'center',
-      renderCell: (params: GridRenderCellParams) => (
-        <Typography variant="body2" fontWeight="500" fontFamily="Inter">
-          {params.value}
-        </Typography>
+      key: 'vendor_code',
+      header: 'Code',
+      render: (vendor: any) => (
+        <span className="font-mono text-xs font-semibold bg-slate-100 px-2 py-1 rounded text-slate-700 border border-slate-200">
+          {vendor.vendor_code}
+        </span>
       ),
     },
     {
-      field: 'company_name',
-      headerName: 'Vendor Name',
-      width: 200,
-      renderCell: (params: GridRenderCellParams) => (
-        <Box>
-          <Typography variant="body2" fontWeight="500" fontFamily="Inter">
-            {params.value}
-          </Typography>
-          <Typography variant="caption" color="text.secondary" fontFamily="Inter">
-            {params.row.contact_person}
-          </Typography>
-        </Box>
+      key: 'company_name',
+      header: 'Vendor Name',
+      render: (vendor: any) => (
+        <div className="flex flex-col">
+          <span className="font-bold text-slate-900 line-clamp-1">{vendor.company_name}</span>
+          <span className="text-xs text-slate-500">{vendor.contact_person}</span>
+        </div>
       ),
     },
     {
-      field: 'remarks',
-      headerName: 'Material Type',
-      width: 180,
-      renderCell: (params: GridRenderCellParams) => (
-        <Tooltip title={params.value || ''} arrow>
-          <Typography
-            variant="body2"
-            fontFamily="Inter"
-            sx={{
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}
+      key: 'remarks',
+      header: 'Material Type',
+      render: (vendor: any) => (
+        <span className="text-sm text-slate-600 line-clamp-1 max-w-[150px]" title={vendor.remarks}>
+          {vendor.remarks || '-'}
+        </span>
+      ),
+    },
+    {
+      key: 'gstin',
+      header: 'GSTIN',
+      render: (vendor: any) => (
+        <span className="text-xs font-medium text-slate-600 tracking-tight">
+          {vendor.gstin || '-'}
+        </span>
+      ),
+    },
+    {
+      key: 'default_currency',
+      header: 'Currency',
+      render: (vendor: any) => (
+        <Badge variant="outline" className="text-[10px] font-bold">
+          {vendor.default_currency}
+        </Badge>
+      ),
+    },
+    {
+      key: 'credit_limit',
+      header: 'Credit Limit',
+      align: 'right' as const,
+      render: (vendor: any) => (
+        <span className="text-sm font-semibold text-slate-700">
+          ₹{Number(vendor.credit_limit || 0).toLocaleString('en-IN')}
+        </span>
+      ),
+    },
+    {
+      key: 'status',
+      header: 'Status',
+      render: (vendor: any) => (
+        <Badge variant={vendor.status === 'Active' ? 'success' : 'secondary'} className="rounded-full px-3">
+          {vendor.status}
+        </Badge>
+      ),
+    },
+    {
+      key: 'actions',
+      header: '',
+      align: 'right' as const,
+      render: (vendor: any) => (
+        <div className="flex items-center justify-end gap-1">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => handleOpenLedger(vendor)}
+            className="text-slate-500 hover:text-blue-600"
+            title="Vendor Ledger"
           >
-            {params.value || '-'}
-          </Typography>
-        </Tooltip>
-      ),
-    },
-    {
-      field: 'gstin',
-      headerName: 'GSTIN',
-      width: 130,
-      renderCell: (params: GridRenderCellParams) => (
-        <Typography variant="body2" fontFamily="Inter" fontSize="12px">
-          {params.value}
-        </Typography>
-      ),
-    },
-    {
-      field: 'default_currency',
-      headerName: 'Currency',
-      width: 80,
-      headerAlign: 'center',
-      align: 'center',
-      renderCell: (params: GridRenderCellParams) => (
-        <Chip
-          label={params.value}
-          size="small"
-          sx={{ fontSize: '11px', fontFamily: 'Inter' }}
-        />
-      ),
-    },
-    {
-      field: 'payment_terms',
-      headerName: 'Payment',
-      width: 100,
-      renderCell: (params: GridRenderCellParams) => (
-        <Typography variant="body2" fontFamily="Inter" fontSize="12px">
-          {params.value}
-        </Typography>
-      ),
-    },
-    {
-      field: 'credit_limit',
-      headerName: 'Credit Limit',
-      width: 110,
-      type: 'number',
-      renderCell: (params: GridRenderCellParams) => (
-        <Typography variant="body2" fontFamily="Inter" align="right">
-          ₹{Number(params.value).toLocaleString('en-IN')}
-        </Typography>
-      ),
-    },
-    {
-      field: 'status',
-      headerName: 'Status',
-      width: 90,
-      headerAlign: 'center',
-      align: 'center',
-      renderCell: (params: GridRenderCellParams) => (
-        <Chip
-          label={params.value}
-          size="small"
-          color={params.value === 'Active' ? 'success' : 'default'}
-          sx={{ fontSize: '11px', fontFamily: 'Inter' }}
-        />
-      ),
-    },
-    {
-      field: 'actions',
-      headerName: 'Actions',
-      width: 100,
-      sortable: false,
-      headerAlign: 'center',
-      align: 'center',
-      renderCell: (params: GridRenderCellParams) => (
-        <Box>
-          <Tooltip title="Vendor Ledger">
-            <IconButton
-              size="small"
-              onClick={() => handleOpenLedger(params.row)}
-              sx={{ color: 'text.secondary' }}
-            >
-              <MenuBookIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="Edit">
-            <IconButton
-              size="small"
-              onClick={() => handleEdit(params.row)}
-              sx={{ color: 'primary.main' }}
-            >
-              <EditIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-        </Box>
+            <BookOpen className="w-4 h-4" />
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => handleEdit(vendor)}
+            className="text-slate-500 hover:text-blue-600"
+            title="Edit Vendor"
+          >
+            <FileEdit className="w-4 h-4" />
+          </Button>
+        </div>
       ),
     },
   ];
 
   return (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      {/* Header */}
-      <Paper
-        elevation={0}
-        sx={{
-          p: 2,
-          mb: 2,
-          borderRadius: 2,
-          border: '1px solid',
-          borderColor: 'divider',
-        }}
-      >
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <BusinessIcon color="primary" />
-            <Typography variant="h6" fontFamily="Inter" fontWeight={600}>
-              Vendors / Suppliers
-            </Typography>
-            <Chip
-              label={`${filteredVendors.length} vendors`}
-              size="small"
-              sx={{ ml: 1, fontFamily: 'Inter' }}
-            />
-          </Box>
-          <Box sx={{ display: 'flex', gap: 2 }}>
-            <TextField
-              size="small"
-              placeholder="Search vendors..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              InputProps={{
-                startAdornment: <SearchIcon sx={{ color: 'text.secondary', mr: 1 }} />,
-              }}
-              sx={{ width: 250 }}
-            />
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
+    <div className="flex flex-col gap-6 p-6 h-full animate-in fade-in duration-500">
+      {/* Header Card */}
+      <Card className="rounded-[2rem] border-none shadow-xl shadow-slate-200/50 bg-white overflow-hidden">
+        <div className="p-8 pb-6 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-200 ring-4 ring-blue-50">
+              <Building2 className="w-7 h-7 text-white" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-black text-slate-900 tracking-tight">Vendors</h1>
+              <div className="flex items-center gap-2 mt-1">
+                <Badge variant="secondary" className="bg-slate-100 text-slate-600 border-none font-bold px-3">
+                  {filteredVendors.length} Suppliers
+                </Badge>
+                <span className="text-slate-300">/</span>
+                <span className="text-sm font-medium text-slate-500">Directory & Ledger Management</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
+            <div className="relative group min-w-[300px]">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none transition-colors group-focus-within:text-blue-600 text-slate-400">
+                <Search className="w-5 h-5" />
+              </div>
+              <Input
+                placeholder="Search vendors by name, GST or material..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-12 bg-slate-50 border-slate-200 focus:bg-white focus:ring-4 focus:ring-blue-100 transition-all rounded-2xl h-12"
+              />
+            </div>
+            <Button 
               onClick={handleAdd}
-              sx={{ fontFamily: 'Inter', textTransform: 'none' }}
+              className="rounded-2xl h-12 px-8 bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-200 flex items-center gap-2 font-bold transition-all hover:translate-y-[-2px] active:translate-y-[0px]"
             >
-              Add Vendor
+              <Plus className="w-5 h-5" />
+              <span>Add Vendor</span>
             </Button>
-          </Box>
-        </Box>
-      </Paper>
+          </div>
+        </div>
+      </Card>
 
-      {/* DataGrid */}
-      <Paper
-        elevation={0}
-        sx={{
-          flex: 1,
-          borderRadius: 2,
-          border: '1px solid',
-          borderColor: 'divider',
-          overflow: 'hidden',
-        }}
-      >
-        <DataGrid
-          rows={filteredVendors}
+      {/* Main Table Card */}
+      <Card className="flex-1 rounded-[2rem] border-none shadow-xl shadow-slate-200/50 bg-white overflow-hidden p-0 relative">
+        <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-blue-500/20 to-transparent"></div>
+        <AppTable
           columns={columns}
-          loading={isLoading}
-          density="compact"
-          disableRowSelectionOnClick
-          hideFooterSelectedRowCount
-          sx={{
-            fontFamily: 'Inter, sans-serif',
-            '& .MuiDataGrid-cell': {
-              fontSize: '13px',
-              fontFamily: 'Inter, sans-serif',
-            },
-            '& .MuiDataGrid-columnHeader': {
-              fontSize: '12px',
-              fontWeight: 600,
-              fontFamily: 'Inter, sans-serif',
-              backgroundColor: 'grey.50',
-            },
-            '& .MuiDataGrid-row:hover': {
-              backgroundColor: 'action.hover',
-            },
-          }}
-          pageSizeOptions={[25, 50, 100]}
-          initialState={{
-            pagination: {
-              paginationModel: { pageSize: 25 },
-            },
-          }}
+          data={filteredVendors}
+          isLoading={isLoading}
+          emptyMessage={
+            <div className="flex flex-col items-center justify-center py-20 animate-in fade-in slide-in-from-bottom-4 duration-700">
+              <div className="w-24 h-24 rounded-full bg-slate-50 flex items-center justify-center mb-6">
+                <Building2 className="w-10 h-10 text-slate-200" />
+              </div>
+              <h3 className="text-xl font-bold text-slate-900">No vendors found</h3>
+              <p className="text-slate-500 mt-2 max-w-sm text-center">
+                {searchTerm ? "Try adjusting your search filters" : "Start by adding your first vendor to begin managing purchases."}
+              </p>
+              {!searchTerm && (
+                <Button variant="outline" className="mt-6 rounded-xl" onClick={handleAdd}>
+                  <Plus className="w-4 h-4 mr-2" /> Add New Vendor
+                </Button>
+              )}
+            </div>
+          }
         />
-      </Paper>
+      </Card>
 
-      {/* Add/Edit Dialog */}
-      <Dialog
-        open={openDialog}
+      {/* Add/Edit Modal */}
+      <Modal
+        isOpen={openDialog}
         onClose={() => setOpenDialog(false)}
-        maxWidth="md"
-        fullWidth
+        title={editMode ? "Edit Vendor Details" : "Register New Vendor"}
+        maxWidth="4xl"
       >
-        <DialogTitle sx={{ fontFamily: 'Inter', fontWeight: 600, fontSize: '16px' }}>
-          {editMode ? 'Edit Vendor' : 'Add New Vendor'}
-        </DialogTitle>
-        <DialogContent>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
-            {/* Row 1: Company Name, Contact Person, Email */}
-            <Box sx={{ display: 'flex', gap: 2 }}>
-              <TextField
-                sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
-                label="Company Name *"
-                value={formData.company_name}
-                onChange={(e) => {
-                  setFormData({ ...formData, company_name: e.target.value });
-                  if (errors.company_name) setErrors({ ...errors, company_name: '' });
-                }}
-                size="small"
-                required
-                error={!!errors.company_name}
-                helperText={errors.company_name}
-              />
-              <TextField
-                sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
-                label="Contact Person"
-                value={formData.contact_person}
-                onChange={(e) => setFormData({ ...formData, contact_person: e.target.value })}
-                size="small"
-              />
-              <TextField
-                sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
-                label="Email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => {
-                  setFormData({ ...formData, email: e.target.value });
-                  if (errors.email) setErrors({ ...errors, email: '' });
-                }}
-                size="small"
-                error={!!errors.email}
-                helperText={errors.email}
-              />
-            </Box>
-            
-            {/* Row 2: Phone, GSTIN, PAN */}
-            <Box sx={{ display: 'flex', gap: 2 }}>
-              <TextField
-                sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
-                label="Phone"
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                size="small"
-              />
-              <TextField
-                sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
-                label="GSTIN"
-                value={formData.gstin}
-                onChange={(e) => {
-                  setFormData({ ...formData, gstin: e.target.value.toUpperCase() });
-                  if (errors.gstin) setErrors({ ...errors, gstin: '' });
-                }}
-                size="small"
-                error={!!errors.gstin}
-                helperText={errors.gstin || 'Format: 27AABCU9603R1ZM'}
-              />
-              <TextField
-                sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
-                label="PAN"
-                value={formData.pan}
-                onChange={(e) => {
-                  setFormData({ ...formData, pan: e.target.value.toUpperCase() });
-                  if (errors.pan) setErrors({ ...errors, pan: '' });
-                }}
-                size="small"
-                error={!!errors.pan}
-                helperText={errors.pan || 'Format: ABCUP1234A'}
-              />
-            </Box>
-            
-            {/* Row 3: Address (full width) */}
-            <TextField
-              fullWidth
-              label="Address"
-              multiline
-              rows={2}
-              value={formData.address}
-              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-              size="small"
-              sx={{ '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
-            />
-            
-            {/* Row 4: State, Pincode, Currency */}
-            <Box sx={{ display: 'flex', gap: 2 }}>
-              <FormControl sx={{ flex: 1 }} size="small">
-                <InputLabel sx={{ fontSize: '12px' }}>State</InputLabel>
-                <Select
-                  value={formData.state}
-                  onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-                  label="State"
-                  sx={{ fontSize: '12px' }}
-                >
-                  {INDIAN_STATES.map((state) => (
-                    <MenuItem key={state} value={state} sx={{ fontSize: '12px' }}>
-                      {state}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-              <TextField
-                sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
-                label="Pincode"
-                value={formData.pincode}
-                onChange={(e) => {
-                  setFormData({ ...formData, pincode: e.target.value });
-                  if (errors.pincode) setErrors({ ...errors, pincode: '' });
-                }}
-                size="small"
-                error={!!errors.pincode}
-                helperText={errors.pincode || '6 digits'}
-              />
-              <FormControl sx={{ flex: 1 }} size="small">
-                <InputLabel sx={{ fontSize: '12px' }}>Default Currency</InputLabel>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 py-2">
+          {/* Left Column: Basic Info */}
+          <div className="md:col-span-2 space-y-6">
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-slate-900 font-bold border-b border-slate-100 pb-2">
+                <Building2 className="w-4 h-4 text-blue-600" />
+                <span>Basic Information</span>
+              </div>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Company Name *</label>
+                  <Input
+                    value={formData.company_name}
+                    onChange={(e) => {
+                      setFormData({ ...formData, company_name: e.target.value });
+                      if (errors.company_name) setErrors({ ...errors, company_name: '' });
+                    }}
+                    error={!!errors.company_name}
+                    placeholder="e.g. Acme Supplies Pvt Ltd"
+                    className="rounded-xl"
+                  />
+                  {errors.company_name && <p className="text-[10px] text-red-500 mt-1 ml-1">{errors.company_name}</p>}
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Contact Person</label>
+                  <Input
+                    value={formData.contact_person}
+                    onChange={(e) => setFormData({ ...formData, contact_person: e.target.value })}
+                    placeholder="e.g. John Doe"
+                    className="rounded-xl"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Email Address</label>
+                  <div className="relative group">
+                    <Mail className="absolute left-3 top-3 w-4 h-4 text-slate-400 group-focus-within:text-blue-500" />
+                    <Input
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      placeholder="vendor@example.com"
+                      className="pl-10 rounded-xl"
+                      error={!!errors.email}
+                    />
+                  </div>
+                  {errors.email && <p className="text-[10px] text-red-500 mt-1 ml-1">{errors.email}</p>}
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Phone Number</label>
+                  <div className="relative group">
+                    <Phone className="absolute left-3 top-3 w-4 h-4 text-slate-400 group-focus-within:text-blue-500" />
+                    <Input
+                      value={formData.phone}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      placeholder="+91 98765 43210"
+                      className="pl-10 rounded-xl"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">GSTIN</label>
+                  <Input
+                    value={formData.gstin}
+                    onChange={(e) => setFormData({ ...formData, gstin: e.target.value.toUpperCase() })}
+                    placeholder="27AABCU9603R1ZM"
+                    className="rounded-xl uppercase font-mono text-sm"
+                    error={!!errors.gstin}
+                  />
+                  {errors.gstin ? <p className="text-[10px] text-red-500 mt-1 ml-1">{errors.gstin}</p> : <p className="text-[10px] text-slate-400 mt-1 ml-1">Format: 27AABCU9603R1ZM</p>}
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">PAN Number</label>
+                  <Input
+                    value={formData.pan}
+                    onChange={(e) => setFormData({ ...formData, pan: e.target.value.toUpperCase() })}
+                    placeholder="ABCUP1234A"
+                    className="rounded-xl uppercase font-mono text-sm"
+                    error={!!errors.pan}
+                  />
+                  {errors.pan ? <p className="text-[10px] text-red-500 mt-1 ml-1">{errors.pan}</p> : <p className="text-[10px] text-slate-400 mt-1 ml-1">Format: ABCUP1234A</p>}
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-slate-900 font-bold border-b border-slate-100 pb-2">
+                <MapPin className="w-4 h-4 text-blue-600" />
+                <span>Address & Location</span>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Full Address</label>
+                <Textarea
+                  value={formData.address}
+                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  placeholder="Enter office/warehouse address..."
+                  className="rounded-xl min-h-[80px]"
+                />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">State</label>
+                  <Select
+                    value={formData.state}
+                    onValueChange={(val) => setFormData({ ...formData, state: val })}
+                  >
+                    <SelectTrigger className="rounded-xl">
+                      <SelectValue placeholder="Select State" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[300px]">
+                      {INDIAN_STATES.map((state) => (
+                        <SelectItem key={state} value={state}>{state}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Pincode</label>
+                  <Input
+                    value={formData.pincode}
+                    onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
+                    placeholder="400001"
+                    maxLength={6}
+                    className="rounded-xl"
+                  />
+                  {errors.pincode && <p className="text-[10px] text-red-500 mt-1 ml-1">{errors.pincode}</p>}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column: Financials & Bank */}
+          <div className="space-y-6 bg-slate-50 p-6 rounded-3xl border border-slate-100 shadow-inner">
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-slate-900 font-bold border-b border-slate-200 pb-2">
+                <CreditCard className="w-4 h-4 text-blue-600" />
+                <span>Financial Terms</span>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Default Currency</label>
                 <Select
                   value={formData.default_currency}
-                  onChange={(e) => setFormData({ ...formData, default_currency: e.target.value })}
-                  label="Default Currency"
-                  sx={{ fontSize: '12px' }}
+                  onValueChange={(val) => setFormData({ ...formData, default_currency: val })}
                 >
-                  {CURRENCIES.map((curr) => (
-                    <MenuItem key={curr} value={curr} sx={{ fontSize: '12px' }}>
-                      {curr}
-                    </MenuItem>
-                  ))}
+                  <SelectTrigger className="rounded-xl bg-white border-slate-200 shadow-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CURRENCIES.map((curr) => (
+                      <SelectItem key={curr} value={curr}>{curr}</SelectItem>
+                    ))}
+                  </SelectContent>
                 </Select>
-              </FormControl>
-            </Box>
-            
-            {/* Row 5: Payment Terms, Credit Limit, Status */}
-            <Box sx={{ display: 'flex', gap: 2 }}>
-              <FormControl sx={{ flex: 1 }} size="small">
-                <InputLabel sx={{ fontSize: '12px' }}>Payment Terms</InputLabel>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Payment Terms</label>
                 <Select
                   value={formData.payment_terms}
-                  onChange={(e) => setFormData({ ...formData, payment_terms: e.target.value })}
-                  label="Payment Terms"
-                  sx={{ fontSize: '12px' }}
+                  onValueChange={(val) => setFormData({ ...formData, payment_terms: val })}
                 >
-                  {PAYMENT_TERMS.map((term) => (
-                    <MenuItem key={term} value={term} sx={{ fontSize: '12px' }}>
-                      {term}
-                    </MenuItem>
-                  ))}
+                  <SelectTrigger className="rounded-xl bg-white border-slate-200 shadow-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PAYMENT_TERMS.map((term) => (
+                      <SelectItem key={term} value={term}>{term}</SelectItem>
+                    ))}
+                  </SelectContent>
                 </Select>
-              </FormControl>
-              <TextField
-                sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
-                label="Credit Limit"
-                type="number"
-                value={formData.credit_limit}
-                onChange={(e) => setFormData({ ...formData, credit_limit: Number(e.target.value) })}
-                size="small"
-              />
-              <FormControl sx={{ flex: 1 }} size="small">
-                <InputLabel sx={{ fontSize: '12px' }}>Status</InputLabel>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Credit Limit</label>
+                <div className="relative group">
+                  <span className="absolute left-3 top-3 text-slate-400 font-bold text-sm group-focus-within:text-blue-500">₹</span>
+                  <Input
+                    type="number"
+                    value={formData.credit_limit}
+                    onChange={(e) => setFormData({ ...formData, credit_limit: Number(e.target.value) })}
+                    className="pl-8 rounded-xl bg-white border-slate-200 shadow-sm"
+                  />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Status</label>
                 <Select
                   value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                  label="Status"
-                  sx={{ fontSize: '12px' }}
+                  onValueChange={(val) => setFormData({ ...formData, status: val })}
                 >
-                  <MenuItem value="Active" sx={{ fontSize: '12px' }}>Active</MenuItem>
-                  <MenuItem value="Inactive" sx={{ fontSize: '12px' }}>Inactive</MenuItem>
+                  <SelectTrigger className="rounded-xl bg-white border-slate-200 shadow-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Active">Active</SelectItem>
+                    <SelectItem value="Inactive">Inactive</SelectItem>
+                  </SelectContent>
                 </Select>
-              </FormControl>
-            </Box>
-            
-            {/* Bank Details Section */}
-            <Typography variant="subtitle2" sx={{ mt: 2, mb: 1, fontFamily: 'Inter', fontSize: '13px', fontWeight: 600 }}>
-              Bank Details
-            </Typography>
-            
-            {/* Row 6: Account Number, IFSC, Bank Name */}
-            <Box sx={{ display: 'flex', gap: 2 }}>
-              <TextField
-                sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
-                label="Account Number"
-                value={formData.bank_account_no}
-                onChange={(e) => setFormData({ ...formData, bank_account_no: e.target.value })}
-                size="small"
-              />
-              <TextField
-                sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
-                label="IFSC Code"
-                value={formData.bank_ifsc}
-                onChange={(e) => setFormData({ ...formData, bank_ifsc: e.target.value.toUpperCase() })}
-                size="small"
-              />
-              <TextField
-                sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
-                label="Bank Name"
-                value={formData.bank_name}
-                onChange={(e) => setFormData({ ...formData, bank_name: e.target.value })}
-                size="small"
-              />
-            </Box>
-            
-            {/* Row 7: Branch, Opening Balance */}
-            <Box sx={{ display: 'flex', gap: 2 }}>
-              <TextField
-                sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
-                label="Branch"
-                value={formData.bank_branch}
-                onChange={(e) => setFormData({ ...formData, bank_branch: e.target.value })}
-                size="small"
-              />
-              <TextField
-                sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
-                label="Opening Balance"
-                type="number"
-                value={formData.opening_balance}
-                onChange={(e) => setFormData({ ...formData, opening_balance: Number(e.target.value) })}
-                size="small"
-              />
-              <Box sx={{ flex: 1 }} />
-            </Box>
-            
-            {/* Remarks Section */}
-            <Typography variant="subtitle2" sx={{ mt: 2, mb: 1, fontFamily: 'Inter', fontSize: '13px', fontWeight: 600 }}>
-              Remarks (Material Type / About Vendor)
-            </Typography>
-            <TextField
-              fullWidth
-              multiline
-              rows={3}
-              placeholder="Describe what materials this vendor supplies (e.g., Cement, Steel, Electrical items, Plumbing materials, etc.)"
-              value={formData.remarks}
-              onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
-              size="small"
-              helperText="This helps in quickly searching vendors by material type"
-              sx={{ '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' }, '& .MuiFormHelperText-root': { fontSize: '11px' } }}
-            />
-          </Box>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button onClick={() => setOpenDialog(false)} sx={{ fontFamily: 'Inter', textTransform: 'none', fontSize: '12px' }}>
-            Cancel
+              </div>
+            </div>
+
+            <div className="space-y-4 pt-4 border-t border-slate-200">
+              <div className="flex items-center gap-2 text-slate-900 font-bold border-b border-slate-200 pb-2">
+                <Landmark className="w-4 h-4 text-blue-600" />
+                <span>Bank Details</span>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Account Number</label>
+                <Input
+                  value={formData.bank_account_no}
+                  onChange={(e) => setFormData({ ...formData, bank_account_no: e.target.value })}
+                  placeholder="00000000000"
+                  className="rounded-xl bg-white border-slate-200 shadow-sm"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">IFSC Code</label>
+                <Input
+                  value={formData.bank_ifsc}
+                  onChange={(e) => setFormData({ ...formData, bank_ifsc: e.target.value.toUpperCase() })}
+                  placeholder="SBIN0001234"
+                  className="rounded-xl bg-white border-slate-200 shadow-sm uppercase font-mono"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Bank Name</label>
+                <Input
+                  value={formData.bank_name}
+                  onChange={(e) => setFormData({ ...formData, bank_name: e.target.value })}
+                  placeholder="State Bank of India"
+                  className="rounded-xl bg-white border-slate-200 shadow-sm"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Opening Balance</label>
+                <div className="relative group">
+                  <span className="absolute left-3 top-3 text-slate-400 font-bold text-sm group-focus-within:text-blue-500">₹</span>
+                  <Input
+                    type="number"
+                    value={formData.opening_balance}
+                    onChange={(e) => setFormData({ ...formData, opening_balance: Number(e.target.value) })}
+                    className="pl-8 rounded-xl bg-white border-slate-200 shadow-sm"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Remarks Section (Full Width) */}
+        <div className="mt-8 pt-6 border-t border-slate-100">
+          <div className="flex items-center gap-2 text-slate-900 font-bold mb-4">
+            <AlertCircle className="w-4 h-4 text-blue-600" />
+            <span>Material Type / Scope of Supply</span>
+          </div>
+          <Textarea
+            value={formData.remarks}
+            onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
+            placeholder="Describe what materials this vendor supplies (e.g., Cement, Steel, Electrical items, Plumbing materials, etc.). This helps in discovery via search."
+            className="rounded-2xl min-h-[100px] border-slate-200 focus:ring-blue-100"
+          />
+          <p className="text-[11px] text-slate-400 mt-2 px-2 italic">This information is used by the system to categorize vendors and improve search relevancy.</p>
+        </div>
+
+        {/* Modal Footer */}
+        <div className="flex justify-end gap-3 mt-10">
+          <Button variant="ghost" onClick={() => setOpenDialog(false)} className="rounded-xl px-10 border border-slate-100 font-semibold tracking-wide">
+            Discard Changes
           </Button>
-          <Button variant="contained" onClick={handleSave} disabled={!formData.company_name} sx={{ fontFamily: 'Inter', textTransform: 'none', fontSize: '12px' }}>
-            {editMode ? 'Update' : 'Save'}
+          <Button 
+            variant="primary" 
+            onClick={handleSave} 
+            disabled={!formData.company_name}
+            className="rounded-xl px-12 font-bold shadow-lg shadow-blue-100"
+          >
+            {editMode ? 'Update Vendor' : 'Complete Registration'}
           </Button>
-        </DialogActions>
-      </Dialog>
+        </div>
+      </Modal>
 
       <VendorLedgerDialog
         open={openLedgerDialog}
@@ -741,7 +707,7 @@ export const Vendors: React.FC = () => {
         organisationId={organisation?.id}
         vendor={selectedVendor}
       />
-    </Box>
+    </div>
   );
 };
 

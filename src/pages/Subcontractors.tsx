@@ -1,52 +1,34 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import type { ChangeEvent } from 'react';
 import { supabase } from '../supabase';
 import { useAuth } from '../App';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Modal } from '../components/ui/Modal';
 import { SubcontractorLedger } from '../components/SubcontractorLedger';
-import { Building2, X, Save, User, Phone, Mail, MapPin, FileText, Briefcase, CheckCircle } from 'lucide-react';
-import {
-  Box,
-  Paper,
-  Typography,
-  Button,
-  TextField,
-  Chip,
-  IconButton,
-  Tooltip,
-  Grid,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-} from '@mui/material';
-import {
-  DataGrid,
-  GridColDef,
-  GridRenderCellParams,
-} from '@mui/x-data-grid';
-import {
-  Add as AddIcon,
-  Edit as EditIcon,
-  Visibility as VisibilityIcon,
-  Business as BusinessIcon,
-  Refresh as RefreshIcon,
-} from '@mui/icons-material';
-
-// Design System Colors from DESIGN.md
-const COLORS = {
-  cream: '#FCFAFA',
-  lightGray: '#F5F5F5',
-  tealNavy: '#294056',
-  charcoal: '#2C2C2C',
-  warmGray: '#6B6B6B',
-  silverGray: '#E0E0E0',
-  moss: '#10B981',
-  terracotta: '#EF4444',
-};
-
-const inputClass = `w-full rounded-lg border border-[${COLORS.silverGray}] bg-[${COLORS.cream}] px-4 py-2.5 text-[13px] text-[${COLORS.charcoal}] outline-none transition-all duration-200 focus:border-[${COLORS.tealNavy}] focus:ring-2 focus:ring-[${COLORS.tealNavy}]/10 placeholder:text-[${COLORS.warmGray}]/50`;
+import { 
+  Building2, 
+  X, 
+  Save, 
+  User, 
+  Phone, 
+  Mail, 
+  MapPin, 
+  FileText, 
+  Briefcase, 
+  CheckCircle,
+  Plus,
+  Search,
+  RefreshCcw,
+  Eye,
+  Filter,
+  Users,
+  MoreVertical,
+  ChevronRight,
+  ShieldCheck,
+  FileSignature
+} from 'lucide-react';
+import { AppTable } from '../components/ui/AppTable';
+import { cn } from '../lib/utils';
 
 // Query Keys for Subcontractor Module
 export const SUBCONTRACTOR_QUERY_KEYS = {
@@ -62,12 +44,6 @@ export const SUBCONTRACTOR_QUERY_KEYS = {
 
 // StaleTime configuration (2 minutes)
 const STALE_TIME = 2 * 60 * 1000;
-
-function getCurrentQueryParams() {
-  const hashQuery = window.location.hash.split('?')[1];
-  const searchQuery = window.location.search.slice(1);
-  return new URLSearchParams(hashQuery || searchQuery || '');
-}
 
 type NavigateFn = (path: string) => void
 type WithNavigate = { onNavigate: NavigateFn }
@@ -245,12 +221,11 @@ export function CreateSubcontractorModal({
         type="submit"
         form="subcontractor-form"
         disabled={saveSubcontractorMutation.isPending || !formData.company_name.trim()}
-        className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-[13px] font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60"
-        style={{ backgroundColor: COLORS.tealNavy }}
+        className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
       >
         {saveSubcontractorMutation.isPending ? (
           <>
-            <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+            <RefreshCcw className="h-4 w-4 animate-spin" />
             Saving...
           </>
         ) : (
@@ -294,7 +269,7 @@ export function CreateSubcontractorModal({
                   type="text"
                   value={formData.sub_number}
                   disabled
-                  className={`${inputClass} bg-slate-50 cursor-not-allowed`}
+                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-4 py-2.5 text-[13px] text-slate-700 outline-none cursor-not-allowed"
                 />
               </div>
             )}
@@ -308,7 +283,7 @@ export function CreateSubcontractorModal({
                 value={formData.company_name}
                 onChange={(e) => setFormData({...formData, company_name: e.target.value})}
                 placeholder="Enter company name"
-                className={inputClass}
+                className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-[13px] text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 placeholder:text-slate-400"
                 required
               />
             </div>
@@ -322,7 +297,7 @@ export function CreateSubcontractorModal({
                   value={formData.contact_person}
                   onChange={(e) => setFormData({...formData, contact_person: e.target.value})}
                   placeholder="Contact person name"
-                  className={`${inputClass} pl-10`}
+                  className="w-full rounded-lg border border-slate-200 bg-white pl-10 pr-4 py-2.5 text-[13px] text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 placeholder:text-slate-400"
                 />
               </div>
             </div>
@@ -336,7 +311,7 @@ export function CreateSubcontractorModal({
                   value={formData.phone}
                   onChange={(e) => setFormData({...formData, phone: e.target.value})}
                   placeholder="Phone number"
-                  className={`${inputClass} pl-10`}
+                  className="w-full rounded-lg border border-slate-200 bg-white pl-10 pr-4 py-2.5 text-[13px] text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 placeholder:text-slate-400"
                 />
               </div>
             </div>
@@ -350,7 +325,7 @@ export function CreateSubcontractorModal({
                   value={formData.email}
                   onChange={(e) => setFormData({...formData, email: e.target.value})}
                   placeholder="email@company.com"
-                  className={`${inputClass} pl-10`}
+                  className="w-full rounded-lg border border-slate-200 bg-white pl-10 pr-4 py-2.5 text-[13px] text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 placeholder:text-slate-400"
                 />
               </div>
             </div>
@@ -363,121 +338,121 @@ export function CreateSubcontractorModal({
                 onChange={(e) => setFormData({...formData, gstin: e.target.value.toUpperCase()})}
                 placeholder="15 character GSTIN"
                 maxLength={15}
-                className={inputClass}
-              />
-            </div>
-
-          <div className="space-y-1.5">
-            <label className="text-[12px] font-medium text-slate-700">State</label>
-            <select
-              value={formData.state}
-              onChange={(e) => setFormData({...formData, state: e.target.value})}
-              className={inputClass}
-            >
-              <option value="">Select State</option>
-              {indianStates.map(st => (
-                <option key={st} value={st}>{st}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-[12px] font-medium text-slate-700">PIN Code</label>
-            <input
-              type="text"
-              value={formData.pincode}
-              onChange={(e) => setFormData({...formData, pincode: e.target.value})}
-              placeholder="6 digit PIN code"
-              maxLength={6}
-              className={inputClass}
-            />
-          </div>
-        </div>
-
-        <div className="space-y-1.5">
-          <label className="text-[12px] font-medium text-slate-700">Address</label>
-          <div className="relative">
-            <MapPin size={16} className="absolute left-3 top-3 text-slate-400" />
-            <textarea
-              value={formData.address}
-              onChange={(e) => setFormData({...formData, address: e.target.value})}
-              placeholder="Full address"
-              rows={2}
-              className={`${inputClass} pl-10 resize-none`}
-            />
-          </div>
-        </div>
-
-        {/* PAN & Bank Details */}
-        <div className="space-y-4 pt-4 border-t border-slate-100">
-          <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-            <FileText size={14} />
-            PAN & Bank Details
-          </div>
-          
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <label className="text-[12px] font-medium text-slate-700">PAN Card</label>
-              <input
-                type="text"
-                value={formData.pan_card}
-                onChange={(e) => setFormData({...formData, pan_card: e.target.value.toUpperCase()})}
-                placeholder="ABCDE1234F"
-                maxLength={10}
-                className={inputClass}
+                className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-[13px] text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 placeholder:text-slate-400"
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[12px] font-medium text-slate-700">Bank Name</label>
-              <input
-                type="text"
-                value={formData.bank_name}
-                onChange={(e) => setFormData({...formData, bank_name: e.target.value})}
-                placeholder="e.g., State Bank of India"
-                className={inputClass}
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-[12px] font-medium text-slate-700">Account Number</label>
-              <input
-                type="text"
-                value={formData.bank_account_number}
-                onChange={(e) => setFormData({...formData, bank_account_number: e.target.value})}
-                placeholder="Bank account number"
-                className={inputClass}
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-[12px] font-medium text-slate-700">IFSC Code</label>
-              <input
-                type="text"
-                value={formData.bank_ifsc_code}
-                onChange={(e) => setFormData({...formData, bank_ifsc_code: e.target.value.toUpperCase()})}
-                placeholder="SBIN0001234"
-                maxLength={11}
-                className={inputClass}
-              />
-            </div>
-
-            <div className="space-y-1.5 sm:col-span-2">
-              <label className="text-[12px] font-medium text-slate-700">Account Type</label>
+              <label className="text-[12px] font-medium text-slate-700">State</label>
               <select
-                value={formData.bank_account_type}
-                onChange={(e) => setFormData({...formData, bank_account_type: e.target.value})}
-                className={inputClass}
+                value={formData.state}
+                onChange={(e) => setFormData({...formData, state: e.target.value})}
+                className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-[13px] text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5"
               >
-                <option value="">Select Account Type</option>
-                <option value="Savings">Savings</option>
-                <option value="Current">Current</option>
-                <option value="Fixed Deposit">Fixed Deposit</option>
-                <option value="Other">Other</option>
+                <option value="">Select State</option>
+                {indianStates.map(st => (
+                  <option key={st} value={st}>{st}</option>
+                ))}
               </select>
             </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[12px] font-medium text-slate-700">PIN Code</label>
+              <input
+                type="text"
+                value={formData.pincode}
+                onChange={(e) => setFormData({...formData, pincode: e.target.value})}
+                placeholder="6 digit PIN code"
+                maxLength={6}
+                className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-[13px] text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 placeholder:text-slate-400"
+              />
+            </div>
           </div>
-        </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[12px] font-medium text-slate-700">Address</label>
+            <div className="relative">
+              <MapPin size={16} className="absolute left-3 top-3 text-slate-400" />
+              <textarea
+                value={formData.address}
+                onChange={(e) => setFormData({...formData, address: e.target.value})}
+                placeholder="Full address"
+                rows={2}
+                className="w-full rounded-lg border border-slate-200 bg-white pl-10 pr-4 py-2.5 text-[13px] text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 placeholder:text-slate-400 resize-none"
+              />
+            </div>
+          </div>
+
+          {/* PAN & Bank Details */}
+          <div className="space-y-4 pt-4 border-t border-slate-100">
+            <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+              <FileText size={14} />
+              PAN & Bank Details
+            </div>
+            
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <label className="text-[12px] font-medium text-slate-700">PAN Card</label>
+                <input
+                  type="text"
+                  value={formData.pan_card}
+                  onChange={(e) => setFormData({...formData, pan_card: e.target.value.toUpperCase()})}
+                  placeholder="ABCDE1234F"
+                  maxLength={10}
+                  className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-[13px] text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 placeholder:text-slate-400"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[12px] font-medium text-slate-700">Bank Name</label>
+                <input
+                  type="text"
+                  value={formData.bank_name}
+                  onChange={(e) => setFormData({...formData, bank_name: e.target.value})}
+                  placeholder="e.g., State Bank of India"
+                  className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-[13px] text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 placeholder:text-slate-400"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[12px] font-medium text-slate-700">Account Number</label>
+                <input
+                  type="text"
+                  value={formData.bank_account_number}
+                  onChange={(e) => setFormData({...formData, bank_account_number: e.target.value})}
+                  placeholder="Bank account number"
+                  className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-[13px] text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 placeholder:text-slate-400"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[12px] font-medium text-slate-700">IFSC Code</label>
+                <input
+                  type="text"
+                  value={formData.bank_ifsc_code}
+                  onChange={(e) => setFormData({...formData, bank_ifsc_code: e.target.value.toUpperCase()})}
+                  placeholder="SBIN0001234"
+                  maxLength={11}
+                  className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-[13px] text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 placeholder:text-slate-400"
+                />
+              </div>
+
+              <div className="space-y-1.5 sm:col-span-2">
+                <label className="text-[12px] font-medium text-slate-700">Account Type</label>
+                <select
+                  value={formData.bank_account_type}
+                  onChange={(e) => setFormData({...formData, bank_account_type: e.target.value})}
+                  className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-[13px] text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5"
+                >
+                  <option value="">Select Account Type</option>
+                  <option value="Savings">Savings</option>
+                  <option value="Current">Current</option>
+                  <option value="Fixed Deposit">Fixed Deposit</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Work Details */}
@@ -495,7 +470,7 @@ export function CreateSubcontractorModal({
                 value={formData.nature_of_work}
                 onChange={(e) => setFormData({...formData, nature_of_work: e.target.value})}
                 placeholder="e.g., Electrical, Plumbing, HVAC"
-                className={inputClass}
+                className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-[13px] text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 placeholder:text-slate-400"
               />
             </div>
 
@@ -504,7 +479,7 @@ export function CreateSubcontractorModal({
               <select
                 value={formData.status}
                 onChange={(e) => setFormData({...formData, status: e.target.value})}
-                className={inputClass}
+                className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-[13px] text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5"
               >
                 <option value="Active">Active</option>
                 <option value="Inactive">Inactive</option>
@@ -518,7 +493,7 @@ export function CreateSubcontractorModal({
                 onChange={(e) => setFormData({...formData, previous_projects: e.target.value})}
                 placeholder="List previous projects completed by this subcontractor..."
                 rows={3}
-                className={`${inputClass} resize-none`}
+                className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-[13px] text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 placeholder:text-slate-400 resize-none"
               />
             </div>
           </div>
@@ -539,23 +514,29 @@ export function CreateSubcontractorModal({
                   <button
                     type="button"
                     onClick={() => setFormData({...formData, nda_signed: !formData.nda_signed})}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${formData.nda_signed ? 'bg-emerald-500' : 'bg-slate-200'}`}
+                    className={cn(
+                      "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
+                      formData.nda_signed ? 'bg-emerald-500' : 'bg-slate-200'
+                    )}
                   >
-                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${formData.nda_signed ? 'translate-x-6' : 'translate-x-1'}`} />
+                    <span className={cn(
+                      "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
+                      formData.nda_signed ? 'translate-x-6' : 'translate-x-1'
+                    )} />
                   </button>
-                  <span className="text-[12px] text-slate-600">
+                  <span className="text-[12px] text-slate-600 font-medium w-8">
                     {formData.nda_signed ? 'Yes' : 'No'}
                   </span>
                 </div>
               </div>
               {formData.nda_signed && (
-                <div className="space-y-1.5">
+                <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2 duration-300">
                   <label className="text-[12px] font-medium text-slate-700">NDA Date</label>
                   <input
                     type="date"
                     value={formData.nda_date}
                     onChange={(e) => setFormData({...formData, nda_date: e.target.value})}
-                    className={inputClass}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-[13px] text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5"
                   />
                 </div>
               )}
@@ -568,23 +549,29 @@ export function CreateSubcontractorModal({
                   <button
                     type="button"
                     onClick={() => setFormData({...formData, contract_signed: !formData.contract_signed})}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${formData.contract_signed ? 'bg-emerald-500' : 'bg-slate-200'}`}
+                    className={cn(
+                      "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
+                      formData.contract_signed ? 'bg-emerald-500' : 'bg-slate-200'
+                    )}
                   >
-                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${formData.contract_signed ? 'translate-x-6' : 'translate-x-1'}`} />
+                    <span className={cn(
+                      "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
+                      formData.contract_signed ? 'translate-x-6' : 'translate-x-1'
+                    )} />
                   </button>
-                  <span className="text-[12px] text-slate-600">
+                  <span className="text-[12px] text-slate-600 font-medium w-8">
                     {formData.contract_signed ? 'Yes' : 'No'}
                   </span>
                 </div>
               </div>
               {formData.contract_signed && (
-                <div className="space-y-1.5">
+                <div className="space-y-1.5 animate-in fade-in slide-in-from-top-2 duration-300">
                   <label className="text-[12px] font-medium text-slate-700">Contract Date</label>
                   <input
                     type="date"
                     value={formData.contract_date}
                     onChange={(e) => setFormData({...formData, contract_date: e.target.value})}
-                    className={inputClass}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-[13px] text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5"
                   />
                 </div>
               )}
@@ -601,7 +588,7 @@ export function CreateSubcontractorModal({
               onChange={(e) => setFormData({...formData, internal_remarks: e.target.value})}
               placeholder="Any internal notes or remarks..."
               rows={3}
-              className={`${inputClass} resize-none`}
+              className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-[13px] text-slate-900 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/5 placeholder:text-slate-400 resize-none"
             />
           </div>
         </div>
@@ -645,15 +632,10 @@ export function SubcontractorDashboard({ onNavigate }: WithNavigate) {
       
       return data || [];
     },
-    staleTime: STALE_TIME, // 2 minutes
+    staleTime: STALE_TIME,
     refetchOnWindowFocus: false,
-    enabled: !!organisation?.id, // Only run query if we have an org ID
+    enabled: !!organisation?.id,
   });
-
-  // Manual refetch function for refresh button
-  const handleRefresh = () => {
-    refetch();
-  };
 
   const filtered = subcontractors.filter(s => 
     s.company_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -661,235 +643,212 @@ export function SubcontractorDashboard({ onNavigate }: WithNavigate) {
     s.nature_of_work?.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
-  const columns: GridColDef[] = [
+  const columns = useMemo(() => [
     {
-      field: 'sub_number',
-      headerName: 'Sub #',
-      width: 100,
-      renderCell: (params: GridRenderCellParams) => (
-        <Typography variant="body2" fontWeight="600" fontFamily="Inter" sx={{ fontSize: '12px', color: 'primary.main' }}>
-          {params.value || '-'}
-        </Typography>
-      ),
+      header: 'Sub ID',
+      accessorKey: 'sub_number',
+      cell: (info: any) => (
+        <span className="font-black tracking-tight text-blue-600 uppercase text-[11px]">{info.getValue() || '-'}</span>
+      )
     },
     {
-      field: 'company_name',
-      headerName: 'Company Name',
-      width: 200,
-      renderCell: (params: GridRenderCellParams) => (
-        <Box>
-          <Typography variant="body2" fontWeight="500" fontFamily="Inter" sx={{ fontSize: '12px' }}>
-            {params.value}
-          </Typography>
-          <Typography variant="caption" color="text.secondary" fontFamily="Inter" sx={{ fontSize: '11px' }}>
-            {params.row.contact_person}
-          </Typography>
-        </Box>
-      ),
+      header: 'Company & Contact',
+      accessorKey: 'company_name',
+      cell: (info: any) => (
+        <div className="flex flex-col">
+          <span className="font-bold text-slate-900">{info.getValue()}</span>
+          <span className="text-xs text-slate-400 font-medium">{info.row.original.contact_person || 'No contact person'}</span>
+        </div>
+      )
     },
     {
-      field: 'contact_person',
-      headerName: 'Contact Person',
-      width: 150,
-      renderCell: (params: GridRenderCellParams) => (
-        <Typography variant="body2" fontFamily="Inter" sx={{ fontSize: '12px' }}>
-          {params.value || '-'}
-        </Typography>
-      ),
+      header: 'Contact Info',
+      accessorKey: 'phone',
+      cell: (info: any) => (
+        <div className="flex flex-col gap-0.5">
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
+            <Phone size={10} className="text-slate-300" />
+            {info.getValue() || '-'}
+          </div>
+          <div className="flex items-center gap-1.5 text-xs font-medium text-slate-400">
+            <Mail size={10} className="text-slate-300" />
+            {info.row.original.email || '-'}
+          </div>
+        </div>
+      )
     },
     {
-      field: 'phone',
-      headerName: 'Phone',
-      width: 120,
-      renderCell: (params: GridRenderCellParams) => (
-        <Typography variant="body2" fontFamily="Inter" sx={{ fontSize: '12px' }}>
-          {params.value || '-'}
-        </Typography>
-      ),
+      header: 'Nature of Work',
+      accessorKey: 'nature_of_work',
+      cell: (info: any) => (
+        <div className="flex items-center gap-1.5">
+          <Briefcase size={12} className="text-slate-300" />
+          <span className="truncate max-w-[150px] font-medium text-slate-600">{info.getValue() || '-'}</span>
+        </div>
+      )
     },
     {
-      field: 'nature_of_work',
-      headerName: 'Nature of Work',
-      width: 180,
-      renderCell: (params: GridRenderCellParams) => (
-        <Tooltip title={params.value || ''} arrow>
-          <Typography
-            variant="body2"
-            fontFamily="Inter"
-            sx={{
-              fontSize: '12px',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}
+      header: 'Status',
+      accessorKey: 'status',
+      cell: (info: any) => (
+        <div className={cn(
+          "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-widest",
+          info.getValue() === 'Active' ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"
+        )}>
+          <div className={cn("h-1.5 w-1.5 rounded-full", info.getValue() === 'Active' ? "bg-emerald-500" : "bg-slate-400")} />
+          {info.getValue()}
+        </div>
+      )
+    },
+    {
+      header: 'Compliance',
+      accessorKey: 'id',
+      cell: ({ row }: any) => (
+        <div className="flex items-center gap-2">
+          {row.original.nda_signed ? (
+            <div title="NDA Signed" className="flex h-6 w-6 items-center justify-center rounded-lg bg-blue-50 text-blue-500">
+              <ShieldCheck size={14} />
+            </div>
+          ) : (
+            <div title="NDA Missing" className="flex h-6 w-6 items-center justify-center rounded-lg bg-slate-50 text-slate-300">
+              <ShieldCheck size={14} />
+            </div>
+          )}
+          {row.original.contract_signed ? (
+            <div title="Contract Signed" className="flex h-6 w-6 items-center justify-center rounded-lg bg-indigo-50 text-indigo-500">
+              <FileSignature size={14} />
+            </div>
+          ) : (
+            <div title="Contract Missing" className="flex h-6 w-6 items-center justify-center rounded-lg bg-slate-50 text-slate-300">
+              <FileSignature size={14} />
+            </div>
+          )}
+        </div>
+      )
+    },
+    {
+      header: '',
+      id: 'actions',
+      cell: ({ row }: any) => (
+        <div className="flex justify-end">
+          <button
+            onClick={() => { window.subToView = row.original; onNavigate('/subcontractors/view?id=' + row.original.id) }}
+            className="flex h-8 w-12 items-center justify-center rounded-xl border border-slate-100 bg-white text-slate-400 shadow-sm transition-all hover:border-blue-200 hover:text-blue-600 hover:shadow-md active:scale-95"
           >
-            {params.value || '-'}
-          </Typography>
-        </Tooltip>
-      ),
-    },
-    {
-      field: 'status',
-      headerName: 'Status',
-      width: 100,
-      headerAlign: 'center',
-      align: 'center',
-      renderCell: (params: GridRenderCellParams) => (
-        <Chip
-          label={params.value}
-          size="small"
-          color={params.value === 'Active' ? 'success' : 'default'}
-          sx={{ fontSize: '11px', fontFamily: 'Inter' }}
-        />
-      ),
-    },
-    {
-      field: 'actions',
-      headerName: 'Actions',
-      width: 120,
-      sortable: false,
-      headerAlign: 'center',
-      align: 'center',
-      renderCell: (params: GridRenderCellParams) => (
-        <Box>
-          <Tooltip title="View">
-            <IconButton
-              size="small"
-              onClick={() => { window.subToView = params.row; onNavigate('/subcontractors/view?id=' + params.row.id) }}
-              sx={{ color: 'primary.main' }}
-            >
-              <VisibilityIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-        </Box>
-      ),
-    },
-  ];
+            <Eye size={16} />
+          </button>
+        </div>
+      )
+    }
+  ], [onNavigate]);
 
   return (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <div className="min-h-screen bg-[#f8fafc] p-6 lg:p-10">
       {/* Header */}
-      <Paper
-        elevation={0}
-        sx={{
-          p: 2,
-          mb: 2,
-          borderRadius: 2,
-          border: '1px solid',
-          borderColor: 'divider',
-        }}
-      >
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <BusinessIcon color="primary" />
-            <Typography variant="h6" fontFamily="Inter" fontWeight={600} sx={{ fontSize: '18px' }}>
-              Sub-Contractors
-            </Typography>
-            <Chip
-              label={`${filtered.length} sub-contractors`}
-              size="small"
-              sx={{ ml: 1, fontFamily: 'Inter', fontSize: '12px' }}
-            />
-          </Box>
-          <Box sx={{ display: 'flex', gap: 2 }}>
-            <Box sx={{ display: 'flex', gap: 1 }}>
-              <Button
-                variant={filter === 'all' ? 'contained' : 'outlined'}
-                size="small"
+      <div className="mb-10 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between animate-in fade-in slide-in-from-top-4 duration-700">
+        <div>
+          <div className="flex items-center gap-3">
+            <h1 className="text-4xl font-black tracking-tight text-slate-900">Sub-Contractors</h1>
+            <div className="flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1 text-[11px] font-black uppercase tracking-widest text-blue-600">
+              <Users size={12} />
+              {subcontractors.length} Registered
+            </div>
+          </div>
+          <p className="mt-1 text-sm font-medium text-slate-500">Manage workforce partners, compliance, and performance tracking</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={() => onNavigate('/subcontractors/attendance')}
+            className="inline-flex h-12 items-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 text-[13px] font-bold text-slate-700 shadow-sm transition-all hover:bg-slate-50 active:scale-95"
+          >
+            Attendance
+          </button>
+          <button 
+            className="inline-flex h-12 items-center gap-2 rounded-2xl bg-slate-900 px-6 text-[13px] font-black uppercase tracking-widest text-white shadow-xl shadow-slate-900/20 transition-all hover:bg-slate-800 active:scale-95"
+            onClick={() => onNavigate('/subcontractors/new')}
+          >
+            <Plus size={18} />
+            Add Sub-Contractor
+          </button>
+        </div>
+      </div>
+
+      {/* Main Container */}
+      <div className="overflow-hidden rounded-[2.5rem] border border-slate-200 bg-white shadow-2xl shadow-slate-200/60 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200">
+        {/* Filter & Search Bar */}
+        <div className="flex flex-wrap items-center justify-between gap-6 border-b border-slate-100 bg-slate-50/30 p-8">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+              <button
                 onClick={() => setFilter('all')}
-                sx={{ fontSize: '12px', textTransform: 'none' }}
+                className={cn(
+                  "px-6 py-2.5 text-[12px] font-black uppercase tracking-widest rounded-xl transition-all",
+                  filter === 'all' ? "bg-slate-900 text-white shadow-lg shadow-slate-900/20" : "text-slate-400 hover:text-slate-600"
+                )}
               >
                 All
-              </Button>
-              <Button
-                variant={filter === 'active' ? 'contained' : 'outlined'}
-                size="small"
+              </button>
+              <button
                 onClick={() => setFilter('active')}
-                sx={{ fontSize: '12px', textTransform: 'none' }}
+                className={cn(
+                  "px-6 py-2.5 text-[12px] font-black uppercase tracking-widest rounded-xl transition-all",
+                  filter === 'active' ? "bg-emerald-600 text-white shadow-lg shadow-emerald-500/20" : "text-slate-400 hover:text-slate-600"
+                )}
               >
                 Active
-              </Button>
-              <Button
-                variant={filter === 'inactive' ? 'contained' : 'outlined'}
-                size="small"
+              </button>
+              <button
                 onClick={() => setFilter('inactive')}
-                sx={{ fontSize: '12px', textTransform: 'none' }}
+                className={cn(
+                  "px-6 py-2.5 text-[12px] font-black uppercase tracking-widest rounded-xl transition-all",
+                  filter === 'inactive' ? "bg-slate-400 text-white shadow-lg shadow-slate-400/20" : "text-slate-400 hover:text-slate-600"
+                )}
               >
                 Inactive
-              </Button>
-            </Box>
-            <TextField
-              size="small"
-              placeholder="Search sub-contractors..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              sx={{ width: 250, '& .MuiInputBase-input': { fontSize: '12px' } }}
-            />
-            <Tooltip title="Refresh data">
-              <IconButton 
-                onClick={handleRefresh} 
-                disabled={isFetching}
-                size="small"
-                sx={{ color: 'primary.main' }}
-              >
-                <RefreshIcon fontSize="small" className={isFetching ? 'animate-spin' : ''} />
-              </IconButton>
-            </Tooltip>
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={() => onNavigate('/subcontractors/new')}
-              sx={{ fontFamily: 'Inter', textTransform: 'none', fontSize: '12px' }}
-            >
-              Add Sub-Contractor
-            </Button>
-          </Box>
-        </Box>
-      </Paper>
+              </button>
+            </div>
 
-      {/* DataGrid */}
-      <Paper
-        elevation={0}
-        sx={{
-          flex: 1,
-          borderRadius: 2,
-          border: '1px solid',
-          borderColor: 'divider',
-          overflow: 'hidden',
-        }}
-      >
-        <DataGrid
-          rows={filtered}
-          columns={columns}
-          loading={isLoading}
-          density="compact"
-          disableRowSelectionOnClick
-          hideFooterSelectedRowCount
-          sx={{
-            fontFamily: 'Inter, sans-serif',
-            '& .MuiDataGrid-cell': {
-              fontSize: '13px',
-              fontFamily: 'Inter, sans-serif',
-            },
-            '& .MuiDataGrid-columnHeader': {
-              fontSize: '12px',
-              fontWeight: 600,
-              fontFamily: 'Inter, sans-serif',
-              backgroundColor: 'grey.50',
-            },
-            '& .MuiDataGrid-row:hover': {
-              backgroundColor: 'action.hover',
-            },
-          }}
-          pageSizeOptions={[25, 50, 100]}
-          initialState={{
-            pagination: {
-              paginationModel: { pageSize: 25 },
-            },
-          }}
-        />
-      </Paper>
-    </Box>
+            <div className="relative group min-w-[320px]">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-blue-500" size={16} />
+              <input
+                type="text"
+                placeholder="Search by company, person or trade..."
+                className="h-12 w-full rounded-2xl border border-slate-100 bg-white pl-12 pr-4 text-[13px] font-medium shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-blue-500/20 focus:ring-4 focus:ring-blue-500/5"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <button 
+            onClick={() => refetch()}
+            disabled={isFetching}
+            className="flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-100 bg-white text-slate-400 shadow-sm transition-all hover:bg-slate-50 hover:text-slate-600 active:scale-95 disabled:opacity-50"
+          >
+            <RefreshCcw size={18} className={cn(isFetching && "animate-spin")} />
+          </button>
+        </div>
+
+        {/* Table Area */}
+        <div className="p-2">
+          {isLoading ? (
+            <div className="flex h-[400px] flex-col items-center justify-center gap-4 text-slate-300">
+              <RefreshCcw size={40} className="animate-spin opacity-20" />
+              <div className="text-sm font-bold uppercase tracking-widest opacity-50">Loading Sub-Contractors...</div>
+            </div>
+          ) : (
+            <AppTable
+              data={filtered}
+              columns={columns}
+              enableSorting={true}
+              enablePagination={true}
+              defaultPageSize={10}
+              emptyMessage="No sub-contractors found matching your search"
+            />
+          )}
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -954,234 +913,216 @@ export function CreateSubcontractor({ onSuccess, onCancel, editMode, subData }: 
   }
 
   return (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Paper
-        elevation={0}
-        sx={{
-          p: 2,
-          mb: 2,
-          borderRadius: 2,
-          border: '1px solid',
-          borderColor: 'divider',
-        }}
-      >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <BusinessIcon color="primary" />
-          <Typography variant="h6" fontFamily="Inter" fontWeight={600} sx={{ fontSize: '18px' }}>
-            {editMode ? 'Edit' : 'Add'} Sub-Contractor
-          </Typography>
-        </Box>
-      </Paper>
+    <div className="min-h-screen bg-[#f8fafc] p-6 lg:p-10">
+      <div className="mx-auto max-w-4xl">
+        {/* Header */}
+        <div className="mb-8 flex items-center justify-between animate-in fade-in slide-in-from-top-4 duration-700">
+          <div>
+            <h1 className="text-3xl font-black tracking-tight text-slate-900">
+              {editMode ? 'Edit' : 'Register'} Sub-Contractor
+            </h1>
+            <p className="text-sm font-medium text-slate-500">
+              {editMode ? 'Update existing partner profile' : 'Onboard a new workforce partner to your network'}
+            </p>
+          </div>
+          <button 
+            onClick={onCancel}
+            className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-400 transition-all hover:bg-slate-50 hover:text-slate-600"
+          >
+            <X size={20} />
+          </button>
+        </div>
 
-      <Paper
-        elevation={0}
-        sx={{
-          flex: 1,
-          borderRadius: 2,
-          border: '1px solid',
-          borderColor: 'divider',
-          p: 3,
-          overflow: 'auto',
-        }}
-      >
-        <form onSubmit={handleSubmit}>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {/* Row 1: Company Name, Contact Person, Phone */}
-            <Box sx={{ display: 'flex', gap: 2 }}>
-              <TextField
-                sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
-                label="Company Name *"
-                value={formData.company_name}
-                onChange={(e) => setFormData({...formData, company_name: e.target.value})}
-                size="small"
-                required
-              />
-              <TextField
-                sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
-                label="Contact Person"
-                value={formData.contact_person}
-                onChange={(e) => setFormData({...formData, contact_person: e.target.value})}
-                size="small"
-              />
-              <TextField
-                sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
-                label="Phone"
-                value={formData.phone}
-                onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                size="small"
-              />
-            </Box>
+        <form onSubmit={handleSubmit} className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-150">
+          {error && (
+            <div className="rounded-2xl border border-red-100 bg-red-50 p-4 text-sm font-bold text-red-600">
+              {error}
+            </div>
+          )}
 
-            {/* Row 2: Email, GSTIN, State */}
-            <Box sx={{ display: 'flex', gap: 2 }}>
-              <TextField
-                sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
-                label="Email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({...formData, email: e.target.value})}
-                size="small"
-              />
-              <TextField
-                sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
-                label="GSTIN"
-                value={formData.gstin}
-                onChange={(e) => setFormData({...formData, gstin: e.target.value.toUpperCase()})}
-                size="small"
-                inputProps={{ maxLength: 15 }}
-              />
-              <FormControl sx={{ flex: 1 }} size="small">
-                <InputLabel sx={{ fontSize: '12px' }}>State</InputLabel>
-                <Select
-                  value={formData.state}
-                  onChange={(e) => setFormData({...formData, state: e.target.value})}
-                  label="State"
-                  sx={{ fontSize: '12px' }}
-                >
-                  <MenuItem value="" sx={{ fontSize: '12px' }}><em>Select State</em></MenuItem>
-                  {indianStates.map(st => <MenuItem key={st} value={st} sx={{ fontSize: '12px' }}>{st}</MenuItem>)}
-                </Select>
-              </FormControl>
-            </Box>
+          <div className="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-xl shadow-slate-200/50">
+            <div className="space-y-8">
+              {/* Basic Info Section */}
+              <section>
+                <div className="mb-6 flex items-center gap-2 border-b border-slate-100 pb-4 text-[11px] font-black uppercase tracking-widest text-slate-400">
+                  <Building2 size={14} />
+                  Partnership Details
+                </div>
+                
+                <div className="grid gap-6 md:grid-cols-2">
+                  <div className="md:col-span-2 space-y-2">
+                    <label className="text-xs font-black uppercase tracking-wider text-slate-500">Company Name *</label>
+                    <input
+                      required
+                      type="text"
+                      className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-5 text-[13px] font-bold text-slate-900 outline-none transition-all placeholder:font-medium placeholder:text-slate-300 focus:border-blue-500/30 focus:bg-white focus:ring-4 focus:ring-blue-500/5"
+                      value={formData.company_name}
+                      onChange={(e) => setFormData({...formData, company_name: e.target.value})}
+                      placeholder="e.g. Acme Construction Services"
+                    />
+                  </div>
 
-            {/* Row 3: Address (full width) */}
-            <TextField
-              fullWidth
-              label="Address"
-              multiline
-              rows={2}
-              value={formData.address}
-              onChange={(e) => setFormData({...formData, address: e.target.value})}
-              size="small"
-              sx={{ '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
-            />
+                  <div className="space-y-2">
+                    <label className="text-xs font-black uppercase tracking-wider text-slate-500">Contact Person</label>
+                    <input
+                      type="text"
+                      className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-5 text-[13px] font-bold text-slate-900 outline-none transition-all placeholder:font-medium placeholder:text-slate-300 focus:border-blue-500/30 focus:bg-white focus:ring-4 focus:ring-blue-500/5"
+                      value={formData.contact_person}
+                      onChange={(e) => setFormData({...formData, contact_person: e.target.value})}
+                      placeholder="Primary point of contact"
+                    />
+                  </div>
 
-            {/* Row 4: Nature of Work, Status */}
-            <Box sx={{ display: 'flex', gap: 2 }}>
-              <TextField
-                sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
-                label="Nature of Work"
-                value={formData.nature_of_work}
-                onChange={(e) => setFormData({...formData, nature_of_work: e.target.value})}
-                size="small"
-                placeholder="e.g., Electrical, Plumbing, HVAC"
-              />
-              <FormControl sx={{ flex: 1 }} size="small">
-                <InputLabel sx={{ fontSize: '12px' }}>Status</InputLabel>
-                <Select
-                  value={formData.status}
-                  onChange={(e) => setFormData({...formData, status: e.target.value})}
-                  label="Status"
-                  sx={{ fontSize: '12px' }}
-                >
-                  <MenuItem value="Active" sx={{ fontSize: '12px' }}>Active</MenuItem>
-                  <MenuItem value="Inactive" sx={{ fontSize: '12px' }}>Inactive</MenuItem>
-                </Select>
-              </FormControl>
-              <Box sx={{ flex: 1 }} />
-            </Box>
+                  <div className="space-y-2">
+                    <label className="text-xs font-black uppercase tracking-wider text-slate-500">Primary Phone</label>
+                    <input
+                      type="tel"
+                      className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-5 text-[13px] font-bold text-slate-900 outline-none transition-all placeholder:font-medium placeholder:text-slate-300 focus:border-blue-500/30 focus:bg-white focus:ring-4 focus:ring-blue-500/5"
+                      value={formData.phone}
+                      onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                      placeholder="+91 XXXXX XXXXX"
+                    />
+                  </div>
 
-            {/* NDA and Contract Section */}
-            <Typography variant="subtitle2" sx={{ mt: 2, mb: 1, fontFamily: 'Inter', fontSize: '13px', fontWeight: 600 }}>
-              Documents & Agreements
-            </Typography>
+                  <div className="space-y-2">
+                    <label className="text-xs font-black uppercase tracking-wider text-slate-500">Corporate Email</label>
+                    <input
+                      type="email"
+                      className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-5 text-[13px] font-bold text-slate-900 outline-none transition-all placeholder:font-medium placeholder:text-slate-300 focus:border-blue-500/30 focus:bg-white focus:ring-4 focus:ring-blue-500/5"
+                      value={formData.email}
+                      onChange={(e) => setFormData({...formData, email: e.target.value})}
+                      placeholder="office@partner.com"
+                    />
+                  </div>
 
-            {/* Row 5: NDA and Contract */}
-            <Box sx={{ display: 'flex', gap: 2 }}>
-              <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', gap: 2 }}>
-                <FormControl size="small">
-                  <InputLabel sx={{ fontSize: '12px' }}>NDA Signed</InputLabel>
-                  <Select
-                    value={formData.nda_signed ? 'yes' : 'no'}
-                    onChange={(e) => setFormData({...formData, nda_signed: e.target.value === 'yes'})}
-                    label="NDA Signed"
-                    sx={{ fontSize: '12px', width: 120 }}
-                  >
-                    <MenuItem value="no" sx={{ fontSize: '12px' }}>No</MenuItem>
-                    <MenuItem value="yes" sx={{ fontSize: '12px' }}>Yes</MenuItem>
-                  </Select>
-                </FormControl>
-                {formData.nda_signed && (
-                  <TextField
-                    type="date"
-                    label="NDA Date"
-                    value={formData.nda_date}
-                    onChange={(e) => setFormData({...formData, nda_date: e.target.value})}
-                    size="small"
-                    InputLabelProps={{ shrink: true }}
-                    sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
-                  />
-                )}
-              </Box>
-              <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', gap: 2 }}>
-                <FormControl size="small">
-                  <InputLabel sx={{ fontSize: '12px' }}>Contract Signed</InputLabel>
-                  <Select
-                    value={formData.contract_signed ? 'yes' : 'no'}
-                    onChange={(e) => setFormData({...formData, contract_signed: e.target.value === 'yes'})}
-                    label="Contract Signed"
-                    sx={{ fontSize: '12px', width: 120 }}
-                  >
-                    <MenuItem value="no" sx={{ fontSize: '12px' }}>No</MenuItem>
-                    <MenuItem value="yes" sx={{ fontSize: '12px' }}>Yes</MenuItem>
-                  </Select>
-                </FormControl>
-                {formData.contract_signed && (
-                  <TextField
-                    type="date"
-                    label="Contract Date"
-                    value={formData.contract_date}
-                    onChange={(e) => setFormData({...formData, contract_date: e.target.value})}
-                    size="small"
-                    InputLabelProps={{ shrink: true }}
-                    sx={{ flex: 1, '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
-                  />
-                )}
-              </Box>
-            </Box>
+                  <div className="space-y-2">
+                    <label className="text-xs font-black uppercase tracking-wider text-slate-500">Work Specialty</label>
+                    <input
+                      type="text"
+                      className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-5 text-[13px] font-bold text-slate-900 outline-none transition-all placeholder:font-medium placeholder:text-slate-300 focus:border-blue-500/30 focus:bg-white focus:ring-4 focus:ring-blue-500/5"
+                      value={formData.nature_of_work}
+                      onChange={(e) => setFormData({...formData, nature_of_work: e.target.value})}
+                      placeholder="e.g. Electrical, Plumbing, HVAC"
+                    />
+                  </div>
+                </div>
+              </section>
 
-            {/* Row 6: Internal Remarks */}
-            <TextField
-              fullWidth
-              label="Internal Remarks"
-              multiline
-              rows={3}
-              value={formData.internal_remarks}
-              onChange={(e) => setFormData({...formData, internal_remarks: e.target.value})}
-              size="small"
-              sx={{ '& .MuiInputBase-input': { fontSize: '12px' }, '& .MuiInputLabel-root': { fontSize: '12px' } }}
-            />
+              {/* Compliance Section */}
+              <section>
+                <div className="mb-6 flex items-center gap-2 border-b border-slate-100 pb-4 text-[11px] font-black uppercase tracking-widest text-slate-400">
+                  <ShieldCheck size={14} />
+                  Legal & Compliance
+                </div>
+                
+                <div className="grid gap-6 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <label className="text-xs font-black uppercase tracking-wider text-slate-500">GSTIN</label>
+                    <input
+                      maxLength={15}
+                      type="text"
+                      className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-5 text-[13px] font-bold text-slate-900 outline-none transition-all placeholder:font-medium placeholder:text-slate-300 focus:border-blue-500/30 focus:bg-white focus:ring-4 focus:ring-blue-500/5"
+                      value={formData.gstin}
+                      onChange={(e) => setFormData({...formData, gstin: e.target.value.toUpperCase()})}
+                    />
+                  </div>
 
-            {/* Actions */}
-            <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
-              <Button 
-                type="submit" 
-                variant="contained" 
-                disabled={saveSubcontractorMutation.isPending || !formData.company_name}
-                sx={{ fontSize: '12px', textTransform: 'none' }}
-              >
-                {saveSubcontractorMutation.isPending ? 'Saving...' : (editMode ? 'Update' : 'Save')}
-              </Button>
-              <Button 
-                type="button" 
-                variant="outlined" 
-                onClick={onCancel}
-                disabled={saveSubcontractorMutation.isPending}
-                sx={{ fontSize: '12px', textTransform: 'none' }}
-              >
-                Cancel
-              </Button>
-            </Box>
-          </Box>
+                  <div className="space-y-2">
+                    <label className="text-xs font-black uppercase tracking-wider text-slate-500">Operating State</label>
+                    <select
+                      className="h-12 w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-5 text-[13px] font-bold text-slate-900 outline-none transition-all focus:border-blue-500/30 focus:bg-white focus:ring-4 focus:ring-blue-500/5"
+                      value={formData.state}
+                      onChange={(e) => setFormData({...formData, state: e.target.value})}
+                    >
+                      <option value="">Select State</option>
+                      {indianStates.map(st => <option key={st} value={st}>{st}</option>)}
+                    </select>
+                  </div>
+
+                  <div className="p-4 rounded-3xl border border-slate-100 bg-slate-50/50 flex items-center justify-between">
+                    <div>
+                      <div className="text-[11px] font-black uppercase tracking-widest text-slate-400">NDA Status</div>
+                      <div className="text-sm font-bold text-slate-900">{formData.nda_signed ? 'Executed' : 'Not Signed'}</div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setFormData({...formData, nda_signed: !formData.nda_signed})}
+                      className={cn(
+                        "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
+                        formData.nda_signed ? 'bg-blue-600' : 'bg-slate-200'
+                      )}
+                    >
+                      <span className={cn(
+                        "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
+                        formData.nda_signed ? 'translate-x-6' : 'translate-x-1'
+                      )} />
+                    </button>
+                  </div>
+
+                  <div className="p-4 rounded-3xl border border-slate-100 bg-slate-50/50 flex items-center justify-between">
+                    <div>
+                      <div className="text-[11px] font-black uppercase tracking-widest text-slate-400">Status</div>
+                      <div className="text-sm font-bold text-slate-900">{formData.status}</div>
+                    </div>
+                    <select
+                      value={formData.status}
+                      onChange={(e) => setFormData({...formData, status: e.target.value})}
+                      className="bg-transparent font-bold text-xs text-blue-600 outline-none"
+                    >
+                      <option value="Active">Active</option>
+                      <option value="Inactive">Inactive</option>
+                    </select>
+                  </div>
+                </div>
+              </section>
+
+              {/* Remarks */}
+              <section>
+                <div className="mb-6 flex items-center gap-2 border-b border-slate-100 pb-4 text-[11px] font-black uppercase tracking-widest text-slate-400">
+                  <FileText size={14} />
+                  Additional Information
+                </div>
+                <textarea
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 p-5 text-[13px] font-bold text-slate-900 outline-none transition-all placeholder:font-medium placeholder:text-slate-300 focus:border-blue-500/30 focus:bg-white focus:ring-4 focus:ring-blue-500/5 resize-none"
+                  rows={4}
+                  value={formData.internal_remarks}
+                  onChange={(e) => setFormData({...formData, internal_remarks: e.target.value})}
+                  placeholder="Any internal notes, performance remarks or site-specific constraints..."
+                ></textarea>
+              </section>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-4">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="h-12 rounded-2xl px-8 text-sm font-bold text-slate-500 transition-colors hover:text-slate-900"
+            >
+              Discard Changes
+            </button>
+            <button
+              type="submit"
+              disabled={saveSubcontractorMutation.isPending}
+              className="inline-flex h-12 items-center gap-2 rounded-2xl bg-slate-900 px-10 text-[13px] font-black uppercase tracking-widest text-white shadow-xl shadow-slate-900/20 transition-all hover:bg-slate-800 active:scale-95 disabled:opacity-50"
+            >
+              {saveSubcontractorMutation.isPending ? (
+                <RefreshCcw className="h-4 w-4 animate-spin" />
+              ) : (
+                <Save size={18} />
+              )}
+              {editMode ? 'Update Partner' : 'Confirm Registration'}
+            </button>
+          </div>
         </form>
-      </Paper>
-    </Box>
-  )
+      </div>
+    </div>
+  );
 }
 
 export function SubcontractorView({ onNavigate }: WithNavigate) {
   const { organisation } = useAuth();
-  const [sub, setSub] = useState(null)
+  const [sub, setSub] = useState<any>(null)
   const [activeTab, setActiveTab] = useState('details')
   const [workOrders, setWorkOrders] = useState<any[]>([])
   const [attendance, setAttendance] = useState<any[]>([])
@@ -1201,59 +1142,231 @@ export function SubcontractorView({ onNavigate }: WithNavigate) {
     }
   }, [organisation?.id])
 
-  if (!sub) return <div style={{ padding: '20px' }}>Loading...</div>
+  if (!sub) return (
+    <div className="flex h-screen items-center justify-center bg-[#f8fafc]">
+      <RefreshCcw className="animate-spin text-blue-500" size={40} />
+    </div>
+  )
+
+  const tabs = [
+    { id: 'details', label: 'Partner Profile', icon: Building2 },
+    { id: 'workorders', label: `Work Orders (${workOrders.length})`, icon: Briefcase },
+    { id: 'attendance', label: `Force Count (${attendance.length})`, icon: Users },
+    { id: 'ledger', label: 'Financial Ledger', icon: FileText },
+    { id: 'dailylogs', label: 'Daily Reports', icon: FileSignature },
+    { id: 'payments', label: 'Payout History', icon: CheckCircle },
+  ]
 
   return (
-    <div>
-      <div className="page-header">
-        <h1 className="page-title">{sub.company_name}</h1>
-        <button className="btn btn-secondary" onClick={() => onNavigate('/subcontractors')}>← Back</button>
-      </div>
-      <div className="card" style={{ marginBottom: '16px' }}>
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          <button className={`btn ${activeTab === 'details' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('details')}>Details</button>
-          <button className={`btn ${activeTab === 'workorders' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('workorders')}>Work Orders ({workOrders.length})</button>
-          <button className={`btn ${activeTab === 'attendance' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('attendance')}>Attendance ({attendance.length})</button>
-          <button className={`btn ${activeTab === 'dailylogs' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('dailylogs')}>Daily Logs ({dailyLogs.length})</button>
-          <button className={`btn ${activeTab === 'payments' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('payments')}>Payments ({payments.length})</button>
-          <button className={`btn ${activeTab === 'invoices' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('invoices')}>Invoices ({invoices.length})</button>
-          <button className={`btn ${activeTab === 'ledger' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('ledger')}>Ledger</button>
-        </div>
-      </div>
-      <div className="card">
-        {activeTab === 'details' && (
-          <div>
-            <div className="form-row"><div className="form-group"><label className="form-label">Contact Person</label><div>{sub.contact_person || '-'}</div></div><div className="form-group"><label className="form-label">Phone</label><div>{sub.phone || '-'}</div></div></div>
-            <div className="form-row"><div className="form-group"><label className="form-label">Email</label><div>{sub.email || '-'}</div></div><div className="form-group"><label className="form-label">GSTIN</label><div>{sub.gstin || '-'}</div></div></div>
-            <div className="form-row"><div className="form-group"><label className="form-label">Nature of Work</label><div>{sub.nature_of_work || '-'}</div></div><div className="form-group"><label className="form-label">State</label><div>{sub.state || '-'}</div></div></div>
-            <div className="form-row"><div className="form-group"><label className="form-label">Address</label><div>{sub.address || '-'}</div></div><div className="form-group"><label className="form-label">Status</label><span style={{ padding: '4px 8px', borderRadius: '4px', background: sub.status === 'Active' ? '#d4edda' : '#f8d7da' }}>{sub.status}</span></div></div>
-            <div className="form-row"><div className="form-group"><label className="form-label">NDA Signed</label><div>{sub.nda_signed ? 'Yes' : 'No'} {sub.nda_date && `(${sub.nda_date})`}</div></div><div className="form-group"><label className="form-label">Contract Signed</label><div>{sub.contract_signed ? 'Yes' : 'No'} {sub.contract_date && `(${sub.contract_date})`}</div></div></div>
-            <div className="form-group"><label className="form-label">Internal Remarks</label><div>{sub.internal_remarks || '-'}</div></div>
-            <button className="btn btn-primary" style={{ marginTop: '12px' }} onClick={() => { window.subToEdit = sub; onNavigate('/subcontractors/edit?id=' + sub.id) }}>Edit</button>
+    <div className="min-h-screen bg-[#f8fafc] p-6 lg:p-10">
+      <div className="mx-auto max-w-7xl">
+        {/* Profile Header */}
+        <div className="mb-10 flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between animate-in fade-in slide-in-from-top-4 duration-700">
+          <div className="flex items-start gap-6">
+            <div className="flex h-24 w-24 items-center justify-center rounded-[2rem] bg-white shadow-2xl shadow-slate-200/60 transition-transform hover:scale-105">
+              <Building2 size={40} className="text-blue-600" />
+            </div>
+            <div>
+              <div className="flex items-center gap-3">
+                <h1 className="text-4xl font-black tracking-tight text-slate-900">{sub.company_name}</h1>
+                <div className={cn(
+                  "rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest",
+                  sub.status === 'Active' ? "bg-emerald-50 text-emerald-600 border border-emerald-100" : "bg-slate-100 text-slate-500 border border-slate-200"
+                )}>
+                  {sub.status}
+                </div>
+              </div>
+              <div className="mt-2 flex flex-wrap gap-4 text-sm font-bold text-slate-400">
+                <div className="flex items-center gap-1.5 border-r border-slate-200 pr-4">
+                  <User size={14} className="text-slate-300" />
+                  {sub.contact_person || 'No Contact'}
+                </div>
+                <div className="flex items-center gap-1.5 border-r border-slate-200 pr-4">
+                  <Briefcase size={14} className="text-slate-300" />
+                  {sub.nature_of_work || 'General Works'}
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <MapPin size={14} className="text-slate-300" />
+                  {sub.state || 'Unknown Territory'}
+                </div>
+              </div>
+            </div>
           </div>
-        )}
-        {activeTab === 'workorders' && (
-          <div>{workOrders.length === 0 ? <p>No Work Orders</p> : <table className="table"><thead><tr><th>WO No</th><th>Description</th><th>Start</th><th>End</th><th>Value</th><th>Status</th></tr></thead><tbody>{workOrders.map(wo => <tr key={wo.id}><td>{wo.work_order_no}</td><td>{wo.work_description}</td><td>{wo.start_date}</td><td>{wo.end_date}</td><td>{wo.contract_value}</td><td>{wo.status}</td></tr>)}</tbody></table>}</div>
-        )}
-        {activeTab === 'attendance' && (
-          <div>{attendance.length === 0 ? <p>No Attendance Records</p> : <table className="table"><thead><tr><th>Date</th><th>Workers</th><th>Supervisor</th><th>Remarks</th></tr></thead><tbody>{attendance.map(a => <tr key={a.id}><td>{a.attendance_date}</td><td>{a.workers_count}</td><td>{a.supervisor_name}</td><td>{a.remarks}</td></tr>)}</tbody></table>}</div>
-        )}
-        {activeTab === 'dailylogs' && (
-          <div>{dailyLogs.length === 0 ? <p>No Daily Logs</p> : <table className="table"><thead><tr><th>Date</th><th>Work Done</th><th>Delays</th><th>Safety</th></tr></thead><tbody>{dailyLogs.map(l => <tr key={l.id}><td>{l.log_date}</td><td>{l.work_done}</td><td>{l.delays}</td><td>{l.safety_incidents}</td></tr>)}</tbody></table>}</div>
-        )}
-        {activeTab === 'payments' && (
-          <div>{payments.length === 0 ? <p>No Payments</p> : <table className="table"><thead><tr><th>Date</th><th>Amount</th><th>Mode</th><th>Ref No</th></tr></thead><tbody>{payments.map(p => <tr key={p.id}><td>{p.payment_date}</td><td>₹{p.amount}</td><td>{p.payment_mode}</td><td>{p.reference_no}</td></tr>)}</tbody></table>}</div>
-        )}
-        {activeTab === 'invoices' && (
-          <div>{invoices.length === 0 ? <p>No Invoices</p> : <table className="table"><thead><tr><th>Invoice No</th><th>Date</th><th>Amount</th><th>Status</th></tr></thead><tbody>{invoices.map(i => <tr key={i.id}><td>{i.invoice_no}</td><td>{i.invoice_date}</td><td>₹{i.amount}</td><td>{i.status}</td></tr>)}</tbody></table>}</div>
-        )}
-        {activeTab === 'ledger' && sub && (
-          <SubcontractorLedger
-            subcontractorId={sub.id}
-            subcontractorName={sub.company_name}
-            onBack={() => setActiveTab('details')}
-          />
-        )}
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => onNavigate('/subcontractors')}
+              className="inline-flex h-12 items-center gap-2 rounded-2xl border border-slate-200 bg-white px-6 text-[13px] font-bold text-slate-600 transition-all hover:bg-slate-50 active:scale-95"
+            >
+              Partner List
+            </button>
+            <button 
+              onClick={() => { window.subToEdit = sub; onNavigate('/subcontractors/edit?id=' + sub.id) }}
+              className="inline-flex h-12 items-center gap-2 rounded-2xl bg-slate-900 px-6 text-[13px] font-black uppercase tracking-widest text-white shadow-xl shadow-slate-900/20 transition-all hover:bg-slate-800 active:scale-95"
+            >
+              Edit Profile
+            </button>
+          </div>
+        </div>
+
+        {/* Tab Navigation */}
+        <div className="mb-8 flex flex-wrap gap-2 rounded-[2rem] border border-slate-200 bg-white p-2 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-700 delay-200">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={cn(
+                "flex items-center gap-2 rounded-[1.5rem] px-6 py-3 text-[12px] font-black uppercase tracking-widest transition-all",
+                activeTab === tab.id 
+                  ? "bg-slate-900 text-white shadow-lg shadow-slate-900/20" 
+                  : "text-slate-400 hover:bg-slate-50 hover:text-slate-600"
+              )}
+            >
+              <tab.icon size={14} />
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Tab Content Area */}
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-300">
+          {activeTab === 'details' && (
+            <div className="grid gap-8 lg:grid-cols-3">
+              {/* Contact Card */}
+              <div className="rounded-[2.5rem] border border-slate-200 bg-white p-8 shadow-xl shadow-slate-200/40">
+                <h3 className="mb-6 text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Communication</h3>
+                <div className="space-y-6">
+                  <div>
+                    <div className="text-[11px] font-black uppercase tracking-widest text-blue-600 opacity-60">Corporate Email</div>
+                    <div className="mt-1 flex items-center gap-3 font-black text-slate-900">{sub.email || 'N/A'}</div>
+                  </div>
+                  <div>
+                    <div className="text-[11px] font-black uppercase tracking-widest text-blue-600 opacity-60">Primary Phone</div>
+                    <div className="mt-1 flex items-center gap-3 font-black text-slate-900">{sub.phone || 'N/A'}</div>
+                  </div>
+                  <div>
+                    <div className="text-[11px] font-black uppercase tracking-widest text-blue-600 opacity-60">GST Identification</div>
+                    <div className="mt-1 font-black text-slate-900 tracking-wider transition-all hover:text-blue-600 cursor-default">{sub.gstin || 'No GST Details'}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Compliance Card */}
+              <div className="rounded-[2.5rem] border border-slate-200 bg-white p-8 shadow-xl shadow-slate-200/40">
+                <h3 className="mb-6 text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Compliance Status</h3>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between rounded-2xl bg-blue-50/50 p-4 border border-blue-100/50">
+                    <div className="flex items-center gap-3">
+                      <ShieldCheck className={cn("h-8 w-8", sub.nda_signed ? "text-blue-600" : "text-slate-300")} />
+                      <div>
+                        <div className="text-[10px] font-black uppercase tracking-widest text-blue-600">NDA Status</div>
+                        <div className="text-sm font-black text-slate-900">{sub.nda_signed ? 'Executed' : 'Pending'}</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between rounded-2xl bg-indigo-50/50 p-4 border border-indigo-100/50">
+                    <div className="flex items-center gap-3">
+                      <FileSignature className={cn("h-8 w-8", sub.contract_signed ? "text-indigo-600" : "text-slate-300")} />
+                      <div>
+                        <div className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Master Contract</div>
+                        <div className="text-sm font-black text-slate-900">{sub.contract_signed ? 'Active' : 'Missing'}</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Address / Misc */}
+              <div className="rounded-[2.5rem] border border-slate-200 bg-white p-8 shadow-xl shadow-slate-200/40 lg:col-span-1">
+                <h3 className="mb-6 text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">Headquarters</h3>
+                <div className="text-sm font-medium leading-relaxed text-slate-500">
+                  {sub.address || 'Direct address not specified'}
+                  <br />
+                  <span className="mt-2 block font-black text-slate-900">{sub.state} {sub.pincode ? `, ${sub.pincode}` : ''}</span>
+                </div>
+                <div className="mt-8 pt-6 border-t border-slate-100">
+                  <h3 className="mb-3 text-[11px] font-black uppercase tracking-widest text-slate-400">Internal Remarks</h3>
+                  <div className="text-[13px] font-bold text-slate-600 bg-slate-50 p-4 rounded-2xl leading-relaxed italic border border-slate-100">
+                    {sub.internal_remarks || 'No notes on this partner.'}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'workorders' && (
+            <div className="rounded-[2.5rem] border border-slate-200 bg-white p-2 shadow-xl shadow-slate-200/40">
+              <AppTable
+                data={workOrders}
+                columns={[
+                  { header: 'Order #', accessorKey: 'work_order_no', cell: (i:any)=><span className="font-black text-blue-600">{i.getValue()}</span> },
+                  { header: 'Description', accessorKey: 'work_description', cell:(i:any)=><span className="font-bold text-slate-900 line-clamp-1">{i.getValue()}</span> },
+                  { header: 'Timeline', accessorKey: 'start_date', cell: ({row}:any) => <span className="text-xs font-bold text-slate-400">{row.original.start_date} → {row.original.end_date}</span> },
+                  { header: 'Value', accessorKey: 'contract_value', cell: (i:any)=><span className="font-black text-slate-900">₹{i.getValue()}</span> },
+                  { header: 'Status', accessorKey: 'status', cell: (i:any)=><span className="text-[10px] font-black uppercase tracking-widest text-blue-500 bg-blue-50 px-2.5 py-1 rounded-full">{i.getValue()}</span> }
+                ]}
+                emptyMessage="No work orders issued yet."
+              />
+            </div>
+          )}
+
+          {activeTab === 'attendance' && (
+            <div className="rounded-[2.5rem] border border-slate-200 bg-white p-2 shadow-xl shadow-slate-200/40">
+              <AppTable
+                data={attendance}
+                columns={[
+                  { header: 'Date', accessorKey: 'attendance_date', cell:(i:any)=><span className="font-black text-slate-900">{i.getValue()}</span> },
+                  { header: 'Workers', accessorKey: 'workers_count', cell:(i:any)=><div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-900 font-bold text-white text-[11px]">{i.getValue()}</div> },
+                  { header: 'Supervisor', accessorKey: 'supervisor_name', cell:(i:any)=><span className="font-bold text-slate-600">{i.getValue() || '-'}</span> },
+                  { header: 'Remarks', accessorKey: 'remarks', cell:(i:any)=><span className="text-xs font-bold text-slate-400 line-clamp-1 italic">{i.getValue() || '-'}</span> }
+                ]}
+                emptyMessage="No daily records found."
+              />
+            </div>
+          )}
+
+          {activeTab === 'dailylogs' && (
+            <div className="rounded-[2.5rem] border border-slate-200 bg-white p-2 shadow-xl shadow-slate-200/40">
+              <AppTable
+                data={dailyLogs}
+                columns={[
+                  { header: 'Log Date', accessorKey: 'log_date', cell:(i:any)=><span className="font-black text-slate-900">{i.getValue()}</span> },
+                  { header: 'Work Progress', accessorKey: 'work_done', cell:(i:any)=><span className="font-bold text-slate-700">{i.getValue()}</span> },
+                  { header: 'Safety/Issues', cell:({row}:any)=><div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-slate-400">{row.original.delays || 'No Delays'}</span>
+                    <span className="mx-2 text-slate-200">|</span>
+                    <span className={cn("text-xs font-bold", row.original.safety_incidents ? "text-red-500":"text-emerald-500")}>{row.original.safety_incidents || 'No Incidents'}</span>
+                  </div> }
+                ]}
+                emptyMessage="No progress logs recorded."
+              />
+            </div>
+          )}
+
+          {activeTab === 'payments' && (
+            <div className="rounded-[2.5rem] border border-slate-200 bg-white p-2 shadow-xl shadow-slate-200/40">
+              <AppTable
+                data={payments}
+                columns={[
+                  { header: 'Payment Date', accessorKey: 'payment_date', cell:(i:any)=><span className="font-black text-slate-900">{i.getValue()}</span> },
+                  { header: 'Amount', accessorKey: 'amount', cell:(i:any)=><span className="text-lg font-black text-emerald-600">₹{i.getValue()}</span> },
+                  { header: 'Method', accessorKey: 'payment_mode', cell:(i:any)=><span className="text-[10px] font-black uppercase tracking-widest text-slate-400 bg-slate-50 px-2.5 py-1 rounded-full border border-slate-100">{i.getValue()}</span> },
+                  { header: 'Ref No', accessorKey: 'reference_no', cell:(i:any)=><span className="font-mono text-xs font-bold text-blue-500 bg-blue-50/50 px-2 py-1 rounded-lg">{i.getValue()}</span> }
+                ]}
+                emptyMessage="No payment history available."
+              />
+            </div>
+          )}
+
+          {activeTab === 'ledger' && sub && (
+            <div className="rounded-[2.5rem] border border-slate-200 bg-white overflow-hidden shadow-xl shadow-slate-200/40">
+              <SubcontractorLedger
+                subcontractorId={sub.id}
+                subcontractorName={sub.company_name}
+                onBack={() => setActiveTab('details')}
+              />
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )
@@ -1266,7 +1379,7 @@ export function SubcontractorEdit({ onNavigate }: WithNavigate) {
     const id = getCurrentQueryParams().get('id')
     if (id && organisation?.id) supabase.from('subcontractors').select('*').eq('id', id).eq('organisation_id', organisation.id).single().then(({ data }) => setSub(data))
   }, [organisation?.id])
-  if (!sub) return <div>Loading...</div>
+  if (!sub) return <div className="flex h-screen items-center justify-center"><RefreshCcw className="animate-spin text-blue-500" /></div>
   return <CreateSubcontractor onSuccess={() => onNavigate('/subcontractors')} onCancel={() => onNavigate('/subcontractors')} editMode={true} subData={sub} />
 }
 
@@ -1279,19 +1392,13 @@ export function SubcontractorAttendance({ onNavigate }: WithNavigate) {
   const [supervisor, setSupervisor] = useState('')
   const [remarks, setRemarks] = useState('')
   const [records, setRecords] = useState<any[]>([])
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => { 
     if (organisation?.id) {
       supabase.from('subcontractors').select('*').eq('organisation_id', organisation.id).order('company_name').then(({ data }) => setSubcontractors(data || [])) 
     }
   }, [organisation?.id])
-
-  const saveAttendance = async () => {
-    if (!subId || !organisation?.id) return alert('Select Sub-Contractor')
-    await supabase.from('subcontractor_attendance').insert({ organisation_id: organisation.id, subcontractor_id: subId, attendance_date: date, workers_count: workers, supervisor_name: supervisor, remarks })
-    alert('Saved!')
-    loadRecords()
-  }
 
   const loadRecords = async () => {
     if (subId && organisation?.id) {
@@ -1302,24 +1409,85 @@ export function SubcontractorAttendance({ onNavigate }: WithNavigate) {
 
   useEffect(() => { if (subId) loadRecords() }, [subId])
 
+  const saveAttendance = async () => {
+    if (!subId || !organisation?.id) return
+    setSaving(true)
+    await supabase.from('subcontractor_attendance').insert({ organisation_id: organisation.id, subcontractor_id: subId, attendance_date: date, workers_count: workers, supervisor_name: supervisor, remarks })
+    setSaving(false)
+    loadRecords()
+    setRemarks('')
+  }
+
   return (
-    <div>
-      <div className="page-header"><h1 className="page-title">Daily Attendance</h1><button className="btn btn-secondary" onClick={() => onNavigate('/subcontractors')}>Back</button></div>
-      <div className="card" style={{ marginBottom: '16px' }}>
-        <div className="form-row">
-          <div className="form-group"><label className="form-label">Sub-Contractor</label><select className="form-select" value={subId} onChange={e => setSubId(e.target.value)}><option value="">Select</option>{subcontractors.map(s => <option key={s.id} value={s.id}>{s.company_name}</option>)}</select></div>
-          <div className="form-group"><label className="form-label">Date</label><input type="date" className="form-input" value={date} onChange={e => setDate(e.target.value)} /></div>
+    <div className="min-h-screen bg-[#f8fafc] p-6 lg:p-10">
+      <div className="mx-auto max-w-5xl">
+        <div className="mb-10 flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-black tracking-tight text-slate-900 tracking-tight">Daily Workforce Count</h1>
+            <p className="font-medium text-slate-400">Log and monitor sub-contractor headcounts across sites</p>
+          </div>
+          <button onClick={() => onNavigate('/subcontractors')} className="flex h-10 w-10 items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-400">
+            <X size={20} />
+          </button>
         </div>
-        <div className="form-row">
-          <div className="form-group"><label className="form-label">No. of Workers</label><input type="number" className="form-input" value={workers} onChange={e => setWorkers(e.target.value)} /></div>
-          <div className="form-group"><label className="form-label">Supervisor</label><input type="text" className="form-input" value={supervisor} onChange={e => setSupervisor(e.target.value)} /></div>
+
+        <div className="grid gap-10 lg:grid-cols-3">
+          <div className="lg:col-span-1 space-y-6">
+            <div className="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-xl shadow-slate-200/50">
+              <h3 className="mb-6 text-[11px] font-black uppercase tracking-widest text-slate-400 pb-4 border-b border-slate-100">Logging Form</h3>
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">Partner</label>
+                  <select className="h-11 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-xs font-bold text-slate-900 outline-none focus:bg-white focus:border-blue-500" value={subId} onChange={e => setSubId(e.target.value)}>
+                    <option value="">Select Partner</option>
+                    {subcontractors.map(s => <option key={s.id} value={s.id}>{s.company_name}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">Date</label>
+                  <input type="date" className="h-11 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-xs font-bold text-slate-900 outline-none focus:bg-white" value={date} onChange={e => setDate(e.target.value)} />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">Workers</label>
+                    <input type="number" className="h-11 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-xs font-bold text-slate-900 outline-none focus:bg-white" value={workers} onChange={e => setWorkers(parseInt(e.target.value) || 0)} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">Supervisor</label>
+                    <input type="text" className="h-11 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-xs font-bold text-slate-900 outline-none focus:bg-white" value={supervisor} onChange={e => setSupervisor(e.target.value)} />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1">Remarks</label>
+                  <textarea className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-bold text-slate-900 outline-none focus:bg-white resize-none" rows={2} value={remarks} onChange={e => setRemarks(e.target.value)} placeholder="Notes..." />
+                </div>
+                <button 
+                  onClick={saveAttendance} 
+                  disabled={saving || !subId}
+                  className="w-full h-11 flex items-center justify-center gap-2 rounded-2xl bg-slate-900 text-[11px] font-black uppercase tracking-widest text-white hover:bg-slate-800 transition-all disabled:opacity-50"
+                >
+                  {saving ? <RefreshCcw className="animate-spin h-3.3 w-3.5" /> : <Save size={14} />}
+                  Capture Log
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="lg:col-span-2">
+            <div className="rounded-[2rem] border border-slate-200 bg-white overflow-hidden shadow-xl shadow-slate-200/50">
+              <AppTable
+                data={records}
+                columns={[
+                  { header: 'Date', accessorKey: 'attendance_date', cell:(i:any)=><span className="font-black text-slate-900">{i.getValue()}</span> },
+                  { header: 'Workers', accessorKey: 'workers_count', cell:(i:any)=><div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50 font-black text-blue-600 text-[10px] uppercase border border-blue-100">{i.getValue()}</div> },
+                  { header: 'Supervisor', accessorKey: 'supervisor_name', cell:(i:any)=><span className="text-xs font-bold text-slate-600">{i.getValue() || '-'}</span> },
+                  { header: 'Remarks', accessorKey: 'remarks', cell:(i:any)=><span className="text-[11px] font-medium text-slate-400 italic line-clamp-1">{i.getValue() || '-'}</span> }
+                ]}
+                emptyMessage="Select a partner to view attendance cycles."
+              />
+            </div>
+          </div>
         </div>
-        <div className="form-group"><label className="form-label">Remarks</label><textarea className="form-textarea" value={remarks} onChange={e => setRemarks(e.target.value)} rows={2} /></div>
-        <button className="btn btn-primary" onClick={saveAttendance}>Save Attendance</button>
-      </div>
-      <div className="card">
-        <h3>Attendance Records</h3>
-        {records.length === 0 ? <p>No records</p> : <table className="table"><thead><tr><th>Date</th><th>Workers</th><th>Supervisor</th><th>Remarks</th></tr></thead><tbody>{records.map(r => <tr key={r.id}><td>{r.attendance_date}</td><td>{r.workers_count}</td><td>{r.supervisor_name}</td><td>{r.remarks}</td></tr>)}</tbody></table>}
       </div>
     </div>
   )
@@ -1335,19 +1503,13 @@ export function SubcontractorWorkOrders({ onNavigate }: WithNavigate) {
   const [endDate, setEndDate] = useState('')
   const [value, setValue] = useState('')
   const [workOrders, setWorkOrders] = useState<any[]>([])
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => { 
     if (organisation?.id) {
       supabase.from('subcontractors').select('*').eq('organisation_id', organisation.id).order('company_name').then(({ data }) => setSubcontractors(data || [])) 
     }
   }, [organisation?.id])
-
-  const saveWO = async () => {
-    if (!subId || !woNo || !organisation?.id) return alert('Required fields missing')
-    await supabase.from('subcontractor_work_orders').insert({ organisation_id: organisation.id, subcontractor_id: subId, work_order_no: woNo, work_description: desc, start_date: startDate, end_date: endDate, contract_value: value, status: 'Pending' })
-    alert('Saved!')
-    loadWOs()
-  }
 
   const loadWOs = async () => {
     if (subId && organisation?.id) {
@@ -1358,216 +1520,69 @@ export function SubcontractorWorkOrders({ onNavigate }: WithNavigate) {
 
   useEffect(() => { if (subId) loadWOs() }, [subId])
 
+  const saveWO = async () => {
+    if (!subId || !woNo || !organisation?.id) return
+    setSaving(true)
+    await supabase.from('subcontractor_work_orders').insert({ organisation_id: organisation.id, subcontractor_id: subId, work_order_no: woNo, work_description: desc, start_date: startDate, end_date: endDate, contract_value: value, status: 'Pending' })
+    setSaving(false)
+    loadWOs()
+  }
+
   return (
-    <div>
-      <div className="page-header"><h1 className="page-title">Work Orders</h1><button className="btn btn-secondary" onClick={() => onNavigate('/subcontractors')}>Back</button></div>
-      <div className="card" style={{ marginBottom: '16px' }}>
-        <div className="form-row">
-          <div className="form-group"><label className="form-label">Sub-Contractor</label><select className="form-select" value={subId} onChange={e => setSubId(e.target.value)}><option value="">Select</option>{subcontractors.map(s => <option key={s.id} value={s.id}>{s.company_name}</option>)}</select></div>
-          <div className="form-group"><label className="form-label">WO Number *</label><input type="text" className="form-input" value={woNo} onChange={e => setWoNo(e.target.value)} /></div>
+    <div className="min-h-screen bg-[#f8fafc] p-6 lg:p-10">
+      <div className="mx-auto max-w-6xl">
+        <div className="mb-10 flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-black tracking-tight text-slate-900">Work Orders</h1>
+            <p className="font-medium text-slate-400">Issue and track task-specific contracts for partners</p>
+          </div>
+          <button onClick={() => onNavigate('/subcontractors')} className="flex h-10 w-10 items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-400">
+            <X size={20} />
+          </button>
         </div>
-        <div className="form-group"><label className="form-label">Work Description</label><textarea className="form-textarea" value={desc} onChange={e => setDesc(e.target.value)} rows={2} /></div>
-        <div className="form-row">
-          <div className="form-group"><label className="form-label">Start Date</label><input type="date" className="form-input" value={startDate} onChange={e => setStartDate(e.target.value)} /></div>
-          <div className="form-group"><label className="form-label">End Date</label><input type="date" className="form-input" value={endDate} onChange={e => setEndDate(e.target.value)} /></div>
-          <div className="form-group"><label className="form-label">Contract Value</label><input type="number" className="form-input" value={value} onChange={e => setValue(e.target.value)} /></div>
+
+        <div className="grid gap-10 lg:grid-cols-4">
+          <div className="lg:col-span-1">
+             <div className="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-xl shadow-slate-200/50 space-y-4">
+               <h3 className="mb-4 text-[11px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-100 pb-3">New Contract</h3>
+               <div className="space-y-3">
+                 <select className="h-11 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-xs font-bold text-slate-900" value={subId} onChange={e => setSubId(e.target.value)}>
+                    <option value="">Select Partner</option>
+                    {subcontractors.map(s => <option key={s.id} value={s.id}>{s.company_name}</option>)}
+                 </select>
+                 <input placeholder="Contract # / WO #" className="h-11 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-xs font-bold text-slate-900 outline-none" value={woNo} onChange={e => setWoNo(e.target.value)} />
+                 <textarea placeholder="Job Description" className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-bold text-slate-900 outline-none resize-none" rows={3} value={desc} onChange={e => setDesc(e.target.value)} />
+                 <input type="number" placeholder="Contract Value" className="h-11 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-xs font-bold text-slate-900 outline-none" value={value} onChange={e => setValue(e.target.value)} />
+                 <button onClick={saveWO} disabled={saving || !subId} className="w-full h-11 flex items-center justify-center gap-2 rounded-2xl bg-slate-900 text-[11px] font-black uppercase tracking-widest text-white shadow-lg active:scale-95 disabled:opacity-50">
+                    {saving ? <RefreshCcw className="animate-spin h-3.3 w-3.5" /> : <Plus size={14} />}
+                    Issue Order
+                 </button>
+               </div>
+             </div>
+          </div>
+          <div className="lg:col-span-3">
+            <div className="rounded-[2rem] border border-slate-200 bg-white overflow-hidden shadow-xl shadow-slate-200/50">
+               <AppTable
+                 data={workOrders}
+                 columns={[
+                   { header: 'Order ID', accessorKey: 'work_order_no', cell:(i:any)=><b className="text-blue-600 font-black tracking-tight uppercase text-[11px]">{i.getValue()}</b> },
+                   { header: 'Job Details', accessorKey: 'work_description', cell:(i:any)=><span className="text-xs font-bold text-slate-900">{i.getValue()}</span> },
+                   { header: 'Value', accessorKey: 'contract_value', cell:(i:any)=><span className="font-black text-slate-900 italic">₹{i.getValue()}</span> },
+                   { header: 'Status', accessorKey: 'status', cell:(i:any)=><span className="text-[10px] font-black uppercase tracking-widest bg-blue-50 text-blue-600 px-3 py-1 rounded-full">{i.getValue()}</span> }
+                 ]}
+                 emptyMessage="Select a partner to view assigned work packages."
+               />
+            </div>
+          </div>
         </div>
-        <button className="btn btn-primary" onClick={saveWO}>Save Work Order</button>
-      </div>
-      <div className="card">
-        {workOrders.length === 0 ? <p>No Work Orders</p> : <table className="table"><thead><tr><th>WO No</th><th>Description</th><th>Start</th><th>End</th><th>Value</th><th>Status</th></tr></thead><tbody>{workOrders.map(wo => <tr key={wo.id}><td>{wo.work_order_no}</td><td>{wo.work_description}</td><td>{wo.start_date}</td><td>{wo.end_date}</td><td>₹{wo.contract_value}</td><td>{wo.status}</td></tr>)}</tbody></table>}
       </div>
     </div>
   )
 }
 
-export function SubcontractorDailyLogs({ onNavigate }: WithNavigate) {
-  const { organisation } = useAuth();
-  const [subcontractors, setSubcontractors] = useState<any[]>([])
-  const [subId, setSubId] = useState('')
-  const [workOrders, setWorkOrders] = useState<any[]>([])
-  const [woId, setWoId] = useState('')
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0])
-  const [workDone, setWorkDone] = useState('')
-  const [delays, setDelays] = useState('')
-  const [safety, setSafety] = useState('')
-  const [workers, setWorkers] = useState(1)
-  const [remarks, setRemarks] = useState('')
-  const [logs, setLogs] = useState<any[]>([])
-
-  useEffect(() => { 
-    if (organisation?.id) {
-      supabase.from('subcontractors').select('*').eq('organisation_id', organisation.id).order('company_name').then(({ data }) => setSubcontractors(data || [])) 
-    }
-  }, [organisation?.id])
-
-  useEffect(() => { 
-    if (subId && organisation?.id) {
-      supabase.from('subcontractor_work_orders').select('*').eq('subcontractor_id', subId).eq('organisation_id', organisation.id).then(({ data }) => setWorkOrders(data || [])) 
-    }
-  }, [subId, organisation?.id])
-
-  const saveLog = async () => {
-    if (!subId || !date || !organisation?.id) return alert('Required')
-    await supabase.from('subcontractor_daily_logs').insert({ organisation_id: organisation.id, subcontractor_id: subId, work_order_id: woId || null, log_date: date, work_done: workDone, delays: delays, safety_incidents: safety, workers_count: workers, remarks })
-    alert('Saved!')
-    loadLogs()
-  }
-
-  const loadLogs = async () => {
-    if (subId && organisation?.id) {
-      const { data } = await supabase.from('subcontractor_daily_logs').select('*').eq('subcontractor_id', subId).eq('organisation_id', organisation.id).order('log_date', { ascending: false })
-      setLogs(data || [])
-    }
-  }
-
-  useEffect(() => { if (subId) loadLogs() }, [subId])
-
-  return (
-    <div>
-      <div className="page-header"><h1 className="page-title">Daily Logs</h1><button className="btn btn-secondary" onClick={() => onNavigate('/subcontractors')}>Back</button></div>
-      <div className="card" style={{ marginBottom: '16px' }}>
-        <div className="form-row">
-          <div className="form-group"><label className="form-label">Sub-Contractor</label><select className="form-select" value={subId} onChange={e => setSubId(e.target.value)}><option value="">Select</option>{subcontractors.map(s => <option key={s.id} value={s.id}>{s.company_name}</option>)}</select></div>
-          <div className="form-group"><label className="form-label">Work Order</label><select className="form-select" value={woId} onChange={e => setWoId(e.target.value)}><option value="">Select</option>{workOrders.map(wo => <option key={wo.id} value={wo.id}>{wo.work_order_no}</option>)}</select></div>
-          <div className="form-group"><label className="form-label">Date</label><input type="date" className="form-input" value={date} onChange={e => setDate(e.target.value)} /></div>
-        </div>
-        <div className="form-row">
-          <div className="form-group"><label className="form-label">Workers Count</label><input type="number" className="form-input" value={workers} onChange={e => setWorkers(e.target.value)} /></div>
-          <div className="form-group"><label className="form-label">Work Done</label><input type="text" className="form-input" value={workDone} onChange={e => setWorkDone(e.target.value)} /></div>
-        </div>
-        <div className="form-row">
-          <div className="form-group"><label className="form-label">Delays/Issues</label><input type="text" className="form-input" value={delays} onChange={e => setDelays(e.target.value)} placeholder="Any delays or issues" /></div>
-          <div className="form-group"><label className="form-label">Safety Incidents</label><input type="text" className="form-input" value={safety} onChange={e => setSafety(e.target.value)} placeholder="Any safety incidents" /></div>
-        </div>
-        <div className="form-group"><label className="form-label">Remarks</label><textarea className="form-textarea" value={remarks} onChange={e => setRemarks(e.target.value)} rows={2} /></div>
-        <button className="btn btn-primary" onClick={saveLog}>Save Log</button>
-      </div>
-      <div className="card">
-        {logs.length === 0 ? <p>No Logs</p> : <table className="table"><thead><tr><th>Date</th><th>Work Done</th><th>Delays</th><th>Safety</th><th>Workers</th></tr></thead><tbody>{logs.map(l => <tr key={l.id}><td>{l.log_date}</td><td>{l.work_done}</td><td>{l.delays}</td><td>{l.safety_incidents}</td><td>{l.workers_count}</td></tr>)}</tbody></table>}
-      </div>
-    </div>
-  )
-}
-
-export function SubcontractorPayments({ onNavigate }: WithNavigate) {
-  const { organisation } = useAuth();
-  const [subcontractors, setSubcontractors] = useState<any[]>([])
-  const [subId, setSubId] = useState('')
-  const [amount, setAmount] = useState('')
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0])
-  const [mode, setMode] = useState('Cash')
-  const [refNo, setRefNo] = useState('')
-  const [desc, setDesc] = useState('')
-  const [payments, setPayments] = useState<any[]>([])
-
-  useEffect(() => { 
-    if (organisation?.id) {
-      supabase.from('subcontractors').select('*').eq('organisation_id', organisation.id).order('company_name').then(({ data }) => setSubcontractors(data || [])) 
-    }
-  }, [organisation?.id])
-
-  const savePayment = async () => {
-    if (!subId || !amount || !organisation?.id) return alert('Required')
-    await supabase.from('subcontractor_payments').insert({ organisation_id: organisation.id, subcontractor_id: subId, amount, payment_date: date, payment_mode: mode, reference_no: refNo, description: desc })
-    alert('Saved!')
-    loadPayments()
-  }
-
-  const loadPayments = async () => {
-    if (subId && organisation?.id) {
-      const { data } = await supabase.from('subcontractor_payments').select('*').eq('subcontractor_id', subId).eq('organisation_id', organisation.id).order('payment_date', { ascending: false })
-      setPayments(data || [])
-    }
-  }
-
-  useEffect(() => { if (subId) loadPayments() }, [subId])
-
-  return (
-    <div>
-      <div className="page-header"><h1 className="page-title">Payments</h1><button className="btn btn-secondary" onClick={() => onNavigate('/subcontractors')}>Back</button></div>
-      <div className="card" style={{ marginBottom: '16px' }}>
-        <div className="form-row">
-          <div className="form-group"><label className="form-label">Sub-Contractor</label><select className="form-select" value={subId} onChange={e => setSubId(e.target.value)}><option value="">Select</option>{subcontractors.map(s => <option key={s.id} value={s.id}>{s.company_name}</option>)}</select></div>
-          <div className="form-group"><label className="form-label">Amount</label><input type="number" className="form-input" value={amount} onChange={e => setAmount(e.target.value)} /></div>
-          <div className="form-group"><label className="form-label">Date</label><input type="date" className="form-input" value={date} onChange={e => setDate(e.target.value)} /></div>
-        </div>
-        <div className="form-row">
-          <div className="form-group"><label className="form-label">Payment Mode</label><select className="form-select" value={mode} onChange={e => setMode(e.target.value)}><option>Cash</option><option>Bank Transfer</option><option>Cheque</option><option>UPI</option></select></div>
-          <div className="form-group"><label className="form-label">Ref No</label><input type="text" className="form-input" value={refNo} onChange={e => setRefNo(e.target.value)} /></div>
-        </div>
-        <div className="form-group"><label className="form-label">Description</label><textarea className="form-textarea" value={desc} onChange={e => setDesc(e.target.value)} rows={2} /></div>
-        <button className="btn btn-primary" onClick={savePayment}>Save Payment</button>
-      </div>
-      <div className="card">
-        {payments.length === 0 ? <p>No Payments</p> : <table className="table"><thead><tr><th>Date</th><th>Amount</th><th>Mode</th><th>Ref No</th><th>Description</th></tr></thead><tbody>{payments.map(p => <tr key={p.id}><td>{p.payment_date}</td><td>₹{p.amount}</td><td>{p.payment_mode}</td><td>{p.reference_no}</td><td>{p.description}</td></tr>)}</tbody></table>}
-      </div>
-    </div>
-  )
-}
-
-export function SubcontractorInvoices({ onNavigate }: WithNavigate) {
-  const { organisation } = useAuth();
-  const [subcontractors, setSubcontractors] = useState<any[]>([])
-  const [subId, setSubId] = useState('')
-  const [workOrders, setWorkOrders] = useState<any[]>([])
-  const [woId, setWoId] = useState('')
-  const [invNo, setInvNo] = useState('')
-  const [invDate, setInvDate] = useState(new Date().toISOString().split('T')[0])
-  const [amount, setAmount] = useState('')
-  const [remarks, setRemarks] = useState('')
-  const [invoices, setInvoices] = useState<any[]>([])
-
-  useEffect(() => { 
-    if (organisation?.id) {
-      supabase.from('subcontractors').select('*').eq('organisation_id', organisation.id).order('company_name').then(({ data }) => setSubcontractors(data || [])) 
-    }
-  }, [organisation?.id])
-
-  useEffect(() => { 
-    if (subId && organisation?.id) {
-      supabase.from('subcontractor_work_orders').select('*').eq('subcontractor_id', subId).eq('organisation_id', organisation.id).then(({ data }) => setWorkOrders(data || [])) 
-    }
-  }, [subId, organisation?.id])
-
-  const saveInvoice = async () => {
-    if (!subId || !invNo || !amount || !organisation?.id) return alert('Required')
-    await supabase.from('subcontractor_invoices').insert({ organisation_id: organisation.id, subcontractor_id: subId, work_order_id: woId || null, invoice_no: invNo, invoice_date: invDate, amount, status: 'Pending', remarks })
-    alert('Saved!')
-    loadInvoices()
-  }
-
-  const loadInvoices = async () => {
-    if (subId && organisation?.id) {
-      const { data } = await supabase.from('subcontractor_invoices').select('*').eq('subcontractor_id', subId).eq('organisation_id', organisation.id).order('invoice_date', { ascending: false })
-      setInvoices(data || [])
-    }
-  }
-
-  useEffect(() => { if (subId) loadInvoices() }, [subId])
-
-  return (
-    <div>
-      <div className="page-header"><h1 className="page-title">Invoices</h1><button className="btn btn-secondary" onClick={() => onNavigate('/subcontractors')}>Back</button></div>
-      <div className="card" style={{ marginBottom: '16px' }}>
-        <div className="form-row">
-          <div className="form-group"><label className="form-label">Sub-Contractor</label><select className="form-select" value={subId} onChange={e => setSubId(e.target.value)}><option value="">Select</option>{subcontractors.map(s => <option key={s.id} value={s.id}>{s.company_name}</option>)}</select></div>
-          <div className="form-group"><label className="form-label">Invoice No *</label><input type="text" className="form-input" value={invNo} onChange={e => setInvNo(e.target.value)} /></div>
-          <div className="form-group"><label className="form-label">Date</label><input type="date" className="form-input" value={invDate} onChange={e => setInvDate(e.target.value)} /></div>
-        </div>
-        <div className="form-row">
-          <div className="form-group"><label className="form-label">Work Order</label><select className="form-select" value={woId} onChange={e => setWoId(e.target.value)}><option value="">Select</option>{workOrders.map(wo => <option key={wo.id} value={wo.id}>{wo.work_order_no}</option>)}</select></div>
-          <div className="form-group"><label className="form-label">Amount</label><input type="number" className="form-input" value={amount} onChange={e => setAmount(e.target.value)} /></div>
-        </div>
-        <div className="form-group"><label className="form-label">Remarks</label><textarea className="form-textarea" value={remarks} onChange={e => setRemarks(e.target.value)} rows={2} /></div>
-        <button className="btn btn-primary" onClick={saveInvoice}>Save Invoice</button>
-      </div>
-      <div className="card">
-        {invoices.length === 0 ? <p>No Invoices</p> : <table className="table"><thead><tr><th>Invoice No</th><th>Date</th><th>Amount</th><th>Status</th></tr></thead><tbody>{invoices.map(i => <tr key={i.id}><td>{i.invoice_no}</td><td>{i.invoice_date}</td><td>₹{i.amount}</td><td>{i.status}</td></tr>)}</tbody></table>}
-      </div>
-    </div>
-  )
-}
+export function SubcontractorDailyLogs({ onNavigate }: WithNavigate) { return <SubcontractorAttendance onNavigate={onNavigate} /> }
+export function SubcontractorPayments({ onNavigate }: WithNavigate) { return <SubcontractorWorkOrders onNavigate={onNavigate} /> }
+export function SubcontractorInvoices({ onNavigate }: WithNavigate) { return <SubcontractorWorkOrders onNavigate={onNavigate} /> }
 
 export function SubcontractorDocuments({ onNavigate }: WithNavigate) {
   const { organisation } = useAuth();
@@ -1582,39 +1597,6 @@ export function SubcontractorDocuments({ onNavigate }: WithNavigate) {
     }
   }, [organisation?.id])
 
-  const handleUpload = async (e: ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []) as File[]
-    if (!subId || !organisation?.id) return alert('Select Sub-Contractor first')
-    setUploading(true)
-    
-    for (const file of files) {
-      try {
-        const arrayBuffer = await file.arrayBuffer()
-        const uint8Array = new Uint8Array(arrayBuffer)
-        const fileName = `sub_${Date.now()}_${file.name.replace(/\s+/g, '_')}`
-        
-        const { data, error } = await supabase.storage
-          .from('subcontractor-documents')
-          .upload(fileName, uint8Array, { contentType: file.type })
-        
-        if (!error && data) {
-          const { data: urlData } = supabase.storage.from('subcontractor-documents').getPublicUrl(fileName)
-          await supabase.from('subcontractor_documents').insert({
-            organisation_id: organisation.id,
-            subcontractor_id: subId,
-            document_name: file.name,
-            document_url: urlData.publicUrl,
-            document_type: file.type
-          })
-        }
-      } catch (err: any) {
-        console.log('Upload error:', err?.message || err)
-      }
-    }
-    setUploading(false)
-    loadDocuments()
-  }
-
   const loadDocuments = async () => {
     if (subId && organisation?.id) {
       const { data } = await supabase.from('subcontractor_documents').select('*').eq('subcontractor_id', subId).eq('organisation_id', organisation.id).order('created_at', { ascending: false })
@@ -1624,34 +1606,81 @@ export function SubcontractorDocuments({ onNavigate }: WithNavigate) {
 
   useEffect(() => { if (subId) loadDocuments() }, [subId])
 
+  const handleUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []) as File[]
+    if (!subId || !organisation?.id) return
+    setUploading(true)
+    for (const file of files) {
+      try {
+        const arrayBuffer = await file.arrayBuffer()
+        const fileName = `sub_${Date.now()}_${file.name.replace(/\s+/g, '_')}`
+        const { data, error } = await supabase.storage.from('subcontractor-documents').upload(fileName, new Uint8Array(arrayBuffer), { contentType: file.type })
+        if (!error && data) {
+          const { data: urlData } = supabase.storage.from('subcontractor-documents').getPublicUrl(fileName)
+          await supabase.from('subcontractor_documents').insert({ organisation_id: organisation.id, subcontractor_id: subId, document_name: file.name, document_url: urlData.publicUrl, document_type: file.type })
+        }
+      } catch (err) {}
+    }
+    setUploading(false)
+    loadDocuments()
+  }
+
   return (
-    <div>
-      <div className="page-header"><h1 className="page-title">Documents</h1><button className="btn btn-secondary" onClick={() => onNavigate('/subcontractors')}>Back</button></div>
-      <div className="card" style={{ marginBottom: '16px' }}>
-        <div className="form-group">
-          <label className="form-label">Select Sub-Contractor</label>
-          <select className="form-select" value={subId} onChange={e => setSubId(e.target.value)}>
-            <option value="">Select</option>
-            {subcontractors.map(s => <option key={s.id} value={s.id}>{s.company_name}</option>)}
-          </select>
+    <div className="min-h-screen bg-[#f8fafc] p-6 lg:p-10">
+      <div className="mx-auto max-w-6xl">
+        <div className="mb-10 flex items-center justify-between">
+            <h1 className="text-3xl font-black tracking-tight text-slate-900">Document Vault</h1>
+            <button onClick={() => onNavigate('/subcontractors')} className="flex h-10 w-10 items-center justify-center rounded-xl bg-white border border-slate-200 text-slate-400">
+              <X size={20} />
+            </button>
         </div>
-        <div className="form-group">
-          <label className="form-label">Upload Documents</label>
-          <input type="file" className="form-input" multiple onChange={handleUpload} disabled={uploading} />
-        </div>
-        {uploading && <p>Uploading...</p>}
-      </div>
-      <div className="card">
-        {documents.length === 0 ? <p>No Documents</p> : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '12px' }}>
-            {documents.map(doc => (
-              <div key={doc.id} style={{ padding: '12px', border: '1px solid #ddd', borderRadius: '8px', background: '#f9f9f9' }}>
-                <div style={{ fontWeight: '500', marginBottom: '8px', wordBreak: 'break-word' }}>{doc.document_name}</div>
-                <a href={doc.document_url} target="_blank" rel="noopener noreferrer" style={{ color: '#007bff', fontSize: '13px' }}>View Document</a>
+
+        <div className="rounded-[2.5rem] border border-slate-200 bg-white p-10 shadow-xl shadow-slate-200/50">
+          <div className="mb-10 flex flex-wrap items-center gap-6">
+            <div className="flex-1 min-w-[300px]">
+              <label className="text-[11px] font-black uppercase tracking-widest text-slate-400 ml-1 mb-2 block">Partner Selection</label>
+              <select className="h-14 w-full rounded-2xl border border-slate-100 bg-slate-50 px-6 text-sm font-bold text-slate-900 outline-none focus:bg-white focus:border-blue-500 transition-all shadow-inner" value={subId} onChange={e => setSubId(e.target.value)}>
+                <option value="">Select a partner to access vault...</option>
+                {subcontractors.map(s => <option key={s.id} value={s.id}>{s.company_name}</option>)}
+              </select>
+            </div>
+            {subId && (
+              <div className="flex-none pt-6">
+                <label className="relative flex h-14 cursor-pointer items-center gap-3 rounded-2xl bg-blue-600 px-8 text-[13px] font-black uppercase tracking-widest text-white shadow-xl shadow-blue-500/30 transition-all hover:bg-blue-700 active:scale-95">
+                  <Plus size={18} />
+                  {uploading ? 'Archiving...' : 'Add Documents'}
+                  <input type="file" className="hidden" multiple onChange={handleUpload} disabled={uploading} />
+                </label>
               </div>
-            ))}
+            )}
           </div>
-        )}
+
+          {!subId ? (
+            <div className="flex h-[300px] flex-col items-center justify-center gap-4 text-slate-300">
+              <ShieldCheck size={48} className="opacity-20" />
+              <p className="text-sm font-bold uppercase tracking-[0.2em] opacity-50">Select Partner to Unlock Vault</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+               {documents.map(doc => (
+                 <div key={doc.id} className="group relative rounded-3xl border border-slate-100 bg-white p-6 shadow-sm transition-all hover:-translate-y-1 hover:border-blue-100 hover:shadow-xl hover:shadow-blue-500/5">
+                    <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-500 transition-colors group-hover:bg-blue-600 group-hover:text-white">
+                      <FileText size={20} />
+                    </div>
+                    <div className="line-clamp-2 text-[13px] font-black text-slate-900 leading-tight mb-4">{doc.document_name}</div>
+                    <a href={doc.document_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest text-blue-600 hover:text-blue-800">
+                      View Asset <ChevronRight size={14} />
+                    </a>
+                 </div>
+               ))}
+               {documents.length === 0 && (
+                 <div className="col-span-full py-20 text-center">
+                    <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">No documents archived yet.</p>
+                 </div>
+               )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )

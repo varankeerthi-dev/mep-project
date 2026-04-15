@@ -3,16 +3,36 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { 
+  ChevronLeft, 
+  Plus, 
+  Save, 
+  Trash2, 
+  MoreHorizontal, 
+  Search, 
+  Filter, 
+  Layout, 
+  ArrowRight,
+  RefreshCcw,
+  CheckCircle2,
+  AlertCircle,
+  Truck,
+  Package,
+  Clock,
+  CircleDashed,
+  Info
+} from 'lucide-react';
+import { cn } from '../lib/utils';
 
 const STATUSES = ['Pending', 'Sourcing', 'PO Raised', 'Received', 'Dispatched'] as const;
 type Status = typeof STATUSES[number];
 
-const STATUS_CONFIG: Record<Status, { bg: string; color: string; border: string }> = {
-  Pending:    { bg: '#fef9c3', color: '#854d0e', border: '#fde047' },
-  Sourcing:   { bg: '#e0f2fe', color: '#075985', border: '#7dd3fc' },
-  'PO Raised':{ bg: '#ede9fe', color: '#5b21b6', border: '#c4b5fd' },
-  Received:   { bg: '#dcfce7', color: '#166534', border: '#86efac' },
-  Dispatched: { bg: '#f3f4f6', color: '#374151', border: '#d1d5db' },
+const STATUS_CONFIG: Record<Status, { bg: string; color: string; border: string, icon: any }> = {
+  Pending:    { bg: '#fefce8', color: '#a16207', border: '#fef08a', icon: CircleDashed },
+  Sourcing:   { bg: '#f0f9ff', color: '#0369a1', border: '#bae6fd', icon: Search },
+  'PO Raised':{ bg: '#f5f3ff', color: '#6d28d9', border: '#ddd6fe', icon: Package },
+  Received:   { bg: '#f0fdf4', color: '#15803d', border: '#bbf7d0', icon: CheckCircle2 },
+  Dispatched: { bg: '#f8fafc', color: '#475569', border: '#e2e8f0', icon: Truck },
 };
 
 type ProcurementItem = {
@@ -35,6 +55,8 @@ type ProcurementItem = {
   _dirty?: boolean;
   _isNew?: boolean;
 };
+
+const inputClass = "w-full border-none bg-transparent px-2 py-1.5 text-[13px] text-slate-900 outline-none transition-all placeholder:text-slate-300 focus:bg-white focus:ring-1 focus:ring-blue-500/20 rounded-md";
 
 export default function ProcurementDetail() {
   const [searchParams] = useSearchParams();
@@ -247,387 +269,387 @@ export default function ProcurementDetail() {
   const hasDirty = items.some((i) => i._dirty);
 
   if (isLoading) {
-    return <div style={{ padding: '40px', textAlign: 'center', color: '#9ca3af' }}>Loading...</div>;
+    return (
+      <div className="flex h-[80vh] items-center justify-center">
+        <RefreshCcw className="h-8 w-8 animate-spin text-slate-300" />
+      </div>
+    );
   }
 
   return (
-    <div style={{ padding: '20px', background: '#f8fafc', minHeight: '100vh' }}>
+    <div className="min-h-screen bg-[#f8fafc] p-6 lg:p-10">
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '16px' }}>
+      <div className="mb-8 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between animate-in fade-in slide-in-from-top-4 duration-700">
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
-            <button
-              onClick={() => navigate('/procurement')}
-              style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#6b7280', fontSize: '13px', padding: 0 }}
-            >
-              ← Back
-            </button>
-            <span style={{ color: '#d1d5db' }}>|</span>
-            <h1 style={{ fontSize: '18px', fontWeight: 700, color: '#111827', margin: 0 }}>{list?.title}</h1>
+          <button
+            onClick={() => navigate('/procurement')}
+            className="group mb-4 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-400 transition-colors hover:text-blue-600"
+          >
+            <ChevronLeft size={16} className="transition-transform group-hover:-translate-x-0.5" />
+            Back to Procurement
+          </button>
+          
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-bold tracking-tight text-slate-900">{list?.title || 'Loading List...'}</h1>
             {list?.source && (
-              <span style={{
-                padding: '2px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 600,
-                background: list.source === 'boq' ? '#fef3c7' : list.source === 'quotation' ? '#e0f2fe' : '#ede9fe',
-                color: list.source === 'boq' ? '#92400e' : list.source === 'quotation' ? '#075985' : '#5b21b6',
-              }}>
-                {list.source.toUpperCase()}
+              <span className={cn(
+                "rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest",
+                list.source === 'boq' ? "bg-amber-100 text-amber-700" : 
+                list.source === 'quotation' ? "bg-cyan-100 text-cyan-700" : 
+                "bg-indigo-100 text-indigo-700"
+              )}>
+                {list.source}
               </span>
             )}
           </div>
-          <div style={{ fontSize: '12px', color: '#6b7280', display: 'flex', gap: '16px' }}>
-            {list?.client_name && <span>Client: {list.client_name}</span>}
-            {(list?.boq_no || list?.quotation_no) && <span>Ref: {list.boq_no || list.quotation_no}</span>}
-            {list?.notes && <span>{list.notes}</span>}
+          
+          <div className="mt-3 flex flex-wrap items-center gap-4 text-[13px] font-medium text-slate-500">
+            {list?.client_name && (
+              <div className="flex items-center gap-1.5 rounded-lg bg-white px-2.5 py-1 shadow-sm border border-slate-100">
+                <span className="text-slate-300">Client:</span>
+                <span className="text-slate-700">{list.client_name}</span>
+              </div>
+            )}
+            {(list?.boq_no || list?.quotation_no) && (
+              <div className="flex items-center gap-1.5 rounded-lg bg-white px-2.5 py-1 shadow-sm border border-slate-100">
+                <span className="text-slate-300">Ref:</span>
+                <span className="text-slate-700">{list.boq_no || list.quotation_no}</span>
+              </div>
+            )}
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-          <button onClick={addHeader} style={btnOutline}>+ Section</button>
-          <button onClick={addRow} style={btnOutline}>+ Add Row</button>
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={addHeader} 
+            className="inline-flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 text-[13px] font-bold text-slate-700 shadow-sm transition-all hover:bg-slate-50 active:scale-95"
+          >
+            <Layout size={18} className="text-blue-500" />
+            Add Section
+          </button>
+          <button 
+            onClick={addRow} 
+            className="inline-flex h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 text-[13px] font-bold text-slate-700 shadow-sm transition-all hover:bg-slate-50 active:scale-95"
+          >
+            <Plus size={18} className="text-blue-500" />
+            Add Row
+          </button>
           <button
             onClick={handleSave}
             disabled={saving || !hasDirty}
-            style={{
-              ...btnPrimary,
-              opacity: saving || !hasDirty ? 0.5 : 1,
-            }}
+            className={cn(
+              "inline-flex h-11 items-center gap-2 rounded-xl px-6 text-[13px] font-bold text-white shadow-lg transition-all active:scale-95",
+              hasDirty 
+                ? "bg-blue-600 shadow-blue-500/20 hover:bg-blue-700" 
+                : "bg-slate-800 opacity-60 cursor-not-allowed"
+            )}
           >
-            {saving ? 'Saving...' : hasDirty ? '● Save Changes' : 'Saved'}
+            {saving ? <RefreshCcw size={18} className="animate-spin" /> : <Save size={18} />}
+            {saving ? 'Saving...' : hasDirty ? 'Save Changes' : 'All Changes Saved'}
           </button>
         </div>
       </div>
 
-      {/* Stats bar */}
-      <div style={{ display: 'flex', gap: '10px', marginBottom: '16px', flexWrap: 'wrap' }}>
+      {/* Stats Cards */}
+      <div className="mb-10 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100">
         {[
-          { label: 'Total Items', value: stats.total, filter: 'all', bg: '#f3f4f6', color: '#374151' },
-          { label: 'Needs Sourcing', value: stats.needsSourcing, filter: 'needs', bg: '#fef9c3', color: '#854d0e' },
-          { label: 'Pending', value: stats.pending, filter: 'Pending', bg: '#fef9c3', color: '#854d0e' },
-          { label: 'Sourcing', value: stats.sourcing, filter: 'Sourcing', bg: '#e0f2fe', color: '#075985' },
-          { label: 'PO Raised', value: stats.poRaised, filter: 'PO Raised', bg: '#ede9fe', color: '#5b21b6' },
-          { label: 'Received', value: stats.received, filter: 'Received', bg: '#dcfce7', color: '#166534' },
-          { label: 'Dispatched', value: stats.dispatched, filter: 'Dispatched', bg: '#f3f4f6', color: '#374151' },
-        ].map((s) => (
-          <div
-            key={s.filter}
-            onClick={() => setFilterStatus(s.filter)}
-            style={{
-              padding: '8px 14px',
-              borderRadius: '8px',
-              background: filterStatus === s.filter ? s.bg : '#fff',
-              border: `1px solid ${filterStatus === s.filter ? s.color + '40' : '#e5e7eb'}`,
-              cursor: 'pointer',
-              transition: 'all 0.15s',
-            }}
-          >
-            <div style={{ fontSize: '18px', fontWeight: 700, color: s.color }}>{s.value}</div>
-            <div style={{ fontSize: '10px', color: '#6b7280', fontWeight: 500 }}>{s.label}</div>
-          </div>
-        ))}
+          { label: 'Total items', value: stats.total, filter: 'all', icon: Package, color: 'slate' },
+          { label: 'Needs sourcing', value: stats.needsSourcing, filter: 'needs', icon: AlertCircle, color: 'rose' },
+          { label: 'Pending', value: stats.pending, filter: 'Pending', icon: CircleDashed, color: 'amber' },
+          { label: 'Sourcing', value: stats.sourcing, filter: 'Sourcing', icon: Search, color: 'cyan' },
+          { label: 'PO Raised', value: stats.poRaised, filter: 'PO Raised', icon: Clock, color: 'indigo' },
+          { label: 'Received', value: stats.received, filter: 'Received', icon: CheckCircle2, color: 'emerald' },
+          { label: 'Dispatched', value: stats.dispatched, filter: 'Dispatched', icon: Truck, color: 'slate' },
+        ].map((s) => {
+          const Icon = s.icon;
+          const isActive = filterStatus === s.filter;
+          const colorMap: any = {
+            slate: "bg-slate-500",
+            rose: "bg-rose-500",
+            amber: "bg-amber-500",
+            cyan: "bg-cyan-600",
+            indigo: "bg-indigo-600",
+            emerald: "bg-emerald-600"
+          };
+          
+          return (
+            <button
+              key={s.filter}
+              onClick={() => setFilterStatus(s.filter)}
+              className={cn(
+                "flex flex-col items-start gap-1 rounded-2xl border p-4 text-left transition-all hover:translate-y-[-2px]",
+                isActive 
+                  ? "border-blue-200 bg-white shadow-xl shadow-blue-500/5 ring-2 ring-blue-500/10" 
+                  : "border-slate-100 bg-white shadow-sm hover:shadow-md"
+              )}
+            >
+              <div className="flex w-full items-center justify-between">
+                <div className={cn("flex h-8 w-8 items-center justify-center rounded-lg bg-opacity-10", colorMap[s.color].replace('bg-', 'text-'))}>
+                  <Icon size={18} />
+                </div>
+                <div className="text-xl font-black text-slate-900">{s.value}</div>
+              </div>
+              <div className="mt-1 text-[11px] font-bold uppercase tracking-wider text-slate-400">{s.label}</div>
+            </button>
+          );
+        })}
       </div>
 
-      {/* Table */}
-      <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', overflow: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', minWidth: '900px' }}>
-          <thead>
-            <tr style={{ background: '#f9fafb', borderBottom: '2px solid #e5e7eb' }}>
-              <th style={thStyle}>#</th>
-              <th style={{ ...thStyle, textAlign: 'left', minWidth: '200px' }}>Item</th>
-              <th style={thStyle}>Make</th>
-              <th style={thStyle}>Variant</th>
-              <th style={thStyle}>UOM</th>
-              <th style={thStyle}>BOQ Qty</th>
-              <th style={thStyle}>Stock Qty</th>
-              <th style={thStyle}>Local Qty</th>
-              <th style={{ ...thStyle, color: '#dc2626' }}>Gap</th>
-              <th style={{ ...thStyle, minWidth: '160px' }}>Vendor</th>
-              <th style={{ ...thStyle, minWidth: '140px' }}>Status</th>
-              <th style={{ ...thStyle, minWidth: '140px' }}>Notes</th>
-              <th style={thStyle}></th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredItems.length === 0 ? (
-              <tr>
-                <td colSpan={13} style={{ padding: '40px', textAlign: 'center', color: '#9ca3af' }}>
-                  No items. Click "+ Add Row" to start.
-                </td>
+      {/* Main Table Area */}
+      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl shadow-slate-200/50 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200">
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse text-[13px]">
+            <thead>
+              <tr className="border-b border-slate-100 bg-slate-50/50">
+                <th className="px-4 py-4 text-center text-[10px] font-black uppercase tracking-widest text-slate-400 w-12">#</th>
+                <th className="px-2 py-4 text-left text-[10px] font-black uppercase tracking-widest text-slate-400 min-w-[240px]">Item Description</th>
+                <th className="px-2 py-4 text-left text-[10px] font-black uppercase tracking-widest text-slate-400 min-w-[120px]">Make</th>
+                <th className="px-2 py-4 text-left text-[10px] font-black uppercase tracking-widest text-slate-400 min-w-[120px]">Variant</th>
+                <th className="px-2 py-4 text-center text-[10px] font-black uppercase tracking-widest text-slate-400 w-20">UOM</th>
+                <th className="px-2 py-4 text-right text-[10px] font-black uppercase tracking-widest text-slate-400 w-24">BOQ Qty</th>
+                <th className="px-2 py-4 text-right text-[10px] font-black uppercase tracking-widest text-slate-400 w-24">Stock</th>
+                <th className="px-2 py-4 text-right text-[10px] font-black uppercase tracking-widest text-slate-400 w-24">Local</th>
+                <th className="px-4 py-4 text-right text-[10px] font-black uppercase tracking-widest text-rose-400 w-24">Gap</th>
+                <th className="px-2 py-4 text-left text-[10px] font-black uppercase tracking-widest text-slate-400 min-w-[160px]">Vendor</th>
+                <th className="px-2 py-4 text-left text-[10px] font-black uppercase tracking-widest text-slate-400 min-w-[150px]">Current Status</th>
+                <th className="px-2 py-4 text-left text-[10px] font-black uppercase tracking-widest text-slate-400 min-w-[150px]">Notes</th>
+                <th className="px-4 py-4 w-10"></th>
               </tr>
-            ) : (
-              filteredItems.map((item, idx) => {
-                if (item.is_header_row) {
+            </thead>
+            <tbody className="divide-y divide-slate-50">
+              {filteredItems.length === 0 ? (
+                <tr>
+                  <td colSpan={13} className="py-20 text-center">
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="rounded-full bg-slate-50 p-4">
+                        <Package size={32} className="text-slate-200" />
+                      </div>
+                      <p className="text-sm font-medium text-slate-400">No items found. Click "+ Add Row" to begin sourcing.</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                filteredItems.map((item, idx) => {
+                  if (item.is_header_row) {
+                    return (
+                      <tr key={item.id} className="group bg-slate-50/80 transition-colors hover:bg-slate-100/80">
+                        <td className="px-4 py-3 text-center">
+                          <Layout size={14} className="mx-auto text-blue-400" />
+                        </td>
+                        <td colSpan={11} className="px-2 py-3">
+                          <input
+                            type="text"
+                            value={item.header_text || ''}
+                            onChange={(e) => updateItem(item.id, 'header_text', e.target.value)}
+                            className="w-full border-none bg-transparent p-0 text-xs font-black uppercase tracking-widest text-slate-900 outline-none placeholder:text-slate-300"
+                            placeholder="Section Title..."
+                          />
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <button 
+                            onClick={() => handleDeleteRow(item)} 
+                            className="opacity-0 transition-opacity hover:text-rose-500 group-hover:opacity-100"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  }
+
+                  const gap = (item.boq_qty || 0) - (item.stock_qty || 0) - (item.local_qty || 0);
+                  const isGap = gap > 0;
+                  const isDispatched = item.status === 'Dispatched';
+                  const cfg = STATUS_CONFIG[item.status as Status] || STATUS_CONFIG.Pending;
+                  const StatusIcon = cfg.icon;
+
                   return (
-                    <tr key={item.id} style={{ background: '#f1f5f9' }}>
-                      <td colSpan={12} style={{ padding: '8px 14px' }}>
+                    <tr
+                      key={item.id}
+                      className={cn(
+                        "group transition-all hover:bg-slate-50/50",
+                        item._dirty && "bg-amber-50/30",
+                        isDispatched && "opacity-60 grayscale-[0.5]"
+                      )}
+                    >
+                      <td className="relative px-4 py-3 text-center text-[11px] font-bold text-slate-300">
+                        {item._dirty && (
+                          <div className="absolute left-0 top-0 h-full w-1 bg-amber-400 animate-in fade-in slide-in-from-left-1 duration-300" />
+                        )}
+                        {idx + 1}
+                      </td>
+
+                      <td className="px-2 py-3">
                         <input
                           type="text"
-                          value={item.header_text || ''}
-                          onChange={(e) => updateItem(item.id, 'header_text', e.target.value)}
-                          style={{
-                            border: 'none', background: 'transparent', fontWeight: 700,
-                            fontSize: '12px', color: '#1e293b', width: '100%', outline: 'none',
-                            textTransform: 'uppercase', letterSpacing: '0.05em',
-                          }}
-                          placeholder="Section name..."
+                          value={item.item_name}
+                          onChange={(e) => updateItem(item.id, 'item_name', e.target.value)}
+                          disabled={isDispatched}
+                          placeholder="Search or enter item name..."
+                          className={cn(inputClass, "font-semibold")}
                         />
                       </td>
-                      <td style={{ padding: '6px 8px', textAlign: 'center' }}>
-                        <button onClick={() => handleDeleteRow(item)} style={deleteBtnStyle}>×</button>
+
+                      <td className="px-2 py-3">
+                        <input
+                          type="text"
+                          value={item.make || ''}
+                          onChange={(e) => updateItem(item.id, 'make', e.target.value)}
+                          disabled={isDispatched}
+                          placeholder="Make..."
+                          className={inputClass}
+                        />
+                      </td>
+
+                      <td className="px-2 py-3">
+                        <input
+                          type="text"
+                          value={item.variant_name || ''}
+                          onChange={(e) => updateItem(item.id, 'variant_name', e.target.value)}
+                          disabled={isDispatched}
+                          placeholder="Variant..."
+                          className={inputClass}
+                        />
+                      </td>
+
+                      <td className="px-2 py-3">
+                        <input
+                          type="text"
+                          value={item.uom || ''}
+                          onChange={(e) => updateItem(item.id, 'uom', e.target.value)}
+                          disabled={isDispatched}
+                          placeholder="UOM"
+                          className={cn(inputClass, "text-center font-bold")}
+                        />
+                      </td>
+
+                      <td className="px-2 py-3">
+                        <input
+                          type="number"
+                          value={item.boq_qty || ''}
+                          onChange={(e) => updateItem(item.id, 'boq_qty', parseFloat(e.target.value) || 0)}
+                          disabled={isDispatched}
+                          className={cn(inputClass, "text-right font-medium")}
+                        />
+                      </td>
+
+                      <td className="px-2 py-3">
+                        <input
+                          type="number"
+                          value={item.stock_qty || ''}
+                          onChange={(e) => updateItem(item.id, 'stock_qty', parseFloat(e.target.value) || 0)}
+                          disabled={isDispatched}
+                          className={cn(inputClass, "text-right font-medium")}
+                        />
+                      </td>
+
+                      <td className="px-2 py-3">
+                        <input
+                          type="number"
+                          value={item.local_qty || ''}
+                          onChange={(e) => updateItem(item.id, 'local_qty', parseFloat(e.target.value) || 0)}
+                          disabled={isDispatched}
+                          className={cn(inputClass, "text-right font-medium")}
+                        />
+                      </td>
+
+                      <td className="px-4 py-3 text-right">
+                        <div className={cn(
+                          "inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-black ring-1 ring-inset",
+                          isGap 
+                            ? "bg-rose-50 text-rose-600 ring-rose-500/10" 
+                            : "bg-emerald-50 text-emerald-600 ring-emerald-500/10"
+                        )}>
+                          {gap > 0 ? <Plus size={10} /> : null}
+                          {gap}
+                        </div>
+                      </td>
+
+                      <td className="px-2 py-3">
+                        <select
+                          value={item.vendor_id || ''}
+                          onChange={(e) => updateItem(item.id, 'vendor_id', e.target.value || null)}
+                          disabled={isDispatched}
+                          className={cn(inputClass, "cursor-pointer appearance-none truncate")}
+                        >
+                          <option value="">Select Vendor...</option>
+                          {vendors.map((v: any) => (
+                            <option key={v.id} value={v.id}>{v.company_name}</option>
+                          ))}
+                        </select>
+                      </td>
+
+                      <td className="px-2 py-3">
+                        <div className="relative">
+                          <StatusIcon size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: cfg.color }} />
+                          <select
+                            value={item.status}
+                            onChange={(e) => updateItem(item.id, 'status', e.target.value as Status)}
+                            className={cn(
+                              "w-full cursor-pointer appearance-none rounded-lg border px-9 py-1.5 text-[11px] font-black uppercase tracking-wider outline-none transition-all",
+                              "hover:brightness-95 active:scale-[0.98]"
+                            )}
+                            style={{ 
+                              backgroundColor: cfg.bg, 
+                              color: cfg.color, 
+                              borderColor: cfg.border 
+                            }}
+                          >
+                            {STATUSES.map((s) => (
+                              <option key={s} value={s}>{s}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </td>
+
+                      <td className="px-2 py-3">
+                        <input
+                          type="text"
+                          value={item.notes || ''}
+                          onChange={(e) => updateItem(item.id, 'notes', e.target.value)}
+                          disabled={isDispatched}
+                          placeholder="Item notes..."
+                          className={inputClass}
+                        />
+                      </td>
+
+                      <td className="px-4 py-3 text-center">
+                        {!isDispatched && (
+                          <button 
+                            onClick={() => handleDeleteRow(item)} 
+                            className="text-slate-200 transition-colors hover:text-rose-500 group-hover:text-slate-400"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        )}
                       </td>
                     </tr>
                   );
-                }
-
-                const gap = (item.boq_qty || 0) - (item.stock_qty || 0) - (item.local_qty || 0);
-                const gapColor = gap > 0 ? '#dc2626' : '#16a34a';
-                const isDispatched = item.status === 'Dispatched';
-                const cfg = STATUS_CONFIG[item.status as Status] || STATUS_CONFIG.Pending;
-
-                return (
-                  <tr
-                    key={item.id}
-                    style={{
-                      borderBottom: '1px solid #f3f4f6',
-                      background: item._dirty ? '#fffbeb' : isDispatched ? '#f9fafb' : '#fff',
-                      opacity: isDispatched ? 0.7 : 1,
-                    }}
-                  >
-                    {/* Row number */}
-                    <td style={{ ...tdStyle, textAlign: 'center', color: '#9ca3af', width: '40px' }}>
-                      {idx + 1}
-                    </td>
-
-                    {/* Item name */}
-                    <td style={tdStyle}>
-                      <input
-                        type="text"
-                        value={item.item_name}
-                        onChange={(e) => updateItem(item.id, 'item_name', e.target.value)}
-                        disabled={isDispatched}
-                        placeholder="Item name..."
-                        style={{ ...cellInput, fontWeight: 500 }}
-                      />
-                    </td>
-
-                    {/* Make */}
-                    <td style={tdStyle}>
-                      <input
-                        type="text"
-                        value={item.make || ''}
-                        onChange={(e) => updateItem(item.id, 'make', e.target.value)}
-                        disabled={isDispatched}
-                        style={cellInput}
-                      />
-                    </td>
-
-                    {/* Variant */}
-                    <td style={tdStyle}>
-                      <input
-                        type="text"
-                        value={item.variant_name || ''}
-                        onChange={(e) => updateItem(item.id, 'variant_name', e.target.value)}
-                        disabled={isDispatched}
-                        style={cellInput}
-                      />
-                    </td>
-
-                    {/* UOM */}
-                    <td style={tdStyle}>
-                      <input
-                        type="text"
-                        value={item.uom || ''}
-                        onChange={(e) => updateItem(item.id, 'uom', e.target.value)}
-                        disabled={isDispatched}
-                        style={{ ...cellInput, width: '60px' }}
-                      />
-                    </td>
-
-                    {/* BOQ Qty */}
-                    <td style={tdStyle}>
-                      <input
-                        type="number"
-                        value={item.boq_qty || ''}
-                        onChange={(e) => updateItem(item.id, 'boq_qty', parseFloat(e.target.value) || 0)}
-                        disabled={isDispatched}
-                        style={{ ...cellInput, width: '70px', textAlign: 'right' }}
-                      />
-                    </td>
-
-                    {/* Stock Qty */}
-                    <td style={tdStyle}>
-                      <input
-                        type="number"
-                        value={item.stock_qty || ''}
-                        onChange={(e) => updateItem(item.id, 'stock_qty', parseFloat(e.target.value) || 0)}
-                        disabled={isDispatched}
-                        style={{ ...cellInput, width: '70px', textAlign: 'right' }}
-                      />
-                    </td>
-
-                    {/* Local Qty */}
-                    <td style={tdStyle}>
-                      <input
-                        type="number"
-                        value={item.local_qty || ''}
-                        onChange={(e) => updateItem(item.id, 'local_qty', parseFloat(e.target.value) || 0)}
-                        disabled={isDispatched}
-                        style={{ ...cellInput, width: '70px', textAlign: 'right' }}
-                      />
-                    </td>
-
-                    {/* Gap */}
-                    <td style={{ ...tdStyle, textAlign: 'right' }}>
-                      <span style={{
-                        fontWeight: 700,
-                        fontSize: '13px',
-                        color: gapColor,
-                      }}>
-                        {gap > 0 ? `+${gap}` : gap}
-                      </span>
-                    </td>
-
-                    {/* Vendor dropdown */}
-                    <td style={tdStyle}>
-                      <select
-                        value={item.vendor_id || ''}
-                        onChange={(e) => updateItem(item.id, 'vendor_id', e.target.value || null)}
-                        disabled={isDispatched}
-                        style={{ ...cellInput, minWidth: '150px' }}
-                      >
-                        <option value="">— Select Vendor —</option>
-                        {vendors.map((v: any) => (
-                          <option key={v.id} value={v.id}>
-                            {v.company_name}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-
-                    {/* Status */}
-                    <td style={tdStyle}>
-                      <select
-                        value={item.status}
-                        onChange={(e) => updateItem(item.id, 'status', e.target.value as Status)}
-                        style={{
-                          ...cellInput,
-                          background: cfg.bg,
-                          color: cfg.color,
-                          border: `1px solid ${cfg.border}`,
-                          fontWeight: 600,
-                          minWidth: '130px',
-                        }}
-                      >
-                        {STATUSES.map((s) => (
-                          <option key={s} value={s}>{s}</option>
-                        ))}
-                      </select>
-                    </td>
-
-                    {/* Notes */}
-                    <td style={tdStyle}>
-                      <input
-                        type="text"
-                        value={item.notes || ''}
-                        onChange={(e) => updateItem(item.id, 'notes', e.target.value)}
-                        disabled={isDispatched}
-                        placeholder="Notes..."
-                        style={{ ...cellInput, minWidth: '130px' }}
-                      />
-                    </td>
-
-                    {/* Delete */}
-                    <td style={{ ...tdStyle, textAlign: 'center' }}>
-                      {!isDispatched && (
-                        <button onClick={() => handleDeleteRow(item)} style={deleteBtnStyle}>×</button>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
-      {/* Bottom save bar */}
+      {/* Floating Save Notification */}
       {hasDirty && (
-        <div style={{
-          position: 'fixed', bottom: '24px', right: '24px',
-          background: '#1d4ed8', color: '#fff', padding: '12px 24px',
-          borderRadius: '8px', boxShadow: '0 4px 16px rgba(29,78,216,0.4)',
-          display: 'flex', gap: '12px', alignItems: 'center', fontSize: '13px', fontWeight: 600,
-        }}>
-          <span>You have unsaved changes</span>
+        <div className="fixed bottom-10 left-1/2 flex -translate-x-1/2 items-center gap-6 rounded-full border border-blue-500/20 bg-slate-900/90 px-8 py-4 text-white shadow-2xl shadow-blue-500/20 backdrop-blur-xl animate-in fade-in slide-in-from-bottom-10 duration-500">
+          <div className="flex items-center gap-3">
+            <div className="flex h-2 w-2 rounded-full bg-blue-500 animate-pulse" />
+            <span className="text-[13px] font-bold tracking-tight">Unsaved changes detected</span>
+          </div>
+          <div className="h-4 w-px bg-white/10" />
           <button
             onClick={handleSave}
             disabled={saving}
-            style={{ padding: '6px 16px', border: '2px solid #fff', borderRadius: '6px', background: 'transparent', color: '#fff', cursor: 'pointer', fontWeight: 700, fontSize: '13px' }}
+            className="group flex items-center gap-2 text-[13px] font-black uppercase tracking-widest text-blue-400 transition-colors hover:text-blue-300"
           >
-            {saving ? 'Saving...' : 'Save Now'}
+            {saving ? <RefreshCcw size={16} className="animate-spin" /> : <Save size={16} />}
+            {saving ? 'Saving...' : 'Commit Changes'}
           </button>
         </div>
       )}
     </div>
   );
 }
-
-// ── Styles ────────────────────────────────────────────────────────────────────
-const thStyle: React.CSSProperties = {
-  padding: '10px 10px',
-  textAlign: 'center',
-  fontSize: '10px',
-  fontWeight: 700,
-  color: '#6b7280',
-  textTransform: 'uppercase',
-  letterSpacing: '0.06em',
-  whiteSpace: 'nowrap',
-};
-
-const tdStyle: React.CSSProperties = {
-  padding: '6px 8px',
-  verticalAlign: 'middle',
-};
-
-const cellInput: React.CSSProperties = {
-  width: '100%',
-  padding: '4px 6px',
-  border: '1px solid #e5e7eb',
-  borderRadius: '4px',
-  fontSize: '12px',
-  background: '#fff',
-  outline: 'none',
-  fontFamily: 'inherit',
-};
-
-const deleteBtnStyle: React.CSSProperties = {
-  border: 'none',
-  background: 'none',
-  cursor: 'pointer',
-  color: '#9ca3af',
-  fontSize: '18px',
-  lineHeight: 1,
-  padding: '0 4px',
-  fontWeight: 300,
-};
-
-const btnOutline: React.CSSProperties = {
-  padding: '7px 14px',
-  border: '1px solid #d1d5db',
-  borderRadius: '6px',
-  background: '#fff',
-  fontSize: '12px',
-  fontWeight: 500,
-  cursor: 'pointer',
-  color: '#374151',
-};
-
-const btnPrimary: React.CSSProperties = {
-  padding: '7px 16px',
-  border: 'none',
-  borderRadius: '6px',
-  background: '#1d4ed8',
-  color: '#fff',
-  fontSize: '12px',
-  fontWeight: 600,
-  cursor: 'pointer',
-};

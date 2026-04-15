@@ -1,14 +1,47 @@
 import React, { useState } from 'react';
-import {
-  Box, Paper, Typography, Button, TextField, Dialog, DialogTitle, DialogContent, DialogActions,
-  Grid, FormControl, InputLabel, Select, MenuItem, Chip, IconButton, Tooltip, Autocomplete,
-  FormControlLabel, Checkbox, Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-} from '@mui/material';
-import { DataGrid, GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
-import {
-  Add as AddIcon, Edit as EditIcon, Delete as DeleteIcon, Receipt as ReceiptIcon,
-  PictureAsPdf as PdfIcon, Warehouse as WarehouseIcon, LocalShipping as ShippingIcon,
-} from '@mui/icons-material';
+import { 
+  Plus, 
+  Search, 
+  Receipt, 
+  FileText, 
+  Edit, 
+  Trash2, 
+  Warehouse, 
+  Truck,
+  PlusCircle,
+  X
+} from 'lucide-react';
+import { Button as ShadcnButton } from '../../../components/ui/button';
+import { Badge } from '../../../components/ui/Badge';
+import { AppTable } from '../../../components/ui/AppTable';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogFooter 
+} from '../../../components/ui/dialog';
+import { Input } from '../../../components/ui/input';
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from '../../../components/ui/select';
+import { Label } from '../../../components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card';
+import { Checkbox } from '../../../components/ui/checkbox';
+import { cn } from '../../../lib/utils';
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from "../../../components/ui/table";
+
 import { useAuth } from '../../../contexts/AuthContext';
 import { usePurchaseBills, useVendors, useCreatePurchaseBill } from '../hooks/usePurchaseQueries';
 import { generateBillPDF, openPDFPreview } from '../utils/pdfGenerator';
@@ -141,153 +174,367 @@ export const Bills: React.FC = () => {
     setOpenDialog(false);
   };
 
-  const columns: GridColDef[] = [
-    { field: 'bill_number', headerName: 'Bill #', width: 110, renderCell: (p) => <Typography fontWeight="600" color="primary">{p.value}</Typography> },
-    { field: 'bill_date', headerName: 'Date', width: 100, renderCell: (p) => <Typography>{new Date(p.value).toLocaleDateString('en-IN')}</Typography> },
-    { field: 'vendor', headerName: 'Vendor', width: 180, renderCell: (p) => <Typography>{p.value?.company_name}</Typography> },
-    { field: 'vendor_invoice_no', headerName: 'Vendor Inv#', width: 130 },
-    { field: 'total_amount', headerName: 'Amount', width: 130, renderCell: (p) => <Typography align="right" fontWeight="500">₹{Number(p.value).toLocaleString()}</Typography> },
-    { field: 'payment_status', headerName: 'Status', width: 120, renderCell: (p) => <Chip label={p.value} size="small" color={p.value === 'Paid' ? 'success' : p.value === 'Partially Paid' ? 'warning' : 'default'} /> },
-    { field: 'direct_supply_to_site', headerName: 'Direct', width: 80, renderCell: (p) => p.value ? <ShippingIcon color="primary" fontSize="small" /> : <WarehouseIcon color="action" fontSize="small" /> },
-    { field: 'actions', headerName: 'Actions', width: 120, sortable: false, renderCell: (p) => (
-      <Box>
-        <IconButton size="small" onClick={() => {}}><PdfIcon fontSize="small" color="error" /></IconButton>
-        <IconButton size="small" onClick={() => {}}><EditIcon fontSize="small" /></IconButton>
-      </Box>
-    )},
+  const columns = [
+    {
+      id: 'bill_number',
+      header: 'Bill #',
+      cell: ({ row }: any) => (
+        <span className="font-semibold text-primary hover:underline cursor-pointer">
+          {row.original.bill_number}
+        </span>
+      ),
+    },
+    {
+      id: 'bill_date',
+      header: 'Date',
+      cell: ({ row }: any) => new Date(row.original.bill_date).toLocaleDateString('en-IN'),
+    },
+    {
+      id: 'vendor',
+      header: 'Vendor',
+      cell: ({ row }: any) => row.original.vendor?.company_name || '-',
+    },
+    {
+      id: 'vendor_invoice_no',
+      header: 'Vendor Inv#',
+      cell: ({ row }: any) => row.original.vendor_invoice_no || '-',
+    },
+    {
+      id: 'total_amount',
+      header: 'Amount',
+      cell: ({ row }: any) => (
+        <div className="font-medium text-right">
+          ₹{Number(row.original.total_amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+        </div>
+      ),
+    },
+    {
+      id: 'payment_status',
+      header: 'Status',
+      cell: ({ row }: any) => {
+        const val = row.original.payment_status;
+        const colors: any = {
+          'Paid': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+          'Partially Paid': 'bg-amber-50 text-amber-700 border-amber-200',
+          'Unpaid': 'bg-slate-50 text-slate-700 border-slate-200',
+        };
+        return (
+          <Badge className={cn("text-[10px] font-medium px-2 py-0 h-5 border shadow-none", colors[val])}>
+            {val}
+          </Badge>
+        );
+      },
+    },
+    {
+      id: 'direct_supply',
+      header: 'Direct',
+      cell: ({ row }: any) => (
+        <div className="flex justify-center">
+          {row.original.direct_supply_to_site ? (
+            <Truck className="h-4 w-4 text-primary" />
+          ) : (
+            <Warehouse className="h-4 w-4 text-slate-400" />
+          )}
+        </div>
+      ),
+    },
+    {
+      id: 'actions',
+      header: 'Actions',
+      cell: ({ row }: any) => (
+        <div className="flex items-center gap-1">
+          <ShadcnButton 
+            variant="ghost" 
+            size="icon" 
+            className="h-8 w-8 text-rose-600 hover:bg-rose-50"
+          >
+            <FileText className="h-4 w-4" />
+          </ShadcnButton>
+          <ShadcnButton 
+            variant="ghost" 
+            size="icon" 
+            className="h-8 w-8 text-slate-600 hover:bg-slate-100"
+          >
+            <Edit className="h-4 w-4" />
+          </ShadcnButton>
+        </div>
+      ),
+    },
   ];
 
+
   return (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Paper sx={{ p: 2, mb: 2, borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <ReceiptIcon color="primary" />
-            <Typography variant="h6" fontFamily="Inter" fontWeight={600}>Purchase Bills</Typography>
-          </Box>
-          <Box sx={{ display: 'flex', gap: 2 }}>
-            <TextField size="small" placeholder="Search..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} sx={{ width: 250 }} />
-            <Button variant="contained" startIcon={<AddIcon />} onClick={handleAdd}>Enter Bill</Button>
-          </Box>
-        </Box>
-      </Paper>
+    <div className="h-full flex flex-col space-y-4 p-4 md:p-6 bg-slate-50/50">
+      <Card className="border-none shadow-sm overflow-hidden text-sm">
+        <CardHeader className="py-4 px-6 bg-white border-b">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <Receipt className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <CardTitle className="text-lg font-bold text-slate-800">Purchase Bills</CardTitle>
+                <p className="text-xs text-slate-500 font-medium">Record and manage vendor invoices</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Input
+                  placeholder="Search bills..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9 w-64 h-9 text-xs border-slate-200 focus:ring-primary/20"
+                />
+              </div>
+              <ShadcnButton 
+                onClick={handleAdd} 
+                className="h-9 gap-2 shadow-sm font-semibold"
+              >
+                <Plus className="h-4 w-4" />
+                Enter Bill
+              </ShadcnButton>
+            </div>
+          </div>
+        </CardHeader>
+      </Card>
 
-      <Paper sx={{ flex: 1, borderRadius: 2, border: '1px solid', borderColor: 'divider', overflow: 'hidden' }}>
-        <DataGrid rows={bills} columns={columns} loading={isLoading} density="compact" disableRowSelectionOnClick
-          sx={{ fontFamily: 'Inter, sans-serif', '& .MuiDataGrid-cell': { fontSize: '13px' }, '& .MuiDataGrid-columnHeader': { fontSize: '12px', fontWeight: 600, backgroundColor: 'grey.50' } }}
-          pageSizeOptions={[25, 50, 100]} initialState={{ pagination: { paginationModel: { pageSize: 25 } } }} />
-      </Paper>
+      <Card className="flex-1 border-none shadow-sm overflow-hidden bg-white">
+        <div className="h-[calc(100vh-220px)] overflow-auto p-1">
+          <AppTable
+            data={bills}
+            columns={columns}
+            loading={isLoading}
+          />
+        </div>
+      </Card>
 
-      <Dialog open={openDialog} onClose={() => setOpenDialog(false)} maxWidth="lg" fullWidth>
-        <DialogTitle sx={{ fontFamily: 'Inter', fontWeight: 600 }}>Enter Purchase Bill</DialogTitle>
-        <DialogContent>
-          <Grid container spacing={2} sx={{ mt: 0.5 }}>
-            <Grid item xs={12} md={6}>
-              <Autocomplete options={vendors} getOptionLabel={(o) => o.company_name} onChange={(e, v) => setVendorId(v?.id || '')}
-                renderInput={(p) => <TextField {...p} label="Vendor *" size="small" fullWidth />} />
-            </Grid>
-            <Grid item xs={12} md={3}><TextField fullWidth label="Bill Number *" value={billNumber} onChange={(e) => setBillNumber(e.target.value)} size="small" /></Grid>
-            <Grid item xs={12} md={3}><TextField fullWidth label="Vendor Inv#" value={vendorInvoiceNo} onChange={(e) => setVendorInvoiceNo(e.target.value)} size="small" /></Grid>
-            <Grid item xs={12} md={3}><TextField fullWidth type="date" label="Bill Date" value={billDate} onChange={(e) => setBillDate(e.target.value)} size="small" InputLabelProps={{ shrink: true }} /></Grid>
-            <Grid item xs={12} md={3}><TextField fullWidth type="date" label="Due Date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} size="small" InputLabelProps={{ shrink: true }} /></Grid>
-            <Grid item xs={12} md={3}>
-              <FormControl fullWidth size="small"><InputLabel>Currency</InputLabel><Select value={currency} onChange={(e) => setCurrency(e.target.value)} label="Currency">
-                {['INR', 'USD', 'EUR'].map((c) => <MenuItem key={c} value={c}>{c}</MenuItem>)}
-              </Select></FormControl>
-            </Grid>
-            <Grid item xs={12} md={3}><TextField fullWidth type="number" label="Exchange Rate" value={exchangeRate} onChange={(e) => setExchangeRate(Number(e.target.value))} size="small" disabled={currency === 'INR'} /></Grid>
-            
-            <Grid item xs={12}><Typography variant="subtitle2" sx={{ mt: 1, mb: 1, fontFamily: 'Inter', fontWeight: 600 }}>Warehouse / Storage</Typography></Grid>
-            <Grid item xs={12} md={6}>
-              <TextField fullWidth label="Warehouse" value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)} size="small" disabled={directSupply} placeholder="Select warehouse..." />
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <FormControlLabel control={<Checkbox checked={directSupply} onChange={(e) => setDirectSupply(e.target.checked)} />} label={<Typography fontWeight={500} color={directSupply ? 'primary' : 'inherit'}>Direct Supply to Site (Skip warehouse stock)</Typography>} />
-            </Grid>
-            {directSupply && (
-              <Grid item xs={12}>
-                <TextField fullWidth multiline rows={2} label="Site Address" value={siteAddress} onChange={(e) => setSiteAddress(e.target.value)} size="small" placeholder="Enter project site address where materials are delivered directly..." />
-              </Grid>
-            )}
+      <Dialog open={openDialog} onOpenChange={(open) => !open && setOpenDialog(false)}>
+        <DialogContent className="max-w-6xl h-[90vh] flex flex-col p-0">
+          <DialogHeader className="px-6 py-4 border-b">
+            <DialogTitle className="text-xl font-bold">Enter Purchase Bill</DialogTitle>
+          </DialogHeader>
 
-            <Grid item xs={12}><Typography variant="subtitle2" sx={{ mt: 1, mb: 1, fontFamily: 'Inter', fontWeight: 600 }}>Transport Details (Optional)</Typography></Grid>
-            <Grid item xs={12} md={4}><TextField fullWidth label="E-Way Bill No" value={ewayBillNo} onChange={(e) => setEwayBillNo(e.target.value)} size="small" /></Grid>
-            <Grid item xs={12} md={4}><TextField fullWidth label="Vehicle No" value={vehicleNo} onChange={(e) => setVehicleNo(e.target.value)} size="small" /></Grid>
-            <Grid item xs={12} md={4}><TextField fullWidth type="number" label="Freight Amount" value={freightAmount} onChange={(e) => { setFreightAmount(Number(e.target.value)); calculateTotals(items); }} size="small" /></Grid>
+          <div className="flex-1 overflow-auto p-6 space-y-8">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div className="md:col-span-2 space-y-1.5">
+                <Label className="text-xs font-bold uppercase text-slate-500">Vendor *</Label>
+                <Select value={vendorId} onValueChange={setVendorId}>
+                  <SelectTrigger className="border-slate-200">
+                    <SelectValue placeholder="Select Vendor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {vendors.map((v: any) => (
+                      <SelectItem key={v.id} value={v.id}>{v.company_name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold uppercase text-slate-500">Bill Number *</Label>
+                <Input value={billNumber} onChange={(e) => setBillNumber(e.target.value)} className="border-slate-200" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold uppercase text-slate-500">Vendor Inv#</Label>
+                <Input value={vendorInvoiceNo} onChange={(e) => setVendorInvoiceNo(e.target.value)} className="border-slate-200" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold uppercase text-slate-500">Bill Date</Label>
+                <Input type="date" value={billDate} onChange={(e) => setBillDate(e.target.value)} className="border-slate-200" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold uppercase text-slate-500">Due Date</Label>
+                <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className="border-slate-200" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold uppercase text-slate-500">Currency</Label>
+                <Select value={currency} onValueChange={setCurrency}>
+                  <SelectTrigger className="border-slate-200">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {['INR', 'USD', 'EUR'].map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold uppercase text-slate-500">Exchange Rate</Label>
+                <Input 
+                  type="number" 
+                  value={exchangeRate} 
+                  onChange={(e) => setExchangeRate(Number(e.target.value))} 
+                  disabled={currency === 'INR'} 
+                  className="border-slate-200"
+                />
+              </div>
+            </div>
 
-            <Grid item xs={12}><Button variant="outlined" startIcon={<AddIcon />} onClick={addItem} sx={{ mt: 2 }}>Add Item</Button></Grid>
-            <Grid item xs={12}>
-              <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 300 }}>
-                <Table size="small" stickyHeader>
-                  <TableHead><TableRow sx={{ backgroundColor: 'grey.50' }}>
-                    <TableCell width={30}>#</TableCell><TableCell>Item Name</TableCell><TableCell width={80}>Batch</TableCell>
-                    <TableCell width={60}>Qty</TableCell><TableCell width={50}>Unit</TableCell><TableCell width={80}>Rate</TableCell>
-                    <TableCell width={50}>Disc</TableCell><TableCell width={60}>GST%</TableCell><TableCell width={90} align="right">Amount</TableCell><TableCell width={40}></TableCell>
-                  </TableRow></TableHead>
+            <div className="space-y-4">
+              <h3 className="text-sm font-bold text-slate-800 border-b pb-2 flex items-center gap-2">
+                <Warehouse className="h-4 w-4 text-primary" />
+                Warehouse / Storage
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold uppercase text-slate-500">Warehouse</Label>
+                  <Input 
+                    value={warehouseId} 
+                    onChange={(e) => setWarehouseId(e.target.value)} 
+                    disabled={directSupply} 
+                    placeholder="Storage location..."
+                    className="border-slate-200"
+                  />
+                </div>
+                <div className="flex items-center space-x-2 bg-primary/5 p-4 rounded-lg border border-primary/10">
+                  <Checkbox id="direct" checked={directSupply} onCheckedChange={(val) => setDirectSupply(!!val)} />
+                  <Label htmlFor="direct" className="text-sm font-semibold text-primary cursor-pointer">
+                    Direct Supply to Site (Skip warehouse stock)
+                  </Label>
+                </div>
+              </div>
+              {directSupply && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold uppercase text-slate-500">Site Address</Label>
+                  <Input 
+                    value={siteAddress} 
+                    onChange={(e) => setSiteAddress(e.target.value)} 
+                    placeholder="Project site address where materials are delivered..."
+                    className="border-slate-200"
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-4">
+              <h3 className="text-sm font-bold text-slate-800 border-b pb-2 flex items-center gap-2">
+                <PlusCircle className="h-4 w-4 text-primary" />
+                Items & Costing
+              </h3>
+              <div className="border border-slate-200 rounded-lg overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-slate-50 text-[10px] uppercase font-bold text-slate-500">
+                      <TableHead className="w-10">#</TableHead>
+                      <TableHead>Item Name</TableHead>
+                      <TableHead className="w-24">Batch</TableHead>
+                      <TableHead className="w-20 text-center">Qty</TableHead>
+                      <TableHead className="w-16">Unit</TableHead>
+                      <TableHead className="w-24 text-right">Rate</TableHead>
+                      <TableHead className="w-20 text-right">Disc</TableHead>
+                      <TableHead className="w-20 text-center">GST%</TableHead>
+                      <TableHead className="w-28 text-right">Total</TableHead>
+                      <TableHead className="w-10"></TableHead>
+                    </TableRow>
+                  </TableHeader>
                   <TableBody>
                     {items.map((item, idx) => (
-                      <TableRow key={idx}>
-                        <TableCell>{item.sr}</TableCell>
-                        <TableCell><TextField size="small" fullWidth value={item.item_name} onChange={(e) => updateItem(idx, 'item_name', e.target.value)} placeholder="Item name" /></TableCell>
-                        <TableCell><TextField size="small" fullWidth value={item.batch_no} onChange={(e) => updateItem(idx, 'batch_no', e.target.value)} /></TableCell>
-                        <TableCell><TextField size="small" type="number" value={item.quantity} onChange={(e) => updateItem(idx, 'quantity', Number(e.target.value))} /></TableCell>
-                        <TableCell><TextField size="small" value={item.unit} onChange={(e) => updateItem(idx, 'unit', e.target.value)} /></TableCell>
-                        <TableCell><TextField size="small" type="number" value={item.rate} onChange={(e) => updateItem(idx, 'rate', Number(e.target.value))} /></TableCell>
-                        <TableCell><TextField size="small" type="number" value={item.discount_amount} onChange={(e) => updateItem(idx, 'discount_amount', Number(e.target.value))} /></TableCell>
-                        <TableCell><FormControl size="small" fullWidth><Select value={item.cgst_percent + item.sgst_percent} onChange={(e) => { const gst = Number(e.target.value); updateItem(idx, 'cgst_percent', gst/2); updateItem(idx, 'sgst_percent', gst/2); updateItem(idx, 'igst_percent', gst); }}>
-                          {GST_RATES.map((r) => <MenuItem key={r} value={r}>{r}%</MenuItem>)}
-                        </Select></FormControl></TableCell>
-                        <TableCell align="right"><Typography fontWeight="500">{item.total_amount.toFixed(2)}</Typography></TableCell>
-                        <TableCell><IconButton size="small" color="error" onClick={() => { const updated = items.filter((_, i) => i !== idx); setItems(updated); calculateTotals(updated); }}><DeleteIcon fontSize="small" /></IconButton></TableCell>
+                      <TableRow key={idx} className="group">
+                        <TableCell className="text-[10px] text-slate-400 font-medium">{item.sr}</TableCell>
+                        <TableCell>
+                          <Input className="h-8 text-xs border-transparent group-hover:border-slate-200 bg-transparent shadow-none" value={item.item_name} onChange={(e) => updateItem(idx, 'item_name', e.target.value)} placeholder="Item name" />
+                        </TableCell>
+                        <TableCell>
+                          <Input className="h-8 text-xs border-transparent group-hover:border-slate-200 bg-transparent shadow-none" value={item.batch_no} onChange={(e) => updateItem(idx, 'batch_no', e.target.value)} />
+                        </TableCell>
+                        <TableCell>
+                          <Input type="number" className="h-8 text-xs text-center border-transparent group-hover:border-slate-200 bg-transparent shadow-none" value={item.quantity} onChange={(e) => updateItem(idx, 'quantity', Number(e.target.value))} />
+                        </TableCell>
+                        <TableCell>
+                          <Input className="h-8 text-xs border-transparent group-hover:border-slate-200 bg-transparent shadow-none" value={item.unit} onChange={(e) => updateItem(idx, 'unit', e.target.value)} />
+                        </TableCell>
+                        <TableCell>
+                          <Input type="number" className="h-8 text-xs text-right border-transparent group-hover:border-slate-200 bg-transparent shadow-none" value={item.rate} onChange={(e) => updateItem(idx, 'rate', Number(e.target.value))} />
+                        </TableCell>
+                        <TableCell>
+                          <Input type="number" className="h-8 text-xs text-right border-transparent group-hover:border-slate-200 bg-transparent shadow-none" value={item.discount_amount} onChange={(e) => updateItem(idx, 'discount_amount', Number(e.target.value))} />
+                        </TableCell>
+                        <TableCell>
+                          <Select 
+                            value={String(item.cgst_percent + item.sgst_percent)} 
+                            onValueChange={(val) => { 
+                              const gst = Number(val); 
+                              updateItem(idx, 'cgst_percent', gst/2); 
+                              updateItem(idx, 'sgst_percent', gst/2); 
+                              updateItem(idx, 'igst_percent', gst); 
+                            }}
+                          >
+                            <SelectTrigger className="h-8 text-[10px] border-transparent group-hover:border-slate-200 bg-transparent shadow-none text-center px-1">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {GST_RATES.map((r) => <SelectItem key={r} value={String(r)}>{r}%</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell className="text-right font-medium text-slate-700 text-xs">
+                          {item.total_amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </TableCell>
+                        <TableCell>
+                          <ShadcnButton 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => { const updated = items.filter((_, i) => i !== idx); setItems(updated); calculateTotals(updated); }}
+                            className="h-7 w-7 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-full"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </ShadcnButton>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
-              </TableContainer>
-            </Grid>
+                <div className="p-3 bg-slate-50 border-t flex justify-center">
+                  <ShadcnButton variant="ghost" size="sm" onClick={addItem} className="text-primary font-bold gap-2 hover:bg-primary/5">
+                    <Plus className="h-4 w-4" />
+                    Add Item
+                  </ShadcnButton>
+                </div>
+              </div>
+            </div>
 
-            <Grid item xs={12}>
-              <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
-                <Paper sx={{ p: 2, minWidth: 300, border: '1px solid #ddd' }}>
-                  <Typography variant="subtitle2" sx={{ mb: 1.5, fontFamily: 'Inter', fontWeight: 600 }}>Bill Summary</Typography>
-                  <Box sx={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 1, alignItems: 'center' }}>
-                    <Typography variant="body2" fontFamily="Inter">Subtotal:</Typography>
-                    <Typography variant="body2" fontFamily="Inter" align="right">{totals.subtotal.toFixed(2)}</Typography>
-                    
-                    <Typography variant="body2" fontFamily="Inter">Freight:</Typography>
-                    <Typography variant="body2" fontFamily="Inter" align="right">{totals.freight.toFixed(2)}</Typography>
-                    
-                    <Typography variant="body2" fontFamily="Inter" fontWeight={500}>Taxable Value:</Typography>
-                    <Typography variant="body2" fontFamily="Inter" align="right" fontWeight={500}>{totals.taxable.toFixed(2)}</Typography>
-                    
-                    <Typography variant="body2" fontFamily="Inter">CGST:</Typography>
-                    <Typography variant="body2" fontFamily="Inter" align="right">{totals.cgst.toFixed(2)}</Typography>
-                    
-                    <Typography variant="body2" fontFamily="Inter">SGST:</Typography>
-                    <Typography variant="body2" fontFamily="Inter" align="right">{totals.sgst.toFixed(2)}</Typography>
-                    
-                    <Box sx={{ gridColumn: '1 / -1', height: '1px', bgcolor: 'divider', my: 1 }} />
-                    
-                    <Typography variant="body1" fontFamily="Inter" fontWeight={700}>TOTAL:</Typography>
-                    <Typography variant="body1" fontFamily="Inter" align="right" fontWeight={700}>{currency === 'INR' ? '₹' : currency} {totals.total.toFixed(2)}</Typography>
-                    
+            <div className="flex justify-end">
+              <div className="w-full max-w-sm bg-slate-900 text-white rounded-xl p-6 shadow-xl space-y-3">
+                <div className="flex justify-between text-xs opacity-70">
+                  <span>Subtotal</span>
+                  <span>₹{totals.subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                </div>
+                <div className="flex justify-between text-xs opacity-70">
+                  <span>Freight</span>
+                  <span>₹{totals.freight.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                </div>
+                <div className="h-px bg-white/10 my-2" />
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-bold uppercase tracking-widest opacity-70">Grand Total</span>
+                  <div className="text-right">
+                    <div className="text-2xl font-black">
+                      {currency === 'INR' ? '₹' : currency} {totals.total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </div>
                     {currency !== 'INR' && (
-                      <Typography variant="caption" fontFamily="Inter" color="text.secondary" sx={{ gridColumn: '1 / -1', textAlign: 'right' }}>
-                        (₹{totals.totalInr.toFixed(2)})
-                      </Typography>
+                      <div className="text-[10px] opacity-60">(~ ₹{totals.totalInr.toLocaleString('en-IN', { minimumFractionDigits: 2 })})</div>
                     )}
-                  </Box>
-                </Paper>
-              </Box>
-            </Grid>
-          </Grid>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="px-6 py-4 border-t bg-slate-50/50 flex flex-row items-center justify-between">
+            <ShadcnButton variant="outline" onClick={() => setOpenDialog(false)} className="px-8 border-slate-200 font-semibold">
+              Cancel
+            </ShadcnButton>
+            <ShadcnButton 
+              onClick={handleSave} 
+              disabled={items.length === 0 || !vendorId || !billNumber}
+              className="px-10 bg-emerald-600 hover:bg-emerald-700 font-bold shadow-lg shadow-emerald-100"
+            >
+              <Receipt className="h-4 w-4 mr-2" />
+              Complete Billing
+            </ShadcnButton>
+          </DialogFooter>
         </DialogContent>
-        <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
-          <Button variant="contained" onClick={handleSave} disabled={items.length === 0 || !vendorId || !billNumber}>Save Bill</Button>
-        </DialogActions>
       </Dialog>
-    </Box>
+
+    </div>
   );
 };
 
