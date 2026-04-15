@@ -317,7 +317,14 @@ export default function App() {
       case '/boq/create': return <BOQ onSuccess={() => navigate('/boq')} onCancel={() => navigate('/boq')} />;
       case '/documents': return <Documents />;
       case '/issue': return <IssueList />;
-      case '/purchase': return <ProcurementList />;
+      case '/purchase':
+      case '/purchase/vendors':
+      case '/purchase/orders':
+      case '/purchase/bills':
+      case '/purchase/debit-notes':
+      case '/purchase/payments':
+      case '/purchase/payment-queue':
+        return <PurchaseModule />;
       // Inventory
       case '/procurement': return <ProcurementList />;
       case '/store/materials': return <MaterialsList />;
