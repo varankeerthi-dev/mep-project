@@ -6,7 +6,7 @@ import { format } from 'date-fns';
 import { exportDCToPDF } from '../utils/pdfExport';
 import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { useProjects } from '../hooks/useProjects';
-import { flexRender, getCoreRowModel, useReactTable } from '@tanstack/react-table';
+import { AppTable } from '../components/ui/AppTable';
 
 export default function NonBillableDCList() {
   const navigate = useNavigate();
@@ -84,7 +84,7 @@ export default function NonBillableDCList() {
     return items.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
   };
 
-  const columns = useMemo(() => [
+  const tableColumns = useMemo(() => [
     {
       header: 'NB-DC No',
       accessorKey: 'dc_number',
@@ -129,7 +129,7 @@ export default function NonBillableDCList() {
       )
     },
     {
-      id: 'actions',
+      accessorKey: 'actions',
       header: 'Actions',
       cell: ({ row }) => {
         const challan = row.original;
@@ -172,12 +172,6 @@ export default function NonBillableDCList() {
       }
     }
   ], [navigate, handleDelete, handleExport]);
-
-  const table = useReactTable({
-    data: challans,
-    columns,
-    getCoreRowModel: getCoreRowModel()
-  });
 
   return (
     <div>
@@ -258,32 +252,12 @@ export default function NonBillableDCList() {
             <p>Create your first non-billable delivery challan to get started.</p>
           </div>
         ) : (
-          <div className="table-container">
-            <table className="table">
-              <thead>
-                {table.getHeaderGroups().map(headerGroup => (
-                  <tr key={headerGroup.id}>
-                    {headerGroup.headers.map(header => (
-                      <th key={header.id}>
-                        {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
-                      </th>
-                    ))}
-                  </tr>
-                ))}
-              </thead>
-              <tbody>
-                {table.getRowModel().rows.map(row => (
-                  <tr key={row.id}>
-                    {row.getVisibleCells().map(cell => (
-                      <td key={cell.id}>
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <AppTable
+            data={challans}
+            columns={tableColumns}
+            enableSorting={true}
+            enablePagination={true}
+          />
         )}
       </div>
     </div>

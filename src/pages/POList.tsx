@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabase';
 import { useNavigate } from 'react-router-dom';
 import { formatDate, formatCurrency } from '../utils/formatters';
 import { Plus, Search, Filter, FileText, TrendingUp, CheckCircle, Clock, XCircle, ChevronRight, Edit2, Trash2 } from 'lucide-react';
+import { AppTable } from '../components/ui/AppTable';
 
 // ─── Styles ────────────────────────────────────────────────────────────────────
 
@@ -313,7 +314,7 @@ export default function POList() {
     setLoading(false);
   };
 
-  const filteredPOs = pos.filter(po => {
+const filteredPOs = pos.filter(po => {
     const searchLower = searchTerm.toLowerCase();
     return (
       po.po_number?.toLowerCase().includes(searchLower) ||
@@ -322,7 +323,7 @@ export default function POList() {
   });
 
   const getStatusBadge = (status: string) => {
-    const classes = {
+    const classes: Record<string, string> = {
       'Open': 'po-status-open',
       'Partially Billed': 'po-status-partial',
       'Closed': 'po-status-closed'
@@ -351,6 +352,89 @@ export default function POList() {
       loadPOs();
     }
   };
+
+  const tableColumns = useMemo(() => [
+    {
+      header: 'PO Number',
+      accessorKey: 'po_number',
+      cell: (info) => <span style={{ fontWeight: 600, color: '#171717' }}>{info.getValue()}</span>
+    },
+    {
+      header: 'Client',
+      accessorKey: 'client.client_name',
+      cell: (info) => info.getValue() || '-'
+    },
+    {
+      header: 'PO Date',
+      accessorKey: 'po_date',
+      cell: (info) => formatDate(info.getValue())
+    },
+    {
+      header: 'Expiry',
+      accessorKey: 'po_expiry_date',
+      cell: (info) => formatDate(info.getValue())
+    },
+    {
+      header: 'Total Value',
+      accessorKey: 'po_total_value',
+      cell: (info) => <span style={{ textAlign: 'right', fontWeight: 500 }}>₹{formatCurrency(info.getValue())}</span>
+    },
+    {
+      header: 'Utilized',
+      accessorKey: 'po_utilized_value',
+      cell: (info) => <span style={{ textAlign: 'right', color: '#737373' }}>₹{formatCurrency(info.getValue())}</span>
+    },
+    {
+      header: 'Balance',
+      accessorKey: 'po_available_value',
+      cell: (info) => {
+        const val = info.getValue();
+        return (
+          <span style={{ 
+            textAlign: 'right', 
+            fontWeight: 600, 
+            color: val > 0 ? '#047857' : '#dc2626' 
+          }}>
+            ₹{formatCurrency(val)}
+          </span>
+        );
+      }
+    },
+    {
+      header: 'Status',
+      accessorKey: 'status',
+      cell: (info) => getStatusBadge(info.getValue())
+    },
+    {
+      header: 'Actions',
+      accessorKey: 'actions',
+      cell: ({ row }) => (
+        <div className="po-actions" style={{ justifyContent: 'center' }}>
+          <button
+            className="po-icon-btn"
+            onClick={() => navigate(`/client-po/create?id=${row.original.id}`)}
+            title="Edit"
+          >
+            <Edit2 size={14} />
+          </button>
+          <button
+            className="po-icon-btn danger"
+            onClick={() => deletePO(row.original.id)}
+            title="Delete"
+          >
+            <Trash2 size={14} />
+          </button>
+          <button
+            className="po-icon-btn"
+            onClick={() => navigate(`/client-po/details?id=${row.original.id}`)}
+            title="View"
+          >
+            <ChevronRight size={14} />
+          </button>
+        </div>
+      )
+    }
+  ], [navigate, deletePO]);
 
   return (
     <div className="po-page">
@@ -462,82 +546,17 @@ export default function POList() {
 
         {/* Table */}
         <div style={{ overflowX: 'auto' }}>
-          <table className="po-table">
-            <thead>
-              <tr>
-                <th>PO Number</th>
-                <th>Client</th>
-                <th>PO Date</th>
-                <th>Expiry</th>
-                <th style={{ textAlign: 'right' }}>Total Value</th>
-                <th style={{ textAlign: 'right' }}>Utilized</th>
-                <th style={{ textAlign: 'right' }}>Balance</th>
-                <th>Status</th>
-                <th style={{ textAlign: 'center' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={9} className="po-loading">Loading purchase orders...</td>
-                </tr>
-              ) : filteredPOs.length === 0 ? (
-                <tr>
-                  <td colSpan={9} className="po-empty">No purchase orders found</td>
-                </tr>
-              ) : (
-                filteredPOs.map(po => (
-                  <tr key={po.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/client-po/details?id=${po.id}`)}>
-                    <td style={{ fontWeight: 600, color: '#171717' }}>{po.po_number}</td>
-                    <td>{po.client?.client_name || '-'}</td>
-                    <td>{formatDate(po.po_date)}</td>
-                    <td>{formatDate(po.po_expiry_date)}</td>
-                    <td style={{ textAlign: 'right', fontWeight: 500 }}>
-                      ₹{formatCurrency(po.po_total_value)}
-                    </td>
-                    <td style={{ textAlign: 'right', color: '#737373' }}>
-                      ₹{formatCurrency(po.po_utilized_value)}
-                    </td>
-                    <td style={{ 
-                      textAlign: 'right', 
-                      fontWeight: 600, 
-                      color: po.po_available_value > 0 ? '#047857' : '#dc2626' 
-                    }}>
-                      ₹{formatCurrency(po.po_available_value)}
-                    </td>
-                    <td onClick={(e) => e.stopPropagation()}>
-                      {getStatusBadge(po.status)}
-                    </td>
-                    <td onClick={(e) => e.stopPropagation()}>
-                      <div className="po-actions" style={{ justifyContent: 'center' }}>
-                        <button
-                          className="po-icon-btn"
-                          onClick={() => navigate(`/client-po/create?id=${po.id}`)}
-                          title="Edit"
-                        >
-                          <Edit2 size={14} />
-                        </button>
-                        <button
-                          className="po-icon-btn danger"
-                          onClick={() => deletePO(po.id)}
-                          title="Delete"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                        <button
-                          className="po-icon-btn"
-                          onClick={() => navigate(`/client-po/details?id=${po.id}`)}
-                          title="View"
-                        >
-                          <ChevronRight size={14} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+          {loading ? (
+            <div className="po-loading">Loading purchase orders...</div>
+          ) : (
+            <AppTable
+              data={filteredPOs}
+              columns={tableColumns}
+              enableSorting={true}
+              enablePagination={true}
+              emptyMessage="No purchase orders found"
+            />
+          )}
         </div>
       </div>
     </div>

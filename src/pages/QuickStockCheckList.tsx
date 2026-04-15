@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabase';
 import { useNavigate } from 'react-router-dom';
 import { formatDate } from '../utils/formatters';
+import { AppTable } from '../components/ui/AppTable';
 
 export default function QuickStockCheckList() {
   const navigate = useNavigate();
@@ -70,6 +71,36 @@ export default function QuickStockCheckList() {
     );
   };
 
+  const tableColumns = useMemo(() => [
+    { 
+      header: 'Check No', 
+      accessorKey: 'check_no',
+      cell: (info) => (
+        <a
+          href={`#${info.row.original.id}`}
+          onClick={(e) => { e.preventDefault(); navigate(`/quick-stock-check/view?id=${info.row.original.id}`); }}
+          style={{ color: '#2563eb', fontWeight: 500 }}
+        >
+          {info.getValue()}
+        </a>
+      )
+    },
+    { header: 'Date', accessorKey: 'check_date', cell: (info) => formatDate(info.getValue()) },
+    { header: 'Client Name', accessorKey: 'client_name', cell: (info) => info.getValue() || '-' },
+    { header: 'Variant Filter', accessorKey: 'variant_filter', cell: (info) => getVariantBadge(info.getValue()) },
+    { 
+      header: 'Actions', 
+      accessorKey: 'actions',
+      cell: ({ row }) => (
+        <div style={{ display: 'flex', gap: '4px' }}>
+          <button className="btn btn-sm btn-secondary" onClick={() => navigate(`/quick-stock-check/view?id=${row.original.id}`)}>View</button>
+          <button className="btn btn-sm btn-secondary" onClick={() => navigate(`/quick-stock-check/edit?id=${row.original.id}`)}>Edit</button>
+          <button className="btn btn-sm btn-secondary" style={{ color: '#dc2626' }} onClick={() => handleDelete(row.original.id)}>Delete</button>
+        </div>
+      )
+    }
+  ], [navigate]);
+
   return (
     <div>
       <div className="page-header">
@@ -127,60 +158,13 @@ export default function QuickStockCheckList() {
             <p>Create your first quick stock check</p>
           </div>
         ) : (
-          <div className="table-container">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Check No</th>
-                  <th>Date</th>
-                  <th>Client Name</th>
-                  <th>Variant Filter</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {checks.map(check => (
-                  <tr key={check.id}>
-                    <td>
-                      <a
-                        href={`#${check.id}`}
-                        onClick={(e) => { e.preventDefault(); navigate(`/quick-stock-check/view?id=${check.id}`); }}
-                        style={{ color: '#2563eb', fontWeight: 500 }}
-                      >
-                        {check.check_no}
-                      </a>
-                    </td>
-                    <td>{formatDate(check.check_date)}</td>
-                    <td>{check.client_name || '-'}</td>
-                    <td>{getVariantBadge(check.variant_filter)}</td>
-                    <td>
-                      <div style={{ display: 'flex', gap: '4px' }}>
-                        <button
-                          className="btn btn-sm btn-secondary"
-                          onClick={() => navigate(`/quick-stock-check/view?id=${check.id}`)}
-                        >
-                          View
-                        </button>
-                        <button
-                          className="btn btn-sm btn-secondary"
-                          onClick={() => navigate(`/quick-stock-check/edit?id=${check.id}`)}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          className="btn btn-sm btn-secondary"
-                          style={{ color: '#dc2626' }}
-                          onClick={() => handleDelete(check.id)}
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <AppTable
+            data={checks}
+            columns={tableColumns}
+            enableSorting={true}
+            enablePagination={true}
+            emptyMessage="No stock checks found"
+          />
         )}
       </div>
     </div>

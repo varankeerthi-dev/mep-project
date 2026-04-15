@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabase';
+import { AppTable } from '../components/ui/AppTable';
 
 type ClientRequest = {
   id?: string
@@ -52,7 +53,41 @@ export default function ClientRequests() {
     if (p === 'high') return '#f8d7da'
     if (p === 'medium') return '#fff3cd'
     return '#d4edda'
-  }
+  };
+
+  const tableColumns = useMemo(() => [
+    {
+      header: 'Date',
+      accessorKey: 'request_date'
+    },
+    {
+      header: 'Client',
+      accessorKey: 'client_name'
+    },
+    {
+      header: 'Subject',
+      accessorKey: 'subject'
+    },
+    {
+      header: 'Priority',
+      accessorKey: 'priority',
+      cell: (info) => <span style={{ padding: '4px 8px', borderRadius: '4px', background: getPriorityColor(info.getValue()) }}>{info.getValue()}</span>
+    },
+    {
+      header: 'Status',
+      accessorKey: 'status',
+      cell: (info) => <span style={{ padding: '4px 8px', borderRadius: '4px', background: info.getValue() === 'pending' ? '#fff3cd' : '#d4edda' }}>{info.getValue()}</span>
+    },
+    {
+      header: 'Actions',
+      accessorKey: 'actions',
+      cell: ({ row }) => (
+        row.original.status === 'pending' && row.original.id ? (
+          <button className="btn btn-sm btn-secondary" onClick={() => updateStatus(row.original.id, 'resolved')}>Mark Resolved</button>
+        ) : null
+      )
+    }
+  ], []);
 
   return (
     <div>
@@ -80,25 +115,13 @@ export default function ClientRequests() {
 
       <div className="card">
         {requests.length === 0 ? <div className="empty-state"><h3>No Client Requests</h3></div> : (
-          <div className="table-container">
-            <table className="table">
-              <thead><tr><th>Date</th><th>Client</th><th>Subject</th><th>Priority</th><th>Status</th><th>Actions</th></tr></thead>
-              <tbody>{requests.map(r => (
-                <tr key={r.id}>
-                  <td>{r.request_date}</td>
-                  <td>{r.client_name}</td>
-                  <td>{r.subject}</td>
-                  <td><span style={{ padding: '4px 8px', borderRadius: '4px', background: getPriorityColor(r.priority) }}>{r.priority}</span></td>
-                  <td><span style={{ padding: '4px 8px', borderRadius: '4px', background: r.status === 'pending' ? '#fff3cd' : '#d4edda' }}>{r.status}</span></td>
-                  <td>
-                    {r.status === 'pending' && (
-                      <button className="btn btn-sm btn-secondary" onClick={() => r.id && updateStatus(r.id, 'resolved')}>Mark Resolved</button>
-                    )}
-                  </td>
-                </tr>
-              ))}</tbody>
-            </table>
-          </div>
+          <AppTable
+            data={requests}
+            columns={tableColumns}
+            enableSorting={true}
+            enablePagination={true}
+            emptyMessage="No client requests"
+          />
         )}
       </div>
     </div>

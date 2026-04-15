@@ -39,21 +39,28 @@
 
 ### Phase 2: Migrate list/dashboard pages (high-visibility)
 - [ ] `src/pages/DCList.tsx` — MUI DataGrid → AppTable
-- [ ] `src/pages/NonBillableDCList.tsx` — useReactTable → AppTable
+- [x] `src/pages/NonBillableDCList.tsx` — useReactTable → AppTable
 - [ ] `src/pages/MaterialsList.tsx` — useReactTable → AppTable (main items list only)
-- [ ] `src/pages/BOQList.tsx` — raw table → AppTable
+- [x] `src/pages/BOQList.tsx` — raw table → AppTable
 - [ ] `src/pages/QuotationView.tsx` — raw table → AppTable
 - [ ] `src/invoices/pages/InvoiceListPage.tsx` — raw table → AppTable
-- [ ] `src/pages/POList.tsx` — raw table → AppTable
+- [x] `src/pages/POList.tsx` — raw table → AppTable
 - [ ] `src/pages/ProjectList.tsx` — raw table → AppTable (5 tab tables)
+
+### Phase 6: Migrate CRM / operations pages
+- [x] `src/pages/Meetings.tsx` — raw table → AppTable
+- [x] `src/pages/ClientRequests.tsx` — raw table → AppTable
+- [x] `src/pages/DailyUpdates.tsx` — raw table → AppTable
+- [x] `src/pages/RemindMe.tsx` — raw table → AppTable
+- [ ] `src/pages/TodoList.tsx` — raw tables × 2 → AppTable
+- [ ] `src/pages/SiteReport.tsx` — shadcn Table × 2 → AppTable
+- [ ] `src/pages/ReceiveMaterial.tsx` — shadcn Table → AppTable
 
 ### Phase 3: Migrate store/inventory pages
 - [ ] `src/pages/MaterialInward.tsx` — shadcn Table list → AppTable
-- [ ] `src/pages/MaterialOutward.tsx` — raw table → AppTable
 - [ ] `src/pages/StockTransfer.tsx` — raw table list view → AppTable
-- [ ] `src/pages/QuickStockCheckList.tsx` — raw table → AppTable
-- [ ] `src/pages/DateWiseConsolidation.tsx` — raw table → AppTable
-- [ ] `src/pages/MaterialWiseConsolidation.tsx` — raw table → AppTable
+- [x] `src/pages/QuickStockCheckList.tsx` — raw table → AppTable
+- NOTE: `MaterialOutward.tsx`, `DateWiseConsolidation.tsx`, `MaterialWiseConsolidation.tsx` are FORM/PIVOT tables - NOT suitable for AppTable migration
 
 ### Phase 4: Migrate subcontractor module
 - [ ] `src/pages/Subcontractors.tsx` — Dashboard DataGrid → AppTable
@@ -94,7 +101,7 @@
 - [ ] `src/pages/Dashboard.tsx` — shadcn Table × 2 (widget tables — may keep compact)
 
 ### Phase 9: Migrate remaining form-embedded tables
-- [ ] `src/pages/MaterialsList.tsx` — sub-tables (stock, pricing, categories, units, variants, warehouses) × 10
+- [x] `src/pages/MaterialsList.tsx` — sub-tables (stock, pricing, categories, units, variants, warehouses) × 10 → DONE (Units, Warehouse, Category, Variants tabs)
 - [ ] `src/pages/MaterialInward.tsx` — grid-table form rows
 - [ ] `src/pages/CreateQuotation.tsx` — grid-table item rows + picker table
 - [ ] `src/invoices/components/InvoiceItemsEditor.tsx` — inline styled table

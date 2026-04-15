@@ -15,3 +15,4 @@ export { Separator } from './separator';
 export { Modal } from './Modal';
 export { Tabs, TabsList, TabsTrigger, TabsContent, TabList, Tab, TabPanel } from './Tabs';
 export { Calendar } from './Calendar';
+export { AppTable } from './AppTable';

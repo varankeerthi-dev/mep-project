@@ -24,6 +24,7 @@ import { useVariants } from '../hooks/useVariants';
 import { useUnits } from '../hooks/useUnits';
 import BulkImportModal from '../components/BulkImportModal';
 import ExcelEditor, { FieldSelector } from '../components/ExcelEditor';
+import { AppTable } from '../components/ui/AppTable';
 
 const MAIN_CATEGORIES = ['VALVE', 'PIPE', 'FITTING', 'FLANGE', 'ELECTRICAL', 'PLUMBING', 'HVAC', 'FIRE PROTECTION', 'BUILDING MATERIALS', 'TOOLS', 'SAFETY', 'OFFICE', 'OTHER'];
 
@@ -2710,6 +2711,18 @@ function CategoryTab() {
 
   const filteredCategories = categories.filter(c => c.category_name?.toLowerCase().includes(searchTerm.toLowerCase()));
 
+  const categoryColumns = useMemo(() => [
+    { header: 'Category Name', accessorKey: 'category_name', cell: (info) => <strong>{info.getValue()}</strong> },
+    { header: 'Description', accessorKey: 'description', cell: (info) => info.getValue() || '-' },
+    { header: 'Active', accessorKey: 'is_active', cell: (info) => info.getValue() ? '✓' : '✗' },
+    { header: 'Actions', accessorKey: 'actions', cell: ({ row }) => (
+      <div className="flex gap-1">
+        <button className="btn btn-sm btn-secondary" onClick={() => editCategory(row.original)}>Edit</button>
+        <button className="btn btn-sm btn-secondary" onClick={() => deleteCategory(row.original.id)}>Delete</button>
+      </div>
+    ) }
+  ], []);
+
   return (
     <div>
       <div className="page-header"><h1 className="page-title">Categories</h1><button className="btn btn-primary" onClick={() => setShowForm(true)}>+ Add Category</button></div>
@@ -2718,10 +2731,13 @@ function CategoryTab() {
         {loading ? (
           <div style={{ padding: '40px', textAlign: 'center' }}>Loading categories...</div>
         ) : filteredCategories.length === 0 ? <div className="empty-state"><h3>No Categories Found</h3></div> : (
-          <table className="table">
-            <thead><tr><th>Category Name</th><th>Description</th><th>Active</th><th>Actions</th></tr></thead>
-            <tbody>{filteredCategories.map(c => (<tr key={c.id} style={{ opacity: c.is_active === false ? 0.5 : 1 }}><td><strong>{c.category_name}</strong></td><td>{c.description || '-'}</td><td>{c.is_active ? '✓' : '✗'}</td><td><button className="btn btn-sm btn-secondary" onClick={() => editCategory(c)}>Edit</button><button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px' }} onClick={() => deleteCategory(c.id)}>Delete</button></td></tr>))}</tbody>
-          </table>
+          <AppTable
+            data={filteredCategories}
+            columns={categoryColumns}
+            enableSorting={true}
+            enablePagination={true}
+            emptyMessage="No categories found"
+          />
         )}
       </div>
       {showForm && (
@@ -2772,6 +2788,19 @@ function UnitTab() {
 
   const filteredUnits = units.filter(u => u.unit_name?.toLowerCase().includes(searchTerm.toLowerCase()) || u.unit_code?.toLowerCase().includes(searchTerm.toLowerCase()));
 
+  const unitColumns = useMemo(() => [
+    { header: 'Unit Name', accessorKey: 'unit_name', cell: (info) => <strong>{info.getValue()}</strong> },
+    { header: 'Unit Code', accessorKey: 'unit_code' },
+    { header: 'Description', accessorKey: 'description', cell: (info) => info.getValue() || '-' },
+    { header: 'Active', accessorKey: 'is_active', cell: (info) => info.getValue() ? '✓' : '✗' },
+    { header: 'Actions', accessorKey: 'actions', cell: ({ row }) => (
+      <div className="flex gap-1">
+        <button className="btn btn-sm btn-secondary" onClick={() => editUnit(row.original)}>Edit</button>
+        <button className="btn btn-sm btn-secondary" onClick={() => deleteUnit(row.original.id)}>Delete</button>
+      </div>
+    ) }
+  ], []);
+
   return (
     <div>
       <div className="page-header"><h1 className="page-title">Units</h1><button className="btn btn-primary" onClick={() => setShowForm(true)}>+ Add Unit</button></div>
@@ -2780,10 +2809,13 @@ function UnitTab() {
         {loading ? (
           <div style={{ padding: '40px', textAlign: 'center' }}>Loading units...</div>
         ) : filteredUnits.length === 0 ? <div className="empty-state"><h3>No Units Found</h3></div> : (
-          <table className="table">
-            <thead><tr><th>Unit Name</th><th>Unit Code</th><th>Description</th><th>Active</th><th>Actions</th></tr></thead>
-            <tbody>{filteredUnits.map(u => (<tr key={u.id} style={{ opacity: u.is_active === false ? 0.5 : 1 }}><td><strong>{u.unit_name}</strong></td><td>{u.unit_code}</td><td>{u.description || '-'}</td><td>{u.is_active ? '✓' : '✗'}</td><td><button className="btn btn-sm btn-secondary" onClick={() => editUnit(u)}>Edit</button><button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px' }} onClick={() => deleteUnit(u.id)}>Delete</button></td></tr>))}</tbody>
-          </table>
+          <AppTable
+            data={filteredUnits}
+            columns={unitColumns}
+            enableSorting={true}
+            enablePagination={true}
+            emptyMessage="No units found"
+          />
         )}
       </div>
       {showForm && (
@@ -2845,6 +2877,20 @@ function WarehousesTab() {
 
   const filteredWarehouses = warehouses.filter(w => w.warehouse_name?.toLowerCase().includes(searchTerm.toLowerCase()) || w.warehouse_code?.toLowerCase().includes(searchTerm.toLowerCase()));
 
+  const warehouseColumns = useMemo(() => [
+    { header: 'Warehouse Code', accessorKey: 'warehouse_code' },
+    { header: 'Warehouse Name', accessorKey: 'warehouse_name', cell: (info) => <strong>{info.getValue() || info.row.original.name}</strong> },
+    { header: 'Location', accessorKey: 'location', cell: (info) => info.getValue() || '-' },
+    { header: 'Default', accessorKey: 'is_default', cell: (info) => info.getValue() ? '✓' : '-' },
+    { header: 'Active', accessorKey: 'is_active', cell: (info) => info.getValue() ? '✓' : '✗' },
+    { header: 'Actions', accessorKey: 'actions', cell: ({ row }) => (
+      <div className="flex gap-1">
+        <button className="btn btn-sm btn-secondary" onClick={() => editWarehouse(row.original)}>Edit</button>
+        <button className="btn btn-sm btn-secondary" onClick={() => deleteWarehouse(row.original.id)}>Delete</button>
+      </div>
+    ) }
+  ], []);
+
   return (
     <div>
       <div className="page-header"><h1 className="page-title">Warehouses</h1><button className="btn btn-primary" onClick={() => setShowForm(true)}>+ Add Warehouse</button></div>
@@ -2853,10 +2899,13 @@ function WarehousesTab() {
         {loading ? (
           <div style={{ padding: '40px', textAlign: 'center' }}>Loading warehouses...</div>
         ) : filteredWarehouses.length === 0 ? <div className="empty-state"><h3>No Warehouses Found</h3></div> : (
-          <table className="table">
-            <thead><tr><th>Warehouse Code</th><th>Warehouse Name</th><th>Location</th><th>Default</th><th>Active</th><th>Actions</th></tr></thead>
-            <tbody>{filteredWarehouses.map(w => (<tr key={w.id} style={{ opacity: w.is_active === false ? 0.5 : 1 }}><td>{w.warehouse_code}</td><td><strong>{w.warehouse_name || w.name}</strong></td><td>{w.location || '-'}</td><td>{w.is_default ? '✓' : '-'}</td><td>{w.is_active ? '✓' : '✗'}</td><td><button className="btn btn-sm btn-secondary" onClick={() => editWarehouse(w)}>Edit</button><button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px' }} onClick={() => deleteWarehouse(w.id)}>Delete</button></td></tr>))}</tbody>
-          </table>
+          <AppTable
+            data={filteredWarehouses}
+            columns={warehouseColumns}
+            enableSorting={true}
+            enablePagination={true}
+            emptyMessage="No warehouses found"
+          />
         )}
       </div>
       {showForm && (
@@ -2905,6 +2954,18 @@ function VariantsTab() {
 
   const filteredVariants = variants.filter(v => v.variant_name?.toLowerCase().includes(searchTerm.toLowerCase()));
 
+  const variantColumns = useMemo(() => [
+    { header: 'Variant Name', accessorKey: 'variant_name', cell: (info) => <strong>{info.getValue()}</strong> },
+    { header: 'Active', accessorKey: 'is_active', cell: (info) => info.getValue() ? '✓' : '✗' },
+    { header: 'Created', accessorKey: 'created_at', cell: (info) => info.getValue() ? new Date(info.getValue()).toLocaleDateString() : '-' },
+    { header: 'Actions', accessorKey: 'actions', cell: ({ row }) => (
+      <div className="flex gap-1">
+        <button className="btn btn-sm btn-secondary" onClick={() => editVariant(row.original)}>Edit</button>
+        <button className="btn btn-sm btn-secondary" onClick={() => deleteVariant(row.original.id)}>Delete</button>
+      </div>
+    ) }
+  ], []);
+
   return (
     <div>
       <div className="page-header"><h1 className="page-title">Inventory Variants</h1><button className="btn btn-primary" onClick={() => setShowForm(true)}>+ Add Variant</button></div>
@@ -2916,10 +2977,13 @@ function VariantsTab() {
         {loading ? (
           <div style={{ padding: '40px', textAlign: 'center' }}>Loading variants...</div>
         ) : filteredVariants.length === 0 ? <div className="empty-state"><h3>No Variants Found</h3></div> : (
-          <table className="table">
-            <thead><tr><th>Variant Name</th><th>Active</th><th>Created</th><th>Actions</th></tr></thead>
-            <tbody>{filteredVariants.map(v => (<tr key={v.id} style={{ opacity: v.is_active === false ? 0.5 : 1 }}><td><strong>{v.variant_name}</strong></td><td>{v.is_active ? '✓' : '✗'}</td><td>{v.created_at ? new Date(v.created_at).toLocaleDateString() : '-'}</td><td><button className="btn btn-sm btn-secondary" onClick={() => editVariant(v)}>Edit</button><button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px' }} onClick={() => deleteVariant(v.id)}>Delete</button></td></tr>))}</tbody>
-          </table>
+          <AppTable
+            data={filteredVariants}
+            columns={variantColumns}
+            enableSorting={true}
+            enablePagination={true}
+            emptyMessage="No variants found"
+          />
         )}
       </div>
       {showForm && (

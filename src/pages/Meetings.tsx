@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import type { FormEvent } from 'react';
 import { supabase } from '../supabase';
+import { AppTable } from '../components/ui/AppTable';
 
 type MeetingsDashboardProps = {
   onNavigate: (path: string) => void
@@ -56,6 +57,65 @@ export function MeetingsDashboard({ onNavigate }: MeetingsDashboardProps) {
     loadMeetings()
   }
 
+  const getStatusStyle = (status: string) => {
+    if (status === 'upcoming') return { bg: '#d1ecf1', color: '#0c5460' }
+    if (status === 'completed') return { bg: '#d4edda', color: '#155724' }
+    return { bg: '#f8d7da', color: '#721c24' }
+  }
+
+  const tableColumns = useMemo(() => [
+    {
+      header: 'Date',
+      accessorKey: 'meeting_date'
+    },
+    {
+      header: 'Time',
+      accessorKey: 'meeting_time',
+      cell: (info) => info.getValue() || '-'
+    },
+    {
+      header: 'Client',
+      accessorKey: 'client_name'
+    },
+    {
+      header: 'Location',
+      accessorKey: 'location',
+      cell: (info) => info.getValue() || '-'
+    },
+    {
+      header: 'Description',
+      accessorKey: 'description',
+      cell: (info) => info.getValue() || '-'
+    },
+    {
+      header: 'Participants',
+      accessorKey: 'participants',
+      cell: (info) => info.getValue() || '-'
+    },
+    {
+      header: 'Status',
+      accessorKey: 'status',
+      cell: (info) => {
+        const s = info.getValue()
+        const style = getStatusStyle(s)
+        return <span style={{ padding: '4px 8px', borderRadius: '4px', background: style.bg, color: style.color }}>{s}</span>
+      }
+    },
+    {
+      header: 'Actions',
+      accessorKey: 'actions',
+      cell: ({ row }) => {
+        const m = row.original
+        return m.status === 'upcoming' ? (
+          <>
+            <button className="btn btn-sm btn-secondary" onClick={() => updateStatus(m.id, 'completed')}>Mark Complete</button>
+            <button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px' }} onClick={() => updateStatus(m.id, 'cancelled')}>Cancel</button>
+          </>
+        ) : null
+      }
+    }
+  ], [])
+
   return (
     <div>
       <div className="page-header">
@@ -77,30 +137,13 @@ export function MeetingsDashboard({ onNavigate }: MeetingsDashboardProps) {
         {meetings.length === 0 ? (
           <div className="empty-state"><h3>No Meetings</h3></div>
         ) : viewMode === 'list' ? (
-          <div className="table-container">
-            <table className="table">
-              <thead><tr><th>Date</th><th>Time</th><th>Client</th><th>Location</th><th>Description</th><th>Participants</th><th>Status</th><th>Actions</th></tr></thead>
-              <tbody>{meetings.map(m => (
-                <tr key={m.id}>
-                  <td>{m.meeting_date}</td>
-                  <td>{m.meeting_time || '-'}</td>
-                  <td>{m.client_name}</td>
-                  <td>{m.location || '-'}</td>
-                  <td>{m.description || '-'}</td>
-                  <td>{m.participants || '-'}</td>
-                  <td><span style={{ padding: '4px 8px', borderRadius: '4px', background: m.status === 'upcoming' ? '#d1ecf1' : m.status === 'completed' ? '#d4edda' : '#f8d7da', color: m.status === 'upcoming' ? '#0c5460' : m.status === 'completed' ? '#155724' : '#721c24' }}>{m.status}</span></td>
-                  <td>
-                    {m.status === 'upcoming' && (
-                      <>
-                        <button className="btn btn-sm btn-secondary" onClick={() => updateStatus(m.id, 'completed')}>Mark Complete</button>
-                        <button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px' }} onClick={() => updateStatus(m.id, 'cancelled')}>Cancel</button>
-                      </>
-                    )}
-                  </td>
-                </tr>
-              ))}</tbody>
-            </table>
-          </div>
+          <AppTable
+            data={meetings}
+            columns={tableColumns}
+            enableSorting={true}
+            enablePagination={true}
+            emptyMessage="No meetings"
+          />
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '16px' }}>
             {meetings.map(m => (

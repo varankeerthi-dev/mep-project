@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabase';
+import { AppTable } from '../components/ui/AppTable';
 
 export default function DailyUpdates() {
   const [updates, setUpdates] = useState([]);
@@ -14,7 +15,13 @@ export default function DailyUpdates() {
     e.preventDefault();
     await supabase.from('daily_updates').insert({ project_id: formData.project_id || null, update_date: formData.update_date, description: formData.description });
     setShowForm(false); loadUpdates();
-  };
+  }
+
+  const tableColumns = useMemo(() => [
+    { header: 'Date', accessorKey: 'update_date' },
+    { header: 'Project', accessorKey: 'project.name', cell: (info) => info.getValue() || '-' },
+    { header: 'Description', accessorKey: 'description' }
+  ], []);
 
   return (
     <div>
@@ -35,7 +42,13 @@ export default function DailyUpdates() {
       )}
       <div className="card">
         {updates.length === 0 ? <div className="empty-state"><h3>No Updates</h3></div> : (
-          <div className="table-container"><table className="table"><thead><tr><th>Date</th><th>Project</th><th>Description</th></tr></thead><tbody>{updates.map(u => (<tr key={u.id}><td>{u.update_date}</td><td>{u.project?.name || '-'}</td><td>{u.description}</td></tr>))}</tbody></table></div>
+          <AppTable
+            data={updates}
+            columns={tableColumns}
+            enableSorting={true}
+            enablePagination={true}
+            emptyMessage="No daily updates"
+          />
         )}
       </div>
     </div>
