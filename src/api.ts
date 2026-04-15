@@ -476,7 +476,7 @@ export async function updateDeliveryChallanItems(
   return data as DeliveryChallanItem[];
 }
 
-export async function getConsolidationDateWise(filters: DCFilters = {}): Promise<DeliveryChallan[]> {
+export async function getConsolidationDateWise(filters: DCFilters = {}, orgId?: string): Promise<DeliveryChallan[]> {
   let query: ReturnType<SupabaseClient['from']> = supabase
     .from('delivery_challans')
     .select(`
@@ -496,6 +496,9 @@ export async function getConsolidationDateWise(filters: DCFilters = {}): Promise
     `)
     .eq('status', 'active');
 
+  if (orgId) {
+    query = query.eq('organisation_id', orgId);
+  }
   if (filters.projectId) {
     query = query.eq('project_id', filters.projectId);
   }
@@ -511,20 +514,32 @@ export async function getConsolidationDateWise(filters: DCFilters = {}): Promise
   return data as DeliveryChallan[];
 }
 
-export async function getConsolidationMaterialWise(_filters: DCFilters = {}): Promise<DeliveryChallanItem[]> {
-  const { data: challans, error: challanError } = await supabase
+export async function getConsolidationMaterialWise(_filters: DCFilters = {}, orgId?: string): Promise<DeliveryChallanItem[]> {
+  let query: ReturnType<SupabaseClient['from']> = supabase
     .from('delivery_challans')
     .select('id')
     .eq('status', 'active');
 
+  if (orgId) {
+    query = query.eq('organisation_id', orgId);
+  }
+
+  const { data: challans, error: challanError } = await query;
+
   if (challanError) throw challanError;
 
-  const { data, error } = await supabase
+  const challanIds = challans?.map(c => c.id) || [];
+  if (challanIds.length === 0) return [];
+
+  const itemsQuery: ReturnType<SupabaseClient['from']> = supabase
     .from('delivery_challan_items')
     .select(`
       *,
       delivery_challan:delivery_challans(dc_number, dc_date, client_name)
-    `);
+    `)
+    .in('delivery_challan_id', challanIds);
+
+  const { data, error } = await itemsQuery;
 
   if (error) throw error;
   return data as DeliveryChallanItem[];

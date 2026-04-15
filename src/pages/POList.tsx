@@ -295,7 +295,7 @@ export default function POList() {
       .from('client_purchase_orders')
       .select(`
         *,
-        client_id
+        clients!inner(client_name)
       `)
       .order('created_at', { ascending: false });
 
@@ -318,7 +318,7 @@ const filteredPOs = pos.filter(po => {
     const searchLower = searchTerm.toLowerCase();
     return (
       po.po_number?.toLowerCase().includes(searchLower) ||
-      po.client?.client_name?.toLowerCase().includes(searchLower)
+      po.clients?.client_name?.toLowerCase().includes(searchLower)
     );
   });
 
@@ -355,45 +355,45 @@ const filteredPOs = pos.filter(po => {
 
   const tableColumns = useMemo(() => [
     {
-      header: 'PO Number',
+      header: 'Client',
+      accessorKey: 'clients.client_name',
+      cell: (info) => info.getValue() || '-'
+    },
+    {
+      header: 'PO NO',
       accessorKey: 'po_number',
       cell: (info) => <span style={{ fontWeight: 600, color: '#171717' }}>{info.getValue()}</span>
     },
     {
-      header: 'Client',
-      accessorKey: 'client.client_name',
-      cell: (info) => info.getValue() || '-'
-    },
-    {
-      header: 'PO Date',
+      header: 'PO DATE',
       accessorKey: 'po_date',
       cell: (info) => formatDate(info.getValue())
     },
     {
-      header: 'Expiry',
+      header: 'EXPIRY',
       accessorKey: 'po_expiry_date',
       cell: (info) => formatDate(info.getValue())
     },
     {
-      header: 'Total Value',
+      header: 'TOTAL VALUE',
       accessorKey: 'po_total_value',
       cell: (info) => <span style={{ textAlign: 'right', fontWeight: 500 }}>₹{formatCurrency(info.getValue())}</span>
     },
     {
-      header: 'Utilized',
+      header: 'UTILISED',
       accessorKey: 'po_utilized_value',
       cell: (info) => <span style={{ textAlign: 'right', color: '#737373' }}>₹{formatCurrency(info.getValue())}</span>
     },
     {
-      header: 'Balance',
+      header: 'BALANCE',
       accessorKey: 'po_available_value',
       cell: (info) => {
         const val = info.getValue();
         return (
-          <span style={{ 
-            textAlign: 'right', 
-            fontWeight: 600, 
-            color: val > 0 ? '#047857' : '#dc2626' 
+          <span style={{
+            textAlign: 'right',
+            fontWeight: 600,
+            color: val > 0 ? '#047857' : '#dc2626'
           }}>
             ₹{formatCurrency(val)}
           </span>
@@ -401,7 +401,7 @@ const filteredPOs = pos.filter(po => {
       }
     },
     {
-      header: 'Status',
+      header: 'STATUS',
       accessorKey: 'status',
       cell: (info) => getStatusBadge(info.getValue())
     },
@@ -545,19 +545,18 @@ const filteredPOs = pos.filter(po => {
         </div>
 
         {/* Table */}
-        <div style={{ overflowX: 'auto' }}>
-          {loading ? (
-            <div className="po-loading">Loading purchase orders...</div>
-          ) : (
-            <AppTable
-              data={filteredPOs}
-              columns={tableColumns}
-              enableSorting={true}
-              enablePagination={true}
-              emptyMessage="No purchase orders found"
-            />
-          )}
-        </div>
+        {loading ? (
+          <div className="po-loading">Loading purchase orders...</div>
+        ) : (
+          <AppTable
+            data={filteredPOs}
+            columns={tableColumns}
+            enableSorting={true}
+            enablePagination={true}
+            defaultPageSize={10}
+            emptyMessage="No purchase orders found"
+          />
+        )}
       </div>
     </div>
   );

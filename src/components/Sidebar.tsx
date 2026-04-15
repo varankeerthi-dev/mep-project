@@ -5,6 +5,7 @@ type SubmenuItem = {
   id: string;
   label: string;
   path: string;
+  submenu?: SubmenuItem[];
 };
 
 type MenuItem = {
@@ -29,7 +30,7 @@ type SidebarProps = {
 
 const menuData: MenuSection[] = [
   {
-    section: 'Dashboard',
+    section: '',
     items: [
       { id: 'dashboard', label: 'Dashboard', path: '/' }
     ]
@@ -50,19 +51,14 @@ const menuData: MenuSection[] = [
   {
     section: 'Client',
     items: [
-      { 
-        id: 'clients', 
-        label: 'Client', 
+      {
+        id: 'clients',
+        label: 'Client',
         submenu: [
           { id: 'clients-new', label: 'New Client', path: '/clients/new' },
           { id: 'clients-list', label: 'Client List', path: '/clients' },
           { id: 'client-po-list', label: 'Purchase Orders', path: '/client-po' }
         ]
-      },
-      {
-        id: 'client-po',
-        label: 'Create PO',
-        path: '/client-po/create'
       },
       {
         id: 'meetings',
@@ -104,13 +100,9 @@ const menuData: MenuSection[] = [
           { id: 'subcontractor-dailylogs', label: 'Daily Logs', path: '/subcontractors/dailylogs' },
           { id: 'subcontractor-payments', label: 'Payments', path: '/subcontractors/payments' },
           { id: 'subcontractor-invoices', label: 'Invoices', path: '/subcontractors/invoices' },
-          { id: 'subcontractor-documents', label: 'Documents', path: '/subcontractors/documents' }
+          { id: 'subcontractor-documents', label: 'Documents', path: '/subcontractors/documents' },
+          { id: 'subcontractor-measurement', label: 'Measurement', path: '/subcontractors/measurement' }
         ]
-      },
-      {
-        id: 'client-requests',
-        label: 'Client Request',
-        path: '/client-requests'
       }
     ]
   },
@@ -147,7 +139,6 @@ const menuData: MenuSection[] = [
           { id: 'boq-create', label: 'Create BOQ', path: '/boq/create' }
         ]
       },
-      { id: 'documents', label: 'Documents', path: '/documents' },
       { id: 'issue', label: 'Issue', path: '/issue' }
     ]
   },
@@ -189,16 +180,9 @@ const menuData: MenuSection[] = [
         submenu: [
           { id: 'dc-create', label: 'Create DC', path: '/dc/create' },
           { id: 'dc-list', label: 'DC List', path: '/dc/list' },
-          { id: 'dc-date-wise', label: 'Date-wise Consolidation', path: '/dc/consolidation/date' },
-          { id: 'dc-material-wise', label: 'Material-wise Consolidation', path: '/dc/consolidation/material' }
-        ]
-      },
-      {
-        id: 'non-billable-dc',
-        label: 'Non-Billable DC',
-        submenu: [
           { id: 'nb-dc-create', label: 'Create NB-DC', path: '/nb-dc/create' },
-          { id: 'nb-dc-list', label: 'NB-DC List', path: '/nb-dc/list' }
+          { id: 'nb-dc-list', label: 'NB-DC List', path: '/nb-dc/list' },
+          { id: 'dc-consolidation', label: 'DC Consolidation', path: '/dc/consolidation' }
         ]
       }
     ]
@@ -225,6 +209,7 @@ const menuData: MenuSection[] = [
         label: 'Settings', 
         submenu: [
           { id: 'settings-general', label: 'General', path: '/settings' },
+          { id: 'documents', label: 'Documents', path: '/documents' },
           { id: 'settings-print', label: 'Print Settings', path: '/settings/print' },
           { id: 'settings-document', label: 'Document Settings', path: '/settings/document-series' },
           { id: 'settings-template', label: 'Template Settings', path: '/settings/template' },
@@ -382,17 +367,40 @@ export default function Sidebar({ currentPath, onNavigate, collapsed, onToggle, 
                     {item.submenu && isExpanded && !isCollapsed && (
                       <div className="sidebar-submenu">
                         {item.submenu.map(subItem => (
-                          <button
-                            key={subItem.id}
-                            className={cx(
-                              'sidebar-submenu-item',
-                              isActive(subItem.path) && 'active'
+                          <div key={subItem.id}>
+                            <button
+                              className={cx(
+                                'sidebar-submenu-item',
+                                isActive(subItem.path) && 'active'
+                              )}
+                              onClick={() => subItem.submenu ? toggleMenu(subItem.id) : onNavigate(subItem.path)}
+                              type="button"
+                            >
+                              <span className="sidebar-item-label">{subItem.label}</span>
+                              {subItem.submenu && (
+                                <span className="sidebar-item-chevron">
+                                  {expandedMenus.includes(subItem.id) ? <ChevronDownIcon /> : <ChevronRightIcon />}
+                                </span>
+                              )}
+                            </button>
+                            {subItem.submenu && expandedMenus.includes(subItem.id) && (
+                              <div className="sidebar-submenu" style={{ paddingLeft: '16px' }}>
+                                {subItem.submenu.map(nestedItem => (
+                                  <button
+                                    key={nestedItem.id}
+                                    className={cx(
+                                      'sidebar-submenu-item',
+                                      isActive(nestedItem.path) && 'active'
+                                    )}
+                                    onClick={() => onNavigate(nestedItem.path)}
+                                    type="button"
+                                  >
+                                    <span className="sidebar-item-label">{nestedItem.label}</span>
+                                  </button>
+                                ))}
+                              </div>
                             )}
-                            onClick={() => onNavigate(subItem.path)}
-                            type="button"
-                          >
-                            <span className="sidebar-item-label">{subItem.label}</span>
-                          </button>
+                          </div>
                         ))}
                       </div>
                     )}

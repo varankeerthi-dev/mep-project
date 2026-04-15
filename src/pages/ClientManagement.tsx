@@ -523,17 +523,27 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
 
   const handleSubmit = async (e?: FormEvent<HTMLFormElement>) => {
     if (e) e.preventDefault();
+    
+    // Validate required fields
+    if (!formData.client_name || formData.client_name.trim() === '') {
+      alert('Client Name is required');
+      return;
+    }
+    
     if (formData.gstin && formData.gstin.length !== 15) {
       alert('GSTIN must be exactly 15 characters');
       return;
     }
+    
     setSaving(true);
     try {
       if (editMode && clientData?.id) {
+        console.log('Updating client:', formData);
         const { error } = await supabase.from('clients').update(formData).eq('id', clientData.id);
         if (error) throw error;
         alert('Client updated successfully!');
       } else {
+        console.log('Creating client:', formData);
         const clientId = 'CLT-' + Date.now().toString().slice(-6);
         const { error } = await supabase.from('clients').insert({ ...formData, client_id: clientId });
         if (error) throw error;
@@ -542,8 +552,9 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
       queryClient.invalidateQueries({ queryKey: ['clients'] });
       setIsDirty(false);
       onSuccess();
-    } catch (error) {
-      alert('Error: ' + (error as Error).message);
+    } catch (error: any) {
+      console.error('Error saving client:', error);
+      alert('Error: ' + (error?.message || error));
     } finally {
       setSaving(false);
     }

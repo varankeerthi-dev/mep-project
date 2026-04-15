@@ -1,75 +1,62 @@
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { getConsolidationDateWise, fetchProjects } from '../api';
 import { format } from 'date-fns';
 import { exportDateWiseConsolidationPDF } from '../utils/pdfExport';
+import { useAuth } from '../App';
 
 export default function DateWiseConsolidation() {
-  const [loading, setLoading] = useState(true);
-  const [consolidatedData, setConsolidatedData] = useState([]);
-  const [projects, setProjects] = useState([]);
+  const { organisation } = useAuth();
   const [filters, setFilters] = useState({
     projectId: '',
     startDate: '',
     endDate: '',
     dc_type: 'billable'
   });
-  const [summary, setSummary] = useState({ totalDCs: 0, totalAmount: 0, totalItems: 0 });
 
-  useEffect(() => {
-    loadProjects();
-  }, []);
+  const { data: projects = [] } = useQuery({
+    queryKey: ['projects'],
+    queryFn: fetchProjects
+  });
 
-  const loadProjects = async () => {
-    try {
-      const data = await fetchProjects();
-      setProjects(data || []);
-    } catch (error) {
-      console.error('Error loading projects:', error);
-    }
-  };
+  const { data: rawData = [], isLoading: loading } = useQuery({
+    queryKey: ['consolidation-date-wise', filters, organisation?.id],
+    queryFn: () => getConsolidationDateWise(filters, organisation?.id),
+    enabled: !!organisation?.id
+  });
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const data = await getConsolidationDateWise(filters);
-      
-      const grouped = {};
-      data.forEach(dc => {
-        const dateKey = dc.dc_date;
-        if (!grouped[dateKey]) {
-          grouped[dateKey] = {
-            date: dateKey,
-            dcs: [],
-            totalAmount: 0,
-            totalItems: 0
-          };
-        }
-        grouped[dateKey].dcs.push(dc);
-        grouped[dateKey].totalAmount += dc.items?.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0) || 0;
-        grouped[dateKey].totalItems += dc.items?.length || 0;
-      });
+  const consolidatedData = useMemo(() => {
+    const grouped: Record<string, {
+      date: string;
+      dcs: any[];
+      totalAmount: number;
+      totalItems: number;
+    }> = {};
+    rawData.forEach((dc: any) => {
+      const dateKey = dc.dc_date;
+      if (!grouped[dateKey]) {
+        grouped[dateKey] = {
+          date: dateKey,
+          dcs: [],
+          totalAmount: 0,
+          totalItems: 0
+        };
+      }
+      grouped[dateKey].dcs.push(dc);
+      grouped[dateKey].totalAmount += dc.items?.reduce((sum: number, item: any) => sum + (parseFloat(String(item.amount)) || 0), 0) || 0;
+      grouped[dateKey].totalItems += dc.items?.length || 0;
+    });
 
-      const sortedData = Object.values(grouped).sort((a, b) => new Date(b.date) - new Date(a.date));
-      setConsolidatedData(sortedData);
+    return Object.values(grouped).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [rawData]);
 
-      const totalDCs = data.length;
-      const totalAmount = data.reduce((sum, dc) => 
-        sum + (dc.items?.reduce((s, item) => s + (parseFloat(item.amount) || 0), 0) || 0), 0);
-      const totalItems = data.reduce((sum, dc) => sum + (dc.items?.length || 0), 0);
-      
-      setSummary({ totalDCs, totalAmount, totalItems });
-    } catch (error) {
-      console.error('Error loading consolidation:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (projects.length > 0) {
-      loadData();
-    }
-  }, [filters, projects]);
+  const summary = useMemo(() => {
+    const totalDCs = rawData.length;
+    const totalAmount = rawData.reduce((sum: number, dc: any) => 
+      sum + (dc.items?.reduce((s: number, item: any) => s + (parseFloat(String(item.amount)) || 0), 0) || 0), 0);
+    const totalItems = rawData.reduce((sum: number, dc: any) => sum + (dc.items?.length || 0), 0);
+    return { totalDCs, totalAmount, totalItems };
+  }, [rawData]);
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;

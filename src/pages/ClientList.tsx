@@ -114,69 +114,81 @@ function TransactionsTable({ rows, loading, onOpen, emptyMessage }: Transactions
   const currentPage = table.getState().pagination.pageIndex;
 
   return (
-    <div>
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
+    <div className="w-full">
+      <div className="flex items-center justify-between mb-4">
         <input
-          className="form-input"
+          className="h-9 w-[280px] rounded-md border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-950 focus:ring-offset-2"
           placeholder="Search all columns..."
           value={globalFilter ?? ''}
           onChange={(e) => setGlobalFilter(e.target.value)}
-          style={{ padding: '6px 8px', fontSize: '12px', maxWidth: '280px' }}
         />
-        <span style={{ fontSize: '12px', color: '#6b7280', marginLeft: 'auto' }}>
+        <span className="text-sm text-slate-500">
           {table.getFilteredRowModel().rows.length} record{table.getFilteredRowModel().rows.length !== 1 ? 's' : ''}
         </span>
       </div>
 
-      <div style={{ overflow: 'auto', border: '1px solid #e5e7eb', borderRadius: '6px', marginBottom: '8px' }}>
-        <table className="table" style={{ margin: 0 }}>
-          <thead>
+      <div className="rounded-md border border-slate-200 bg-white">
+        <table className="w-full caption-bottom text-sm">
+          <thead className="[&_tr]:border-b">
             {table.getHeaderGroups().map(headerGroup => (
               <>
-                <tr key={`${headerGroup.id}-sort`} style={{ background: '#f8fafc' }}>
+                <tr key={`${headerGroup.id}-sort`} className="border-b transition-colors hover:bg-slate-50/50">
                   {headerGroup.headers.map(header => (
                     <th
                       key={header.id}
-                      style={{ padding: '6px 8px', fontSize: '12px', cursor: header.column.getCanSort() ? 'pointer' : 'default', userSelect: 'none' }}
+                      className="h-12 px-4 text-left align-middle font-medium text-slate-500 [&:has([role=checkbox])]:pr-0"
+                      style={{ cursor: header.column.getCanSort() ? 'pointer' : 'default', userSelect: 'none' }}
                       onClick={header.column.getToggleSortingHandler()}
                     >
                       {header.isPlaceholder ? null : (
-                        <span style={{ display: 'flex', alignItems: 'center' }}>
+                        <div className="flex items-center">
                           {flexRender(header.column.columnDef.header, header.getContext())}
                           <SortIcon column={header.column} />
-                        </span>
+                        </div>
                       )}
                     </th>
                   ))}
                 </tr>
-                <tr key={`${headerGroup.id}-filter`}>
-                  {headerGroup.headers.map(header => (
-                    <th key={`${header.id}-filter`} style={{ padding: '4px 8px', fontSize: '11px' }}>
-                      {header.column.getCanFilter() && header.id !== 'action' && header.id !== 'number' ? (
-                        <input
-                          className="form-input"
-                          placeholder={`Filter ${typeof header.column.columnDef.header === 'string' ? header.column.columnDef.header : header.id}...`}
-                          value={(header.column.getFilterValue() as string) ?? ''}
-                          onChange={(e) => header.column.setFilterValue(e.target.value)}
-                          style={{ padding: '3px 6px', fontSize: '11px', width: '100%' }}
-                        />
-                      ) : null}
-                    </th>
-                  ))}
-                </tr>
+                {headerGroup.headers.some(header => header.column.getCanFilter() && header.id !== 'action' && header.id !== 'number') && (
+                  <tr key={`${headerGroup.id}-filter`} className="border-b bg-slate-50/50">
+                    {headerGroup.headers.map(header => (
+                      <th key={`${header.id}-filter`} className="h-10 px-4">
+                        {header.column.getCanFilter() && header.id !== 'action' && header.id !== 'number' ? (
+                          <input
+                            className="h-8 w-full rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-950 focus:ring-offset-2"
+                            placeholder={`Filter ${typeof header.column.columnDef.header === 'string' ? header.column.columnDef.header : header.id}...`}
+                            value={(header.column.getFilterValue() as string) ?? ''}
+                            onChange={(e) => header.column.setFilterValue(e.target.value)}
+                          />
+                        ) : null}
+                      </th>
+                    ))}
+                  </tr>
+                )}
               </>
             ))}
           </thead>
-          <tbody>
+          <tbody className="[&_tr:last-child]:border-0">
             {loading ? (
-              <tr><td colSpan={columns.length} style={{ padding: '16px', textAlign: 'center' }}>Loading...</td></tr>
+              <tr>
+                <td colSpan={columns.length} className="p-8 text-center text-slate-500">
+                  Loading...
+                </td>
+              </tr>
             ) : table.getRowModel().rows.length === 0 ? (
-              <tr><td colSpan={columns.length} style={{ padding: '16px', textAlign: 'center', color: '#6b7280' }}>{emptyMessage}</td></tr>
+              <tr>
+                <td colSpan={columns.length} className="p-8 text-center text-slate-500">
+                  {emptyMessage}
+                </td>
+              </tr>
             ) : (
               table.getRowModel().rows.map(row => (
-                <tr key={row.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                <tr
+                  key={row.id}
+                  className="border-b transition-colors hover:bg-slate-50/50 data-[state=selected]:bg-slate-100"
+                >
                   {row.getVisibleCells().map(cell => (
-                    <td key={cell.id} style={{ padding: '8px 8px', fontSize: '12px' }}>
+                    <td key={cell.id} className="p-4 align-middle">
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </td>
                   ))}
@@ -187,15 +199,14 @@ function TransactionsTable({ rows, loading, onOpen, emptyMessage }: Transactions
         </table>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'flex-end' }}>
-        <span style={{ fontSize: '12px', color: '#6b7280' }}>
+      <div className="flex items-center justify-end space-x-2 py-4">
+        <span className="text-sm text-slate-500">
           Page {currentPage + 1} of {pageCount || 1}
         </span>
         <button
-          className="btn btn-sm btn-secondary"
+          className="inline-flex h-8 items-center justify-center rounded-md border border-slate-200 bg-white px-3 text-sm font-medium transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-950 focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
           onClick={() => table.previousPage()}
           disabled={!table.getCanPreviousPage()}
-          style={{ padding: '4px 10px', fontSize: '12px' }}
         >
           Prev
         </button>
@@ -208,19 +219,21 @@ function TransactionsTable({ rows, loading, onOpen, emptyMessage }: Transactions
           return (
             <button
               key={pageIdx}
-              className={`btn btn-sm ${currentPage === pageIdx ? 'btn-primary' : 'btn-secondary'}`}
+              className={`inline-flex h-8 w-8 items-center justify-center rounded-md text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-slate-950 focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 ${
+                currentPage === pageIdx
+                  ? 'bg-slate-900 text-white hover:bg-slate-900/90'
+                  : 'border border-slate-200 bg-white hover:bg-slate-100'
+              }`}
               onClick={() => table.setPageIndex(pageIdx)}
-              style={{ padding: '4px 10px', fontSize: '12px', minWidth: '32px' }}
             >
               {pageIdx + 1}
             </button>
           );
         })}
         <button
-          className="btn btn-sm btn-secondary"
+          className="inline-flex h-8 items-center justify-center rounded-md border border-slate-200 bg-white px-3 text-sm font-medium transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-950 focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
           onClick={() => table.nextPage()}
           disabled={!table.getCanNextPage()}
-          style={{ padding: '4px 10px', fontSize: '12px' }}
         >
           Next
         </button>

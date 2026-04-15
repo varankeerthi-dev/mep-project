@@ -129,7 +129,7 @@ export function AppTable<T extends Record<string, any>>({
       cols.push({
         id: 'actions',
         size: 50,
-        header: () => <span className="text-center">Actions</span>,
+        header: () => <span className="text-right">Actions</span>,
         cell: ({ row }) => {
           const [open, setOpen] = useState<boolean>(false);
           return (
@@ -238,7 +238,7 @@ export function AppTable<T extends Record<string, any>>({
           {value && (
             <button
               onClick={() => col.setFilterValue(undefined)}
-              className="absolute right-1 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              className="absolute right-1 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
             >
               <X className="w-3 h-3" />
             </button>
@@ -292,7 +292,7 @@ export function AppTable<T extends Record<string, any>>({
                   {headerGroup.headers.map((header) => (
                     <th
                       key={header.id}
-                      className="px-4 py-3 text-left text-xs font-medium text-gray-500 border-b border-gray-200"
+                      className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500 border-b border-zinc-200"
                       style={{ width: header.getSize() }}
                     >
                       {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
@@ -303,9 +303,9 @@ export function AppTable<T extends Record<string, any>>({
             </thead>
             <tbody>
               {Array.from({ length: loadingRows }).map((_, i) => (
-                <tr key={i} className="border-b border-gray-100">
+                <tr key={i} className="border-b border-zinc-100 hover:bg-zinc-50/80 transition-colors">
                   {columns.map((_, j) => (
-                    <td key={j} className="px-4 py-3">
+                    <td key={j} className="px-3 py-1.5 align-middle">
                       <div className="h-4 bg-gray-100 rounded animate-pulse w-full max-w-[200px]" />
                     </td>
                   ))}
@@ -321,15 +321,15 @@ export function AppTable<T extends Record<string, any>>({
   return (
     <div className={cn('bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden', className)}>
       {enableColumnFilters && hasColumnFilters && (
-        <div className="px-4 py-3 border-b border-gray-200 bg-gray-50/50 flex items-center gap-3">
+        <div className="px-4 py-3 border-b border-zinc-200 bg-zinc-50/80 flex items-center gap-3">
           <div className="relative flex-1 max-w-xs">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
             <input
               type="text"
               value={globalFilter ?? ''}
               onChange={(e) => setGlobalFilter(e.target.value)}
               placeholder="Search all columns..."
-              className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full pl-9 pr-3 py-2 text-sm border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-zinc-500"
             />
           </div>
         </div>
@@ -343,7 +343,7 @@ export function AppTable<T extends Record<string, any>>({
                 {headerGroup.headers.map((header) => (
                   <th
                     key={header.id}
-                    className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider border-b border-gray-200"
+                    className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500 border-b border-zinc-200"
                     style={{ width: header.getSize() }}
                   >
                     {header.column.columnDef.enableSorting !== false && enableSorting ? (
@@ -358,7 +358,7 @@ export function AppTable<T extends Record<string, any>>({
                           ? null
                           : flexRender(header.column.columnDef.header, header.getContext())}
                         {header.column.getCanSort() && (
-                          <span className="ml-1 text-gray-400">
+                          <span className="ml-1 text-zinc-400">
                             {header.column.getIsSorted() === 'asc' ? (
                               <ChevronUp className="w-3 h-3" />
                             ) : header.column.getIsSorted() === 'desc' ? (
@@ -397,8 +397,8 @@ export function AppTable<T extends Record<string, any>>({
                 <tr
                   key={row.id}
                   className={cn(
-                    'border-b border-gray-100 hover:bg-gray-50/50 transition-colors cursor-pointer',
-                    row.getIsSelected() && 'bg-blue-50/50'
+                    'border-b border-zinc-100 hover:bg-zinc-50/80 transition-colors cursor-pointer',
+                    row.getIsSelected() && 'bg-indigo-50/30'
                   )}
                   onClick={() => {
                     if (enableRowSelection) {
@@ -409,7 +409,7 @@ export function AppTable<T extends Record<string, any>>({
                   {row.getVisibleCells().map((cell) => (
                     <td
                       key={cell.id}
-                      className="px-4 py-3 text-gray-700"
+                      className="px-3 py-1.5 align-middle whitespace-nowrap text-[12px] font-medium text-zinc-500"
                       style={{ maxWidth: cell.column.getSize() }}
                     >
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -423,8 +423,8 @@ export function AppTable<T extends Record<string, any>>({
       </div>
 
       {enablePagination && (
-        <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between bg-gray-50/50">
-          <div className="flex items-center gap-2 text-sm text-gray-600">
+        <div className="px-4 py-3 border-t border-zinc-200 flex items-center justify-between bg-zinc-50/80">
+          <div className="flex items-center gap-2 text-sm text-zinc-600">
             <span>
               Page {pagination.pageIndex + 1} of {table.getPageCount()}
             </span>
@@ -433,7 +433,7 @@ export function AppTable<T extends Record<string, any>>({
               onChange={(e) => {
                 table.setPageSize(Number(e.target.value));
               }}
-              className="ml-2 px-2 py-1 text-xs border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="ml-2 px-2 py-1 text-xs border border-zinc-200 rounded-md focus:outline-none focus:ring-1 focus:ring-zinc-500"
             >
               {pageSizeOptions.map((size) => (
                 <option key={size} value={size}>

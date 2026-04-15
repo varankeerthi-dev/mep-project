@@ -27,7 +27,7 @@ html, body {
   top: 0;
   left: 0;
   right: 0;
-  height: 60px;
+  height: 48px;
   z-index: 1000;
   background: white;
   border-bottom: 1px solid #e5e7eb;
@@ -38,7 +38,7 @@ html, body {
 
 .sidebar {
   position: fixed;
-  top: 60px;
+  top: 48px;
   left: 0;
   bottom: 0;
   width: 260px;
@@ -71,12 +71,12 @@ html, body {
 }
 
 .main-content {
-  margin-top: 60px;
+  margin-top: 48px;
   margin-left: 260px;
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  height: calc(100vh - 60px);
+  height: calc(100vh - 48px);
   transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   background: #f9fafb;
   padding: 1.5rem;
@@ -88,7 +88,7 @@ html, body {
 
 .sidebar-backdrop {
   position: fixed;
-  top: 60px;
+  top: 48px;
   left: 0;
   right: 0;
   bottom: 0;
@@ -123,12 +123,12 @@ html, body {
 /* Mobile */
 @media (max-width: 768px) {
   .quick-access-bar {
-    height: 56px;
+    height: 48px;
     padding: 0 1rem;
   }
-  
+
   .sidebar {
-    top: 56px;
+    top: 48px;
     transform: translateX(-100%);
     width: 280px;
     z-index: 1100;
@@ -139,10 +139,10 @@ html, body {
   }
   
   .main-content {
-    margin-top: 56px;
+    margin-top: 48px;
     margin-left: 0;
     width: 100%;
-    height: calc(100vh - 56px);
+    height: calc(100vh - 48px);
     padding: 1rem;
   }
   
@@ -151,7 +151,7 @@ html, body {
   }
   
   .sidebar-backdrop {
-    top: 56px;
+    top: 48px;
   }
   
   .sidebar-backdrop.active {
@@ -295,7 +295,7 @@ body {
   top: 0;
   left: 0;
   right: 0;
-  height: 60px;
+  height: 48px;
   background: white;
   border-bottom: 1px solid var(--gray-200);
   display: flex;
@@ -350,14 +350,14 @@ body {
 }
 
 .logo-text {
-  display: none;
+  display: inline;
 }
 
 @media (max-width: 768px) {
   .mobile-menu-btn {
     display: flex;
   }
-  
+
   .logo-text {
     display: inline;
   }

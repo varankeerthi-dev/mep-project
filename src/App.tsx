@@ -63,6 +63,7 @@ const ROUTE_SECTIONS: Record<string, ImportFactory[]> = {
     () => import('./pages/Subcontractors').then(m => ({ default: m.SubcontractorPayments })),
     () => import('./pages/Subcontractors').then(m => ({ default: m.SubcontractorInvoices })),
     () => import('./pages/Subcontractors').then(m => ({ default: m.SubcontractorDocuments })),
+    () => import('./pages/SubconMeasurement').then(m => ({ default: m.default })),
     () => import('./pages/SubcontractorWorkOrderProfessional').then(m => ({ default: m.WorkOrderList })),
     () => import('./pages/WorkOrderDetailView').then(m => ({ default: m.WorkOrderDetailView })),
   ],
@@ -131,6 +132,7 @@ const DCList = lazyAny(() => import('./pages/DCList'));
 const NonBillableDCList = lazyAny(() => import('./pages/NonBillableDCList'));
 const DateWiseConsolidation = lazyAny(() => import('./pages/DateWiseConsolidation'));
 const MaterialWiseConsolidation = lazyAny(() => import('./pages/MaterialWiseConsolidation'));
+const DCConsolidation = lazyAny(() => import('./pages/DCConsolidation').then(m => ({ default: m.default })));
 const MaterialsList = lazyAny(() => import('./pages/MaterialsList'));
 const StockTransfer = lazyAny(() => import('./pages/StockTransfer'));
 const TransactionNumberSeries = lazyAny(() => import('./pages/TransactionNumberSeries'));
@@ -193,6 +195,7 @@ const SubcontractorDailyLogs = lazyAny(() => Subcontractors.then(m => ({ default
 const SubcontractorPayments = lazyAny(() => Subcontractors.then(m => ({ default: m.SubcontractorPayments })));
 const SubcontractorInvoices = lazyAny(() => Subcontractors.then(m => ({ default: m.SubcontractorInvoices })));
 const SubcontractorDocuments = lazyAny(() => Subcontractors.then(m => ({ default: m.SubcontractorDocuments })));
+const SubconMeasurement = lazyAny(() => import('./pages/SubconMeasurement').then(m => ({ default: m.default })));
 const Reports = import('./pages/Reports');
 const StockBalance = lazyAny(() => Reports.then(m => ({ default: m.StockBalance })));
 const StockReport = lazyAny(() => Reports.then(m => ({ default: m.StockReport })));
@@ -301,6 +304,7 @@ export default function App() {
       case '/subcontractors/payments': return <SubcontractorPayments />;
       case '/subcontractors/invoices': return <SubcontractorInvoices />;
       case '/subcontractors/documents': return <SubcontractorDocuments />;
+      case '/subcontractors/measurement': return <SubconMeasurement />;
       // Client PO
       case '/client-po': return <POList />;
       case '/client-po/create': return <CreatePO onSuccess={() => navigate('/client-po')} onCancel={() => navigate('/client-po')} />;
@@ -336,6 +340,7 @@ export default function App() {
       // Delivery Challan
       case '/dc/create': return <CreateDC onCancel={() => navigate('/dc/list')} />;
       case '/dc/list': return <DCList />;
+      case '/dc/consolidation': return <DCConsolidation />;
       case '/dc/consolidation/date': return <DateWiseConsolidation />;
       case '/dc/consolidation/material': return <MaterialWiseConsolidation />;
       case '/nb-dc/list': return <NonBillableDCList />;

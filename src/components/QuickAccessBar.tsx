@@ -83,8 +83,8 @@ export default function QuickAccessBar({ onQuickAction, organisation, onLogout, 
           {icons.menu}
         </button>
         <div className="logo">
-          <div className="logo-icon">M</div>
-          <span className="logo-text">MEP Projects</span>
+          <div className="logo-icon">D</div>
+          <span className="logo-text">DOT ERP</span>
         </div>
       </div>
       

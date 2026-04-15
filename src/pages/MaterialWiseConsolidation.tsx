@@ -1,101 +1,86 @@
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { getConsolidationMaterialWise, fetchProjects } from '../api';
 import { format } from 'date-fns';
 import { exportMaterialWiseConsolidationPDF } from '../utils/pdfExport';
+import { useAuth } from '../App';
 
 export default function MaterialWiseConsolidation() {
-  const [loading, setLoading] = useState(true);
-  const [consolidatedData, setConsolidatedData] = useState([]);
-  const [projects, setProjects] = useState([]);
+  const { organisation } = useAuth();
   const [filters, setFilters] = useState({
     projectId: '',
     startDate: '',
     endDate: ''
   });
-  const [summary, setSummary] = useState({ uniqueMaterials: 0, totalQuantity: 0, totalAmount: 0 });
 
-  useEffect(() => {
-    loadProjects();
-  }, []);
+  const { data: projects = [] } = useQuery({
+    queryKey: ['projects'],
+    queryFn: fetchProjects
+  });
 
-  const loadProjects = async () => {
-    try {
-      const data = await fetchProjects();
-      setProjects(data || []);
-    } catch (error) {
-      console.error('Error loading projects:', error);
-    }
-  };
+  const { data: rawData = [], isLoading: loading } = useQuery({
+    queryKey: ['consolidation-material-wise', filters, organisation?.id],
+    queryFn: () => getConsolidationMaterialWise(filters, organisation?.id),
+    enabled: !!organisation?.id
+  });
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const data = await getConsolidationMaterialWise(filters);
+  const { consolidatedData, dcColumns, summary } = useMemo(() => {
+    const grouped: Record<string, {
+      materialName: string;
+      unit: string;
+      size: string;
+      dcItems: any[];
+      totalQuantity: number;
+      totalAmount: number;
+    }> = {};
+    const dcMap: Record<string, any> = {};
+    
+    rawData.forEach((item: any) => {
+      const key = `${item.material_name}-${item.size || ''}`;
       
-      const grouped = {};
-      const dcMap = {};
+      if (!grouped[key]) {
+        grouped[key] = {
+          materialName: item.material_name,
+          unit: item.unit,
+          size: item.size,
+          dcItems: [],
+          totalQuantity: 0,
+          totalAmount: 0
+        };
+      }
       
-      data.forEach(item => {
-        const key = `${item.material_name}-${item.size || ''}`;
-        
-        if (!grouped[key]) {
-          grouped[key] = {
-            materialName: item.material_name,
-            unit: item.unit,
-            size: item.size,
-            dcItems: [],
-            totalQuantity: 0,
-            totalAmount: 0
-          };
-        }
-        
-        const dcKey = `${item.delivery_challan?.dc_number}-${item.delivery_challan?.dc_date}`;
-        if (!dcMap[dcKey]) {
-          dcMap[dcKey] = { dcNumber: item.delivery_challan?.dc_number, dcDate: item.delivery_challan?.dc_date, qty: 0 };
-        }
-        
-        grouped[key].dcItems.push({
-          dcNumber: item.delivery_challan?.dc_number,
-          dcDate: item.delivery_challan?.dc_date,
-          quantity: item.quantity,
-          rate: item.rate,
-          amount: item.amount
-        });
-        
-        grouped[key].totalQuantity += parseFloat(item.quantity) || 0;
-        grouped[key].totalAmount += parseFloat(item.amount) || 0;
+      const dcKey = `${item.delivery_challan?.dc_number}-${item.delivery_challan?.dc_date}`;
+      if (!dcMap[dcKey]) {
+        dcMap[dcKey] = { dcNumber: item.delivery_challan?.dc_number, dcDate: item.delivery_challan?.dc_date, qty: 0 };
+      }
+      
+      grouped[key].dcItems.push({
+        dcNumber: item.delivery_challan?.dc_number,
+        dcDate: item.delivery_challan?.dc_date,
+        quantity: item.quantity,
+        rate: item.rate,
+        amount: item.amount
+      });
+      
+      grouped[key].totalQuantity += parseFloat(item.quantity) || 0;
+      grouped[key].totalAmount += parseFloat(item.amount) || 0;
+    });
+
+    const dcColumns = [...new Set(rawData.map((item: any) => `${item.delivery_challan?.dc_number}|${item.delivery_challan?.dc_date}`))]
+      .sort((a, b) => {
+        const dateA = new Date(a.split('|')[1]);
+        const dateB = new Date(b.split('|')[1]);
+        return dateA.getTime() - dateB.getTime();
       });
 
-      const dcColumns = [...new Set(data.map(item => `${item.delivery_challan?.dc_number}|${item.delivery_challan?.dc_date}`))]
-        .sort((a, b) => {
-          const dateA = new Date(a.split('|')[1]);
-          const dateB = new Date(b.split('|')[1]);
-          return dateA - dateB;
-        });
+    const sortedData = Object.values(grouped).sort((a, b) => a.materialName.localeCompare(b.materialName));
 
-      const sortedData = Object.values(grouped).sort((a, b) => a.materialName.localeCompare(b.materialName));
-      setConsolidatedData(sortedData);
-      setDcColumns(dcColumns);
-
-      const uniqueMaterials = sortedData.length;
-      const totalQuantity = sortedData.reduce((sum, item) => sum + item.totalQuantity, 0);
-      const totalAmount = sortedData.reduce((sum, item) => sum + item.totalAmount, 0);
-      
-      setSummary({ uniqueMaterials, totalQuantity, totalAmount });
-    } catch (error) {
-      console.error('Error loading consolidation:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const [dcColumns, setDcColumns] = useState([]);
-
-  useEffect(() => {
-    if (projects.length > 0) {
-      loadData();
-    }
-  }, [filters, projects]);
+    const uniqueMaterials = sortedData.length;
+    const totalQuantity = sortedData.reduce((sum, item) => sum + item.totalQuantity, 0);
+    const totalAmount = sortedData.reduce((sum, item) => sum + item.totalAmount, 0);
+    
+    return { consolidatedData: sortedData, dcColumns, summary: { uniqueMaterials, totalQuantity, totalAmount } };
+  }, [rawData]);
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
