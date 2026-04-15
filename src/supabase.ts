@@ -13,6 +13,11 @@ if (!supabaseUrl || !supabaseKey) {
 }
 
 export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseKey, {
+  global: {
+    headers: {
+      apikey: supabaseKey,
+    },
+  },
   auth: {
     autoRefreshToken: true,
     persistSession: true,
