@@ -3,9 +3,9 @@ import * as XLSX from 'xlsx';
 import {
   CloudUpload as UploadIcon,
   Download as DownloadIcon,
-  Preview as PreviewIcon,
+  Eye as PreviewIcon,
   CheckCircle as CheckIcon,
-  Warning as WarningIcon,
+  AlertTriangle as WarningIcon,
   X as CloseIcon,
 } from 'lucide-react';
 import {

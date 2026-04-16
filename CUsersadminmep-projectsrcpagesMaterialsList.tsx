@@ -1,6 +1,19 @@
 import { useState, useEffect, useMemo, useCallback, memo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { flexRender, getCoreRowModel, useReactTable } from '@tanstack/react-table';
 import { useLocation, useNavigate } from 'react-router-dom';
+import {
+  Box,
+  Paper,
+  Typography,
+  Button,
+  TextField,
+  Chip,
+  IconButton,
+  Tooltip,
+  Alert,
+} from '@mui/material';
+import { Inventory as InventoryIcon, Add as AddIcon, CloudUpload as UploadIcon, TableChart as ExcelIcon } from '@mui/icons-material';
 import { supabase } from '../supabase';
 import { formatDate, formatCurrency } from '../utils/formatters';
 import { timedSupabaseQuery } from '../utils/queryTimeout';
@@ -11,34 +24,6 @@ import { useVariants } from '../hooks/useVariants';
 import { useUnits } from '../hooks/useUnits';
 import BulkImportModal from '../components/BulkImportModal';
 import ExcelEditor, { FieldSelector } from '../components/ExcelEditor';
-import { AppTable } from '../components/ui/AppTable';
-import { cn } from '../lib/utils';
-import { Button } from '../components/ui/button';
-import { Input } from '../components/ui/input';
-import { Badge } from '../components/ui/Badge';
-import { Card } from '../components/ui/Card';
-import { Checkbox } from '../components/ui/checkbox';
-import {
-  Plus,
-  Upload,
-  Table,
-  Search,
-  X,
-  Edit,
-  Trash2,
-  Check,
-  AlertCircle,
-  ChevronRight,
-  MoreVertical,
-  Settings,
-  Tag,
-  Ruler,
-  Warehouse,
-  Filter,
-  Package,
-  Eye,
-  Download,
-} from 'lucide-react';
 
 const MAIN_CATEGORIES = ['VALVE', 'PIPE', 'FITTING', 'FLANGE', 'ELECTRICAL', 'PLUMBING', 'HVAC', 'FIRE PROTECTION', 'BUILDING MATERIALS', 'TOOLS', 'SAFETY', 'OFFICE', 'OTHER'];
 
@@ -189,12 +174,16 @@ function TabButton({ active, onClick, children }) {
   return (
     <button
       onClick={onClick}
-      className={cn(
-        "px-5 py-2.5 text-sm font-medium border-b-2 transition-colors",
-        active 
-          ? "border-indigo-600 text-indigo-600" 
-          : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
-      )}
+      style={{
+        padding: '10px 20px',
+        border: 'none',
+        borderBottom: active ? '2px solid #3498db' : '2px solid transparent',
+        background: 'none',
+        cursor: 'pointer',
+        fontSize: '14px',
+        fontWeight: active ? 'bold' : 'normal',
+        color: active ? '#3498db' : '#666',
+      }}
     >
       {children}
     </button>

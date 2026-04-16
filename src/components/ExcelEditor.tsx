@@ -15,6 +15,7 @@ interface ChangeAuditEntry {
   itemCode: string;
   itemName: string;
   field: string;
+  dbField: string;
   oldValue: any;
   newValue: any;
   changedAt: string;
@@ -207,6 +208,7 @@ export function ExcelEditor({ materials, warehouses, selectedFields, onSave, onC
         itemCode: row.item_code,
         itemName: row.name,
         field: col?.label || colKey,
+        dbField: colKey,
         oldValue,
         newValue,
         changedAt: now,

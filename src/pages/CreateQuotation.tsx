@@ -143,26 +143,6 @@ export default function CreateQuotation() {
             .maybeSingle(),
           'Quotation template',
         ),
-        timedSupabaseQuery(
-          supabase.from('item_variant_pricing').select('item_id, company_variant_id, sale_price, make'),
-          'Quotation pricing',
-        ),
-        timedSupabaseQuery(
-          supabase
-            .from('discount_settings')
-            .select('variant_id, default_discount_percent, min_discount_percent, max_discount_percent')
-            .eq('is_active', true),
-          'Quotation discount settings',
-        ),
-        timedSupabaseQuery(
-          supabase
-            .from('document_templates')
-            .select('id, column_settings')
-            .eq('document_type', 'Quotation')
-            .eq('is_default', true)
-            .maybeSingle(),
-          'Quotation template',
-        ),
         organisation?.id ? loadQuickQuoteConfig(organisation.id) : Promise.resolve(null),
       ]);
 
@@ -2139,18 +2119,15 @@ const loadQuoteNoPreview = useCallback(async () => {
           </div>
         </div>
       )}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px', paddingBottom: '40px' }}>
-        <button type="button" className="btn btn-secondary" onClick={() => navigate('/quotation')}>Cancel</button>
-        {saving && (
-          <div style={{position:'fixed',inset:0,background:'rgba(255,255,255,0.92)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',zIndex:9999,gap:'16px'}}>
-            <div style={{width:'48px',height:'48px',border:'4px solid #e5e7eb',borderTopColor:'#2563eb',borderRadius:'50%',animation:'spin 0.8s linear infinite'}}></div>
-            <span style={{fontSize:'16px',fontWeight:600,color:'#374161'}}>Saving Quotation...</span>
-          </div>
-        )}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px', paddingBottom: '40px' }}>
-          <button type="button" className="btn btn-secondary" onClick={() => navigate('/quotation')}>Cancel</button>
-          <button type="button" className="btn btn-primary" onClick={() => handleSave(false)} disabled={saving}>{saving ? 'Saving...' : editId ? 'Update Quotation' : 'Save Quotation'}</button>
+      {saving && (
+        <div style={{position:'fixed',inset:0,background:'rgba(255,255,255,0.92)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',zIndex:9999,gap:'16px'}}>
+          <div style={{width:'48px',height:'48px',border:'4px solid #e5e7eb',borderTopColor:'#2563eb',borderRadius:'50%',animation:'spin 0.8s linear infinite'}}></div>
+          <span style={{fontSize:'16px',fontWeight:600,color:'#374161'}}>Saving Quotation...</span>
         </div>
+      )}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '24px', paddingBottom: '40px' }}>
+        <button type="button" className="btn btn-secondary" style={{ padding: '8px 20px', fontSize: '14px' }} onClick={() => navigate('/quotation')}>Cancel</button>
+        <button type="button" className="btn btn-primary" style={{ padding: '8px 20px', fontSize: '14px' }} onClick={() => handleSave(false)} disabled={saving}>{saving ? 'Saving...' : editId ? 'Update Quotation' : 'Save Quotation'}</button>
       </div>
     </div>
   );
