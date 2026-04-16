@@ -492,7 +492,8 @@ const loadQuoteNoPreview = useCallback(async () => {
         event_type: 'approval_requested',
         old_value: headerDiscounts[variantId] || 0,
         new_value: discountValue,
-        remark: `Approval requested for ${variantName}: ${discountValue}% (max: ${settings.max}%)`
+        remark: `Approval requested for ${variantName}: ${discountValue}% (max: ${settings.max}%)`,
+        organisation_id: organisation?.id
       });
       
       await loadApprovalData(editId);
@@ -1296,7 +1297,7 @@ const loadQuoteNoPreview = useCallback(async () => {
 
       // OPTIMIZED: Fetch series data in parallel with header operation for new quotes
       const seriesQuery = !editId 
-        ? supabase.from('document_series').select('*').eq('is_default', true).limit(1).maybeSingle()
+        ? supabase.from('document_series').select('*').eq('is_default', true).eq('organisation_id', organisation?.id).limit(1).maybeSingle()
         : Promise.resolve({ data: null });
 
       if (editId) {
@@ -1305,6 +1306,7 @@ const loadQuoteNoPreview = useCallback(async () => {
             .from('quotation_header')
             .update(quotationData)
             .eq('id', editId)
+            .eq('organisation_id', organisation?.id)
             .select('id'),
           'updating quotation header'
         );
@@ -1324,6 +1326,7 @@ const loadQuoteNoPreview = useCallback(async () => {
           const { data: existing } = await supabase
             .from('quotation_header')
             .select('quotation_no')
+            .eq('organisation_id', organisation?.id)
             .order('created_at', { ascending: false })
             .limit(1);
 
@@ -1337,7 +1340,7 @@ const loadQuoteNoPreview = useCallback(async () => {
         const { data, error } = await withTimeout(
           supabase
             .from('quotation_header')
-            .insert({ ...quotationData, quotation_no: quotationNo })
+            .insert({ ...quotationData, quotation_no: quotationNo, organisation_id: organisation?.id })
             .select(),
           'creating quotation header'
         );
@@ -1386,13 +1389,15 @@ const loadQuoteNoPreview = useCallback(async () => {
         final_rate_snapshot: parseFloat(item.final_rate_snapshot) || parseFloat(item.rate) || 0,
         display_order: item.display_order || 0,
         custom1: item.custom1 || '',
-        custom2: item.custom2 || ''
+        custom2: item.custom2 || '',
+        organisation_id: organisation?.id
       }));
 
       const variantDiscountRecords = Object.entries(headerDiscounts).map(([variantId, discount]) => ({
         quotation_revision_id: quotationId,
         variant_id: variantId,
-        header_discount_percent: parseFloat(discount) || 0
+        header_discount_percent: parseFloat(discount) || 0,
+        organisation_id: organisation?.id
       }));
 
       // OPTIMIZED: Delete and insert in single batch - run all operations in parallel
