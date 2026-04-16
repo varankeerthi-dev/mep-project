@@ -52,7 +52,8 @@ export default function SettingsPage() {
   }, [organisation?.id]);
 
   const loadUsers = async () => {
-    const { data } = await supabase.from('users').select('*').order('created_at', { ascending: false });
+    if (!organisation?.id) return;
+    const { data } = await supabase.from('users').select('*').eq('organisation_id', organisation.id).order('created_at', { ascending: false });
     setUsers(data || []);
   };
 
@@ -91,15 +92,16 @@ export default function SettingsPage() {
   const handleUserSubmit = async (e) => {
     e.preventDefault();
     const empId = 'EMP-' + Date.now().toString().slice(-6);
-    await supabase.from('users').insert({ ...formData, emp_id: empId });
+    await supabase.from('users').insert({ ...formData, emp_id: empId, organisation_id: organisation.id });
     setShowUserForm(false);
     setFormData({ emp_name: '', email: '', role: 'Assistant' });
     loadUsers();
   };
 
   const deleteUser = async (id) => { 
+    if (!organisation?.id) return;
     if (confirm('Delete this user?')) { 
-      await supabase.from('users').delete().eq('id', id); 
+      await supabase.from('users').delete().eq('id', id).eq('organisation_id', organisation.id); 
       loadUsers();
     }
   };
