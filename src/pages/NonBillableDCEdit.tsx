@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import CreateNonBillableDC from './CreateNonBillableDC';
+import { useAuth } from '../App';
 
 type NonBillableDCEditProps = {
   dcId: string
@@ -8,18 +9,21 @@ type NonBillableDCEditProps = {
 }
 
 export default function NonBillableDCEdit({ dcId, onCancel }: NonBillableDCEditProps) {
+  const { organisation } = useAuth();
   const [editDC, setEditDC] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadDC();
-  }, [dcId]);
+  }, [dcId, organisation?.id]);
 
   const loadDC = async () => {
+    if (!organisation?.id) return;
     const { data } = await supabase
       .from('delivery_challans')
       .select('*')
       .eq('id', dcId)
+      .eq('organisation_id', organisation.id)
       .single();
     setEditDC(data);
     setLoading(false);
