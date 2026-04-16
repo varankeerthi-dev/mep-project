@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
+import { useAuth } from '../App';
 
 const DOCUMENT_TYPES = [
   { id: 'Delivery Challan', label: 'Delivery Challan', icon: '🚚' },
@@ -8,6 +9,7 @@ const DOCUMENT_TYPES = [
 ];
 
 export default function PrintSettings() {
+  const { organisation } = useAuth();
   const [selectedDocType, setSelectedDocType] = useState(DOCUMENT_TYPES[0].id);
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -15,14 +17,16 @@ export default function PrintSettings() {
 
   useEffect(() => {
     loadTemplates();
-  }, []);
+  }, [organisation?.id]);
 
   const loadTemplates = async () => {
+    if (!organisation?.id) return;
     setLoading(true);
     try {
       const { data, error } = await supabase
         .from('document_templates')
         .select('*')
+        .eq('organisation_id', organisation.id)
         .order('template_name', { ascending: true });
 
       if (error) throw error;
@@ -35,13 +39,15 @@ export default function PrintSettings() {
   };
 
   const handleSetDefault = async (templateId, docType) => {
+    if (!organisation?.id) return;
     setUpdating(templateId);
     try {
       // First, unset default for all templates of this document type
       const { error: unsetError } = await supabase
         .from('document_templates')
         .update({ is_default: false })
-        .eq('document_type', docType);
+        .eq('document_type', docType)
+        .eq('organisation_id', organisation.id);
 
       if (unsetError) throw unsetError;
 
@@ -49,7 +55,8 @@ export default function PrintSettings() {
       const { error: setError } = await supabase
         .from('document_templates')
         .update({ is_default: true })
-        .eq('id', templateId);
+        .eq('id', templateId)
+        .eq('organisation_id', organisation.id);
 
       if (setError) throw setError;
 
