@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../supabase';
 import { timedSupabaseQuery, withTimeout } from '../utils/queryTimeout';
+import { useAuth } from '../App';
 import { useMaterials } from '../hooks/useMaterials';
 import { useWarehouses } from '../hooks/useWarehouses';
 import { useVariants } from '../hooks/useVariants';
@@ -26,6 +27,7 @@ const createInitialFormData = () => ({
 });
 
 export default function StockTransfer({ onCancel }) {
+  const { organisation } = useAuth();
   const { data: materials = [] } = useMaterials();
   const { data: warehouses = [] } = useWarehouses();
   const { data: variants = [] } = useVariants();
@@ -39,25 +41,28 @@ export default function StockTransfer({ onCancel }) {
   const [saveError, setSaveError] = useState('');
 
   const transfersQuery = useQuery({
-    queryKey: ['stockTransfers'],
+    queryKey: ['stockTransfers', organisation?.id],
     queryFn: async () => {
+      if (!organisation?.id) return [];
       const rows = await timedSupabaseQuery(
-        supabase.from('stock_transfers').select('*').order('created_at', { ascending: false }),
+        supabase.from('stock_transfers').select('*').eq('organisation_id', organisation.id).order('created_at', { ascending: false }),
         'Stock transfers',
       );
       return rows || [];
     },
+    enabled: !!organisation?.id,
   });
 
   const stockQuery = useQuery({
-    queryKey: ['stockTransferStock', formData.from_warehouse_id],
-    enabled: view === 'form' && !!formData.from_warehouse_id,
+    queryKey: ['stockTransferStock', formData.from_warehouse_id, organisation?.id],
+    enabled: view === 'form' && !!formData.from_warehouse_id && !!organisation?.id,
     queryFn: async () => {
       const rows = await timedSupabaseQuery(
         supabase
           .from('item_stock')
           .select('item_id, company_variant_id, warehouse_id, current_stock')
-          .eq('warehouse_id', formData.from_warehouse_id),
+          .eq('warehouse_id', formData.from_warehouse_id)
+          .eq('organisation_id', organisation.id),
         'Stock transfer stock',
       );
       return rows || [];
@@ -66,13 +71,14 @@ export default function StockTransfer({ onCancel }) {
 
   const editItemsQuery = useQuery({
     queryKey: ['stockTransferItems', editingTransfer?.id],
-    enabled: view === 'form' && !!editingTransfer?.id,
+    enabled: view === 'form' && !!editingTransfer?.id && !!organisation?.id,
     queryFn: async () => {
       const rows = await timedSupabaseQuery(
         supabase
           .from('stock_transfer_items')
           .select('*')
           .eq('transfer_id', editingTransfer.id)
+          .eq('organisation_id', organisation.id)
           .order('id'),
         'Stock transfer items',
       );
@@ -246,7 +252,7 @@ export default function StockTransfer({ onCancel }) {
 
   const generateTransferNo = async () => {
     const result = await withTimeout(
-      supabase.from('stock_transfers').select('id', { count: 'exact', head: true }),
+      supabase.from('stock_transfers').select('id', { count: 'exact', head: true }).eq('organisation_id', organisation.id),
       15000,
       'Stock transfer number',
     );
@@ -286,18 +292,18 @@ export default function StockTransfer({ onCancel }) {
 
       if (isEditing) {
         await timedSupabaseQuery(
-          supabase.from('stock_transfers').update(formData).eq('id', editingTransfer.id),
+          supabase.from('stock_transfers').update(formData).eq('id', editingTransfer.id).eq('organisation_id', organisation.id),
           'Stock transfer update',
         );
 
         await timedSupabaseQuery(
-          supabase.from('stock_transfer_items').delete().eq('transfer_id', editingTransfer.id),
+          supabase.from('stock_transfer_items').delete().eq('transfer_id', editingTransfer.id).eq('organisation_id', organisation.id),
           'Stock transfer item reset',
         );
       } else {
         const transferNo = await generateTransferNo();
         const transfer = await timedSupabaseQuery(
-          supabase.from('stock_transfers').insert({ ...formData, transfer_no: transferNo }).select().single(),
+          supabase.from('stock_transfers').insert({ ...formData, transfer_no: transferNo, organisation_id: organisation.id }).select().single(),
           'Stock transfer save',
         );
         transferId = transfer.id;
@@ -308,6 +314,7 @@ export default function StockTransfer({ onCancel }) {
         item_id: item.item_id,
         company_variant_id: item.variant_id || null,
         quantity: parseFloat(item.quantity) || 0,
+        organisation_id: organisation.id,
       }));
 
       await timedSupabaseQuery(
