@@ -55,9 +55,16 @@ export default function RequestAccessPage({ user, onCreateOrganisation, onRefres
     await myRequests.refetch();
   };
 
+  const [isCreatingOrg, setIsCreatingOrg] = useState(false);
+
   const submitCreateOrg = async () => {
-    if (!orgName.trim()) return;
-    await onCreateOrganisation(orgName.trim());
+    if (!orgName.trim() || isCreatingOrg) return;
+    setIsCreatingOrg(true);
+    try {
+      await onCreateOrganisation(orgName.trim());
+    } finally {
+      setIsCreatingOrg(false);
+    }
   };
 
   return (
@@ -224,11 +231,11 @@ export default function RequestAccessPage({ user, onCreateOrganisation, onRefres
               <button
                 type="button"
                 onClick={() => void submitCreateOrg()}
-                disabled={!orgName.trim()}
+                disabled={!orgName.trim() || isCreatingOrg}
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-[13px] font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                <Building2 size={16} />
-                Create
+                {isCreatingOrg ? <Loader2 className="animate-spin" size={16} /> : <Building2 size={16} />}
+                {isCreatingOrg ? 'Creating...' : 'Create'}
               </button>
             </div>
           )}
