@@ -44,7 +44,7 @@ export function Modal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[1000] flex items-center justify-center p-6">
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center p-6 font-[Inter]">
       {/* Backdrop */}
       <div
         onClick={onClose}
@@ -54,15 +54,14 @@ export function Modal({
       {/* Modal */}
       <div
         className={cn(
-          'relative w-full bg-white rounded-xl shadow-xl flex flex-col animate-in zoom-in-95 duration-200',
-          'border border-slate-200',
+          'relative w-full bg-white rounded-lg border border-zinc-200 shadow-sm flex flex-col animate-in zoom-in-95 duration-200',
           sizes[size],
           'max-h-[calc(100vh-48px)]'
         )}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 shrink-0">
-          <h2 className="text-lg font-semibold text-slate-900">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-200 shrink-0">
+          <h2 className="text-base font-semibold text-zinc-900">
             {title}
           </h2>
           {!hideCloseButton && (
@@ -72,19 +71,19 @@ export function Modal({
               size="sm"
               onClick={onClose}
               aria-label="Close"
-              className="text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+              className="text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100"
             />
           )}
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-auto p-6">
+        <div className="flex-1 overflow-auto p-5">
           {children}
         </div>
 
         {/* Footer */}
         {footer && (
-          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-200 shrink-0 bg-slate-50/50">
+          <div className="flex items-center justify-end gap-3 px-5 py-4 border-t border-zinc-200 shrink-0 bg-zinc-50/50">
             {footer}
           </div>
         )}
