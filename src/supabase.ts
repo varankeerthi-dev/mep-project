@@ -201,7 +201,7 @@ export const createOrganization = async (
 ): Promise<{ data: Organisation | null; error: Error | null }> => {
   const { data: org, error: orgError } = await supabase
     .from('organisations')
-    .insert({ name: orgName, is_trial: true, trial_period_days: 30 })
+    .insert({ name: orgName })
     .select()
     .single()
   
@@ -213,8 +213,7 @@ export const createOrganization = async (
       organisation_id: org.id,
       user_id: userId,
       role: 'admin',
-      status: 'active',
-      trial_ends_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+      status: 'active'
     })
   
   if (memberError) throw memberError
