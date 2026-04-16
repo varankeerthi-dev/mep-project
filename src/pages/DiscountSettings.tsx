@@ -1,18 +1,20 @@
 import { useState, useEffect, useMemo } from 'react';
 import { supabase, getCurrentUser } from '../supabase';
+import { useAuth } from '../App';
 
-function StandardTab() {
+function StandardTab({ organisationId }) {
   const [pricelists, setPricelists] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [newPricelist, setNewPricelist] = useState({ name: '', discount: '' });
   const [message, setMessage] = useState({ type: '', text: '' });
 
-  useEffect(() => { loadPricelists(); }, []);
+  useEffect(() => { loadPricelists(); }, [organisationId]);
 
   const loadPricelists = async () => {
+    if (!organisationId) return;
     setLoading(true);
-    const { data } = await supabase.from('standard_discount_pricelists').select('*').order('created_at');
+    const { data } = await supabase.from('standard_discount_pricelists').select('*').eq('organisation_id', organisationId).order('created_at');
     setPricelists(data || []);
     setLoading(false);
   };
@@ -24,7 +26,8 @@ function StandardTab() {
     try {
       const { error } = await supabase.from('standard_discount_pricelists').insert({
         pricelist_name: newPricelist.name,
-        discount_percent: parseFloat(newPricelist.discount) || 0
+        discount_percent: parseFloat(newPricelist.discount) || 0,
+        organisation_id: organisationId
       });
       if (error) throw error;
       setNewPricelist({ name: '', discount: '' });
@@ -149,6 +152,7 @@ function VariantGrid({ structure, variants, settings, setSettings, updateSetting
 }
 
 export default function DiscountSettings() {
+  const { organisation } = useAuth();
   const [structures, setStructures] = useState([]);
   const [variants, setVariants] = useState([]);
   const [settings, setSettings] = useState({});
@@ -164,15 +168,16 @@ export default function DiscountSettings() {
     const onResize = () => setIsMobile(window.innerWidth <= 768);
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
-  }, []);
+  }, [organisation?.id]);
 
   const loadData = async () => {
+    if (!organisation?.id) return;
     setLoading(true);
     try {
       const [structuresData, variantsData, settingsData] = await Promise.all([
-        supabase.from('discount_structures').select('*').eq('is_active', true).order('structure_number'),
-        supabase.from('company_variants').select('*').eq('is_active', true).order('variant_name'),
-        supabase.from('discount_variant_settings').select('*')
+        supabase.from('discount_structures').select('*').eq('is_active', true).eq('organisation_id', organisation.id).order('structure_number'),
+        supabase.from('company_variants').select('*').eq('is_active', true).eq('organisation_id', organisation.id).order('variant_name'),
+        supabase.from('discount_variant_settings').select('*').eq('organisation_id', organisation.id)
       ]);
 
       setStructures(structuresData.data || []);
@@ -252,7 +257,7 @@ export default function DiscountSettings() {
 
       <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
         {activeTab === 1 ? (
-          <StandardTab />
+          <StandardTab organisationId={organisation?.id} />
         ) : (
           <VariantGrid structure={getCurrentStructure()} variants={variants} settings={settings} setSettings={setSettings} updateSetting={updateSetting} handleSave={handleSave} saving={saving} errors={errors} />
         )}
