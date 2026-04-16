@@ -121,6 +121,7 @@ export default function CreateQuotation() {
 
   const initQuery = useQuery({
     queryKey: ['quotationInit', organisation?.id],
+    staleTime: 1000 * 60 * 30, // Cache for 30 minutes - user may take up to 30min to prepare quotation
     queryFn: async () => {
       const [pricing, settings, template, quickQuoteConfig] = await Promise.all([
         timedSupabaseQuery(
