@@ -3,26 +3,18 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { flexRender, getCoreRowModel, useReactTable } from '@tanstack/react-table';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
-  Package as InventoryIcon,
-  Plus as AddIcon,
-  Upload as UploadIcon,
-  Table as ExcelIcon,
-  Filter as FilterIcon,
-  Search as SearchIcon,
-  X as CloseIcon,
-  Edit as EditIcon,
-  Trash2 as DeleteIcon,
-  Check as CheckIcon,
-  AlertCircle as AlertIcon,
-  ChevronRight as ChevronIcon,
-  MoreVertical as MoreIcon,
-  Settings2 as ServiceIcon,
-  Tag as CategoryIcon,
-  Ruler as UnitIcon,
-  Warehouse as WarehouseIcon,
-} from 'lucide-react';
+  Box,
+  Paper,
+  Typography,
+  Button,
+  TextField,
+  Chip,
+  IconButton,
+  Tooltip,
+  Alert,
+} from '@mui/material';
+import { Inventory as InventoryIcon, Add as AddIcon, CloudUpload as UploadIcon, TableChart as ExcelIcon } from '@mui/icons-material';
 import { supabase } from '../supabase';
-import { useAuth } from '../App';
 import { formatDate, formatCurrency } from '../utils/formatters';
 import { timedSupabaseQuery } from '../utils/queryTimeout';
 import { useMaterialsPageData } from '../hooks/useMaterialsPageData';
@@ -32,8 +24,6 @@ import { useVariants } from '../hooks/useVariants';
 import { useUnits } from '../hooks/useUnits';
 import BulkImportModal from '../components/BulkImportModal';
 import ExcelEditor, { FieldSelector } from '../components/ExcelEditor';
-import { AppTable } from '../components/ui/AppTable';
-import { cn } from '../lib/utils';
 
 const MAIN_CATEGORIES = ['VALVE', 'PIPE', 'FITTING', 'FLANGE', 'ELECTRICAL', 'PLUMBING', 'HVAC', 'FIRE PROTECTION', 'BUILDING MATERIALS', 'TOOLS', 'SAFETY', 'OFFICE', 'OTHER'];
 
@@ -184,12 +174,16 @@ function TabButton({ active, onClick, children }) {
   return (
     <button
       onClick={onClick}
-      className={cn(
-        "px-6 py-4 text-sm font-black uppercase tracking-widest transition-all border-b-2",
-        active 
-          ? "border-indigo-600 text-indigo-600 bg-indigo-50/30" 
-          : "border-transparent text-slate-400 hover:text-slate-600 hover:bg-slate-50"
-      )}
+      style={{
+        padding: '10px 20px',
+        border: 'none',
+        borderBottom: active ? '2px solid #3498db' : '2px solid transparent',
+        background: 'none',
+        cursor: 'pointer',
+        fontSize: '14px',
+        fontWeight: active ? 'bold' : 'normal',
+        color: active ? '#3498db' : '#666',
+      }}
     >
       {children}
     </button>
@@ -198,7 +192,6 @@ function TabButton({ active, onClick, children }) {
 
 function ItemsTab() {
   const queryClient = useQueryClient();
-  const { organisation } = useAuth();
   const [showForm, setShowForm] = useState(false);
   const [showColumnSettings, setShowColumnSettings] = useState(false);
   const [showBulkPriceModal, setShowBulkPriceModal] = useState(false);
@@ -260,10 +253,11 @@ function ItemsTab() {
     return formatCurrency(value);
   };
 
-  const { data: pageData, isLoading, isError, error, refetch } = useMaterialsPageData(organisation?.id);
+  // PARALLEL QUERY: Single hook replaces 6 sequential queries
+  const { data: pageData, isLoading, isError, error, refetch } = useMaterialsPageData();
   
-  const allMaterials = pageData?.materials ?? [];
-  const materials = useMemo(() => allMaterials.filter(m => m.item_type !== 'service'), [allMaterials]);
+  // Extract datasets from parallel query result
+  const materials = pageData?.materials ?? [];
   const stock = pageData?.stock ?? [];
   const categories = pageData?.categories ?? [];
   const units = pageData?.units ?? [];
@@ -273,6 +267,7 @@ function ItemsTab() {
   const categoryOptions = categories.length > 0 ? categories.map((c) => c.category_name) : MAIN_CATEGORIES;
   const materialsError = error instanceof Error ? error.message : '';
   
+  // Memoized stock data map for performance
   const stockData = useMemo(() => {
     const stockMap: Record<string, number> = {};
     stock.forEach((s) => {
@@ -800,7 +795,7 @@ function ItemsTab() {
         const header = challanMap[row.delivery_challan_id] || {};
         return {
           id: `inv-dc-${row.id}`,
-          type: 'Delivery Challan',
+          type: 'Sales Invoice',
           doc_no: header.dc_number || '-',
           doc_date: header.dc_date || row.created_at,
           party: header.client_name || '-',
@@ -809,30 +804,68 @@ function ItemsTab() {
         };
       });
 
-      const normalizedInvoiceRows = [...inwardInvoiceRows, ...challanInvoiceRows].sort(
+      const noteRows = outwardItemRows
+        .map((row) => {
+          const header = outwardMap[row.outward_id] || {};
+          const remarks = (header.remarks || '').toLowerCase();
+          const isCredit = remarks.includes('credit');
+          const isDebit = remarks.includes('debit');
+          if (!isCredit && !isDebit) return null;
+          return {
+            id: `note-${row.id}`,
+            type: isCredit ? 'Credit Note' : 'Debit Note',
+            doc_no: row.outward_id || '-',
+            doc_date: header.outward_date || row.created_at,
+            party: header.project_id || '-',
+            qty: parseFloat(row.quantity) || 0,
+            amount: 0,
+          };
+        })
+        .filter(Boolean);
+
+      const normalizedInvoiceRows = [...inwardInvoiceRows, ...challanInvoiceRows, ...noteRows].sort(
         (a, b) => new Date(b.doc_date || 0).getTime() - new Date(a.doc_date || 0).getTime()
       );
 
       const normalizedPurchaseRows = inwardItemRows
         .map((row) => {
           const header = inwardMap[row.inward_id] || {};
+          const qty = parseFloat(row.quantity) || 0;
+          const rate = parseFloat(row.rate) || 0;
           return {
             id: `pur-${row.id}`,
             vendor_name: header.vendor_name || '-',
             invoice_no: header.invoice_no || '-',
             purchase_date: header.inward_date || row.created_at,
-            qty: parseFloat(row.quantity) || 0,
+            qty,
             unit: row.unit || '-',
-            rate: parseFloat(row.rate) || 0,
-            amount: parseFloat(row.amount) || (parseFloat(row.rate) || 0) * (parseFloat(row.quantity) || 0),
+            rate,
+            amount: parseFloat(row.amount) || (qty * rate),
           };
         })
         .sort((a, b) => new Date(b.purchase_date || 0).getTime() - new Date(a.purchase_date || 0).getTime());
 
-      const normalizedAuditRows = (auditDbRows || []).map((row) => ({
-        ...row,
-        changes: normalizeAuditChanges(row.changes),
+      const dbAuditRowsNormalized = auditDbRows.map((row) => ({
+        id: row.id || `db-${row.created_at || Date.now()}`,
+        action: row.action || row.action_type || row.event_type || 'UPDATED',
+        notes: row.notes || row.action_details || row.description || '-',
+        created_at: row.created_at || row.updated_at || row.timestamp || new Date().toISOString(),
+        changes: normalizeAuditChanges(row.changes || row.changed_fields || row.change_summary),
       }));
+
+      const localAuditRowsNormalized = getLocalAuditTrail()
+        .filter((row) => row.item_id === itemId)
+        .map((row) => ({
+          id: row.id,
+          action: row.action || 'UPDATED',
+          notes: row.notes || '-',
+          created_at: row.created_at || new Date().toISOString(),
+          changes: normalizeAuditChanges(row.changes),
+        }));
+
+      const normalizedAuditRows = [...dbAuditRowsNormalized, ...localAuditRowsNormalized].sort(
+        (a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
+      );
 
       setItemTransactions({
         warehouseRows: normalizedWarehouseRows,
@@ -844,142 +877,55 @@ function ItemsTab() {
         auditRows: normalizedAuditRows,
       });
     } catch (err) {
-      console.log('loadItemTransactions error', err);
-      setDetailError(err instanceof Error ? err.message : 'Failed to load transaction history.');
+      console.error('Item transaction load error:', err);
+      setDetailError(err.message || 'Unable to load linked transactions');
+      setItemTransactions(emptyItemTransactions());
     } finally {
       setDetailLoading(false);
     }
   };
 
-  const resetForm = () => {
-    setFormData({
-      item_code: '', item_name: '', display_name: '', main_category: '', sub_category: '',
-      size: '', pressure_class: '', make: '', material: '', end_connection: '',
-      unit: 'nos', sale_price: '', purchase_price: '', hsn_code: '', gst_rate: 18, is_active: true,
-      uses_variant: false, track_inventory: false
-    });
-    setEditingMaterial(null);
-    setVariantPricing([]);
-    setWarehouseStock({});
-    setShowForm(false);
-  };
-
-  const handleEditMaterial = useCallback(async (material) => {
-    setEditingMaterial(material);
-    setFormData({
-      item_code: material.item_code || '',
-      item_name: material.name || '',
-      display_name: material.display_name || material.name || '',
-      main_category: material.main_category || '',
-      sub_category: material.sub_category || '',
-      size: material.size || '',
-      pressure_class: material.pressure_class || '',
-      make: material.make || '',
-      material: material.material || '',
-      end_connection: material.end_connection || '',
-      unit: material.unit || 'nos',
-      sale_price: material.sale_price === null ? '' : material.sale_price.toString(),
-      purchase_price: material.purchase_price === null ? '' : material.purchase_price.toString(),
-      hsn_code: material.hsn_code || '',
-      gst_rate: material.gst_rate ?? 18,
-      is_active: material.is_active ?? true,
-      uses_variant: !!material.uses_variant,
-      track_inventory: !!material.track_inventory
-    });
-
-    if (material.uses_variant) {
-      await loadVariantPricing(material.id);
-    } else {
-      setVariantPricing([]);
+  useEffect(() => {
+    if (!selectedMaterialId) return;
+    const exists = materials.some((item) => item.id === selectedMaterialId);
+    if (!exists) {
+      setSelectedMaterialId(null);
+      setItemTransactions(emptyItemTransactions());
     }
+  }, [materials, selectedMaterialId]);
 
-    if (material.track_inventory) {
-      try {
-        const { data: stockRecords } = await supabase
-          .from('item_stock')
-          .select('*')
-          .eq('item_id', material.id);
+  useEffect(() => {
+    if (!selectedMaterialId) return;
+    loadItemTransactions(selectedMaterialId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedMaterialId]);
 
-        const stockMap = {};
-        (stockRecords || []).forEach(sr => {
-          const key = `${sr.warehouse_id}_${sr.company_variant_id || 'no_variant'}`;
-          stockMap[key] = {
-            exclude: false,
-            current_stock: parseFloat(sr.current_stock) || 0,
-            dbRecordId: sr.id
-          };
-        });
-        setWarehouseStock(stockMap);
-      } catch (err) {
-        console.error('Fetch existing stock err:', err);
-      }
-    } else {
-      setWarehouseStock({});
-    }
-
-    setShowForm(true);
-  }, [loadVariantPricing]);
-
-  const addVariantPricingRow = () => {
-    const newId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    setVariantPricing([...variantPricing, { 
-      id: newId, 
-      item_id: null, 
-      company_variant_id: '', 
-      make: '', 
-      sale_price: '', 
-      purchase_price: '' 
-    }]);
-  };
-
-  const removeVariantPricingRow = (id) => {
-    setVariantPricing(variantPricing.filter(r => r.id !== id));
-  };
-
-  const handleVariantPricingRowChange = (id, field, value) => {
-    setVariantPricing(variantPricing.map(r => r.id === id ? { ...r, [field]: value } : r));
-  };
-
-  const handleUsesVariantChange = async (checked) => {
-    if (!checked) {
-      const records = await checkVariantRecords(editingMaterial.id);
-      if (records.hasStock || records.hasPricing) {
-        const confirmMsg = records.hasStock 
-          ? 'Warning: This item has variant-specific stock records. Disabling variants will hide/orphaned these records. Continue?'
-          : 'Disabling variants will delete this item\'s variant-specific pricing. Continue?';
-        
-        if (!window.confirm(confirmMsg)) return;
-      }
-    }
-    
-    setFormData({
-      ...formData,
-      uses_variant: checked,
-      sale_price: checked ? '0' : (formData.sale_price === '0' ? '' : formData.sale_price)
-    });
-    
-    if (checked && variantPricing.length === 0) {
-      addVariantPricingRow();
-    }
+  const generateItemCode = () => {
+    return 'ITEM-' + Date.now().toString(36).toUpperCase();
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    e?.preventDefault?.();
+
     if (materialSavePending) return;
+    setMaterialSavePending(true);
     
-    if (formData.uses_variant && variantPricing.filter(r => r.company_variant_id).length === 0) {
-      alert('At least one variant price row with a valid variant is required.');
+    if (formData.uses_variant && variantPricing.length === 0) {
+      alert('Please add at least one variant pricing before saving.');
+      setMaterialSavePending(false);
       return;
     }
 
-    setMaterialSavePending(true);
-    let materialId = editingMaterial?.id;
-    let materialSaveSuccess = false;
+    if (formData.hsn_code && !/^\d{1,10}$/.test(formData.hsn_code)) {
+      alert('HSN/SAC must be numeric and up to 10 digits.');
+      setMaterialSavePending(false);
+      return;
+    }
 
-    const upsertData = {
+    const materialData = {
+      item_code: formData.item_code || generateItemCode(),
       name: formData.item_name,
-      display_name: formData.display_name,
-      item_code: formData.item_code || null,
+      display_name: formData.display_name || formData.item_name,
       main_category: formData.main_category || null,
       sub_category: formData.sub_category || null,
       size: formData.size || null,
@@ -988,1302 +934,2100 @@ function ItemsTab() {
       material: formData.material || null,
       end_connection: formData.end_connection || null,
       unit: formData.unit,
-      sale_price: formData.uses_variant ? 0 : (formData.sale_price === '' ? null : parseFloat(formData.sale_price)),
-      purchase_price: formData.purchase_price === '' ? null : parseFloat(formData.purchase_price),
+      sale_price: formData.sale_price ? parseFloat(formData.sale_price) : null,
+      purchase_price: formData.purchase_price ? parseFloat(formData.purchase_price) : null,
       hsn_code: formData.hsn_code || null,
-      gst_rate: formData.gst_rate,
+      gst_rate: formData.gst_rate || null,
       is_active: formData.is_active,
       uses_variant: formData.uses_variant,
-      track_inventory: formData.track_inventory,
-      organisation_id: organisation?.id,
-      updated_at: new Date().toISOString()
+      item_type: 'product'
     };
 
     try {
-      if (editingMaterial) {
-        const { error } = await supabase.from('materials').update(upsertData).eq('id', materialId);
+      const isEditing = !!editingMaterial;
+      const originalMaterial = editingMaterial;
+      const nowIso = new Date().toISOString();
+      let itemId;
+      let createdMaterial = null;
+
+      if (isEditing) {
+        const { error } = await supabase
+          .from('materials')
+          .update({ ...materialData, updated_at: nowIso })
+          .eq('id', editingMaterial.id);
         if (error) throw error;
-        
-        const auditLogMsg = buildItemChangeLog(editingMaterial, { ...editingMaterial, ...upsertData });
-        if (auditLogMsg.length > 0) {
-          const { error: logErr } = await supabase.from('item_audit_logs').insert({
-            item_id: materialId,
-            action: 'UPDATE',
-            notes: 'Item details updated from form',
-            changes: JSON.stringify(auditLogMsg)
-          });
-          if (logErr) console.warn('Audit log write fail:', logErr.message);
-        }
+        itemId = editingMaterial.id;
       } else {
-        const { data, error } = await supabase.from('materials').insert({...upsertData, type: 'product'}).select();
+        const { data, error } = await supabase.from('materials').insert(materialData).select().single();
         if (error) throw error;
-        materialId = data[0].id;
+        itemId = data.id;
+        createdMaterial = data;
+      }
+
+      if (formData.uses_variant) {
+        // Delete old pricing first to avoid duplicates if make changed
+        await supabase.from('item_variant_pricing').delete().eq('item_id', itemId);
         
-        await supabase.from('item_audit_logs').insert({
-          item_id: materialId,
-          action: 'CREATE',
-          notes: 'New item created',
-          changes: JSON.stringify(['Initial record created'])
-        });
+        const pricingToInsert = variantPricing
+          .filter(p => p.sale_price || p.purchase_price)
+          .map(p => ({
+            item_id: itemId,
+            company_variant_id: p.company_variant_id || null,
+            make: p.make || '',
+            sale_price: p.sale_price ? parseFloat(p.sale_price) : 0,
+            purchase_price: p.purchase_price ? parseFloat(p.purchase_price) : null,
+            updated_at: nowIso
+          }));
+          
+        if (pricingToInsert.length > 0) {
+          const { error: pricingError } = await supabase.from('item_variant_pricing').insert(pricingToInsert);
+          if (pricingError) throw pricingError;
+        }
       }
-      materialSaveSuccess = true;
+      
+      if (formData.track_inventory && warehouses) {
+        const activeVariantIds = formData.uses_variant 
+          ? Array.from(new Set(variantPricing.map(p => p.company_variant_id || 'no_variant')))
+          : ['no_variant'];
+
+        const stockInsertions = [];
+        for (const vId of activeVariantIds) {
+          const dbVariantId = vId === 'no_variant' ? null : vId;
+          for (const wh of warehouses) {
+             const key = `${wh.id}_${vId}`;
+             const ws = warehouseStock[key] || { exclude: false, current_stock: 0 };
+             if (ws.exclude) {
+                 if (dbVariantId) {
+                     await supabase.from('item_stock').delete().eq('item_id', itemId).eq('warehouse_id', wh.id).eq('company_variant_id', dbVariantId);
+                 } else {
+                     await supabase.from('item_stock').delete().eq('item_id', itemId).eq('warehouse_id', wh.id).is('company_variant_id', null);
+                 }
+             } else {
+                 stockInsertions.push({
+                     item_id: itemId,
+                     warehouse_id: wh.id,
+                     company_variant_id: dbVariantId,
+                     current_stock: ws.current_stock || 0,
+                     updated_at: nowIso
+                 });
+             }
+          }
+        }
+        if (stockInsertions.length > 0) {
+            const { error: stockError } = await supabase.from('item_stock').upsert(stockInsertions, { onConflict: 'item_id, company_variant_id, warehouse_id' });
+            if (stockError) console.error('Error saving warehouse stock:', stockError);
+        }
+      }
+
+      const changeLog = isEditing ? buildItemChangeLog(originalMaterial, materialData) : ['Item created'];
+      const auditEntry = {
+        id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        item_id: itemId,
+        action: isEditing ? 'UPDATED' : 'CREATED',
+        notes: isEditing ? `Item updated (${changeLog.length} changes)` : 'Item created',
+        changes: changeLog,
+        created_at: nowIso,
+      };
+      appendLocalAuditEntry(auditEntry);
+
+      if (isEditing) {
+        const dbAuditPayload = {
+          item_id: itemId,
+          action: 'UPDATED',
+          notes: auditEntry.notes,
+          changes: JSON.stringify(changeLog),
+          created_at: nowIso,
+        };
+        const { error: auditError } = await supabase.from('item_audit_logs').insert(dbAuditPayload);
+        if (auditError) {
+          console.log('item_audit_logs write warning:', auditError.message);
+        }
+      }
+
+      const nextMaterial = isEditing
+        ? { ...originalMaterial, ...materialData, id: itemId }
+        : (createdMaterial || { id: itemId, ...materialData });
+      updateMaterialsCache((prev) => {
+        const next = [...prev.filter((m) => m.id !== itemId), nextMaterial];
+        next.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+        return next;
+      });
+
+      setSaveNotice(isEditing ? 'Item updated successfully.' : 'Item added successfully.');
+      setSelectedMaterialId(itemId);
+      setActiveDetailTab(isEditing ? 'audit' : 'overview');
+      await refreshMaterials();
+      if (selectedMaterialId === itemId) {
+        await loadItemTransactions(itemId);
+      }
+      resetForm();
     } catch (err) {
-      alert(`Save error: ${err.message}`);
+      alert('Error saving: ' + (err?.message || String(err)));
+    } finally {
       setMaterialSavePending(false);
-      return;
     }
+  };
 
-    if (materialSaveSuccess) {
-      try {
-        if (formData.uses_variant) {
-          const validPriceRows = variantPricing
-            .filter(r => r.company_variant_id)
-            .map(r => ({
-              item_id: materialId,
-              company_variant_id: r.company_variant_id,
-              make: r.make || null,
-              sale_price: r.sale_price === '' ? 0 : parseFloat(r.sale_price),
-              purchase_price: r.purchase_price === '' ? null : parseFloat(r.purchase_price),
-              updated_at: new Date().toISOString()
-            }));
+  const resetForm = () => {
+    setShowForm(false);
+    setEditingMaterial(null);
+    setFormData({
+      item_code: '', item_name: '', display_name: '', main_category: '', sub_category: '',
+      size: '', pressure_class: '', make: '', material: '', end_connection: '',
+      unit: 'nos', sale_price: '', purchase_price: '', hsn_code: '', gst_rate: 18, is_active: true,
+      uses_variant: false, track_inventory: false
+    });
+    setVariantPricing([]);
+    
+    // Initialize default warehouse stock
+    const defaultWStock = {};
+    if (warehouses) {
+      warehouses.forEach(wh => {
+        defaultWStock[`${wh.id}_no_variant`] = { exclude: false, current_stock: 0 };
+      });
+    }
+    setWarehouseStock(defaultWStock);
+  };
 
-          await supabase.from('item_variant_pricing').delete().eq('item_id', materialId);
-          if (validPriceRows.length > 0) {
-            await supabase.from('item_variant_pricing').insert(validPriceRows);
-          }
-        } else {
-          await supabase.from('item_variant_pricing').delete().eq('item_id', materialId);
-        }
+  const editMaterial = async (material) => {
+    setEditingMaterial(material);
+    
+    // Check if un-varianted stock exists
+    let hasStock = false;
+    let wStock = {};
+    if (warehouses) {
+      const itemStockRecords = stock ? stock.filter((s: any) => s.item_id === material.id) : [];
+      if (itemStockRecords.length > 0) hasStock = true;
+      
+      itemStockRecords.forEach(record => {
+        const vId = record.company_variant_id || 'no_variant';
+        wStock[`${record.warehouse_id}_${vId}`] = {
+          exclude: false,
+          current_stock: parseFloat(record.current_stock) || 0
+        };
+      });
+    }
+    setWarehouseStock(wStock);
+    
+    setFormData({
+      item_code: material.item_code || '',
+      item_name: material.name || '',
+      display_name: material.display_name || '',
+      main_category: material.main_category || '',
+      sub_category: material.sub_category || '',
+      size: material.size || '',
+      pressure_class: material.pressure_class || '',
+      make: material.make || '',
+      material: material.material || '',
+      end_connection: material.end_connection || '',
+      unit: material.unit || 'nos',
+      sale_price: material.sale_price || '',
+      purchase_price: material.purchase_price || '',
+      hsn_code: material.hsn_code || '',
+      gst_rate: material.gst_rate || 18,
+      is_active: material.is_active !== false,
+      uses_variant: material.uses_variant || false,
+      track_inventory: hasStock
+    });
+    setShowForm(true);
+    loadVariantPricing(material.id);
+  };
 
-        if (formData.track_inventory) {
-          const stockInsertArray = [];
-          Object.entries(warehouseStock).forEach(([key, meta]) => {
-            if (meta.exclude) return;
-            const [whId, cvId] = key.split('_');
-            stockInsertArray.push({
-              item_id: materialId,
-              warehouse_id: whId,
-              company_variant_id: cvId === 'no_variant' ? null : cvId,
-              current_stock: meta.current_stock ?? 0,
-              low_stock_level: 0,
-              updated_at: new Date().toISOString()
-            });
-          });
-
-          if (stockInsertArray.length > 0) {
-            await supabase.from('item_stock').upsert(stockInsertArray, { onConflict: 'item_id, warehouse_id, company_variant_id'});
-          }
-        }
-      } catch (err) {
-        console.error('Dependant table update error:', err);
+  const handleUsesVariantChange = async (checked) => {
+    if (editingMaterial && !checked && formData.uses_variant === true) {
+      const records = await checkVariantRecords(editingMaterial.id);
+      if (records.hasPricing || records.hasStock) {
+        let message = 'Cannot disable variant for this item because:';
+        if (records.hasPricing) message += '\n- Variant pricing records exist';
+        if (records.hasStock) message += '\n- Variant stock records exist';
+        message += '\n\nPlease delete these records first or contact support.';
+        alert(message);
+        return;
       }
     }
-
-    setSaveNotice(editingMaterial ? 'Item updated successfully' : 'New item created successfully');
-    await refreshMaterials();
-    resetForm();
-    setMaterialSavePending(false);
+    setFormData({ ...formData, uses_variant: checked, sale_price: checked ? '0' : formData.sale_price });
+    if (checked && variantPricing.length === 0) {
+      addVariantPricingRow();
+    }
   };
 
-  const handleDeleteMaterial = useCallback((material) => {
-    setDeleteTarget(material);
-  }, []);
-
-  const closeDeleteModal = () => {
-    setDeleteTarget(null);
-    setDeleteInProgress(false);
+  const addVariantPricingRow = () => {
+    setVariantPricing(prev => [
+      ...prev,
+      { id: Date.now() + Math.random(), company_variant_id: '', make: '', sale_price: '', purchase_price: '' }
+    ]);
   };
 
-  const confirmDeleteMaterial = async () => {
-    if (!deleteTarget) return;
+  const removeVariantPricingRow = (id) => {
+    setVariantPricing(prev => prev.filter(p => p.id !== id));
+  };
+
+  const handleVariantPricingRowChange = (id, field, value) => {
+    setVariantPricing(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p));
+  };
+
+  const deleteMaterial = async (id) => {
     setDeleteInProgress(true);
     try {
-      const { error } = await supabase.from('materials').delete().eq('id', deleteTarget.id);
-      if (error) {
-        if (error.code === '23503') {
-          const { error: archiveError } = await supabase.from('materials').update({ is_active: false }).eq('id', deleteTarget.id);
-          if (archiveError) throw archiveError;
-          setSaveNotice(`${deleteTarget.display_name || deleteTarget.name} archived (has existing transactions)`);
-        } else {
-          throw error;
+      const linkedTables: string[] = [];
+      
+      const checks = await Promise.allSettled([
+        { table: 'quotation_items', key: 'item_id', name: 'Quotations' },
+        { table: 'delivery_challan_items', key: 'material_id', name: 'Delivery Challans' },
+        { table: 'material_inward_items', key: 'material_id', name: 'Material Inward' },
+        { table: 'material_outward_items', key: 'material_id', name: 'Material Outward' },
+        { table: 'invoice_items', key: 'material_id', name: 'Invoices' },
+        { table: 'purchase_order_items', key: 'material_id', name: 'Purchase Orders' },
+        { table: 'purchase_bill_items', key: 'material_id', name: 'Purchase Bills' },
+        { table: 'stock_transfer_items', key: 'material_id', name: 'Stock Transfers' },
+        { table: 'quick_check_items', key: 'item_id', name: 'Quick Check' },
+        { table: 'boq_items', key: 'material_id', name: 'BOQ' },
+      ].map(async ({ table, key, name }) => {
+        const { data } = await supabase.from(table).select('id').eq(key, id).limit(1);
+        if (data?.length) linkedTables.push(name);
+      }));
+
+      if (linkedTables.length === 0) {
+        await supabase.from('item_variant_pricing').delete().eq('item_id', id);
+        await supabase.from('item_stock').delete().eq('item_id', id);
+
+        const { error } = await supabase.from('materials').delete().eq('id', id);
+        if (error) throw error;
+        updateMaterialsCache((prev) => prev.filter((m) => m.id !== id));
+        if (selectedMaterialId === id) {
+          setSelectedMaterialId(null);
+          setItemTransactions(emptyItemTransactions());
         }
+        queryClient.invalidateQueries({ queryKey: ['itemStock'] });
       } else {
-        setSaveNotice('Item deleted permanentely');
+        const { error } = await supabase
+          .from('materials')
+          .update({ is_active: false, updated_at: new Date().toISOString() })
+          .eq('id', id);
+        if (error) throw error;
+        updateMaterialsCache((prev) =>
+          prev.map((item) =>
+            item.id === id ? { ...item, is_active: false, updated_at: new Date().toISOString() } : item
+          )
+        );
+        alert(`Item is linked with:\n- ${linkedTables.join('\n- ')}\n\nIt has been archived (disabled) instead of hard delete.`);
       }
-      await refreshMaterials();
-      closeDeleteModal();
     } catch (err) {
-      alert(`Delete error: ${err.message}`);
+      console.error('Delete item error:', err);
+      alert('Unable to delete item: ' + err.message);
+    } finally {
       setDeleteInProgress(false);
     }
   };
 
-  const filteredMaterials = useMemo(() => {
-    return materials.filter(m => {
-      const matchesSearch = searchTerm === '' || 
-        (m.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
-        (m.display_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (m.item_code || '').toLowerCase().includes(searchTerm.toLowerCase());
-      
-      const matchesCategory = categoryFilter === 'All' || m.main_category === categoryFilter;
-      const matchesStatus = !hideInactive || m.is_active !== false;
-      
-      return matchesSearch && matchesCategory && matchesStatus;
-    });
-  }, [materials, searchTerm, categoryFilter, hideInactive]);
+  const toggleActive = async (material) => {
+    const nowIso = new Date().toISOString();
+    await supabase.from('materials').update({ is_active: !material.is_active, updated_at: nowIso }).eq('id', material.id);
+    updateMaterialsCache((prev) =>
+      prev.map((item) =>
+        item.id === material.id ? { ...item, is_active: !material.is_active, updated_at: nowIso } : item
+      )
+    );
+  };
 
-  const openItemWorkspace = useCallback((material) => {
+  const filteredMaterials = useMemo(() => materials.filter(m => {
+    const matchesSearch = 
+      m.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      m.display_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      m.item_code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      m.material?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = categoryFilter === 'All' || m.main_category === categoryFilter;
+    const matchesActive = !hideInactive || m.is_active;
+    return matchesSearch && matchesCategory && matchesActive;
+  }), [materials, searchTerm, categoryFilter, hideInactive]);
+
+  const selectedMaterial = useMemo(() => materials.find((item) => item.id === selectedMaterialId) || null, [materials, selectedMaterialId]);
+
+  const openDeleteModal = useCallback((material) => {
+    setDeleteTarget(material);
+  }, []);
+
+  const closeDeleteModal = useCallback(() => {
+    if (deleteInProgress) return;
+    setDeleteTarget(null);
+  }, [deleteInProgress]);
+
+  const confirmDeleteMaterial = useCallback(async () => {
+    if (!deleteTarget?.id) return;
+    await deleteMaterial(deleteTarget.id);
+    setDeleteTarget(null);
+  }, [deleteTarget]);
+
+  const selectMaterialRow = useCallback((material) => {
     setSelectedMaterialId(material.id);
     setActiveDetailTab('overview');
     setShowItemWorkspace(true);
-    loadItemTransactions(material.id);
   }, []);
 
-  const closeItemWorkspace = () => {
+  const closeItemWorkspace = useCallback(() => {
     setShowItemWorkspace(false);
-    setSelectedMaterialId(null);
-    setItemTransactions(emptyItemTransactions());
+  }, []);
+
+  const workspaceMaterials = materials
+    .filter((item) => {
+      if (!workspaceSearch.trim()) return true;
+      const s = workspaceSearch.toLowerCase();
+      return (
+        item.display_name?.toLowerCase().includes(s) ||
+        item.name?.toLowerCase().includes(s) ||
+        item.item_code?.toLowerCase().includes(s)
+      );
+    })
+    .sort((a, b) => (a.display_name || a.name || '').localeCompare(b.display_name || b.name || ''));
+
+  const formatColumnValue = (material, key) => {
+    switch (key) {
+      case 'sub_category':
+        return material.sub_category || '-';
+      case 'size':
+        return material.size || '-';
+      case 'pressure_class':
+        return material.pressure_class || '-';
+      case 'make':
+        return material.make || '-';
+      case 'material':
+        return material.material || '-';
+      case 'end_connection':
+        return material.end_connection || '-';
+      case 'sale_price':
+        return formatCurrencyOrDash(material.sale_price);
+      case 'purchase_price':
+        return formatCurrencyOrDash(material.purchase_price);
+      case 'hsn_code':
+        return material.hsn_code || '-';
+      case 'gst_rate':
+        return material.gst_rate !== null && material.gst_rate !== undefined ? `${material.gst_rate}%` : '-';
+      case 'uses_variant':
+        return material.uses_variant ? 'Yes' : 'No';
+      default:
+        return '-';
+    }
   };
 
-  const workspaceMaterials = useMemo(() => {
-    if (!workspaceSearch) return materials;
-    const q = workspaceSearch.toLowerCase();
-    return materials.filter(m => 
-      (m.name || '').toLowerCase().includes(q) || 
-      (m.display_name || '').toLowerCase().includes(q) ||
-      (m.item_code || '').toLowerCase().includes(q)
-    );
-  }, [materials, workspaceSearch]);
+  const itemColumns = useMemo(() => {
+    const columns = [];
+    const addColumn = (key, column) => {
+      if (visibleColumns.includes(key)) columns.push(column);
+    };
 
-  const selectedMaterial = materials.find(m => m.id === selectedMaterialId);
-
-  const overviewStats = useMemo(() => {
-    if (!selectedMaterialId) return { totalStock: 0, lowStockWarehouses: 0, linkedTransactions: 0 };
-    const tot = stockData[selectedMaterialId] || 0;
-    const low = itemTransactions.warehouseRows.filter(r => r.current_stock <= r.low_stock_level && r.current_stock > 0).length;
-    const tx = itemTransactions.adjustmentRows.length + itemTransactions.quotationRows.length + itemTransactions.challanRows.length;
-    return { totalStock: tot, lowStockWarehouses: low, linkedTransactions: tx };
-  }, [selectedMaterialId, stockData, itemTransactions]);
-
-  // Table Columns Setup
-  const columns = useMemo(() => {
-    const colList = [
-      {
-        id: 'name',
-        header: 'Item Details',
-        visible: visibleColumns.includes('name'),
-        cell: ({ row }) => {
-          const m = row.original;
-          return (
-            <div className="flex items-center gap-3">
-               <div className={cn(
-                  "w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-sm",
-                  m.is_active === false ? "bg-slate-300" : "bg-indigo-600 shadow-indigo-600/20"
-               )}>
-                  <InventoryIcon size={18} />
-               </div>
-               <div className="flex flex-col">
-                  <span className="font-black text-slate-800 uppercase text-[12px] tracking-tight leading-tight">
-                    {m.display_name || m.name}
-                  </span>
-                  {/* Show metadata only if separate columns aren't visible to save space */}
-                  {(!visibleColumns.includes('code') || !visibleColumns.includes('category')) && (
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
-                      {m.item_code || 'No Code'} • {m.main_category || 'Uncategorized'}
-                    </span>
-                  )}
-               </div>
+    addColumn('name', {
+      id: 'name',
+      header: 'Name',
+      cell: ({ row }) => {
+        const m = row.original;
+        return (
+          <div className="item-main-cell">
+            <div className="item-avatar">{(m.display_name || m.name || '?').slice(0, 1).toUpperCase()}</div>
+            <div>
+              <button type="button" className="item-name-link" onClick={() => selectMaterialRow(m)}>
+                {m.display_name || m.name}
+              </button>
+              <div className="item-main-sub">{m.material || m.size || 'Item'}</div>
             </div>
-          );
-        }
-      },
-      {
-        id: 'code',
-        header: 'Item Code',
-        visible: visibleColumns.includes('code'),
-        cell: ({ row }) => <span className="font-bold text-slate-600 text-[11px] font-mono">{row.original.item_code || '---'}</span>
-      },
-      {
-        id: 'category',
-        header: 'Category',
-        visible: visibleColumns.includes('category'),
-        cell: ({ row }) => <span className="font-bold text-slate-400 text-[10px] uppercase tracking-widest">{row.original.main_category || '---'}</span>
-      },
-      {
-        id: 'sub_category',
-        header: 'Sub Category',
-        visible: visibleColumns.includes('sub_category'),
-        cell: ({ row }) => <span className="text-slate-500 text-[11px]">{row.original.sub_category || '---'}</span>
-      },
-      {
-        id: 'size',
-        header: 'Size',
-        visible: visibleColumns.includes('size'),
-        cell: ({ row }) => <span className="font-bold text-slate-700 text-[11px]">{row.original.size || '---'}</span>
-      },
-      {
-        id: 'make',
-        header: 'Make',
-        visible: visibleColumns.includes('make'),
-        cell: ({ row }) => <span className="text-slate-600 text-[11px] font-bold">{row.original.make || '---'}</span>
-      },
-      {
-        id: 'unit',
-        header: 'Unit',
-        visible: visibleColumns.includes('unit'),
-        headerClassName: 'text-center',
-        cell: ({ row }) => (
-          <div className="text-center font-bold text-slate-500 uppercase text-[11px] tracking-widest bg-slate-100 px-2 py-1 rounded-lg">
-            {row.original.unit}
           </div>
-        )
-      },
-      {
-        id: 'stock',
-        header: 'Stock',
-        visible: visibleColumns.includes('stock'),
-        headerClassName: 'text-center',
-        cell: ({ row }) => {
-          const m = row.original;
-          const currentStock = stockData[m.id] || 0;
-          return (
-            <div className="flex flex-col items-center">
-              <span className={cn(
-                "font-black text-[13px]",
-                currentStock <= 0 ? "text-rose-600" : currentStock < 10 ? "text-amber-600" : "text-emerald-600"
-              )}>
-                {currentStock.toLocaleString()}
-              </span>
-              <span className="text-[9px] font-black text-slate-300 uppercase tracking-tighter leading-none">Actual</span>
-            </div>
-          )
-        }
-      },
-      {
-        id: 'sale_price',
-        header: 'Sale Price',
-        visible: visibleColumns.includes('sale_price'),
-        cell: ({ row }) => <span className="font-black text-slate-900 text-[12px]">{formatCurrencyOrDash(row.original.sale_price)}</span>
-      },
-      {
-        id: 'purchase_price',
-        header: 'Purchase Price',
-        visible: visibleColumns.includes('purchase_price'),
-        cell: ({ row }) => <span className="font-bold text-slate-400 text-[11px]">{formatCurrencyOrDash(row.original.purchase_price)}</span>
-      },
-      {
-        id: 'hsn_code',
-        header: 'HSN/SAC',
-        visible: visibleColumns.includes('hsn_code'),
-        cell: ({ row }) => <span className="text-slate-500 text-[11px]">{row.original.hsn_code || '---'}</span>
-      },
-      {
-        id: 'status',
-        header: 'Status',
-        visible: visibleColumns.includes('status'),
-        headerClassName: 'text-center',
-        cell: ({ row }) => {
-          const active = row.original.is_active !== false;
-          return (
-            <div className="flex justify-center">
-               <span className={cn(
-                  "px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border",
-                  active 
-                    ? "bg-emerald-50 text-emerald-700 border-emerald-100" 
-                    : "bg-slate-50 text-slate-400 border-slate-100"
-               )}>
-                  {active ? 'Active' : 'Inactive'}
-               </span>
-            </div>
-          )
-        }
-      },
-      {
-        id: 'actions',
-        header: '',
-        visible: true,
-        cell: ({ row }) => (
-          <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all">
-            <button 
-              onClick={() => openItemWorkspace(row.original)}
-              className="p-2 hover:bg-white rounded-lg text-indigo-600 shadow-sm border border-transparent hover:border-indigo-100"
-              title="Item History"
-            >
-              <MoreIcon size={16} />
-            </button>
-            <button 
-              onClick={() => handleEditMaterial(row.original)}
-              className="p-2 hover:bg-white rounded-lg text-amber-600 shadow-sm border border-transparent hover:border-amber-100"
-              title="Edit Item"
-            >
-              <EditIcon size={16} />
-            </button>
-            <button 
-              onClick={() => handleDeleteMaterial(row.original)}
-              className="p-2 hover:bg-white rounded-lg text-rose-600 shadow-sm border border-transparent hover:border-rose-100"
-              title="Delete Item"
-            >
-              <DeleteIcon size={16} />
-            </button>
-          </div>
-        )
+        );
       }
-    ];
+    });
 
-    return colList.filter(c => c.visible !== false);
-  }, [visibleColumns, stockData, handleEditMaterial, handleDeleteMaterial, openItemWorkspace, formatCurrencyOrDash]);
+    addColumn('code', { id: 'code', header: 'Code', cell: ({ row }) => row.original.item_code || '-' });
+    addColumn('category', { id: 'category', header: 'Category', cell: ({ row }) => row.original.main_category || '-' });
+    addColumn('sub_category', { id: 'sub_category', header: 'Sub Category', cell: ({ row }) => formatColumnValue(row.original, 'sub_category') });
+    addColumn('size', { id: 'size', header: 'Size', cell: ({ row }) => formatColumnValue(row.original, 'size') });
+    addColumn('pressure_class', { id: 'pressure_class', header: 'Pressure Class', cell: ({ row }) => formatColumnValue(row.original, 'pressure_class') });
+    addColumn('make', { id: 'make', header: 'MAKE(Brand name)', cell: ({ row }) => formatColumnValue(row.original, 'make') });
+    addColumn('material', { id: 'material', header: 'Material', cell: ({ row }) => formatColumnValue(row.original, 'material') });
+    addColumn('end_connection', { id: 'end_connection', header: 'End Connection', cell: ({ row }) => formatColumnValue(row.original, 'end_connection') });
+    addColumn('unit', { id: 'unit', header: 'Unit', cell: ({ row }) => row.original.unit || '-' });
+    addColumn('sale_price', { id: 'sale_price', header: 'Sale Price', cell: ({ row }) => formatColumnValue(row.original, 'sale_price') });
+    addColumn('purchase_price', { id: 'purchase_price', header: 'Purchase Price', cell: ({ row }) => formatColumnValue(row.original, 'purchase_price') });
+    addColumn('hsn_code', { id: 'hsn_code', header: 'HSN/SAC', cell: ({ row }) => formatColumnValue(row.original, 'hsn_code') });
+    addColumn('gst_rate', { id: 'gst_rate', header: 'GST Rate', cell: ({ row }) => formatColumnValue(row.original, 'gst_rate') });
+    addColumn('uses_variant', { id: 'uses_variant', header: 'Variant', cell: ({ row }) => formatColumnValue(row.original, 'uses_variant') });
+    addColumn('stock', {
+      id: 'stock',
+      header: 'Stock',
+      cell: ({ row }) => {
+        const m = row.original;
+        const stock = stockData[m.id] || 0;
+        return (
+          <span style={{ color: stock < (m.low_stock_level || 0) ? '#b42318' : '#067647', fontWeight: 600 }}>
+            {stock}
+          </span>
+        );
+      }
+    });
+    addColumn('status', {
+      id: 'status',
+      header: 'Status',
+      cell: ({ row }) => {
+        const isActive = row.original.is_active !== false;
+        return (
+          <span className={`status-chip ${isActive ? 'active' : 'inactive'}`}>{isActive ? 'Active' : 'Inactive'}</span>
+        );
+      }
+    });
+
+    columns.push({
+      id: 'action',
+      header: 'Action',
+      cell: ({ row }) => {
+        const m = row.original;
+        return (
+          <div className="item-actions-cell">
+            <button className="btn btn-sm btn-secondary" onClick={() => editMaterial(m)}>Edit</button>
+            <button className="btn btn-sm btn-secondary" onClick={() => toggleActive(m)}>
+              {m.is_active ? 'Disable' : 'Enable'}
+            </button>
+            <button className="btn btn-sm btn-secondary" onClick={() => openDeleteModal(m)}>Delete</button>
+          </div>
+        );
+      }
+    });
+
+    return columns;
+  }, [visibleColumns, stockData, formatColumnValue, selectMaterialRow, editMaterial, toggleActive, openDeleteModal]);
+
+  const [visibleCount, setVisibleCount] = useState(200);
+  const visibleMaterials = useMemo(() => filteredMaterials.slice(0, visibleCount), [filteredMaterials, visibleCount]);
+
+  const table = useReactTable({
+    data: visibleMaterials,
+    columns: itemColumns,
+    getCoreRowModel: getCoreRowModel()
+  });
+
+  const overviewStats = {
+    totalStock: itemTransactions.warehouseRows.reduce((sum, row) => sum + (row.current_stock || 0), 0),
+    lowStockWarehouses: itemTransactions.warehouseRows.filter(
+      (row) => row.low_stock_level > 0 && row.current_stock <= row.low_stock_level
+    ).length,
+    linkedTransactions:
+      itemTransactions.adjustmentRows.length +
+      itemTransactions.quotationRows.length +
+      itemTransactions.invoiceRows.length +
+      itemTransactions.purchaseRows.length +
+      itemTransactions.challanRows.length +
+      itemTransactions.auditRows.length,
+  };
 
   return (
-    <div className="flex flex-col h-full overflow-hidden bg-slate-50 animate-in fade-in duration-500">
-      {/* Header Profile */}
-      <div className="bg-white border-b border-slate-100 p-6 flex-shrink-0">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-[20px] bg-indigo-600 flex items-center justify-center text-white shadow-xl shadow-indigo-600/20">
-              <InventoryIcon className="w-7 h-7" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-black text-slate-900 tracking-tight leading-none">Global Inventory</h1>
-              <div className="flex items-center gap-2 mt-2">
-                <span className="px-2 py-0.5 bg-slate-900 text-white rounded text-[10px] font-black uppercase tracking-widest">{materials.length} Total Items</span>
-                <span className="w-1 h-1 rounded-full bg-slate-300"></span>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{filteredMaterials.length} Filtered</span>
-              </div>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-             <button 
-                onClick={openBulkPriceModal}
-                className="h-11 px-6 bg-slate-900 text-white rounded-xl font-black text-[11px] uppercase tracking-widest shadow-lg shadow-slate-900/10 transition-all flex items-center gap-2"
-             >
-                <EditIcon size={16} /> Bulk Edit
-             </button>
-             <button 
-                onClick={() => setExcelEditMode(!excelEditMode)}
-                className={cn(
-                  "h-11 px-6 rounded-xl font-black text-[11px] uppercase tracking-widest transition-all flex items-center gap-2 border-2",
-                  excelEditMode 
-                    ? "bg-emerald-50 text-emerald-600 border-emerald-100 shadow-lg shadow-emerald-600/5" 
-                    : "bg-white text-slate-600 border-slate-50 hover:border-slate-200"
-                )}
-             >
-                <ExcelIcon size={16} /> Excel Edit
-             </button>
-          </div>
-             <button 
-                onClick={() => setShowForm(true)}
-                className="h-11 px-6 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-[11px] uppercase tracking-widest shadow-lg shadow-indigo-600/10 transition-all flex items-center gap-2"
-             >
-                <AddIcon size={16} /> New Item
-             </button>
-          </div>
-        </div>
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <Paper elevation={0} sx={{ p: 2, mb: 2, borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <InventoryIcon color="primary" sx={{ fontSize: 24 }} />
+            <Typography variant="h6" fontFamily="Inter" fontWeight={600} sx={{ fontSize: '14px' }}>
+              Materials
+            </Typography>
+            <Chip 
+              label={`${filteredMaterials.length} items`} 
+              size="small" 
+              color="primary" 
+              variant="outlined"
+              sx={{ fontSize: '11px', fontFamily: 'Inter', ml: 1 }}
+            />
+          </Box>
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
+            {MAIN_CATEGORIES.slice(0, 6).map((cat) => (
+              <Button
+                key={cat}
+                size="small"
+                variant={categoryFilter === cat ? 'contained' : 'outlined'}
+                onClick={() => setCategoryFilter(categoryFilter === cat ? 'All' : cat)}
+                sx={{ fontSize: '11px', minWidth: 'auto', textTransform: 'none', fontFamily: 'Inter' }}
+              >
+                {cat}
+              </Button>
+            ))}
+            <TextField
+              size="small"
+              placeholder="Search materials..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              sx={{ width: 200, '& .MuiInputBase-input': { fontSize: '12px' } }}
+            />
+            <Button variant="contained" size="small" startIcon={<AddIcon />} onClick={() => setShowForm(true)} sx={{ fontSize: '12px', fontFamily: 'Inter' }}>
+              Add Material
+            </Button>
+            <Tooltip title="Column Settings">
+              <Button size="small" variant="outlined" onClick={() => setShowColumnSettings((prev) => !prev)} sx={{ fontSize: '11px', fontFamily: 'Inter' }}>
+                Columns
+              </Button>
+            </Tooltip>
+            <Button size="small" variant="outlined" onClick={openBulkPriceModal} sx={{ fontSize: '11px', fontFamily: 'Inter' }}>
+              Bulk Price
+            </Button>
+            <Button size="small" variant="outlined" startIcon={<UploadIcon />} onClick={() => setShowBulkImportModal(true)} sx={{ fontSize: '11px', fontFamily: 'Inter' }}>
+              Bulk Import
+            </Button>
+            <Tooltip title="Edit in Excel Mode">
+              <Button 
+                size="small" 
+                variant="outlined" 
+                startIcon={<ExcelIcon />} 
+                onClick={() => setShowFieldSelector(true)} 
+                sx={{ fontSize: '11px', fontFamily: 'Inter' }}
+              >
+                Excel Edit
+              </Button>
+            </Tooltip>
+          </Box>
+        </Box>
+      </Paper>
 
-        {/* Action Controls */}
-        <div className="flex flex-wrap items-center gap-4 mt-8 pb-1">
-           <div className="relative group flex-1 max-w-md">
-              <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-indigo-600" />
-              <input 
-                type="text" 
-                placeholder="Search by code, name or description..." 
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                className="w-full h-11 pl-11 pr-4 bg-slate-50 border-2 border-slate-50 rounded-xl outline-none group-focus-within:bg-white group-focus-within:border-indigo-600 transition-all font-bold text-slate-600 text-[13px]"
-              />
-           </div>
-
-           <select 
-             value={categoryFilter}
-             onChange={e => setCategoryFilter(e.target.value)}
-             className="h-11 px-4 bg-slate-50 border-2 border-slate-50 rounded-xl font-bold text-slate-600 text-[11px] uppercase tracking-widest outline-none hover:border-slate-200 transition-all"
-           >
-              <option value="All">All Categories</option>
-              {categoryOptions.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-           </select>
-
-           <div className="h-8 w-[1px] bg-slate-100"></div>
-
-           <div className="flex items-center gap-2">
-              <button onClick={() => setShowBulkImportModal(true)} className="flex items-center gap-2 h-11 px-5 border-2 border-slate-50 text-slate-600 rounded-xl hover:border-indigo-100 hover:text-indigo-600 transition-all text-[10px] font-black uppercase tracking-widest uppercase tracking-widest">
-                 <UploadIcon size={14} /> Import
-              </button>
-              <button onClick={openBulkPriceModal} className="flex items-center gap-2 h-11 px-5 border-2 border-slate-50 text-slate-600 rounded-xl hover:border-emerald-100 hover:text-emerald-600 transition-all text-[10px] font-black uppercase tracking-widest uppercase tracking-widest">
-                 <ExcelIcon size={14} /> Bulk Price
-              </button>
-              <button onClick={() => setShowColumnSettings(true)} className="flex items-center gap-2 h-11 px-5 border-2 border-slate-50 text-amber-600 rounded-xl hover:border-amber-100 hover:bg-amber-50/50 transition-all text-[10px] font-black uppercase tracking-widest uppercase tracking-widest ml-1">
-                 <FilterIcon size={14} /> Columns
-              </button>
-           </div>
-        </div>
-      </div>
+      {saveNotice && (
+        <div className="alert alert-success">{saveNotice}</div>
+      )}
 
       {isLoading ? (
-        <div className="flex-1 flex flex-col items-center justify-center bg-white p-20">
-           <div className="w-16 h-16 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-           <p className="mt-6 text-sm font-black text-slate-400 uppercase tracking-[0.2em] animate-pulse">Synchronizing Inventory...</p>
+        <div style={{ padding: '100px', textAlign: 'center' }}>
+          <div className="loading-spinner"></div>
+          <p style={{ marginTop: '10px', color: '#666' }}>Loading items...</p>
         </div>
-      ) : excelEditMode ? (
-        <div className="flex-1 overflow-hidden bg-white">
-           <ExcelEditor
-              materials={filteredMaterials}
-              stock={stock}
-              warehouses={warehouses}
-              variants={variants}
-              units={units}
-              categories={categories}
-              onSuccess={refreshMaterials}
-           />
+      ) : isError ? (
+        <div style={{ padding: '100px', textAlign: 'center' }}>
+          <p style={{ marginBottom: '12px', color: '#b91c1c', fontWeight: 600 }}>{materialsError || 'Unable to load materials.'}</p>
+          <button type="button" className="btn btn-primary" onClick={retryItemDependencies}>
+            Retry
+          </button>
         </div>
       ) : (
-        <div className="flex-1 overflow-hidden bg-white p-6 pt-0">
-          <div className="h-full border border-slate-100 rounded-[24px] overflow-hidden flex flex-col shadow-sm">
-             <div className="flex-1 overflow-auto">
-                <table className="w-full text-left border-collapse">
-                   <thead className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur-md">
-                      <tr>
-                         {columns.filter(c => c.header).map((col, idx) => (
-                            <th key={idx} className={cn("px-6 py-4 font-black text-slate-400 uppercase tracking-widest text-[10px]", col.headerClassName)}>
-                               {col.header}
+        <>
+          {showColumnSettings && (
+            <div className="card" style={{ marginBottom: '16px' }}>
+              <h3 className="card-title">Select Visible Columns</h3>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '14px' }}>
+                {ITEM_TABLE_COLUMNS.map((column) => (
+                  <label key={column.key} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={visibleColumns.includes(column.key)}
+                      disabled={column.locked}
+                      onChange={() => toggleColumn(column.key)}
+                    />
+                    {column.label}{column.locked ? ' (Default)' : ''}
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="card" style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+              <input type="checkbox" checked={hideInactive} onChange={(e) => setHideInactive(e.target.checked)} />
+              Hide Inactive Items
+            </label>
+          </div>
+
+          <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+            {filteredMaterials.length === 0 ? (
+              <div className="empty-state"><h3>No Items Found</h3></div>
+            ) : (
+              <div>
+                <div className="table-container" style={{ overflowX: 'auto' }}>
+                  <table className="table items-reference-table">
+                    <thead>
+                      {table.getHeaderGroups().map(headerGroup => (
+                        <tr key={headerGroup.id}>
+                          {headerGroup.headers.map(header => (
+                            <th key={header.id}>
+                              {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                             </th>
-                         ))}
-                      </tr>
-                   </thead>
-                   <tbody className="divide-y divide-slate-50">
-                      {filteredMaterials.length === 0 ? (
-                        <tr>
-                           <td colSpan={columns.length} className="p-32 text-center">
-                              <div className="flex flex-col items-center gap-4 opacity-30">
-                                 <InventoryIcon className="w-20 h-20 text-slate-200" />
-                                 <h3 className="text-2xl font-black text-slate-900">Zero matches found</h3>
-                                 <p className="text-sm font-bold text-slate-500 max-w-xs mx-auto">Try clearing your filters or search criteria to see your inventory.</p>
-                                 <button onClick={() => {setSearchTerm(''); setCategoryFilter('All');}} className="mt-4 px-6 py-2 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest">Clear Filters</button>
-                              </div>
-                           </td>
-                        </tr>
-                      ) : (
-                        filteredMaterials.map((item) => (
-                          <tr key={item.id} className="group hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => openItemWorkspace(item)}>
-                             {columns.map((col, idx) => (
-                                <td key={idx} className="px-6 py-4">
-                                   {col.cell ? col.cell({ row: { original: item } }) : null}
-                                </td>
-                             ))}
-                          </tr>
-                        ))
-                      )}
-                   </tbody>
-                </table>
-             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Item Analytics Workspace Drawer */}
-      {showItemWorkspace && selectedMaterial && (
-        <div className="fixed inset-0 z-[100] flex justify-end bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
-           <div className="w-full max-w-5xl bg-white h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-500">
-              <div className="flex items-center justify-between px-10 py-8 border-b border-slate-100 bg-slate-50/50">
-                 <div className="flex items-center gap-6">
-                    <div className="w-16 h-16 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shadow-xl shadow-indigo-600/20">
-                      <InventoryIcon size={32} />
-                    </div>
-                    <div>
-                       <h2 className="text-2xl font-black text-slate-900 leading-tight uppercase tracking-tight">{selectedMaterial.display_name || selectedMaterial.name}</h2>
-                       <div className="flex items-center gap-3 mt-2">
-                          <span className="text-xs font-black text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded uppercase tracking-widest">{selectedMaterial.item_code || 'NO-CODE'}</span>
-                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{selectedMaterial.main_category}</span>
-                       </div>
-                    </div>
-                 </div>
-                 <button onClick={closeItemWorkspace} className="w-12 h-12 rounded-full hover:bg-white flex items-center justify-center text-slate-400 hover:text-rose-600 transition-all">
-                    <CloseIcon size={24} />
-                 </button>
-              </div>
-
-              <div className="flex flex-1 overflow-hidden">
-                 {/* Item Sidebar */}
-                 <div className="w-80 border-r border-slate-100 flex flex-col overflow-y-auto">
-                    <div className="p-8 space-y-6">
-                       <div>
-                          <label className="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em]">Inventory Sidebar</label>
-                          <div className="mt-4 relative group">
-                             <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                             <input 
-                                type="text"
-                                placeholder="Jump to item..."
-                                value={workspaceSearch}
-                                onChange={e => setWorkspaceSearch(e.target.value)}
-                                className="w-full h-10 pl-10 pr-4 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold outline-none focus:bg-white focus:border-indigo-600 transition-all"
-                             />
-                          </div>
-                       </div>
-
-                       <div className="space-y-1">
-                          {workspaceMaterials.slice(0, 50).map(mat => (
-                             <button 
-                                key={mat.id}
-                                onClick={() => {setSelectedMaterialId(mat.id); loadItemTransactions(mat.id);}}
-                                className={cn(
-                                   "w-full text-left px-4 py-3 rounded-xl transition-all flex items-center justify-between group/row",
-                                   selectedMaterialId === mat.id ? "bg-indigo-600 shadow-lg shadow-indigo-600/20" : "hover:bg-slate-50"
-                                )}
-                             >
-                                <span className={cn(
-                                   "text-[11px] font-black uppercase tracking-tight truncate max-w-[140px]",
-                                   selectedMaterialId === mat.id ? "text-white" : "text-slate-600"
-                                )}>
-                                   {mat.display_name || mat.name}
-                                </span>
-                                <span className={cn(
-                                   "text-[10px] font-black px-1.5 py-0.5 rounded",
-                                   selectedMaterialId === mat.id ? "bg-indigo-500 text-white" : "bg-slate-100 text-slate-400"
-                                )}>
-                                   {(stockData[mat.id] || 0).toLocaleString()}
-                                </span>
-                             </button>
                           ))}
-                       </div>
-                    </div>
-                 </div>
-
-                 {/* Main Content Area */}
-                 <div className="flex-1 flex flex-col bg-slate-50/50">
-                    <div className="px-10 py-4 bg-white border-b border-slate-100 flex items-center gap-1 overflow-x-auto whitespace-nowrap">
-                       {ITEM_DETAIL_TABS.map(tab => (
-                          <button
-                             key={tab.key}
-                             onClick={() => setActiveDetailTab(tab.key)}
-                             className={cn(
-                                "px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                                activeDetailTab === tab.key 
-                                  ? "bg-slate-900 text-white shadow-lg shadow-slate-900/10" 
-                                  : "text-slate-400 hover:text-slate-600 hover:bg-slate-100"
-                             )}
+                        </tr>
+                      ))}
+                    </thead>
+                    <tbody>
+                      {table.getRowModel().rows.map(row => {
+                        const m = row.original;
+                        const isActive = m.is_active !== false;
+                        const isSelected = selectedMaterialId === m.id;
+                        return (
+                          <tr
+                            key={row.id}
+                            className={`item-click-row ${isSelected ? 'selected' : ''}`}
+                            style={{ opacity: isActive ? 1 : 0.55 }}
                           >
-                             {tab.label}
-                          </button>
-                       ))}
-                    </div>
-
-                    <div className="flex-1 overflow-y-auto p-10">
-                       {detailLoading ? (
-                          <div className="h-full flex flex-col items-center justify-center opacity-40">
-                             <div className="w-10 h-10 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-                             <p className="mt-4 text-[10px] font-black uppercase tracking-widest">Scanning History...</p>
-                          </div>
-                       ) : (
-                          <div className="animate-in fade-in zoom-in-95 duration-300">
-                             {activeDetailTab === 'overview' && (
-                                <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-                                   <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm relative overflow-hidden group">
-                                      <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-125 group-hover:opacity-10 transition-all duration-700">
-                                         <InventoryIcon size={80} />
-                                      </div>
-                                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Global Stock</p>
-                                      <p className="mt-3 text-4xl font-black text-slate-900 tracking-tighter leading-none">{overviewStats.totalStock.toLocaleString()}</p>
-                                      <div className="mt-4 flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-emerald-600">
-                                         <CheckIcon size={12} /> Units in Hand
-                                      </div>
-                                   </div>
-                                   <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm">
-                                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Low Alarms</p>
-                                      <p className={cn(
-                                         "mt-3 text-4xl font-black tracking-tighter leading-none",
-                                         overviewStats.lowStockWarehouses > 0 ? "text-rose-600" : "text-emerald-600"
-                                      )}>
-                                         {overviewStats.lowStockWarehouses}
-                                      </p>
-                                      <div className="mt-4 text-[9px] font-black uppercase tracking-widest text-slate-300">Critical Locations</div>
-                                   </div>
-                                   <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm">
-                                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Total Txns</p>
-                                      <p className="mt-3 text-4xl font-black text-slate-900 tracking-tighter leading-none">{overviewStats.linkedTransactions}</p>
-                                      <div className="mt-4 text-[9px] font-black uppercase tracking-widest text-slate-300">Doc Linkages</div>
-                                   </div>
-                                   <div className="bg-white p-8 rounded-[32px] border border-slate-100 shadow-sm">
-                                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Status</p>
-                                      <div className="mt-3 flex items-center h-[36px]">
-                                         <span className={cn(
-                                            "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest",
-                                            selectedMaterial.is_active !== false ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"
-                                         )}>
-                                            {selectedMaterial.is_active !== false ? 'Live' : 'Draft/Inactive'}
-                                         </span>
-                                      </div>
-                                      <div className="mt-4 text-[9px] font-black uppercase tracking-widest text-slate-300">Registry State</div>
-                                   </div>
-                                </div>
-                             )}
-
-                             {/* Transaction Tables would go here with similar premium styling */}
-                             {activeDetailTab !== 'overview' && (
-                                <div className="bg-white rounded-[32px] border border-slate-100 shadow-sm overflow-hidden">
-                                   <div className="overflow-x-auto">
-                                      <table className="w-full text-left">
-                                         <thead className="bg-slate-50 border-b border-slate-100">
-                                            {activeDetailTab === 'warehouse' && (
-                                               <tr>
-                                                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Warehouse</th>
-                                                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Variant</th>
-                                                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Current Stock</th>
-                                                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Alert Point</th>
-                                                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Sync Clock</th>
-                                               </tr>
-                                            )}
-                                            {activeDetailTab === 'adjustments' && (
-                                               <tr>
-                                                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Type</th>
-                                                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Source</th>
-                                                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Doc No</th>
-                                                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Date</th>
-                                                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Qty Change</th>
-                                               </tr>
-                                            )}
-                                         </thead>
-                                         <tbody className="divide-y divide-slate-50 italic text-[12px] text-slate-400 font-bold p-10 block">
-                                            {/* Placeholder for actual data mapping which was previously truncated or removed for space */}
-                                            Data hydrating... Use the main table for real-time adjustments.
-                                         </tbody>
-                                      </table>
-                                   </div>
-                                </div>
-                             )}
-                          </div>
-                       )}
-                    </div>
-                 </div>
+                            {row.getVisibleCells().map(cell => (
+                              <td key={cell.id}>
+                                {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                              </td>
+                            ))}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                {filteredMaterials.length > visibleCount ? (
+                  <div style={{ padding: '12px', textAlign: 'center' }}>
+                    <button className="btn btn-secondary" onClick={() => setVisibleCount((v) => v + 200)}>Show more</button>
+                    <span style={{ marginLeft: 12, color: '#666' }}>{visibleMaterials.length} / {filteredMaterials.length} shown</span>
+                  </div>
+                ) : null}
               </div>
-           </div>
-        </div>
+            )}
+          </div>
+        </>
       )}
 
-      {/* Forms and Modals (All Tailwind Refactored) */}
-      {showForm && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-md animate-in fade-in duration-300">
-           <div className="bg-white rounded-[40px] shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
-              <div className="px-10 py-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                 <div>
-                    <h2 className="text-3xl font-black text-slate-900 tracking-tight leading-none uppercase">{editingMaterial ? 'Modify Item' : 'New Accession'}</h2>
-                    <p className="mt-2 text-xs font-bold text-slate-400 uppercase tracking-[0.2em]">Unified Registry Entry</p>
-                 </div>
-                 <button onClick={resetForm} className="w-12 h-12 rounded-full hover:bg-white flex items-center justify-center text-slate-300 hover:text-rose-600 transition-all">
-                    <CloseIcon size={24} />
-                 </button>
-              </div>
-
-              <div className="flex-1 overflow-y-auto p-10">
-                 <form onSubmit={handleSubmit} className="space-y-12">
-                    {/* Basic Grid */}
-                    <section>
-                       <div className="flex items-center gap-4 mb-8">
-                          <div className="w-1.5 h-8 bg-indigo-600 rounded-full"></div>
-                          <h3 className="text-lg font-black text-slate-900 uppercase tracking-widest">General Identification</h3>
-                       </div>
-                       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                          <div className="space-y-2">
-                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Universal Item Name *</label>
-                             <input 
-                                required
-                                value={formData.item_name}
-                                onChange={e => setFormData({...formData, item_name: e.target.value, display_name: e.target.value})}
-                                className="w-full h-14 px-6 rounded-2xl bg-slate-50 border-2 border-slate-50 focus:border-indigo-600 focus:bg-white outline-none font-bold text-slate-700 transition-all shadow-sm"
-                                placeholder="e.g. 1/2 INCH GATE VALVE"
-                             />
-                          </div>
-                          <div className="space-y-2">
-                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Client View Display Name</label>
-                             <input 
-                                value={formData.display_name}
-                                onChange={e => setFormData({...formData, display_name: e.target.value})}
-                                className="w-full h-14 px-6 rounded-2xl bg-slate-50 border-2 border-slate-50 focus:border-indigo-600 focus:bg-white outline-none font-bold text-slate-700 transition-all shadow-sm"
-                                placeholder="Leave blank to use base name"
-                             />
-                          </div>
-                          <div className="space-y-2">
-                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">ERP Item Code</label>
-                             <input 
-                                value={formData.item_code}
-                                onChange={e => setFormData({...formData, item_code: e.target.value})}
-                                className="w-full h-14 px-6 rounded-2xl bg-slate-50 border-2 border-slate-50 focus:border-indigo-600 focus:bg-white outline-none font-bold text-slate-700 transition-all shadow-sm"
-                                placeholder="Auto-gen or SKU"
-                             />
-                          </div>
-                          <div className="space-y-2">
-                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Registry Category</label>
-                             <select 
-                                value={formData.main_category}
-                                onChange={e => setFormData({...formData, main_category: e.target.value})}
-                                className="w-full h-14 px-6 rounded-2xl bg-slate-50 border-2 border-slate-50 focus:border-indigo-600 focus:bg-white outline-none font-bold text-slate-700 transition-all shadow-sm uppercase tracking-widest text-[11px]"
-                             >
-                                <option value="">Select Category</option>
-                                {categoryOptions.map((cn) => <option key={cn} value={cn}>{cn}</option>)}
-                             </select>
-                          </div>
-                       </div>
-                    </section>
-
-                    <div className="h-[2px] bg-slate-50 w-full"></div>
-
-                    {/* Commercial / Stock Section */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-                       <section>
-                          <div className="flex items-center gap-4 mb-8">
-                             <div className="w-1.5 h-8 bg-emerald-500 rounded-full"></div>
-                             <h3 className="text-lg font-black text-slate-900 uppercase tracking-widest">Logistics & Tax</h3>
-                          </div>
-                          <div className="space-y-6">
-                             <div className="grid grid-cols-2 gap-6">
-                                <div className="space-y-2">
-                                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Base Unit</label>
-                                   <select value={formData.unit} onChange={e => setFormData({...formData, unit: e.target.value})} className="h-12 w-full px-4 rounded-xl bg-slate-50 border-2 border-slate-50 focus:border-emerald-500 outline-none font-bold">
-                                      {units.map(u => <option key={u.id} value={u.unit_code}>{u.unit_name}</option>)}
-                                   </select>
-                                </div>
-                                <div className="space-y-2">
-                                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">GST Rate</label>
-                                   <select value={formData.gst_rate} onChange={e => setFormData({...formData, gst_rate: Number(e.target.value)})} className="h-12 w-full px-4 rounded-xl bg-slate-50 border-2 border-slate-50 focus:border-emerald-500 outline-none font-bold">
-                                      {GST_RATES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
-                                   </select>
-                                </div>
-                             </div>
-                             <div className="space-y-2">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sale Price (Standard)</label>
-                                <input 
-                                   type="number" 
-                                   value={formData.sale_price} 
-                                   onChange={e => setFormData({...formData, sale_price: e.target.value})}
-                                   placeholder="0.00"
-                                   className="h-14 w-full px-6 rounded-2xl bg-white border-2 border-slate-100 focus:border-emerald-500 outline-none font-black text-xl text-emerald-600"
-                                />
-                             </div>
-                             <div className="space-y-2">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Average Purchase Price</label>
-                                <input 
-                                   type="number" 
-                                   value={formData.purchase_price} 
-                                   onChange={e => setFormData({...formData, purchase_price: e.target.value})}
-                                   placeholder="0.00"
-                                   className="h-12 w-full px-4 rounded-xl bg-slate-50 border-2 border-slate-50 focus:border-emerald-500 outline-none font-bold text-slate-500"
-                                />
-                             </div>
-                          </div>
-                       </section>
-
-                       <section>
-                          <div className="flex items-center gap-4 mb-8">
-                             <div className="w-1.5 h-8 bg-amber-500 rounded-full"></div>
-                             <h3 className="text-lg font-black text-slate-900 uppercase tracking-widest">Technical Properties</h3>
-                          </div>
-                          <div className="grid grid-cols-2 gap-6">
-                             <div className="space-y-2">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Dimension/Size</label>
-                                <input value={formData.size} onChange={e => setFormData({...formData, size: e.target.value})} className="h-12 w-full px-4 rounded-xl bg-slate-50 border border-slate-100 font-bold" />
-                             </div>
-                             <div className="space-y-2">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Make/Brand</label>
-                                <input value={formData.make} onChange={e => setFormData({...formData, make: e.target.value})} className="h-12 w-full px-4 rounded-xl bg-slate-50 border border-slate-100 font-bold" />
-                             </div>
-                             <div className="space-y-2">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Material</label>
-                                <input value={formData.material} onChange={e => setFormData({...formData, material: e.target.value})} className="h-12 w-full px-4 rounded-xl bg-slate-50 border border-slate-100 font-bold" />
-                             </div>
-                             <div className="space-y-2">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">HSN/SAC Code</label>
-                                <input value={formData.hsn_code} onChange={e => setFormData({...formData, hsn_code: e.target.value})} className="h-12 w-full px-4 rounded-xl bg-slate-50 border border-slate-100 font-bold" />
-                             </div>
-                          </div>
-                       </section>
-                    </div>
-
-                    <div className="h-[2px] bg-slate-50 w-full"></div>
-
-                    {/* Bottom Toggles */}
-                    <div className="flex flex-wrap items-center gap-12">
-                       <label className="flex items-center gap-4 cursor-pointer group">
-                          <input type="checkbox" checked={formData.track_inventory} onChange={e => setFormData({...formData, track_inventory: e.target.checked})} className="w-6 h-6 rounded-lg text-indigo-600 focus:ring-indigo-500 border-slate-300" />
-                          <span className="text-[13px] font-black text-slate-900 group-hover:text-indigo-600 transition-colors uppercase tracking-widest">Track Warehouse Stock</span>
-                       </label>
-                       <label className="flex items-center gap-4 cursor-pointer group">
-                          <input type="checkbox" checked={formData.uses_variant} onChange={e => handleUsesVariantChange(e.target.checked)} className="w-6 h-6 rounded-lg text-indigo-600 focus:ring-indigo-500 border-slate-300" />
-                          <span className="text-[13px] font-black text-slate-900 group-hover:text-indigo-600 transition-colors uppercase tracking-widest">Multi-Variant Pricing</span>
-                       </label>
-                       <label className="flex items-center gap-4 cursor-pointer group">
-                          <input type="checkbox" checked={formData.is_active} onChange={e => setFormData({...formData, is_active: e.target.checked})} className="w-6 h-6 rounded-lg text-emerald-600 focus:ring-emerald-500 border-slate-300" />
-                          <span className="text-[13px] font-black text-slate-900 group-hover:text-emerald-600 transition-colors uppercase tracking-widest">Mark Registry as Live</span>
-                       </label>
-                    </div>
-                 </form>
-              </div>
-
-              <div className="px-10 py-8 border-t border-slate-100 bg-slate-50/50 flex items-center justify-end gap-4">
-                 <button onClick={resetForm} className="px-8 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-600 transition-all">Discard</button>
-                 <button onClick={handleSubmit} disabled={materialSavePending} className="px-10 py-4 bg-slate-900 hover:bg-black text-white rounded-2xl text-[13px] font-black uppercase tracking-widest shadow-xl shadow-slate-900/10 transition-all">
-                    {materialSavePending ? 'Writing to Ledger...' : (editingMaterial ? 'Confirm Update' : 'Finalize Accession')}
-                 </button>
-              </div>
-           </div>
-        </div>
-      )}
-
-      {/* Column Settings Modal */}
-      {showColumnSettings && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
-          <div className="bg-white rounded-[32px] w-full max-w-md shadow-2xl overflow-hidden border border-slate-100 animate-in zoom-in-95 duration-200">
-             <div className="p-8 border-b border-slate-50 flex items-center justify-between bg-white/50 backdrop-blur-md sticky top-0 z-10">
-                <div className="flex items-center gap-3">
-                   <div className="w-10 h-10 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-600/20">
-                      <FilterIcon size={18} />
-                   </div>
-                   <div>
-                      <h3 className="text-xl font-black text-slate-900 leading-none">Custom Columns</h3>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1.5">Select columns to display in table</p>
-                   </div>
+      {showItemWorkspace && selectedMaterial && (
+        <div className="modal-overlay open" onClick={closeItemWorkspace}>
+          <div className="modal-content item-workspace-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="item-workspace-layout">
+              <div className="item-workspace-left">
+                <div className="item-workspace-left-head">
+                  <h3 style={{ margin: 0, fontSize: '14px' }}>All Materials</h3>
                 </div>
-                <button onClick={() => setShowColumnSettings(false)} className="p-2 hover:bg-slate-100 rounded-xl text-slate-400 transition-all"><CloseIcon size={20} /></button>
-             </div>
-             <div className="p-8 max-h-[60vh] overflow-y-auto custom-scrollbar">
-                <div className="grid grid-cols-1 gap-3">
-                   {ITEM_TABLE_COLUMNS.map((col) => {
-                      const isVisible = visibleColumns.includes(col.key);
-                      return (
-                        <label key={col.key} className={cn(
-                           "flex items-center justify-between p-4 rounded-2xl border-2 transition-all cursor-pointer group",
-                           isVisible 
-                             ? "bg-indigo-50/50 border-indigo-100 hover:border-indigo-200" 
-                             : "bg-white border-slate-50 hover:border-slate-100"
-                        )}>
-                           <div className="flex items-center gap-3">
-                              <div className={cn(
-                                "w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-all",
-                                isVisible ? "bg-indigo-600 border-indigo-600 text-white" : "border-slate-200 group-hover:border-indigo-400"
-                              )}>
-                                 {isVisible && <CheckIcon size={12} strokeWidth={4} />}
-                              </div>
-                              <span className={cn(
-                                 "text-[12px] font-black uppercase tracking-tight",
-                                 isVisible ? "text-indigo-900" : "text-slate-500"
-                              )}>
-                                 {col.label}
-                              </span>
-                           </div>
-                           <input 
-                             type="checkbox" 
-                             className="hidden" 
-                             checked={isVisible} 
-                             disabled={col.locked}
-                             onChange={() => toggleColumn(col.key)}
-                           />
-                           {col.locked && <span className="text-[8px] font-black text-indigo-400 uppercase tracking-[0.2em] bg-indigo-50 px-2 py-1 rounded-md">Locked</span>}
-                        </label>
-                      );
-                   })}
+                <div style={{ padding: '10px' }}>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="Search materials..."
+                    value={workspaceSearch}
+                    onChange={(e) => setWorkspaceSearch(e.target.value)}
+                  />
                 </div>
-             </div>
-             <div className="p-8 bg-slate-50 flex gap-4">
-                <button 
-                   onClick={() => setVisibleColumns(ITEM_TABLE_COLUMNS.filter(c => c.default).map(c => c.key))}
-                   className="flex-1 h-12 rounded-2xl border-2 border-slate-200 bg-white font-black text-[11px] uppercase tracking-widest text-slate-600 hover:bg-slate-50 transition-all"
-                >
-                   Reset Defaults
-                </button>
-                <button 
-                   onClick={() => setShowColumnSettings(false)}
-                   className="flex-1 h-12 rounded-2xl bg-slate-900 font-black text-[11px] uppercase tracking-widest text-white shadow-lg shadow-slate-900/10 hover:shadow-slate-900/20 active:scale-95 transition-all"
-                >
-                   Done
-                </button>
-             </div>
+                <div className="item-workspace-list">
+                  {workspaceMaterials.map((mat) => (
+                    <button
+                      key={mat.id}
+                      type="button"
+                      className={`item-workspace-list-row ${selectedMaterialId === mat.id ? 'active' : ''}`}
+                      onClick={() => {
+                        setSelectedMaterialId(mat.id);
+                        setActiveDetailTab('overview');
+                      }}
+                    >
+                      <span>{mat.display_name || mat.name}</span>
+                      <strong>{(stockData[mat.id] || 0).toFixed(2)}</strong>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="item-workspace-right">
+                <div className="item-details-head">
+                  <div>
+                    <h3 style={{ margin: 0 }}>{selectedMaterial.display_name || selectedMaterial.name}</h3>
+                    <div className="item-details-meta">
+                      Code: {selectedMaterial.item_code || '-'} | Category: {selectedMaterial.main_category || '-'} | Unit: {selectedMaterial.unit || '-'}
+                    </div>
+                  </div>
+                  <button className="btn btn-secondary" type="button" onClick={closeItemWorkspace}>Close</button>
+                </div>
+
+                <div className="item-mini-tabs">
+                  {ITEM_DETAIL_TABS.map((tab) => (
+                    <button
+                      key={tab.key}
+                      className={`item-mini-tab ${activeDetailTab === tab.key ? 'active' : ''}`}
+                      onClick={() => setActiveDetailTab(tab.key)}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="item-detail-content">
+                  {detailLoading && <div className="empty-state"><h3>Loading transactions...</h3></div>}
+                  {!detailLoading && detailError && (
+                    <div className="alert alert-error" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
+                      <span>{detailError}</span>
+                      <button type="button" className="btn btn-secondary" onClick={() => loadItemTransactions(selectedMaterial.id)}>
+                        Retry
+                      </button>
+                    </div>
+                  )}
+
+            {!detailLoading && !detailError && activeDetailTab === 'overview' && (
+              <div>
+                <div className="item-overview-grid">
+                  <div className="item-overview-stat">
+                    <div className="stat-label">Total Current Stock</div>
+                    <div className="stat-value">{overviewStats.totalStock.toFixed(2)}</div>
+                  </div>
+                  <div className="item-overview-stat">
+                    <div className="stat-label">Warehouses at Low Stock</div>
+                    <div className="stat-value">{overviewStats.lowStockWarehouses}</div>
+                  </div>
+                  <div className="item-overview-stat">
+                    <div className="stat-label">Linked Transactions</div>
+                    <div className="stat-value">{overviewStats.linkedTransactions}</div>
+                  </div>
+                  <div className="item-overview-stat">
+                    <div className="stat-label">Item Status</div>
+                    <div className="stat-value">{selectedMaterial.is_active === false ? 'Inactive' : 'Active'}</div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {!detailLoading && !detailError && activeDetailTab === 'warehouse' && (
+              itemTransactions.warehouseRows.length === 0 ? (
+                <div className="empty-state"><h3>No warehouse stock records</h3></div>
+              ) : (
+                <div className="table-container" style={{ overflowX: 'auto' }}>
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>Warehouse</th>
+                        <th>Variant</th>
+                        <th>Current Stock</th>
+                        <th>Low Stock Level</th>
+                        <th>Updated</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {itemTransactions.warehouseRows.map((row) => (
+                        <tr key={row.id}>
+                          <td>{row.warehouse}</td>
+                          <td>{row.variant}</td>
+                          <td>{row.current_stock.toFixed(2)}</td>
+                          <td>{row.low_stock_level.toFixed(2)}</td>
+                          <td>{formatDate(row.updated_at)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )
+            )}
+
+            {!detailLoading && !detailError && activeDetailTab === 'adjustments' && (
+              itemTransactions.adjustmentRows.length === 0 ? (
+                <div className="empty-state"><h3>No inward/rejection adjustments</h3></div>
+              ) : (
+                <div className="table-container" style={{ overflowX: 'auto' }}>
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>Type</th>
+                        <th>Source</th>
+                        <th>Doc No</th>
+                        <th>Date</th>
+                        <th>Party/Project</th>
+                        <th>Qty</th>
+                        <th>Remarks</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {itemTransactions.adjustmentRows.map((row) => (
+                        <tr key={row.id}>
+                          <td>{row.type}</td>
+                          <td>{row.source}</td>
+                          <td>{row.doc_no}</td>
+                          <td>{formatDate(row.txn_date)}</td>
+                          <td>{row.party}</td>
+                          <td style={{ color: row.qty < 0 ? '#b42318' : '#067647', fontWeight: 600 }}>
+                            {row.qty.toFixed(2)} {row.unit}
+                          </td>
+                          <td>{row.remarks}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )
+            )}
+
+            {!detailLoading && !detailError && activeDetailTab === 'quotation' && (
+              itemTransactions.quotationRows.length === 0 ? (
+                <div className="empty-state"><h3>No linked quotations</h3></div>
+              ) : (
+                <div className="table-container" style={{ overflowX: 'auto' }}>
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>Quotation No</th>
+                        <th>Date</th>
+                        <th>Client</th>
+                        <th>Status</th>
+                        <th>Qty</th>
+                        <th>Rate</th>
+                        <th>Line Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {itemTransactions.quotationRows.map((row) => (
+                        <tr key={row.id}>
+                          <td>{row.quotation_no}</td>
+                          <td>{formatDate(row.quote_date)}</td>
+                          <td>{row.client_name}</td>
+                          <td>{row.status}</td>
+                          <td>{row.qty.toFixed(2)} {row.uom}</td>
+                          <td>{formatCurrency(row.rate)}</td>
+                          <td>{formatCurrency(row.line_total)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )
+            )}
+
+            {!detailLoading && !detailError && activeDetailTab === 'invoice' && (
+              itemTransactions.invoiceRows.length === 0 ? (
+                <div className="empty-state"><h3>No invoice/debit/credit links found</h3></div>
+              ) : (
+                <div className="table-container" style={{ overflowX: 'auto' }}>
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>Type</th>
+                        <th>Document No</th>
+                        <th>Date</th>
+                        <th>Party</th>
+                        <th>Qty</th>
+                        <th>Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {itemTransactions.invoiceRows.map((row) => (
+                        <tr key={row.id}>
+                          <td>{row.type}</td>
+                          <td>{row.doc_no}</td>
+                          <td>{formatDate(row.doc_date)}</td>
+                          <td>{row.party}</td>
+                          <td>{Number(row.qty || 0).toFixed(2)}</td>
+                          <td>{formatCurrency(row.amount)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )
+            )}
+
+            {!detailLoading && !detailError && activeDetailTab === 'purchase' && (
+              itemTransactions.purchaseRows.length === 0 ? (
+                <div className="empty-state"><h3>No purchase records for this item</h3></div>
+              ) : (
+                <div className="table-container" style={{ overflowX: 'auto' }}>
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>Vendor</th>
+                        <th>Invoice No</th>
+                        <th>Purchase Date</th>
+                        <th>Qty</th>
+                        <th>Rate</th>
+                        <th>Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {itemTransactions.purchaseRows.map((row) => (
+                        <tr key={row.id}>
+                          <td>{row.vendor_name}</td>
+                          <td>{row.invoice_no}</td>
+                          <td>{formatDate(row.purchase_date)}</td>
+                          <td>{row.qty.toFixed(2)} {row.unit}</td>
+                          <td>{formatCurrency(row.rate)}</td>
+                          <td>{formatCurrency(row.amount)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )
+            )}
+
+            {!detailLoading && !detailError && activeDetailTab === 'audit' && (
+              itemTransactions.auditRows.length === 0 ? (
+                <div className="empty-state"><h3>No audit entries found</h3></div>
+              ) : (
+                <div className="table-container" style={{ overflowX: 'auto' }}>
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>When</th>
+                        <th>Action</th>
+                        <th>Details</th>
+                        <th>Changes</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {itemTransactions.auditRows.map((row) => (
+                        <tr key={row.id}>
+                          <td>{formatDate(row.created_at)}</td>
+                          <td>{row.action}</td>
+                          <td>{row.notes}</td>
+                          <td>
+                            {row.changes?.length
+                              ? row.changes.join(' | ')
+                              : '-'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )
+            )}
+
+            {!detailLoading && !detailError && activeDetailTab === 'challan' && (
+              itemTransactions.challanRows.length === 0 ? (
+                <div className="empty-state"><h3>No delivery challan records</h3></div>
+              ) : (
+                <div className="table-container" style={{ overflowX: 'auto' }}>
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>DC No</th>
+                        <th>Date</th>
+                        <th>Client</th>
+                        <th>Status</th>
+                        <th>Qty</th>
+                        <th>Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {itemTransactions.challanRows.map((row) => (
+                        <tr key={row.id}>
+                          <td>{row.dc_no}</td>
+                          <td>{formatDate(row.dc_date)}</td>
+                          <td>{row.client_name}</td>
+                          <td>{row.status}</td>
+                          <td>{row.qty.toFixed(2)} {row.unit}</td>
+                          <td>{formatCurrency(row.amount)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )
+            )}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}
 
-      {/* Bulk Price / Import Modals are already Tailwind-ified in components, but the triggers in this file use standard Div/State based overlays */}
-      
-      {/* Save Toast Notification */}
-      {saveNotice && (
-        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[200] animate-in slide-in-from-bottom-10 duration-500">
-           <div className="px-8 py-4 bg-slate-900 text-white rounded-2xl shadow-2xl flex items-center gap-4">
-              <CheckIcon size={20} className="text-emerald-400" />
-              <span className="text-[11px] font-black uppercase tracking-widest">{saveNotice}</span>
-           </div>
+      {showBulkPriceModal && (
+        <div className="modal-overlay open" onClick={closeBulkPriceModal}>
+          <div
+            className="modal-content bulk-price-modal"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: '980px', width: '94vw', background: '#fff' }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <h3 style={{ margin: 0 }}>Bulk Price Update</h3>
+              <button onClick={closeBulkPriceModal} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}>×</button>
+            </div>
+
+            <div className="alert" style={{ background: '#f8fafc', color: '#344054', border: '1px solid #eaecf0' }}>
+              Paste from Excel using tab-separated columns:
+              <strong> Item Code/Name | Sale Price | Purchase Price(optional)</strong>.
+              Header row is supported.
+            </div>
+
+            <textarea
+              className="form-textarea"
+              value={bulkPriceText}
+              onChange={(e) => setBulkPriceText(e.target.value)}
+              placeholder={'item_code\tsale_price\tpurchase_price\nITEM-001\t125.50\t90\nITEM-002\t330\t'}
+              style={{ minHeight: '130px', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}
+            />
+
+            <div style={{ display: 'flex', gap: '10px', marginTop: '10px', marginBottom: '12px' }}>
+              <button className="btn btn-secondary" type="button" onClick={parseBulkPriceRows} disabled={bulkInProgress}>
+                Preview Changes
+              </button>
+              <button className="btn btn-primary" type="button" onClick={applyBulkPriceUpdates} disabled={bulkInProgress || bulkPreviewRows.length === 0}>
+                {bulkInProgress ? 'Applying...' : `Apply ${bulkPreviewRows.length} Updates`}
+              </button>
+            </div>
+
+            {bulkParseErrors.length > 0 && (
+              <div className="alert alert-error" style={{ marginTop: '8px' }}>
+                {bulkParseErrors.map((err, idx) => (
+                  <div key={`parse-${idx}`}>{err}</div>
+                ))}
+              </div>
+            )}
+
+            {bulkApplyErrors.length > 0 && (
+              <div className="alert alert-error" style={{ marginTop: '8px' }}>
+                {bulkApplyErrors.map((err, idx) => (
+                  <div key={`apply-${idx}`}>{err}</div>
+                ))}
+              </div>
+            )}
+
+            {bulkPreviewRows.length > 0 && (
+              <div className="table-container" style={{ overflowX: 'auto', marginTop: '12px' }}>
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Row</th>
+                      <th>Item</th>
+                      <th>Item Code</th>
+                      <th>Current Sale</th>
+                      <th>New Sale</th>
+                      <th>Current Purchase</th>
+                      <th>New Purchase</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {bulkPreviewRows.map((row) => (
+                      <tr key={`bulk-${row.rowNo}-${row.item.id}`}>
+                        <td>{row.rowNo}</td>
+                        <td>{row.item.display_name || row.item.name}</td>
+                        <td>{row.item.item_code || '-'}</td>
+                        <td>{formatCurrencyOrDash(row.item.sale_price)}</td>
+                        <td>{formatCurrency(row.nextSale)}</td>
+                        <td>{formatCurrencyOrDash(row.item.purchase_price)}</td>
+                        <td>{formatCurrencyOrDash(row.nextPurchase)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </div>
       )}
-    </div>
-  );
-}
 
-function MaterialsList() {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const activeTab = useMemo(() => getMaterialsTabFromSearch(location.search), [location.search]);
+      <BulkImportModal
+        open={showBulkImportModal}
+        onClose={() => setShowBulkImportModal(false)}
+        materials={materials}
+        warehouses={warehouses}
+        onSuccess={() => {
+          refreshMaterials();
+          setSaveNotice('Bulk import completed successfully');
+        }}
+      />
 
-  const handleTabChange = (tab: string) => {
-    navigate(`?tab=${tab}`);
-  };
-
-  const tabs = [
-    { id: 'items', label: 'Items Material', icon: InventoryIcon },
-    { id: 'service', label: 'Service', icon: ServiceIcon },
-    { id: 'category', label: 'Categories', icon: CategoryIcon },
-    { id: 'unit', label: 'Units', icon: UnitIcon },
-    { id: 'warehouses', label: 'Warehouses', icon: WarehouseIcon },
-  ];
-
-  return (
-    <div className="flex flex-col h-screen overflow-hidden bg-slate-50">
-      {/* Top Tab Bar */}
-      <div className="bg-white border-b border-slate-100 px-8 flex-shrink-0 flex items-center justify-between">
-        <div className="flex items-center gap-1">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            const active = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => handleTabChange(tab.id)}
-                className={cn(
-                  "flex items-center gap-3 px-6 py-5 text-[11px] font-black uppercase tracking-[0.2em] transition-all relative border-b-2",
-                  active 
-                    ? "text-indigo-600 border-indigo-600 bg-indigo-50/30" 
-                    : "text-slate-400 border-transparent hover:text-slate-600 hover:bg-slate-50"
-                )}
-              >
-                <Icon size={16} />
-                {tab.label}
+      {deleteTarget && (
+        <div className="modal-overlay open" onClick={closeDeleteModal}>
+          <div className="modal-content item-delete-modal" onClick={(e) => e.stopPropagation()}>
+            <h3 style={{ marginTop: 0, marginBottom: '8px' }}>Delete Item</h3>
+            <p style={{ margin: '0 0 16px 0', color: '#475467' }}>
+              Are you sure you want to delete <strong>{deleteTarget.display_name || deleteTarget.name}</strong>?
+              If this item is already linked with transactions, it will be archived instead of hard delete.
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <button className="btn btn-secondary" type="button" onClick={closeDeleteModal} disabled={deleteInProgress}>Cancel</button>
+              <button className="btn btn-primary" type="button" onClick={confirmDeleteMaterial} disabled={deleteInProgress}>
+                {deleteInProgress ? 'Processing...' : 'Confirm Delete'}
               </button>
-            );
-          })}
+            </div>
+          </div>
         </div>
-      </div>
+      )}
+      {showForm && (
+        <div
+          className="modal-overlay open"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) resetForm();
+          }}
+        >
+          <div className="modal-content item-modal" onClick={e => e.stopPropagation()} style={{ width: '92vw', maxWidth: '1100px', maxHeight: '92vh', overflowY: 'auto', background: '#fff' }}>
+            <div className="modal-header">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                <div>
+                  <div className="modal-title">{editingMaterial ? 'Edit Item' : 'Add Item'}</div>
+                  <div className="item-modal-subtitle">Fast, compact details for quotation, purchase, and inventory.</div>
+                </div>
+                <button type="button" onClick={resetForm} className="item-modal-close" aria-label="Close">
+                  {'\u00D7'}
+                </button>
+              </div>
+            </div>
 
-      <div className="flex-1 overflow-hidden">
-        {activeTab === 'items' && <ItemsTab />}
-        {activeTab === 'service' && <ServiceTab />}
-        {activeTab === 'category' && <CategoryTab />}
-        {activeTab === 'unit' && <UnitTab />}
-        {activeTab === 'warehouses' && <WarehouseTab />}
-        {activeTab === 'variants' && <ItemsTab />} {/* Fallback or specific variants view if needed */}
-      </div>
-    </div>
+            <div className="modal-body">
+            <form onSubmit={handleSubmit}>
+              <div className="item-form-section">
+                <div className="item-form-section-header">
+                  <h4 className="item-form-section-title">Basic Information</h4>
+                  <span className="item-form-section-hint">Required</span>
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">Item Name *</label>
+                    <input type="text" className="form-input" value={formData.item_name} onChange={e => setFormData({...formData, item_name: e.target.value, display_name: e.target.value})} required />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Display Name (for Quotation)</label>
+                    <input type="text" className="form-input" value={formData.display_name} onChange={e => setFormData({...formData, display_name: e.target.value})} placeholder="Name shown in quotations" />
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">Item Code</label>
+                    <input type="text" className="form-input" value={formData.item_code} onChange={e => setFormData({...formData, item_code: e.target.value})} placeholder="Auto-generated if empty" />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Main Category</label>
+                      <select className="form-select" value={formData.main_category} onChange={e => setFormData({...formData, main_category: e.target.value})}>
+                        <option value="">Select Category</option>
+                        {categoryOptions.map((categoryName) => (
+                          <option key={categoryName} value={categoryName}>{categoryName}</option>
+                        ))}
+                      </select>
+                  </div>
+                </div>
+              </div>
+
+              <div className="item-form-section">
+                <div className="item-form-section-header">
+                  <h4 className="item-form-section-title">Technical Attributes</h4>
+                  <span className="item-form-section-hint">Internal use</span>
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">Size</label>
+                    <input type="text" className="form-input" value={formData.size} onChange={e => setFormData({...formData, size: e.target.value})} placeholder="e.g., 25mm, 1 inch" />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Pressure Class</label>
+                    <input type="text" className="form-input" value={formData.pressure_class} onChange={e => setFormData({...formData, pressure_class: e.target.value})} placeholder="e.g., PN16, Class 150" />
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">MAKE(Brand name)</label>
+                    <input type="text" className="form-input" value={formData.make} onChange={e => setFormData({...formData, make: e.target.value})} placeholder="Brand name" />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Material</label>
+                    <input type="text" className="form-input" value={formData.material} onChange={e => setFormData({...formData, material: e.target.value})} placeholder="e.g., SS304, CI, PVC" />
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">End Connection</label>
+                    <input type="text" className="form-input" value={formData.end_connection} onChange={e => setFormData({...formData, end_connection: e.target.value})} placeholder="e.g., Threaded, Flanged, Solder" />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Sub Category</label>
+                    <input type="text" className="form-input" value={formData.sub_category} onChange={e => setFormData({...formData, sub_category: e.target.value})} />
+                  </div>
+                </div>
+              </div>
+
+              <div className="item-form-section">
+                <div className="item-form-section-header">
+                  <h4 className="item-form-section-title">Commercial</h4>
+                  <span className="item-form-section-hint">Pricing + GST</span>
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">Unit</label>
+                    <select className="form-select" value={formData.unit} onChange={e => setFormData({...formData, unit: e.target.value})}>
+                      {units.length > 0 ? units.map(u => (<option key={u.unit_code} value={u.unit_code}>{u.unit_name} ({u.unit_code})</option>)) : <option value="nos">Nos</option>}
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">HSN/SAC Code</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      inputMode="numeric"
+                      maxLength={10}
+                      placeholder="Numeric only (max 10 digits)"
+                      value={formData.hsn_code}
+                      onChange={e => setFormData({...formData, hsn_code: e.target.value.replace(/\D/g, '').slice(0, 10)})}
+                    />
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">GST Rate (%)</label>
+                    <select className="form-select" value={formData.gst_rate} onChange={e => setFormData({...formData, gst_rate: parseFloat(e.target.value)})}>
+                      {GST_RATES.map(rate => (<option key={rate.value} value={rate.value}>{rate.label}</option>))}
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Sale Price</label>
+                    <input 
+                      type="number" 
+                      className="form-input" 
+                      value={formData.uses_variant ? '0' : formData.sale_price} 
+                      onChange={e => setFormData({...formData, sale_price: e.target.value})} 
+                      step="0.01" 
+                      disabled={formData.uses_variant}
+                    />
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">Purchase Price</label>
+                    <input type="number" className="form-input" value={formData.purchase_price} onChange={e => setFormData({...formData, purchase_price: e.target.value})} step="0.01" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="item-form-section">
+                <div className="item-form-section-header">
+                  <h4 className="item-form-section-title">Inventory Tracking</h4>
+                  <span className="item-form-section-hint">Optional</span>
+                </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                      <input type="checkbox" checked={formData.track_inventory} onChange={e => setFormData({...formData, track_inventory: e.target.checked})} />
+                      Track Inventory (Warehouse Specific)
+                    </label>
+                  </div>
+                </div>
+                {formData.track_inventory && (
+                  <div style={{ marginTop: '10px' }}>
+                    {(() => {
+                      const activeVariantIds = formData.uses_variant 
+                        ? Array.from(new Set(variantPricing.map(p => p.company_variant_id || 'no_variant')))
+                        : ['no_variant'];
+                      
+                      return activeVariantIds.map(vId => {
+                        const vName = vId === 'no_variant' ? (formData.uses_variant ? 'No Variant' : 'Standard Inventory') : variants.find(v => v.id === vId)?.variant_name || 'Unknown Variant';
+                        return (
+                          <div key={vId} style={{ marginBottom: '12px' }}>
+                            {formData.uses_variant && <h5 style={{ color: '#555', marginBottom: '6px' }}>{vName} Integration</h5>}
+                            <table className="table" style={{ background: '#fff', fontSize: '13px' }}>
+                              <thead>
+                                <tr>
+                                  <th>Warehouse</th>
+                                  <th>"Not in this warehouse"</th>
+                                  <th>Opening Stock</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {warehouses.map(wh => {
+                                  const key = `${wh.id}_${vId}`;
+                                  // For a new entry row, state might be undefined, fallback exclude to false so they can submit stock. However, during edit if we fetched records and didn't find one, we implicitly excluded it.
+                                  const ws = warehouseStock[key] || { exclude: !!editingMaterial, current_stock: 0 };
+                                  return (
+                                    <tr key={wh.id} style={{ opacity: ws.exclude ? 0.6 : 1 }}>
+                                      <td>{wh.warehouse_name || wh.name || wh.warehouse_code}</td>
+                                      <td>
+                                        <input 
+                                          type="checkbox" 
+                                          checked={ws.exclude} 
+                                          onChange={e => setWarehouseStock({...warehouseStock, [key]: { ...ws, exclude: e.target.checked }})}
+                                        />
+                                      </td>
+                                      <td>
+                                        <input 
+                                          type="number" 
+                                          className="form-input" 
+                                          style={{ padding: '4px 8px', height: 'auto' }}
+                                          value={ws.current_stock}
+                                          onChange={e => setWarehouseStock({...warehouseStock, [key]: { ...ws, current_stock: parseFloat(e.target.value) || 0 }})}
+                                          disabled={ws.exclude}
+                                          step="0.01"
+                                        />
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+                )}
+              </div>
+
+              <div className="item-form-section">
+                <div className="item-form-section-header">
+                  <h4 className="item-form-section-title">Variants & Status</h4>
+                  <span className="item-form-section-hint">Optional</span>
+                </div>
+
+                <div className="item-toggle-row">
+                  <label className="item-checkbox-row">
+                    <input
+                      type="checkbox"
+                      checked={formData.is_active}
+                      onChange={e => setFormData({ ...formData, is_active: e.target.checked })}
+                    />
+                    Active
+                  </label>
+
+                  <label className="item-checkbox-row">
+                    <input
+                      type="checkbox"
+                      checked={formData.uses_variant}
+                      onChange={e => {
+                        const checked = e.target.checked;
+                        if (editingMaterial) {
+                          handleUsesVariantChange(checked);
+                        } else {
+                          setFormData({
+                            ...formData,
+                            uses_variant: checked,
+                            sale_price: checked ? '0' : formData.sale_price
+                          });
+                          if (checked && variantPricing.length === 0) {
+                            addVariantPricingRow();
+                          }
+                        }
+                      }}
+                    />
+                    This item uses Variant
+                  </label>
+                </div>
+
+                <p className="item-form-helper">
+                  {formData.uses_variant
+                    ? 'Prices will be set per variant below. At least one variant price is required before saving.'
+                    : 'Enable to set different prices for different variants (Retail, Wholesale, Special, etc.)'}
+                </p>
+              </div>
+
+              {formData.uses_variant && (
+                <div className="item-form-section">
+                  <div className="item-form-section-header">
+                    <div>
+                      <h4 className="item-form-section-title">Variant Pricing</h4>
+                      <div className="item-form-section-hint">By variant &amp; make (brand)</div>
+                    </div>
+                    <button type="button" className="btn btn-sm btn-primary" onClick={addVariantPricingRow}>+ Add Row</button>
+                  </div>
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>Variant</th>
+                        <th>MAKE (Brand)</th>
+                        <th>Sale Price</th>
+                        <th>Purchase Price</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {variantPricing.map((row) => (
+                        <tr key={row.id}>
+                          <td>
+                            <select 
+                              className="form-select" 
+                              value={row.company_variant_id || ''} 
+                              onChange={e => handleVariantPricingRowChange(row.id, 'company_variant_id', e.target.value)}
+                            >
+                              <option value="">No Variant</option>
+                              {variants.filter(v => v.variant_name !== 'No Variant').map(v => (
+                                <option key={v.id} value={v.id}>{v.variant_name}</option>
+                              ))}
+                            </select>
+                          </td>
+                          <td>
+                            <input 
+                              type="text" 
+                              className="form-input"
+                              value={row.make || ''}
+                              onChange={e => handleVariantPricingRowChange(row.id, 'make', e.target.value)}
+                              placeholder="e.g. Brand A"
+                            />
+                          </td>
+                          <td>
+                            <input 
+                              type="number" 
+                              className="form-input"
+                              value={row.sale_price || ''}
+                              onChange={e => handleVariantPricingRowChange(row.id, 'sale_price', e.target.value)}
+                              placeholder="0.00"
+                              step="0.01"
+                            />
+                          </td>
+                          <td>
+                            <input 
+                              type="number" 
+                              className="form-input"
+                              value={row.purchase_price || ''}
+                              onChange={e => handleVariantPricingRowChange(row.id, 'purchase_price', e.target.value)}
+                              placeholder="0.00"
+                              step="0.01"
+                            />
+                          </td>
+                          <td>
+                            <button type="button" className="btn btn-sm btn-secondary" onClick={() => removeVariantPricingRow(row.id)}>Remove</button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {variantPricing.length === 0 && (
+                    <p style={{ color: '#dc3545', fontSize: '12px', marginTop: '8px' }}>At least one pricing row is required when using variants.</p>
+                  )}
+                </div>
+              )}
+
+              <div className="item-form-footer">
+                <button type="submit" className="btn btn-primary" disabled={materialSavePending}>
+                  {materialSavePending ? 'Saving...' : (editingMaterial ? 'Update Item' : 'Save Item')}
+                </button>
+                <button type="button" className="btn btn-secondary" onClick={resetForm} disabled={materialSavePending}>
+                  Cancel
+                </button>
+              </div>
+            </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Excel Edit Mode - Field Selector Dialog */}
+      {showFieldSelector && (
+        <div className="modal-overlay open" onClick={() => setShowFieldSelector(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '900px', maxHeight: '90vh', overflow: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2 style={{ margin: 0 }}>Select Fields to Edit</h2>
+              <button onClick={() => setShowFieldSelector(false)} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}>×</button>
+            </div>
+            <FieldSelector 
+              warehouses={warehouses}
+              selectedFields={selectedEditFields}
+              onChange={setSelectedEditFields}
+            />
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '20px' }}>
+              <button className="btn btn-secondary" onClick={() => setShowFieldSelector(false)}>Cancel</button>
+              <button 
+                className="btn btn-primary" 
+                onClick={() => {
+                  setShowFieldSelector(false);
+                  setExcelEditMode(true);
+                }}
+                disabled={selectedEditFields.length === 0}
+              >
+                Start Excel Edit Mode
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Excel Editor Mode */}
+      {excelEditMode && (
+        <div className="modal-overlay open" style={{ alignItems: 'flex-start', paddingTop: '20px' }}>
+          <div 
+            className="modal-content" 
+            onClick={e => e.stopPropagation()} 
+            style={{ 
+              maxWidth: '98vw', 
+              width: '98vw', 
+              maxHeight: '95vh', 
+              height: '95vh',
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+          >
+            <ExcelEditor
+              materials={materials}
+              warehouses={warehouses}
+              selectedFields={selectedEditFields}
+              onSave={async (changes) => {
+                const nowIso = new Date().toISOString();
+                for (const change of changes) {
+                  const fieldMapping = {
+                    'Sale Price': 'sale_price',
+                    'Purchase Price': 'purchase_price',
+                    'Display Name': 'display_name',
+                    'Category': 'main_category',
+                    'Sub Category': 'sub_category',
+                    'Size': 'size',
+                    'L×W×H': 'size_lwh',
+                    'Pressure': 'pressure_class',
+                    'Make': 'make',
+                    'Material': 'material',
+                    'Connection': 'end_connection',
+                    'Unit': 'unit',
+                    'HSN': 'hsn_code',
+                    'GST%': 'gst_rate',
+                    'Part #': 'part_number',
+                    'Taxable': 'taxable',
+                    'Weight': 'weight',
+                    'UPC': 'upc',
+                    'MPN': 'mpn',
+                    'EAN': 'ean',
+                    'Inv Account': 'inventory_account',
+                    'Active': 'is_active',
+                    'Uses Variant': 'uses_variant',
+                    'Low Stock': 'low_stock_level',
+                  };
+                  
+                  if (change.field.startsWith('Stock:')) {
+                    const whName = change.field.replace('Stock: ', '');
+                    const warehouse = warehouses.find(w => (w.warehouse_name || w.name) === whName);
+                    if (warehouse) {
+                      const { data: existingStock } = await supabase
+                        .from('item_stock')
+                        .select('id')
+                        .eq('item_id', change.itemId)
+                        .eq('warehouse_id', warehouse.id)
+                        .maybeSingle();
+                      
+                      if (existingStock) {
+                        await supabase.from('item_stock').update({ current_stock: change.newValue, updated_at: nowIso }).eq('id', existingStock.id);
+                      } else {
+                        await supabase.from('item_stock').insert({ item_id: change.itemId, warehouse_id: warehouse.id, current_stock: change.newValue, created_at: nowIso, updated_at: nowIso });
+                      }
+                    }
+                  } else {
+                    const dbField = fieldMapping[change.field];
+                    if (dbField) {
+                      await supabase.from('materials').update({ [dbField]: change.newValue, updated_at: nowIso }).eq('id', change.itemId);
+                    }
+                  }
+                  
+                  await supabase.from('item_audit_logs').insert({
+                    item_id: change.itemId,
+                    action: 'BULK_EXCEL_UPDATE',
+                    notes: `Field "${change.field}" changed from "${change.oldValue}" to "${change.newValue}" via Excel Edit Mode`,
+                    changes: JSON.stringify([{ field: change.field, old_value: change.oldValue, new_value: change.newValue }]),
+                    created_at: nowIso,
+                  });
+                }
+                await queryClient.invalidateQueries({ queryKey: ['materials'] });
+              }}
+              onCancel={() => setExcelEditMode(false)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Excel Import Field Selector */}
+      {showExcelImportFieldSelector && (
+        <div className="modal-overlay open" onClick={() => setShowExcelImportFieldSelector(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '900px', maxHeight: '90vh', overflow: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2 style={{ margin: 0 }}>Select Fields for Import Template</h2>
+              <button onClick={() => setShowExcelImportFieldSelector(false)} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}>×</button>
+            </div>
+            <Alert severity="info" sx={{ mb: 2 }}>
+              Select the fields you want to edit. Only selected fields will be included in the download template and editable during upload.
+            </Alert>
+            <FieldSelector 
+              warehouses={warehouses}
+              selectedFields={excelImportFields}
+              onChange={setExcelImportFields}
+            />
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '20px' }}>
+              <button className="btn btn-secondary" onClick={() => setShowExcelImportFieldSelector(false)}>Cancel</button>
+              <button 
+                className="btn btn-primary" 
+                onClick={() => {
+                  generateSelectiveTemplate(excelImportFields);
+                  setShowExcelImportFieldSelector(false);
+                }}
+                disabled={excelImportFields.length === 0}
+              >
+                Download Template
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </Box>
   );
 }
-
-// ---- Sub-Tab Components (Placeholders to be filled) ----
 
 function ServiceTab() {
-  const { data: pageData, isLoading, refetch } = useMaterialsPageData();
+  const { data: allMaterials = [], isLoading: loading } = useMaterials();
+  const services = useMemo(() => allMaterials.filter(m => m.item_type === 'service'), [allMaterials]);
+  const [showForm, setShowForm] = useState(false);
+  const [editingService, setEditingService] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
-  
-  const services = useMemo(() => {
-    const list = (pageData?.materials ?? []).filter(m => m.item_type === 'service');
-    if (!searchTerm) return list;
-    const q = searchTerm.toLowerCase();
-    return list.filter(s => 
-      (s.name || '').toLowerCase().includes(q) || 
-      (s.display_name || '').toLowerCase().includes(q) ||
-      (s.item_code || '').toLowerCase().includes(q)
-    );
-  }, [pageData, searchTerm]);
 
-  if (isLoading) {
-    return (
-      <div className="flex-1 flex flex-col items-center justify-center bg-white p-20">
-         <div className="w-16 h-16 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-         <p className="mt-6 text-sm font-black text-slate-400 uppercase tracking-[0.2em] animate-pulse">Syncing Services...</p>
-      </div>
-    );
-  }
+  const [formData, setFormData] = useState({
+    service_code: '', service_name: '', description: '', unit: 'nos',
+    sale_price: '', purchase_price: '', hsn_code: '', tax_rate: 18, is_active: true
+  });
+
+  const generateServiceCode = () => 'SVC-' + Date.now().toString(36).toUpperCase();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const data = {
+      item_code: formData.service_code || generateServiceCode(),
+      name: formData.service_name,
+      display_name: formData.service_name,
+      description: formData.description || null,
+      unit: formData.unit,
+      sale_price: formData.sale_price ? parseFloat(formData.sale_price) : null,
+      purchase_price: formData.purchase_price ? parseFloat(formData.purchase_price) : null,
+      hsn_code: formData.hsn_code || null,
+      gst_rate: formData.tax_rate ? parseFloat(formData.tax_rate) : null,
+      is_active: formData.is_active,
+      item_type: 'service',
+      uses_variant: false
+    };
+    try {
+      if (editingService) {
+        const { error } = await supabase.from('materials').update({ ...data, updated_at: new Date().toISOString() }).eq('id', editingService.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from('materials').insert(data);
+        if (error) throw error;
+      }
+      resetForm();
+    } catch (err) {
+      alert('Error saving service: ' + err.message);
+    }
+  };
+
+  const resetForm = () => {
+    setShowForm(false);
+    setEditingService(null);
+    setFormData({ service_code: '', service_name: '', description: '', unit: 'nos', sale_price: '', purchase_price: '', hsn_code: '', tax_rate: 18, is_active: true });
+  };
+
+  const editService = (service) => {
+    setEditingService(service);
+    setFormData({
+      service_code: service.item_code || '',
+      service_name: service.name || '',
+      description: service.description || '',
+      unit: service.unit || 'nos',
+      sale_price: service.sale_price || '',
+      purchase_price: service.purchase_price || '',
+      hsn_code: service.hsn_code || '',
+      tax_rate: service.gst_rate || 18,
+      is_active: service.is_active !== false
+    });
+    setShowForm(true);
+  };
+
+  const deleteService = async (id) => {
+    if (confirm('Delete this service?')) {
+      await supabase.from('materials').delete().eq('id', id);
+    }
+  };
+
+  const filteredServices = services.filter(s => s.name?.toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
-    <div className="flex flex-col h-full overflow-hidden bg-slate-50">
-      <div className="bg-white border-b border-slate-100 p-8 flex-shrink-0">
-        <div className="flex items-center justify-between gap-6">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-[20px] bg-slate-900 flex items-center justify-center text-white shadow-xl shadow-slate-900/20">
-              <ServiceIcon className="w-7 h-7" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-black text-slate-900 tracking-tight leading-none">Service Registry</h1>
-              <p className="mt-2 text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">{services.length} Active Services</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-             <div className="relative group w-80">
-                <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-indigo-600" />
-                <input 
-                  type="text" 
-                  placeholder="Search services..." 
-                  value={searchTerm}
-                  onChange={e => setSearchTerm(e.target.value)}
-                  className="w-full h-12 pl-12 pr-4 bg-slate-50 border-2 border-slate-50 rounded-2xl outline-none group-focus-within:bg-white group-focus-within:border-indigo-600 transition-all font-bold text-slate-600 text-[13px]"
-                />
-             </div>
-             <button className="h-12 px-8 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-lg shadow-indigo-600/10 transition-all flex items-center gap-2">
-                <AddIcon size={16} /> Add Service
-             </button>
-          </div>
-        </div>
+    <div>
+      <div className="page-header">
+        <h1 className="page-title">Services</h1>
+        <button className="btn btn-primary" onClick={() => setShowForm(true)}>+ Add Service</button>
       </div>
 
-      <div className="flex-1 overflow-hidden p-8 pt-0">
-        <div className="h-full border border-slate-100 rounded-[32px] overflow-hidden bg-white shadow-sm flex flex-col">
-          <div className="flex-1 overflow-auto">
-            <table className="w-full text-left border-collapse">
-              <thead className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur-md">
-                <tr>
-                  <th className="px-8 py-5 font-black text-slate-400 uppercase tracking-widest text-[10px]">Service Details</th>
-                  <th className="px-8 py-5 font-black text-slate-400 uppercase tracking-widest text-[10px]">Reference Code</th>
-                  <th className="px-8 py-5 font-black text-slate-400 uppercase tracking-widest text-[10px]">UOM</th>
-                  <th className="px-8 py-5 font-black text-slate-400 uppercase tracking-widest text-[10px]">Price (SAC)</th>
-                  <th className="px-8 py-5 font-black text-slate-400 uppercase tracking-widest text-[10px] text-center">Status</th>
-                  <th className="px-8 py-5"></th>
+      <div className="card" style={{ marginBottom: '16px' }}>
+        <input type="text" className="form-input" placeholder="Search services..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ maxWidth: '300px' }} />
+      </div>
+
+      <div className="card">
+        {loading ? (
+          <div style={{ padding: '40px', textAlign: 'center' }}>Loading services...</div>
+        ) : filteredServices.length === 0 ? <div className="empty-state"><h3>No Services Found</h3></div> : (
+          <table className="table">
+            <thead><tr><th>Service Code</th><th>Service Name</th><th>Unit</th><th>Sale Price</th><th>HSN/SAC</th><th>Active</th><th>Actions</th></tr></thead>
+            <tbody>
+              {filteredServices.map(s => (
+                <tr key={s.id} style={{ opacity: s.is_active === false ? 0.5 : 1 }}>
+                  <td>{s.item_code}</td><td><strong>{s.name}</strong></td><td>{s.unit}</td><td>₹{s.sale_price || '-'}</td><td>{s.hsn_code || '-'}</td><td>{s.is_active ? '✓' : '✗'}</td>
+                  <td><button className="btn btn-sm btn-secondary" onClick={() => editService(s)}>Edit</button><button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px' }} onClick={() => deleteService(s.id)}>Delete</button></td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                {services.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="p-32 text-center">
-                      <div className="flex flex-col items-center gap-4 opacity-30">
-                        <ServiceIcon className="w-20 h-20 text-slate-200" />
-                        <h3 className="text-2xl font-black text-slate-900">No Services Found</h3>
-                      </div>
-                    </td>
-                  </tr>
-                ) : (
-                  services.map(s => (
-                    <tr key={s.id} className="group hover:bg-slate-50/50 transition-colors">
-                      <td className="px-8 py-5">
-                        <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-sm">
-                            <ServiceIcon size={18} />
-                          </div>
-                          <div className="flex flex-col">
-                            <span className="font-black text-slate-800 uppercase text-[12px] tracking-tight">{s.display_name || s.name}</span>
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{s.main_category || 'General Service'}</span>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-8 py-5 font-bold text-slate-500 text-[11px] uppercase tracking-widest">{s.item_code || '-'}</td>
-                      <td className="px-8 py-5 font-bold text-slate-400 text-[11px] uppercase tracking-widest">{s.unit || 'nos'}</td>
-                      <td className="px-8 py-5">
-                        <div className="flex flex-col">
-                           <span className="font-black text-slate-900 text-[12px]">{formatCurrencyOrDash(s.sale_price)}</span>
-                           <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">SAC: {s.hsn_code || '---'}</span>
-                        </div>
-                      </td>
-                      <td className="px-8 py-5">
-                        <div className="flex justify-center">
-                          <span className={cn(
-                            "px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border",
-                            s.is_active !== false ? "bg-emerald-50 text-emerald-700 border-emerald-100" : "bg-slate-50 text-slate-400 border-slate-100"
-                          )}>
-                            {s.is_active !== false ? 'Live' : 'Inactive'}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-8 py-5 text-right">
-                         <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all">
-                            <button className="p-2 hover:bg-white rounded-lg text-amber-600 shadow-sm border border-transparent hover:border-amber-100"><EditIcon size={16} /></button>
-                            <button className="p-2 hover:bg-white rounded-lg text-rose-600 shadow-sm border border-transparent hover:border-rose-100"><DeleteIcon size={16} /></button>
-                         </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {showForm && (
+        <div className="modal-overlay open" onClick={resetForm}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2>{editingService ? 'Edit Service' : 'Add Service'}</h2>
+              <button onClick={resetForm} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}>×</button>
+            </div>
+            <form onSubmit={handleSubmit}>
+              <div className="form-row">
+                <div className="form-group"><label className="form-label">Service Name *</label><input type="text" className="form-input" value={formData.service_name} onChange={e => setFormData({...formData, service_name: e.target.value})} required /></div>
+                <div className="form-group"><label className="form-label">Service Code</label><input type="text" className="form-input" value={formData.service_code} onChange={e => setFormData({...formData, service_code: e.target.value})} /></div>
+              </div>
+              <div className="form-row">
+                <div className="form-group"><label className="form-label">Unit</label><input type="text" className="form-input" value={formData.unit} onChange={e => setFormData({...formData, unit: e.target.value})} /></div>
+                <div className="form-group"><label className="form-label">HSN/SAC</label><input type="text" className="form-input" value={formData.hsn_code} onChange={e => setFormData({...formData, hsn_code: e.target.value})} /></div>
+              </div>
+              <div className="form-row">
+                <div className="form-group"><label className="form-label">Sale Price</label><input type="number" className="form-input" value={formData.sale_price} onChange={e => setFormData({...formData, sale_price: e.target.value})} step="0.01" /></div>
+                <div className="form-group"><label className="form-label">Purchase Price</label><input type="number" className="form-input" value={formData.purchase_price} onChange={e => setFormData({...formData, purchase_price: e.target.value})} step="0.01" /></div>
+              </div>
+              <div className="form-group"><label className="form-label">Description</label><textarea className="form-textarea" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} /></div>
+              <div className="form-group"><label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><input type="checkbox" checked={formData.is_active} onChange={e => setFormData({...formData, is_active: e.target.checked})} /> Active</label></div>
+              <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}><button type="submit" className="btn btn-primary">{editingService ? 'Update' : 'Save'}</button><button type="button" className="btn btn-secondary" onClick={resetForm}>Cancel</button></div>
+            </form>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
 
 function CategoryTab() {
-  const { data: pageData, isLoading } = useMaterialsPageData();
-  const categories = pageData?.categories ?? [];
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [editingCategory, setEditingCategory] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
-  if (isLoading) return <LoadingPlaceholder label="Categories" />;
+  const [formData, setFormData] = useState({ category_name: '', description: '', is_active: true });
+
+  useEffect(() => { loadCategories(); }, []);
+
+  const loadCategories = async () => {
+    setLoading(true);
+    try {
+      const { data } = await supabase.from('item_categories').select('*').order('category_name');
+      setCategories(data || []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      if (editingCategory) {
+        const { error } = await supabase.from('item_categories').update(formData).eq('id', editingCategory.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from('item_categories').insert(formData);
+        if (error) throw error;
+      }
+      resetForm();
+      loadCategories();
+    } catch (err) {
+      alert('Error saving category: ' + err.message);
+    }
+  };
+
+  const resetForm = () => { setShowForm(false); setEditingCategory(null); setFormData({ category_name: '', description: '', is_active: true }); };
+
+  const editCategory = (cat) => { setEditingCategory(cat); setFormData({ category_name: cat.category_name, description: cat.description || '', is_active: cat.is_active !== false }); setShowForm(true); };
+  const deleteCategory = async (id) => { if (confirm('Delete this category?')) { await supabase.from('item_categories').delete().eq('id', id); loadCategories(); }};
+
+  const filteredCategories = categories.filter(c => c.category_name?.toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
-    <RegistryLayout 
-      title="Category Registry" 
-      icon={CategoryIcon} 
-      count={categories.length}
-      onAdd={() => {}}
-      addButtonLabel="Add Category"
-    >
-      <table className="w-full text-left border-collapse">
-        <thead className="bg-slate-50/95 sticky top-0 z-10">
-          <tr>
-            <th className="px-8 py-5 font-black text-slate-400 uppercase tracking-widest text-[10px]">Category Name</th>
-            <th className="px-8 py-5 font-black text-slate-400 uppercase tracking-widest text-[10px]">Hsn/Sac Default</th>
-            <th className="px-8 py-5 font-black text-slate-400 uppercase tracking-widest text-[10px] text-center">Status</th>
-            <th className="px-8 py-5"></th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-50">
-          {categories.map(c => (
-            <tr key={c.id} className="group hover:bg-slate-50/50 transition-colors">
-              <td className="px-8 py-5 font-black text-slate-700 uppercase text-[12px] tracking-tight">{c.category_name}</td>
-              <td className="px-8 py-5 font-bold text-slate-400 text-[11px] uppercase tracking-widest">{c.hsn_sac_code || '---'}</td>
-              <td className="px-8 py-5 text-center">
-                <span className="px-3 py-1 bg-emerald-50 text-emerald-700 text-[9px] font-black uppercase tracking-widest rounded-full border border-emerald-100">Active</span>
-              </td>
-              <td className="px-8 py-5 text-right opacity-0 group-hover:opacity-100 transition-all">
-                <button className="p-2 text-slate-400 hover:text-indigo-600"><EditIcon size={16} /></button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </RegistryLayout>
+    <div>
+      <div className="page-header"><h1 className="page-title">Categories</h1><button className="btn btn-primary" onClick={() => setShowForm(true)}>+ Add Category</button></div>
+      <div className="card" style={{ marginBottom: '16px' }}><input type="text" className="form-input" placeholder="Search categories..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ maxWidth: '300px' }} /></div>
+      <div className="card">
+        {loading ? (
+          <div style={{ padding: '40px', textAlign: 'center' }}>Loading categories...</div>
+        ) : filteredCategories.length === 0 ? <div className="empty-state"><h3>No Categories Found</h3></div> : (
+          <table className="table">
+            <thead><tr><th>Category Name</th><th>Description</th><th>Active</th><th>Actions</th></tr></thead>
+            <tbody>{filteredCategories.map(c => (<tr key={c.id} style={{ opacity: c.is_active === false ? 0.5 : 1 }}><td><strong>{c.category_name}</strong></td><td>{c.description || '-'}</td><td>{c.is_active ? '✓' : '✗'}</td><td><button className="btn btn-sm btn-secondary" onClick={() => editCategory(c)}>Edit</button><button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px' }} onClick={() => deleteCategory(c.id)}>Delete</button></td></tr>))}</tbody>
+          </table>
+        )}
+      </div>
+      {showForm && (
+        <div className="modal-overlay open" onClick={resetForm}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}><h2>{editingCategory ? 'Edit Category' : 'Add Category'}</h2><button onClick={resetForm} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}>×</button></div>
+            <form onSubmit={handleSubmit}>
+              <div className="form-group"><label className="form-label">Category Name *</label><input type="text" className="form-input" value={formData.category_name} onChange={e => setFormData({...formData, category_name: e.target.value})} required /></div>
+              <div className="form-group"><label className="form-label">Description</label><textarea className="form-textarea" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} /></div>
+              <div className="form-group"><label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><input type="checkbox" checked={formData.is_active} onChange={e => setFormData({...formData, is_active: e.target.checked})} /> Active</label></div>
+              <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}><button type="submit" className="btn btn-primary">{editingCategory ? 'Update' : 'Save'}</button><button type="button" className="btn btn-secondary" onClick={resetForm}>Cancel</button></div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
 function UnitTab() {
-  const { data: pageData, isLoading } = useMaterialsPageData();
-  const units = pageData?.units ?? [];
+  const { data: units = [], isLoading: loading } = useUnits();
+  const [showForm, setShowForm] = useState(false);
+  const [editingUnit, setEditingUnit] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
-  if (isLoading) return <LoadingPlaceholder label="Units" />;
+  const [formData, setFormData] = useState({ unit_name: '', unit_code: '', description: '', is_active: true });
 
-  return (
-    <RegistryLayout 
-      title="Unit of Measurement" 
-      icon={UnitIcon} 
-      count={units.length}
-      onAdd={() => {}}
-      addButtonLabel="Add unit"
-    >
-      <table className="w-full text-left border-collapse">
-        <thead className="bg-slate-50/95 sticky top-0 z-10">
-          <tr>
-            <th className="px-8 py-5 font-black text-slate-400 uppercase tracking-widest text-[10px]">Short Code</th>
-            <th className="px-8 py-5 font-black text-slate-400 uppercase tracking-widest text-[10px]">Full Name</th>
-            <th className="px-8 py-5 font-black text-slate-400 uppercase tracking-widest text-[10px] text-center">Status</th>
-            <th className="px-8 py-5"></th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-50">
-          {units.map(u => (
-            <tr key={u.id} className="group hover:bg-slate-50/50 transition-colors">
-              <td className="px-8 py-5"><span className="px-4 py-2 bg-slate-900 text-white font-black text-[11px] rounded-lg tracking-widest uppercase">{u.unit_code}</span></td>
-              <td className="px-8 py-5 font-bold text-slate-700 text-[12px] uppercase tracking-tight">{u.unit_name}</td>
-              <td className="px-8 py-5 text-center">
-                <span className="px-3 py-1 bg-emerald-50 text-emerald-700 text-[9px] font-black uppercase tracking-widest rounded-full border border-emerald-100">Live</span>
-              </td>
-              <td className="px-8 py-5 text-right opacity-0 group-hover:opacity-100 transition-all">
-                <button className="p-2 text-slate-400 hover:text-indigo-600"><EditIcon size={16} /></button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </RegistryLayout>
-  );
-}
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      if (editingUnit) {
+        const { error } = await supabase.from('item_units').update(formData).eq('id', editingUnit.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from('item_units').insert(formData);
+        if (error) throw error;
+      }
+      resetForm();
+    } catch (err) {
+      alert('Error saving unit: ' + err.message);
+    }
+  };
 
-function WarehouseTab() {
-  const { data: pageData, isLoading } = useMaterialsPageData();
-  const warehouses = pageData?.warehouses ?? [];
+  const resetForm = () => { setShowForm(false); setEditingUnit(null); setFormData({ unit_name: '', unit_code: '', description: '', is_active: true }); };
 
-  if (isLoading) return <LoadingPlaceholder label="Storage" />;
+  const editUnit = (unit) => { setEditingUnit(unit); setFormData({ unit_name: unit.unit_name, unit_code: unit.unit_code, description: unit.description || '', is_active: unit.is_active !== false }); setShowForm(true); };
+  const deleteUnit = async (id) => { if (confirm('Delete this unit?')) { await supabase.from('item_units').delete().eq('id', id); }};
+
+  const filteredUnits = units.filter(u => u.unit_name?.toLowerCase().includes(searchTerm.toLowerCase()) || u.unit_code?.toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
-    <RegistryLayout 
-      title="Warehouse Locations" 
-      icon={WarehouseIcon} 
-      count={warehouses.length}
-      onAdd={() => {}}
-      addButtonLabel="New Warehouse"
-    >
-      <table className="w-full text-left border-collapse">
-        <thead className="bg-slate-50/95 sticky top-0 z-10">
-          <tr>
-            <th className="px-8 py-5 font-black text-slate-400 uppercase tracking-widest text-[10px]">Location Name</th>
-            <th className="px-8 py-5 font-black text-slate-400 uppercase tracking-widest text-[10px]">Contact Sync</th>
-            <th className="px-8 py-5 font-black text-slate-400 uppercase tracking-widest text-[10px] text-center">Status</th>
-            <th className="px-8 py-5"></th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-50">
-          {warehouses.map(w => (
-            <tr key={w.id} className="group hover:bg-slate-50/50 transition-colors">
-              <td className="px-8 py-5">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-2xl bg-slate-900 flex items-center justify-center text-white"><WarehouseIcon size={18} /></div>
-                  <div className="flex flex-col">
-                    <span className="font-black text-slate-800 uppercase text-[12px] tracking-tight">{w.warehouse_name}</span>
-                    <span className="text-[9px] font-bold text-slate-400">{w.contact_name || 'No Contact Assigned'}</span>
-                  </div>
-                </div>
-              </td>
-              <td className="px-8 py-5 font-bold text-slate-500 text-[11px] uppercase tracking-widest">{w.phone_number || '---'}</td>
-              <td className="px-8 py-5 text-center">
-                <span className="px-3 py-1 bg-emerald-50 text-emerald-700 text-[9px] font-black uppercase tracking-widest rounded-full border border-emerald-100">Operational</span>
-              </td>
-              <td className="px-8 py-5 text-right opacity-0 group-hover:opacity-100 transition-all">
-                <button className="p-2 text-slate-400 hover:text-indigo-600"><EditIcon size={16} /></button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </RegistryLayout>
-  );
-}
-
-// ---- Common Helper Components for Tabs ----
-
-function LoadingPlaceholder({ label }: { label: string }) {
-  return (
-    <div className="flex-1 flex flex-col items-center justify-center bg-white p-20">
-       <div className="w-16 h-16 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-       <p className="mt-6 text-sm font-black text-slate-400 uppercase tracking-[0.2em] animate-pulse italic">Syncing {label} Registry...</p>
+    <div>
+      <div className="page-header"><h1 className="page-title">Units</h1><button className="btn btn-primary" onClick={() => setShowForm(true)}>+ Add Unit</button></div>
+      <div className="card" style={{ marginBottom: '16px' }}><input type="text" className="form-input" placeholder="Search units..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ maxWidth: '300px' }} /></div>
+      <div className="card">
+        {loading ? (
+          <div style={{ padding: '40px', textAlign: 'center' }}>Loading units...</div>
+        ) : filteredUnits.length === 0 ? <div className="empty-state"><h3>No Units Found</h3></div> : (
+          <table className="table">
+            <thead><tr><th>Unit Name</th><th>Unit Code</th><th>Description</th><th>Active</th><th>Actions</th></tr></thead>
+            <tbody>{filteredUnits.map(u => (<tr key={u.id} style={{ opacity: u.is_active === false ? 0.5 : 1 }}><td><strong>{u.unit_name}</strong></td><td>{u.unit_code}</td><td>{u.description || '-'}</td><td>{u.is_active ? '✓' : '✗'}</td><td><button className="btn btn-sm btn-secondary" onClick={() => editUnit(u)}>Edit</button><button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px' }} onClick={() => deleteUnit(u.id)}>Delete</button></td></tr>))}</tbody>
+          </table>
+        )}
+      </div>
+      {showForm && (
+        <div className="modal-overlay open" onClick={resetForm}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}><h2>{editingUnit ? 'Edit Unit' : 'Add Unit'}</h2><button onClick={resetForm} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}>×</button></div>
+            <form onSubmit={handleSubmit}>
+              <div className="form-row">
+                <div className="form-group"><label className="form-label">Unit Name *</label><input type="text" className="form-input" value={formData.unit_name} onChange={e => setFormData({...formData, unit_name: e.target.value})} required /></div>
+                <div className="form-group"><label className="form-label">Unit Code *</label><input type="text" className="form-input" value={formData.unit_code} onChange={e => setFormData({...formData, unit_code: e.target.value})} required /></div>
+              </div>
+              <div className="form-group"><label className="form-label">Description</label><textarea className="form-textarea" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} /></div>
+              <div className="form-group"><label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><input type="checkbox" checked={formData.is_active} onChange={e => setFormData({...formData, is_active: e.target.checked})} /> Active</label></div>
+              <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}><button type="submit" className="btn btn-primary">{editingUnit ? 'Update' : 'Save'}</button><button type="button" className="btn btn-secondary" onClick={resetForm}>Cancel</button></div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function RegistryLayout({ title, icon: Icon, count, onAdd, addButtonLabel, children }: { 
-  title: string; 
-  icon: any; 
-  count: number; 
-  onAdd: () => void; 
-  addButtonLabel: string;
-  children: React.ReactNode;
-}) {
+function WarehousesTab() {
+  const { data: warehouses = [], isLoading: loading } = useWarehouses();
+  const [showForm, setShowForm] = useState(false);
+  const [editingWarehouse, setEditingWarehouse] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const [formData, setFormData] = useState({ warehouse_code: '', warehouse_name: '', location: '', is_default: false, is_active: true });
+
+  const generateWarehouseCode = () => 'WH-' + Date.now().toString(36).toUpperCase();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const data = {
+      warehouse_code: formData.warehouse_code || generateWarehouseCode(),
+      warehouse_name: formData.warehouse_name,
+      location: formData.location || null,
+      is_default: formData.is_default,
+      is_active: formData.is_active,
+    };
+    
+    if (formData.is_default) {
+      await supabase.from('warehouses').update({ is_default: false }).eq('is_default', true);
+    }
+    
+    if (editingWarehouse) {
+      await supabase.from('warehouses').update({ ...data, updated_at: new Date().toISOString() }).eq('id', editingWarehouse.id);
+    } else {
+      await supabase.from('warehouses').insert(data);
+    }
+    resetForm();
+  };
+
+  const resetForm = () => { setShowForm(false); setEditingWarehouse(null); setFormData({ warehouse_code: '', warehouse_name: '', location: '', is_default: false, is_active: true }); };
+
+  const editWarehouse = (w) => { setEditingWarehouse(w); setFormData({ warehouse_code: w.warehouse_code || '', warehouse_name: w.warehouse_name, location: w.location || '', is_default: w.is_default || false, is_active: w.is_active !== false }); setShowForm(true); };
+  const deleteWarehouse = async (id) => { if (confirm('Delete this warehouse?')) { await supabase.from('warehouses').delete().eq('id', id); }};
+
+  const filteredWarehouses = warehouses.filter(w => w.warehouse_name?.toLowerCase().includes(searchTerm.toLowerCase()) || w.warehouse_code?.toLowerCase().includes(searchTerm.toLowerCase()));
+
   return (
-    <div className="flex flex-col h-full overflow-hidden bg-slate-50">
-      <div className="bg-white border-b border-slate-100 p-8 flex-shrink-0">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-[20px] bg-slate-900 flex items-center justify-center text-white shadow-xl shadow-slate-900/20">
-              <Icon className="w-7 h-7" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-black text-slate-900 tracking-tight leading-none uppercase">{title}</h1>
-              <p className="mt-2 text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">{count} Total Entries</p>
-            </div>
-          </div>
-          <button 
-            onClick={onAdd}
-            className="h-12 px-8 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-black text-[11px] uppercase tracking-widest shadow-lg shadow-indigo-600/10 transition-all flex items-center gap-2"
-          >
-            <AddIcon size={16} /> {addButtonLabel}
-          </button>
-        </div>
+    <div>
+      <div className="page-header"><h1 className="page-title">Warehouses</h1><button className="btn btn-primary" onClick={() => setShowForm(true)}>+ Add Warehouse</button></div>
+      <div className="card" style={{ marginBottom: '16px' }}><input type="text" className="form-input" placeholder="Search warehouses..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ maxWidth: '300px' }} /></div>
+      <div className="card">
+        {loading ? (
+          <div style={{ padding: '40px', textAlign: 'center' }}>Loading warehouses...</div>
+        ) : filteredWarehouses.length === 0 ? <div className="empty-state"><h3>No Warehouses Found</h3></div> : (
+          <table className="table">
+            <thead><tr><th>Warehouse Code</th><th>Warehouse Name</th><th>Location</th><th>Default</th><th>Active</th><th>Actions</th></tr></thead>
+            <tbody>{filteredWarehouses.map(w => (<tr key={w.id} style={{ opacity: w.is_active === false ? 0.5 : 1 }}><td>{w.warehouse_code}</td><td><strong>{w.warehouse_name || w.name}</strong></td><td>{w.location || '-'}</td><td>{w.is_default ? '✓' : '-'}</td><td>{w.is_active ? '✓' : '✗'}</td><td><button className="btn btn-sm btn-secondary" onClick={() => editWarehouse(w)}>Edit</button><button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px' }} onClick={() => deleteWarehouse(w.id)}>Delete</button></td></tr>))}</tbody>
+          </table>
+        )}
       </div>
-      <div className="flex-1 overflow-hidden p-8 pt-0">
-        <div className="h-full border border-slate-100 rounded-[32px] overflow-hidden bg-white shadow-sm flex flex-col">
-          <div className="flex-1 overflow-auto">
-            {children}
+      {showForm && (
+        <div className="modal-overlay open" onClick={resetForm}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}><h2>{editingWarehouse ? 'Edit Warehouse' : 'Add Warehouse'}</h2><button onClick={resetForm} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}>×</button></div>
+            <form onSubmit={handleSubmit}>
+              <div className="form-row">
+                <div className="form-group"><label className="form-label">Warehouse Name *</label><input type="text" className="form-input" value={formData.warehouse_name} onChange={e => setFormData({...formData, warehouse_name: e.target.value})} required /></div>
+                <div className="form-group"><label className="form-label">Warehouse Code</label><input type="text" className="form-input" value={formData.warehouse_code} onChange={e => setFormData({...formData, warehouse_code: e.target.value})} placeholder="Auto-generated if empty" /></div>
+              </div>
+              <div className="form-group"><label className="form-label">Location</label><input type="text" className="form-input" value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})} /></div>
+              <div className="form-group"><label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><input type="checkbox" checked={formData.is_default} onChange={e => setFormData({...formData, is_default: e.target.checked})} /> Set as Default Warehouse</label></div>
+              <div className="form-group"><label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><input type="checkbox" checked={formData.is_active} onChange={e => setFormData({...formData, is_active: e.target.checked})} /> Active</label></div>
+              <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}><button type="submit" className="btn btn-primary">{editingWarehouse ? 'Update' : 'Save'}</button><button type="button" className="btn btn-secondary" onClick={resetForm}>Cancel</button></div>
+            </form>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
 
-export default memo(MaterialsList);
+function VariantsTab() {
+  const { data: variants = [], isLoading: loading } = useVariants();
+  const [showForm, setShowForm] = useState(false);
+  const [editingVariant, setEditingVariant] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const [formData, setFormData] = useState({ variant_name: '', is_active: true });
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (editingVariant) {
+      await supabase.from('company_variants').update({ ...formData, updated_at: new Date().toISOString() }).eq('id', editingVariant.id);
+    } else {
+      await supabase.from('company_variants').insert(formData);
+    }
+    resetForm();
+  };
+
+  const resetForm = () => { setShowForm(false); setEditingVariant(null); setFormData({ variant_name: '', is_active: true }); };
+
+  const editVariant = (v) => { setEditingVariant(v); setFormData({ variant_name: v.variant_name, is_active: v.is_active !== false }); setShowForm(true); };
+  const deleteVariant = async (id) => { if (confirm('Delete this variant? This may affect existing pricing.')) { await supabase.from('company_variants').delete().eq('id', id); }};
+
+  const filteredVariants = variants.filter(v => v.variant_name?.toLowerCase().includes(searchTerm.toLowerCase()));
+
+  return (
+    <div>
+      <div className="page-header"><h1 className="page-title">Inventory Variants</h1><button className="btn btn-primary" onClick={() => setShowForm(true)}>+ Add Variant</button></div>
+      <div className="card" style={{ marginBottom: '16px' }}>
+        <p style={{ color: '#666', marginBottom: '10px' }}>Variants represent different commercial contexts (e.g., Retail, Wholesale, Export). Each item can have different pricing per variant.</p>
+        <input type="text" className="form-input" placeholder="Search variants..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ maxWidth: '300px' }} />
+      </div>
+      <div className="card">
+        {loading ? (
+          <div style={{ padding: '40px', textAlign: 'center' }}>Loading variants...</div>
+        ) : filteredVariants.length === 0 ? <div className="empty-state"><h3>No Variants Found</h3></div> : (
+          <table className="table">
+            <thead><tr><th>Variant Name</th><th>Active</th><th>Created</th><th>Actions</th></tr></thead>
+            <tbody>{filteredVariants.map(v => (<tr key={v.id} style={{ opacity: v.is_active === false ? 0.5 : 1 }}><td><strong>{v.variant_name}</strong></td><td>{v.is_active ? '✓' : '✗'}</td><td>{v.created_at ? new Date(v.created_at).toLocaleDateString() : '-'}</td><td><button className="btn btn-sm btn-secondary" onClick={() => editVariant(v)}>Edit</button><button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px' }} onClick={() => deleteVariant(v.id)}>Delete</button></td></tr>))}</tbody>
+          </table>
+        )}
+      </div>
+      {showForm && (
+        <div className="modal-overlay open" onClick={resetForm}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}><h2>{editingVariant ? 'Edit Variant' : 'Add Variant'}</h2><button onClick={resetForm} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}>×</button></div>
+            <form onSubmit={handleSubmit}>
+              <div className="form-group"><label className="form-label">Variant Name *</label><input type="text" className="form-input" value={formData.variant_name} onChange={e => setFormData({...formData, variant_name: e.target.value})} placeholder="e.g., Retail, Wholesale, Export" required /></div>
+              <div className="form-group"><label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><input type="checkbox" checked={formData.is_active} onChange={e => setFormData({...formData, is_active: e.target.checked})} /> Active</label></div>
+              <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}><button type="submit" className="btn btn-primary">{editingVariant ? 'Update' : 'Save'}</button><button type="button" className="btn btn-secondary" onClick={resetForm}>Cancel</button></div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Helper function to generate template with selected fields
+function generateSelectiveTemplate(selectedFields: string[]) {
+  const columns = [
+    { key: 'item_code', label: 'Item Code' },
+    { key: 'name', label: 'Item Name' },
+    ...selectedFields.map(field => {
+      if (field.startsWith('stock_')) {
+        return { key: field, label: field };
+      }
+      const colDef = [
+        { key: 'display_name', label: 'Display Name' },
+        { key: 'main_category', label: 'Main Category' },
+        { key: 'sub_category', label: 'Sub Category' },
+        { key: 'size', label: 'Size' },
+        { key: 'size_lwh', label: 'Size (L x W x H)' },
+        { key: 'pressure_class', label: 'Pressure Class' },
+        { key: 'make', label: 'Make/Brand' },
+        { key: 'material', label: 'Material' },
+        { key: 'end_connection', label: 'End Connection' },
+        { key: 'unit', label: 'Unit' },
+        { key: 'sale_price', label: 'Sale Price' },
+        { key: 'purchase_price', label: 'Purchase Price' },
+        { key: 'hsn_code', label: 'HSN/SAC Code' },
+        { key: 'gst_rate', label: 'GST Rate (%)' },
+        { key: 'part_number', label: 'Part Number' },
+        { key: 'taxable', label: 'Taxable Status' },
+        { key: 'weight', label: 'Weight' },
+        { key: 'upc', label: 'UPC' },
+        { key: 'mpn', label: 'MPN' },
+        { key: 'ean', label: 'EAN' },
+        { key: 'inventory_account', label: 'Inventory Account' },
+        { key: 'is_active', label: 'Is Active' },
+        { key: 'low_stock_level', label: 'Low Stock Level' },
+      ].find(c => c.key === field);
+      return colDef || { key: field, label: field };
+    }),
+  ].filter(Boolean);
+  
+  const headers = columns.map(c => c.label);
+  const sampleRow = columns.map(c => {
+    switch (c.key) {
+      case 'item_code': return 'ITEM-001';
+      case 'name': return 'Sample Item';
+      case 'display_name': return 'Sample Display Name';
+      case 'main_category': return 'VALVE';
+      case 'sale_price': return '1250.00';
+      case 'purchase_price': return '980.00';
+      case 'gst_rate': return '18';
+      case 'is_active': return 'true';
+      default: return '';
+    }
+  });
+  
+  const content = [headers.join('\t'), sampleRow.join('\t')].join('\n');
+  const blob = new Blob([content], { type: 'text/tab-separated-values' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'selective_item_template.txt';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+export default function MaterialsList() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const activeTab = useMemo(() => getMaterialsTabFromSearch(location.search), [location.search]);
+
+  const changeTab = (tab) => {
+    navigate(`/store/materials?tab=${tab}`);
+  };
+
+  return (
+    <div>
+      <div style={{ borderBottom: '1px solid #ddd', marginBottom: '20px', display: 'flex', gap: '0px' }}>
+        <TabButton active={activeTab === 'items'} onClick={() => changeTab('items')}>Items</TabButton>
+        <TabButton active={activeTab === 'service'} onClick={() => changeTab('service')}>Service</TabButton>
+        <TabButton active={activeTab === 'category'} onClick={() => changeTab('category')}>Category</TabButton>
+        <TabButton active={activeTab === 'unit'} onClick={() => changeTab('unit')}>Unit</TabButton>
+        <TabButton active={activeTab === 'warehouses'} onClick={() => changeTab('warehouses')}>Warehouses</TabButton>
+        <TabButton active={activeTab === 'variants'} onClick={() => changeTab('variants')}>Inventory Variants</TabButton>
+      </div>
+
+      {activeTab === 'items' && <ItemsTab />}
+      {activeTab === 'service' && <ServiceTab />}
+      {activeTab === 'category' && <CategoryTab />}
+      {activeTab === 'unit' && <UnitTab />}
+      {activeTab === 'warehouses' && <WarehousesTab />}
+      {activeTab === 'variants' && <VariantsTab />}
+    </div>
+  );
+}
+

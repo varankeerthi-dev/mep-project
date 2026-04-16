@@ -164,7 +164,6 @@ export default function TemplateSettings() {
         print: { style: 'default' }
       }
     },
-    /*
     {
       template_name: 'Tally Template',
       template_code: 'QTN_TALLY',
@@ -273,7 +272,6 @@ export default function TemplateSettings() {
         print: { style: 'pro_grid' }
       }
     }
-    */
   ];
 
   const seedBuiltInTemplates = async () => {
