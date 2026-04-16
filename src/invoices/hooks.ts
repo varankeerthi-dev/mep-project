@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '../App';
 import {
   createInvoice,
   getInvoiceById,
@@ -53,9 +54,11 @@ export function useInvoice(id?: string) {
 }
 
 export function useInvoices(filters: InvoiceFilters = {}) {
+  const { organisation } = useAuth();
   return useQuery({
-    queryKey: invoiceKeys.list(filters),
-    queryFn: () => getInvoices(filters),
+    queryKey: invoiceKeys.list({ ...filters, organisationId: organisation?.id }),
+    queryFn: () => getInvoices({ ...filters, organisationId: organisation?.id }),
+    enabled: !!organisation?.id,
   });
 }
 

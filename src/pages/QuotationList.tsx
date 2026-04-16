@@ -267,11 +267,12 @@ export default function QuotationList() {
   };
 
   const quotationsQuery = useQuery({
-    queryKey: ['quotations', statusFilter],
+    queryKey: ['quotations', statusFilter, organisation?.id],
     queryFn: async () => {
       let query = supabase
         .from('quotation_header')
         .select(`*, client:clients(id, client_name, gstin, state), project:projects(id, project_name)`)
+        .eq('organisation_id', organisation?.id)
         .order('created_at', { ascending: false });
 
       if (statusFilter !== 'All') query = query.eq('status', statusFilter);
@@ -285,6 +286,7 @@ export default function QuotationList() {
           : q
       );
     },
+    enabled: !!organisation?.id,
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
     refetchOnWindowFocus: false,

@@ -269,7 +269,7 @@ export async function getInvoiceById(id: string): Promise<InvoiceWithRelations> 
 }
 
 export async function getInvoices(filters: InvoiceFilters = {}): Promise<InvoiceWithRelations[]> {
-  let query = supabase.from('invoices').select(INVOICE_SELECT).order('created_at', { ascending: false });
+  let query = supabase.from('invoices').select(INVOICE_SELECT).eq('organisation_id', filters.organisationId).order('created_at', { ascending: false });
 
   if (filters.clientId) query = query.eq('client_id', filters.clientId);
   if (filters.status) query = query.eq('status', filters.status);
