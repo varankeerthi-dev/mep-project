@@ -181,8 +181,9 @@ async function ensureClientState(clientId: string, fallbackState?: string | null
   return data?.state ?? null;
 }
 
-export async function createInvoice(input: InvoiceInput): Promise<InvoiceWithRelations> {
+export async function createInvoice(input: InvoiceInput & { organisation_id: string }): Promise<InvoiceWithRelations> {
   const parsed = InvoiceSchema.parse(input);
+  const organisationId = input.organisation_id;
   const clientState = await ensureClientState(parsed.client_id, parsed.client_state);
   const validated = InvoiceSchema.parse({
     ...parsed,
@@ -193,7 +194,7 @@ export async function createInvoice(input: InvoiceInput): Promise<InvoiceWithRel
   let invoiceId: string | null = null;
 
   try {
-    const { data: inserted, error } = await supabase.from('invoices').insert(invoiceRow).select('id').single();
+    const { data: inserted, error } = await supabase.from('invoices').insert({ ...invoiceRow, organisation_id: organisationId }).select('id').single();
     if (error) throw error;
     invoiceId = inserted.id;
     const insertedInvoiceId = inserted.id as string;
@@ -201,18 +202,18 @@ export async function createInvoice(input: InvoiceInput): Promise<InvoiceWithRel
     if (itemRows.length > 0) {
       const { error: itemError } = await supabase
         .from('invoice_items')
-        .insert(itemRows.map((item) => ({ ...item, invoice_id: insertedInvoiceId })));
+        .insert(itemRows.map((item) => ({ ...item, invoice_id: insertedInvoiceId, organisation_id: organisationId })));
       if (itemError) throw itemError;
     }
 
     if (materialRows.length > 0) {
       const { error: materialError } = await supabase
         .from('invoice_materials')
-        .insert(materialRows.map((material) => ({ ...material, invoice_id: insertedInvoiceId })));
+        .insert(materialRows.map((material) => ({ ...material, invoice_id: insertedInvoiceId, organisation_id: organisationId })));
       if (materialError) throw materialError;
     }
 
-    return getInvoiceById(insertedInvoiceId);
+    return getInvoiceById(insertedInvoiceId, organisationId);
   } catch (error) {
     if (invoiceId) {
       await supabase.from('invoices').delete().eq('id', invoiceId);
@@ -221,7 +222,7 @@ export async function createInvoice(input: InvoiceInput): Promise<InvoiceWithRel
   }
 }
 
-export async function updateInvoice(id: string, input: InvoiceInput): Promise<InvoiceWithRelations> {
+export async function updateInvoice(id: string, input: InvoiceInput & { organisation_id: string }): Promise<InvoiceWithRelations> {
   const parsed = InvoiceSchema.parse({
     ...input,
     id,
@@ -247,22 +248,26 @@ export async function updateInvoice(id: string, input: InvoiceInput): Promise<In
   if (itemRows.length > 0) {
     const { error: itemError } = await supabase
       .from('invoice_items')
-      .insert(itemRows.map((item) => ({ ...item, invoice_id: id })));
+      .insert(itemRows.map((item) => ({ ...item, invoice_id: id, organisation_id: input.organisation_id })));
     if (itemError) throw itemError;
   }
 
   if (materialRows.length > 0) {
     const { error: materialError } = await supabase
       .from('invoice_materials')
-      .insert(materialRows.map((material) => ({ ...material, invoice_id: id })));
+      .insert(materialRows.map((material) => ({ ...material, invoice_id: id, organisation_id: input.organisation_id })));
     if (materialError) throw materialError;
   }
 
-  return getInvoiceById(id);
+  return getInvoiceById(id, input.organisation_id);
 }
 
-export async function getInvoiceById(id: string): Promise<InvoiceWithRelations> {
-  const { data, error } = await supabase.from('invoices').select(INVOICE_SELECT).eq('id', id).single();
+export async function getInvoiceById(id: string, organisationId?: string): Promise<InvoiceWithRelations> {
+  let query = supabase.from('invoices').select(INVOICE_SELECT).eq('id', id);
+  if (organisationId) {
+    query = query.eq('organisation_id', organisationId);
+  }
+  const { data, error } = await query.single();
 
   if (error) throw error;
   return parseInvoiceRecord(data);
@@ -283,11 +288,16 @@ export async function getInvoices(filters: InvoiceFilters = {}): Promise<Invoice
   return (data ?? []).map(parseInvoiceRecord);
 }
 
-export async function getInvoiceTemplates(): Promise<InvoiceTemplateRecord[]> {
-  const { data, error } = await supabase
+export async function getInvoiceTemplates(organisationId?: string): Promise<InvoiceTemplateRecord[]> {
+  let query = supabase
     .from('invoice_templates')
-    .select('id, name, layout_json, created_at')
-    .order('created_at', { ascending: true });
+    .select('id, name, layout_json, created_at');
+    
+  if (organisationId) {
+    query = query.eq('organisation_id', organisationId);
+  }
+
+  const { data, error } = await query.order('created_at', { ascending: true });
 
   if (error) throw error;
 
@@ -302,7 +312,7 @@ export async function getInvoiceTemplates(): Promise<InvoiceTemplateRecord[]> {
   }));
 }
 
-async function resolveClientFromChallan(clientName: string, fallbackState?: string | null): Promise<{
+async function resolveClientFromChallan(clientName: string, organisationId: string, fallbackState?: string | null): Promise<{
   clientId: string;
   clientState: string | null;
 }> {
@@ -310,6 +320,7 @@ async function resolveClientFromChallan(clientName: string, fallbackState?: stri
     .from('clients')
     .select('id, state')
     .eq('name', clientName)
+    .eq('organisation_id', organisationId)
     .maybeSingle();
 
   if (error) throw error;
@@ -325,6 +336,7 @@ async function resolveClientFromChallan(clientName: string, fallbackState?: stri
 
 async function enrichHsnCodes<T extends { product_id?: string | null; item_id?: string | null }>(
   lines: T[],
+  organisationId: string,
 ): Promise<Map<string, string | null>> {
   const ids = Array.from(
     new Set(
@@ -336,18 +348,23 @@ async function enrichHsnCodes<T extends { product_id?: string | null; item_id?: 
 
   if (ids.length === 0) return new Map();
 
-  const { data, error } = await supabase.from('materials').select('id, hsn_code').in('id', ids);
+  const { data, error } = await supabase
+    .from('materials')
+    .select('id, hsn_code')
+    .eq('organisation_id', organisationId)
+    .in('id', ids);
   if (error) throw error;
 
   return new Map((data ?? []).map((item) => [item.id, item.hsn_code ?? null]));
 }
 
-export async function loadInvoiceSource(sourceType: InvoiceSourceType, sourceId: string): Promise<InvoiceSourceDocument> {
+export async function loadInvoiceSource(sourceType: InvoiceSourceType, sourceId: string, organisationId: string): Promise<InvoiceSourceDocument> {
   if (sourceType === 'quotation') {
     const { data: header, error: headerError } = await supabase
       .from('quotation_header')
       .select('id, client_id, state, reference')
       .eq('id', sourceId)
+      .eq('organisation_id', organisationId)
       .single();
     if (headerError) throw headerError;
 
@@ -357,7 +374,7 @@ export async function loadInvoiceSource(sourceType: InvoiceSourceType, sourceId:
       .eq('quotation_id', sourceId);
     if (itemError) throw itemError;
 
-    const hsnById = await enrichHsnCodes(items ?? []);
+    const hsnById = await enrichHsnCodes(items ?? [], organisationId);
 
     const source: QuotationInvoiceSource = {
       type: 'quotation',
@@ -387,13 +404,14 @@ export async function loadInvoiceSource(sourceType: InvoiceSourceType, sourceId:
       .from('delivery_challans')
       .select('id, client_name, dc_number, ship_to_state, po_no, remarks')
       .eq('id', sourceId)
+      .eq('organisation_id', organisationId)
       .single();
     if (headerError) throw headerError;
     if (!header.client_name) {
       throw new Error('Delivery challan is missing client_name and cannot be invoiced.');
     }
 
-    const resolvedClient = await resolveClientFromChallan(header.client_name, header.ship_to_state ?? null);
+    const resolvedClient = await resolveClientFromChallan(header.client_name, organisationId, header.ship_to_state ?? null);
 
     const { data: items, error: itemError } = await supabase
       .from('delivery_challan_items')
@@ -401,7 +419,7 @@ export async function loadInvoiceSource(sourceType: InvoiceSourceType, sourceId:
       .eq('delivery_challan_id', sourceId);
     if (itemError) throw itemError;
 
-    const hsnById = await enrichHsnCodes((items ?? []).map((item) => ({ product_id: item.material_id ?? null })));
+    const hsnById = await enrichHsnCodes((items ?? []).map((item) => ({ product_id: item.material_id ?? null })), organisationId);
 
     const source: ChallanInvoiceSource = {
       type: 'challan',
@@ -432,6 +450,7 @@ export async function loadInvoiceSource(sourceType: InvoiceSourceType, sourceId:
     .from('client_purchase_orders')
     .select('id, client_id, po_number, po_total_value, remarks')
     .eq('id', sourceId)
+    .eq('organisation_id', organisationId)
     .single();
   if (headerError) throw headerError;
 
@@ -461,8 +480,9 @@ export async function loadInvoiceSource(sourceType: InvoiceSourceType, sourceId:
 export async function mapInvoiceSourceToDraft(
   sourceType: InvoiceSourceType,
   sourceId: string,
+  organisationId: string,
   options: InvoiceSourceMapOptions = {},
 ): Promise<Invoice> {
-  const source = await loadInvoiceSource(sourceType, sourceId);
+  const source = await loadInvoiceSource(sourceType, sourceId, organisationId);
   return mapSourceToInvoice(source, options);
 }

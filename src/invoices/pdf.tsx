@@ -30,13 +30,18 @@ type DocumentTemplateRecord = {
   column_settings: Record<string, unknown>;
 };
 
-async function getDefaultDocumentTemplate(documentType: string): Promise<DocumentTemplateRecord | null> {
-  const { data, error } = await supabase
+async function getDefaultDocumentTemplate(documentType: string, organisationId?: string): Promise<DocumentTemplateRecord | null> {
+  let query = supabase
     .from('document_templates')
     .select('id, template_name, column_settings')
     .eq('document_type', documentType)
-    .eq('is_default', true)
-    .maybeSingle();
+    .eq('is_default', true);
+
+  if (organisationId) {
+    query = query.eq('organisation_id', organisationId);
+  }
+
+  const { data, error } = await query.maybeSingle();
 
   if (error) return null;
   if (!data) return null;
@@ -78,21 +83,26 @@ function resolveInvoicePdfElement(data: InvoicePdfData, invoiceTemplateConfig: D
   return <InvoicePdfDocument data={data} />;
 }
 
-async function resolveInvoice(invoice: InvoiceLike): Promise<InvoiceWithRelations> {
+async function resolveInvoice(invoice: InvoiceLike, organisationId?: string): Promise<InvoiceWithRelations> {
   if (typeof invoice === 'string') {
-    return getInvoiceById(invoice);
+    return getInvoiceById(invoice, organisationId);
   }
   return invoice;
 }
 
-async function getInvoiceTemplateById(id?: string | null): Promise<InvoiceTemplateRecord | null> {
+async function getInvoiceTemplateById(id?: string | null, organisationId?: string): Promise<InvoiceTemplateRecord | null> {
   if (!id) return null;
 
-  const { data, error } = await supabase
+  let query = supabase
     .from('invoice_templates')
     .select('id, name, layout_json, created_at')
-    .eq('id', id)
-    .maybeSingle();
+    .eq('id', id);
+
+  if (organisationId) {
+    query = query.eq('organisation_id', organisationId);
+  }
+
+  const { data, error } = await query.maybeSingle();
 
   if (error) throw error;
   if (!data) return null;
@@ -109,21 +119,13 @@ async function getInvoiceTemplateById(id?: string | null): Promise<InvoiceTempla
 }
 
 async function getInvoiceCompany(organisationId?: string): Promise<InvoicePdfCompany | null> {
-  let query = supabase
+  if (!organisationId) return null;
+
+  const { data, error } = await supabase
     .from('organisations')
     .select('id, name, logo_url, address, phone, email, gstin, pan, tan, msme_no, website, state, bank_details')
-    .order('created_at', { ascending: true })
-    .limit(1);
-
-  if (organisationId) {
-    query = supabase
-      .from('organisations')
-      .select('id, name, logo_url, address, phone, email, gstin, pan, tan, msme_no, website, state, bank_details')
-      .eq('id', organisationId)
-      .limit(1);
-  }
-
-  const { data, error } = await query.maybeSingle();
+    .eq('id', organisationId)
+    .maybeSingle();
   if (error) throw error;
   if (!data) return null;
 
@@ -174,13 +176,16 @@ export async function resolveInvoicePdfData(
   invoiceInput: InvoiceLike,
   options: InvoicePdfOptions = {},
 ): Promise<InvoicePdfData> {
-  const invoice = await resolveInvoice(invoiceInput);
+  const orgId = options.organisationId;
+  const invoice = await resolveInvoice(invoiceInput, orgId);
+  const finalOrgId = orgId || invoice.organisation_id;
+
   const [template, source, company, materials] = await Promise.all([
-    options.template !== undefined ? Promise.resolve(options.template) : getInvoiceTemplateById(invoice.template_id),
+    options.template !== undefined ? Promise.resolve(options.template) : getInvoiceTemplateById(invoice.template_id, finalOrgId),
     options.source !== undefined
       ? Promise.resolve(options.source)
-      : loadInvoiceSource(invoice.source_type, invoice.source_id).catch(() => null as InvoiceSourceDocument | null),
-    options.company !== undefined ? Promise.resolve(options.company) : getInvoiceCompany(options.organisationId),
+      : loadInvoiceSource(invoice.source_type, invoice.source_id, finalOrgId).catch(() => null as InvoiceSourceDocument | null),
+    options.company !== undefined ? Promise.resolve(options.company) : getInvoiceCompany(finalOrgId),
     getMaterialLines(invoice),
   ]);
 
@@ -198,7 +203,8 @@ export async function generateInvoicePDF(
   options: InvoicePdfOptions = {},
 ): Promise<Blob> {
   const data = await resolveInvoicePdfData(invoiceInput, options);
-  const invoiceTemplateConfig = await getDefaultDocumentTemplate('Invoice');
+  const orgId = options.organisationId || data.invoice.organisation_id;
+  const invoiceTemplateConfig = await getDefaultDocumentTemplate('Invoice', orgId);
   ensurePdfFontsRegistered();
   return pdf(resolveInvoicePdfElement(data, invoiceTemplateConfig)).toBlob();
 }
@@ -207,8 +213,9 @@ export async function generateProGridInvoicePDF(
   invoiceInput: InvoiceLike,
   options: InvoicePdfOptions = {},
 ): Promise<Blob> {
-  const invoice = await resolveInvoice(invoiceInput);
-  const organisation = options.company ?? await getInvoiceCompany(options.organisationId);
+  const invoice = await resolveInvoice(invoiceInput, options.organisationId);
+  const finalOrgId = options.organisationId || invoice.organisation_id;
+  const organisation = options.company ?? await getInvoiceCompany(finalOrgId);
   
   if (!organisation) {
     throw new Error('Organisation not found');
@@ -245,7 +252,8 @@ async function renderInvoicePdfBlob(
   fileName: string;
 }> {
   const data = await resolveInvoicePdfData(invoiceInput, options);
-  const invoiceTemplateConfig = await getDefaultDocumentTemplate('Invoice');
+  const orgId = options.organisationId || data.invoice.organisation_id;
+  const invoiceTemplateConfig = await getDefaultDocumentTemplate('Invoice', orgId);
   ensurePdfFontsRegistered();
   const blob = await pdf(resolveInvoicePdfElement(data, invoiceTemplateConfig)).toBlob();
 

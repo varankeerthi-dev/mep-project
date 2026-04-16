@@ -5,6 +5,7 @@ import { useClients } from '../hooks/useClients';
 import { flexRender, getCoreRowModel, getSortedRowModel, getFilteredRowModel, getPaginationRowModel, useReactTable } from '@tanstack/react-table';
 import { ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 
 export const CLIENT_QUERY_KEYS = {
   list: () => ['clients'] as const,
@@ -244,6 +245,7 @@ function TransactionsTable({ rows, loading, onOpen, emptyMessage }: Transactions
 
 export default function ClientList() {
   const navigate = useNavigate();
+  const { organisation } = useAuth();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeClientId, setActiveClientId] = useState<string | null>(null);
@@ -281,12 +283,12 @@ const txQueries = useQueries({
           .from('quotation_header')
           .select('id, quotation_no, date, grand_total, status, created_at')
           .eq('client_id', activeClient.id)
+          .eq('organisation_id', organisation?.id)
           .limit(100);
         if (error) throw error;
         return data || [];
       },
-      // No overrides! Use global defaults from queryClient.ts
-      enabled: activeTab === 'reports'
+      enabled: activeTab === 'reports' && !!organisation?.id
     },
     {
       queryKey: CLIENT_QUERY_KEYS.clientPO(activeClientId!),
@@ -295,12 +297,12 @@ const txQueries = useQueries({
           .from('client_purchase_orders')
           .select('id, po_number, po_date, po_total_value, status, created_at')
           .eq('client_id', activeClient.id)
+          .eq('organisation_id', organisation?.id)
           .limit(100);
         if (error) throw error;
         return data || [];
       },
-      // No overrides! Use global defaults from queryClient.ts
-      enabled: activeTab === 'reports'
+      enabled: activeTab === 'reports' && !!organisation?.id
     },
     {
       queryKey: CLIENT_QUERY_KEYS.project(activeClientId!),
@@ -309,12 +311,12 @@ const txQueries = useQueries({
           .from('projects')
           .select('id, project_code, project_name, status, created_at')
           .eq('client_id', activeClient.id)
+          .eq('organisation_id', organisation?.id)
           .limit(100);
         if (error) throw error;
         return data || [];
       },
-      // No overrides! Use global defaults from queryClient.ts
-      enabled: activeTab === 'reports'
+      enabled: activeTab === 'reports' && !!organisation?.id
     },
     {
       queryKey: CLIENT_QUERY_KEYS.siteVisit(activeClientId!),
@@ -323,12 +325,12 @@ const txQueries = useQueries({
           .from('site_visits')
           .select('id, visit_date, purpose, status, created_at')
           .eq('client_id', activeClient.id)
+          .eq('organisation_id', organisation?.id)
           .limit(100);
         if (error) throw error;
         return data || [];
       },
-      // No overrides! Use global defaults from queryClient.ts
-      enabled: activeTab === 'reports'
+      enabled: activeTab === 'reports' && !!organisation?.id
     },
     {
       queryKey: CLIENT_QUERY_KEYS.deliveryChallan(activeClientId!),
@@ -337,12 +339,12 @@ const txQueries = useQueries({
           .from('delivery_challans')
           .select('id, dc_number, dc_date, status, created_at')
           .eq('client_name', activeClient.client_name)
+          .eq('organisation_id', organisation?.id)
           .limit(100);
         if (error) throw error;
         return data || [];
       },
-      // No overrides! Use global defaults from queryClient.ts
-      enabled: activeTab === 'reports'
+      enabled: activeTab === 'reports' && !!organisation?.id
     },
     {
       queryKey: CLIENT_QUERY_KEYS.meeting(activeClientId!),
@@ -351,12 +353,12 @@ const txQueries = useQueries({
           .from('meetings')
           .select('id, meeting_date, agenda, status, created_at')
           .eq('client_id', activeClient.id)
+          .eq('organisation_id', organisation?.id)
           .limit(100);
         if (error) throw error;
         return data || [];
       },
-      // No overrides! Use global defaults from queryClient.ts
-      enabled: activeTab === 'reports'
+      enabled: activeTab === 'reports' && !!organisation?.id
     }
   ] : []) as any
 }) as any[];

@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 export type LedgerEntryType = 'WO-ISSUED' | 'WO-AMD' | 'INVOICE' | 'PAYMENT';
 
@@ -37,16 +38,19 @@ export interface WorkOrderWithValue {
 }
 
 export function useSubcontractorLedger(subcontractorId: string | null) {
+  const { organisation } = useAuth();
+
   return useQuery({
-    queryKey: ['subcontractor-ledger', subcontractorId],
+    queryKey: ['subcontractor-ledger', subcontractorId, organisation?.id],
     queryFn: async () => {
-      if (!subcontractorId) return { workOrders: [], ledger: [], summary: null };
+      if (!subcontractorId || !organisation?.id) return { workOrders: [], ledger: [], summary: null };
 
       // Fetch all work orders for this subcontractor
       const { data: workOrders, error: woError } = await supabase
         .from('subcontractor_work_orders')
         .select('*')
         .eq('subcontractor_id', subcontractorId)
+        .eq('organisation_id', organisation.id)
         .order('created_at', { ascending: true });
 
       if (woError) throw woError;
@@ -56,6 +60,7 @@ export function useSubcontractorLedger(subcontractorId: string | null) {
         .from('subcontractor_work_order_amendments')
         .select('*')
         .in('work_order_id', workOrders?.map(wo => wo.id) || [])
+        .eq('organisation_id', organisation.id)
         .eq('status', 'Approved')
         .order('created_at', { ascending: true });
 
@@ -66,6 +71,7 @@ export function useSubcontractorLedger(subcontractorId: string | null) {
         .from('subcontractor_invoices')
         .select('*')
         .eq('subcontractor_id', subcontractorId)
+        .eq('organisation_id', organisation.id)
         .order('invoice_date', { ascending: true });
 
       if (invError) throw invError;
@@ -75,6 +81,7 @@ export function useSubcontractorLedger(subcontractorId: string | null) {
         .from('subcontractor_payments')
         .select('*')
         .eq('subcontractor_id', subcontractorId)
+        .eq('organisation_id', organisation.id)
         .order('payment_date', { ascending: true });
 
       if (payError) throw payError;
@@ -208,16 +215,18 @@ export function useSubcontractorLedger(subcontractorId: string | null) {
         rawData: { workOrders, amendments, invoices, payments }
       };
     },
-    enabled: !!subcontractorId,
+    enabled: !!subcontractorId && !!organisation?.id,
     staleTime: 5 * 60 * 1000 // 5 minutes
   });
 }
 
 export function usePendingAmendments(subcontractorId: string | null) {
+  const { organisation } = useAuth();
+
   return useQuery({
-    queryKey: ['subcontractor-amendments-pending', subcontractorId],
+    queryKey: ['subcontractor-amendments-pending', subcontractorId, organisation?.id],
     queryFn: async () => {
-      if (!subcontractorId) return [];
+      if (!subcontractorId || !organisation?.id) return [];
 
       const { data, error } = await supabase
         .from('subcontractor_work_order_amendments')
@@ -226,22 +235,25 @@ export function usePendingAmendments(subcontractorId: string | null) {
           subcontractor_work_orders!inner(subcontractor_id, work_order_no)
         `)
         .eq('subcontractor_work_orders.subcontractor_id', subcontractorId)
+        .eq('organisation_id', organisation.id)
         .eq('status', 'Pending')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
       return data || [];
     },
-    enabled: !!subcontractorId,
+    enabled: !!subcontractorId && !!organisation?.id,
     staleTime: 30 * 1000 // 30 seconds
   });
 }
 
 export function useTDSPayments(subcontractorId: string | null) {
+  const { organisation } = useAuth();
+
   return useQuery({
-    queryKey: ['subcontractor-tds-payments', subcontractorId],
+    queryKey: ['subcontractor-tds-payments', subcontractorId, organisation?.id],
     queryFn: async () => {
-      if (!subcontractorId) return [];
+      if (!subcontractorId || !organisation?.id) return [];
 
       const { data, error } = await supabase
         .from('subcontractor_tds_payments')
@@ -250,12 +262,13 @@ export function useTDSPayments(subcontractorId: string | null) {
           subcontractor_payments(gross_amount, tds_amount)
         `)
         .eq('subcontractor_id', subcontractorId)
+        .eq('organisation_id', organisation.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
       return data || [];
     },
-    enabled: !!subcontractorId,
+    enabled: !!subcontractorId && !!organisation?.id,
     staleTime: 5 * 60 * 1000
   });
 }

@@ -44,8 +44,8 @@ function fieldErrorMessage(error: unknown): string | undefined {
   return undefined;
 }
 
-async function loadClientOptions(): Promise<InvoiceClientOption[]> {
-  const { data, error } = await supabase.from('clients').select('*');
+async function loadClientOptions(organisationId: string): Promise<InvoiceClientOption[]> {
+  const { data, error } = await supabase.from('clients').select('*').eq('organisation_id', organisationId);
   if (error) throw error;
 
   return (data ?? [])
@@ -59,8 +59,8 @@ async function loadClientOptions(): Promise<InvoiceClientOption[]> {
     .sort((left, right) => left.name.localeCompare(right.name));
 }
 
-async function loadMaterialOptions(): Promise<InvoiceMaterialOption[]> {
-  const { data, error } = await supabase.from('materials').select('id, name, display_name, hsn_code');
+async function loadMaterialOptions(organisationId: string): Promise<InvoiceMaterialOption[]> {
+  const { data, error } = await supabase.from('materials').select('id, name, display_name, hsn_code').eq('organisation_id', organisationId);
   if (error) throw error;
 
   return (data ?? [])
@@ -72,11 +72,12 @@ async function loadMaterialOptions(): Promise<InvoiceMaterialOption[]> {
     .sort((left, right) => left.name.localeCompare(right.name));
 }
 
-async function loadSourceOptions(sourceType: InvoiceEditorFormValues['source_type']): Promise<InvoiceSourceOption[]> {
+async function loadSourceOptions(sourceType: InvoiceEditorFormValues['source_type'], organisationId: string): Promise<InvoiceSourceOption[]> {
   if (sourceType === 'quotation') {
     const { data, error } = await supabase
       .from('quotation_header')
       .select('id, quotation_no, reference, date, created_at')
+      .eq('organisation_id', organisationId)
       .order('created_at', { ascending: false })
       .limit(100);
     if (error) throw error;
@@ -92,6 +93,7 @@ async function loadSourceOptions(sourceType: InvoiceEditorFormValues['source_typ
     const { data, error } = await supabase
       .from('delivery_challans')
       .select('id, dc_number, dc_date, client_name, created_at')
+      .eq('organisation_id', organisationId)
       .order('created_at', { ascending: false })
       .limit(100);
     if (error) throw error;
@@ -106,6 +108,7 @@ async function loadSourceOptions(sourceType: InvoiceEditorFormValues['source_typ
   const { data, error } = await supabase
     .from('client_purchase_orders')
     .select('id, po_number, po_date, created_at')
+    .eq('organisation_id', organisationId)
     .order('created_at', { ascending: false })
     .limit(100);
   if (error) throw error;
@@ -118,6 +121,7 @@ async function loadSourceOptions(sourceType: InvoiceEditorFormValues['source_typ
 }
 
 export default function InvoiceEditorPage() {
+  const { organisation } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const invoiceId = queryParam(location.search, 'id');
@@ -158,28 +162,31 @@ export default function InvoiceEditorPage() {
   const updateInvoice = useUpdateInvoice(invoiceId ?? '');
   const templatesQuery = useInvoiceTemplates();
   const clientsQuery = useQuery({
-    queryKey: ['invoice-ui', 'clients'],
-    queryFn: loadClientOptions,
+    queryKey: ['invoice-ui', 'clients', organisation?.id],
+    queryFn: () => loadClientOptions(organisation?.id!),
+    enabled: !!organisation?.id,
     staleTime: 5 * 60 * 1000,
   });
   const materialsQuery = useQuery({
-    queryKey: ['invoice-ui', 'materials'],
-    queryFn: loadMaterialOptions,
+    queryKey: ['invoice-ui', 'materials', organisation?.id],
+    queryFn: () => loadMaterialOptions(organisation?.id!),
+    enabled: !!organisation?.id,
     staleTime: 5 * 60 * 1000,
   });
   const sourceOptionsQuery = useQuery({
-    queryKey: ['invoice-ui', 'sources', selectedSourceType],
-    queryFn: () => loadSourceOptions(selectedSourceType),
+    queryKey: ['invoice-ui', 'sources', selectedSourceType, organisation?.id],
+    queryFn: () => loadSourceOptions(selectedSourceType, organisation?.id!),
+    enabled: !!organisation?.id,
     staleTime: 2 * 60 * 1000,
   });
   const sourceDraftQuery = useQuery({
-    queryKey: ['invoice-ui', 'source-draft', selectedSourceType, selectedSourceId, selectedMode, companyState],
+    queryKey: ['invoice-ui', 'source-draft', selectedSourceType, selectedSourceId, selectedMode, companyState, organisation?.id],
     queryFn: () =>
-      mapInvoiceSourceToDraft(selectedSourceType, selectedSourceId, {
+      mapInvoiceSourceToDraft(selectedSourceType, selectedSourceId, organisation?.id!, {
         companyState: companyState || DEFAULT_COMPANY_STATE,
         mode: selectedMode,
       }),
-    enabled: Boolean(selectedSourceType && selectedSourceId),
+    enabled: Boolean(selectedSourceType && selectedSourceId && organisation?.id),
     staleTime: 0,
   });
 
