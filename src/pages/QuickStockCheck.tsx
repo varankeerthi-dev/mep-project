@@ -5,6 +5,7 @@ import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import html2canvas from 'html2canvas';
 import { formatDate } from '../utils/formatters';
+import { useAuth } from '../App';
 import { useMaterials } from '../hooks/useMaterials';
 import { useWarehouses } from '../hooks/useWarehouses';
 import { useVariants } from '../hooks/useVariants';
@@ -12,6 +13,7 @@ import { useVariants } from '../hooks/useVariants';
 const VARIANT_FILTERS = ['All', 'Green', 'Blue', 'Non-Variant'];
 
 export default function QuickStockCheck() {
+  const { organisation } = useAuth();
   const navigate = useNavigate();
   const hashPath = window.location.hash.slice(1);
   const query = window.location.search.slice(1) || window.location.hash.split('?')[1] || '';
@@ -42,7 +44,7 @@ export default function QuickStockCheck() {
 
   useEffect(() => {
     loadInitialData();
-  }, [editId, viewId]);
+  }, [editId, viewId, organisation?.id]);
 
   useEffect(() => {
     if (warehouses.length > 0) {
@@ -76,10 +78,12 @@ export default function QuickStockCheck() {
   };
 
   const loadQuickCheck = async (id) => {
+    if (!organisation?.id) return;
     const { data, error } = await supabase
       .from('quick_checks')
       .select('*, items:quick_check_items(*, item:materials(id, display_name, name, item_code))')
       .eq('id', id)
+      .eq('organisation_id', organisation.id)
       .single();
 
     if (error) {
@@ -189,6 +193,7 @@ export default function QuickStockCheck() {
         const { data: existing } = await supabase
           .from('quick_checks')
           .select('check_no')
+          .eq('organisation_id', organisation.id)
           .order('created_at', { ascending: false })
           .limit(1);
         
@@ -203,13 +208,14 @@ export default function QuickStockCheck() {
       const checkData = {
         client_name: formData.client_name,
         check_date: formData.check_date,
-        variant_filter: formData.variant_filter
+        variant_filter: formData.variant_filter,
+        organisation_id: organisation.id
       };
 
       let quickCheckId = editId;
 
       if (editId) {
-        await supabase.from('quick_checks').update(checkData).eq('id', editId);
+        await supabase.from('quick_checks').update(checkData).eq('id', editId).eq('organisation_id', organisation.id);
       } else {
         const { data, error } = await supabase
           .from('quick_checks')
@@ -232,7 +238,8 @@ export default function QuickStockCheck() {
           qty_required: parseFloat(item.qty_required) || 0,
           warehouse_snapshot: JSON.stringify(item.warehouse_snapshot || {}),
           total_available: item.total_available || 0,
-          pending_qty: item.pending_qty || 0
+          pending_qty: item.pending_qty || 0,
+          organisation_id: organisation.id
         }));
 
       if (itemsToInsert.length > 0) {
