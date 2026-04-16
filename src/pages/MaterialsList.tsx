@@ -2652,22 +2652,38 @@ function ServiceTab() {
         <input type="text" className="form-input" placeholder="Search services..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ maxWidth: '300px' }} />
       </div>
 
-      <div className="card">
-        {loading ? (
-          <div style={{ padding: '40px', textAlign: 'center' }}>Loading services...</div>
-        ) : filteredServices.length === 0 ? <div className="empty-state"><h3>No Services Found</h3></div> : (
-          <table className="table">
-            <thead><tr><th>Service Code</th><th>Service Name</th><th>Unit</th><th>Sale Price</th><th>HSN/SAC</th><th>Active</th><th>Actions</th></tr></thead>
-            <tbody>
+      <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="border-b border-slate-200 bg-slate-50/80">
+              <tr>
+                <th className="h-10 px-3 text-left align-middle text-xs font-medium text-slate-500">Service Code</th>
+                <th className="h-10 px-3 text-left align-middle text-xs font-medium text-slate-500">Service Name</th>
+                <th className="h-10 px-3 text-left align-middle text-xs font-medium text-slate-500">Unit</th>
+                <th className="h-10 px-3 text-right align-middle text-xs font-medium text-slate-500">Sale Price</th>
+                <th className="h-10 px-3 text-left align-middle text-xs font-medium text-slate-500">HSN/SAC</th>
+                <th className="h-10 px-3 text-center align-middle text-xs font-medium text-slate-500">Active</th>
+                <th className="h-10 px-3 text-right align-middle text-xs font-medium text-slate-500 min-w-[100px]">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="[&_tr:last-child]:border-0">
               {filteredServices.map(s => (
-                <tr key={s.id} style={{ opacity: s.is_active === false ? 0.5 : 1 }}>
-                  <td>{s.item_code}</td><td><strong>{s.name}</strong></td><td>{s.unit}</td><td>₹{s.sale_price || '-'}</td><td>{s.hsn_code || '-'}</td><td>{s.is_active ? '✓' : '✗'}</td>
-                  <td><button className="btn btn-sm btn-secondary" onClick={() => editService(s)}>Edit</button><button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px' }} onClick={() => deleteService(s.id)}>Delete</button></td>
+                <tr key={s.id} className="border-b border-slate-200 hover:bg-slate-50/80" style={{ opacity: s.is_active === false ? 0.5 : 1 }}>
+                  <td className="px-3 py-1.5 align-middle whitespace-nowrap text-xs font-medium text-slate-600">{s.item_code || '-'}</td>
+                  <td className="px-3 py-1.5 align-middle whitespace-nowrap text-xs font-semibold text-slate-700">{s.name}</td>
+                  <td className="px-3 py-1.5 align-middle whitespace-nowrap text-xs font-medium text-slate-600">{s.unit}</td>
+                  <td className="px-3 py-1.5 text-right align-middle text-xs font-medium text-slate-600">₹{s.sale_price || '-'}</td>
+                  <td className="px-3 py-1.5 align-middle whitespace-nowrap text-xs font-medium text-slate-600">{s.hsn_code || '-'}</td>
+                  <td className="px-3 py-1.5 text-center align-middle text-xs font-medium text-slate-600">{s.is_active ? <span className="text-green-600">✓</span> : <span className="text-red-500">✗</span>}</td>
+                  <td className="px-3 py-1.5 text-right align-middle text-xs font-medium text-slate-600">
+                    <button className="btn btn-sm btn-secondary" onClick={() => editService(s)}>Edit</button>
+                    <button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px' }} onClick={() => deleteService(s.id)}>Delete</button>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        )}
+        </div>
       </div>
 
       {showForm && (
@@ -2752,15 +2768,32 @@ function CategoryTab() {
     <div>
       <div className="page-header"><h1 className="page-title">Categories</h1><button className="btn btn-primary" onClick={() => setShowForm(true)}>+ Add Category</button></div>
       <div className="card" style={{ marginBottom: '16px' }}><input type="text" className="form-input" placeholder="Search categories..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ maxWidth: '300px' }} /></div>
-      <div className="card">
-        {loading ? (
-          <div style={{ padding: '40px', textAlign: 'center' }}>Loading categories...</div>
-        ) : filteredCategories.length === 0 ? <div className="empty-state"><h3>No Categories Found</h3></div> : (
-          <table className="table">
-            <thead><tr><th>Category Name</th><th>Description</th><th>Active</th><th>Actions</th></tr></thead>
-            <tbody>{filteredCategories.map(c => (<tr key={c.id} style={{ opacity: c.is_active === false ? 0.5 : 1 }}><td><strong>{c.category_name}</strong></td><td>{c.description || '-'}</td><td>{c.is_active ? '✓' : '✗'}</td><td><button className="btn btn-sm btn-secondary" onClick={() => editCategory(c)}>Edit</button><button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px' }} onClick={() => deleteCategory(c.id)}>Delete</button></td></tr>))}</tbody>
+      <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="border-b border-slate-200 bg-slate-50/80">
+              <tr>
+                <th className="h-10 px-3 text-left align-middle text-xs font-medium text-slate-500">Category Name</th>
+                <th className="h-10 px-3 text-left align-middle text-xs font-medium text-slate-500">Description</th>
+                <th className="h-10 px-3 text-center align-middle text-xs font-medium text-slate-500">Active</th>
+                <th className="h-10 px-3 text-right align-middle text-xs font-medium text-slate-500 min-w-[100px]">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="[&_tr:last-child]:border-0">
+              {filteredCategories.map(c => (
+                <tr key={c.id} className="border-b border-slate-200 hover:bg-slate-50/80" style={{ opacity: c.is_active === false ? 0.5 : 1 }}>
+                  <td className="px-3 py-1.5 align-middle whitespace-nowrap text-xs font-semibold text-slate-700">{c.category_name}</td>
+                  <td className="px-3 py-1.5 align-middle whitespace-nowrap text-xs font-medium text-slate-600">{c.description || '-'}</td>
+                  <td className="px-3 py-1.5 text-center align-middle text-xs font-medium text-slate-600">{c.is_active ? <span className="text-green-600">✓</span> : <span className="text-red-500">✗</span>}</td>
+                  <td className="px-3 py-1.5 text-right align-middle text-xs font-medium text-slate-600">
+                    <button className="btn btn-sm btn-secondary" onClick={() => editCategory(c)}>Edit</button>
+                    <button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px' }} onClick={() => deleteCategory(c.id)}>Delete</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
           </table>
-        )}
+        </div>
       </div>
       {showForm && (
         <div className="modal-overlay open" onClick={resetForm}>
@@ -2814,15 +2847,34 @@ function UnitTab() {
     <div>
       <div className="page-header"><h1 className="page-title">Units</h1><button className="btn btn-primary" onClick={() => setShowForm(true)}>+ Add Unit</button></div>
       <div className="card" style={{ marginBottom: '16px' }}><input type="text" className="form-input" placeholder="Search units..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ maxWidth: '300px' }} /></div>
-      <div className="card">
-        {loading ? (
-          <div style={{ padding: '40px', textAlign: 'center' }}>Loading units...</div>
-        ) : filteredUnits.length === 0 ? <div className="empty-state"><h3>No Units Found</h3></div> : (
-          <table className="table">
-            <thead><tr><th>Unit Name</th><th>Unit Code</th><th>Description</th><th>Active</th><th>Actions</th></tr></thead>
-            <tbody>{filteredUnits.map(u => (<tr key={u.id} style={{ opacity: u.is_active === false ? 0.5 : 1 }}><td><strong>{u.unit_name}</strong></td><td>{u.unit_code}</td><td>{u.description || '-'}</td><td>{u.is_active ? '✓' : '✗'}</td><td><button className="btn btn-sm btn-secondary" onClick={() => editUnit(u)}>Edit</button><button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px' }} onClick={() => deleteUnit(u.id)}>Delete</button></td></tr>))}</tbody>
+      <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="border-b border-slate-200 bg-slate-50/80">
+              <tr>
+                <th className="h-10 px-3 text-left align-middle text-xs font-medium text-slate-500">Unit Name</th>
+                <th className="h-10 px-3 text-left align-middle text-xs font-medium text-slate-500">Unit Code</th>
+                <th className="h-10 px-3 text-left align-middle text-xs font-medium text-slate-500">Description</th>
+                <th className="h-10 px-3 text-center align-middle text-xs font-medium text-slate-500">Active</th>
+                <th className="h-10 px-3 text-right align-middle text-xs font-medium text-slate-500 min-w-[100px]">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="[&_tr:last-child]:border-0">
+              {filteredUnits.map(u => (
+                <tr key={u.id} className="border-b border-slate-200 hover:bg-slate-50/80" style={{ opacity: u.is_active === false ? 0.5 : 1 }}>
+                  <td className="px-3 py-1.5 align-middle whitespace-nowrap text-xs font-semibold text-slate-700">{u.unit_name}</td>
+                  <td className="px-3 py-1.5 align-middle whitespace-nowrap text-xs font-medium text-slate-600">{u.unit_code}</td>
+                  <td className="px-3 py-1.5 align-middle whitespace-nowrap text-xs font-medium text-slate-600">{u.description || '-'}</td>
+                  <td className="px-3 py-1.5 text-center align-middle text-xs font-medium text-slate-600">{u.is_active ? <span className="text-green-600">✓</span> : <span className="text-red-500">✗</span>}</td>
+                  <td className="px-3 py-1.5 text-right align-middle text-xs font-medium text-slate-600">
+                    <button className="btn btn-sm btn-secondary" onClick={() => editUnit(u)}>Edit</button>
+                    <button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px' }} onClick={() => deleteUnit(u.id)}>Delete</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
           </table>
-        )}
+        </div>
       </div>
       {showForm && (
         <div className="modal-overlay open" onClick={resetForm}>
@@ -2887,15 +2939,36 @@ function WarehousesTab() {
     <div>
       <div className="page-header"><h1 className="page-title">Warehouses</h1><button className="btn btn-primary" onClick={() => setShowForm(true)}>+ Add Warehouse</button></div>
       <div className="card" style={{ marginBottom: '16px' }}><input type="text" className="form-input" placeholder="Search warehouses..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ maxWidth: '300px' }} /></div>
-      <div className="card">
-        {loading ? (
-          <div style={{ padding: '40px', textAlign: 'center' }}>Loading warehouses...</div>
-        ) : filteredWarehouses.length === 0 ? <div className="empty-state"><h3>No Warehouses Found</h3></div> : (
-          <table className="table">
-            <thead><tr><th>Warehouse Code</th><th>Warehouse Name</th><th>Location</th><th>Default</th><th>Active</th><th>Actions</th></tr></thead>
-            <tbody>{filteredWarehouses.map(w => (<tr key={w.id} style={{ opacity: w.is_active === false ? 0.5 : 1 }}><td>{w.warehouse_code}</td><td><strong>{w.warehouse_name || w.name}</strong></td><td>{w.location || '-'}</td><td>{w.is_default ? '✓' : '-'}</td><td>{w.is_active ? '✓' : '✗'}</td><td><button className="btn btn-sm btn-secondary" onClick={() => editWarehouse(w)}>Edit</button><button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px' }} onClick={() => deleteWarehouse(w.id)}>Delete</button></td></tr>))}</tbody>
+      <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="border-b border-slate-200 bg-slate-50/80">
+              <tr>
+                <th className="h-10 px-3 text-left align-middle text-xs font-medium text-slate-500">Warehouse Code</th>
+                <th className="h-10 px-3 text-left align-middle text-xs font-medium text-slate-500">Warehouse Name</th>
+                <th className="h-10 px-3 text-left align-middle text-xs font-medium text-slate-500">Location</th>
+                <th className="h-10 px-3 text-center align-middle text-xs font-medium text-slate-500">Default</th>
+                <th className="h-10 px-3 text-center align-middle text-xs font-medium text-slate-500">Active</th>
+                <th className="h-10 px-3 text-right align-middle text-xs font-medium text-slate-500 min-w-[100px]">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="[&_tr:last-child]:border-0">
+              {filteredWarehouses.map(w => (
+                <tr key={w.id} className="border-b border-slate-200 hover:bg-slate-50/80" style={{ opacity: w.is_active === false ? 0.5 : 1 }}>
+                  <td className="px-3 py-1.5 align-middle whitespace-nowrap text-xs font-medium text-slate-600">{w.warehouse_code}</td>
+                  <td className="px-3 py-1.5 align-middle whitespace-nowrap text-xs font-semibold text-slate-700">{w.warehouse_name || w.name}</td>
+                  <td className="px-3 py-1.5 align-middle whitespace-nowrap text-xs font-medium text-slate-600">{w.location || '-'}</td>
+                  <td className="px-3 py-1.5 text-center align-middle text-xs font-medium text-slate-600">{w.is_default ? <span className="text-blue-600">✓</span> : <span className="text-slate-300">-</span>}</td>
+                  <td className="px-3 py-1.5 text-center align-middle text-xs font-medium text-slate-600">{w.is_active ? <span className="text-green-600">✓</span> : <span className="text-red-500">✗</span>}</td>
+                  <td className="px-3 py-1.5 text-right align-middle text-xs font-medium text-slate-600">
+                    <button className="btn btn-sm btn-secondary" onClick={() => editWarehouse(w)}>Edit</button>
+                    <button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px' }} onClick={() => deleteWarehouse(w.id)}>Delete</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
           </table>
-        )}
+        </div>
       </div>
       {showForm && (
         <div className="modal-overlay open" onClick={resetForm}>
@@ -2950,15 +3023,32 @@ function VariantsTab() {
         <p style={{ color: '#666', marginBottom: '10px' }}>Variants represent different commercial contexts (e.g., Retail, Wholesale, Export). Each item can have different pricing per variant.</p>
         <input type="text" className="form-input" placeholder="Search variants..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ maxWidth: '300px' }} />
       </div>
-      <div className="card">
-        {loading ? (
-          <div style={{ padding: '40px', textAlign: 'center' }}>Loading variants...</div>
-        ) : filteredVariants.length === 0 ? <div className="empty-state"><h3>No Variants Found</h3></div> : (
-          <table className="table">
-            <thead><tr><th>Variant Name</th><th>Active</th><th>Created</th><th>Actions</th></tr></thead>
-            <tbody>{filteredVariants.map(v => (<tr key={v.id} style={{ opacity: v.is_active === false ? 0.5 : 1 }}><td><strong>{v.variant_name}</strong></td><td>{v.is_active ? '✓' : '✗'}</td><td>{v.created_at ? new Date(v.created_at).toLocaleDateString() : '-'}</td><td><button className="btn btn-sm btn-secondary" onClick={() => editVariant(v)}>Edit</button><button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px' }} onClick={() => deleteVariant(v.id)}>Delete</button></td></tr>))}</tbody>
+      <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="border-b border-slate-200 bg-slate-50/80">
+              <tr>
+                <th className="h-10 px-3 text-left align-middle text-xs font-medium text-slate-500">Variant Name</th>
+                <th className="h-10 px-3 text-center align-middle text-xs font-medium text-slate-500">Active</th>
+                <th className="h-10 px-3 text-left align-middle text-xs font-medium text-slate-500">Created</th>
+                <th className="h-10 px-3 text-right align-middle text-xs font-medium text-slate-500 min-w-[100px]">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="[&_tr:last-child]:border-0">
+              {filteredVariants.map(v => (
+                <tr key={v.id} className="border-b border-slate-200 hover:bg-slate-50/80" style={{ opacity: v.is_active === false ? 0.5 : 1 }}>
+                  <td className="px-3 py-1.5 align-middle whitespace-nowrap text-xs font-semibold text-slate-700">{v.variant_name}</td>
+                  <td className="px-3 py-1.5 text-center align-middle text-xs font-medium text-slate-600">{v.is_active ? <span className="text-green-600">✓</span> : <span className="text-red-500">✗</span>}</td>
+                  <td className="px-3 py-1.5 align-middle whitespace-nowrap text-xs font-medium text-slate-600">{v.created_at ? new Date(v.created_at).toLocaleDateString() : '-'}</td>
+                  <td className="px-3 py-1.5 text-right align-middle text-xs font-medium text-slate-600">
+                    <button className="btn btn-sm btn-secondary" onClick={() => editVariant(v)}>Edit</button>
+                    <button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px' }} onClick={() => deleteVariant(v.id)}>Delete</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
           </table>
-        )}
+        </div>
       </div>
       {showForm && (
         <div className="modal-overlay open" onClick={resetForm}>
