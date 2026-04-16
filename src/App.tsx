@@ -387,16 +387,21 @@ export default function App() {
   };
 
   const handleCreateOrganisation = async (orgName: string) => {
-    if (!user) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) {
+      alert('Session expired. Please sign in again.');
+      return;
+    }
 
-    const { data, error } = (await createOrganization(orgName, user.id)) as CreateOrganisationResult;
+    const { data, error } = (await createOrganization(orgName, session.user.id)) as CreateOrganisationResult;
     if (error) {
       console.error('Create org error:', error);
       alert('Error creating organisation: ' + (error.message || 'Unknown error'));
       return;
     }
     if (data) {
-      const { data: orgs } = await getUserOrganisations(user.id);
+      const { data: orgs } = await getUserOrganisations(session.user.id);
+      setUser(session.user);
       setOrganisations(orgs || []);
       setOrganisation(orgs?.[0]?.organisation);
     }
