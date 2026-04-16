@@ -2657,25 +2657,25 @@ function ServiceTab() {
           <table className="w-full text-sm">
             <thead className="border-b border-slate-200 bg-slate-50/80">
               <tr>
-                <th className="h-10 px-3 text-left align-middle text-xs font-medium text-slate-500">Service Code</th>
+                <th className="h-10 pl-3 pr-3 text-left align-middle text-xs font-medium text-slate-500">Service Code</th>
                 <th className="h-10 px-3 text-left align-middle text-xs font-medium text-slate-500">Service Name</th>
                 <th className="h-10 px-3 text-left align-middle text-xs font-medium text-slate-500">Unit</th>
                 <th className="h-10 px-3 text-right align-middle text-xs font-medium text-slate-500">Sale Price</th>
                 <th className="h-10 px-3 text-left align-middle text-xs font-medium text-slate-500">HSN/SAC</th>
                 <th className="h-10 px-3 text-center align-middle text-xs font-medium text-slate-500">Active</th>
-                <th className="h-10 px-3 text-right align-middle text-xs font-medium text-slate-500 min-w-[100px]">Actions</th>
+                <th className="h-10 pl-3 pr-3 text-right align-middle text-xs font-medium text-slate-500 min-w-[100px]">Actions</th>
               </tr>
             </thead>
             <tbody className="[&_tr:last-child]:border-0">
               {filteredServices.map(s => (
                 <tr key={s.id} className="border-b border-slate-200 hover:bg-slate-50/80" style={{ opacity: s.is_active === false ? 0.5 : 1 }}>
-                  <td className="px-3 py-3 align-middle whitespace-nowrap text-xs font-medium text-slate-600">{s.item_code || '-'}</td>
+                  <td className="pl-3 py-3 align-middle whitespace-nowrap text-xs font-medium text-slate-600">{s.item_code || '-'}</td>
                   <td className="px-3 py-3 align-middle whitespace-nowrap text-xs font-semibold text-slate-700">{s.name}</td>
                   <td className="px-3 py-3 align-middle whitespace-nowrap text-xs font-medium text-slate-600">{s.unit}</td>
-                  <td className="px-3 py-3 text-right align-middle text-xs font-medium text-slate-600">₹{s.sale_price || '-'}</td>
+                  <td className="pr-3 py-3 text-right align-middle text-xs font-medium text-slate-600">₹{s.sale_price || '-'}</td>
                   <td className="px-3 py-3 align-middle whitespace-nowrap text-xs font-medium text-slate-600">{s.hsn_code || '-'}</td>
                   <td className="px-3 py-3 text-center align-middle text-xs font-medium text-slate-600">{s.is_active ? <span className="text-green-600">✓</span> : <span className="text-red-500">✗</span>}</td>
-                  <td className="px-3 py-3 text-right align-middle text-xs font-medium text-slate-600">
+                  <td className="pr-3 py-3 text-right align-middle text-xs font-medium text-slate-600">
                     <button className="btn btn-sm btn-secondary" onClick={() => editService(s)}>Edit</button>
                     <button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px' }} onClick={() => deleteService(s.id)}>Delete</button>
                   </td>
@@ -2773,10 +2773,10 @@ function CategoryTab() {
           <table className="w-full text-sm">
             <thead className="border-b border-slate-200 bg-slate-50/80">
               <tr>
-                <th className="h-10 px-3 text-left align-middle text-xs font-medium text-slate-500">Category Name</th>
+                <th className="h-10 pl-3 pr-3 text-left align-middle text-xs font-medium text-slate-500">Category Name</th>
                 <th className="h-10 px-3 text-left align-middle text-xs font-medium text-slate-500">Description</th>
                 <th className="h-10 px-3 text-center align-middle text-xs font-medium text-slate-500">Active</th>
-                <th className="h-10 px-3 text-right align-middle text-xs font-medium text-slate-500 min-w-[100px]">Actions</th>
+                <th className="h-10 pl-3 pr-3 text-right align-middle text-xs font-medium text-slate-500 min-w-[100px]">Actions</th>
               </tr>
             </thead>
             <tbody className="[&_tr:last-child]:border-0">
@@ -2785,7 +2785,7 @@ function CategoryTab() {
                   <td className="px-3 py-3 align-middle whitespace-nowrap text-xs font-semibold text-slate-700">{c.category_name}</td>
                   <td className="px-3 py-3 align-middle whitespace-nowrap text-xs font-medium text-slate-600">{c.description || '-'}</td>
                   <td className="px-3 py-3 text-center align-middle text-xs font-medium text-slate-600">{c.is_active ? <span className="text-green-600">✓</span> : <span className="text-red-500">✗</span>}</td>
-                  <td className="px-3 py-3 text-right align-middle text-xs font-medium text-slate-600">
+                  <td className="pr-3 py-3 text-right align-middle text-xs font-medium text-slate-600">
                     <button className="btn btn-sm btn-secondary" onClick={() => editCategory(c)}>Edit</button>
                     <button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px' }} onClick={() => deleteCategory(c.id)}>Delete</button>
                   </td>
@@ -2852,21 +2852,21 @@ function UnitTab() {
           <table className="w-full text-sm">
             <thead className="border-b border-slate-200 bg-slate-50/80">
               <tr>
-                <th className="h-10 px-3 text-left align-middle text-xs font-medium text-slate-500">Unit Name</th>
+                <th className="h-10 pl-3 pr-3 text-left align-middle text-xs font-medium text-slate-500">Unit Name</th>
                 <th className="h-10 px-3 text-left align-middle text-xs font-medium text-slate-500">Unit Code</th>
                 <th className="h-10 px-3 text-left align-middle text-xs font-medium text-slate-500">Description</th>
                 <th className="h-10 px-3 text-center align-middle text-xs font-medium text-slate-500">Active</th>
-                <th className="h-10 px-3 text-right align-middle text-xs font-medium text-slate-500 min-w-[100px]">Actions</th>
+                <th className="h-10 pl-3 pr-3 text-right align-middle text-xs font-medium text-slate-500 min-w-[100px]">Actions</th>
               </tr>
             </thead>
             <tbody className="[&_tr:last-child]:border-0">
               {filteredUnits.map(u => (
                 <tr key={u.id} className="border-b border-slate-200 hover:bg-slate-50/80" style={{ opacity: u.is_active === false ? 0.5 : 1 }}>
-                  <td className="px-3 py-3 align-middle whitespace-nowrap text-xs font-semibold text-slate-700">{u.unit_name}</td>
+                  <td className="pl-3 py-3 align-middle whitespace-nowrap text-xs font-semibold text-slate-700">{u.unit_name}</td>
                   <td className="px-3 py-3 align-middle whitespace-nowrap text-xs font-medium text-slate-600">{u.unit_code}</td>
                   <td className="px-3 py-3 align-middle whitespace-nowrap text-xs font-medium text-slate-600">{u.description || '-'}</td>
                   <td className="px-3 py-3 text-center align-middle text-xs font-medium text-slate-600">{u.is_active ? <span className="text-green-600">✓</span> : <span className="text-red-500">✗</span>}</td>
-                  <td className="px-3 py-3 text-right align-middle text-xs font-medium text-slate-600">
+                  <td className="pr-3 py-3 text-right align-middle text-xs font-medium text-slate-600">
                     <button className="btn btn-sm btn-secondary" onClick={() => editUnit(u)}>Edit</button>
                     <button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px' }} onClick={() => deleteUnit(u.id)}>Delete</button>
                   </td>
@@ -2944,23 +2944,23 @@ function WarehousesTab() {
           <table className="w-full text-sm">
             <thead className="border-b border-slate-200 bg-slate-50/80">
               <tr>
-                <th className="h-10 px-3 text-left align-middle text-xs font-medium text-slate-500">Warehouse Code</th>
+                <th className="h-10 pl-3 pr-3 text-left align-middle text-xs font-medium text-slate-500">Warehouse Code</th>
                 <th className="h-10 px-3 text-left align-middle text-xs font-medium text-slate-500">Warehouse Name</th>
                 <th className="h-10 px-3 text-left align-middle text-xs font-medium text-slate-500">Location</th>
                 <th className="h-10 px-3 text-center align-middle text-xs font-medium text-slate-500">Default</th>
                 <th className="h-10 px-3 text-center align-middle text-xs font-medium text-slate-500">Active</th>
-                <th className="h-10 px-3 text-right align-middle text-xs font-medium text-slate-500 min-w-[100px]">Actions</th>
+                <th className="h-10 pl-3 pr-3 text-right align-middle text-xs font-medium text-slate-500 min-w-[100px]">Actions</th>
               </tr>
             </thead>
             <tbody className="[&_tr:last-child]:border-0">
               {filteredWarehouses.map(w => (
                 <tr key={w.id} className="border-b border-slate-200 hover:bg-slate-50/80" style={{ opacity: w.is_active === false ? 0.5 : 1 }}>
-                  <td className="px-3 py-3 align-middle whitespace-nowrap text-xs font-medium text-slate-600">{w.warehouse_code}</td>
+                  <td className="pl-3 py-3 align-middle whitespace-nowrap text-xs font-medium text-slate-600">{w.warehouse_code}</td>
                   <td className="px-3 py-3 align-middle whitespace-nowrap text-xs font-semibold text-slate-700">{w.warehouse_name || w.name}</td>
                   <td className="px-3 py-3 align-middle whitespace-nowrap text-xs font-medium text-slate-600">{w.location || '-'}</td>
                   <td className="px-3 py-3 text-center align-middle text-xs font-medium text-slate-600">{w.is_default ? <span className="text-blue-600">✓</span> : <span className="text-slate-300">-</span>}</td>
                   <td className="px-3 py-3 text-center align-middle text-xs font-medium text-slate-600">{w.is_active ? <span className="text-green-600">✓</span> : <span className="text-red-500">✗</span>}</td>
-                  <td className="px-3 py-3 text-right align-middle text-xs font-medium text-slate-600">
+                  <td className="pr-3 py-3 text-right align-middle text-xs font-medium text-slate-600">
                     <button className="btn btn-sm btn-secondary" onClick={() => editWarehouse(w)}>Edit</button>
                     <button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px' }} onClick={() => deleteWarehouse(w.id)}>Delete</button>
                   </td>
@@ -3028,19 +3028,19 @@ function VariantsTab() {
           <table className="w-full text-sm">
             <thead className="border-b border-slate-200 bg-slate-50/80">
               <tr>
-                <th className="h-10 px-3 text-left align-middle text-xs font-medium text-slate-500">Variant Name</th>
+                <th className="h-10 pl-3 pr-3 text-left align-middle text-xs font-medium text-slate-500">Variant Name</th>
                 <th className="h-10 px-3 text-center align-middle text-xs font-medium text-slate-500">Active</th>
                 <th className="h-10 px-3 text-left align-middle text-xs font-medium text-slate-500">Created</th>
-                <th className="h-10 px-3 text-right align-middle text-xs font-medium text-slate-500 min-w-[100px]">Actions</th>
+                <th className="h-10 pl-3 pr-3 text-right align-middle text-xs font-medium text-slate-500 min-w-[100px]">Actions</th>
               </tr>
             </thead>
             <tbody className="[&_tr:last-child]:border-0">
               {filteredVariants.map(v => (
                 <tr key={v.id} className="border-b border-slate-200 hover:bg-slate-50/80" style={{ opacity: v.is_active === false ? 0.5 : 1 }}>
-                  <td className="px-3 py-3 align-middle whitespace-nowrap text-xs font-semibold text-slate-700">{v.variant_name}</td>
+                  <td className="pl-3 py-3 align-middle whitespace-nowrap text-xs font-semibold text-slate-700">{v.variant_name}</td>
                   <td className="px-3 py-3 text-center align-middle text-xs font-medium text-slate-600">{v.is_active ? <span className="text-green-600">✓</span> : <span className="text-red-500">✗</span>}</td>
                   <td className="px-3 py-3 align-middle whitespace-nowrap text-xs font-medium text-slate-600">{v.created_at ? new Date(v.created_at).toLocaleDateString() : '-'}</td>
-                  <td className="px-3 py-3 text-right align-middle text-xs font-medium text-slate-600">
+                  <td className="pr-3 py-3 text-right align-middle text-xs font-medium text-slate-600">
                     <button className="btn btn-sm btn-secondary" onClick={() => editVariant(v)}>Edit</button>
                     <button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px' }} onClick={() => deleteVariant(v.id)}>Delete</button>
                   </td>
