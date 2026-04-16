@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { FormEvent } from 'react';
 import { supabase } from '../supabase';
+import { useAuth } from '../App';
 
 const DOCUMENT_TYPES = [
   { id: 'invoice', label: 'Invoice' },
@@ -18,6 +19,7 @@ const DOCUMENT_TYPES = [
 ];
 
 export default function TransactionNumberSeries() {
+  const { organisation } = useAuth();
   const [series, setSeries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -28,20 +30,22 @@ export default function TransactionNumberSeries() {
   useEffect(() => {
     loadSeries();
     loadGlobalSettings();
-  }, []);
+  }, [organisation?.id]);
 
   const loadGlobalSettings = async () => {
-    const { data } = await supabase.from('settings').select('key, value').eq('key', 'prevent_duplicate_numbers');
+    const { data } = await supabase.from('settings').select('key, value').eq('key', 'prevent_duplicate_numbers').eq('organisation_id', organisation?.id);
     if (data && data.length > 0) {
       setPreventDuplicate(data[0].value === 'true');
     }
   };
 
   const loadSeries = async () => {
+    if (!organisation?.id) return;
     setLoading(true);
     const { data, error } = await supabase
       .from('document_series')
       .select('*')
+      .eq('organisation_id', organisation.id)
       .order('series_name', { ascending: true });
     
     if (!error) {
@@ -55,7 +59,8 @@ export default function TransactionNumberSeries() {
     setPreventDuplicate(newValue);
     await supabase.from('settings').upsert({ 
       key: 'prevent_duplicate_numbers', 
-      value: String(newValue) 
+      value: String(newValue),
+      organisation_id: organisation?.id 
     }, { onConflict: 'key' });
   };
 
