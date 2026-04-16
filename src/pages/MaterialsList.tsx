@@ -2669,13 +2669,13 @@ function ServiceTab() {
             <tbody className="[&_tr:last-child]:border-0">
               {filteredServices.map(s => (
                 <tr key={s.id} className="border-b border-slate-200 hover:bg-slate-50/80" style={{ opacity: s.is_active === false ? 0.5 : 1 }}>
-                  <td className="px-3 py-1.5 align-middle whitespace-nowrap text-xs font-medium text-slate-600">{s.item_code || '-'}</td>
-                  <td className="px-3 py-1.5 align-middle whitespace-nowrap text-xs font-semibold text-slate-700">{s.name}</td>
-                  <td className="px-3 py-1.5 align-middle whitespace-nowrap text-xs font-medium text-slate-600">{s.unit}</td>
-                  <td className="px-3 py-1.5 text-right align-middle text-xs font-medium text-slate-600">₹{s.sale_price || '-'}</td>
-                  <td className="px-3 py-1.5 align-middle whitespace-nowrap text-xs font-medium text-slate-600">{s.hsn_code || '-'}</td>
-                  <td className="px-3 py-1.5 text-center align-middle text-xs font-medium text-slate-600">{s.is_active ? <span className="text-green-600">✓</span> : <span className="text-red-500">✗</span>}</td>
-                  <td className="px-3 py-1.5 text-right align-middle text-xs font-medium text-slate-600">
+                  <td className="px-3 py-3 align-middle whitespace-nowrap text-xs font-medium text-slate-600">{s.item_code || '-'}</td>
+                  <td className="px-3 py-3 align-middle whitespace-nowrap text-xs font-semibold text-slate-700">{s.name}</td>
+                  <td className="px-3 py-3 align-middle whitespace-nowrap text-xs font-medium text-slate-600">{s.unit}</td>
+                  <td className="px-3 py-3 text-right align-middle text-xs font-medium text-slate-600">₹{s.sale_price || '-'}</td>
+                  <td className="px-3 py-3 align-middle whitespace-nowrap text-xs font-medium text-slate-600">{s.hsn_code || '-'}</td>
+                  <td className="px-3 py-3 text-center align-middle text-xs font-medium text-slate-600">{s.is_active ? <span className="text-green-600">✓</span> : <span className="text-red-500">✗</span>}</td>
+                  <td className="px-3 py-3 text-right align-middle text-xs font-medium text-slate-600">
                     <button className="btn btn-sm btn-secondary" onClick={() => editService(s)}>Edit</button>
                     <button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px' }} onClick={() => deleteService(s.id)}>Delete</button>
                   </td>
@@ -2782,10 +2782,10 @@ function CategoryTab() {
             <tbody className="[&_tr:last-child]:border-0">
               {filteredCategories.map(c => (
                 <tr key={c.id} className="border-b border-slate-200 hover:bg-slate-50/80" style={{ opacity: c.is_active === false ? 0.5 : 1 }}>
-                  <td className="px-3 py-1.5 align-middle whitespace-nowrap text-xs font-semibold text-slate-700">{c.category_name}</td>
-                  <td className="px-3 py-1.5 align-middle whitespace-nowrap text-xs font-medium text-slate-600">{c.description || '-'}</td>
-                  <td className="px-3 py-1.5 text-center align-middle text-xs font-medium text-slate-600">{c.is_active ? <span className="text-green-600">✓</span> : <span className="text-red-500">✗</span>}</td>
-                  <td className="px-3 py-1.5 text-right align-middle text-xs font-medium text-slate-600">
+                  <td className="px-3 py-3 align-middle whitespace-nowrap text-xs font-semibold text-slate-700">{c.category_name}</td>
+                  <td className="px-3 py-3 align-middle whitespace-nowrap text-xs font-medium text-slate-600">{c.description || '-'}</td>
+                  <td className="px-3 py-3 text-center align-middle text-xs font-medium text-slate-600">{c.is_active ? <span className="text-green-600">✓</span> : <span className="text-red-500">✗</span>}</td>
+                  <td className="px-3 py-3 text-right align-middle text-xs font-medium text-slate-600">
                     <button className="btn btn-sm btn-secondary" onClick={() => editCategory(c)}>Edit</button>
                     <button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px' }} onClick={() => deleteCategory(c.id)}>Delete</button>
                   </td>
@@ -2862,11 +2862,11 @@ function UnitTab() {
             <tbody className="[&_tr:last-child]:border-0">
               {filteredUnits.map(u => (
                 <tr key={u.id} className="border-b border-slate-200 hover:bg-slate-50/80" style={{ opacity: u.is_active === false ? 0.5 : 1 }}>
-                  <td className="px-3 py-1.5 align-middle whitespace-nowrap text-xs font-semibold text-slate-700">{u.unit_name}</td>
-                  <td className="px-3 py-1.5 align-middle whitespace-nowrap text-xs font-medium text-slate-600">{u.unit_code}</td>
-                  <td className="px-3 py-1.5 align-middle whitespace-nowrap text-xs font-medium text-slate-600">{u.description || '-'}</td>
-                  <td className="px-3 py-1.5 text-center align-middle text-xs font-medium text-slate-600">{u.is_active ? <span className="text-green-600">✓</span> : <span className="text-red-500">✗</span>}</td>
-                  <td className="px-3 py-1.5 text-right align-middle text-xs font-medium text-slate-600">
+                  <td className="px-3 py-3 align-middle whitespace-nowrap text-xs font-semibold text-slate-700">{u.unit_name}</td>
+                  <td className="px-3 py-3 align-middle whitespace-nowrap text-xs font-medium text-slate-600">{u.unit_code}</td>
+                  <td className="px-3 py-3 align-middle whitespace-nowrap text-xs font-medium text-slate-600">{u.description || '-'}</td>
+                  <td className="px-3 py-3 text-center align-middle text-xs font-medium text-slate-600">{u.is_active ? <span className="text-green-600">✓</span> : <span className="text-red-500">✗</span>}</td>
+                  <td className="px-3 py-3 text-right align-middle text-xs font-medium text-slate-600">
                     <button className="btn btn-sm btn-secondary" onClick={() => editUnit(u)}>Edit</button>
                     <button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px' }} onClick={() => deleteUnit(u.id)}>Delete</button>
                   </td>
@@ -2955,12 +2955,12 @@ function WarehousesTab() {
             <tbody className="[&_tr:last-child]:border-0">
               {filteredWarehouses.map(w => (
                 <tr key={w.id} className="border-b border-slate-200 hover:bg-slate-50/80" style={{ opacity: w.is_active === false ? 0.5 : 1 }}>
-                  <td className="px-3 py-1.5 align-middle whitespace-nowrap text-xs font-medium text-slate-600">{w.warehouse_code}</td>
-                  <td className="px-3 py-1.5 align-middle whitespace-nowrap text-xs font-semibold text-slate-700">{w.warehouse_name || w.name}</td>
-                  <td className="px-3 py-1.5 align-middle whitespace-nowrap text-xs font-medium text-slate-600">{w.location || '-'}</td>
-                  <td className="px-3 py-1.5 text-center align-middle text-xs font-medium text-slate-600">{w.is_default ? <span className="text-blue-600">✓</span> : <span className="text-slate-300">-</span>}</td>
-                  <td className="px-3 py-1.5 text-center align-middle text-xs font-medium text-slate-600">{w.is_active ? <span className="text-green-600">✓</span> : <span className="text-red-500">✗</span>}</td>
-                  <td className="px-3 py-1.5 text-right align-middle text-xs font-medium text-slate-600">
+                  <td className="px-3 py-3 align-middle whitespace-nowrap text-xs font-medium text-slate-600">{w.warehouse_code}</td>
+                  <td className="px-3 py-3 align-middle whitespace-nowrap text-xs font-semibold text-slate-700">{w.warehouse_name || w.name}</td>
+                  <td className="px-3 py-3 align-middle whitespace-nowrap text-xs font-medium text-slate-600">{w.location || '-'}</td>
+                  <td className="px-3 py-3 text-center align-middle text-xs font-medium text-slate-600">{w.is_default ? <span className="text-blue-600">✓</span> : <span className="text-slate-300">-</span>}</td>
+                  <td className="px-3 py-3 text-center align-middle text-xs font-medium text-slate-600">{w.is_active ? <span className="text-green-600">✓</span> : <span className="text-red-500">✗</span>}</td>
+                  <td className="px-3 py-3 text-right align-middle text-xs font-medium text-slate-600">
                     <button className="btn btn-sm btn-secondary" onClick={() => editWarehouse(w)}>Edit</button>
                     <button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px' }} onClick={() => deleteWarehouse(w.id)}>Delete</button>
                   </td>
@@ -3037,10 +3037,10 @@ function VariantsTab() {
             <tbody className="[&_tr:last-child]:border-0">
               {filteredVariants.map(v => (
                 <tr key={v.id} className="border-b border-slate-200 hover:bg-slate-50/80" style={{ opacity: v.is_active === false ? 0.5 : 1 }}>
-                  <td className="px-3 py-1.5 align-middle whitespace-nowrap text-xs font-semibold text-slate-700">{v.variant_name}</td>
-                  <td className="px-3 py-1.5 text-center align-middle text-xs font-medium text-slate-600">{v.is_active ? <span className="text-green-600">✓</span> : <span className="text-red-500">✗</span>}</td>
-                  <td className="px-3 py-1.5 align-middle whitespace-nowrap text-xs font-medium text-slate-600">{v.created_at ? new Date(v.created_at).toLocaleDateString() : '-'}</td>
-                  <td className="px-3 py-1.5 text-right align-middle text-xs font-medium text-slate-600">
+                  <td className="px-3 py-3 align-middle whitespace-nowrap text-xs font-semibold text-slate-700">{v.variant_name}</td>
+                  <td className="px-3 py-3 text-center align-middle text-xs font-medium text-slate-600">{v.is_active ? <span className="text-green-600">✓</span> : <span className="text-red-500">✗</span>}</td>
+                  <td className="px-3 py-3 align-middle whitespace-nowrap text-xs font-medium text-slate-600">{v.created_at ? new Date(v.created_at).toLocaleDateString() : '-'}</td>
+                  <td className="px-3 py-3 text-right align-middle text-xs font-medium text-slate-600">
                     <button className="btn btn-sm btn-secondary" onClick={() => editVariant(v)}>Edit</button>
                     <button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px' }} onClick={() => deleteVariant(v.id)}>Delete</button>
                   </td>
