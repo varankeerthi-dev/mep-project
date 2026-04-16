@@ -192,6 +192,7 @@ export interface DCFilters {
   endDate?: string
   status?: string
   dc_type?: string
+  organisation_id?: string
 }
 
 export interface QuotationFilters {
@@ -337,6 +338,9 @@ export async function fetchDeliveryChallans(filters: DCFilters = {}): Promise<De
     `)
     .order('dc_date', { ascending: false });
 
+  if (filters.organisation_id) {
+    query = query.eq('organisation_id', filters.organisation_id);
+  }
   if (filters.projectId) {
     query = query.eq('project_id', filters.projectId);
   }
