@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabase';
 import { AppTable } from '../components/ui/AppTable';
+import { useAuth } from '../App';
 
 type ClientRequest = {
   id?: string
@@ -13,6 +14,7 @@ type ClientRequest = {
 }
 
 export default function ClientRequests() {
+  const { organisation } = useAuth();
   const [requests, setRequests] = useState<ClientRequest[]>([])
   const [showForm, setShowForm] = useState(false)
   const [formData, setFormData] = useState<ClientRequest>({
@@ -24,15 +26,16 @@ export default function ClientRequests() {
   })
 
   const loadRequests = async () => {
-    const { data } = await supabase.from('client_requests').select('*').order('request_date', { ascending: false })
+    if (!organisation?.id) return;
+    const { data } = await supabase.from('client_requests').select('*').eq('organisation_id', organisation.id).order('request_date', { ascending: false })
     setRequests(data || [])
   }
 
-  useEffect(() => { loadRequests() }, [])
+  useEffect(() => { loadRequests() }, [organisation?.id])
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    await supabase.from('client_requests').insert(formData)
+    await supabase.from('client_requests').insert({ ...formData, organisation_id: organisation.id })
     setShowForm(false)
     setFormData({
       client_name: '',
