@@ -30,6 +30,8 @@ import {
   Check,
   AlertCircle,
   ChevronRight,
+  ChevronDown,
+  MoreHorizontal,
   MoreVertical,
   Settings,
   Tag,
@@ -215,6 +217,8 @@ function ItemsTab() {
   const [editingMaterial, setEditingMaterial] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const [showMoreDropdown, setShowMoreDropdown] = useState(false);
   const [hideInactive, setHideInactive] = useState(false);
   const [saveNotice, setSaveNotice] = useState('');
   const [materialSavePending, setMaterialSavePending] = useState(false);
@@ -1439,17 +1443,36 @@ function ItemsTab() {
             <Badge variant="outline" className="text-xs font-normal ml-1 font-sans">{filteredMaterials.length} items</Badge>
           </div>
           <div className="flex gap-1 flex-wrap items-center">
-            {MAIN_CATEGORIES.slice(0, 6).map((cat) => (
-              <Button
-                key={cat}
-                size="sm"
-                variant={categoryFilter === cat ? 'default' : 'outline'}
-                onClick={() => setCategoryFilter(categoryFilter === cat ? 'All' : cat)}
+            <div className="relative">
+              <Button 
+                size="sm" 
+                variant={categoryFilter !== 'All' ? 'default' : 'outline'} 
+                onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
                 className="text-xs font-sans"
               >
-                {cat}
+                {categoryFilter === 'All' ? 'Category' : categoryFilter}
+                <ChevronDown className="w-3 h-3 ml-1" />
               </Button>
-            ))}
+              {showCategoryDropdown && (
+                <div className="absolute z-50 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[160px]">
+                  <button
+                    className="w-full text-left px-3 py-2 text-xs hover:bg-gray-100"
+                    onClick={() => { setCategoryFilter('All'); setShowCategoryDropdown(false); }}
+                  >
+                    All Categories
+                  </button>
+                  {MAIN_CATEGORIES.map((cat) => (
+                    <button
+                      key={cat}
+                      className={cn("w-full text-left px-3 py-2 text-xs hover:bg-gray-100", categoryFilter === cat && "bg-indigo-50 text-indigo-600")}
+                      onClick={() => { setCategoryFilter(cat); setShowCategoryDropdown(false); }}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <Input
               placeholder="Search materials..."
               value={searchTerm}
@@ -1459,18 +1482,39 @@ function ItemsTab() {
             <Button size="sm" onClick={() => setShowForm(true)} className="text-xs font-sans">
               <Plus className="w-4 h-4 mr-1" /> Add Material
             </Button>
-            <Button size="sm" variant="outline" onClick={() => setShowColumnSettings((prev) => !prev)} className="text-xs font-sans" title="Column Settings">
-              Columns
-            </Button>
-            <Button size="sm" variant="outline" onClick={openBulkPriceModal} className="text-xs font-sans">
-              Bulk Price
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => setShowBulkImportModal(true)} className="text-xs font-sans">
-              <Upload className="w-4 h-4 mr-1" /> Bulk Import
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => setShowFieldSelector(true)} className="text-xs font-sans" title="Edit in Excel Mode">
-              <FileSpreadsheet className="w-4 h-4 mr-1" /> Excel Edit
-            </Button>
+            <div className="relative">
+              <Button size="sm" variant="outline" className="text-xs font-sans" onClick={() => setShowMoreDropdown(!showMoreDropdown)}>
+                <MoreHorizontal className="w-4 h-4" />
+              </Button>
+              {showMoreDropdown && (
+                <div className="absolute z-50 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[180px] right-0">
+                  <button
+                    className="w-full text-left px-3 py-2 text-xs hover:bg-gray-100 flex items-center gap-2"
+                    onClick={() => { openBulkPriceModal(); setShowMoreDropdown(false); }}
+                  >
+                    <Tag className="w-3 h-3" /> Bulk Price Update
+                  </button>
+                  <button
+                    className="w-full text-left px-3 py-2 text-xs hover:bg-gray-100 flex items-center gap-2"
+                    onClick={() => { setShowBulkImportModal(true); setShowMoreDropdown(false); }}
+                  >
+                    <Upload className="w-3 h-3" /> Bulk Import
+                  </button>
+                  <button
+                    className="w-full text-left px-3 py-2 text-xs hover:bg-gray-100 flex items-center gap-2"
+                    onClick={() => { setShowFieldSelector(true); setShowMoreDropdown(false); }}
+                  >
+                    <FileSpreadsheet className="w-3 h-3" /> Excel Edit
+                  </button>
+                  <button
+                    className="w-full text-left px-3 py-2 text-xs hover:bg-gray-100 flex items-center gap-2"
+                    onClick={() => { setShowColumnSettings((prev) => !prev); setShowMoreDropdown(false); }}
+                  >
+                    <Settings className="w-3 h-3" /> Columns
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
