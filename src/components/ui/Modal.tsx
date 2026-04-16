@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
-import { colors, shadows, radii, transitions } from '../../design-system';
 import { IconButton } from './Button';
 import { X } from 'lucide-react';
+import { cn } from '../../lib/utils';
 
 interface ModalProps {
   isOpen: boolean;
@@ -14,11 +14,11 @@ interface ModalProps {
 }
 
 const sizes = {
-  sm: { maxWidth: '400px' },
-  md: { maxWidth: '560px' },
-  lg: { maxWidth: '720px' },
-  xl: { maxWidth: '960px' },
-  full: { maxWidth: 'calc(100vw - 48px)', maxHeight: 'calc(100vh - 48px)' },
+  sm: 'max-w-[400px]',
+  md: 'max-w-[560px]',
+  lg: 'max-w-[720px]',
+  xl: 'max-w-[960px]',
+  full: 'max-w-[calc(100vw-48px)] max-h-[calc(100vh-48px)]',
 };
 
 export function Modal({
@@ -44,111 +44,47 @@ export function Modal({
   if (!isOpen) return null;
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 1000,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '24px',
-      }}
-    >
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center p-6">
       {/* Backdrop */}
       <div
         onClick={onClose}
-        style={{
-          position: 'absolute',
-          inset: 0,
-          background: 'rgba(0, 0, 0, 0.4)',
-          backdropFilter: 'blur(4px)',
-          animation: 'fadeIn 200ms ease-out',
-        }}
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200"
       />
-      <style>{`
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        @keyframes slideIn {
-          from { opacity: 0; transform: scale(0.96) translateY(-8px); }
-          to { opacity: 1; transform: scale(1) translateY(0); }
-        }
-      `}</style>
 
       {/* Modal */}
       <div
-        style={{
-          position: 'relative',
-          width: '100%',
-          ...sizes[size],
-          maxHeight: 'calc(100vh - 48px)',
-          background: '#ffffff',
-          borderRadius: radii.xl,
-          boxShadow: shadows.xl,
-          display: 'flex',
-          flexDirection: 'column',
-          animation: 'slideIn 200ms cubic-bezier(0.16, 1, 0.3, 1)',
-          overflow: 'hidden',
-        }}
+        className={cn(
+          'relative w-full bg-white rounded-xl shadow-xl flex flex-col animate-in zoom-in-95 duration-200',
+          'border border-slate-200',
+          sizes[size],
+          'max-h-[calc(100vh-48px)]'
+        )}
       >
         {/* Header */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '20px 24px',
-            borderBottom: `1px solid ${colors.gray[200]}`,
-            flexShrink: 0,
-          }}
-        >
-          <h2
-            style={{
-              fontSize: '18px',
-              fontWeight: 600,
-              color: colors.gray[900],
-              margin: 0,
-            }}
-          >
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 shrink-0">
+          <h2 className="text-lg font-semibold text-slate-900">
             {title}
           </h2>
           {!hideCloseButton && (
             <IconButton
               icon={<X size={18} />}
               variant="ghost"
-              size="md"
+              size="sm"
               onClick={onClose}
               aria-label="Close"
+              className="text-slate-400 hover:text-slate-600 hover:bg-slate-100"
             />
           )}
         </div>
 
         {/* Body */}
-        <div
-          style={{
-            flex: 1,
-            overflow: 'auto',
-            padding: '24px',
-          }}
-        >
+        <div className="flex-1 overflow-auto p-6">
           {children}
         </div>
 
         {/* Footer */}
         {footer && (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'flex-end',
-              gap: '12px',
-              padding: '16px 24px',
-              borderTop: `1px solid ${colors.gray[200]}`,
-              flexShrink: 0,
-            }}
-          >
+          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-200 shrink-0 bg-slate-50/50">
             {footer}
           </div>
         )}
