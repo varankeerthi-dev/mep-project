@@ -1523,12 +1523,6 @@ const loadQuoteNoPreview = useCallback(async () => {
           {renderHeaderField('Address:', (
             <input type="text" className="form-input" style={{ ...compactFieldStyle, minHeight: '50px', height: '50px' }} value={formData.billing_address || ''} onChange={(e) => setFormData({ ...formData, billing_address: e.target.value })} placeholder="Billing Address" />
           ))}
-          {renderHeaderField('State:', (
-            <select className="form-select" style={compactFieldStyle} value={formData.state || ''} onChange={(e) => setFormData({ ...formData, state: e.target.value })}>
-              <option value="">Select</option>
-              {INDIAN_STATES.map((s) => (<option key={s} value={s}>{s}</option>))}
-            </select>
-          ))}
           {renderHeaderField('GSTIN:', (
             <input type="text" className="form-input" style={compactFieldStyle} value={formData.gstin || ''} onChange={(e) => setFormData({ ...formData, gstin: e.target.value })} placeholder="GSTIN" />
           ))}
@@ -1668,46 +1662,6 @@ const loadQuoteNoPreview = useCallback(async () => {
               )}
             </div>
           )}
-        </div>
-      )}
-
-      {quickQuoteConfig && (
-        <div className="card" style={{ marginBottom: '12px', padding: '12px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', background: '#f8fafc' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#0f172a', fontSize: '12px', fontWeight: 600 }}>
-              <span>Quick Quote</span>
-              <span style={{ color: '#64748b', fontWeight: 400 }}>Generate preset rows</span>
-            </div>
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              <select className="form-select" style={{ minWidth: '170px', height: '32px', fontSize: '12px' }} value={quickQuoteTemplateId} onChange={(e) => setQuickQuoteTemplateId(e.target.value)}>
-                <option value="">Template</option>
-                {(quickQuoteConfig?.templates || []).map((tpl) => (
-                  <option key={tpl.id} value={tpl.id}>{tpl.name}</option>
-                ))}
-              </select>
-              <input className="form-input" style={{ width: '92px', height: '32px', fontSize: '12px' }} value={quickQuoteSize} onChange={(e) => setQuickQuoteSize(e.target.value)} placeholder="Size" />
-              <input className="form-input" style={{ width: '92px', height: '32px', fontSize: '12px' }} value={quickQuoteSubSize} onChange={(e) => setQuickQuoteSubSize(e.target.value)} placeholder="Sub-size" />
-              <select className="form-select" style={{ minWidth: '160px', height: '32px', fontSize: '12px' }} value={quickQuoteVariantId} onChange={(e) => setQuickQuoteVariantId(e.target.value)}>
-                <option value="">Variant</option>
-                {variants.map((variant) => (
-                  <option key={variant.id} value={variant.id}>{variant.variant_name}</option>
-                ))}
-              </select>
-              <input className="form-input" style={{ width: '120px', height: '32px', fontSize: '12px' }} value={quickQuoteMake} onChange={(e) => setQuickQuoteMake(e.target.value)} placeholder="Make" />
-              <input className="form-input" style={{ width: '120px', height: '32px', fontSize: '12px' }} value={quickQuoteSpec} onChange={(e) => setQuickQuoteSpec(e.target.value)} placeholder="Spec" />
-              <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#334155' }}>
-                <input type="checkbox" checked={quickQuoteIncludeValves} onChange={(e) => setQuickQuoteIncludeValves(e.target.checked)} />
-                Valves
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#334155' }}>
-                <input type="checkbox" checked={quickQuoteIncludeThreadItems} onChange={(e) => setQuickQuoteIncludeThreadItems(e.target.checked)} />
-                Thread
-              </label>
-              <button className="btn btn-primary" style={{ height: '32px', borderRadius: '8px', fontSize: '12px', padding: '0 12px' }} onClick={handleGenerateQuickQuote}>
-                Generate
-              </button>
-            </div>
-          </div>
         </div>
       )}
 
