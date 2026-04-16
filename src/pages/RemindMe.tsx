@@ -1,13 +1,36 @@
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabase';
 import { AppTable } from '../components/ui/AppTable';
+import { useAuth } from '../App';
 
 export default function RemindMe() {
+  const { organisation } = useAuth();
   const [reminders, setReminders] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({ title: '', remind_date: '', description: '' });
-  useEffect(() => { supabase.from('reminders').select('*').order('remind_date', { ascending: true }).then(({ data }) => setReminders(data || [])); }, []);
-  const handleSubmit = async (e) => { e.preventDefault(); await supabase.from('reminders').insert(formData); setShowForm(false); setFormData({ title: '', remind_date: '', description: '' }); supabase.from('reminders').select('*').order('remind_date', { ascending: true }).then(({ data }) => setReminders(data || [])); };
+
+  useEffect(() => {
+    if (!organisation?.id) return;
+    supabase
+      .from('reminders')
+      .select('*')
+      .eq('organisation_id', organisation.id)
+      .order('remind_date', { ascending: true })
+      .then(({ data }) => setReminders(data || []));
+  }, [organisation?.id]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    await supabase.from('reminders').insert({ ...formData, organisation_id: organisation.id });
+    setShowForm(false);
+    setFormData({ title: '', remind_date: '', description: '' });
+    supabase
+      .from('reminders')
+      .select('*')
+      .eq('organisation_id', organisation.id)
+      .order('remind_date', { ascending: true })
+      .then(({ data }) => setReminders(data || []));
+  };
 
   const tableColumns = useMemo(() => [
     { header: 'Title', accessorKey: 'title' },
@@ -23,5 +46,3 @@ export default function RemindMe() {
     </div>
   );
 }
-
-
