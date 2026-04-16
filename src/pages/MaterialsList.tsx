@@ -22,6 +22,7 @@ import {
   Warehouse as WarehouseIcon,
 } from 'lucide-react';
 import { supabase } from '../supabase';
+import { useAuth } from '../App';
 import { formatDate, formatCurrency } from '../utils/formatters';
 import { timedSupabaseQuery } from '../utils/queryTimeout';
 import { useMaterialsPageData } from '../hooks/useMaterialsPageData';
@@ -197,6 +198,7 @@ function TabButton({ active, onClick, children }) {
 
 function ItemsTab() {
   const queryClient = useQueryClient();
+  const { organisation } = useAuth();
   const [showForm, setShowForm] = useState(false);
   const [showColumnSettings, setShowColumnSettings] = useState(false);
   const [showBulkPriceModal, setShowBulkPriceModal] = useState(false);
@@ -258,7 +260,7 @@ function ItemsTab() {
     return formatCurrency(value);
   };
 
-  const { data: pageData, isLoading, isError, error, refetch } = useMaterialsPageData();
+  const { data: pageData, isLoading, isError, error, refetch } = useMaterialsPageData(organisation?.id);
   
   const allMaterials = pageData?.materials ?? [];
   const materials = useMemo(() => allMaterials.filter(m => m.item_type !== 'service'), [allMaterials]);
@@ -993,6 +995,7 @@ function ItemsTab() {
       is_active: formData.is_active,
       uses_variant: formData.uses_variant,
       track_inventory: formData.track_inventory,
+      organisation_id: organisation?.id,
       updated_at: new Date().toISOString()
     };
 

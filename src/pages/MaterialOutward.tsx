@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../supabase';
+import { useAuth } from '../App';
 import { timedSupabaseQuery } from '../utils/queryTimeout';
 import { useMaterials } from '../hooks/useMaterials';
 import { useWarehouses } from '../hooks/useWarehouses';
@@ -17,6 +18,7 @@ const createEmptyItem = (id) => ({
 });
 
 export default function MaterialOutward({ onSuccess, onCancel }) {
+  const { organisation } = useAuth();
   const { data: materials = [] } = useMaterials();
   const { data: warehouses = [] } = useWarehouses();
   const { data: variants = [] } = useVariants();
@@ -48,13 +50,14 @@ export default function MaterialOutward({ onSuccess, onCancel }) {
   });
 
   const stockQuery = useQuery({
-    queryKey: ['materialOutwardStock', formData.warehouse_id, formData.variant_id],
-    enabled: !!formData.warehouse_id && !!formData.variant_id,
+    queryKey: ['materialOutwardStock', formData.warehouse_id, formData.variant_id, organisation?.id],
+    enabled: !!formData.warehouse_id && !!formData.variant_id && !!organisation?.id,
     queryFn: async () => {
       const stockRows = await timedSupabaseQuery(
         supabase
           .from('item_stock')
           .select('item_id, company_variant_id, warehouse_id, current_stock')
+          .eq('organisation_id', organisation?.id)
           .eq('warehouse_id', formData.warehouse_id)
           .eq('company_variant_id', formData.variant_id),
         'Material outward stock',
@@ -164,7 +167,7 @@ export default function MaterialOutward({ onSuccess, onCancel }) {
     setSaving(true);
     try {
       const outward = await timedSupabaseQuery(
-        supabase.from('material_outward').insert(formData).select().single(),
+        supabase.from('material_outward').insert({ ...formData, organisation_id: organisation?.id }).select().single(),
         'Material outward save',
       );
 
@@ -183,6 +186,7 @@ export default function MaterialOutward({ onSuccess, onCancel }) {
             variant_id: formData.variant_id,
             warehouse_id: formData.warehouse_id,
             quantity,
+            organisation_id: organisation?.id,
           }),
           'Material outward line save',
         );

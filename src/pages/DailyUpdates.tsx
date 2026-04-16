@@ -1,19 +1,24 @@
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabase';
+import { useAuth } from '../App';
 import { AppTable } from '../components/ui/AppTable';
 
 export default function DailyUpdates() {
+  const { organisation } = useAuth();
   const [updates, setUpdates] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({ project_id: '', update_date: new Date().toISOString().split('T')[0], description: '', images: [] });
 
-  const loadUpdates = async () => { const { data } = await supabase.from('daily_updates').select('*, project:projects(name)').order('update_date', { ascending: false }); setUpdates(data || []); };
+  const loadUpdates = async () => { 
+    const { data } = await supabase.from('daily_updates').select('*, project:projects(name)').eq('organisation_id', organisation?.id).order('update_date', { ascending: false }); 
+    setUpdates(data || []); 
+  };
 
-  useEffect(() => { loadUpdates(); }, []);
+  useEffect(() => { loadUpdates(); }, [organisation?.id]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    await supabase.from('daily_updates').insert({ project_id: formData.project_id || null, update_date: formData.update_date, description: formData.description });
+    await supabase.from('daily_updates').insert({ project_id: formData.project_id || null, update_date: formData.update_date, description: formData.description, organisation_id: organisation?.id });
     setShowForm(false); loadUpdates();
   }
 

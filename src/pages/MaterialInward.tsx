@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../supabase';
+import { useAuth } from '../App';
 import { timedSupabaseQuery } from '../utils/queryTimeout';
 import { useMaterials } from '../hooks/useMaterials';
 import { useWarehouses } from '../hooks/useWarehouses';
@@ -23,10 +24,11 @@ const createEmptyItem = (id) => ({
 });
 
 export default function MaterialInward({ onSuccess, onCancel }) {
-  const { data: materials = [] } = useMaterials();
-  const { data: warehouses = [] } = useWarehouses();
-  const { data: variants = [] } = useVariants();
-  const { data: projects = [] } = useProjects();
+  const { organisation } = useAuth();
+  const { data: materials = [] } = useMaterials(organisation?.id);
+  const { data: warehouses = [] } = useWarehouses(organisation?.id);
+  const { data: variants = [] } = useVariants(organisation?.id);
+  const { data: projects = [] } = useProjects(organisation?.id);
   
   const [showPasteModal, setShowPasteModal] = useState(false);
   const [pasteData, setPasteData] = useState('');
@@ -76,13 +78,14 @@ export default function MaterialInward({ onSuccess, onCancel }) {
   );
 
   const inwardsQuery = useQuery({
-    queryKey: ['materialInwardList'],
+    queryKey: ['materialInwardList', organisation?.id],
     queryFn: async () => {
       return timedSupabaseQuery(
-        supabase.from('material_inward').select('*, items:material_inward_items(*, item:materials(name, display_name))').order('created_at', { ascending: false }),
+        supabase.from('material_inward').select('*, items:material_inward_items(*, item:materials(name, display_name))').eq('organisation_id', organisation?.id).order('created_at', { ascending: false }),
         'Material inward list'
       );
-    }
+    },
+    enabled: !!organisation?.id,
   });
 
   const getMaterial = (id) => materials.find((material) => material.id === id);
@@ -256,7 +259,8 @@ export default function MaterialInward({ onSuccess, onCancel }) {
           acknowledged_by: formData.acknowledged_by || null,
           remarks: formData.remarks || null,
           supply_type: formData.supply_type,
-          project_id: formData.project_id || null
+          project_id: formData.project_id || null,
+          organisation_id: organisation?.id,
         }).select().single(),
         'Material inward save',
       );
@@ -284,7 +288,8 @@ export default function MaterialInward({ onSuccess, onCancel }) {
             warehouse_id: itemWarehouseId,
             variant_id: itemVariantId,
             supply_type: itemSupplyType,
-            project_id: itemProjectId
+            project_id: itemProjectId,
+            organisation_id: organisation?.id,
           }),
           'Material inward line save',
         );

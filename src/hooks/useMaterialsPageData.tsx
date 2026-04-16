@@ -19,9 +19,9 @@ const isMissingRelationError = (error: any): boolean => {
   return code === '42P01' || /does not exist/i.test(message) || /schema cache/i.test(message);
 };
 
-export function useMaterialsPageData() {
+export function useMaterialsPageData(orgId?: string | null) {
   return useQuery<MaterialsPageData>({
-    queryKey: ['materials-page-data'],
+    queryKey: ['materials-page-data', orgId],
     queryFn: async () => {
       const [
         materialsResult,
@@ -35,6 +35,7 @@ export function useMaterialsPageData() {
           supabase
             .from('materials')
             .select('*')
+            .eq('organisation_id', orgId)
             .order('name'),
           'Materials'
         ),
@@ -42,7 +43,7 @@ export function useMaterialsPageData() {
         (async () => {
           try {
             return await timedSupabaseQuery(
-              supabase.from('item_stock').select('*'),
+              supabase.from('item_stock').select('*').eq('organisation_id', orgId),
               'Item Stock'
             );
           } catch (error) {
@@ -57,7 +58,7 @@ export function useMaterialsPageData() {
         (async () => {
           try {
             return await timedSupabaseQuery(
-              supabase.from('item_categories').select('*').eq('is_active', true).order('category_name'),
+              supabase.from('item_categories').select('*').eq('organisation_id', orgId).eq('is_active', true).order('category_name'),
               'Item Categories'
             );
           } catch (error) {
@@ -72,7 +73,7 @@ export function useMaterialsPageData() {
         (async () => {
           try {
             return await timedSupabaseQuery(
-              supabase.from('item_units').select('*').eq('is_active', true).order('unit_name'),
+              supabase.from('item_units').select('*').eq('organisation_id', orgId).eq('is_active', true).order('unit_name'),
               'Item Units'
             );
           } catch (error) {
@@ -87,7 +88,7 @@ export function useMaterialsPageData() {
         (async () => {
           try {
             return await timedSupabaseQuery(
-              supabase.from('company_variants').select('*').eq('is_active', true).order('variant_name'),
+              supabase.from('company_variants').select('*').eq('organisation_id', orgId).eq('is_active', true).order('variant_name'),
               'Company Variants'
             );
           } catch (error) {
@@ -102,7 +103,7 @@ export function useMaterialsPageData() {
         (async () => {
           try {
             return await timedSupabaseQuery(
-              supabase.from('warehouses').select('*').eq('is_active', true).order('warehouse_name'),
+              supabase.from('warehouses').select('*').eq('organisation_id', orgId).eq('is_active', true).order('warehouse_name'),
               'Warehouses'
             );
           } catch (error) {
@@ -124,6 +125,7 @@ export function useMaterialsPageData() {
         warehouses: warehousesResult || [],
       };
     },
+    enabled: !!orgId,
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
     refetchOnWindowFocus: false,

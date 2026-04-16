@@ -576,15 +576,17 @@ export default function ProjectList() {
   const [activeTab, setActiveTab] = useState('summary');
 
   const { data: projects = [], isLoading } = useQuery<Project[]>({
-    queryKey: ['projects'],
+    queryKey: ['projects', organisation?.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('projects')
         .select('*, client_id')
+        .eq('organisation_id', organisation?.id)
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data ?? [];
     },
+    enabled: !!organisation?.id,
     staleTime: 30 * 1000,
   });
 
@@ -592,10 +594,10 @@ export default function ProjectList() {
     queryKey: ['project-details', selectedProject?.id],
     queryFn: async () => {
       const [posResult, invoicesResult, expensesResult, paymentsResult] = await Promise.all([
-        supabase.from('client_purchase_orders').select('*').eq('project_id', selectedProject!.id),
-        supabase.from('project_invoices').select('*').eq('project_id', selectedProject!.id).order('invoice_date', { ascending: false }),
-        supabase.from('project_expenses').select('*').eq('project_id', selectedProject!.id).order('expense_date', { ascending: false }),
-        supabase.from('project_payments').select('*').eq('project_id', selectedProject!.id).order('payment_date', { ascending: false }),
+        supabase.from('client_purchase_orders').select('*').eq('project_id', selectedProject!.id).eq('organisation_id', organisation?.id),
+        supabase.from('project_invoices').select('*').eq('project_id', selectedProject!.id).eq('organisation_id', organisation?.id).order('invoice_date', { ascending: false }),
+        supabase.from('project_expenses').select('*').eq('project_id', selectedProject!.id).eq('organisation_id', organisation?.id).order('expense_date', { ascending: false }),
+        supabase.from('project_payments').select('*').eq('project_id', selectedProject!.id).eq('organisation_id', organisation?.id).order('payment_date', { ascending: false }),
       ]);
       if (posResult.error) throw posResult.error;
       if (invoicesResult.error) throw invoicesResult.error;

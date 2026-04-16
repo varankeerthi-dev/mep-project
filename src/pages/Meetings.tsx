@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import type { FormEvent } from 'react';
 import { supabase } from '../supabase';
+import { useAuth } from '../App';
 import { AppTable } from '../components/ui/AppTable';
 
 type MeetingsDashboardProps = {
@@ -33,12 +34,13 @@ type MeetingFormData = {
 }
 
 export function MeetingsDashboard({ onNavigate }: MeetingsDashboardProps) {
+  const { organisation } = useAuth();
   const [meetings, setMeetings] = useState<MeetingRow[]>([])
   const [filter, setFilter] = useState<'upcoming' | 'completed' | 'cancelled'>('upcoming')
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list')
 
   const loadMeetings = async () => {
-    let query = supabase.from('meetings').select('*').order('meeting_date', { ascending: true })
+    let query = supabase.from('meetings').select('*').eq('organisation_id', organisation?.id).order('meeting_date', { ascending: true })
     if (filter === 'upcoming') {
       query = query.gte('meeting_date', new Date().toISOString().split('T')[0]).eq('status', 'upcoming')
     } else if (filter === 'completed') {
@@ -50,7 +52,7 @@ export function MeetingsDashboard({ onNavigate }: MeetingsDashboardProps) {
     setMeetings(data || [])
   }
 
-  useEffect(() => { loadMeetings() }, [filter])
+  useEffect(() => { loadMeetings() }, [filter, organisation?.id])
 
   const updateStatus = async (id: string, status: string) => {
     await supabase.from('meetings').update({ status }).eq('id', id)
@@ -162,6 +164,7 @@ export function MeetingsDashboard({ onNavigate }: MeetingsDashboardProps) {
 }
 
 export function CreateMeeting({ onSuccess, onCancel }: CreateMeetingProps) {
+  const { organisation } = useAuth();
   const [formData, setFormData] = useState<MeetingFormData>({
     client_name: '',
     meeting_date: new Date().toISOString().split('T')[0],
@@ -173,7 +176,7 @@ export function CreateMeeting({ onSuccess, onCancel }: CreateMeetingProps) {
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    const { error } = await supabase.from('meetings').insert(formData)
+    const { error } = await supabase.from('meetings').insert({ ...formData, organisation_id: organisation?.id })
     if (error) { alert('Error: ' + error.message); return }
     onSuccess()
   }

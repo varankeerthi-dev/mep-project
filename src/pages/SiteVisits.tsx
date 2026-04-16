@@ -108,7 +108,7 @@ export function SiteVisits() {
         `);
       
       if (organisation?.id) {
-        query = query.eq('organization_id', organisation?.id);
+        query = query.eq('organisation_id', organisation?.id);
       }
       
       const { data, error } = await query.order('visit_date', { ascending: false });
@@ -125,7 +125,7 @@ export function SiteVisits() {
       let query = supabase.from('clients').select('id, client_name');
       
       if (organisation?.id) {
-        query = query.eq('organization_id', organisation?.id);
+        query = query.eq('organisation_id', organisation?.id);
       }
       
       const { data, error } = await query;
@@ -296,7 +296,7 @@ export function SiteVisits() {
   const handleFormSubmit = async () => {
     const payload = {
       ...formData,
-      organization_id: organisation?.id,
+      organisation_id: organisation?.id,
     };
     
     if (selectedVisit) {
@@ -316,6 +316,7 @@ export function SiteVisits() {
       contact_person: formData.get('contact_person'),
       phone: formData.get('phone'),
       email: formData.get('email'),
+      organisation_id: organisation?.id,
     });
   };
 
