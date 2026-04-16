@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useAuth } from '../App';
 import { ArrowLeft, Save, Building2, DollarSign, Calendar, Activity } from 'lucide-react';
 
 type ProjectFormData = {
@@ -359,6 +360,7 @@ if (typeof document !== 'undefined') {
 }
 
 export default function CreateProject() {
+  const { organisation } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const editId = searchParams.get('id');
@@ -390,28 +392,33 @@ export default function CreateProject() {
     if (editId) {
       loadProject(editId);
     }
-  }, [editId]);
+  }, [editId, organisation?.id]);
 
   const loadClients = async () => {
-    const { data } = await supabase.from('clients').select('id, client_name').order('client_name');
+    if (!organisation?.id) return;
+    const { data } = await supabase.from('clients').select('id, client_name').eq('organisation_id', organisation.id).order('client_name');
     setClients(data || []);
   };
 
   const loadProjects = async () => {
+    if (!organisation?.id) return;
     const { data } = await supabase
       .from('projects')
       .select('id, project_code, project_name')
+      .eq('organisation_id', organisation.id)
       .order('project_name');
     setProjects(data || []);
   };
 
   const loadProject = async (id: string) => {
+    if (!organisation?.id) return;
     setLoading(true);
     try {
       const { data, error } = await supabase
         .from('projects')
         .select('*')
         .eq('id', id)
+        .eq('organisation_id', organisation.id)
         .single();
       
       if (error) throw error;
@@ -481,14 +488,16 @@ export default function CreateProject() {
         actual_end_date: formData.actual_end_date || null,
         completion_percentage: parseFloat(String(formData.completion_percentage)) || 0,
         status: formData.status,
-        remarks: formData.remarks || null
+        remarks: formData.remarks || null,
+        organisation_id: organisation.id
       };
 
       if (editId) {
         const { error } = await supabase
           .from('projects')
           .update(projectData)
-          .eq('id', editId);
+          .eq('id', editId)
+          .eq('organisation_id', organisation.id);
         
         if (error) throw error;
         alert('Project updated successfully!');
