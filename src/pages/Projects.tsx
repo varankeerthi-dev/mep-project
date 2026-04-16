@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { Folder, Plus, ClipboardList, Package, ArrowLeft } from 'lucide-react';
 import { supabase } from '../supabase';
 import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '../App';
 import ProjectMaterialIntents from './ProjectMaterialIntents';
 import ReceiveMaterial from './ReceiveMaterial';
 import ProjectMaterialDashboard from './ProjectMaterialDashboard';
@@ -136,14 +137,17 @@ export default function Projects() {
 }
 
 function ProjectMaterialSelect({ onSelectProject }: { onSelectProject: (id: string, orgId: string, name: string) => void }) {
+  const { organisation } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
 
   const { data: projects = [] } = useQuery({
-    queryKey: ['projects'],
+    queryKey: ['projects', organisation?.id],
     queryFn: async () => {
-      const { data } = await supabase.from('projects').select('*').order('project_name');
+      if (!organisation?.id) return [];
+      const { data } = await supabase.from('projects').select('*').eq('organisation_id', organisation.id).order('project_name');
       return data || [];
     },
+    enabled: !!organisation?.id,
   });
 
   const filteredProjects = projects.filter(p => 
