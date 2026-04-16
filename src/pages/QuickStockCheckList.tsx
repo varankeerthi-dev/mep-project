@@ -3,8 +3,10 @@ import { supabase } from '../supabase';
 import { useNavigate } from 'react-router-dom';
 import { formatDate } from '../utils/formatters';
 import { AppTable } from '../components/ui/AppTable';
+import { useAuth } from '../App';
 
 export default function QuickStockCheckList() {
+  const { organisation } = useAuth();
   const navigate = useNavigate();
   const [checks, setChecks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -16,14 +18,16 @@ export default function QuickStockCheckList() {
 
   useEffect(() => {
     loadChecks();
-  }, []);
+  }, [organisation?.id]);
 
   const loadChecks = async () => {
+    if (!organisation?.id) return;
     setLoading(true);
     try {
       let query = supabase
         .from('quick_checks')
         .select('*')
+        .eq('organisation_id', organisation.id)
         .order('created_at', { ascending: false });
 
       if (filters.startDate) {
