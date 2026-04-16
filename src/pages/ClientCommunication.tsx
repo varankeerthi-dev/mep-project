@@ -84,6 +84,7 @@ const CATEGORY_ICONS = {
 
 export function ClientCommunication() {
   const queryClient = useQueryClient();
+  const { organisation } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showAddClientModal, setShowAddClientModal] = useState(false);
@@ -105,13 +106,14 @@ export function ClientCommunication() {
     dateTo: '',
   });
 
-  // Fetch clients - simplified query like SiteVisits (MUST be before clientMap)
+  // Fetch clients - filtered by organisation_id
   const { data: clients = [], isLoading: isClientsLoading, error: clientsError } = useQuery({
-    queryKey: ['clients'],
+    queryKey: ['clients', organisation?.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('clients')
         .select('id, client_name')
+        .eq('organisation_id', organisation?.id)
         .order('client_name');
       if (error) {
         console.error('Error fetching clients:', error);
@@ -120,7 +122,8 @@ export function ClientCommunication() {
       console.log('Fetched clients:', data?.length || 0, 'clients');
       return data || [];
     },
-    staleTime: 1000 * 60 * 30, // 30 minutes cache like SiteVisits
+    enabled: !!organisation?.id,
+    staleTime: 1000 * 60 * 30,
     retry: 1,
   });
 
@@ -131,13 +134,14 @@ export function ClientCommunication() {
     return map;
   }, [clients]);
 
-  // Fetch communications - simplified without complex joins
+  // Fetch communications - filtered by organisation_id
   const { data: communications = [], isLoading } = useQuery({
-    queryKey: ['client-communications', filters],
+    queryKey: ['client-communications', filters, organisation?.id],
     queryFn: async () => {
       let query = supabase
         .from('client_communication')
         .select('*')
+        .eq('organisation_id', organisation?.id)
         .order('created_at', { ascending: false });
 
       if (filters.clientId) query = query.eq('client_id', filters.clientId);
@@ -158,17 +162,22 @@ export function ClientCommunication() {
       }
       return data || [];
     },
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    enabled: !!organisation?.id,
+    staleTime: 1000 * 60 * 5,
   });
 
-  // Fetch users - simplified
+  // Fetch employees for the organisation
   const { data: users = [] } = useQuery({
-    queryKey: ['users'],
+    queryKey: ['users', organisation?.id],
     queryFn: async () => {
-      const { data, error } = await supabase.from('users').select('id, email, full_name');
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('id, email, full_name')
+        .eq('organisation_id', organisation?.id);
       if (error) throw error;
       return data || [];
     },
+    enabled: !!organisation?.id,
     staleTime: 1000 * 60 * 30,
   });
 
@@ -178,6 +187,7 @@ export function ClientCommunication() {
       // Transform data to match database schema (title case for status/priority)
       const dbData = {
         ...data,
+        organisation_id: organisation?.id,
         status: data.status === 'open' ? 'Open' : data.status === 'in_progress' ? 'In Progress' : data.status === 'resolved' ? 'Resolved' : data.status === 'closed' ? 'Closed' : data.status,
         priority: data.priority === 'low' ? 'Low' : data.priority === 'normal' ? 'Normal' : data.priority === 'high' ? 'High' : data.priority === 'urgent' ? 'Urgent' : data.priority,
         call_category: data.call_category === 'incoming' ? 'Incoming' : data.call_category === 'outgoing' ? 'Outgoing' : data.call_category,
@@ -222,6 +232,7 @@ export function ClientCommunication() {
       // Auto-generate client_id if not provided
       const dataToInsert = {
         ...clientData,
+        organisation_id: organisation?.id,
         client_id: clientData.client_id || `CL-${Date.now()}`,
         created_at: new Date().toISOString(),
       };
@@ -270,7 +281,10 @@ export function ClientCommunication() {
   // Create site visit
   const createSiteVisitMutation = useMutation({
     mutationFn: async (data: any) => {
-      const { error } = await supabase.from('site_visits').insert(data);
+      const { error } = await supabase.from('site_visits').insert({
+        ...data,
+        organisation_id: organisation?.id,
+      });
       if (error) throw error;
     },
     onSuccess: () => {
