@@ -216,7 +216,7 @@ export function SiteReport() {
         .limit(50); // Only fetch recent 50 reports
       
       if (organisation?.id) {
-        query = query.eq('organization_id', organisation?.id);
+        query = query.eq('organisation_id', organisation?.id);
       }
       
       const { data, error } = await query;
@@ -241,7 +241,7 @@ export function SiteReport() {
       const { data, error } = await supabase
         .from('clients')
         .select('id, client_name')
-        .eq('org_id', organisation?.id) // Use org_id instead of organization_id
+        .eq('organisation_id', organisation?.id)
         .order('client_name');
       
       if (error) {
@@ -316,7 +316,7 @@ export function SiteReport() {
       const { data: report, error: reportError } = await supabase
         .from('site_reports')
         .insert([{
-          organization_id: organisation?.id,
+          organisation_id: organisation?.id,
           client_id: values.client,
           project_id: values.projectName,
           report_date: values.date,
@@ -370,7 +370,7 @@ export function SiteReport() {
         const subs = values.manpower.subContractors
           .filter(s => s.name)
           .map(s => ({
-            organization_id: organisation?.id,
+            organisation_id: organisation?.id,
             report_id: report.id,
             name: s.name,
             count: s.count,
@@ -386,7 +386,7 @@ export function SiteReport() {
         const items = values.workCarriedOut
           .filter(i => i.value)
           .map(i => ({ 
-            organization_id: organisation?.id,
+            organisation_id: organisation?.id,
             report_id: report.id, 
             description: i.value 
           }));
@@ -399,7 +399,7 @@ export function SiteReport() {
         const items = values.milestonesCompleted
           .filter(i => i.value)
           .map(i => ({ 
-            organization_id: organisation?.id,
+            organisation_id: organisation?.id,
             report_id: report.id, 
             description: i.value 
           }));
@@ -522,7 +522,7 @@ export function SiteReport() {
   if (view === 'list') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-zinc-50">
-        <div className="mx-auto max-w-7xl px-6 sm:px-8 lg:px-12 py-8">
+        <div className="mx-auto max-w-7xl px-6 sm:px-8 lg:px-12 pt-0 pb-8">
           {/* Header */}
           <div className="mb-8 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
             <div className="space-y-4">
@@ -684,7 +684,7 @@ export function SiteReport() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-zinc-50 pb-20">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-zinc-50 pt-0 pb-20">
       {/* Sticky Top Header */}
       <div className="bg-white/90 backdrop-blur-md border-b border-slate-200 px-6 sm:px-8 lg:px-12 py-4 sticky top-0 z-20 shadow-lg">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
@@ -738,7 +738,7 @@ export function SiteReport() {
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-6 mt-6">
+      <div className="max-w-6xl mx-auto px-6 mt-2">
         <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-6">
           {/* 1. Identification Section */}
           <Card className="border-slate-200 shadow-sm overflow-hidden bg-white">

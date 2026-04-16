@@ -38,7 +38,7 @@ html, body {
 
 .sidebar {
   position: fixed;
-  top: 48px;
+  top: 0;
   left: 0;
   bottom: 0;
   width: 260px;
@@ -71,15 +71,15 @@ html, body {
 }
 
 .main-content {
-  margin-top: 48px;
+  margin-top: 0;
   margin-left: 260px;
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  height: calc(100vh - 48px);
+  height: 100vh;
   transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   background: #f9fafb;
-  padding: 1.5rem;
+  padding: 0 1.5rem 1.5rem 1.5rem; /* Removed top padding */
 }
 
 .main-content.sidebar-collapsed {
@@ -88,7 +88,7 @@ html, body {
 
 .sidebar-backdrop {
   position: fixed;
-  top: 48px;
+  top: 0;
   left: 0;
   right: 0;
   bottom: 0;
@@ -139,10 +139,10 @@ html, body {
   }
   
   .main-content {
-    margin-top: 48px;
+    margin-top: 0;
     margin-left: 0;
     width: 100%;
-    height: calc(100vh - 48px);
+    height: 100vh;
     padding: 1rem;
   }
   
@@ -151,7 +151,7 @@ html, body {
   }
   
   .sidebar-backdrop {
-    top: 48px;
+    top: 0;
   }
   
   .sidebar-backdrop.active {

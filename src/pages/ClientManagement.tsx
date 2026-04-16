@@ -590,14 +590,24 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
       return;
     }
     
-    setSaving(true);
     try {
+      const orgId = organisation?.id;
+      if (!orgId) throw new Error('Organization context is missing. Please refresh and try again.');
+
       if (editMode && clientData?.id) {
-        const { error } = await supabase.from('clients').update(formData).eq('id', clientData.id);
+        const { error } = await supabase
+          .from('clients')
+          .update({ ...formData, updated_at: new Date().toISOString() })
+          .eq('id', clientData.id)
+          .eq('organisation_id', orgId);
         if (error) throw error;
       } else {
         const clientId = 'CLT-' + Date.now().toString().slice(-6);
-        const { error } = await supabase.from('clients').insert({ ...formData, client_id: clientId, organisation_id: organisation?.id });
+        const { error } = await supabase.from('clients').insert({ 
+          ...formData, 
+          client_id: clientId, 
+          organisation_id: orgId 
+        });
         if (error) throw error;
       }
       queryClient.invalidateQueries({ queryKey: ['clients'] });
@@ -615,7 +625,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
   const set = (field: string) => (e: any) => setFormData({ ...formData, [field]: (e.target as HTMLInputElement).value });
 
   return (
-    <div className="min-h-screen bg-[oklch(0.98_0.005_255)] px-4 py-8 md:px-10 md:py-16 font-sans">
+    <div className="min-h-screen bg-[oklch(0.98_0.005_255)] px-4 pt-4 pb-8 md:px-10 md:pt-6 md:pb-16 font-sans">
       <div className="mx-auto max-w-[1000px]">
 
         {/* Header Block & Navigation Row */}

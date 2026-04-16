@@ -550,7 +550,7 @@ const txQueries = useQueries({
   }, [reportsSubTab, filteredTransactions]);
 
   return (
-    <div style={{ height: 'calc(100vh - 120px)', minHeight: '560px', display: 'grid', gridTemplateColumns: '300px 1fr', gap: '10px' }}>
+    <div style={{ height: 'calc(100vh - 64px)', minHeight: '560px', display: 'grid', gridTemplateColumns: '300px 1fr', gap: '10px' }}>
       <div className="card" style={{ padding: '8px', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
           <h3 style={{ margin: 0, fontSize: '16px' }}>Clients</h3>

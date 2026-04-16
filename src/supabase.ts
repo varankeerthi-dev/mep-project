@@ -14,6 +14,7 @@ export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseKey, {
     persistSession: true,
     detectSessionInUrl: true,
     flowType: 'pkce',
+    storageKey: 'mep-auth-token', // Explicit storage key to avoid collisions
     storage: localStorage,
   }
 })

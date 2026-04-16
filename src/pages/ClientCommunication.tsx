@@ -171,11 +171,22 @@ export function ClientCommunication() {
     queryKey: ['users', organisation?.id],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('user_profiles')
-        .select('id, email, full_name')
+        .from('org_members')
+        .select(`
+          user:user_profiles (
+            id,
+            email,
+            full_name
+          )
+        `)
         .eq('organisation_id', organisation?.id);
+
       if (error) throw error;
-      return data || [];
+
+      // Extract profiles from the relationship
+      return (data || [])
+        .map((member: any) => member.user)
+        .filter((u: any) => u && u.id); // Ensure we have a valid profile
     },
     enabled: !!organisation?.id,
     staleTime: 1000 * 60 * 30,
@@ -403,7 +414,7 @@ export function ClientCommunication() {
   const hasActiveFilters = Object.values(filters).some((v) => v !== '');
 
   return (
-    <div style={{ minHeight: '100vh', background: colors.gray[50] }}>
+    <div style={{ minHeight: 'calc(100vh - 48px)', background: colors.gray[50], paddingTop: 0 }}>
       {/* Header */}
       <div
         style={{
