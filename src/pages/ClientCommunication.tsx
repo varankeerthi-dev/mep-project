@@ -1288,7 +1288,7 @@ export function ClientCommunication() {
         isOpen={showSiteVisitModal && !!selectedCommunication}
         onClose={() => setShowSiteVisitModal(false)}
         title="Schedule Site Visit"
-        size="sm"
+        size="lg"
         footer={
           <>
             <Button variant="secondary" onClick={() => setShowSiteVisitModal(false)}>
@@ -1305,7 +1305,7 @@ export function ClientCommunication() {
           </>
         }
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
           <Input
             type="date"
             label="Visit Date *"
@@ -1323,12 +1323,15 @@ export function ClientCommunication() {
             value={siteVisitData.assigned_to}
             onChange={(e) => setSiteVisitData({ ...siteVisitData, assigned_to: e.target.value })}
             options={[{ value: '', label: 'Select User' }, ...users.map((u) => ({ value: u.id, label: u.full_name || u.email }))]}
+            style={{ gridColumn: 'span 1' }}
           />
+          <div></div>
           <TextArea
             label="Notes"
             value={siteVisitData.notes}
             onChange={(e) => setSiteVisitData({ ...siteVisitData, notes: e.target.value })}
             placeholder="Additional notes for the site visit"
+            style={{ gridColumn: 'span 2' }}
           />
         </div>
       </Modal>
