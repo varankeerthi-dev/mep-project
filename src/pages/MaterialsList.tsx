@@ -22,7 +22,7 @@ import { Checkbox } from '../components/ui/checkbox';
 import {
   Plus,
   Upload,
-  Table,
+  Table as TableIcon,
   Search,
   X,
   Edit,
@@ -39,6 +39,8 @@ import {
   Package,
   Eye,
   Download,
+  Package as InventoryIcon,
+  FileSpreadsheet,
 } from 'lucide-react';
 
 const MAIN_CATEGORIES = ['VALVE', 'PIPE', 'FITTING', 'FLANGE', 'ELECTRICAL', 'PLUMBING', 'HVAC', 'FIRE PROTECTION', 'BUILDING MATERIALS', 'TOOLS', 'SAFETY', 'OFFICE', 'OTHER'];
@@ -1428,69 +1430,50 @@ function ItemsTab() {
   };
 
   return (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Paper elevation={0} sx={{ p: 2, mb: 2, borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <InventoryIcon color="primary" sx={{ fontSize: 24 }} />
-            <Typography variant="h6" fontFamily="Inter" fontWeight={600} sx={{ fontSize: '14px' }}>
-              Materials
-            </Typography>
-            <Chip 
-              label={`${filteredMaterials.length} items`} 
-              size="small" 
-              color="primary" 
-              variant="outlined"
-              sx={{ fontSize: '11px', fontFamily: 'Inter', ml: 1 }}
-            />
-          </Box>
-          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
+    <div className="h-full flex flex-col">
+      <div className="p-2 mb-2 rounded-lg border border-gray-200 bg-white">
+        <div className="flex justify-between items-center flex-wrap gap-2">
+          <div className="flex items-center gap-1">
+            <InventoryIcon className="w-6 h-6 text-indigo-600" />
+            <span className="text-base font-semibold text-gray-900">Materials</span>
+            <Badge variant="outline" className="text-xs font-normal ml-1 font-sans">{filteredMaterials.length} items</Badge>
+          </div>
+          <div className="flex gap-1 flex-wrap items-center">
             {MAIN_CATEGORIES.slice(0, 6).map((cat) => (
               <Button
                 key={cat}
-                size="small"
-                variant={categoryFilter === cat ? 'contained' : 'outlined'}
+                size="sm"
+                variant={categoryFilter === cat ? 'default' : 'outline'}
                 onClick={() => setCategoryFilter(categoryFilter === cat ? 'All' : cat)}
-                sx={{ fontSize: '11px', minWidth: 'auto', textTransform: 'none', fontFamily: 'Inter' }}
+                className="text-xs font-sans"
               >
                 {cat}
               </Button>
             ))}
-            <TextField
-              size="small"
+            <Input
               placeholder="Search materials..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              sx={{ width: 200, '& .MuiInputBase-input': { fontSize: '12px' } }}
+              className="w-[200px] h-8 text-xs"
             />
-            <Button variant="contained" size="small" startIcon={<AddIcon />} onClick={() => setShowForm(true)} sx={{ fontSize: '12px', fontFamily: 'Inter' }}>
-              Add Material
+            <Button size="sm" onClick={() => setShowForm(true)} className="text-xs font-sans">
+              <Plus className="w-4 h-4 mr-1" /> Add Material
             </Button>
-            <Tooltip title="Column Settings">
-              <Button size="small" variant="outlined" onClick={() => setShowColumnSettings((prev) => !prev)} sx={{ fontSize: '11px', fontFamily: 'Inter' }}>
-                Columns
-              </Button>
-            </Tooltip>
-            <Button size="small" variant="outlined" onClick={openBulkPriceModal} sx={{ fontSize: '11px', fontFamily: 'Inter' }}>
+            <Button size="sm" variant="outline" onClick={() => setShowColumnSettings((prev) => !prev)} className="text-xs font-sans" title="Column Settings">
+              Columns
+            </Button>
+            <Button size="sm" variant="outline" onClick={openBulkPriceModal} className="text-xs font-sans">
               Bulk Price
             </Button>
-            <Button size="small" variant="outlined" startIcon={<UploadIcon />} onClick={() => setShowBulkImportModal(true)} sx={{ fontSize: '11px', fontFamily: 'Inter' }}>
-              Bulk Import
+            <Button size="sm" variant="outline" onClick={() => setShowBulkImportModal(true)} className="text-xs font-sans">
+              <Upload className="w-4 h-4 mr-1" /> Bulk Import
             </Button>
-            <Tooltip title="Edit in Excel Mode">
-              <Button 
-                size="small" 
-                variant="outlined" 
-                startIcon={<ExcelIcon />} 
-                onClick={() => setShowFieldSelector(true)} 
-                sx={{ fontSize: '11px', fontFamily: 'Inter' }}
-              >
-                Excel Edit
-              </Button>
-            </Tooltip>
-          </Box>
-        </Box>
-      </Paper>
+            <Button size="sm" variant="outline" onClick={() => setShowFieldSelector(true)} className="text-xs font-sans" title="Edit in Excel Mode">
+              <FileSpreadsheet className="w-4 h-4 mr-1" /> Excel Edit
+            </Button>
+          </div>
+        </div>
+      </div>
 
       {saveNotice && (
         <div className="alert alert-success">{saveNotice}</div>
@@ -2513,18 +2496,17 @@ function ItemsTab() {
               <h2 style={{ margin: 0 }}>Select Fields for Import Template</h2>
               <button onClick={() => setShowExcelImportFieldSelector(false)} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}>×</button>
             </div>
-            <Alert severity="info" sx={{ mb: 2 }}>
+            <div className="bg-blue-50 text-blue-700 p-3 rounded-md mb-2">
               Select the fields you want to edit. Only selected fields will be included in the download template and editable during upload.
-            </Alert>
+            </div>
             <FieldSelector 
               warehouses={warehouses}
               selectedFields={excelImportFields}
               onChange={setExcelImportFields}
             />
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '20px' }}>
-              <button className="btn btn-secondary" onClick={() => setShowExcelImportFieldSelector(false)}>Cancel</button>
-              <button 
-                className="btn btn-primary" 
+              <Button variant="outline" onClick={() => setShowExcelImportFieldSelector(false)}>Cancel</Button>
+              <Button 
                 onClick={() => {
                   generateSelectiveTemplate(excelImportFields);
                   setShowExcelImportFieldSelector(false);
@@ -2532,12 +2514,12 @@ function ItemsTab() {
                 disabled={excelImportFields.length === 0}
               >
                 Download Template
-              </button>
+              </Button>
             </div>
           </div>
         </div>
       )}
-    </Box>
+    </div>
   );
 }
 
