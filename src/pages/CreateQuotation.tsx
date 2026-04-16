@@ -1268,7 +1268,7 @@ const loadQuoteNoPreview = useCallback(async () => {
         total_tax: calculations.totalTax,
         round_off: parseFloat(formData.round_off) || 0,
         grand_total: calculations.grandTotal,
-        status: formData.status,
+        status: saveAndNew ? 'Draft' : (formData.status || 'Draft'),
         negotiation_mode: formData.negotiation_mode,
         authorized_signatory_id: formData.authorized_signatory_id || null
       };
@@ -1396,30 +1396,9 @@ const loadQuoteNoPreview = useCallback(async () => {
       // alert removed
       
       if (saveAndNew) {
-        setFormData({
-          quotation_no: '',
-          client_id: '',
-          project_id: '',
-          billing_address: '',
-          gstin: '',
-          state: '',
-          date: new Date().toISOString().split('T')[0],
-          valid_till: '',
-          payment_terms: DEFAULT_PAYMENT_TERMS,
-          client_contact: '',
-          variant_id: '',
-          reference: '',
-          prepared_by: '',
-          extra_discount_percent: 0,
-          extra_discount_amount: 0,
-          round_off: 0,
-          status: 'Draft',
-          negotiation_mode: false,
-          authorized_signatory_id: ''
-        });
-        setItems([]);
-        setHeaderDiscounts({});
-        await loadQuoteNoPreview();
+        alert('Quotation saved as draft successfully!');
+        setSaving(false);
+        return;
       } else {
         navigate(`/quotation/view?id=${quotationId}`);
       }
@@ -1471,6 +1450,34 @@ const loadQuoteNoPreview = useCallback(async () => {
             />
             <span style={{ fontWeight: 500 }}>Negotiation Mode</span>
           </label>
+          <div style={{ display: 'flex', gap: '6px', marginLeft: '16px', paddingLeft: '16px', borderLeft: '1px solid #e5e7eb' }}>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              style={{ padding: '6px 14px', fontSize: '12px', fontWeight: 600 }}
+              onClick={() => navigate('/quotation')}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              style={{ padding: '6px 14px', fontSize: '12px', fontWeight: 600 }}
+              onClick={() => handleSave(true)}
+              disabled={saving}
+            >
+              {saving ? 'Saving...' : 'Save as Draft'}
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              style={{ padding: '6px 14px', fontSize: '12px', fontWeight: 600 }}
+              onClick={() => handleSave(false)}
+              disabled={saving}
+            >
+              {saving ? 'Saving...' : editId ? 'Update' : 'Save'}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -2125,10 +2132,6 @@ const loadQuoteNoPreview = useCallback(async () => {
           <span style={{fontSize:'16px',fontWeight:600,color:'#374161'}}>Saving Quotation...</span>
         </div>
       )}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '24px', paddingBottom: '40px' }}>
-        <button type="button" className="btn btn-secondary" style={{ padding: '8px 20px', fontSize: '14px' }} onClick={() => navigate('/quotation')}>Cancel</button>
-        <button type="button" className="btn btn-primary" style={{ padding: '8px 20px', fontSize: '14px' }} onClick={() => handleSave(false)} disabled={saving}>{saving ? 'Saving...' : editId ? 'Update Quotation' : 'Save Quotation'}</button>
-      </div>
     </div>
   );
 }
