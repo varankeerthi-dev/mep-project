@@ -208,12 +208,12 @@ export const createOrganization = async (
   if (orgError) throw orgError
   
   const { error: memberError } = await supabase
-    .from('user_organisations')
+    .from('org_members')
     .insert({
       organisation_id: org.id,
       user_id: userId,
       role: 'admin',
-      is_default: true,
+      status: 'active',
       trial_ends_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
     })
   

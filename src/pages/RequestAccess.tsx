@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
-import { Building2, Loader2, RefreshCw, Send, ShieldCheck } from 'lucide-react';
+import { Building2, Loader2, LogOut, RefreshCw, Send, ShieldCheck } from 'lucide-react';
 import { useCreateAccessRequest, useMyAccessRequests, usePublicOrganisations } from '@/rbac';
+import { signOut } from '@/supabase';
 
 type Props = {
   user: User;
@@ -27,6 +28,13 @@ export default function RequestAccessPage({ user, onCreateOrganisation, onRefres
   const [selectedOrgId, setSelectedOrgId] = useState('');
   const [createOrgMode, setCreateOrgMode] = useState(false);
   const [orgName, setOrgName] = useState('');
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    await signOut();
+    window.location.href = '/login';
+  };
 
   const publicOrgs = usePublicOrganisations();
   const myRequests = useMyAccessRequests(user.id);
@@ -56,9 +64,20 @@ export default function RequestAccessPage({ user, onCreateOrganisation, onRefres
     <div className="min-h-screen bg-slate-50">
       <div className="mx-auto flex max-w-[980px] flex-col gap-5 px-6 py-8">
         <div className="flex flex-col gap-2">
-          <div className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.26em] text-slate-400">
-            <ShieldCheck size={14} />
-            Access Control
+          <div className="flex items-center justify-between">
+            <div className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.26em] text-slate-400">
+              <ShieldCheck size={14} />
+              Access Control
+            </div>
+            <button
+              type="button"
+              onClick={() => void handleLogout()}
+              disabled={loggingOut}
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-[12px] font-medium text-slate-600 transition hover:bg-slate-50 hover:text-slate-900 disabled:opacity-60"
+            >
+              <LogOut size={14} />
+              {loggingOut ? 'Signing out...' : 'Sign out'}
+            </button>
           </div>
           <h1 className="text-2xl font-semibold tracking-tight text-slate-950">Request access</h1>
           <p className="text-[13px] leading-6 text-slate-500">
