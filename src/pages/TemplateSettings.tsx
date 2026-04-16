@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../App';
 
 import { PortraitTemplate } from '../templates/PortraitTemplate';
 
@@ -37,6 +38,7 @@ const OPTIONAL_COLUMNS = [
 ];
 
 export default function TemplateSettings() {
+  const { organisation } = useAuth();
   const navigate = useNavigate();
   const [templates, setTemplates] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -103,14 +105,16 @@ export default function TemplateSettings() {
 
   useEffect(() => {
     loadTemplates();
-  }, []);
+  }, [organisation?.id]);
 
   const loadTemplates = async () => {
+    if (!organisation?.id) return;
     setLoading(true);
     try {
       const { data, error } = await supabase
         .from('document_templates')
         .select('*')
+        .eq('organisation_id', organisation.id)
         .order('document_type', { ascending: true })
         .order('template_name', { ascending: true });
 
@@ -273,6 +277,7 @@ export default function TemplateSettings() {
   ];
 
   const seedBuiltInTemplates = async () => {
+    if (!organisation?.id) return;
     setLoading(true);
     try {
       for (const template of BUILT_IN_TEMPLATES) {
@@ -281,10 +286,11 @@ export default function TemplateSettings() {
           .select('id')
           .eq('template_code', template.template_code)
           .eq('document_type', template.document_type)
+          .eq('organisation_id', organisation.id)
           .single();
         
         if (!existing) {
-          await supabase.from('document_templates').insert(template);
+          await supabase.from('document_templates').insert({ ...template, organisation_id: organisation.id });
         }
       }
       setSuccessMessage('Built-in templates added successfully!');
@@ -646,7 +652,8 @@ export default function TemplateSettings() {
             column_settings: formData.column_settings,
             updated_at: new Date().toISOString()
           })
-          .eq('id', selectedTemplate.id);
+          .eq('id', selectedTemplate.id)
+          .eq('organisation_id', organisation.id);
 
         if (error) throw error;
       } else {
@@ -654,7 +661,8 @@ export default function TemplateSettings() {
           await supabase
             .from('document_templates')
             .update({ is_default: false })
-            .eq('document_type', formData.document_type);
+            .eq('document_type', formData.document_type)
+            .eq('organisation_id', organisation.id);
         }
 
         const { error } = await supabase
@@ -670,7 +678,8 @@ export default function TemplateSettings() {
             show_bank_details: formData.show_bank_details,
             show_terms: formData.show_terms,
             show_signature: formData.show_signature,
-            column_settings: formData.column_settings
+            column_settings: formData.column_settings,
+            organisation_id: organisation.id
           });
 
         if (error) throw error;
@@ -692,7 +701,7 @@ export default function TemplateSettings() {
     if (!confirm('Are you sure you want to delete this template?')) return;
 
     try {
-      await supabase.from('document_templates').delete().eq('id', id);
+      await supabase.from('document_templates').delete().eq('id', id).eq('organisation_id', organisation.id);
       loadTemplates();
     } catch (err: any) {
       console.error('Error deleting template:', err);
@@ -706,19 +715,22 @@ export default function TemplateSettings() {
         .from('document_templates')
         .select('id')
         .eq('document_type', template.document_type)
-        .eq('is_default', true);
+        .eq('is_default', true)
+        .eq('organisation_id', organisation.id);
 
       for (const def of existingDefaults || []) {
         await supabase
           .from('document_templates')
           .update({ is_default: false })
-          .eq('id', def.id);
+          .eq('id', def.id)
+          .eq('organisation_id', organisation.id);
       }
 
       await supabase
         .from('document_templates')
         .update({ is_default: true })
-        .eq('id', template.id);
+        .eq('id', template.id)
+        .eq('organisation_id', organisation.id);
 
       loadTemplates();
     } catch (err: any) {
