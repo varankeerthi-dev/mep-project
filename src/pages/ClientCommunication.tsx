@@ -217,7 +217,8 @@ export function ClientCommunication() {
       const { error } = await supabase
         .from('client_communication')
         .update({ ...data, updated_at: new Date().toISOString() })
-        .eq('id', id);
+        .eq('id', id)
+        .eq('organisation_id', organisation?.id);
       if (error) throw error;
     },
     onSuccess: () => {

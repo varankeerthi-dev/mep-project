@@ -60,19 +60,19 @@ export function SiteVisits() {
   const [selectedVisit, setSelectedVisit] = useState<any | null>(null);
   const [visitToDelete, setVisitToDelete] = useState<any | null>(null);
   
-  // Multi-step form state
+  // Multi-step form state - UPDATED TO MATCH DB COLUMNS
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
     client_id: '',
     visit_date: format(new Date(), 'yyyy-MM-dd'),
-    purpose: '',
+    purpose_of_visit: '', // Database column name
     visited_by: '',
     engineer: '',
-    in_time: '',
+    visit_time: '',      // Database column name
     out_time: '',
     site_address: '',
     location_url: '',
-    discussion: '',
+    discussion_points: '', // Database column name
     measurements: '',
     status: 'pending',
     next_step: ''
@@ -136,9 +136,13 @@ export function SiteVisits() {
   });
 
   const { data: purposes } = useQuery({
-    queryKey: ['visit-purposes'],
+    queryKey: ['visit-purposes', organisation?.id],
     queryFn: async () => {
-      const { data, error } = await supabase.from('visit_purposes').select('id, name').order('name');
+      const { data, error } = await supabase
+        .from('visit_purposes')
+        .select('id, name')
+        .eq('organisation_id', organisation?.id)
+        .order('name');
       if (error) {
         return [
           { id: '1', name: 'Measurement' },
@@ -150,6 +154,7 @@ export function SiteVisits() {
       }
       return data;
     },
+    enabled: !!organisation?.id
   });
 
   const addVisitMutation = useMutation({
@@ -176,6 +181,9 @@ export function SiteVisits() {
   const updateVisitMutation = useMutation({
     mutationFn: async (updatedVisit: any) => {
       const { id, ...updateData } = updatedVisit;
+      // Ensure we don't send relational data back to Supabase
+      delete (updateData as any).clients;
+
       const { data, error } = await supabase
         .from('site_visits')
         .update(updateData)
@@ -237,7 +245,7 @@ export function SiteVisits() {
     mutationFn: async (newPurpose: any) => {
       const { data, error } = await supabase
         .from('visit_purposes')
-        .insert([newPurpose])
+        .insert([{ ...newPurpose, organisation_id: organisation?.id }])
         .select();
       
       if (error) throw error;
@@ -258,14 +266,14 @@ export function SiteVisits() {
     setFormData({
       client_id: '',
       visit_date: format(new Date(), 'yyyy-MM-dd'),
-      purpose: '',
+      purpose_of_visit: '',
       visited_by: '',
       engineer: '',
-      in_time: '',
+      visit_time: '',
       out_time: '',
       site_address: '',
       location_url: '',
-      discussion: '',
+      discussion_points: '',
       measurements: '',
       status: 'pending',
       next_step: ''
@@ -277,14 +285,14 @@ export function SiteVisits() {
     setFormData({
       client_id: visit.client_id || '',
       visit_date: visit.visit_date || format(new Date(), 'yyyy-MM-dd'),
-      purpose: visit.purpose || '',
+      purpose_of_visit: visit.purpose_of_visit || '',
       visited_by: visit.visited_by || '',
       engineer: visit.engineer || '',
-      in_time: visit.in_time || '',
+      visit_time: visit.visit_time || '',
       out_time: visit.out_time || '',
       site_address: visit.site_address || '',
       location_url: visit.location_url || '',
-      discussion: visit.discussion || '',
+      discussion_points: visit.discussion_points || '',
       measurements: visit.measurements || '',
       status: visit.status || 'pending',
       next_step: visit.next_step || ''
@@ -309,13 +317,13 @@ export function SiteVisits() {
   const handleAddClient = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const form = e.currentTarget;
-    const formData = new FormData(form);
+    const formDataObj = new FormData(form);
     
     addClientMutation.mutate({
-      client_name: formData.get('client_name'),
-      contact_person: formData.get('contact_person'),
-      phone: formData.get('phone'),
-      email: formData.get('email'),
+      client_name: formDataObj.get('client_name'),
+      contact_person: formDataObj.get('contact_person'),
+      phone: formDataObj.get('phone'),
+      email: formDataObj.get('email'),
       organisation_id: organisation?.id,
     });
   };
@@ -323,10 +331,10 @@ export function SiteVisits() {
   const handleAddPurpose = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const form = e.currentTarget;
-    const formData = new FormData(form);
+    const formDataObj = new FormData(form);
     
     addPurposeMutation.mutate({
-      name: formData.get('name'),
+      name: formDataObj.get('name'),
     });
   };
 
@@ -345,14 +353,6 @@ export function SiteVisits() {
     });
   }, [visits, searchQuery, statusFilter]);
 
-  const statusColors: Record<string, string> = {
-    pending: 'bg-amber-50 text-amber-700 border border-amber-200',
-    scheduled: 'bg-blue-50 text-blue-700 border border-blue-200',
-    completed: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
-    postponed: 'bg-gray-50 text-gray-700 border border-gray-200',
-    cancelled: 'bg-red-50 text-red-700 border border-red-200',
-  };
-
   const steps = [
     { number: 1, title: 'Basic info', icon: FileText },
     { number: 2, title: 'Visit details', icon: Clock },
@@ -364,11 +364,7 @@ export function SiteVisits() {
   const canProceedToNextStep = () => {
     switch (currentStep) {
       case 1:
-        return formData.client_id && formData.visit_date && formData.purpose;
-      case 2:
-      case 3:
-      case 4:
-        return true;
+        return formData.client_id && formData.visit_date && formData.purpose_of_visit;
       default:
         return true;
     }
@@ -497,7 +493,6 @@ export function SiteVisits() {
                     onClick={() => openFormForEdit(visit)}
                     className="group relative bg-white rounded-[24px] border border-slate-200/60 p-6 hover:border-indigo-400/50 hover:shadow-[0_12px_24px_-8px_rgba(0,0,0,0.06)] transition-all cursor-pointer overflow-hidden"
                   >
-                    {/* Visual Accent */}
                     <div className={cn(
                       "absolute top-0 left-0 w-1.5 h-full opacity-0 group-hover:opacity-100 transition-opacity",
                       visit.status === 'completed' ? "bg-emerald-500" :
@@ -543,7 +538,7 @@ export function SiteVisits() {
                             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Intent</span>
                             <div className="text-[14px] font-bold text-slate-700 flex items-center gap-1.5">
                               <span className="w-1.5 h-1.5 rounded-full bg-indigo-500/20 shadow-[0_0_8px_rgba(99,102,241,0.4)]" />
-                              {visit.purpose || 'Discovery'}
+                              {visit.purpose_of_visit || 'Discovery'}
                             </div>
                           </div>
 
@@ -593,7 +588,7 @@ export function SiteVisits() {
       {isFormOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 overflow-y-auto animate-in fade-in duration-500">
           <div className="bg-white rounded-[40px] shadow-[0_48px_80px_-16px_rgba(0,0,0,0.25)] w-full max-w-2xl my-8 overflow-hidden border border-white/20 animate-in zoom-in-95 duration-400">
-            {/* Header section with refined topography */}
+            {/* Form Header */}
             <div className="p-10 border-b border-slate-100 bg-linear-to-br from-slate-50/50 to-white">
               <div className="flex items-center justify-between mb-10">
                 <div>
@@ -612,7 +607,7 @@ export function SiteVisits() {
                 </button>
               </div>
 
-              {/* Progress Stepper - Distinctive Design */}
+              {/* Progress Stepper */}
               <div className="relative px-2">
                 <div className="flex items-center justify-between">
                   {steps.map((step, index) => (
@@ -647,9 +642,7 @@ export function SiteVisits() {
                         <div className="flex-1 h-[3px] mx-[-12px] mt-[-34px] relative bg-slate-100 self-center rounded-full overflow-hidden">
                           <div
                             className="absolute inset-y-0 left-0 bg-slate-950 transition-all duration-1000 ease-in-out"
-                            style={{
-                              width: currentStep > step.number ? '100%' : '0%'
-                            }}
+                            style={{ width: currentStep > step.number ? '100%' : '0%' }}
                           />
                         </div>
                       )}
@@ -662,7 +655,7 @@ export function SiteVisits() {
             {/* Form Canvas */}
             <div className="p-10 bg-white">
               <div className="min-h-[380px]">
-                {/* Step 1: Core Telemetry */}
+                {/* Step 1: Basic Telemetry */}
                 {currentStep === 1 && (
                   <div className="space-y-8 animate-in fade-in slide-in-from-right-8 duration-600">
                     <div className="space-y-3">
@@ -717,12 +710,12 @@ export function SiteVisits() {
                         <div className="relative group">
                           <FileText className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-slate-950 transition-all" />
                           <select
-                            value={formData.purpose}
+                            value={formData.purpose_of_visit}
                             onChange={(e) => {
                               if (e.target.value === 'ADD_NEW') {
                                 setIsAddPurposeModalOpen(true);
                               } else {
-                                setFormData({ ...formData, purpose: e.target.value });
+                                setFormData({ ...formData, purpose_of_visit: e.target.value });
                               }
                             }}
                             className="w-full pl-12 pr-10 py-4 bg-slate-50/50 border-2 border-slate-100 rounded-[24px] focus:ring-0 focus:border-slate-950 focus:bg-white transition-all text-sm font-bold text-slate-900 appearance-none shadow-sm"
@@ -778,8 +771,8 @@ export function SiteVisits() {
                         </label>
                         <input
                           type="time"
-                          value={formData.in_time}
-                          onChange={(e) => setFormData({ ...formData, in_time: e.target.value })}
+                          value={formData.visit_time}
+                          onChange={(e) => setFormData({ ...formData, visit_time: e.target.value })}
                           className="w-full px-6 py-4 bg-white border-2 border-slate-200 rounded-[20px] focus:ring-0 focus:border-slate-950 transition-all text-sm font-bold text-slate-900"
                         />
                       </div>
@@ -841,8 +834,8 @@ export function SiteVisits() {
                         Discussion
                       </label>
                       <textarea
-                        value={formData.discussion}
-                        onChange={(e) => setFormData({ ...formData, discussion: e.target.value })}
+                        value={formData.discussion_points}
+                        onChange={(e) => setFormData({ ...formData, discussion_points: e.target.value })}
                         placeholder="Enter the details of what was discussed..."
                         className="w-full p-6 h-36 bg-slate-50/50 border-2 border-slate-200 rounded-[32px] focus:ring-0 focus:border-slate-950 focus:bg-white transition-all text-sm font-semibold text-slate-900 resize-none shadow-sm"
                       />
@@ -862,11 +855,10 @@ export function SiteVisits() {
                   </div>
                 )}
 
-                {/* Step 5: Review & Confirm */}
+                {/* Step 5: Review */}
                 {currentStep === 5 && (
                   <div className="space-y-8 animate-in fade-in slide-in-from-right-8 duration-600">
                     <div className="bg-slate-900 rounded-[40px] p-10 text-white shadow-2xl relative overflow-hidden">
-                       {/* Background pattern */}
                        <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 blur-[80px] rounded-full" />
                        <div className="absolute bottom-0 left-0 w-48 h-48 bg-emerald-500/10 blur-[60px] rounded-full" />
 
@@ -907,7 +899,7 @@ export function SiteVisits() {
                                 onChange={(e) => setFormData({ ...formData, status: e.target.value })}
                                 className="text-[15px] font-black text-indigo-400 bg-transparent border-none p-0 focus:ring-0 cursor-pointer hover:text-indigo-300 transition-colors"
                               >
-                                <option className="bg-slate-900 border-none" value="pending">Pending</option>
+                                <option className="bg-slate-900" value="pending">Pending</option>
                                 <option className="bg-slate-900" value="scheduled">Scheduled</option>
                                 <option className="bg-slate-900" value="completed">Completed</option>
                                 <option className="bg-slate-900" value="postponed">Postponed</option>
@@ -917,7 +909,7 @@ export function SiteVisits() {
                           </div>
                           <div className="space-y-1.5">
                             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">Purpose</span>
-                            <p className="text-[16px] font-black tracking-tight text-slate-200">{formData.purpose || 'Exploratory'}</p>
+                            <p className="text-[16px] font-black tracking-tight text-slate-200">{formData.purpose_of_visit || 'Exploratory'}</p>
                           </div>
                         </div>
 
@@ -937,7 +929,7 @@ export function SiteVisits() {
               </div>
             </div>
 
-            {/* Footer Navigation - Refined */}
+            {/* Footer Navigation */}
             <div className="p-10 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between">
               <Button
                 variant="secondary"
@@ -951,7 +943,7 @@ export function SiteVisits() {
                   <Button
                     onClick={() => setCurrentStep(currentStep + 1)}
                     disabled={!canProceedToNextStep()}
-                    className="h-14 px-10 rounded-[24px] bg-slate-950 hover:bg-slate-800 text-white font-black text-[13px] uppercase tracking-widest shadow-[0_20px_40px_-12px_rgba(0,0,0,0.2)] hover:shadow-[0_25px_50px_-12px_rgba(0,0,0,0.3)] disabled:opacity-50 transition-all flex items-center gap-3"
+                    className="h-14 px-10 rounded-[24px] bg-slate-950 hover:bg-slate-800 text-white font-black text-[13px] uppercase tracking-widest shadow-xl disabled:opacity-50 transition-all flex items-center gap-3"
                   >
                     Next
                     <ArrowRight className="w-5 h-5" />
@@ -960,13 +952,12 @@ export function SiteVisits() {
                   <Button
                     onClick={handleFormSubmit}
                     isLoading={addVisitMutation.isPending || updateVisitMutation.isPending}
-                    className="h-14 px-10 rounded-[24px] bg-indigo-600 hover:bg-indigo-700 text-white font-black text-[13px] uppercase tracking-widest shadow-[0_20px_40px_-12px_rgba(99,102,241,0.3)] hover:shadow-[0_25px_50px_-12px_rgba(99,102,241,0.4)] transition-all flex items-center gap-3"
+                    className="h-14 px-10 rounded-[24px] bg-indigo-600 hover:bg-indigo-700 text-white font-black text-[13px] uppercase tracking-widest shadow-xl transition-all flex items-center gap-3"
                   >
                     {selectedVisit ? 'Save Changes' : 'Save Visit'}
                     <CheckCircle2 className="w-5 h-5" />
                   </Button>
-                )
-                  }
+                )}
               </div>
             </div>
           </div>
@@ -1054,16 +1045,6 @@ export function SiteVisits() {
           </div>
         </div>
       )}
-
-      <style>{`
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(8px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fadeIn {
-          animation: fadeIn 0.3s ease-out;
-        }
-      `}</style>
     </div>
   );
 }
@@ -1096,41 +1077,19 @@ function CalendarView({ visits, onDateClick, onVisitClick }: { visits: any[], on
             {format(currentMonth, 'MMMM yyyy')}
           </h2>
           <div className="flex items-center bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden p-1">
-            <button 
-              onClick={prevMonth} 
-              className="p-2 hover:bg-slate-50 text-slate-500 hover:text-slate-900 transition-all rounded-xl"
-            >
+            <button onClick={prevMonth} className="p-2 hover:bg-slate-50 text-slate-500 rounded-xl">
               <ChevronLeft className="w-4.5 h-4.5" />
             </button>
-            <button 
-              onClick={() => setCurrentMonth(new Date())} 
-              className="px-4 py-1.5 text-[11px] font-black uppercase tracking-widest text-slate-500 hover:text-indigo-600 transition-colors"
-            >
+            <button onClick={() => setCurrentMonth(new Date())} className="px-4 py-1.5 text-[11px] font-black uppercase text-slate-500 hover:text-indigo-600">
               Today
             </button>
-            <button 
-              onClick={nextMonth} 
-              className="p-2 hover:bg-slate-50 text-slate-500 hover:text-slate-900 transition-all rounded-xl"
-            >
+            <button onClick={nextMonth} className="p-2 hover:bg-slate-50 text-slate-500 rounded-xl">
               <ChevronRight className="w-4.5 h-4.5" />
             </button>
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
-          {[
-            { label: 'Pending', color: 'bg-amber-400' },
-            { label: 'Scheduled', color: 'bg-indigo-500' },
-            { label: 'Completed', color: 'bg-emerald-500' }
-          ].map(status => (
-            <div key={status.label} className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-100 rounded-full shadow-xs">
-              <div className={cn("w-2 h-2 rounded-full", status.color)} />
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{status.label}</span>
-            </div>
-          ))}
-        </div>
       </div>
       
-      {/* Calendar Grid */}
       <div className="p-4 bg-white">
         <div className="grid grid-cols-7 mb-2">
           {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
@@ -1140,7 +1099,7 @@ function CalendarView({ visits, onDateClick, onVisitClick }: { visits: any[], on
           ))}
         </div>
         <div className="grid grid-cols-7 gap-2">
-          {calendarDays.map((day, idx) => {
+          {calendarDays.map((day) => {
             const dayVisits = getVisitsForDay(day);
             const isCurrentMonth = isSameMonth(day, monthStart);
             const isTodayDay = isToday(day);
@@ -1150,19 +1109,19 @@ function CalendarView({ visits, onDateClick, onVisitClick }: { visits: any[], on
                 key={day.toString()} 
                 className={cn(
                   "min-h-[120px] rounded-2xl p-3 transition-all cursor-pointer relative group border-2",
-                  !isCurrentMonth ? "bg-slate-50/30 border-transparent opacity-40 shadow-none" : "bg-white border-slate-50 hover:border-indigo-200 hover:shadow-lg shadow-indigo-100/20 shadow-sm",
+                  !isCurrentMonth ? "bg-slate-50/30 border-transparent opacity-40 shadow-none" : "bg-white border-slate-50 hover:border-indigo-200 shadow-sm",
                   isTodayDay ? "border-indigo-500/20 bg-indigo-50/10" : ""
                 )}
                 onClick={() => onDateClick(day)}
               >
                 <div className="flex justify-between items-start mb-3">
                   <span className={cn(
-                    "text-[13px] font-black w-7 h-7 flex items-center justify-center rounded-lg transition-all",
-                    isTodayDay ? "bg-indigo-600 text-white shadow-lg shadow-indigo-200" : isCurrentMonth ? "text-slate-900 group-hover:text-indigo-600" : "text-slate-300"
+                    "text-[13px] font-black w-7 h-7 flex items-center justify-center rounded-lg",
+                    isTodayDay ? "bg-indigo-600 text-white" : isCurrentMonth ? "text-slate-900" : "text-slate-300"
                   )}>
                     {format(day, 'd')}
                   </span>
-                  <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-indigo-50 text-indigo-600 p-1 rounded-md">
+                  <div className="opacity-0 group-hover:opacity-100 bg-indigo-50 text-indigo-600 p-1 rounded-md">
                     <Plus className="w-3.5 h-3.5" />
                   </div>
                 </div>
@@ -1172,7 +1131,7 @@ function CalendarView({ visits, onDateClick, onVisitClick }: { visits: any[], on
                     <div 
                       key={visit.id}
                       className={cn(
-                        "px-2 py-1.5 rounded-lg text-[10px] font-bold border-l-[3px] transition-all hover:translate-x-0.5 shadow-xs mb-1",
+                        "px-2 py-1.5 rounded-lg text-[10px] font-bold border-l-[3px] transition-all",
                         visit.status === 'completed' ? "bg-emerald-50 border-emerald-500 text-emerald-800" :
                         visit.status === 'scheduled' ? "bg-indigo-50 border-indigo-500 text-indigo-800" :
                         visit.status === 'pending' ? "bg-amber-50 border-amber-500 text-amber-800" :
@@ -1183,8 +1142,8 @@ function CalendarView({ visits, onDateClick, onVisitClick }: { visits: any[], on
                         onVisitClick(visit);
                       }}
                     >
-                      <div className="truncate tracking-tight">{visit.clients?.client_name || 'Project'}</div>
-                      <div className="text-[8px] opacity-70 uppercase mt-0.5 truncate">{visit.purpose || 'Discovery'}</div>
+                      <div className="truncate">{visit.clients?.client_name || 'Project'}</div>
+                      <div className="text-[8px] opacity-70 uppercase mt-0.5 truncate">{visit.purpose_of_visit || 'Discovery'}</div>
                     </div>
                   ))}
                 </div>

@@ -99,7 +99,7 @@ export function CreateClientEdit({ onSuccess, onCancel }: CreateClientEditProps)
       if (error) throw error;
       return data;
     },
-    enabled: !!clientId
+    enabled: !!clientId && clientId !== 'undefined'
   });
 
   if (clientQuery.isLoading) {
@@ -137,40 +137,49 @@ function ClientDiscountPortfolio({ formData, setFormData, isAdmin }: ClientDisco
   const [saveMessage, setSaveMessage] = useState<{ type: string; text: string }>({ type: '', text: '' });
 
   const pricelistsQuery = useQuery({
-    queryKey: ['discountPricelists'],
+    queryKey: ['discountPricelists', organisation?.id],
     queryFn: async () => {
-      const { data, error } = await supabase.from('standard_discount_pricelists').select('*').eq('is_active', true);
+      const { data, error } = await supabase
+        .from('standard_discount_pricelists')
+        .select('*')
+        .eq('organisation_id', organisation?.id)
+        .eq('is_active', true);
       if (error) throw error;
       return data || [];
     },
+    enabled: !!organisation?.id,
     staleTime: 10 * 60 * 1000
   });
 
   const structuresQuery = useQuery({
-    queryKey: ['discountStructures'],
+    queryKey: ['discountStructures', organisation?.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('discount_structures')
         .select('*')
+        .eq('organisation_id', organisation?.id)
         .eq('is_active', true)
         .neq('structure_name', 'Standard');
       if (error) throw error;
       return data || [];
     },
+    enabled: !!organisation?.id,
     staleTime: 10 * 60 * 1000
   });
 
   const variantsQuery = useQuery({
-    queryKey: ['companyVariants'],
+    queryKey: ['companyVariants', organisation?.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('company_variants')
         .select('*')
+        .eq('organisation_id', organisation?.id)
         .eq('is_active', true)
         .order('variant_name');
       if (error) throw error;
       return data || [];
     },
+    enabled: !!organisation?.id,
     staleTime: 10 * 60 * 1000
   });
 
@@ -484,17 +493,18 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
   };
 
   const shippingQuery = useQuery({
-    queryKey: ['clientShipping', clientData?.id],
+    queryKey: ['clientShipping', clientData?.id, organisation?.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('client_shipping_addresses')
         .select('*')
-        .eq('client_id', clientData?.id)
+        .eq('client_id', clientData.id)
+        .eq('organisation_id', organisation?.id)
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data || [];
     },
-    enabled: editMode && !!clientData?.id
+    enabled: editMode && !!clientData?.id && clientData.id !== 'undefined' && !!organisation?.id
   });
 
   const shippingAddresses = shippingQuery.data || [];
@@ -532,6 +542,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
     }
     const { error } = await supabase.from('client_shipping_addresses').insert({
       client_id: clientData.id,
+      organisation_id: organisation?.id,
       ...newShipping
     });
     if (error) {
