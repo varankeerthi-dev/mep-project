@@ -586,7 +586,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
         if (error) throw error;
       } else {
         const clientId = 'CLT-' + Date.now().toString().slice(-6);
-        const { error } = await supabase.from('clients').insert({ ...formData, client_id: clientId });
+        const { error } = await supabase.from('clients').insert({ ...formData, client_id: clientId, organisation_id: organisation?.id });
         if (error) throw error;
       }
       queryClient.invalidateQueries({ queryKey: ['clients'] });
