@@ -2773,7 +2773,7 @@ function CategoryTab() {
           <table className="w-full text-sm">
             <thead className="border-b border-zinc-200 bg-zinc-50/80">
               <tr>
-                <th className="h-10 pl-3 pr-3 text-left align-middle text-xs font-medium text-zinc-500">Category Name</th>
+                <th className="h-10 pl-4 pr-3 text-left align-middle text-xs font-medium text-zinc-500">Category Name</th>
                 <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Description</th>
                 <th className="h-10 px-3 text-center align-middle text-xs font-medium text-zinc-500">Active</th>
                 <th className="h-10 pl-3 pr-3 text-right align-middle text-xs font-medium text-zinc-500 min-w-[100px]">Actions</th>
@@ -2782,7 +2782,7 @@ function CategoryTab() {
             <tbody className="[&_tr:last-child]:border-0">
               {filteredCategories.map(c => (
                 <tr key={c.id} className="border-b border-zinc-200 hover:bg-zinc-50/80" style={{ opacity: c.is_active === false ? 0.5 : 1 }}>
-                  <td className="px-3 py-3 align-middle whitespace-nowrap text-xs font-semibold text-zinc-700">{c.category_name}</td>
+                  <td className="pl-4 py-3 align-middle whitespace-nowrap text-xs font-semibold text-zinc-700">{c.category_name}</td>
                   <td className="px-3 py-3 align-middle whitespace-nowrap text-xs font-medium text-zinc-600">{c.description || '-'}</td>
                   <td className="px-3 py-3 text-center align-middle text-xs font-medium text-zinc-600">{c.is_active ? <span className="text-green-600">✓</span> : <span className="text-red-500">✗</span>}</td>
                   <td className="pr-3 py-3 text-right align-middle text-xs font-medium text-zinc-600">
