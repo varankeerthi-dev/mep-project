@@ -17,9 +17,13 @@ export const queryClient = new QueryClient({
     queries: {
       staleTime: 5 * 60 * 1000,
       gcTime: 30 * 60 * 1000,
-      refetchOnWindowFocus: 'always',
+      refetchOnWindowFocus: (query) => {
+        const { dataUpdatedAt } = query.state;
+        const howOldIsData = Date.now() - dataUpdatedAt;
+        return howOldIsData > 10 * 60 * 1000;
+      },
       retry: 1,
-      refetchOnMount: true,
+      refetchOnMount: false,
       refetchOnReconnect: 'always',
       networkMode: 'online',
     },

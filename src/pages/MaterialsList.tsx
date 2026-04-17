@@ -2675,12 +2675,12 @@ function ServiceTab() {
         <input type="text" className="form-input" placeholder="Search services..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ maxWidth: '300px' }} />
       </div>
 
-      <div className="rounded-lg border border-zinc-200 bg-white shadow-sm">
+      <div className="bg-white border border-zinc-200 rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="border-b border-zinc-200 bg-zinc-50/80">
+            <thead className="bg-zinc-50 sticky top-0 z-10">
               <tr>
-                <th className="h-10 pl-3 pr-3 text-left align-middle text-xs font-medium text-zinc-500">Service Code</th>
+                <th className="h-10 pl-4 pr-3 text-left align-middle text-xs font-medium text-zinc-500">Service Code</th>
                 <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Service Name</th>
                 <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Unit</th>
                 <th className="h-10 px-3 text-right align-middle text-xs font-medium text-zinc-500">Sale Price</th>
@@ -2697,8 +2697,14 @@ function ServiceTab() {
                   <td className="px-3 py-3 align-middle whitespace-nowrap text-xs font-medium text-zinc-600">{s.unit}</td>
                   <td className="pr-3 py-3 text-right align-middle text-xs font-medium text-zinc-600">₹{s.sale_price || '-'}</td>
                   <td className="px-3 py-3 align-middle whitespace-nowrap text-xs font-medium text-zinc-600">{s.hsn_code || '-'}</td>
-                  <td className="px-3 py-3 text-center align-middle text-xs font-medium text-zinc-600">{s.is_active ? <span className="text-green-600">✓</span> : <span className="text-red-500">✗</span>}</td>
-                  <td className="pr-3 py-3 text-right align-middle text-xs font-medium text-zinc-600">
+                  <td className="px-3 py-3 text-center align-middle">
+                    {s.is_active ? (
+                      <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">Active</span>
+                    ) : (
+                      <span className="px-2 py-1 rounded-full text-xs font-medium bg-zinc-100 text-zinc-500">Inactive</span>
+                    )}
+                  </td>
+                  <td className="pr-3 py-3 text-right align-middle">
                     <button className="btn btn-sm btn-secondary" onClick={() => editService(s)}>Edit</button>
                     <button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px' }} onClick={() => deleteService(s.id)}>Delete</button>
                   </td>
@@ -2791,26 +2797,30 @@ function CategoryTab() {
     <div>
       <div className="page-header"><h1 className="page-title">Categories</h1><button className="btn btn-primary" onClick={() => setShowForm(true)}>+ Add Category</button></div>
       <div className="card" style={{ marginBottom: '16px' }}><input type="text" className="form-input" placeholder="Search categories..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ maxWidth: '300px' }} /></div>
-      <div className="rounded-lg border border-zinc-200 bg-white shadow-sm">
+      <div className="bg-white border border-zinc-200 rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="border-b border-zinc-200 bg-zinc-50/80">
+            <thead className="bg-zinc-50 sticky top-0 z-10">
               <tr>
-                <th className="h-10 pl-4 pr-3 text-left align-middle text-xs font-medium text-zinc-500">Category Name</th>
-                <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Description</th>
-                <th className="h-10 px-3 text-center align-middle text-xs font-medium text-zinc-500">Active</th>
-                <th className="h-10 pl-3 pr-3 text-right align-middle text-xs font-medium text-zinc-500 min-w-[100px]">Actions</th>
+                <th className="h-10 pl-4 pr-3 text-left align-middle text-xs font-semibold text-zinc-500">Category Name</th>
+                <th className="h-10 px-3 text-left align-middle text-xs font-semibold text-zinc-500">Description</th>
+                <th className="h-10 px-3 text-center align-middle text-xs font-semibold text-zinc-500">Active</th>
+                <th className="h-10 pl-3 pr-3 text-right align-middle text-xs font-semibold text-zinc-500 min-w-[100px]">Actions</th>
               </tr>
             </thead>
             <tbody className="[&_tr:last-child]:border-0">
               {filteredCategories.map(c => (
-                <tr key={c.id} className="border-b border-zinc-200 hover:bg-zinc-50/80" style={{ opacity: c.is_active === false ? 0.5 : 1 }}>
-                  <td className="pl-4 py-3 align-middle whitespace-nowrap text-xs font-semibold text-zinc-700">{c.category_name}</td>
-                  <td className="px-3 py-3 align-middle whitespace-nowrap text-xs font-medium text-zinc-600">{c.description || '-'}</td>
-                  <td className="px-3 py-3 text-center align-middle text-xs font-medium text-zinc-600">{c.is_active ? <span className="text-green-600">✓</span> : <span className="text-red-500">✗</span>}</td>
-                  <td className="pr-3 py-3 text-right align-middle text-xs font-medium text-zinc-600">
-                    <button className="btn btn-sm btn-secondary" onClick={() => editCategory(c)}>Edit</button>
-                    <button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px' }} onClick={() => deleteCategory(c.id)}>Delete</button>
+                <tr key={c.id} className="border-b border-zinc-200 hover:bg-zinc-50 transition-colors" style={{ opacity: c.is_active === false ? 0.5 : 1 }}>
+                  <td className="pl-4 py-3 align-middle whitespace-nowrap text-sm font-semibold text-zinc-700">{c.category_name}</td>
+                  <td className="px-3 py-3 align-middle whitespace-nowrap text-sm font-medium text-zinc-600">{c.description || '-'}</td>
+                  <td className="px-3 py-3 text-center align-middle">
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${c.is_active ? 'bg-green-50 text-green-700' : 'bg-zinc-100 text-zinc-600'}`}>
+                      {c.is_active ? 'Active' : 'Inactive'}
+                    </span>
+                  </td>
+                  <td className="pr-3 py-3 text-right align-middle">
+                    <Button size="sm" variant="outline" onClick={() => editCategory(c)} className="text-xs">Edit</Button>
+                    <Button size="sm" variant="outline" onClick={() => deleteCategory(c.id)} className="text-xs ml-1">Delete</Button>
                   </td>
                 </tr>
               ))}
@@ -2870,28 +2880,32 @@ function UnitTab() {
     <div>
       <div className="page-header"><h1 className="page-title">Units</h1><button className="btn btn-primary" onClick={() => setShowForm(true)}>+ Add Unit</button></div>
       <div className="card" style={{ marginBottom: '16px' }}><input type="text" className="form-input" placeholder="Search units..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ maxWidth: '300px' }} /></div>
-      <div className="rounded-lg border border-zinc-200 bg-white shadow-sm">
+      <div className="bg-white border border-zinc-200 rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="border-b border-zinc-200 bg-zinc-50/80">
+            <thead className="bg-zinc-50 sticky top-0 z-10">
               <tr>
-                <th className="h-10 pl-3 pr-3 text-left align-middle text-xs font-medium text-zinc-500">Unit Name</th>
-                <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Unit Code</th>
-                <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Description</th>
-                <th className="h-10 px-3 text-center align-middle text-xs font-medium text-zinc-500">Active</th>
-                <th className="h-10 pl-3 pr-3 text-right align-middle text-xs font-medium text-zinc-500 min-w-[100px]">Actions</th>
+                <th className="h-10 pl-4 pr-3 text-left align-middle text-xs font-semibold text-zinc-500">Unit Name</th>
+                <th className="h-10 px-3 text-left align-middle text-xs font-semibold text-zinc-500">Unit Code</th>
+                <th className="h-10 px-3 text-left align-middle text-xs font-semibold text-zinc-500">Description</th>
+                <th className="h-10 px-3 text-center align-middle text-xs font-semibold text-zinc-500">Active</th>
+                <th className="h-10 pl-3 pr-3 text-right align-middle text-xs font-semibold text-zinc-500 min-w-[100px]">Actions</th>
               </tr>
             </thead>
             <tbody className="[&_tr:last-child]:border-0">
               {filteredUnits.map(u => (
-                <tr key={u.id} className="border-b border-zinc-200 hover:bg-zinc-50/80" style={{ opacity: u.is_active === false ? 0.5 : 1 }}>
-                  <td className="pl-3 py-3 align-middle whitespace-nowrap text-xs font-semibold text-zinc-700">{u.unit_name}</td>
-                  <td className="px-3 py-3 align-middle whitespace-nowrap text-xs font-medium text-zinc-600">{u.unit_code}</td>
-                  <td className="px-3 py-3 align-middle whitespace-nowrap text-xs font-medium text-zinc-600">{u.description || '-'}</td>
-                  <td className="px-3 py-3 text-center align-middle text-xs font-medium text-zinc-600">{u.is_active ? <span className="text-green-600">✓</span> : <span className="text-red-500">✗</span>}</td>
-                  <td className="pr-3 py-3 text-right align-middle text-xs font-medium text-zinc-600">
-                    <button className="btn btn-sm btn-secondary" onClick={() => editUnit(u)}>Edit</button>
-                    <button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px' }} onClick={() => deleteUnit(u.id)}>Delete</button>
+                <tr key={u.id} className="border-b border-zinc-200 hover:bg-zinc-50 transition-colors" style={{ opacity: u.is_active === false ? 0.5 : 1 }}>
+                  <td className="pl-4 py-3 align-middle whitespace-nowrap text-sm font-semibold text-zinc-700">{u.unit_name}</td>
+                  <td className="px-3 py-3 align-middle whitespace-nowrap text-sm font-medium text-zinc-600">{u.unit_code}</td>
+                  <td className="px-3 py-3 align-middle whitespace-nowrap text-sm font-medium text-zinc-600">{u.description || '-'}</td>
+                  <td className="px-3 py-3 text-center align-middle">
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${u.is_active ? 'bg-green-50 text-green-700' : 'bg-zinc-100 text-zinc-600'}`}>
+                      {u.is_active ? 'Active' : 'Inactive'}
+                    </span>
+                  </td>
+                  <td className="pr-3 py-3 text-right align-middle">
+                    <Button size="sm" variant="outline" onClick={() => editUnit(u)} className="text-xs">Edit</Button>
+                    <Button size="sm" variant="outline" onClick={() => deleteUnit(u.id)} className="text-xs ml-1">Delete</Button>
                   </td>
                 </tr>
               ))}
@@ -2962,30 +2976,38 @@ function WarehousesTab() {
     <div>
       <div className="page-header"><h1 className="page-title">Warehouses</h1><button className="btn btn-primary" onClick={() => setShowForm(true)}>+ Add Warehouse</button></div>
       <div className="card" style={{ marginBottom: '16px' }}><input type="text" className="form-input" placeholder="Search warehouses..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ maxWidth: '300px' }} /></div>
-      <div className="rounded-lg border border-zinc-200 bg-white shadow-sm">
+      <div className="bg-white border border-zinc-200 rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="border-b border-zinc-200 bg-zinc-50/80">
+            <thead className="bg-zinc-50 sticky top-0 z-10">
               <tr>
-                <th className="h-10 pl-3 pr-3 text-left align-middle text-xs font-medium text-zinc-500">Warehouse Code</th>
-                <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Warehouse Name</th>
-                <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Location</th>
-                <th className="h-10 px-3 text-center align-middle text-xs font-medium text-zinc-500">Default</th>
-                <th className="h-10 px-3 text-center align-middle text-xs font-medium text-zinc-500">Active</th>
-                <th className="h-10 pl-3 pr-3 text-right align-middle text-xs font-medium text-zinc-500 min-w-[100px]">Actions</th>
+                <th className="h-10 pl-4 pr-3 text-left align-middle text-xs font-semibold text-zinc-500">Warehouse Code</th>
+                <th className="h-10 px-3 text-left align-middle text-xs font-semibold text-zinc-500">Warehouse Name</th>
+                <th className="h-10 px-3 text-left align-middle text-xs font-semibold text-zinc-500">Location</th>
+                <th className="h-10 px-3 text-center align-middle text-xs font-semibold text-zinc-500">Default</th>
+                <th className="h-10 px-3 text-center align-middle text-xs font-semibold text-zinc-500">Active</th>
+                <th className="h-10 pl-3 pr-3 text-right align-middle text-xs font-semibold text-zinc-500 min-w-[100px]">Actions</th>
               </tr>
             </thead>
             <tbody className="[&_tr:last-child]:border-0">
               {filteredWarehouses.map(w => (
-                <tr key={w.id} className="border-b border-zinc-200 hover:bg-zinc-50/80" style={{ opacity: w.is_active === false ? 0.5 : 1 }}>
-                  <td className="pl-3 py-3 align-middle whitespace-nowrap text-xs font-medium text-zinc-600">{w.warehouse_code}</td>
-                  <td className="px-3 py-3 align-middle whitespace-nowrap text-xs font-semibold text-zinc-700">{w.warehouse_name || w.name}</td>
-                  <td className="px-3 py-3 align-middle whitespace-nowrap text-xs font-medium text-zinc-600">{w.location || '-'}</td>
-                  <td className="px-3 py-3 text-center align-middle text-xs font-medium text-zinc-600">{w.is_default ? <span className="text-blue-600">✓</span> : <span className="text-zinc-300">-</span>}</td>
-                  <td className="px-3 py-3 text-center align-middle text-xs font-medium text-zinc-600">{w.is_active ? <span className="text-green-600">✓</span> : <span className="text-red-500">✗</span>}</td>
-                  <td className="pr-3 py-3 text-right align-middle text-xs font-medium text-zinc-600">
-                    <button className="btn btn-sm btn-secondary" onClick={() => editWarehouse(w)}>Edit</button>
-                    <button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px' }} onClick={() => deleteWarehouse(w.id)}>Delete</button>
+                <tr key={w.id} className="border-b border-zinc-200 hover:bg-zinc-50 transition-colors" style={{ opacity: w.is_active === false ? 0.5 : 1 }}>
+                  <td className="pl-4 py-3 align-middle whitespace-nowrap text-sm font-medium text-zinc-600">{w.warehouse_code}</td>
+                  <td className="px-3 py-3 align-middle whitespace-nowrap text-sm font-semibold text-zinc-700">{w.warehouse_name || w.name}</td>
+                  <td className="px-3 py-3 align-middle whitespace-nowrap text-sm font-medium text-zinc-600">{w.location || '-'}</td>
+                  <td className="px-3 py-3 text-center align-middle">
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${w.is_default ? 'bg-blue-50 text-blue-700' : 'bg-zinc-100 text-zinc-400'}`}>
+                      {w.is_default ? 'Default' : '-'}
+                    </span>
+                  </td>
+                  <td className="px-3 py-3 text-center align-middle">
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${w.is_active ? 'bg-green-50 text-green-700' : 'bg-zinc-100 text-zinc-600'}`}>
+                      {w.is_active ? 'Active' : 'Inactive'}
+                    </span>
+                  </td>
+                  <td className="pr-3 py-3 text-right align-middle">
+                    <Button size="sm" variant="outline" onClick={() => editWarehouse(w)} className="text-xs">Edit</Button>
+                    <Button size="sm" variant="outline" onClick={() => deleteWarehouse(w.id)} className="text-xs ml-1">Delete</Button>
                   </td>
                 </tr>
               ))}
@@ -3046,26 +3068,30 @@ function VariantsTab() {
         <p style={{ color: '#666', marginBottom: '10px' }}>Variants represent different commercial contexts (e.g., Retail, Wholesale, Export). Each item can have different pricing per variant.</p>
         <input type="text" className="form-input" placeholder="Search variants..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ maxWidth: '300px' }} />
       </div>
-      <div className="rounded-lg border border-zinc-200 bg-white shadow-sm">
+      <div className="bg-white border border-zinc-200 rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="border-b border-zinc-200 bg-zinc-50/80">
+            <thead className="bg-zinc-50 sticky top-0 z-10">
               <tr>
-                <th className="h-10 pl-3 pr-3 text-left align-middle text-xs font-medium text-zinc-500">Variant Name</th>
-                <th className="h-10 px-3 text-center align-middle text-xs font-medium text-zinc-500">Active</th>
-                <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Created</th>
-                <th className="h-10 pl-3 pr-3 text-right align-middle text-xs font-medium text-zinc-500 min-w-[100px]">Actions</th>
+                <th className="h-10 pl-4 pr-3 text-left align-middle text-xs font-semibold text-zinc-500">Variant Name</th>
+                <th className="h-10 px-3 text-center align-middle text-xs font-semibold text-zinc-500">Active</th>
+                <th className="h-10 px-3 text-left align-middle text-xs font-semibold text-zinc-500">Created</th>
+                <th className="h-10 pl-3 pr-3 text-right align-middle text-xs font-semibold text-zinc-500 min-w-[100px]">Actions</th>
               </tr>
             </thead>
             <tbody className="[&_tr:last-child]:border-0">
               {filteredVariants.map(v => (
-                <tr key={v.id} className="border-b border-zinc-200 hover:bg-zinc-50/80" style={{ opacity: v.is_active === false ? 0.5 : 1 }}>
-                  <td className="pl-3 py-3 align-middle whitespace-nowrap text-xs font-semibold text-zinc-700">{v.variant_name}</td>
-                  <td className="px-3 py-3 text-center align-middle text-xs font-medium text-zinc-600">{v.is_active ? <span className="text-green-600">✓</span> : <span className="text-red-500">✗</span>}</td>
-                  <td className="px-3 py-3 align-middle whitespace-nowrap text-xs font-medium text-zinc-600">{v.created_at ? new Date(v.created_at).toLocaleDateString() : '-'}</td>
-                  <td className="pr-3 py-3 text-right align-middle text-xs font-medium text-zinc-600">
-                    <button className="btn btn-sm btn-secondary" onClick={() => editVariant(v)}>Edit</button>
-                    <button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px' }} onClick={() => deleteVariant(v.id)}>Delete</button>
+                <tr key={v.id} className="border-b border-zinc-200 hover:bg-zinc-50 transition-colors" style={{ opacity: v.is_active === false ? 0.5 : 1 }}>
+                  <td className="pl-4 py-3 align-middle whitespace-nowrap text-sm font-semibold text-zinc-700">{v.variant_name}</td>
+                  <td className="px-3 py-3 text-center align-middle">
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${v.is_active ? 'bg-green-50 text-green-700' : 'bg-zinc-100 text-zinc-600'}`}>
+                      {v.is_active ? 'Active' : 'Inactive'}
+                    </span>
+                  </td>
+                  <td className="px-3 py-3 align-middle whitespace-nowrap text-sm font-medium text-zinc-600">{v.created_at ? new Date(v.created_at).toLocaleDateString() : '-'}</td>
+                  <td className="pr-3 py-3 text-right align-middle">
+                    <Button size="sm" variant="outline" onClick={() => editVariant(v)} className="text-xs">Edit</Button>
+                    <Button size="sm" variant="outline" onClick={() => deleteVariant(v.id)} className="text-xs ml-1">Delete</Button>
                   </td>
                 </tr>
               ))}
