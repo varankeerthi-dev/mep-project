@@ -191,109 +191,85 @@ export default function POList() {
   ], [navigate]);
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] p-6 lg:p-10">
-      {/* Header */}
-      <div className="mb-10 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between animate-in fade-in slide-in-from-top-4 duration-700">
-        <div>
-          <h1 className="text-4xl font-black tracking-tight text-slate-900">Purchase Orders</h1>
-          <p className="mt-1 text-sm font-medium text-slate-500">Manage client purchase orders and utilization tracking</p>
+    <div className="min-h-screen bg-zinc-50 p-4">
+      {/* Compact Header */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <FileText className="h-4 w-4 text-zinc-500" />
+          <h1 className="text-sm font-semibold text-zinc-800">Purchase Orders</h1>
         </div>
         <button 
-          className="inline-flex h-12 items-center gap-2 rounded-2xl bg-blue-600 px-6 text-[13px] font-black uppercase tracking-widest text-white shadow-xl shadow-blue-500/20 transition-all hover:bg-blue-700 active:scale-95"
+          className="inline-flex h-7 items-center gap-1.5 bg-blue-600 px-3 text-xs font-semibold text-white"
           onClick={() => navigate('/client-po/create')}
         >
-          <Plus size={18} />
-          Create New PO
+          <Plus size={14} />
+          New
         </button>
       </div>
 
-      {/* Stats */}
-      <div className="mb-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100">
-        <div className="group flex items-center gap-4 rounded-3xl border border-slate-100 bg-white p-6 shadow-sm transition-all hover:shadow-xl hover:shadow-slate-200/50">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 transition-transform group-hover:scale-110">
-            <FileText size={20} />
-          </div>
-          <div>
-            <div className="text-[11px] font-black uppercase tracking-widest text-slate-400">Total POs</div>
-            <div className="text-2xl font-black text-slate-900">{filteredPOs.length}</div>
-          </div>
+      {/* Compact Metrics Strip */}
+      <div className="flex items-center gap-6 mb-4 text-xs">
+        <div className="flex items-center gap-1.5">
+          <FileText className="h-3 w-3 text-blue-500" />
+          <span className="text-zinc-400">Total:</span>
+          <span className="font-semibold text-zinc-700">{filteredPOs.length}</span>
         </div>
-        <div className="group flex items-center gap-4 rounded-3xl border border-slate-100 bg-white p-6 shadow-sm transition-all hover:shadow-xl hover:shadow-slate-200/50">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50 text-amber-600 transition-transform group-hover:scale-110">
-            <Clock size={20} />
-          </div>
-          <div>
-            <div className="text-[11px] font-black uppercase tracking-widest text-slate-400">Active / Partial</div>
-            <div className="text-2xl font-black text-slate-900">
-              {filteredPOs.filter(p => ['Open', 'Partially Billed'].includes(p.status)).length}
-            </div>
-          </div>
+        <div className="flex items-center gap-1.5">
+          <Clock className="h-3 w-3 text-amber-500" />
+          <span className="text-zinc-400">Active:</span>
+          <span className="font-semibold text-zinc-700">{filteredPOs.filter(p => p.status === 'Open').length}</span>
         </div>
-        <div className="group flex items-center gap-4 rounded-3xl border border-slate-100 bg-white p-6 shadow-sm transition-all hover:shadow-xl hover:shadow-slate-200/50">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 transition-transform group-hover:scale-110">
-            <TrendingUp size={20} />
-          </div>
-          <div>
-            <div className="text-[11px] font-black uppercase tracking-widest text-slate-400">Total Value</div>
-            <div className="text-2xl font-black text-emerald-700">
-              ₹{formatCurrency(filteredPOs.reduce((sum, p) => sum + (p.po_total_value || 0), 0))}
-            </div>
-          </div>
+        <div className="flex items-center gap-1.5">
+          <TrendingUp className="h-3 w-3 text-emerald-500" />
+          <span className="text-zinc-400">Value:</span>
+          <span className="font-semibold text-emerald-700">₹{formatCurrency(filteredPOs.reduce((sum, p) => sum + (p.po_total_value || 0), 0))}</span>
         </div>
-        <div className="group flex items-center gap-4 rounded-3xl border border-slate-100 bg-white p-6 shadow-sm transition-all hover:shadow-xl hover:shadow-slate-200/50">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-50 text-rose-600 transition-transform group-hover:scale-110">
-            <Layers size={20} />
-          </div>
-          <div>
-            <div className="text-[11px] font-black uppercase tracking-widest text-slate-400">Balance Available</div>
-            <div className="text-2xl font-black text-rose-700">
-              ₹{formatCurrency(filteredPOs.reduce((sum, p) => sum + (p.po_available_value || 0), 0))}
-            </div>
-          </div>
+        <div className="flex items-center gap-1.5">
+          <Layers className="h-3 w-3 text-rose-500" />
+          <span className="text-zinc-400">Balance:</span>
+          <span className="font-semibold text-rose-700">₹{formatCurrency(filteredPOs.reduce((sum, p) => sum + (p.po_available_value || 0), 0))}</span>
         </div>
       </div>
 
       {/* Main Table Card */}
-      <div className="overflow-hidden rounded-[2.5rem] border border-slate-200 bg-white shadow-2xl shadow-slate-200/60 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200">
-        {/* Filter Bar */}
-        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 bg-slate-50/30 p-8">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="relative group">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-blue-500" size={16} />
+      <div className="border border-zinc-200 bg-white">
+        {/* Compact Filter Bar */}
+        <div className="flex items-center justify-between gap-2 border-b border-zinc-100 px-3 py-2">
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 text-zinc-400" size={14} />
               <input
                 type="text"
-                placeholder="Search POs or Clients..."
-                className="h-12 w-full min-w-[320px] rounded-2xl border border-slate-100 bg-white pl-12 pr-4 text-[13px] font-medium shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-blue-500/20 focus:ring-4 focus:ring-blue-500/5 group-hover:border-slate-200"
+                placeholder="Search..."
+                className="h-7 w-48 pl-7 text-xs border border-zinc-200 bg-white"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
             
-            <div className="h-10 w-px bg-slate-200/60 mx-2 hidden lg:block" />
-            
             <div className="flex items-center gap-2">
               <select
-                className="h-12 min-w-[160px] rounded-2xl border border-slate-100 bg-white px-4 text-[13px] font-medium shadow-sm outline-none transition-all hover:border-slate-200 focus:border-blue-500/20 focus:ring-4 focus:ring-blue-500/5"
+                className="h-7 text-xs border border-zinc-200 bg-white px-2"
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
               >
-                <option value="">All Statuses</option>
+                <option value="">All</option>
                 <option value="Open">Open</option>
-                <option value="Partially Billed">Partially Billed</option>
+                <option value="Partially Billed">Partial</option>
                 <option value="Closed">Closed</option>
               </select>
 
-              <div className="flex items-center gap-2 rounded-2xl border border-slate-100 bg-white p-1 shadow-sm">
+              <div className="flex items-center gap-1 rounded border border-zinc-200 bg-white px-1 py-0.5">
                 <input
                   type="date"
-                  className="h-10 rounded-xl border-none bg-transparent px-3 text-[13px] font-medium outline-none focus:ring-0"
+                  className="h-6 text-xs border-none bg-transparent px-1"
                   value={dateFrom}
                   onChange={(e) => setDateFrom(e.target.value)}
                 />
-                <div className="text-slate-300 font-bold">→</div>
+                <span className="text-zinc-300">→</span>
                 <input
                   type="date"
-                  className="h-10 rounded-xl border-none bg-transparent px-3 text-[13px] font-medium outline-none focus:ring-0"
+                  className="h-6 text-xs border-none bg-transparent px-1"
                   value={dateTo}
                   onChange={(e) => setDateTo(e.target.value)}
                 />
@@ -304,20 +280,19 @@ export default function POList() {
           <div className="flex items-center gap-2">
             <button 
               onClick={loadPOs}
-              className="flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-100 bg-white text-slate-400 shadow-sm transition-all hover:bg-slate-50 hover:text-slate-600 active:scale-95"
+              className="flex h-7 w-7 items-center justify-center border border-zinc-200 bg-white text-zinc-400"
               title="Refresh Data"
             >
-              <RefreshCcw size={18} className={cn(loading && "animate-spin")} />
+              <RefreshCcw size={12} className={cn(loading && "animate-spin")} />
             </button>
           </div>
         </div>
 
         {/* Table Container */}
-        <div className="p-2">
+        <div className="p-0.5">
           {loading ? (
-            <div className="flex h-[400px] flex-col items-center justify-center gap-4 text-slate-300">
-              <RefreshCcw size={40} className="animate-spin opacity-20" />
-              <div className="text-sm font-bold uppercase tracking-widest opacity-50">Synchronizing...</div>
+            <div className="flex h-48 items-center justify-center text-zinc-300">
+              <RefreshCcw size={20} className="animate-spin" />
             </div>
           ) : (
             <AppTable
@@ -325,7 +300,7 @@ export default function POList() {
               columns={tableColumns}
               enableSorting={true}
               enablePagination={true}
-              defaultPageSize={10}
+              defaultPageSize={15}
               emptyMessage="No matching purchase orders found"
             />
           )}
