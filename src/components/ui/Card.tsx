@@ -21,7 +21,7 @@ export function Card({ children, className, hover = false, onClick, padding = 'm
       className={className}
       style={{
         background: '#ffffff',
-        borderRadius: radii.lg,
+        borderRadius: 0,
         boxShadow: shadows.DEFAULT,
         padding: paddingMap[padding],
         transition: transitions.DEFAULT,
@@ -182,7 +182,7 @@ export function StatCard({ icon, label, value, trend, color = 'blue' }: StatCard
         <div style={{
           width: '48px',
           height: '48px',
-          borderRadius: radii.md,
+          borderRadius: 0,
           background: theme.bg,
           display: 'flex',
           alignItems: 'center',
