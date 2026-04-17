@@ -1328,87 +1328,102 @@ function ItemsTab() {
   };
 
   const itemColumns = useMemo(() => {
-    const columns = [];
-    const addColumn = (key, column) => {
-      if (visibleColumns.includes(key)) columns.push(column);
+    const columns: any[] = [];
+    const addColumn = (key: string, col: any) => {
+      if (visibleColumns.includes(key)) columns.push(col);
     };
 
     addColumn('name', {
       id: 'name',
-      header: 'Name',
-      cell: ({ row }) => {
+      header: () => (
+        <span className="text-xs font-semibold text-zinc-500">Item</span>
+      ),
+      cell: ({ row }: any) => {
         const m = row.original;
         return (
-          <div className="item-main-cell">
-            <div className="item-avatar">{(m.display_name || m.name || '?').slice(0, 1).toUpperCase()}</div>
-            <div>
-              <button type="button" className="item-name-link" onClick={() => selectMaterialRow(m)}>
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center text-xs font-semibold text-zinc-600">
+              {(m.display_name || m.name || '?')[0]?.toUpperCase()}
+            </div>
+            <div className="flex flex-col">
+              <span className="text-sm font-medium text-zinc-900">
                 {m.display_name || m.name}
-              </button>
-              <div className="item-main-sub">{m.material || m.size || 'Item'}</div>
+              </span>
+              <span className="text-xs text-zinc-500">
+                {m.material || m.size || '—'}
+              </span>
             </div>
           </div>
         );
       }
     });
 
-    addColumn('code', { id: 'code', header: 'Code', cell: ({ row }) => row.original.item_code || '-' });
-    addColumn('category', { id: 'category', header: 'Category', cell: ({ row }) => row.original.main_category || '-' });
-    addColumn('sub_category', { id: 'sub_category', header: 'Sub Category', cell: ({ row }) => formatColumnValue(row.original, 'sub_category') });
-    addColumn('size', { id: 'size', header: 'Size', cell: ({ row }) => formatColumnValue(row.original, 'size') });
-    addColumn('pressure_class', { id: 'pressure_class', header: 'Pressure Class', cell: ({ row }) => formatColumnValue(row.original, 'pressure_class') });
-    addColumn('make', { id: 'make', header: 'MAKE(Brand name)', cell: ({ row }) => formatColumnValue(row.original, 'make') });
-    addColumn('material', { id: 'material', header: 'Material', cell: ({ row }) => formatColumnValue(row.original, 'material') });
-    addColumn('end_connection', { id: 'end_connection', header: 'End Connection', cell: ({ row }) => formatColumnValue(row.original, 'end_connection') });
-    addColumn('unit', { id: 'unit', header: 'Unit', cell: ({ row }) => row.original.unit || '-' });
-    addColumn('sale_price', { id: 'sale_price', header: 'Sale Price', cell: ({ row }) => formatColumnValue(row.original, 'sale_price') });
-    addColumn('purchase_price', { id: 'purchase_price', header: 'Purchase Price', cell: ({ row }) => formatColumnValue(row.original, 'purchase_price') });
-    addColumn('hsn_code', { id: 'hsn_code', header: 'HSN/SAC', cell: ({ row }) => formatColumnValue(row.original, 'hsn_code') });
-    addColumn('gst_rate', { id: 'gst_rate', header: 'GST Rate', cell: ({ row }) => formatColumnValue(row.original, 'gst_rate') });
-    addColumn('uses_variant', { id: 'uses_variant', header: 'Variant', cell: ({ row }) => formatColumnValue(row.original, 'uses_variant') });
+    const textCol = (key: string, label: string, accessor: (m: any) => any) => ({
+      id: key,
+      header: () => (
+        <span className="text-xs font-semibold text-zinc-500">{label}</span>
+      ),
+      cell: ({ row }: any) => (
+        <span className="text-sm text-zinc-700 truncate">
+          {accessor(row.original) || '—'}
+        </span>
+      )
+    });
+
+    addColumn('code', textCol('code', 'Code', (m) => m.item_code));
+    addColumn('category', textCol('category', 'Category', (m) => m.main_category));
+    addColumn('unit', textCol('unit', 'Unit', (m) => m.unit));
+
+    const numberCol = (key: string, label: string, accessor: (m: any) => any) => ({
+      id: key,
+      header: () => (
+        <div className="text-xs font-semibold text-zinc-500 text-right">
+          {label}
+        </div>
+      ),
+      cell: ({ row }: any) => (
+        <div className="text-sm text-zinc-900 text-right tabular-nums">
+          {accessor(row.original) ?? '—'}
+        </div>
+      )
+    });
+
     addColumn('stock', {
       id: 'stock',
-      header: 'Stock',
-      cell: ({ row }) => {
+      header: () => (
+        <div className="text-xs font-semibold text-zinc-500 text-right">Stock</div>
+      ),
+      cell: ({ row }: any) => {
         const m = row.original;
         const stock = stockData[m.id] || 0;
+        const isLowStock = stock < (m.low_stock_level || 0);
         return (
-          <span style={{ color: stock < (m.low_stock_level || 0) ? '#b42318' : '#067647', fontWeight: 600 }}>
+          <span className={`text-sm font-semibold ${isLowStock ? 'text-red-600' : 'text-green-600'}`}>
             {stock}
           </span>
         );
       }
     });
+
     addColumn('status', {
       id: 'status',
-      header: 'Status',
-      cell: ({ row }) => {
-        const isActive = row.original.is_active !== false;
+      header: () => (
+        <span className="text-xs font-semibold text-zinc-500">Status</span>
+      ),
+      cell: ({ row }: any) => {
+        const active = row.original.is_active !== false;
         return (
-          <span className={`status-chip ${isActive ? 'active' : 'inactive'}`}>{isActive ? 'Active' : 'Inactive'}</span>
-        );
-      }
-    });
-
-    columns.push({
-      id: 'action',
-      header: 'Action',
-      cell: ({ row }) => {
-        const m = row.original;
-        return (
-          <div className="item-actions-cell">
-            <button className="btn btn-sm btn-secondary" onClick={() => editMaterial(m)}>Edit</button>
-            <button className="btn btn-sm btn-secondary" onClick={() => toggleActive(m)}>
-              {m.is_active ? 'Disable' : 'Enable'}
-            </button>
-            <button className="btn btn-sm btn-secondary" onClick={() => openDeleteModal(m)}>Delete</button>
-          </div>
+          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+            active ? 'bg-green-50 text-green-700' : 'bg-zinc-100 text-zinc-600'
+          }`}>
+            {active ? 'Active' : 'Inactive'}
+          </span>
         );
       }
     });
 
     return columns;
-  }, [visibleColumns, stockData, formatColumnValue, selectMaterialRow, editMaterial, toggleActive, openDeleteModal]);
+  }, [visibleColumns, stockData]);
 
   const [visibleCount, setVisibleCount] = useState(200);
   const visibleMaterials = useMemo(() => filteredMaterials.slice(0, visibleCount), [filteredMaterials, visibleCount]);
@@ -1563,53 +1578,61 @@ function ItemsTab() {
             </label>
           </div>
 
-          <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+          <div className="rounded-xl overflow-hidden border border-zinc-200">
             {filteredMaterials.length === 0 ? (
-              <div className="empty-state"><h3>No Items Found</h3></div>
+              <div className="p-12 text-center text-zinc-500"><h3 className="text-lg font-medium">No Items Found</h3></div>
             ) : (
-              <div>
-                <div className="table-container" style={{ overflowX: 'auto' }}>
-                  <table className="table items-reference-table">
-                    <thead>
-                      {table.getHeaderGroups().map(headerGroup => (
-                        <tr key={headerGroup.id}>
-                          {headerGroup.headers.map(header => (
-                            <th key={header.id}>
-                              {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
-                            </th>
-                          ))}
-                        </tr>
+              <div className="bg-white border border-zinc-200 rounded-xl overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-zinc-50 sticky top-0 z-10">
+                  {table.getHeaderGroups().map(headerGroup => (
+                    <tr key={headerGroup.id}>
+                      {headerGroup.headers.map(header => (
+                        <th key={header.id} className="px-4 py-3 text-left">
+                          {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                        </th>
                       ))}
-                    </thead>
-                    <tbody>
-                      {table.getRowModel().rows.map(row => {
-                        const m = row.original;
-                        const isActive = m.is_active !== false;
-                        const isSelected = selectedMaterialId === m.id;
-                        return (
-                          <tr
-                            key={row.id}
-                            className={`item-click-row ${isSelected ? 'selected' : ''}`}
-                            style={{ opacity: isActive ? 1 : 0.55 }}
-                          >
-                            {row.getVisibleCells().map(cell => (
-                              <td key={cell.id}>
-                                {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                              </td>
-                            ))}
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-                {filteredMaterials.length > visibleCount ? (
-                  <div style={{ padding: '12px', textAlign: 'center' }}>
-                    <button className="btn btn-secondary" onClick={() => setVisibleCount((v) => v + 200)}>Show more</button>
-                    <span style={{ marginLeft: 12, color: '#666' }}>{visibleMaterials.length} / {filteredMaterials.length} shown</span>
-                  </div>
-                ) : null}
+                    </tr>
+                  ))}
+                </thead>
+                <tbody>
+                  {table.getRowModel().rows.map(row => {
+                    const m = row.original;
+                    const isActive = m.is_active !== false;
+                    const isSelected = selectedMaterialId === m.id;
+
+                    return (
+                      <tr
+                        key={row.id}
+                        onClick={() => selectMaterialRow(m)}
+                        className={`
+                          border-t transition-colors cursor-pointer relative
+                          ${isSelected ? 'bg-blue-50' : 'hover:bg-zinc-50'}
+                        `}
+                        style={{ opacity: isActive ? 1 : 0.55 }}
+                      >
+                        {isSelected && (
+                          <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500 rounded-r" />
+                        )}
+                        {row.getVisibleCells().map(cell => (
+                          <td key={cell.id} className="px-4 py-3">
+                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                          </td>
+                        ))}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            {filteredMaterials.length > visibleCount ? (
+              <div className="p-3 text-center">
+                <Button variant="outline" size="sm" onClick={() => setVisibleCount((v) => v + 200)}>Show more</Button>
+                <span className="ml-3 text-sm text-zinc-500">{visibleMaterials.length} / {filteredMaterials.length} shown</span>
               </div>
+            ) : null}
+          </div>
             )}
           </div>
         </>
