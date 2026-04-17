@@ -34,6 +34,8 @@ import { Input } from '../components/ui/input';
 import { Badge } from '../components/ui/Badge';
 import { Tabs, TabsList, TabsTrigger } from '../components/ui/Tabs';
 import { Card } from '../components/ui/Card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
+import { Checkbox } from '../components/ui/checkbox';
 import { toast } from '@/lib/logger';
 import { 
   format, 
@@ -59,6 +61,14 @@ export function SiteVisits() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedVisit, setSelectedVisit] = useState<any | null>(null);
   const [visitToDelete, setVisitToDelete] = useState<any | null>(null);
+  const [selectedVisits, setSelectedVisits] = useState<Array<string>>([]);
+
+  const toggleVisitSelection = (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setSelectedVisits(prev => 
+      prev.includes(id) ? prev.filter(v => v !== id) : [...prev, id]
+    );
+  };
   
   // Multi-step form state - UPDATED TO MATCH DB COLUMNS
   const [currentStep, setCurrentStep] = useState(1);
@@ -104,7 +114,7 @@ export function SiteVisits() {
         .from('site_visits')
         .select(`
           *,
-          clients (client_name)
+          clients (*)
         `);
       
       if (organisation?.id) {
@@ -353,6 +363,14 @@ export function SiteVisits() {
     });
   }, [visits, searchQuery, statusFilter]);
 
+  const toggleAll = () => {
+    if (filteredVisits.length > 0 && selectedVisits.length === filteredVisits.length) {
+      setSelectedVisits([]);
+    } else {
+      setSelectedVisits(filteredVisits.map((v: any) => v.id));
+    }
+  };
+
   const steps = [
     { number: 1, title: 'Basic info', icon: FileText },
     { number: 2, title: 'Visit details', icon: Clock },
@@ -396,17 +414,35 @@ export function SiteVisits() {
               </div>
             </div>
             
-            <Button
-              className="h-12 px-6 rounded-xl bg-slate-900 text-white font-bold text-[14px] shadow-xl shadow-slate-900/10 hover:bg-slate-800 transition-all flex items-center gap-2"
-              onClick={() => {
-                resetForm();
-                setSelectedVisit(null);
-                setIsFormOpen(true);
-              }}
-            >
-              <Plus className="w-4 h-4" />
-              Add Site Visit
-            </Button>
+            <div className="flex items-center gap-3">
+              {selectedVisits.length > 0 && (
+                <Button
+                  variant="danger"
+                  className="h-12 px-6 rounded-xl font-bold text-[14px] shadow-xl hover:bg-rose-700 transition-all flex items-center gap-2"
+                  onClick={() => {
+                    if (window.confirm(`Are you sure you want to delete ${selectedVisits.length} selected visit(s)?`)) {
+                      // We can just call mutate sequentially for now, or build a bulk delete endpoint
+                      selectedVisits.forEach(id => deleteVisitMutation.mutate(id));
+                      setSelectedVisits([]);
+                    }
+                  }}
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Delete Selected ({selectedVisits.length})
+                </Button>
+              )}
+              <Button
+                className="h-12 px-6 rounded-xl bg-slate-900 text-white font-bold text-[14px] shadow-xl shadow-slate-900/10 hover:bg-slate-800 transition-all flex items-center gap-2"
+                onClick={() => {
+                  resetForm();
+                  setSelectedVisit(null);
+                  setIsFormOpen(true);
+                }}
+              >
+                <Plus className="w-4 h-4" />
+                Add Site Visit
+              </Button>
+            </div>
           </div>
 
           <div className="flex items-center justify-between mt-8 gap-4 flex-wrap">
@@ -486,88 +522,94 @@ export function SiteVisits() {
                 <p className="text-slate-500 max-w-sm mx-auto font-medium">There are no site visit records matching your search filters.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-4">
-                {filteredVisits.map((visit: any) => (
-                  <div
-                    key={visit.id}
-                    onClick={() => openFormForEdit(visit)}
-                    className="group relative bg-white rounded-[24px] border border-slate-200/60 p-6 hover:border-indigo-400/50 hover:shadow-[0_12px_24px_-8px_rgba(0,0,0,0.06)] transition-all cursor-pointer overflow-hidden"
-                  >
-                    <div className={cn(
-                      "absolute top-0 left-0 w-1.5 h-full opacity-0 group-hover:opacity-100 transition-opacity",
-                      visit.status === 'completed' ? "bg-emerald-500" :
-                      visit.status === 'scheduled' ? "bg-indigo-500" :
-                      visit.status === 'pending' ? "bg-amber-500" : "bg-slate-400"
-                    )} />
-
-                    <div className="flex items-start justify-between gap-6">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-4">
-                          <h3 className="text-[17px] font-bold text-slate-900 tracking-tight group-hover:text-indigo-600 transition-colors">
-                            {visit.clients?.client_name || 'Anonymous Project'}
-                          </h3>
-                          <span className={cn(
-                            "inline-flex items-center px-2.5 py-0.5 rounded-lg text-[11px] font-black uppercase tracking-wider border",
-                            visit.status === 'completed' ? "bg-emerald-50 text-emerald-700 border-emerald-100" :
-                            visit.status === 'scheduled' ? "bg-indigo-50 text-indigo-700 border-indigo-100" :
-                            visit.status === 'pending' ? "bg-amber-50 text-amber-700 border-amber-100" :
-                            "bg-slate-50 text-slate-600 border-slate-100"
-                          )}>
-                            {visit.status}
-                          </span>
-                        </div>
-
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                          <div className="space-y-1">
-                            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Temporal</span>
-                            <div className="flex items-center gap-2 text-[14px] font-bold text-slate-700">
-                              <CalendarIcon className="w-3.5 h-3.5 text-slate-400" />
-                              {format(parseISO(visit.visit_date), 'MMM d, yyyy')}
-                            </div>
-                          </div>
-
-                          <div className="space-y-1">
-                            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Personnel</span>
-                            <div className="flex items-center gap-2 text-[14px] font-bold text-slate-700">
-                              <User className="w-3.5 h-3.5 text-slate-400" />
-                              {visit.visited_by || 'Unassigned'}
-                            </div>
-                          </div>
-
-                          <div className="space-y-1">
-                            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Intent</span>
-                            <div className="text-[14px] font-bold text-slate-700 flex items-center gap-1.5">
-                              <span className="w-1.5 h-1.5 rounded-full bg-indigo-500/20 shadow-[0_0_8px_rgba(99,102,241,0.4)]" />
-                              {visit.purpose_of_visit || 'Discovery'}
-                            </div>
-                          </div>
-
-                          <div className="space-y-1">
-                            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Engineering</span>
-                            <div className="text-[14px] font-bold text-slate-600 italic">
-                               {visit.engineer || 'Standby'}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col items-end gap-2">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setVisitToDelete(visit);
-                          }}
-                          className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-all border border-transparent hover:border-rose-100"
-                        >
-                          <Trash2 className="w-4.5 h-4.5" />
-                        </button>
-                        <div className="mt-auto">
-                           <ArrowRight className="w-5 h-5 text-slate-300 group-hover:text-indigo-500 group-hover:translate-x-1 transition-all" />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+              <div className="bg-white border border-slate-200/60 rounded-xl overflow-hidden shadow-sm">
+                <div className="overflow-x-auto">
+                  <Table className="w-full text-[13px]">
+                    <TableHeader className="bg-white border-b border-slate-200">
+                      <TableRow className="hover:bg-transparent">
+                        <TableHead className="w-12 px-4 py-3">
+                          <Checkbox 
+                            checked={filteredVisits.length > 0 && selectedVisits.length === filteredVisits.length}
+                            onCheckedChange={toggleAll}
+                            className="rounded-[4px] border-slate-300 text-slate-900 focus:ring-slate-900 cursor-pointer"
+                          />
+                        </TableHead>
+                        <TableHead className="px-4 py-3 font-semibold text-slate-600 whitespace-nowrap">Name ^</TableHead>
+                        <TableHead className="px-4 py-3 font-semibold text-slate-600 whitespace-nowrap">Phone number</TableHead>
+                        <TableHead className="px-4 py-3 font-semibold text-slate-600 whitespace-nowrap">Street name</TableHead>
+                        <TableHead className="px-4 py-3 font-semibold text-slate-600 whitespace-nowrap">Suburb</TableHead>
+                        <TableHead className="px-4 py-3 font-semibold text-slate-600 whitespace-nowrap">Postcode</TableHead>
+                        <TableHead className="px-4 py-3 font-semibold text-slate-600 whitespace-nowrap">Date added</TableHead>
+                        <TableHead className="px-4 py-3 font-semibold text-slate-600 whitespace-nowrap">Status</TableHead>
+                        <TableHead className="px-4 py-3 font-semibold text-slate-600 whitespace-nowrap">Rep</TableHead>
+                        <TableHead className="px-4 py-3 font-semibold text-slate-600 whitespace-nowrap">Last activity</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredVisits.map((visit: any) => {
+                        const isSelected = selectedVisits.includes(visit.id);
+                        
+                        return (
+                          <TableRow 
+                            key={visit.id} 
+                            className={cn(
+                              "border-b border-slate-100 transition-colors cursor-pointer",
+                              isSelected ? "bg-slate-50/70 hover:bg-slate-50/90" : "bg-white hover:bg-slate-50/40"
+                            )}
+                            onClick={() => openFormForEdit(visit)}
+                          >
+                            <TableCell className="px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
+                              <Checkbox 
+                                checked={isSelected}
+                                onCheckedChange={() => toggleVisitSelection(visit.id)}
+                                className="rounded-[4px] border-slate-300 text-slate-900 focus:ring-slate-900 cursor-pointer"
+                              />
+                            </TableCell>
+                            <TableCell className="px-4 py-3.5 font-medium text-slate-900 whitespace-nowrap">
+                              {visit.clients?.client_name || 'Anonymous Project'}
+                            </TableCell>
+                            <TableCell className="px-4 py-3.5 text-slate-600 whitespace-nowrap">
+                              {visit.clients?.phone || '-'}
+                            </TableCell>
+                            <TableCell className="px-4 py-3.5 text-slate-600 whitespace-nowrap">
+                              {visit.site_address || '-'}
+                            </TableCell>
+                            <TableCell className="px-4 py-3.5 text-slate-600 whitespace-nowrap">
+                              {visit.clients?.city || '-'}
+                            </TableCell>
+                            <TableCell className="px-4 py-3.5 text-slate-600 whitespace-nowrap">
+                              {visit.clients?.postcode || '-'}
+                            </TableCell>
+                            <TableCell className="px-4 py-3.5 text-slate-600 whitespace-nowrap">
+                              {visit.visit_date ? format(parseISO(visit.visit_date), 'd MMM yyyy') : '-'}
+                            </TableCell>
+                            <TableCell className="px-4 py-3.5 whitespace-nowrap">
+                              <span className={cn(
+                                "inline-flex items-center px-2.5 py-1 rounded-md text-[12px] font-medium",
+                                visit.status === 'completed' || visit.status === 'Survey completed' ? "bg-amber-100/50 text-amber-800" :
+                                visit.status === 'scheduled' ? "bg-blue-100/50 text-blue-700" :
+                                visit.status === 'contacted' ? "bg-slate-100 text-slate-700" :
+                                visit.status === 'new' || visit.status === 'pending' ? "bg-purple-100/50 text-purple-700" :
+                                visit.status === 'installed' ? "bg-emerald-100/50 text-emerald-700" :
+                                "bg-slate-100 text-slate-700"
+                              )}>
+                                {visit.status === 'pending' ? 'New' : 
+                                 visit.status === 'completed' ? 'Survey completed' :
+                                 visit.status ? visit.status.charAt(0).toUpperCase() + visit.status.slice(1) : '-'}
+                              </span>
+                            </TableCell>
+                            <TableCell className="px-4 py-3.5 text-slate-600 whitespace-nowrap">
+                              {visit.visited_by || visit.engineer || 'Maya Patel'} 
+                            </TableCell>
+                            <TableCell className="px-4 py-3.5 text-slate-600 whitespace-nowrap">
+                              {visit.updated_at ? format(parseISO(visit.updated_at), 'd MMM yyyy') : (visit.visit_date ? format(parseISO(visit.visit_date), 'd MMM yyyy') : '-')}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
             )}
           </div>
