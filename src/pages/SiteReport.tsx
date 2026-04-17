@@ -162,6 +162,7 @@ export function SiteReport() {
   const [view, setView] = useState<'list' | 'create'>('list');
   const [photos, setPhotos] = useState<File[]>([]);
   const [photoUrls, setPhotoUrls] = useState<string[]>([]);
+  const [selectedReports, setSelectedReports] = useState<string[]>([]);
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -580,93 +581,160 @@ export function SiteReport() {
           </div>
 
           {/* Table */}
-          <div className="rounded-lg border border-zinc-200 bg-white shadow-sm">
+          <div className="rounded-lg border border-gray-200 bg-white shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="border-b border-zinc-200 bg-zinc-50/80">
-                    <TableHead className="h-10 px-4 text-left align-middle text-[11px] font-medium text-zinc-500">Date</TableHead>
-                    <TableHead className="h-10 px-4 text-left align-middle text-[11px] font-medium text-zinc-500">Client</TableHead>
-                    <TableHead className="h-10 px-4 text-left align-middle text-[11px] font-medium text-zinc-500">Project</TableHead>
-                    <TableHead className="h-10 px-4 text-left align-middle text-[11px] font-medium text-zinc-500">Engineer</TableHead>
-                    <TableHead className="h-10 px-4 text-left align-middle text-[11px] font-medium text-zinc-500">Status</TableHead>
-                    <TableHead className="h-10 px-4 text-right align-middle text-[11px] font-medium text-zinc-500">Actions</TableHead>
+                  <TableRow className="border-b border-gray-200 bg-gray-50/80 hover:bg-gray-50/80">
+                    <TableHead className="w-12 px-4 align-middle">
+                      <Checkbox 
+                        checked={selectedReports.length === reports?.length && reports?.length > 0}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setSelectedReports(reports?.map((r: any) => r.id) || []);
+                          } else {
+                            setSelectedReports([]);
+                          }
+                        }}
+                        className="h-4 w-4 border-2 border-gray-300 rounded data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                      />
+                    </TableHead>
+                    <TableHead className="h-10 px-4 text-left align-middle text-[13px] font-semibold text-gray-600 min-w-[120px]">
+                      <button className="inline-flex items-center gap-1 hover:text-gray-900 transition-colors">
+                        Date
+                        <ChevronRight className="w-3 h-3 rotate-90" />
+                      </button>
+                    </TableHead>
+                    <TableHead className="h-10 px-4 text-left align-middle text-[13px] font-semibold text-gray-600 min-w-[160px]">
+                      <button className="inline-flex items-center gap-1 hover:text-gray-900 transition-colors">
+                        Client
+                        <ChevronRight className="w-3 h-3" />
+                      </button>
+                    </TableHead>
+                    <TableHead className="h-10 px-4 text-left align-middle text-[13px] font-semibold text-gray-600 min-w-[160px]">
+                      <button className="inline-flex items-center gap-1 hover:text-gray-900 transition-colors">
+                        Project
+                      </button>
+                    </TableHead>
+                    <TableHead className="h-10 px-4 text-left align-middle text-[13px] font-semibold text-gray-600 min-w-[140px]">
+                      <button className="inline-flex items-center gap-1 hover:text-gray-900 transition-colors">
+                        Engineer
+                      </button>
+                    </TableHead>
+                    <TableHead className="h-10 px-4 text-left align-middle text-[13px] font-semibold text-gray-600 min-w-[120px]">
+                      Status
+                    </TableHead>
+                    <TableHead className="h-10 px-4 text-right align-middle text-[13px] font-semibold text-gray-600 w-[80px]">
+                      Actions
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody className="[&_tr:last-child]:border-0">
                   {reportsLoading ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="px-4 py-12 text-center text-xs text-zinc-500">Loading reports...</TableCell>
+                      <TableCell colSpan={7} className="px-4 py-12 text-center">
+                        <div className="flex items-center justify-center gap-2 text-gray-500">
+                          <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin" />
+                          <span className="text-sm">Loading reports...</span>
+                        </div>
+                      </TableCell>
                     </TableRow>
                   ) : reports?.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="px-4 py-12 text-center">
+                      <TableCell colSpan={7} className="px-4 py-16 text-center">
                         <div className="mx-auto max-w-sm space-y-2">
-                          <div className="text-sm font-medium text-zinc-950">No reports found</div>
-                          <div className="text-xs text-zinc-500">Create your first site report to get started.</div>
+                          <div className="w-12 h-12 mx-auto rounded-full bg-gray-100 flex items-center justify-center">
+                            <FileText className="w-6 h-6 text-gray-400" />
+                          </div>
+                          <div className="text-sm font-semibold text-gray-900">No reports found</div>
+                          <div className="text-xs text-gray-500">Create your first site report to get started.</div>
                         </div>
                       </TableCell>
                     </TableRow>
                   ) : (
                     reports?.map((report: any) => (
-                      <TableRow key={report.id} className="border-b border-zinc-100 hover:bg-zinc-50/50">
-                        <TableCell className="px-4 py-3.5 align-middle">
-                          <span className="text-sm font-medium text-zinc-950">{new Date(report.report_date).toLocaleDateString()}</span>
+                      <TableRow 
+                        key={report.id} 
+                        className={cn(
+                          "border-b border-gray-100 transition-colors duration-150",
+                          selectedReports.includes(report.id) ? "bg-blue-50/50" : "hover:bg-gray-50/60"
+                        )}
+                      >
+                        <TableCell className="px-4 py-4 align-middle">
+                          <Checkbox 
+                            checked={selectedReports.includes(report.id)}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setSelectedReports(prev => [...prev, report.id]);
+                              } else {
+                                setSelectedReports(prev => prev.filter(id => id !== report.id));
+                              }
+                            }}
+                            className="h-4 w-4 border-2 border-gray-300 rounded data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                          />
                         </TableCell>
-                        <TableCell className="px-4 py-3.5 align-middle">
-                          <span className="text-sm text-zinc-700">{report.clients?.client_name}</span>
+                        <TableCell className="px-4 py-4 align-middle">
+                          <span className="text-sm font-medium text-gray-900">{new Date(report.report_date).toLocaleDateString()}</span>
                         </TableCell>
-                        <TableCell className="px-4 py-3.5 align-middle">
-                          <span className="text-sm text-zinc-700">{report.projects?.project_name}</span>
+                        <TableCell className="px-4 py-4 align-middle">
+                          <span className="text-sm text-gray-700">{report.clients?.client_name || '-'}</span>
                         </TableCell>
-                        <TableCell className="px-4 py-3.5 align-middle">
-                          <span className="text-sm text-zinc-700">{report.engineer_name}</span>
+                        <TableCell className="px-4 py-4 align-middle">
+                          <span className="text-sm text-gray-700">{report.projects?.project_name || '-'}</span>
                         </TableCell>
-                        <TableCell className="px-4 py-3.5 align-middle">
-                          <Badge variant={report.pm_status === 'Reported' ? 'default' : 'neutral'}>
+                        <TableCell className="px-4 py-4 align-middle">
+                          <span className="text-sm text-gray-700">{report.engineer_name || '-'}</span>
+                        </TableCell>
+                        <TableCell className="px-4 py-4 align-middle">
+                          <Badge 
+                            variant={report.pm_status === 'Reported' ? 'default' : 'neutral'}
+                            className={cn(
+                              "text-xs font-semibold px-3 py-1 rounded-full",
+                              report.pm_status === 'Reported' 
+                                ? "bg-green-100 text-green-700 border border-green-200" 
+                                : "bg-amber-100 text-amber-700 border border-amber-200"
+                            )}
+                          >
                             {report.pm_status}
                           </Badge>
                         </TableCell>
-                        <TableCell className="px-4 py-3.5 text-right align-middle">
+                        <TableCell className="px-4 py-4 text-right align-middle">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <button
                                 type="button"
-                                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50"
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all"
                               >
                                 <MoreHorizontal size={14} />
                               </button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-40">
+                            <DropdownMenuContent align="end" className="w-44">
                               <DropdownMenuItem 
-                                className="flex items-center gap-2 text-xs"
+                                className="flex items-center gap-2 text-sm px-3 py-2 cursor-pointer"
                                 onClick={() => {
-                                  // Handle view
                                   console.log('View report:', report.id);
                                 }}
                               >
                                 <Clipboard size={14} />
-                                View
+                                View Details
                               </DropdownMenuItem>
                               <DropdownMenuItem 
-                                className="flex items-center gap-2 text-xs"
+                                className="flex items-center gap-2 text-sm px-3 py-2 cursor-pointer"
                                 onClick={() => {
-                                  // Handle edit
                                   console.log('Edit report:', report.id);
                                 }}
                               >
                                 <Pencil size={14} />
-                                Edit
+                                Edit Report
                               </DropdownMenuItem>
                               <DropdownMenuItem 
-                                className="flex items-center gap-2 text-xs"
+                                className="flex items-center gap-2 text-sm px-3 py-2 cursor-pointer"
                                 onClick={() => {
-                                  // Handle download
                                   console.log('Download report:', report.id);
                                 }}
                               >
                                 <Download size={14} />
-                                Download
+                                Download PDF
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -677,6 +745,41 @@ export function SiteReport() {
                 </TableBody>
               </Table>
             </div>
+            
+            {/* Bulk Actions Bar */}
+            {selectedReports.length > 0 && (
+              <div className="sticky bottom-0 bg-gray-900/95 backdrop-blur-sm border-t border-gray-200 px-4 py-3 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Checkbox 
+                    checked={true}
+                    onCheckedChange={() => setSelectedReports([])}
+                    className="h-4 w-4 border-2 border-gray-300 rounded data-[state=checked]:bg-white data-[state=checked]:border-white"
+                  />
+                  <span className="text-sm font-medium text-white">
+                    {selectedReports.length} selected
+                  </span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <ShadcnButton 
+                    size="sm" 
+                    variant="ghost"
+                    className="h-8 text-white hover:bg-gray-800"
+                    onClick={() => console.log('Bulk download:', selectedReports)}
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Download All
+                  </ShadcnButton>
+                  <ShadcnButton 
+                    size="sm" 
+                    variant="ghost"
+                    className="h-8 text-white hover:bg-gray-800"
+                    onClick={() => setSelectedReports([])}
+                  >
+                    Clear
+                  </ShadcnButton>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
