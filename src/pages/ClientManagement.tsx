@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import type { ChangeEvent, FormEvent, ComponentProps } from 'react';
 import { supabase } from '../supabase';
 import { useAuth } from '../App';
@@ -427,6 +427,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
   const isAdmin = organisations?.find((o: any) => o.organisation.id === organisation?.id)?.role?.toLowerCase() === 'admin';
 
   const [activeTab, setActiveTab] = useState('general');
+  const [activeStep, setActiveStep] = useState(0);
   const [formData, setFormData] = useState<any>({
     client_name: '', address1: '', address2: '', state: '', city: '', pincode: '',
     gstin: '', contact: '', email: '', vendor_no: '', remarks: '', category: 'Active',
@@ -629,19 +630,48 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
       <div className="mx-auto max-w-[1000px]">
 
         {/* Header Block & Navigation Row */}
-        <div className="mb-10 flex flex-col gap-8 md:flex-row md:items-end md:justify-between px-2">
-          <div className="flex items-start gap-4">
-            <button type="button" onClick={onCancel} className="mt-1 flex h-10 w-10 items-center justify-center rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-200/50 transition-colors shrink-0">
-               <ChevronLeft className="w-6 h-6 ml-0.5" />
-            </button>
-            <div className="flex flex-col justify-center items-center rounded-[18px] bg-indigo-600 w-14 h-14 shadow-lg shadow-indigo-600/20 text-white shrink-0 mt-0.5">
-               <Building2 className="w-6 h-6" />
-            </div>
-            <div>
-              <h1 className="text-[32px] leading-none font-bold text-slate-900 tracking-tight">{editMode ? 'Edit Client' : 'Add New Client'}</h1>
-              <p className="text-[15px] font-medium text-slate-500 mt-2.5 max-w-lg">{editMode ? 'Update client information and discount settings.' : 'Create a new client profile to manage projects and quotations.'}</p>
-            </div>
+        <div className="mb-6 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" onClick={onCancel as any}>
+              <ChevronLeft className="h-4 w-4 mr-2" />
+              Back
+            </Button>
+            <h1 className="text-lg font-semibold text-zinc-800">{editMode ? 'Edit Client' : 'New Client'}</h1>
           </div>
+          <div className="flex items-center gap-2">
+            <Button variant="secondary" onClick={onCancel as any}>Cancel</Button>
+            <Button onClick={handleSubmit as any} disabled={saving}>Save Client</Button>
+          </div>
+        </div>
+
+        {/* 3-Phase Stepper */}
+        <div className="flex items-center justify-center gap-2 mb-6">
+          {[
+            { step: 0, label: 'Basic Details' },
+            { step: 1, label: 'Contacts' }, 
+            { step: 2, label: 'Address' }
+          ].map(({ step, label }) => (
+            <React.Fragment key={step}>
+              <button
+                type="button"
+                onClick={() => setActiveStep(step)}
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors",
+                  activeStep === step 
+                    ? "bg-primary text-white" 
+                    : activeStep > step 
+                      ? "bg-emerald-100 text-emerald-700" 
+                      : "text-zinc-500 hover:bg-zinc-100"
+                )}
+              >
+                {activeStep > step ? '✓' : step + 1}
+                {label}
+              </button>
+              {step < 2 && (
+                <div className={cn("h-px w-8", activeStep > step ? "bg-emerald-300" : "bg-zinc-200")} />
+              )}
+            </React.Fragment>
+          ))}
         </div>
 
         <Tabs defaultValue="general" value={activeTab} onValueChange={setActiveTab} className="w-full">
