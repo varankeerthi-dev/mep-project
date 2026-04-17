@@ -88,6 +88,26 @@ interface POItem {
   total_amount: number;
 }
 
+// Status Badge Component
+function StatusBadge({ status }: { status: string }) {
+  const statusColors: Record<string, { bg: string; text: string }> = {
+    'Draft': { bg: 'bg-zinc-100', text: 'text-zinc-700' },
+    'Pending Approval': { bg: 'bg-amber-100', text: 'text-amber-700' },
+    'Approved': { bg: 'bg-sky-100', text: 'text-sky-700' },
+    'Sent': { bg: 'bg-blue-100', text: 'text-blue-700' },
+    'Acknowledged': { bg: 'bg-emerald-100', text: 'text-emerald-700' },
+    'Completed': { bg: 'bg-green-100', text: 'text-green-700' },
+    'Cancelled': { bg: 'bg-red-100', text: 'text-red-700' },
+  };
+  const colors = statusColors[status] || statusColors['Draft'];
+  
+  return (
+    <span className={cn("text-[10px] font-medium px-2 py-0.5 h-5 rounded-full", colors.bg, colors.text)}>
+      {status}
+    </span>
+  );
+}
+
 export const PurchaseOrders: React.FC = () => {
   const { organisation } = useAuth();
   const [openDialog, setOpenDialog] = useState(false);
@@ -514,27 +534,28 @@ export const PurchaseOrders: React.FC = () => {
 
 
   return (
-    <div className="h-full flex flex-col space-y-4 p-4 md:p-6 bg-slate-50/50">
+    <div className="h-full flex flex-col space-y-4 p-4 md:p-6 bg-zinc-50/50">
+      {/* Header Card */}
       <Card className="border-none shadow-sm overflow-hidden">
-        <CardHeader className="py-4 px-6 bg-white border-b">
+        <CardHeader className="py-4 px-6 bg-white border-b border-zinc-200">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-primary/10 rounded-lg">
                 <ShoppingCart className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <CardTitle className="text-lg font-bold text-slate-800">Purchase Orders</CardTitle>
-                <p className="text-xs text-slate-500 font-medium">Manage your procurement workflow</p>
+                <CardTitle className="text-lg font-bold text-zinc-800">Purchase Orders</CardTitle>
+                <p className="text-xs text-zinc-500 font-medium">Manage your procurement workflow</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
                 <Input
                   placeholder="Search POs..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9 w-64 h-9 text-sm border-slate-200 focus:ring-primary/20"
+                  className="pl-9 w-64 h-9 text-sm border-zinc-200 focus:ring-primary/20"
                 />
               </div>
               <ShadcnButton 
@@ -549,18 +570,140 @@ export const PurchaseOrders: React.FC = () => {
         </CardHeader>
       </Card>
 
+      {/* Table Card */}
       <Card className="flex-1 border-none shadow-sm overflow-hidden bg-white">
-        <div className="h-[calc(100vh-220px)] overflow-auto p-1">
-          <AppTable
-            data={filteredPOs}
-            columns={columns}
-            loading={isLoading}
-          />
+        <div className="h-[calc(100vh-220px)] overflow-auto">
+          <table className="w-full caption-bottom text-sm border-collapse">
+            {/* Table Header */}
+            <thead className="border-b border-zinc-200 bg-zinc-50/80 [&_tr]:border-b">
+              <tr className="border-b border-zinc-200">
+                <th className="w-[40px] px-3 py-2 text-center align-middle text-xs font-medium text-zinc-500">
+                  <button
+                    onClick={() => {
+                      if (selectedRows.length === filteredPOs.length) {
+                        setSelectedRows([]);
+                      } else {
+                        setSelectedRows(filteredPOs.map((po: any) => po.id));
+                      }
+                    }}
+                    className="flex items-center justify-center"
+                  >
+                    {selectedRows.length === filteredPOs.length && filteredPOs.length > 0 ? (
+                      <CheckSquare className="h-4 w-4 text-primary" />
+                    ) : (
+                      <Square className="h-4 w-4 text-zinc-400" />
+                    )}
+                  </button>
+                </th>
+                <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">PO Number</th>
+                <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Date</th>
+                <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Vendor</th>
+                <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Currency</th>
+                <th className="h-10 px-3 text-right align-middle text-xs font-medium text-zinc-500">Amount</th>
+                <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Status</th>
+                <th className="h-10 px-3 text-right align-middle text-xs font-medium text-zinc-500 min-w-[100px]">Actions</th>
+              </tr>
+            </thead>
+            
+            {/* Table Body */}
+            <tbody className="[&_tr:last-child]:border-0">
+              {isLoading ? (
+                <tr>
+                  <td colSpan={8} className="px-3 py-12 text-center text-xs text-zinc-500">
+                    Loading...
+                  </td>
+                </tr>
+              ) : filteredPOs.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-3 py-12 text-center">
+                    <div className="mx-auto max-w-sm space-y-2">
+                      <div className="text-sm font-medium text-zinc-950">No purchase orders found</div>
+                      <div className="text-xs text-zinc-500">Create your first purchase order to get started.</div>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                filteredPOs.map((po: any) => (
+                  <tr 
+                    key={po.id} 
+                    className="border-b border-zinc-100 hover:bg-zinc-50/80 transition-colors"
+                  >
+                    <td className="px-3 py-1.5 text-center align-middle">
+                      <button
+                        onClick={() => {
+                          if (selectedRows.includes(po.id)) {
+                            setSelectedRows(prev => prev.filter(id => id !== po.id));
+                          } else {
+                            setSelectedRows(prev => [...prev, po.id]);
+                          }
+                        }}
+                        className="flex items-center justify-center"
+                      >
+                        {selectedRows.includes(po.id) ? (
+                          <CheckSquare className="h-4 w-4 text-primary" />
+                        ) : (
+                          <Square className="h-4 w-4 text-zinc-300" />
+                        )}
+                      </button>
+                    </td>
+                    <td className="px-3 py-1.5 text-left align-middle whitespace-nowrap">
+                      <span className="text-sm font-semibold text-primary hover:underline cursor-pointer">
+                        {po.po_number}
+                      </span>
+                    </td>
+                    <td className="px-3 py-1.5 text-left align-middle whitespace-nowrap text-sm text-zinc-700">
+                      {new Date(po.po_date).toLocaleDateString('en-IN')}
+                    </td>
+                    <td className="px-3 py-1.5 text-left align-middle whitespace-nowrap text-sm text-zinc-700">
+                      {po.vendor?.company_name || '-'}
+                    </td>
+                    <td className="px-3 py-1.5 text-left align-middle">
+                      <Badge variant="secondary" className="text-[10px] font-medium px-1.5 py-0 h-5">
+                        {po.currency}
+                      </Badge>
+                    </td>
+                    <td className="px-3 py-1.5 text-right align-middle whitespace-nowrap text-sm font-medium text-zinc-700">
+                      {po.currency === 'INR' ? '₹' : po.currency + ' '}{Number(po.total_amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </td>
+                    <td className="px-3 py-1.5 text-left align-middle">
+                      <StatusBadge status={po.status || po.approval_status} />
+                    </td>
+                    <td className="px-3 py-1.5 text-right align-middle">
+                      <div className="flex items-center justify-end gap-1">
+                        <ShadcnButton 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8 text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+                          onClick={() => handleViewPDF(po)}
+                        >
+                          <FileText className="h-4 w-4" />
+                        </ShadcnButton>
+                        <ShadcnButton 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8 text-primary hover:bg-primary/10"
+                        >
+                          <Mail className="h-4 w-4" />
+                        </ShadcnButton>
+                        <ShadcnButton 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8 text-zinc-600 hover:bg-zinc-100"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </ShadcnButton>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
         
         {/* Bulk Actions Bar */}
         {selectedRows.length > 0 && (
-          <div className="sticky bottom-0 bg-slate-900/95 backdrop-blur-sm border-t border-slate-200 px-4 py-3 flex items-center justify-between">
+          <div className="sticky bottom-0 bg-zinc-900/95 backdrop-blur-sm border-t border-zinc-200 px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setSelectedRows([])}
@@ -569,7 +712,7 @@ export const PurchaseOrders: React.FC = () => {
                 {selectedRows.length === filteredPOs.length && filteredPOs.length > 0 ? (
                   <CheckSquare className="h-4 w-4 text-white" />
                 ) : (
-                  <Square className="h-4 w-4 text-slate-400" />
+                  <Square className="h-4 w-4 text-zinc-400" />
                 )}
               </button>
               <span className="text-sm font-medium text-white">
@@ -580,7 +723,7 @@ export const PurchaseOrders: React.FC = () => {
               <ShadcnButton 
                 size="sm" 
                 variant="ghost"
-                className="h-8 text-white hover:bg-slate-800"
+                className="h-8 text-white hover:bg-zinc-800"
                 onClick={() => console.log('Bulk print:', selectedRows)}
               >
                 <Printer className="w-4 h-4 mr-2" />
@@ -589,7 +732,7 @@ export const PurchaseOrders: React.FC = () => {
               <ShadcnButton 
                 size="sm" 
                 variant="ghost"
-                className="h-8 text-white hover:bg-slate-800"
+                className="h-8 text-white hover:bg-zinc-800"
                 onClick={() => console.log('Bulk email:', selectedRows)}
               >
                 <Mail className="w-4 h-4 mr-2" />
@@ -598,7 +741,7 @@ export const PurchaseOrders: React.FC = () => {
               <ShadcnButton 
                 size="sm" 
                 variant="ghost"
-                className="h-8 text-white hover:bg-slate-800"
+                className="h-8 text-white hover:bg-zinc-800"
                 onClick={() => setSelectedRows([])}
               >
                 Clear
