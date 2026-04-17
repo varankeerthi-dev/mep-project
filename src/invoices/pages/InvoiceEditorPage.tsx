@@ -3,6 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { useQuery } from '@tanstack/react-query';
 import { Download, Eye, Loader2, Mail, Plus, Printer, Save, X } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '@/supabase';
 import { mapInvoiceSourceToDraft } from '../api';

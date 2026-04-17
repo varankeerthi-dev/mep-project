@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Plus, 
   FileText, 
@@ -12,7 +12,11 @@ import {
   Search,
   ChevronRight,
   ChevronLeft,
-  X
+  X,
+  CheckSquare,
+  Square,
+  ChevronUp,
+  ChevronDown
 } from 'lucide-react';
 import { Button as ShadcnButton } from '../../../components/ui/button';
 import { Badge } from '../../../components/ui/Badge';
@@ -90,6 +94,7 @@ export const PurchaseOrders: React.FC = () => {
   const [activeStep, setActiveStep] = useState(0);
   const [selectedPO, setSelectedPO] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedRows, setSelectedRows] = useState<string[]>([]);
   const [poNumber, setPoNumber] = useState('');
   const [currency, setCurrency] = useState('INR');
   const [exchangeRate, setExchangeRate] = useState(1);
@@ -115,6 +120,17 @@ export const PurchaseOrders: React.FC = () => {
   const { data: vendors = [] } = useVendors(organisation?.id);
   const createPO = useCreatePurchaseOrder();
   const updateStatus = useUpdatePOStatus();
+
+  // Filtered data based on search
+  const filteredPOs = useMemo(() => {
+    if (!searchTerm) return pos;
+    const term = searchTerm.toLowerCase();
+    return pos.filter((po: any) => 
+      po.po_number?.toLowerCase().includes(term) ||
+      po.vendor?.company_name?.toLowerCase().includes(term) ||
+      po.status?.toLowerCase().includes(term)
+    );
+  }, [pos, searchTerm]);
 
   // Load materials and variants on mount
   useEffect(() => {
@@ -536,11 +552,60 @@ export const PurchaseOrders: React.FC = () => {
       <Card className="flex-1 border-none shadow-sm overflow-hidden bg-white">
         <div className="h-[calc(100vh-220px)] overflow-auto p-1">
           <AppTable
-            data={pos}
+            data={filteredPOs}
             columns={columns}
             loading={isLoading}
           />
         </div>
+        
+        {/* Bulk Actions Bar */}
+        {selectedRows.length > 0 && (
+          <div className="sticky bottom-0 bg-slate-900/95 backdrop-blur-sm border-t border-slate-200 px-4 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setSelectedRows([])}
+                className="flex items-center gap-2"
+              >
+                {selectedRows.length === filteredPOs.length && filteredPOs.length > 0 ? (
+                  <CheckSquare className="h-4 w-4 text-white" />
+                ) : (
+                  <Square className="h-4 w-4 text-slate-400" />
+                )}
+              </button>
+              <span className="text-sm font-medium text-white">
+                {selectedRows.length} selected
+              </span>
+            </div>
+            <div className="flex items-center gap-3">
+              <ShadcnButton 
+                size="sm" 
+                variant="ghost"
+                className="h-8 text-white hover:bg-slate-800"
+                onClick={() => console.log('Bulk print:', selectedRows)}
+              >
+                <Printer className="w-4 h-4 mr-2" />
+                Print All
+              </ShadcnButton>
+              <ShadcnButton 
+                size="sm" 
+                variant="ghost"
+                className="h-8 text-white hover:bg-slate-800"
+                onClick={() => console.log('Bulk email:', selectedRows)}
+              >
+                <Mail className="w-4 h-4 mr-2" />
+                Email
+              </ShadcnButton>
+              <ShadcnButton 
+                size="sm" 
+                variant="ghost"
+                className="h-8 text-white hover:bg-slate-800"
+                onClick={() => setSelectedRows([])}
+              >
+                Clear
+              </ShadcnButton>
+            </div>
+          </div>
+        )}
       </Card>
 
 

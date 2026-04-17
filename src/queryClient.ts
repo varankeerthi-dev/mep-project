@@ -15,16 +15,12 @@ import { QueryClient } from '@tanstack/react-query';
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5 * 60 * 1000,
-      gcTime: 30 * 60 * 1000,
-      refetchOnWindowFocus: (query) => {
-        const { dataUpdatedAt } = query.state;
-        const howOldIsData = Date.now() - dataUpdatedAt;
-        return howOldIsData > 10 * 60 * 1000;
-      },
+      staleTime: 5 * 60 * 1000,      // 5 min - data stays fresh in cache
+      gcTime: 30 * 60 * 1000,    // 30 min - cache survives long inactivity
+      refetchOnWindowFocus: false,  // ✅ CRITICAL: Prevent query storm on tab return
       retry: 1,
       refetchOnMount: false,
-      refetchOnReconnect: 'always',
+      refetchOnReconnect: false,     // ✅ CRITICAL: Prevent storm on network recovery
       networkMode: 'online',
     },
     mutations: {
