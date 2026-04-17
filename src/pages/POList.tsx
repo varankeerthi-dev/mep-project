@@ -100,56 +100,50 @@ export default function POList() {
     }
   };
 
-  const tableColumns = useMemo(() => [
+  const tableColumns = useMemo(() => {
+    // Dynamic width for Client column based on longest name
+    const maxClientNameLength = Math.max(
+      ...filteredPOs.map(po => po.clients?.client_name?.length || 0),
+      8 // min width
+    );
+    const clientColWidth = Math.min(maxClientNameLength * 8, 280); // max 280px
+    
+    return [
     {
       header: 'Client',
       accessorKey: 'clients.client_name',
       cell: (info: any) => (
-        <div className="font-medium text-zinc-700 whitespace-nowrap">{info.getValue() || '-'}</div>
+        <div className="font-medium text-zinc-700" style={{ minWidth: clientColWidth }}>
+          {info.getValue() || '-'}
+        </div>
       )
     },
     {
       header: 'PO Number',
       accessorKey: 'po_number',
       cell: (info: any) => (
-        <span className="font-semibold text-blue-600 whitespace-nowrap">{info.getValue()}</span>
+        <span className="font-semibold text-blue-600">{info.getValue()}</span>
       )
     },
     {
       header: 'Date',
       accessorKey: 'po_date',
       cell: (info: any) => (
-        <span className="text-zinc-500 whitespace-nowrap">{formatDate(info.getValue())}</span>
+        <span className="text-zinc-500">{formatDate(info.getValue())}</span>
       )
     },
     {
-      header: 'Total Value',
+      header: 'Amount',
       accessorKey: 'po_total_value',
       cell: (info: any) => (
-        <span className="font-medium text-zinc-700 text-right block w-full">₹{formatCurrency(info.getValue())}</span>
+        <div className="flex flex-col items-center gap-0.5">
+          <span className="font-medium text-zinc-700">₹{formatCurrency(info.getValue())}</span>
+          <div className="flex gap-0.5">
+            <span className="text-[10px] text-zinc-400">Used: ₹{formatCurrency(info.row.original.po_utilized_value)}</span>
+            <span className="text-[10px] text-zinc-400">Bal: ₹{formatCurrency(info.row.original.po_available_value)}</span>
+          </div>
+        </div>
       )
-    },
-    {
-      header: 'Utilised',
-      accessorKey: 'po_utilized_value',
-      cell: (info: any) => (
-        <span className="text-zinc-400 text-right block w-full">₹{formatCurrency(info.getValue())}</span>
-      )
-    },
-    {
-      header: 'Balance',
-      accessorKey: 'po_available_value',
-      cell: (info: any) => {
-        const val = info.getValue() as number;
-        return (
-          <span className={cn(
-            "font-medium text-right block w-full",
-            val > 0 ? "text-emerald-600" : "text-rose-600"
-          )}>
-            ₹{formatCurrency(val)}
-          </span>
-        );
-      }
     },
     {
       header: 'Status',
@@ -185,7 +179,8 @@ export default function POList() {
         </div>
       )
     }
-  ], [navigate]);
+  ];
+  }, [navigate, filteredPOs]);
 
   return (
     <div className="min-h-screen bg-zinc-50 p-4">
