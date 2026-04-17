@@ -55,33 +55,26 @@ type CreateClientProps = {
   clientData?: any
 }
 
-const selectCn = 'h-[44px] w-full rounded-xl border border-slate-200/80 bg-white px-4 text-[14px] text-slate-800 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.02)] outline-none transition-all focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/15 hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-50 appearance-none';
+const selectCn = 'h-11 w-full border border-zinc-200 bg-white px-3 text-sm outline-none';
 
-const SectionHeading = ({ icon, children, description }: { icon: React.ReactNode; children: React.ReactNode; description?: string }) => (
-  <div className="flex flex-col gap-1 mb-6 pb-4 border-b border-slate-100">
-    <div className="flex items-center gap-3">
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100/50 shadow-sm">
-        {icon}
-      </div>
-      <div>
-        <h3 className="text-[17px] font-bold text-slate-900 tracking-tight">{children}</h3>
-      </div>
-    </div>
+const SectionHeading = ({ children }: { children: React.ReactNode }) => (
+  <div className="mb-6">
+    <h3 className="text-base font-semibold text-zinc-900">{children}</h3>
   </div>
 );
 
 const FieldGroup = ({ label, required, error, children }: { label: string; required?: boolean; error?: string; children: React.ReactNode }) => (
-  <div className="flex flex-col gap-2 group">
-    <Label className="text-[13px] font-bold tracking-wide text-slate-600 group-focus-within:text-indigo-600 transition-colors">
-      {label}{required && <span className="text-rose-500 ml-1.5 opacity-80">*</span>}
+  <div className="flex flex-col gap-1.5">
+    <Label className="text-xs font-medium text-zinc-600">
+      {label}{required && <span className="text-red-500 ml-1">*</span>}
     </Label>
     {children}
-    {error && <p className="text-[12px] font-semibold text-rose-500 mt-1">{error}</p>}
+    {error && <p className="text-xs text-red-500">{error}</p>}
   </div>
 );
 
 const CompactInput = (props: ComponentProps<typeof Input>) => (
-  <Input {...props} className={cn("h-[44px] rounded-xl border-slate-200/80 bg-white px-4 text-[14px] shadow-[0_2px_10px_-4px_rgba(0,0,0,0.02)] transition-all focus-visible:ring-4 focus-visible:ring-indigo-500/15 focus-visible:border-indigo-500 hover:border-slate-300", props.className)} style={undefined} />
+  <Input {...props} className={cn("h-10 border-zinc-200 text-sm", props.className)} />
 );
 
 const CompactTextarea = (props: ComponentProps<typeof Textarea>) => (
@@ -250,9 +243,7 @@ function ClientDiscountPortfolio({ formData, setFormData, isAdmin }: ClientDisco
     <div className="space-y-16 py-4">
       {/* Strategy Selector */}
       <section>
-        <SectionHeading icon={<CreditCard className="w-5 h-5" />}>
-          Discount Strategy
-        </SectionHeading>
+<SectionHeading>Billing & Tax Details</SectionHeading>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-4xl">
           <FieldGroup label="Pricing Tier" required>
             <div className="relative">
@@ -695,13 +686,13 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
           {/* ─── GENERAL TAB ─── */}
           <TabsContent value="general" className="mt-0 ring-0 outline-none">
             <form onSubmit={handleSubmit} className="relative">
-              <div className="rounded-[32px] border border-slate-200/80 bg-white shadow-2xl shadow-slate-200/40">
+              <div className="border border-zinc-200 bg-white">
                 
                 <div className="p-8 md:p-14 space-y-16">
                   
                   {/* Identity Block */}
                   <section>
-                    <SectionHeading icon={<Building2 className="w-5 h-5 pointer-events-none" />}>Client Information</SectionHeading>
+                    <SectionHeading>Client Information</SectionHeading>
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-12 gap-y-8">
                       <FieldGroup label="Client Name" required>
                         <CompactInput value={val('client_name')} onChange={set('client_name')} required placeholder="Enter client name" />
@@ -732,7 +723,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
 
                   {/* Operational Nodes (Contacts) */}
                   <section>
-                    <SectionHeading icon={<Users className="w-5 h-5 pointer-events-none" />}>
+                    <SectionHeading>
                         Contact Information
                     </SectionHeading>
                     
@@ -784,7 +775,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
 
                   {/* Physical Domains */}
                   <section>
-                    <SectionHeading icon={<MapPin className="w-5 h-5" />}>
+<SectionHeading>
                        Address Details
                     </SectionHeading>
 
@@ -935,9 +926,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
 
                   {/* Operational Notes */}
                   <section>
-                    <SectionHeading icon={<AlignLeft className="w-5 h-5" />} description="Store unstructured operational mandates directly mapped to this identity file.">
-                        Internal Ledger Notes
-                    </SectionHeading>
+<SectionHeading>Operational Notes</SectionHeading>
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-5xl">
                       <FieldGroup label="System Remarks">
                         <CompactTextarea rows={4} value={val('remarks')} onChange={e => setFormData({ ...formData, remarks: e.target.value })} placeholder="Arbitrary operator remarks kept internally valid..." />
