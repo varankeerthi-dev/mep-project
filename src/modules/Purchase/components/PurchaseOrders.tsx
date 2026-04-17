@@ -575,9 +575,9 @@ export const PurchaseOrders: React.FC = () => {
         <div className="h-[calc(100vh-220px)] overflow-auto">
           <table className="w-full caption-bottom text-sm border-collapse">
             {/* Table Header */}
-            <thead className="border-b border-zinc-200 bg-zinc-50/80 [&_tr]:border-b">
-              <tr className="border-b border-zinc-200">
-                <th className="w-[40px] px-3 py-2 text-center align-middle text-xs font-medium text-zinc-500">
+            <thead className="border-b border-zinc-200 bg-zinc-100 sticky top-0">
+              <tr>
+                <th className="w-8 px-2 py-1.5 text-center align-middle text-xs font-medium text-zinc-500">
                   <button
                     onClick={() => {
                       if (selectedRows.length === filteredPOs.length) {
@@ -589,19 +589,19 @@ export const PurchaseOrders: React.FC = () => {
                     className="flex items-center justify-center"
                   >
                     {selectedRows.length === filteredPOs.length && filteredPOs.length > 0 ? (
-                      <CheckSquare className="h-4 w-4 text-primary" />
+                      <CheckSquare className="h-3.5 w-3.5 text-primary" />
                     ) : (
-                      <Square className="h-4 w-4 text-zinc-400" />
+                      <Square className="h-3.5 w-3.5 text-zinc-400" />
                     )}
                   </button>
                 </th>
-                <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">PO Number</th>
-                <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Date</th>
-                <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Vendor</th>
-                <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Currency</th>
-                <th className="h-10 px-3 text-right align-middle text-xs font-medium text-zinc-500">Amount</th>
-                <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Status</th>
-                <th className="h-10 px-3 text-right align-middle text-xs font-medium text-zinc-500 min-w-[100px]">Actions</th>
+                <th className="px-2 py-1.5 text-left align-middle text-xs font-medium text-zinc-500">PO #</th>
+                <th className="px-2 py-1.5 text-left align-middle text-xs font-medium text-zinc-500">Date</th>
+                <th className="px-2 py-1.5 text-left align-middle text-xs font-medium text-zinc-500">Vendor</th>
+                <th className="px-2 py-1.5 text-left align-middle text-xs font-medium text-zinc-500">Curr</th>
+                <th className="px-2 py-1.5 text-right align-middle text-xs font-medium text-zinc-500">Amount</th>
+                <th className="px-2 py-1.5 text-left align-middle text-xs font-medium text-zinc-500">Status</th>
+                <th className="px-2 py-1.5 text-right align-middle text-xs font-medium text-zinc-500 w-24"></th>
               </tr>
             </thead>
             
@@ -609,26 +609,23 @@ export const PurchaseOrders: React.FC = () => {
             <tbody className="[&_tr:last-child]:border-0">
               {isLoading ? (
                 <tr>
-                  <td colSpan={8} className="px-3 py-12 text-center text-xs text-zinc-500">
+                  <td colSpan={8} className="px-2 py-6 text-center text-xs text-zinc-500">
                     Loading...
                   </td>
                 </tr>
               ) : filteredPOs.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-3 py-12 text-center">
-                    <div className="mx-auto max-w-sm space-y-2">
-                      <div className="text-sm font-medium text-zinc-950">No purchase orders found</div>
-                      <div className="text-xs text-zinc-500">Create your first purchase order to get started.</div>
+                  <td colSpan={8} className="px-2 py-6 text-center">
+                    <div className="space-y-1">
+                      <div className="text-xs font-medium text-zinc-950">No purchase orders found</div>
+                      <div className="text-[10px] text-zinc-500">Create your first purchase order to get started.</div>
                     </div>
                   </td>
                 </tr>
               ) : (
                 filteredPOs.map((po: any) => (
-                  <tr 
-                    key={po.id} 
-                    className="border-b border-zinc-100 hover:bg-zinc-50/80 transition-colors"
-                  >
-                    <td className="px-3 py-1.5 text-center align-middle">
+                  <tr key={po.id} className="border-b border-zinc-100 hover:bg-zinc-50/80">
+                    <td className="px-2 py-1 text-center align-middle">
                       <button
                         onClick={() => {
                           if (selectedRows.includes(po.id)) {
@@ -640,57 +637,57 @@ export const PurchaseOrders: React.FC = () => {
                         className="flex items-center justify-center"
                       >
                         {selectedRows.includes(po.id) ? (
-                          <CheckSquare className="h-4 w-4 text-primary" />
+                          <CheckSquare className="h-3.5 w-3.5 text-primary" />
                         ) : (
-                          <Square className="h-4 w-4 text-zinc-300" />
+                          <Square className="h-3.5 w-3.5 text-zinc-300" />
                         )}
                       </button>
                     </td>
-                    <td className="px-3 py-1.5 text-left align-middle whitespace-nowrap">
-                      <span className="text-sm font-semibold text-primary hover:underline cursor-pointer">
+                    <td className="px-2 py-1 text-left align-middle whitespace-nowrap">
+                      <span className="text-xs font-semibold text-primary hover:underline cursor-pointer">
                         {po.po_number}
                       </span>
                     </td>
-                    <td className="px-3 py-1.5 text-left align-middle whitespace-nowrap text-sm text-zinc-700">
+                    <td className="px-2 py-1 text-left align-middle whitespace-nowrap text-xs text-zinc-600">
                       {new Date(po.po_date).toLocaleDateString('en-IN')}
                     </td>
-                    <td className="px-3 py-1.5 text-left align-middle whitespace-nowrap text-sm text-zinc-700">
+                    <td className="px-2 py-1 text-left align-middle whitespace-nowrap text-xs text-zinc-600">
                       {po.vendor?.company_name || '-'}
                     </td>
-                    <td className="px-3 py-1.5 text-left align-middle">
-                      <Badge variant="secondary" className="text-[10px] font-medium px-1.5 py-0 h-5">
+                    <td className="px-2 py-1 text-left align-middle">
+                      <Badge variant="secondary" className="text-[10px] font-medium px-1 py-0.5">
                         {po.currency}
                       </Badge>
                     </td>
-                    <td className="px-3 py-1.5 text-right align-middle whitespace-nowrap text-sm font-medium text-zinc-700">
+                    <td className="px-2 py-1 text-right align-middle whitespace-nowrap text-xs font-medium text-zinc-700">
                       {po.currency === 'INR' ? '₹' : po.currency + ' '}{Number(po.total_amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                     </td>
-                    <td className="px-3 py-1.5 text-left align-middle">
+                    <td className="px-2 py-1 text-left align-middle">
                       <StatusBadge status={po.status || po.approval_status} />
                     </td>
-                    <td className="px-3 py-1.5 text-right align-middle">
-                      <div className="flex items-center justify-end gap-1">
+                    <td className="px-2 py-1 text-right align-middle">
+                      <div className="flex items-center justify-end gap-0.5">
                         <ShadcnButton 
                           variant="ghost" 
                           size="icon" 
-                          className="h-8 w-8 text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+                          className="h-6 w-6 text-rose-600 hover:bg-rose-50"
                           onClick={() => handleViewPDF(po)}
                         >
-                          <FileText className="h-4 w-4" />
+                          <FileText className="h-3 w-3" />
                         </ShadcnButton>
                         <ShadcnButton 
                           variant="ghost" 
                           size="icon" 
-                          className="h-8 w-8 text-primary hover:bg-primary/10"
+                          className="h-6 w-6 text-primary hover:bg-primary/10"
                         >
-                          <Mail className="h-4 w-4" />
+                          <Mail className="h-3 w-3" />
                         </ShadcnButton>
                         <ShadcnButton 
                           variant="ghost" 
                           size="icon" 
-                          className="h-8 w-8 text-zinc-600 hover:bg-zinc-100"
+                          className="h-6 w-6 text-zinc-500 hover:bg-zinc-100"
                         >
-                          <Edit className="h-4 w-4" />
+                          <Edit className="h-3 w-3" />
                         </ShadcnButton>
                       </div>
                     </td>
