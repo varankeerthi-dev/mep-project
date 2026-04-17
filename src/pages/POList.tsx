@@ -105,38 +105,35 @@ export default function POList() {
       header: 'Client',
       accessorKey: 'clients.client_name',
       cell: (info: any) => (
-        <div className="font-semibold text-slate-900">{info.getValue() || '-'}</div>
+        <div className="font-medium text-zinc-700 whitespace-nowrap">{info.getValue() || '-'}</div>
       )
     },
     {
       header: 'PO Number',
       accessorKey: 'po_number',
       cell: (info: any) => (
-        <span className="font-black tracking-tight text-blue-600">{info.getValue()}</span>
+        <span className="font-semibold text-blue-600 whitespace-nowrap">{info.getValue()}</span>
       )
     },
     {
       header: 'Date',
       accessorKey: 'po_date',
       cell: (info: any) => (
-        <div className="flex items-center gap-1.5 text-slate-500">
-          <Calendar size={12} />
-          {formatDate(info.getValue())}
-        </div>
+        <span className="text-zinc-500 whitespace-nowrap">{formatDate(info.getValue())}</span>
       )
     },
     {
       header: 'Total Value',
       accessorKey: 'po_total_value',
       cell: (info: any) => (
-        <div className="text-right font-bold text-slate-900">₹{formatCurrency(info.getValue())}</div>
+        <span className="font-medium text-zinc-700 text-right block w-full">₹{formatCurrency(info.getValue())}</span>
       )
     },
     {
       header: 'Utilised',
       accessorKey: 'po_utilized_value',
       cell: (info: any) => (
-        <div className="text-right font-medium text-slate-400">₹{formatCurrency(info.getValue())}</div>
+        <span className="text-zinc-400 text-right block w-full">₹{formatCurrency(info.getValue())}</span>
       )
     },
     {
@@ -145,12 +142,12 @@ export default function POList() {
       cell: (info: any) => {
         const val = info.getValue() as number;
         return (
-          <div className={cn(
-            "text-right font-black",
+          <span className={cn(
+            "font-medium text-right block w-full",
             val > 0 ? "text-emerald-600" : "text-rose-600"
           )}>
             ₹{formatCurrency(val)}
-          </div>
+          </span>
         );
       }
     },
@@ -160,30 +157,30 @@ export default function POList() {
       cell: (info: any) => getStatusBadge(info.getValue())
     },
     {
-      header: 'Actions',
+      header: '',
       accessorKey: 'actions',
       cell: ({ row }: any) => (
-        <div className="flex items-center justify-end gap-1.5">
+        <div className="flex items-center justify-end gap-0.5">
           <button
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-100 bg-white text-slate-400 shadow-sm transition-all hover:border-blue-200 hover:text-blue-600 hover:shadow-md"
+            className="flex h-6 w-6 items-center justify-center border border-zinc-200 bg-white text-zinc-400 hover:text-blue-600"
             onClick={() => navigate(`/client-po/create?id=${row.original.id}`)}
             title="Edit"
           >
-            <Edit2 size={14} />
+            <Edit2 size={12} />
           </button>
           <button
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-100 bg-white text-slate-400 shadow-sm transition-all hover:border-rose-200 hover:text-rose-600 hover:shadow-md"
+            className="flex h-6 w-6 items-center justify-center border border-zinc-200 bg-white text-zinc-400 hover:text-rose-600"
             onClick={() => deletePO(row.original.id)}
             title="Delete"
           >
-            <Trash2 size={14} />
+            <Trash2 size={12} />
           </button>
           <button
-            className="flex h-8 w-12 items-center justify-center rounded-lg border border-slate-100 bg-white text-slate-400 shadow-sm transition-all hover:border-blue-200 hover:text-blue-600 hover:shadow-md"
+            className="flex h-6 w-6 items-center justify-center border border-zinc-200 bg-white text-zinc-400 hover:text-blue-600"
             onClick={() => navigate(`/client-po/details?id=${row.original.id}`)}
-            title="View Details"
+            title="View"
           >
-            <ChevronRight size={14} />
+            <ChevronRight size={12} />
           </button>
         </div>
       )
