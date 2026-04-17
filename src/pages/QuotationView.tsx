@@ -279,6 +279,8 @@ export default function QuotationView() {
         downloadPDF(template);
       } else if (action === 'email') {
         alert('Email feature coming soon!');
+      } else if (action === 'print') {
+        downloadPDF(template); // Fallback to download for default print
       }
 
       setShowPrintMenu(false);
