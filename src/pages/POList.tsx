@@ -136,14 +136,29 @@ export default function POList() {
       header: 'Amount',
       accessorKey: 'po_total_value',
       cell: (info: any) => (
-        <div className="flex flex-col items-center gap-0.5">
+        <div className="flex flex-col items-center">
           <span className="font-medium text-zinc-700">₹{formatCurrency(info.getValue())}</span>
-          <div className="flex gap-0.5">
-            <span className="text-[10px] text-zinc-400">Used: ₹{formatCurrency(info.row.original.po_utilized_value)}</span>
-            <span className="text-[10px] text-zinc-400">Bal: ₹{formatCurrency(info.row.original.po_available_value)}</span>
-          </div>
         </div>
       )
+    },
+    {
+      header: 'Utilised',
+      accessorKey: 'po_utilized_value',
+      cell: (info: any) => (
+        <span className="text-zinc-500">₹{formatCurrency(info.getValue())}</span>
+      )
+    },
+    {
+      header: 'Balance',
+      accessorKey: 'po_available_value',
+      cell: (info: any) => {
+        const val = info.getValue() as number;
+        return (
+          <span className={cn("font-medium", val > 0 ? "text-emerald-600" : "text-rose-600")}>
+            ₹{formatCurrency(val)}
+          </span>
+        );
+      }
     },
     {
       header: 'Status',
