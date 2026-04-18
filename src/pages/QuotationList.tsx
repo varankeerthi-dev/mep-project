@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { formatDate, formatCurrency } from '../utils/formatters';
 import { useAuth } from '../App';
 import { timedSupabaseQuery } from '../utils/queryTimeout';
+import { queryKeys } from '../utils/queryKeys';
 import { jsPDF } from 'jspdf';
 import { generateQuotationTally } from './QuotationTallyTemplate';
 import { generateProfessionalTemplate } from './ProfessionalTemplate';
@@ -266,8 +267,11 @@ export default function QuotationList() {
     }
   };
 
+  // Using standardized query keys for consistent caching
   const quotationsQuery = useQuery({
-    queryKey: ['quotations', statusFilter, organisation?.id],
+    queryKey: statusFilter !== 'All' 
+      ? queryKeys.quotations.byStatus(organisation?.id, statusFilter)
+      : queryKeys.quotations.all(organisation?.id),
     queryFn: async () => {
       let query = supabase
         .from('quotation_header')
@@ -290,7 +294,7 @@ export default function QuotationList() {
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
     refetchOnWindowFocus: false,
-    refetchOnMount: false,
+    refetchOnMount: 'ifStale',
   });
 
   const quotations = quotationsQuery.data || [];
