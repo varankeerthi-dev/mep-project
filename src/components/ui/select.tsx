@@ -131,6 +131,6 @@ export function SelectContent({ children, className }: { children?: React.ReactN
 SelectContent.displayName = 'SelectContent'
 
 export function SelectItem({ children, value, className }: SelectItemProps & { className?: string }) {
-  return <></>
+  return null
 }
 SelectItem.displayName = 'SelectItem'
