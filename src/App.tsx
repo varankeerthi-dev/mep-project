@@ -567,6 +567,16 @@ export default function App() {
     // We use refs (userRef, lastCheckRef, isCheckingRef) to read latest values without re-subscribing.
   }, []);
 
+  // ✅ FIX 1: Memoize AuthContext value to prevent cascade re-renders
+  const authContextValue = useMemo(() => ({ 
+    user, 
+    organisation, 
+    organisations, 
+    selectedOrganisation: organisation,
+    handleLogout,
+    switchOrganisation: handleSelectOrganisation
+  }), [user, organisation, organisations, handleLogout, handleSelectOrganisation]);
+
   if (loading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
@@ -620,16 +630,6 @@ export default function App() {
       </Suspense>
     );
   }
-
-  // ✅ FIX 1: Memoize AuthContext value to prevent cascade re-renders
-  const authContextValue = useMemo(() => ({ 
-    user, 
-    organisation, 
-    organisations, 
-    selectedOrganisation: organisation,
-    handleLogout,
-    switchOrganisation: handleSelectOrganisation
-  }), [user, organisation, organisations, handleLogout, handleSelectOrganisation]);
 
   return (
     <AuthContext.Provider value={authContextValue}>
