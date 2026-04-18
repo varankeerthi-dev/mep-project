@@ -522,7 +522,7 @@ export default function LedgerDashboard() {
             <span className="text-xs font-medium uppercase tracking-widest text-zinc-400">
               Finance
             </span>
-            <h1 className="mt-2 text-2xl font-semibold tracking-tight text-zinc-950">
+            <h1 className="mt-2 text-2xl font-semibold tracking-tight text-zinc-700">
               Ledger
             </h1>
             <p className="mt-1 text-sm text-zinc-500">
@@ -532,7 +532,7 @@ export default function LedgerDashboard() {
 
           {/* Enquiry Card */}
           <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
-            <h2 className="text-sm font-medium text-zinc-900 mb-4">Enquiry Type</h2>
+            <h2 className="text-sm font-medium text-zinc-700 mb-4">Enquiry Type</h2>
             
             {/* Enquiry Type Toggle */}
             <div className="flex gap-2 mb-6">
@@ -541,8 +541,8 @@ export default function LedgerDashboard() {
                 onClick={() => setEnquiryType('client')}
                 className={`flex-1 rounded-lg border px-4 py-3 text-sm font-medium transition ${
                   enquiryType === 'client'
-                    ? 'border-zinc-800 bg-zinc-900 text-white'
-                    : 'border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50'
+                    ? 'border-zinc-400 bg-zinc-600 text-white'
+                    : 'border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50'
                 }`}
               >
                 Single Client
@@ -552,8 +552,8 @@ export default function LedgerDashboard() {
                 onClick={() => setEnquiryType('date')}
                 className={`flex-1 rounded-lg border px-4 py-3 text-sm font-medium transition ${
                   enquiryType === 'date'
-                    ? 'border-zinc-800 bg-zinc-900 text-white'
-                    : 'border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50'
+                    ? 'border-zinc-400 bg-zinc-600 text-white'
+                    : 'border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50'
                 }`}
               >
                 Date-Wise Report
@@ -610,7 +610,7 @@ export default function LedgerDashboard() {
                 setEnquiryDone(true);
               }}
               disabled={enquiryType === 'client' && !enquiryClientId}
-              className="w-full rounded-lg bg-zinc-900 px-4 py-3 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full rounded-lg bg-zinc-600 px-4 py-3 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Search Ledger
             </button>
@@ -629,7 +629,7 @@ export default function LedgerDashboard() {
             <span className="text-xs font-medium uppercase tracking-widest text-zinc-400">
               Finance
             </span>
-            <h1 className="mt-2 text-2xl font-semibold tracking-tight text-zinc-950">
+            <h1 className="mt-2 text-2xl font-semibold tracking-tight text-zinc-700">
               Ledger
             </h1>
             <p className="mt-1 text-sm text-zinc-500">
@@ -652,21 +652,21 @@ export default function LedgerDashboard() {
         <section className="mb-8 grid gap-4 md:grid-cols-3">
           <div className="rounded-xl border border-zinc-200 bg-white p-5">
             <div className="text-xs font-medium text-zinc-500">Outstanding</div>
-            <div className="mt-1 text-2xl font-semibold text-zinc-950">
+            <div className="mt-1 text-2xl font-semibold text-zinc-700">
               {formatCurrency(dashboardTotals.totalOutstanding)}
             </div>
           </div>
 
           <div className="rounded-xl border border-zinc-200 bg-white p-5">
             <div className="text-xs font-medium text-zinc-500">Invoice Debits</div>
-            <div className="mt-1 text-2xl font-semibold text-zinc-950">
+            <div className="mt-1 text-2xl font-semibold text-zinc-700">
               {formatCurrency(dashboardTotals.totalDebits)}
             </div>
           </div>
 
           <div className="rounded-xl border border-zinc-200 bg-white p-5">
             <div className="text-xs font-medium text-zinc-500">Receipt Credits</div>
-            <div className="mt-1 text-2xl font-semibold text-zinc-950">
+            <div className="mt-1 text-2xl font-semibold text-zinc-700">
               {formatCurrency(dashboardTotals.totalCredits)}
             </div>
           </div>
@@ -685,7 +685,7 @@ export default function LedgerDashboard() {
                     onClick={() => setActiveTab('ledger')}
                     className={`inline-flex items-center gap-1.5 rounded px-3 py-1.5 text-xs font-medium transition ${
                       activeTab === 'ledger'
-                        ? 'bg-white text-zinc-950 shadow-sm'
+                        ? 'bg-white text-zinc-700 shadow-sm'
                         : 'text-zinc-500 hover:text-zinc-700'
                     }`}
                   >
@@ -697,7 +697,7 @@ export default function LedgerDashboard() {
                     onClick={() => setActiveTab('details')}
                     className={`inline-flex items-center gap-1.5 rounded px-3 py-1.5 text-xs font-medium transition ${
                       activeTab === 'details'
-                        ? 'bg-white text-zinc-950 shadow-sm'
+                        ? 'bg-white text-zinc-700 shadow-sm'
                         : 'text-zinc-500 hover:text-zinc-700'
                     }`}
                   >
@@ -720,7 +720,7 @@ export default function LedgerDashboard() {
                   </button>
                 )}
                 {activeTab === 'details' && selectedClient && (
-                  <span className="text-sm font-medium text-zinc-950">
+                  <span className="text-sm font-medium text-zinc-700">
                     {selectedClient.name}
                   </span>
                 )}
@@ -793,8 +793,8 @@ export default function LedgerDashboard() {
                             onClick={() => handlePreset(preset)}
                             className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition ${
                               selectedPreset === preset
-                                ? 'bg-zinc-900 text-white'
-                                : 'border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50'
+                                ? 'bg-zinc-600 text-white'
+                                : 'border border-zinc-200 bg-white text-zinc-500 hover:bg-zinc-50'
                             }`}
                           >
                             {getPresetLabel(preset)}
@@ -894,7 +894,7 @@ export default function LedgerDashboard() {
                         <tr>
                           <td colSpan={5} className="px-4 py-12 text-center">
                             <div className="mx-auto max-w-sm space-y-2">
-                              <div className="text-sm font-medium text-zinc-950">No ledger data found</div>
+                              <div className="text-sm font-medium text-zinc-700">No ledger data found</div>
                               <div className="text-xs text-zinc-500">
                                 Make sure your clients are linked to this organisation, then record invoices and receipts.
                               </div>
@@ -906,10 +906,10 @@ export default function LedgerDashboard() {
                       {summaries.map((summary) => (
                         <tr key={summary.clientId} className="border-b border-zinc-100 hover:bg-zinc-50/50">
                           <td className="px-4 py-3.5 align-middle">
-                            <span className="text-sm font-medium text-zinc-950">{summary.clientName}</span>
+                            <span className="text-sm font-medium text-zinc-700">{summary.clientName}</span>
                           </td>
                           <td className="px-4 py-3.5 text-right align-middle">
-                            <span className="text-sm font-medium text-zinc-950">{formatCurrency(summary.outstanding)}</span>
+                            <span className="text-sm font-medium text-zinc-700">{formatCurrency(summary.outstanding)}</span>
                           </td>
                           <td className="px-4 py-3.5 align-middle">
                             <span className="text-xs text-zinc-500">{formatDisplayDate(summary.oldestDueDate)}</span>
@@ -959,7 +959,7 @@ export default function LedgerDashboard() {
                   {!selectedClient && (
                     <div className="py-12 text-center">
                       <div className="mx-auto max-w-sm space-y-2">
-                        <div className="text-sm font-medium text-zinc-950">Select a client</div>
+                        <div className="text-sm font-medium text-zinc-700">Select a client</div>
                         <div className="text-xs text-zinc-500">
                           Click on a client from the Client Ledger tab, or select "Edit Details" from the actions menu.
                         </div>
@@ -970,7 +970,7 @@ export default function LedgerDashboard() {
                   {selectedClient && selectedClientReceipts.length === 0 && !isLoading && (
                     <div className="py-12 text-center">
                       <div className="mx-auto max-w-sm space-y-2">
-                        <div className="text-sm font-medium text-zinc-950">No receipts found</div>
+                        <div className="text-sm font-medium text-zinc-700">No receipts found</div>
                         <div className="text-xs text-zinc-500">
                           This client has no receipt records in the selected date range.
                         </div>
@@ -1092,8 +1092,8 @@ export default function LedgerDashboard() {
                                 <tr key={receipt.id} className="border-b border-zinc-100 hover:bg-zinc-50/50">
                                   <td className="px-4 py-3.5 text-xs text-zinc-600">{formatDisplayDate(receipt.receipt_date)}</td>
                                   <td className="px-4 py-3.5 text-xs text-zinc-600">{receipt.payment_type || '-'}</td>
-                                  <td className="px-4 py-3.5 text-sm text-zinc-950">{receipt.remarks || 'Receipt'}</td>
-                                  <td className="px-4 py-3.5 text-right text-sm font-medium text-zinc-950">{formatCurrency(receipt.amount)}</td>
+                                  <td className="px-4 py-3.5 text-sm text-zinc-700">{receipt.remarks || 'Receipt'}</td>
+                                  <td className="px-4 py-3.5 text-right text-sm font-medium text-zinc-700">{formatCurrency(receipt.amount)}</td>
                                   <td className="px-4 py-3.5 text-right">
                                     <div className="inline-flex items-center gap-1">
                                       <button
@@ -1145,7 +1145,7 @@ export default function LedgerDashboard() {
             <div ref={paymentCardRef} className="h-fit rounded-lg border border-zinc-200 bg-zinc-50/50 p-0.5">
               <div className="rounded-md border border-zinc-200 bg-white p-4 shadow-sm">
                 <span className="text-[10px] font-medium uppercase tracking-wider text-zinc-400">Record Payment</span>
-                <h2 className="mt-1.5 text-lg font-semibold tracking-tight text-zinc-950">Add receipt</h2>
+                <h2 className="mt-1.5 text-lg font-semibold tracking-tight text-zinc-700">Add receipt</h2>
                 <p className="mt-1 text-xs leading-relaxed text-zinc-500">
                   Receipts refresh the ledger immediately after save.
                 </p>
