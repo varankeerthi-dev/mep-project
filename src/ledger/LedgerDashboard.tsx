@@ -203,6 +203,9 @@ export default function LedgerDashboard() {
       setOpeningBalanceEditMode(false);
       setOpeningBalanceDrafts({});
       void qc.invalidateQueries({ queryKey: ['ledger', 'opening-balances', orgId, selectedFy] });
+      void qc.invalidateQueries({ queryKey: ['ledger', 'clients', orgId] });
+      void qc.invalidateQueries({ queryKey: ['ledger', 'invoices', orgId] });
+      void qc.invalidateQueries({ queryKey: ['ledger', 'receipts', orgId] });
     },
     onError: (error: any) => {
       console.error('Save error:', error);
@@ -222,6 +225,9 @@ export default function LedgerDashboard() {
     onSuccess: () => {
       toast.success('Opening balances auto-populated from previous year.');
       void qc.invalidateQueries({ queryKey: ['ledger', 'opening-balances', orgId, selectedFy] });
+      void qc.invalidateQueries({ queryKey: ['ledger', 'clients', orgId] });
+      void qc.invalidateQueries({ queryKey: ['ledger', 'invoices', orgId] });
+      void qc.invalidateQueries({ queryKey: ['ledger', 'receipts', orgId] });
     },
     onError: (error: any) => {
       toast.error(error?.message ?? 'Unable to auto-populate opening balances.');
@@ -282,6 +288,8 @@ export default function LedgerDashboard() {
 
       void qc.invalidateQueries({ queryKey: ['ledger', 'receipts', orgId] });
       void qc.invalidateQueries({ queryKey: ['ledger', 'invoices', orgId] });
+      void qc.invalidateQueries({ queryKey: ['ledger', 'clients', orgId] });
+      void qc.invalidateQueries({ queryKey: ['ledger', 'opening-balances', orgId, selectedFy] });
     },
     onError: (error: any) => {
       toast.error(error?.message ?? 'Unable to record payment.');
@@ -295,6 +303,9 @@ export default function LedgerDashboard() {
       setEditingReceiptId(null);
       setEditingForm(null);
       void qc.invalidateQueries({ queryKey: ['ledger', 'receipts', orgId] });
+      void qc.invalidateQueries({ queryKey: ['ledger', 'invoices', orgId] });
+      void qc.invalidateQueries({ queryKey: ['ledger', 'clients', orgId] });
+      void qc.invalidateQueries({ queryKey: ['ledger', 'opening-balances', orgId, selectedFy] });
     },
     onError: (error: any) => {
       toast.error(error?.message ?? 'Unable to update receipt.');
@@ -306,6 +317,9 @@ export default function LedgerDashboard() {
     onSuccess: () => {
       toast.success('Receipt deleted successfully.');
       void qc.invalidateQueries({ queryKey: ['ledger', 'receipts', orgId] });
+      void qc.invalidateQueries({ queryKey: ['ledger', 'invoices', orgId] });
+      void qc.invalidateQueries({ queryKey: ['ledger', 'clients', orgId] });
+      void qc.invalidateQueries({ queryKey: ['ledger', 'opening-balances', orgId, selectedFy] });
     },
     onError: (error: any) => {
       toast.error(error?.message ?? 'Unable to delete receipt.');
