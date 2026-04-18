@@ -1,23 +1,26 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '../supabase';
 import { useNavigate } from 'react-router-dom';
 import { formatDate, formatCurrency } from '../utils/formatters';
 import { 
   Plus, 
   Search, 
-  Filter, 
   FileText, 
   TrendingUp, 
   CheckCircle, 
   Clock, 
-  XCircle, 
   ChevronRight, 
   Edit2, 
   Trash2,
-  Calendar,
   Layers,
   FileCheck,
-  RefreshCcw
+  RefreshCcw,
+  Download,
+  Columns,
+  Square,
+  CheckSquare,
+  Copy,
+  Eye
 } from 'lucide-react';
 import { AppTable } from '../components/ui/AppTable';
 import { cn } from '../lib/utils';
@@ -30,6 +33,17 @@ export default function POList() {
   const [statusFilter, setStatusFilter] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showColumnPicker, setShowColumnPicker] = useState(false);
+  const [visibleColumns, setVisibleColumns] = useState<Record<string, boolean>>({
+    client: true,
+    poNumber: true,
+    date: true,
+    amount: true,
+    utilised: true,
+    balance: true,
+    status: true,
+  });
 
   useEffect(() => {
     loadPOs();
@@ -100,6 +114,91 @@ export default function POList() {
     }
   };
 
+  const deleteSelectedPOs = async () => {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`Are you sure you want to delete ${selectedIds.size} selected PO(s)?`)) return;
+    
+    const { error } = await supabase
+      .from('client_purchase_orders')
+      .delete()
+      .in('id', Array.from(selectedIds));
+    
+    if (error) {
+      alert('Error deleting POs: ' + error.message);
+    } else {
+      setSelectedIds(new Set());
+      loadPOs();
+    }
+  };
+
+  const exportToCSV = useCallback(() => {
+    const headers = ['Client', 'PO Number', 'Date', 'Amount', 'Utilised', 'Balance', 'Status'];
+    const rows = filteredPOs.map(po => [
+      po.clients?.client_name || '',
+      po.po_number || '',
+      formatDate(po.po_date),
+      po.po_total_value || 0,
+      po.po_utilized_value || 0,
+      po.po_available_value || 0,
+      po.status || ''
+    ]);
+    
+    const csvContent = [headers, ...rows]
+      .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `purchase-orders-${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+  }, [filteredPOs]);
+
+  const duplicatePO = async (po: any) => {
+    const { data, error } = await supabase
+      .from('client_purchase_orders')
+      .insert([{
+        client_id: po.client_id,
+        po_number: `${po.po_number}-COPY`,
+        po_date: new Date().toISOString().split('T')[0],
+        po_total_value: po.po_total_value,
+        po_utilized_value: 0,
+        po_available_value: po.po_total_value,
+        status: 'Open',
+        items: po.items
+      }])
+      .select()
+      .single();
+    
+    if (error) {
+      alert('Error duplicating PO: ' + error.message);
+    } else {
+      navigate(`/client-po/create?id=${data.id}`);
+    }
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredPOs.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredPOs.map(po => po.id)));
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    const newSet = new Set(selectedIds);
+    if (newSet.has(id)) {
+      newSet.delete(id);
+    } else {
+      newSet.add(id);
+    }
+    setSelectedIds(newSet);
+  };
+
+  const toggleColumn = (key: string) => {
+    setVisibleColumns(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
   const tableColumns = useMemo(() => {
     // Dynamic width for Client column based on longest name
     const maxClientNameLength = Math.max(
@@ -108,8 +207,37 @@ export default function POList() {
     );
     const clientColWidth = Math.min(maxClientNameLength * 8, 280); // max 280px
     
-    return [
+    const cols = [
     {
+      id: 'select',
+      header: () => (
+        <button
+          onClick={toggleSelectAll}
+          className="flex h-4 w-4 items-center justify-center text-zinc-400 hover:text-blue-600"
+        >
+          {selectedIds.size === filteredPOs.length && filteredPOs.length > 0 ? (
+            <CheckSquare size={14} className="text-blue-600" />
+          ) : (
+            <Square size={14} />
+          )}
+        </button>
+      ),
+      cell: ({ row }: any) => (
+        <button
+          onClick={() => toggleSelect(row.original.id)}
+          className="flex h-4 w-4 items-center justify-center text-zinc-400 hover:text-blue-600"
+        >
+          {selectedIds.has(row.original.id) ? (
+            <CheckSquare size={14} className="text-blue-600" />
+          ) : (
+            <Square size={14} />
+          )}
+        </button>
+      ),
+      size: 40
+    },
+    {
+      id: 'client',
       header: 'Client',
       accessorKey: 'clients.client_name',
       cell: (info: any) => (
@@ -119,6 +247,7 @@ export default function POList() {
       )
     },
     {
+      id: 'poNumber',
       header: 'PO Number',
       accessorKey: 'po_number',
       cell: (info: any) => (
@@ -126,6 +255,7 @@ export default function POList() {
       )
     },
     {
+      id: 'date',
       header: 'Date',
       accessorKey: 'po_date',
       cell: (info: any) => (
@@ -133,6 +263,7 @@ export default function POList() {
       )
     },
     {
+      id: 'amount',
       header: 'Amount',
       accessorKey: 'po_total_value',
       cell: (info: any) => (
@@ -142,6 +273,7 @@ export default function POList() {
       )
     },
     {
+      id: 'utilised',
       header: 'Utilised',
       accessorKey: 'po_utilized_value',
       cell: (info: any) => (
@@ -149,6 +281,7 @@ export default function POList() {
       )
     },
     {
+      id: 'balance',
       header: 'Balance',
       accessorKey: 'po_available_value',
       cell: (info: any) => {
@@ -161,13 +294,14 @@ export default function POList() {
       }
     },
     {
+      id: 'status',
       header: 'Status',
       accessorKey: 'status',
       cell: (info: any) => getStatusBadge(info.getValue())
     },
     {
+      id: 'actions',
       header: '',
-      accessorKey: 'actions',
       cell: ({ row }: any) => (
         <div className="flex items-center justify-end gap-0.5">
           <button
@@ -186,16 +320,29 @@ export default function POList() {
           </button>
           <button
             className="flex h-6 w-6 items-center justify-center border border-zinc-200 bg-white text-zinc-400 hover:text-blue-600"
+            onClick={() => duplicatePO(row.original)}
+            title="Duplicate"
+          >
+            <Copy size={12} />
+          </button>
+          <button
+            className="flex h-6 w-6 items-center justify-center border border-zinc-200 bg-white text-zinc-400 hover:text-blue-600"
             onClick={() => navigate(`/client-po/details?id=${row.original.id}`)}
             title="View"
           >
-            <ChevronRight size={12} />
+            <Eye size={12} />
           </button>
         </div>
       )
     }
-  ];
-  }, [navigate, filteredPOs]);
+    ];
+    
+    // Filter columns based on visibility
+    return cols.filter(col => {
+      if (col.id === 'select' || col.id === 'actions') return true;
+      return visibleColumns[col.id as keyof typeof visibleColumns] !== false;
+    });
+  }, [navigate, filteredPOs, selectedIds, visibleColumns, toggleSelectAll]);
 
   return (
     <div className="min-h-screen bg-zinc-50 p-4">
@@ -236,6 +383,23 @@ export default function POList() {
           <span className="text-zinc-400">Balance:</span>
           <span className="font-semibold text-rose-700">₹{formatCurrency(filteredPOs.reduce((sum, p) => sum + (p.po_available_value || 0), 0))}</span>
         </div>
+        {selectedIds.size > 0 && (
+          <div className="ml-4 flex items-center gap-2 rounded bg-blue-50 px-3 py-1.5">
+            <span className="text-xs font-medium text-blue-700">{selectedIds.size} selected</span>
+            <button
+              onClick={deleteSelectedPOs}
+              className="text-xs font-medium text-rose-600 hover:text-rose-700"
+            >
+              Delete
+            </button>
+            <button
+              onClick={() => setSelectedIds(new Set())}
+              className="text-xs font-medium text-zinc-500 hover:text-zinc-700"
+            >
+              Clear
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Main Table Card */}
@@ -286,8 +450,42 @@ export default function POList() {
           
           <div className="flex items-center gap-2">
             <button 
+              onClick={exportToCSV}
+              className="flex h-7 items-center gap-1.5 border border-zinc-200 bg-white px-2 text-xs font-medium text-zinc-500 hover:text-emerald-600"
+              title="Export to CSV"
+            >
+              <Download size={12} />
+              <span>Export</span>
+            </button>
+            
+            <div className="relative">
+              <button 
+                onClick={() => setShowColumnPicker(!showColumnPicker)}
+                className="flex h-7 w-7 items-center justify-center border border-zinc-200 bg-white text-zinc-400 hover:text-blue-600"
+                title="Column Visibility"
+              >
+                <Columns size={12} />
+              </button>
+              
+              {showColumnPicker && (
+                <div className="absolute right-0 top-full z-10 mt-1 w-40 rounded border border-zinc-200 bg-white py-1 shadow-lg">
+                  {Object.entries(visibleColumns).map(([key, visible]) => (
+                    <button
+                      key={key}
+                      onClick={() => toggleColumn(key)}
+                      className="flex w-full items-center gap-2 px-3 py-1.5 text-xs text-zinc-600 hover:bg-zinc-50"
+                    >
+                      {visible ? <CheckSquare size={12} className="text-blue-600" /> : <Square size={12} />}
+                      {key.charAt(0).toUpperCase() + key.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            
+            <button 
               onClick={loadPOs}
-              className="flex h-7 w-7 items-center justify-center border border-zinc-200 bg-white text-zinc-400"
+              className="flex h-7 w-7 items-center justify-center border border-zinc-200 bg-white text-zinc-400 hover:text-blue-600"
               title="Refresh Data"
             >
               <RefreshCcw size={12} className={cn(loading && "animate-spin")} />
