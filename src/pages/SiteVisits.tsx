@@ -31,6 +31,10 @@ import { cn } from '../lib/utils';
 import { QuickAddClientModal } from '../components/QuickAddClientModal';
 import { Button, IconButton } from '../components/ui/button';
 import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { Select } from '../components/ui/select';
+import { Textarea } from '../components/ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../components/ui/dialog';
 import { Badge } from '../components/ui/Badge';
 import { Tabs, TabsList, TabsTrigger } from '../components/ui/Tabs';
 import { Card } from '../components/ui/Card';
@@ -627,384 +631,384 @@ export function SiteVisits() {
       </div>
 
       {/* Multi-Step Form Modal */}
-      {isFormOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4 overflow-y-auto animate-in fade-in duration-500">
-          <div className="bg-white rounded-[40px] shadow-[0_48px_80px_-16px_rgba(0,0,0,0.25)] w-full max-w-2xl my-8 overflow-hidden border border-white/20 animate-in zoom-in-95 duration-400">
-            {/* Form Header */}
-            <div className="p-10 border-b border-slate-100 bg-linear-to-br from-slate-50/50 to-white">
-              <div className="flex items-center justify-between mb-10">
-                <div>
-                  <h2 className="text-[28px] font-[900] text-slate-900 tracking-[-0.03em] leading-tight">
-                    {selectedVisit ? 'Edit Site Visit' : 'Add New Site Visit'}
-                  </h2>
-                  <p className="text-[14px] font-semibold text-slate-500 mt-2 tracking-tight">
-                    {selectedVisit ? 'Update existing visit details' : 'Enter the details for a new site visit'}
-                  </p>
-                </div>
-                <button
-                  onClick={() => setIsFormOpen(false)}
-                  className="w-12 h-12 flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-2xl transition-all border border-slate-100 hover:border-rose-100 hover:rotate-90"
-                >
-                  <XCircle className="w-6 h-6" />
-                </button>
+      <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+        <DialogContent className="max-w-2xl p-0 gap-0 overflow-hidden rounded-2xl shadow-2xl border border-slate-200/60">
+          {/* Form Header */}
+          <div className="px-8 pt-8 pb-6 border-b border-slate-100 bg-gradient-to-br from-slate-50/60 to-white">
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <DialogTitle className="text-2xl font-bold text-slate-900 tracking-tight leading-tight m-0">
+                  {selectedVisit ? 'Edit Site Visit' : 'New Site Visit'}
+                </DialogTitle>
+                <DialogDescription className="text-sm font-medium text-slate-500 mt-1 m-0">
+                  {selectedVisit ? 'Update existing visit details' : 'Enter the details for a new site visit'}
+                </DialogDescription>
               </div>
-
-              {/* Progress Stepper */}
-              <div className="relative px-2">
-                <div className="flex items-center justify-between">
-                  {steps.map((step, index) => (
-                    <React.Fragment key={step.number}>
-                      <div className="flex flex-col items-center relative z-10">
-                        <div
-                          className={cn(
-                            "w-14 h-14 rounded-[20px] flex items-center justify-center transition-all duration-700 shadow-xl border-2",
-                            currentStep > step.number
-                              ? "bg-emerald-500 border-emerald-400 text-white shadow-emerald-200/50"
-                              : currentStep === step.number
-                              ? "bg-slate-950 border-slate-900 text-white shadow-slate-300/40 ring-8 ring-slate-100"
-                              : "bg-white border-slate-200 text-slate-400"
-                          )}
-                        >
-                          {currentStep > step.number ? (
-                            <Check className="w-7 h-7 stroke-[4]" />
-                          ) : (
-                            <step.icon className={cn("w-6 h-6", currentStep === step.number ? "animate-pulse" : "")} />
-                          )}
-                        </div>
-                        <span
-                          className={cn(
-                            "mt-4 text-[10px] font-black uppercase tracking-[0.1em] transition-colors",
-                            currentStep >= step.number ? "text-slate-900" : "text-slate-400"
-                          )}
-                        >
-                          {step.title}
-                        </span>
-                      </div>
-                      {index < steps.length - 1 && (
-                        <div className="flex-1 h-[3px] mx-[-12px] mt-[-34px] relative bg-slate-100 self-center rounded-full overflow-hidden">
-                          <div
-                            className="absolute inset-y-0 left-0 bg-slate-950 transition-all duration-1000 ease-in-out"
-                            style={{ width: currentStep > step.number ? '100%' : '0%' }}
-                          />
-                        </div>
-                      )}
-                    </React.Fragment>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Form Canvas */}
-            <div className="p-10 bg-white">
-              <div className="min-h-[380px]">
-                {/* Step 1: Basic Telemetry */}
-                {currentStep === 1 && (
-                  <div className="space-y-8 animate-in fade-in slide-in-from-right-8 duration-600">
-                    <div className="space-y-3">
-                      <label className="text-[12px] font-black uppercase tracking-[0.15em] text-slate-400 ml-1">
-                        Client <span className="text-rose-500">*</span>
-                      </label>
-                      <div className="relative group">
-                        <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-slate-950 transition-colors" />
-                        <select
-                          value={formData.client_id}
-                          onChange={(e) => setFormData({ ...formData, client_id: e.target.value })}
-                          className="w-full pl-12 pr-10 py-4 bg-slate-50/50 border-2 border-slate-100 rounded-[24px] focus:ring-0 focus:border-slate-950 focus:bg-white transition-all text-sm font-bold text-slate-900 appearance-none shadow-sm"
-                        >
-                          <option value="">Select Client</option>
-                          {clients?.map((client: any) => (
-                            <option key={client.id} value={client.id}>
-                              {client.client_name}
-                            </option>
-                          ))}
-                        </select>
-                        <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 rotate-90" />
-                      </div>
-                      <button
-                        onClick={() => setIsAddClientModalOpen(true)}
-                        className="flex items-center gap-2 px-2 text-[12px] text-indigo-600 hover:text-indigo-700 font-bold transition-all hover:translate-x-1"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                        Add New Client
-                      </button>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-8">
-                      <div className="space-y-3">
-                        <label className="text-[12px] font-black uppercase tracking-[0.15em] text-slate-400 ml-1">
-                          Date <span className="text-rose-500">*</span>
-                        </label>
-                        <div className="relative group">
-                          <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-slate-950 transition-all" />
-                          <input
-                            type="date"
-                            value={formData.visit_date}
-                            onChange={(e) => setFormData({ ...formData, visit_date: e.target.value })}
-                            className="w-full pl-12 pr-4 py-4 bg-slate-50/50 border-2 border-slate-100 rounded-[24px] focus:ring-0 focus:border-slate-950 focus:bg-white transition-all text-sm font-bold text-slate-900 shadow-sm"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="space-y-3">
-                        <label className="text-[12px] font-black uppercase tracking-[0.15em] text-slate-400 ml-1">
-                          Purpose <span className="text-rose-500">*</span>
-                        </label>
-                        <div className="relative group">
-                          <FileText className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-slate-950 transition-all" />
-                          <select
-                            value={formData.purpose_of_visit}
-                            onChange={(e) => {
-                              if (e.target.value === 'ADD_NEW') {
-                                setIsAddPurposeModalOpen(true);
-                              } else {
-                                setFormData({ ...formData, purpose_of_visit: e.target.value });
-                              }
-                            }}
-                            className="w-full pl-12 pr-10 py-4 bg-slate-50/50 border-2 border-slate-100 rounded-[24px] focus:ring-0 focus:border-slate-950 focus:bg-white transition-all text-sm font-bold text-slate-900 appearance-none shadow-sm"
-                          >
-                            <option value="">Select Purpose</option>
-                            {purposes?.map((p: any) => (
-                              <option key={p.id} value={p.name}>
-                                {p.name}
-                              </option>
-                            ))}
-                            <option value="ADD_NEW">+ Add New Purpose</option>
-                          </select>
-                          <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 rotate-90" />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Step 2: Resource Allocation */}
-                {currentStep === 2 && (
-                  <div className="space-y-8 animate-in fade-in slide-in-from-right-8 duration-600">
-                    <div className="grid grid-cols-2 gap-8">
-                      <div className="space-y-3">
-                        <label className="text-[12px] font-black uppercase tracking-[0.15em] text-slate-400 ml-1">
-                          Visited By
-                        </label>
-                        <Input
-                          value={formData.visited_by}
-                          onChange={(e) => setFormData({ ...formData, visited_by: e.target.value })}
-                          placeholder="Primary agent"
-                          className="h-14 rounded-[24px] bg-slate-50 border-2 border-slate-100 font-bold focus:bg-white focus:border-slate-950"
-                        />
-                      </div>
-
-                      <div className="space-y-3">
-                        <label className="text-[12px] font-black uppercase tracking-[0.15em] text-slate-400 ml-1">
-                          Engineer
-                        </label>
-                        <Input
-                          value={formData.engineer}
-                          onChange={(e) => setFormData({ ...formData, engineer: e.target.value })}
-                          placeholder="Specialist name"
-                          className="h-14 rounded-[24px] bg-slate-50 border-2 border-slate-100 font-bold focus:bg-white focus:border-slate-950"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-8 bg-slate-50/80 p-8 rounded-[32px] border-2 border-slate-100 shadow-inner">
-                      <div className="space-y-3">
-                        <label className="text-[12px] font-black uppercase tracking-[0.15em] text-slate-500 ml-1">
-                          Time In
-                        </label>
-                        <input
-                          type="time"
-                          value={formData.visit_time}
-                          onChange={(e) => setFormData({ ...formData, visit_time: e.target.value })}
-                          className="w-full px-6 py-4 bg-white border-2 border-slate-200 rounded-[20px] focus:ring-0 focus:border-slate-950 transition-all text-sm font-bold text-slate-900"
-                        />
-                      </div>
-                      <div className="space-y-3">
-                        <label className="text-[12px] font-black uppercase tracking-[0.15em] text-slate-500 ml-1">
-                          Time Out
-                        </label>
-                        <input
-                          type="time"
-                          value={formData.out_time}
-                          onChange={(e) => setFormData({ ...formData, out_time: e.target.value })}
-                          className="w-full px-6 py-4 bg-white border-2 border-slate-200 rounded-[20px] focus:ring-0 focus:border-slate-950 transition-all text-sm font-bold text-slate-900"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Step 3: Geographic Coordinates */}
-                {currentStep === 3 && (
-                  <div className="space-y-8 animate-in fade-in slide-in-from-right-8 duration-600">
-                    <div className="space-y-3">
-                      <label className="text-[12px] font-black uppercase tracking-[0.15em] text-slate-400 ml-1">
-                        Site Address
-                      </label>
-                      <Input
-                        value={formData.site_address}
-                        onChange={(e) => setFormData({ ...formData, site_address: e.target.value })}
-                        placeholder="Enter the physical site address"
-                        className="h-14 rounded-[24px] bg-slate-50 border-2 border-slate-100 font-bold focus:bg-white focus:border-slate-950"
-                      />
-                    </div>
-
-                    <div className="space-y-3">
-                      <label className="text-[12px] font-black uppercase tracking-[0.15em] text-slate-400 ml-1">
-                        Location (Google Maps URL)
-                      </label>
-                      <div className="relative group">
-                        <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-slate-950" />
-                        <Input
-                          value={formData.location_url}
-                          onChange={(e) => setFormData({ ...formData, location_url: e.target.value })}
-                          placeholder="Paste Google Maps link"
-                          className="pl-12 h-14 rounded-[24px] bg-slate-50 border-2 border-slate-100 font-bold focus:bg-white focus:border-slate-950"
-                        />
-                      </div>
-                      <p className="text-[11px] font-bold text-slate-400 px-2 tracking-tight">
-                        Provide a Google Maps link for easy navigation to the site.
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {/* Step 4: Notes & Measurements */}
-                {currentStep === 4 && (
-                  <div className="space-y-8 animate-in fade-in slide-in-from-right-8 duration-600">
-                    <div className="space-y-3">
-                      <label className="text-[12px] font-black uppercase tracking-[0.15em] text-slate-400 ml-1">
-                        Discussion
-                      </label>
-                      <textarea
-                        value={formData.discussion_points}
-                        onChange={(e) => setFormData({ ...formData, discussion_points: e.target.value })}
-                        placeholder="Enter the details of what was discussed..."
-                        className="w-full p-6 h-36 bg-slate-50/50 border-2 border-slate-200 rounded-[32px] focus:ring-0 focus:border-slate-950 focus:bg-white transition-all text-sm font-semibold text-slate-900 resize-none shadow-sm"
-                      />
-                    </div>
-
-                    <div className="space-y-3">
-                      <label className="text-[12px] font-black uppercase tracking-[0.15em] text-slate-400 ml-1">
-                        Measurements
-                      </label>
-                      <textarea
-                        value={formData.measurements}
-                        onChange={(e) => setFormData({ ...formData, measurements: e.target.value })}
-                        placeholder="Enter measurements and technical details..."
-                        className="w-full p-6 h-36 bg-slate-50/50 border-2 border-slate-200 rounded-[32px] focus:ring-0 focus:border-slate-950 focus:bg-white transition-all text-sm font-bold text-slate-900 resize-none font-mono shadow-sm"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* Step 5: Review */}
-                {currentStep === 5 && (
-                  <div className="space-y-8 animate-in fade-in slide-in-from-right-8 duration-600">
-                    <div className="bg-slate-900 rounded-[40px] p-10 text-white shadow-2xl relative overflow-hidden">
-                       <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 blur-[80px] rounded-full" />
-                       <div className="absolute bottom-0 left-0 w-48 h-48 bg-emerald-500/10 blur-[60px] rounded-full" />
-
-                      <div className="relative z-10 space-y-8">
-                        <div className="flex items-center justify-between pb-6 border-b border-white/10">
-                          <div className="flex items-center gap-4">
-                             <div className="w-12 h-12 rounded-[18px] bg-white/10 backdrop-blur-md flex items-center justify-center text-emerald-400">
-                                <CheckCircle2 className="w-7 h-7" />
-                             </div>
-                             <div>
-                                <h4 className="text-xl font-black tracking-tight">Visit Summary</h4>
-                                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Review your entry</p>
-                             </div>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-y-8 gap-x-12">
-                          <div className="space-y-1.5">
-                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">Client</span>
-                            <p className="text-[16px] font-black tracking-tight">
-                               {clients?.find(c => c.id === formData.client_id)?.client_name || 'Undefined'}
-                            </p>
-                          </div>
-                          <div className="space-y-1.5">
-                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">Date</span>
-                            <p className="text-[16px] font-black tracking-tight">
-                               {formData.visit_date ? format(parseISO(formData.visit_date), 'MMMM d, yyyy') : 'Indeterminate'}
-                            </p>
-                          </div>
-                          <div className="space-y-1.5">
-                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">Status</span>
-                            <div className="flex items-center gap-2">
-                               <div className={cn("w-2 h-2 rounded-full", 
-                                  formData.status === 'completed' ? "bg-emerald-400" : "bg-amber-400"
-                               )} />
-                               <select
-                                value={formData.status}
-                                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                                className="text-[15px] font-black text-indigo-400 bg-transparent border-none p-0 focus:ring-0 cursor-pointer hover:text-indigo-300 transition-colors"
-                              >
-                                <option className="bg-slate-900" value="pending">Pending</option>
-                                <option className="bg-slate-900" value="scheduled">Scheduled</option>
-                                <option className="bg-slate-900" value="completed">Completed</option>
-                                <option className="bg-slate-900" value="postponed">Postponed</option>
-                                <option className="bg-slate-900" value="cancelled">Cancelled</option>
-                              </select>
-                            </div>
-                          </div>
-                          <div className="space-y-1.5">
-                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">Purpose</span>
-                            <p className="text-[16px] font-black tracking-tight text-slate-200">{formData.purpose_of_visit || 'Exploratory'}</p>
-                          </div>
-                        </div>
-
-                        <div className="pt-6 border-t border-white/10">
-                          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] block mb-3">Next Step</label>
-                          <Input
-                            value={formData.next_step}
-                            onChange={(e) => setFormData({ ...formData, next_step: e.target.value })}
-                            placeholder="What needs to be done next?"
-                            className="bg-white/5 border-white/10 rounded-[20px] font-bold text-white placeholder:text-slate-600 focus:bg-white/10 h-14"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Footer Navigation */}
-            <div className="p-10 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between">
-              <Button
-                variant="secondary"
-                onClick={() => currentStep > 1 ? setCurrentStep(currentStep - 1) : setIsFormOpen(false)}
-                className="h-14 px-8 rounded-2xl border-2 border-slate-200 font-black text-[13px] text-slate-600 hover:bg-white hover:border-slate-300 transition-all uppercase tracking-widest"
+              <button
+                onClick={() => setIsFormOpen(false)}
+                className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all border border-slate-100 hover:border-rose-100"
               >
-                {currentStep === 1 ? 'Cancel' : 'Previous Step'}
-              </Button>
-              <div className="flex items-center gap-4">
-                {currentStep < steps.length ? (
-                  <Button
-                    onClick={() => setCurrentStep(currentStep + 1)}
-                    disabled={!canProceedToNextStep()}
-                    className="h-14 px-10 rounded-[24px] bg-slate-950 hover:bg-slate-800 text-white font-black text-[13px] uppercase tracking-widest shadow-xl disabled:opacity-50 transition-all flex items-center gap-3"
-                  >
-                    Next
-                    <ArrowRight className="w-5 h-5" />
-                  </Button>
-                ) : (
-                  <Button
-                    onClick={handleFormSubmit}
-                    isLoading={addVisitMutation.isPending || updateVisitMutation.isPending}
-                    className="h-14 px-10 rounded-[24px] bg-indigo-600 hover:bg-indigo-700 text-white font-black text-[13px] uppercase tracking-widest shadow-xl transition-all flex items-center gap-3"
-                  >
-                    {selectedVisit ? 'Save Changes' : 'Save Visit'}
-                    <CheckCircle2 className="w-5 h-5" />
-                  </Button>
-                )}
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Progress Stepper */}
+            <div className="relative px-2">
+              <div className="flex items-center justify-between">
+                {steps.map((step, index) => (
+                  <React.Fragment key={step.number}>
+                    <div className="flex flex-col items-center relative z-10">
+                      <div
+                        className={cn(
+                          "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-500 border-2",
+                          currentStep > step.number
+                            ? "bg-emerald-500 border-emerald-400 text-white"
+                            : currentStep === step.number
+                            ? "bg-slate-900 border-slate-900 text-white ring-4 ring-slate-100"
+                            : "bg-white border-slate-200 text-slate-400"
+                        )}
+                      >
+                        {currentStep > step.number ? (
+                          <Check className="w-5 h-5" />
+                        ) : (
+                          <step.icon className={cn("w-5 h-5", currentStep === step.number ? "animate-pulse" : "")} />
+                        )}
+                      </div>
+                      <span
+                        className={cn(
+                          "mt-3 text-[11px] font-semibold tracking-wide transition-colors",
+                          currentStep >= step.number ? "text-slate-900" : "text-slate-400"
+                        )}
+                      >
+                        {step.title}
+                      </span>
+                    </div>
+                    {index < steps.length - 1 && (
+                      <div className="flex-1 h-[2px] mx-[-8px] mt-[-20px] relative bg-slate-100 self-center rounded-full overflow-hidden">
+                        <div
+                          className="absolute inset-y-0 left-0 bg-slate-900 transition-all duration-700 ease-in-out"
+                          style={{ width: currentStep > step.number ? '100%' : '0%' }}
+                        />
+                      </div>
+                    )}
+                  </React.Fragment>
+                ))}
               </div>
             </div>
           </div>
-        </div>
-      )}
+
+          {/* Form Canvas */}
+          <div className="px-8 py-6 bg-white max-h-[60vh] overflow-y-auto">
+            {/* Step 1: Basic Telemetry */}
+            {currentStep === 1 && (
+              <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                <div className="space-y-1.5">
+                  <Label htmlFor="client" className="text-xs font-semibold uppercase tracking-wider text-slate-500 ml-1">
+                    Client <span className="text-rose-500">*</span>
+                  </Label>
+                  <div className="relative">
+                    <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                    <Select
+                      id="client"
+                      value={formData.client_id}
+                      onChange={(e) => setFormData({ ...formData, client_id: e.target.value })}
+                      options={[
+                        { value: '', label: 'Select Client' },
+                        ...(clients?.map((c: any) => ({ value: c.id, label: c.client_name })) || [])
+                      ]}
+                      className="pl-10 h-11 rounded-xl font-medium text-sm"
+                    />
+                  </div>
+                  <button
+                    onClick={() => setIsAddClientModalOpen(true)}
+                    className="flex items-center gap-1.5 px-2 text-xs text-indigo-600 hover:text-indigo-700 font-semibold transition-colors"
+                  >
+                    <Plus className="w-3 h-3" />
+                    Add New Client
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="visit_date" className="text-xs font-semibold uppercase tracking-wider text-slate-500 ml-1">
+                      Date <span className="text-rose-500">*</span>
+                    </Label>
+                    <div className="relative">
+                      <CalendarIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                      <input
+                        id="visit_date"
+                        type="date"
+                        value={formData.visit_date}
+                        onChange={(e) => setFormData({ ...formData, visit_date: e.target.value })}
+                        className="w-full pl-10 pr-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="purpose" className="text-xs font-semibold uppercase tracking-wider text-slate-500 ml-1">
+                      Purpose <span className="text-rose-500">*</span>
+                    </Label>
+                    <div className="relative">
+                      <FileText className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                      <Select
+                        id="purpose"
+                        value={formData.purpose_of_visit}
+                        onChange={(e) => {
+                          if (e.target.value === 'ADD_NEW') {
+                            setIsAddPurposeModalOpen(true);
+                          } else {
+                            setFormData({ ...formData, purpose_of_visit: e.target.value });
+                          }
+                        }}
+                        options={[
+                          { value: '', label: 'Select Purpose' },
+                          ...(purposes?.map((p: any) => ({ value: p.name, label: p.name })) || []),
+                          { value: 'ADD_NEW', label: '+ Add New Purpose' }
+                        ]}
+                        className="pl-10 h-11 rounded-xl font-medium text-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Step 2: Resource Allocation */}
+            {currentStep === 2 && (
+              <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="visited_by" className="text-xs font-semibold uppercase tracking-wider text-slate-500 ml-1">
+                      Visited By
+                    </Label>
+                    <Input
+                      id="visited_by"
+                      value={formData.visited_by}
+                      onChange={(e) => setFormData({ ...formData, visited_by: e.target.value })}
+                      placeholder="Primary agent"
+                      className="h-11 rounded-xl text-sm"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="engineer" className="text-xs font-semibold uppercase tracking-wider text-slate-500 ml-1">
+                      Engineer
+                    </Label>
+                    <Input
+                      id="engineer"
+                      value={formData.engineer}
+                      onChange={(e) => setFormData({ ...formData, engineer: e.target.value })}
+                      placeholder="Specialist name"
+                      className="h-11 rounded-xl text-sm"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 bg-slate-50 p-5 rounded-xl border border-slate-100">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="visit_time" className="text-xs font-semibold uppercase tracking-wider text-slate-500 ml-1">
+                      Time In
+                    </Label>
+                    <input
+                      id="visit_time"
+                      type="time"
+                      value={formData.visit_time}
+                      onChange={(e) => setFormData({ ...formData, visit_time: e.target.value })}
+                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 transition-all"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="out_time" className="text-xs font-semibold uppercase tracking-wider text-slate-500 ml-1">
+                      Time Out
+                    </Label>
+                    <input
+                      id="out_time"
+                      type="time"
+                      value={formData.out_time}
+                      onChange={(e) => setFormData({ ...formData, out_time: e.target.value })}
+                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 transition-all"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Step 3: Geographic Coordinates */}
+            {currentStep === 3 && (
+              <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                <div className="space-y-1.5">
+                  <Label htmlFor="site_address" className="text-xs font-semibold uppercase tracking-wider text-slate-500 ml-1">
+                    Site Address
+                  </Label>
+                  <Input
+                    id="site_address"
+                    value={formData.site_address}
+                    onChange={(e) => setFormData({ ...formData, site_address: e.target.value })}
+                    placeholder="Enter the physical site address"
+                    className="h-11 rounded-xl text-sm"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="location_url" className="text-xs font-semibold uppercase tracking-wider text-slate-500 ml-1">
+                    Location (Google Maps URL)
+                  </Label>
+                  <div className="relative">
+                    <MapPin className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                    <Input
+                      id="location_url"
+                      value={formData.location_url}
+                      onChange={(e) => setFormData({ ...formData, location_url: e.target.value })}
+                      placeholder="Paste Google Maps link"
+                      className="pl-10 h-11 rounded-xl text-sm"
+                    />
+                  </div>
+                  <p className="text-xs text-slate-400 px-1">
+                    Provide a Google Maps link for easy navigation to the site.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Step 4: Notes & Measurements */}
+            {currentStep === 4 && (
+              <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                <div className="space-y-1.5">
+                  <Label htmlFor="discussion_points" className="text-xs font-semibold uppercase tracking-wider text-slate-500 ml-1">
+                    Discussion
+                  </Label>
+                  <Textarea
+                    id="discussion_points"
+                    value={formData.discussion_points}
+                    onChange={(e) => setFormData({ ...formData, discussion_points: e.target.value })}
+                    placeholder="Enter the details of what was discussed..."
+                    className="min-h-[100px] rounded-xl text-sm resize-none"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="measurements" className="text-xs font-semibold uppercase tracking-wider text-slate-500 ml-1">
+                    Measurements
+                  </Label>
+                  <Textarea
+                    id="measurements"
+                    value={formData.measurements}
+                    onChange={(e) => setFormData({ ...formData, measurements: e.target.value })}
+                    placeholder="Enter measurements and technical details..."
+                    className="min-h-[100px] rounded-xl text-sm resize-none"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Step 5: Review */}
+            {currentStep === 5 && (
+              <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                <div className="bg-slate-900 rounded-2xl p-6 text-white shadow-xl relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-40 h-40 bg-indigo-500/10 blur-[60px] rounded-full pointer-events-none" />
+                  <div className="absolute bottom-0 left-0 w-32 h-32 bg-emerald-500/10 blur-[40px] rounded-full pointer-events-none" />
+
+                  <div className="relative z-10 space-y-6">
+                    <div className="flex items-center gap-3 pb-5 border-b border-white/10">
+                      <div className="w-10 h-10 rounded-xl bg-white/10 backdrop-blur-sm flex items-center justify-center text-emerald-400">
+                        <CheckCircle2 className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h4 className="text-lg font-bold tracking-tight">Visit Summary</h4>
+                        <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Review your entry</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-x-8 gap-y-5">
+                      <div className="space-y-1">
+                        <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.15em]">Client</span>
+                        <p className="text-sm font-bold text-white">
+                          {clients?.find(c => c.id === formData.client_id)?.client_name || 'Not selected'}
+                        </p>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.15em]">Date</span>
+                        <p className="text-sm font-bold text-white">
+                          {formData.visit_date ? format(parseISO(formData.visit_date), 'MMMM d, yyyy') : 'Not set'}
+                        </p>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.15em]">Status</span>
+                        <div className="flex items-center gap-2">
+                          <div className={cn("w-2 h-2 rounded-full",
+                            formData.status === 'completed' ? "bg-emerald-400" : "bg-amber-400"
+                          )} />
+                          <select
+                            value={formData.status}
+                            onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                            className="text-sm font-bold text-indigo-300 bg-transparent border-none p-0 focus:ring-0 cursor-pointer hover:text-indigo-200 transition-colors"
+                          >
+                            <option className="bg-slate-900" value="pending">Pending</option>
+                            <option className="bg-slate-900" value="scheduled">Scheduled</option>
+                            <option className="bg-slate-900" value="completed">Completed</option>
+                            <option className="bg-slate-900" value="postponed">Postponed</option>
+                            <option className="bg-slate-900" value="cancelled">Cancelled</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.15em]">Purpose</span>
+                        <p className="text-sm font-bold text-slate-200">{formData.purpose_of_visit || 'Not set'}</p>
+                      </div>
+                    </div>
+
+                    <div className="pt-5 border-t border-white/10 space-y-2">
+                      <Label htmlFor="next_step" className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.15em]">
+                        Next Step
+                      </Label>
+                      <Input
+                        id="next_step"
+                        value={formData.next_step}
+                        onChange={(e) => setFormData({ ...formData, next_step: e.target.value })}
+                        placeholder="What needs to be done next?"
+                        className="bg-white/5 border-white/10 rounded-xl font-semibold text-white placeholder:text-slate-500 focus:bg-white/10 h-11 text-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Footer Navigation */}
+          <div className="px-8 py-5 bg-slate-50/60 border-t border-slate-100 flex items-center justify-between">
+            <Button
+              variant="secondary"
+              onClick={() => currentStep > 1 ? setCurrentStep(currentStep - 1) : setIsFormOpen(false)}
+              className="h-10 px-5 rounded-xl font-semibold text-sm text-slate-600 hover:text-slate-900"
+            >
+              {currentStep === 1 ? 'Cancel' : 'Previous'}
+            </Button>
+            <div className="flex items-center gap-3">
+              {currentStep < steps.length ? (
+                <Button
+                  onClick={() => setCurrentStep(currentStep + 1)}
+                  disabled={!canProceedToNextStep()}
+                  className="h-10 px-6 rounded-xl font-semibold text-sm"
+                >
+                  Next
+                  <ArrowRight className="w-4 h-4" />
+                </Button>
+              ) : (
+                <Button
+                  onClick={handleFormSubmit}
+                  isLoading={addVisitMutation.isPending || updateVisitMutation.isPending}
+                  className="h-10 px-6 rounded-xl font-semibold text-sm"
+                >
+                  {selectedVisit ? 'Save Changes' : 'Save Visit'}
+                  <CheckCircle2 className="w-4 h-4" />
+                </Button>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Add Client Modal */}
       <QuickAddClientModal
