@@ -37,21 +37,17 @@ import {
 } from '../components/ui/table';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, StatCard } from '../components/ui/Card';
 import { colors, shadows, radii, spacing, transitions } from '../design-system';
+import { queryKeys } from '../utils/queryKeys';
+import { timedSupabaseQuery } from '../utils/queryTimeout';
 
-export const DASHBOARD_QUERY_KEYS = {
-  todaySites: (date: string) => ['dashboard-today-sites', date] as const,
-  approvals: () => ['dashboard-approvals'] as const,
-  clientComms: () => ['dashboard-client-comms'] as const,
-  clientsLookup: () => ['dashboard-clients-lookup'] as const,
-  visitPlan: () => ['dashboard-visit-plan'] as const,
-  quotationApproval: () => ['dashboard-quotation-approval'] as const,
-  invoices: () => ['dashboard-invoices'] as const,
-  deliveryChallans: () => ['dashboard-delivery-challans'] as const,
-  recentUpdates: () => ['dashboard-recent-updates'] as const,
-  stats: () => ['dashboard-stats'] as const,
-  all: () => ['dashboard'] as const,
-} as const;
+// Re-export dashboard query keys for backward compatibility
+// Now using standardized queryKeys from utils/queryKeys.ts
+export { queryKeys as DASHBOARD_QUERY_KEYS };
 
+/**
+ * Invalidate dashboard queries
+ * Uses standardized query keys for proper cache coordination
+ */
 export function invalidateDashboardQueries(queryClient: ReturnType<typeof useQueryClient>, options?: {
   todaySites?: boolean;
   approvals?: boolean;
@@ -67,18 +63,18 @@ export function invalidateDashboardQueries(queryClient: ReturnType<typeof useQue
   const invalidateAll = !options || Object.values(options).every(v => v === undefined || v === true);
   
   const keysToInvalidate = [
-    invalidateAll || options?.todaySites ? DASHBOARD_QUERY_KEYS.todaySites(today) : null,
-    invalidateAll || options?.approvals ? DASHBOARD_QUERY_KEYS.approvals() : null,
-    invalidateAll || options?.clientComms ? DASHBOARD_QUERY_KEYS.clientComms() : null,
-    invalidateAll || options?.visitPlan ? DASHBOARD_QUERY_KEYS.visitPlan() : null,
-    invalidateAll || options?.quotationApproval ? DASHBOARD_QUERY_KEYS.quotationApproval() : null,
-    invalidateAll || options?.invoices ? DASHBOARD_QUERY_KEYS.invoices() : null,
-    invalidateAll || options?.deliveryChallans ? DASHBOARD_QUERY_KEYS.deliveryChallans() : null,
-    invalidateAll || options?.recentUpdates ? DASHBOARD_QUERY_KEYS.recentUpdates() : null,
-    invalidateAll || options?.stats ? DASHBOARD_QUERY_KEYS.stats() : null,
+    invalidateAll || options?.todaySites ? queryKeys.dashboard.todaySites(today) : null,
+    invalidateAll || options?.approvals ? queryKeys.dashboard.approvals() : null,
+    invalidateAll || options?.clientComms ? queryKeys.dashboard.clientComms() : null,
+    invalidateAll || options?.visitPlan ? queryKeys.dashboard.visitPlan() : null,
+    invalidateAll || options?.quotationApproval ? queryKeys.dashboard.quotationApproval() : null,
+    invalidateAll || options?.invoices ? queryKeys.dashboard.invoices() : null,
+    invalidateAll || options?.deliveryChallans ? queryKeys.dashboard.deliveryChallans() : null,
+    invalidateAll || options?.recentUpdates ? queryKeys.dashboard.recentUpdates() : null,
+    invalidateAll || options?.stats ? queryKeys.dashboard.stats() : null,
   ].filter(Boolean);
 
-  queryClient.invalidateQueries({ queryKey: DASHBOARD_QUERY_KEYS.all() });
+  queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all() });
   keysToInvalidate.forEach(key => {
     if (key) queryClient.invalidateQueries({ queryKey: key });
   });
@@ -267,47 +263,70 @@ function DashboardCard({ title, icon, iconColor, children, action }: DashboardCa
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function StatsOverview() {
+  const { organisation } = useAuth();
   const today = format(new Date(), 'yyyy-MM-dd');
   const monthStart = startOfMonth(new Date());
   const monthEnd = endOfMonth(new Date());
 
+  // Using standardized query keys and parallel queries for optimal performance
   const { data: stats, isLoading } = useQuery({
-    queryKey: DASHBOARD_QUERY_KEYS.stats(),
+    queryKey: queryKeys.dashboard.stats(),
     queryFn: async () => {
+      // Parallel execution for optimal performance
       const [
         todaySitesRes,
         pendingApprovalsRes,
         monthInvoicesRes,
         activeProjectsRes,
       ] = await Promise.all([
-        supabase
-          .from('site_visits')
-          .select('id', { count: 'exact', head: true })
-          .eq('visit_date', today),
-        supabase
-          .from('quotation_header')
-          .select('id', { count: 'exact', head: true })
-          .in('status', ['Pending Approval', 'Draft']),
-        supabase
-          .from('project_invoices')
-          .select('total_amount')
-          .gte('invoice_date', format(monthStart, 'yyyy-MM-dd'))
-          .lte('invoice_date', format(monthEnd, 'yyyy-MM-dd')),
-        supabase
-          .from('projects')
-          .select('id', { count: 'exact', head: true })
-          .eq('status', 'Active'),
+        timedSupabaseQuery(
+          supabase
+            .from('site_visits')
+            .select('id', { count: 'exact', head: true })
+            .eq('visit_date', today)
+            .eq('organisation_id', organisation?.id),
+          'Dashboard - Today Sites'
+        ),
+        timedSupabaseQuery(
+          supabase
+            .from('quotation_header')
+            .select('id', { count: 'exact', head: true })
+            .in('status', ['Pending Approval', 'Draft'])
+            .eq('organisation_id', organisation?.id),
+          'Dashboard - Pending Approvals'
+        ),
+        timedSupabaseQuery(
+          supabase
+            .from('project_invoices')
+            .select('total_amount')
+            .gte('invoice_date', format(monthStart, 'yyyy-MM-dd'))
+            .lte('invoice_date', format(monthEnd, 'yyyy-MM-dd'))
+            .eq('organisation_id', organisation?.id),
+          'Dashboard - Month Invoices'
+        ),
+        timedSupabaseQuery(
+          supabase
+            .from('projects')
+            .select('id', { count: 'exact', head: true })
+            .eq('status', 'Active')
+            .eq('organisation_id', organisation?.id),
+          'Dashboard - Active Projects'
+        ),
       ]);
 
-      const monthRevenue = (monthInvoicesRes.data || []).reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
+      const monthRevenue = (monthInvoicesRes?.data || []).reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
 
       return {
-        todaySites: todaySitesRes.count || 0,
-        pendingApprovals: pendingApprovalsRes.count || 0,
+        todaySites: todaySitesRes?.count || 0,
+        pendingApprovals: pendingApprovalsRes?.count || 0,
         monthRevenue,
-        activeProjects: activeProjectsRes.count || 0,
+        activeProjects: activeProjectsRes?.count || 0,
       };
     },
+    enabled: !!organisation?.id,
+    staleTime: 5 * 60 * 1000, // 5 min
+    gcTime: 10 * 60 * 1000,   // 10 min
+    refetchOnWindowFocus: false,
   });
 
   if (isLoading) {

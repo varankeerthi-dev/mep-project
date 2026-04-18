@@ -5,6 +5,7 @@ import type { User } from '@supabase/supabase-js';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import Sidebar from './components/Sidebar';
+import ErrorBoundary from './components/ErrorBoundary';
 import { supabase, getUserOrganisations, createOrganization, signOut } from './supabase';
 import { queryClient } from './queryClient';
 import LandingPage from './pages/LandingPage';
@@ -99,6 +100,27 @@ const ROUTE_SECTIONS: Record<string, ImportFactory[]> = {
 const lazyAny = (
   factory: () => Promise<{ default: ComponentType<any> }>
 ): LazyExoticComponent<ComponentType<any>> => lazy(factory);
+
+// --- PAGE ERROR FALLBACK ---
+const PageErrorFallback = () => (
+  <div className="flex flex-col h-full items-center justify-center bg-white p-8">
+    <div className="text-center max-w-md">
+      <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-red-100 flex items-center justify-center">
+        <svg className="w-8 h-8 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+      </div>
+      <h2 className="text-xl font-semibold text-gray-900 mb-2">Something went wrong</h2>
+      <p className="text-gray-600 mb-6">This page encountered an unexpected error.</p>
+      <button
+        onClick={() => window.location.reload()}
+        className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+      >
+        Reload Page
+      </button>
+    </div>
+  </div>
+);
 
 // --- SKELETON LOADING COMPONENT ---
 const PageSkeleton = () => (
@@ -636,9 +658,14 @@ export default function App() {
         
         <Sidebar currentPath={currentPath} onNavigate={handleSidebarNavigate} collapsed={sidebarCollapsed} onToggle={handleSidebarToggle} mobileOpen={mobileSidebarOpen} />
         <main className={`main-content ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
-          <Suspense fallback={<PageSkeleton />}>
-            {renderedPage}
-          </Suspense>
+          <ErrorBoundary
+            fallback={<PageErrorFallback />}
+            onError={(error) => console.error('[App] Page error:', error.message)}
+          >
+            <Suspense fallback={<PageSkeleton />}>
+              {renderedPage}
+            </Suspense>
+          </ErrorBoundary>
         </main>
       </div>
       <ReactQueryDevtools initialIsOpen={false} />
