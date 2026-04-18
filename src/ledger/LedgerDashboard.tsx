@@ -163,6 +163,13 @@ export default function LedgerDashboard() {
   const [openingBalanceEditMode, setOpeningBalanceEditMode] = useState(false);
   const [openingBalanceDrafts, setOpeningBalanceDrafts] = useState<Record<string, BulkOpeningBalanceInput>>({});
 
+  // Enquiry mode - new design
+  const [enquiryDone, setEnquiryDone] = useState(false);
+  const [enquiryType, setEnquiryType] = useState<'client' | 'date'>('client');
+  const [enquiryClientId, setEnquiryClientId] = useState<string | null>(null);
+  const [enquiryStartDate, setEnquiryStartDate] = useState(() => getPresetRange('monthly').startDate);
+  const [enquiryEndDate, setEnquiryEndDate] = useState(() => getPresetRange('monthly').endDate);
+
   const clientsQuery = useQuery({
     queryKey: ['ledger', 'clients', orgId],
     queryFn: () => listLedgerClients(orgId),
@@ -246,13 +253,13 @@ export default function LedgerDashboard() {
   const invoicesQuery = useQuery({
     queryKey: ['ledger', 'invoices', orgId, appliedStartDate, appliedEndDate],
     queryFn: () => listLedgerInvoices(orgId, { startDate: appliedStartDate, endDate: appliedEndDate }),
-    enabled: Boolean(orgId),
+    enabled: Boolean(orgId) && enquiryDone,
   });
 
   const receiptsQuery = useQuery({
     queryKey: ['ledger', 'receipts', orgId, appliedStartDate, appliedEndDate],
     queryFn: () => listLedgerReceipts(orgId, { startDate: appliedStartDate, endDate: appliedEndDate }),
-    enabled: Boolean(orgId),
+    enabled: Boolean(orgId) && enquiryDone,
   });
 
   const paymentForm = useForm<RecordPaymentValues>({
@@ -505,6 +512,114 @@ export default function LedgerDashboard() {
     );
   }
 
+  // Enquiry Landing UI
+  if (!enquiryDone) {
+    return (
+      <div className="min-h-screen bg-zinc-50/50">
+        <div className="mx-auto max-w-2xl px-6 py-8">
+          {/* Header */}
+          <div className="mb-8">
+            <span className="text-xs font-medium uppercase tracking-widest text-zinc-400">
+              Finance
+            </span>
+            <h1 className="mt-2 text-2xl font-semibold tracking-tight text-zinc-950">
+              Ledger
+            </h1>
+            <p className="mt-1 text-sm text-zinc-500">
+              View client outstanding, invoices, and payment history
+            </p>
+          </div>
+
+          {/* Enquiry Card */}
+          <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
+            <h2 className="text-sm font-medium text-zinc-900 mb-4">Enquiry Type</h2>
+            
+            {/* Enquiry Type Toggle */}
+            <div className="flex gap-2 mb-6">
+              <button
+                type="button"
+                onClick={() => setEnquiryType('client')}
+                className={`flex-1 rounded-lg border px-4 py-3 text-sm font-medium transition ${
+                  enquiryType === 'client'
+                    ? 'border-zinc-800 bg-zinc-900 text-white'
+                    : 'border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50'
+                }`}
+              >
+                Single Client
+              </button>
+              <button
+                type="button"
+                onClick={() => setEnquiryType('date')}
+                className={`flex-1 rounded-lg border px-4 py-3 text-sm font-medium transition ${
+                  enquiryType === 'date'
+                    ? 'border-zinc-800 bg-zinc-900 text-white'
+                    : 'border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50'
+                }`}
+              >
+                Date-Wise Report
+              </button>
+            </div>
+
+            {/* Enquiry Fields */}
+            <div className="grid gap-4 md:grid-cols-2 mb-6">
+              {enquiryType === 'client' && (
+                <div className="md:col-span-2">
+                  <label className="text-xs font-medium text-zinc-600 mb-1.5 block">Client</label>
+                  <select
+                    value={enquiryClientId || ''}
+                    onChange={(e) => setEnquiryClientId(e.target.value || null)}
+                    className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-200"
+                  >
+                    <option value="">Select client...</option>
+                    {(clientsQuery.data || []).map((client) => (
+                      <option key={client.id} value={client.id}>
+                        {client.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div>
+                <label className="text-xs font-medium text-zinc-600 mb-1.5 block">From Date</label>
+                <input
+                  type="date"
+                  value={enquiryStartDate}
+                  onChange={(e) => setEnquiryStartDate(e.target.value)}
+                  className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-200"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-zinc-600 mb-1.5 block">To Date</label>
+                <input
+                  type="date"
+                  value={enquiryEndDate}
+                  onChange={(e) => setEnquiryEndDate(e.target.value)}
+                  className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-200"
+                />
+              </div>
+            </div>
+
+            {/* Search Button */}
+            <button
+              type="button"
+              onClick={() => {
+                setAppliedStartDate(enquiryStartDate);
+                setAppliedEndDate(enquiryEndDate);
+                setSelectedClientId(enquiryClientId);
+                setEnquiryDone(true);
+              }}
+              disabled={enquiryType === 'client' && !enquiryClientId}
+              className="w-full rounded-lg bg-zinc-900 px-4 py-3 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Search Ledger
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-zinc-50/50">
       <div className="mx-auto max-w-7xl px-6 py-8">
@@ -512,45 +627,46 @@ export default function LedgerDashboard() {
         <div className="mb-8 flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <span className="text-xs font-medium uppercase tracking-widest text-zinc-400">
-              Ledger Overview
+              Finance
             </span>
-            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-zinc-950">
-              Outstanding & Receipts
+            <h1 className="mt-2 text-2xl font-semibold tracking-tight text-zinc-950">
+              Ledger
             </h1>
-            <p className="mt-2 max-w-xl text-sm leading-relaxed text-zinc-500">
-              Org-scoped client ledger with outstanding balances, overdue aging, payment capture, and printable statements.
+            <p className="mt-1 text-sm text-zinc-500">
+              {enquiryType === 'client' 
+                ? `Client: ${clients.find(c => c.id === selectedClientId)?.name || 'Unknown'}`
+                : 'All Clients'
+              } | {enquiryStartDate} - {enquiryEndDate}
             </p>
           </div>
+          <button
+            type="button"
+            onClick={() => setEnquiryDone(false)}
+            className="text-sm text-zinc-500 hover:text-zinc-700"
+          >
+            Change Enquiry
+          </button>
         </div>
 
         {/* Stats Cards */}
         <section className="mb-8 grid gap-4 md:grid-cols-3">
-          <div className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
-            <div className="mb-3 inline-flex rounded-lg bg-zinc-100 p-2.5 text-zinc-600">
-              <Wallet size={16} strokeWidth={1.5} />
-            </div>
-            <div className="text-xs font-medium uppercase tracking-wider text-zinc-400">Outstanding</div>
-            <div className="mt-1.5 text-2xl font-semibold tracking-tight text-zinc-950">
+          <div className="rounded-xl border border-zinc-200 bg-white p-5">
+            <div className="text-xs font-medium text-zinc-500">Outstanding</div>
+            <div className="mt-1 text-2xl font-semibold text-zinc-950">
               {formatCurrency(dashboardTotals.totalOutstanding)}
             </div>
           </div>
 
-          <div className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
-            <div className="mb-3 inline-flex rounded-lg bg-zinc-100 p-2.5 text-zinc-600">
-              <Landmark size={16} strokeWidth={1.5} />
-            </div>
-            <div className="text-xs font-medium uppercase tracking-wider text-zinc-400">Invoice Debits</div>
-            <div className="mt-1.5 text-2xl font-semibold tracking-tight text-zinc-950">
+          <div className="rounded-xl border border-zinc-200 bg-white p-5">
+            <div className="text-xs font-medium text-zinc-500">Invoice Debits</div>
+            <div className="mt-1 text-2xl font-semibold text-zinc-950">
               {formatCurrency(dashboardTotals.totalDebits)}
             </div>
           </div>
 
-          <div className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm">
-            <div className="mb-3 inline-flex rounded-lg bg-zinc-100 p-2.5 text-zinc-600">
-              <Filter size={16} strokeWidth={1.5} />
-            </div>
-            <div className="text-xs font-medium uppercase tracking-wider text-zinc-400">Receipt Credits</div>
-            <div className="mt-1.5 text-2xl font-semibold tracking-tight text-zinc-950">
+          <div className="rounded-xl border border-zinc-200 bg-white p-5">
+            <div className="text-xs font-medium text-zinc-500">Receipt Credits</div>
+            <div className="mt-1 text-2xl font-semibold text-zinc-950">
               {formatCurrency(dashboardTotals.totalCredits)}
             </div>
           </div>
