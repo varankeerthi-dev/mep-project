@@ -531,15 +531,15 @@ export default function LedgerDashboard() {
           </div>
 
           {/* Enquiry Card */}
-          <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
-            <h2 className="text-sm font-medium text-zinc-700 mb-4">Enquiry Type</h2>
+          <div className="rounded-xl border border-zinc-200 bg-white p-8 shadow-sm">
+            <h2 className="text-sm font-medium text-zinc-700 mb-6">Enquiry Type</h2>
             
             {/* Enquiry Type Toggle */}
-            <div className="flex gap-2 mb-6">
+            <div className="flex gap-3 mb-8">
               <button
                 type="button"
                 onClick={() => setEnquiryType('client')}
-                className={`flex-1 rounded-lg border px-4 py-3 text-sm font-medium transition ${
+                className={`flex-1 rounded-lg border px-5 py-3.5 text-sm font-medium transition ${
                   enquiryType === 'client'
                     ? 'border-zinc-400 bg-zinc-600 text-white'
                     : 'border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50'
@@ -550,7 +550,7 @@ export default function LedgerDashboard() {
               <button
                 type="button"
                 onClick={() => setEnquiryType('date')}
-                className={`flex-1 rounded-lg border px-4 py-3 text-sm font-medium transition ${
+                className={`flex-1 rounded-lg border px-5 py-3.5 text-sm font-medium transition ${
                   enquiryType === 'date'
                     ? 'border-zinc-400 bg-zinc-600 text-white'
                     : 'border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50'
@@ -561,10 +561,10 @@ export default function LedgerDashboard() {
             </div>
 
             {/* Enquiry Fields */}
-            <div className="grid gap-4 md:grid-cols-2 mb-6">
+            <div className="grid gap-6 md:grid-cols-2 mb-8">
               {enquiryType === 'client' && (
                 <div className="md:col-span-2">
-                  <label className="text-xs font-medium text-zinc-600 mb-1.5 block">Client</label>
+                  <label className="text-sm font-medium text-zinc-600 mb-3 block">Client</label>
                   <select
                     value={enquiryClientId || ''}
                     onChange={(e) => setEnquiryClientId(e.target.value || null)}
@@ -580,24 +580,24 @@ export default function LedgerDashboard() {
                 </div>
               )}
 
-              <div>
-                <label className="text-xs font-medium text-zinc-600 mb-1.5 block">From Date</label>
-                <input
-                  type="date"
-                  value={enquiryStartDate}
-                  onChange={(e) => setEnquiryStartDate(e.target.value)}
-                  className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-200"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-zinc-600 mb-1.5 block">To Date</label>
-                <input
-                  type="date"
-                  value={enquiryEndDate}
-                  onChange={(e) => setEnquiryEndDate(e.target.value)}
-                  className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-200"
-                />
-              </div>
+<div>
+                  <label className="text-sm font-medium text-zinc-600 mb-3 block">From Date</label>
+                  <input
+                    type="date"
+                    value={enquiryStartDate}
+                    onChange={(e) => setEnquiryStartDate(e.target.value)}
+                    className="w-full rounded-lg border border-zinc-200 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-200"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-zinc-600 mb-3 block">To Date</label>
+                  <input
+                    type="date"
+                    value={enquiryEndDate}
+                    onChange={(e) => setEnquiryEndDate(e.target.value)}
+                    className="w-full rounded-lg border border-zinc-200 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-200"
+                  />
+                </div>
             </div>
 
             {/* Search Button */}
@@ -610,7 +610,7 @@ export default function LedgerDashboard() {
                 setEnquiryDone(true);
               }}
               disabled={enquiryType === 'client' && !enquiryClientId}
-              className="w-full rounded-lg bg-zinc-600 px-4 py-3 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full rounded-lg bg-zinc-600 px-5 py-4 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Search Ledger
             </button>
