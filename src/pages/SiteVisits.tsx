@@ -632,9 +632,9 @@ export function SiteVisits() {
 
       {/* Multi-Step Form Modal */}
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-        <DialogContent className="max-w-2xl p-0 gap-0 overflow-hidden rounded-2xl shadow-2xl border border-slate-200/60">
+        <DialogContent className="w-full max-w-[800px] p-0 gap-0 overflow-hidden rounded-2xl shadow-2xl border border-slate-200/60">
           {/* Form Header */}
-          <div className="px-8 pt-8 pb-6 border-b border-slate-100 bg-gradient-to-br from-slate-50/60 to-white">
+          <div className="px-8 pt-8 pb-6 border-b border-slate-100 bg-slate-50">
             <div className="flex items-center justify-between mb-8">
               <div>
                 <DialogTitle className="text-2xl font-bold text-slate-900 tracking-tight leading-tight m-0">
@@ -698,16 +698,16 @@ export function SiteVisits() {
           </div>
 
           {/* Form Canvas */}
-          <div className="px-8 py-6 bg-white max-h-[60vh] overflow-y-auto">
+          <div className="px-10 py-8 bg-slate-50 max-h-[60vh] overflow-y-auto">
             {/* Step 1: Basic Telemetry */}
             {currentStep === 1 && (
-              <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-                <div className="space-y-1.5">
-                  <Label htmlFor="client" className="text-xs font-semibold uppercase tracking-wider text-slate-500 ml-1">
+              <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
+                <div className="space-y-3">
+                  <Label htmlFor="client" className="text-sm font-medium text-slate-700">
                     Client <span className="text-rose-500">*</span>
                   </Label>
                   <div className="relative">
-                    <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                    <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                     <Select
                       id="client"
                       value={formData.client_id}
@@ -716,41 +716,41 @@ export function SiteVisits() {
                         { value: '', label: 'Select Client' },
                         ...(clients?.map((c: any) => ({ value: c.id, label: c.client_name })) || [])
                       ]}
-                      className="pl-10 h-11 rounded-xl font-medium text-sm"
+                      className="pl-11 h-12 rounded-xl text-sm"
                     />
                   </div>
                   <button
                     onClick={() => setIsAddClientModalOpen(true)}
-                    className="flex items-center gap-1.5 px-2 text-xs text-indigo-600 hover:text-indigo-700 font-semibold transition-colors"
+                    className="flex items-center gap-1.5 px-2 text-sm text-indigo-600 hover:text-indigo-700 font-medium transition-colors"
                   >
-                    <Plus className="w-3 h-3" />
+                    <Plus className="w-3.5 h-3.5" />
                     Add New Client
                   </button>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="visit_date" className="text-xs font-semibold uppercase tracking-wider text-slate-500 ml-1">
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="space-y-3">
+                    <Label htmlFor="visit_date" className="text-sm font-medium text-slate-700">
                       Date <span className="text-rose-500">*</span>
                     </Label>
                     <div className="relative">
-                      <CalendarIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                      <CalendarIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                       <input
                         id="visit_date"
                         type="date"
                         value={formData.visit_date}
                         onChange={(e) => setFormData({ ...formData, visit_date: e.target.value })}
-                        className="w-full pl-10 pr-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 transition-all"
+                        className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 transition-all"
                       />
                     </div>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <Label htmlFor="purpose" className="text-xs font-semibold uppercase tracking-wider text-slate-500 ml-1">
+                  <div className="space-y-3">
+                    <Label htmlFor="purpose" className="text-sm font-medium text-slate-700">
                       Purpose <span className="text-rose-500">*</span>
                     </Label>
                     <div className="relative">
-                      <FileText className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                      <FileText className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                       <Select
                         id="purpose"
                         value={formData.purpose_of_visit}
@@ -766,7 +766,7 @@ export function SiteVisits() {
                           ...(purposes?.map((p: any) => ({ value: p.name, label: p.name })) || []),
                           { value: 'ADD_NEW', label: '+ Add New Purpose' }
                         ]}
-                        className="pl-10 h-11 rounded-xl font-medium text-sm"
+                        className="pl-11 h-12 rounded-xl text-sm"
                       />
                     </div>
                   </div>
@@ -776,10 +776,10 @@ export function SiteVisits() {
 
             {/* Step 2: Resource Allocation */}
             {currentStep === 2 && (
-              <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="visited_by" className="text-xs font-semibold uppercase tracking-wider text-slate-500 ml-1">
+              <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="space-y-3">
+                    <Label htmlFor="visited_by" className="text-sm font-medium text-slate-700">
                       Visited By
                     </Label>
                     <Input
@@ -787,12 +787,12 @@ export function SiteVisits() {
                       value={formData.visited_by}
                       onChange={(e) => setFormData({ ...formData, visited_by: e.target.value })}
                       placeholder="Primary agent"
-                      className="h-11 rounded-xl text-sm"
+                      className="h-12 rounded-xl text-sm"
                     />
                   </div>
 
-                  <div className="space-y-1.5">
-                    <Label htmlFor="engineer" className="text-xs font-semibold uppercase tracking-wider text-slate-500 ml-1">
+                  <div className="space-y-3">
+                    <Label htmlFor="engineer" className="text-sm font-medium text-slate-700">
                       Engineer
                     </Label>
                     <Input
@@ -800,14 +800,14 @@ export function SiteVisits() {
                       value={formData.engineer}
                       onChange={(e) => setFormData({ ...formData, engineer: e.target.value })}
                       placeholder="Specialist name"
-                      className="h-11 rounded-xl text-sm"
+                      className="h-12 rounded-xl text-sm"
                     />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 bg-slate-50 p-5 rounded-xl border border-slate-100">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="visit_time" className="text-xs font-semibold uppercase tracking-wider text-slate-500 ml-1">
+                <div className="grid grid-cols-2 gap-6 bg-white p-6 rounded-xl border border-slate-200">
+                  <div className="space-y-3">
+                    <Label htmlFor="visit_time" className="text-sm font-medium text-slate-700">
                       Time In
                     </Label>
                     <input
@@ -815,11 +815,11 @@ export function SiteVisits() {
                       type="time"
                       value={formData.visit_time}
                       onChange={(e) => setFormData({ ...formData, visit_time: e.target.value })}
-                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 transition-all"
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 transition-all"
                     />
                   </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="out_time" className="text-xs font-semibold uppercase tracking-wider text-slate-500 ml-1">
+                  <div className="space-y-3">
+                    <Label htmlFor="out_time" className="text-sm font-medium text-slate-700">
                       Time Out
                     </Label>
                     <input
@@ -827,7 +827,7 @@ export function SiteVisits() {
                       type="time"
                       value={formData.out_time}
                       onChange={(e) => setFormData({ ...formData, out_time: e.target.value })}
-                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 transition-all"
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-400 transition-all"
                     />
                   </div>
                 </div>
@@ -836,9 +836,9 @@ export function SiteVisits() {
 
             {/* Step 3: Geographic Coordinates */}
             {currentStep === 3 && (
-              <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-                <div className="space-y-1.5">
-                  <Label htmlFor="site_address" className="text-xs font-semibold uppercase tracking-wider text-slate-500 ml-1">
+              <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
+                <div className="space-y-3">
+                  <Label htmlFor="site_address" className="text-sm font-medium text-slate-700">
                     Site Address
                   </Label>
                   <Input
@@ -846,25 +846,25 @@ export function SiteVisits() {
                     value={formData.site_address}
                     onChange={(e) => setFormData({ ...formData, site_address: e.target.value })}
                     placeholder="Enter the physical site address"
-                    className="h-11 rounded-xl text-sm"
+                    className="h-12 rounded-xl text-sm"
                   />
                 </div>
 
-                <div className="space-y-1.5">
-                  <Label htmlFor="location_url" className="text-xs font-semibold uppercase tracking-wider text-slate-500 ml-1">
+                <div className="space-y-3">
+                  <Label htmlFor="location_url" className="text-sm font-medium text-slate-700">
                     Location (Google Maps URL)
                   </Label>
                   <div className="relative">
-                    <MapPin className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                     <Input
                       id="location_url"
                       value={formData.location_url}
                       onChange={(e) => setFormData({ ...formData, location_url: e.target.value })}
                       placeholder="Paste Google Maps link"
-                      className="pl-10 h-11 rounded-xl text-sm"
+                      className="pl-11 h-12 rounded-xl text-sm"
                     />
                   </div>
-                  <p className="text-xs text-slate-400 px-1">
+                  <p className="text-sm text-slate-400 px-1">
                     Provide a Google Maps link for easy navigation to the site.
                   </p>
                 </div>
@@ -873,9 +873,9 @@ export function SiteVisits() {
 
             {/* Step 4: Notes & Measurements */}
             {currentStep === 4 && (
-              <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-                <div className="space-y-1.5">
-                  <Label htmlFor="discussion_points" className="text-xs font-semibold uppercase tracking-wider text-slate-500 ml-1">
+              <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
+                <div className="space-y-3">
+                  <Label htmlFor="discussion_points" className="text-sm font-medium text-slate-700">
                     Discussion
                   </Label>
                   <Textarea
@@ -883,12 +883,12 @@ export function SiteVisits() {
                     value={formData.discussion_points}
                     onChange={(e) => setFormData({ ...formData, discussion_points: e.target.value })}
                     placeholder="Enter the details of what was discussed..."
-                    className="min-h-[100px] rounded-xl text-sm resize-none"
+                    className="min-h-[120px] rounded-xl text-sm resize-none"
                   />
                 </div>
 
-                <div className="space-y-1.5">
-                  <Label htmlFor="measurements" className="text-xs font-semibold uppercase tracking-wider text-slate-500 ml-1">
+                <div className="space-y-3">
+                  <Label htmlFor="measurements" className="text-sm font-medium text-slate-700">
                     Measurements
                   </Label>
                   <Textarea
@@ -896,7 +896,7 @@ export function SiteVisits() {
                     value={formData.measurements}
                     onChange={(e) => setFormData({ ...formData, measurements: e.target.value })}
                     placeholder="Enter measurements and technical details..."
-                    className="min-h-[100px] rounded-xl text-sm resize-none"
+                    className="min-h-[120px] rounded-xl text-sm resize-none"
                   />
                 </div>
               </div>
