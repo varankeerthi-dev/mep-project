@@ -1,8 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../supabase';
+import { useAuth } from '../App';
 import { timedSupabaseQuery } from '../utils/queryTimeout';
 import { memo, useCallback } from 'react';
 import { formatCurrency } from '../utils/formatters';
+import { queryKeys } from '../utils/queryKeys';
 
 interface MaterialsPageData {
   materials: any[];
@@ -19,10 +21,26 @@ const isMissingRelationError = (error: any): boolean => {
   return code === '42P01' || /does not exist/i.test(message) || /schema cache/i.test(message);
 };
 
+/**
+ * Optimized Materials Page Data Hook
+ * 
+ * Fetches all materials-related data in PARALLEL using Promise.all.
+ * This replaces 6 separate sequential queries with a single parallel query.
+ * 
+ * Cache Strategy:
+ * - staleTime: 5 min - Data stays fresh for 5 minutes
+ * - gcTime: 10 min - Cache survives 10 minutes of inactivity
+ * - refetchOnWindowFocus: false - Prevent query storms on tab return
+ * - refetchOnMount: 'ifStale' - Only refetch if data is stale
+ */
 export function useMaterialsPageData(orgId?: string | null) {
+  const { organisation } = useAuth();
+  const effectiveOrgId = orgId ?? organisation?.id;
+
   return useQuery<MaterialsPageData>({
-    queryKey: ['materials-page-data', orgId],
+    queryKey: queryKeys.materialsPageData(effectiveOrgId),
     queryFn: async () => {
+      // Parallel execution of all queries for optimal performance
       const [
         materialsResult,
         stockResult,
@@ -35,7 +53,7 @@ export function useMaterialsPageData(orgId?: string | null) {
           supabase
             .from('materials')
             .select('*')
-            .eq('organisation_id', orgId)
+            .eq('organisation_id', effectiveOrgId)
             .order('name'),
           'Materials'
         ),
@@ -43,7 +61,7 @@ export function useMaterialsPageData(orgId?: string | null) {
         (async () => {
           try {
             return await timedSupabaseQuery(
-              supabase.from('item_stock').select('*').eq('organisation_id', orgId),
+              supabase.from('item_stock').select('*').eq('organisation_id', effectiveOrgId),
               'Item Stock'
             );
           } catch (error) {
@@ -58,7 +76,7 @@ export function useMaterialsPageData(orgId?: string | null) {
         (async () => {
           try {
             return await timedSupabaseQuery(
-              supabase.from('item_categories').select('*').eq('organisation_id', orgId).eq('is_active', true).order('category_name'),
+              supabase.from('item_categories').select('*').eq('organisation_id', effectiveOrgId).eq('is_active', true).order('category_name'),
               'Item Categories'
             );
           } catch (error) {
@@ -73,7 +91,7 @@ export function useMaterialsPageData(orgId?: string | null) {
         (async () => {
           try {
             return await timedSupabaseQuery(
-              supabase.from('item_units').select('*').eq('organisation_id', orgId).eq('is_active', true).order('unit_name'),
+              supabase.from('item_units').select('*').eq('organisation_id', effectiveOrgId).eq('is_active', true).order('unit_name'),
               'Item Units'
             );
           } catch (error) {
@@ -88,7 +106,7 @@ export function useMaterialsPageData(orgId?: string | null) {
         (async () => {
           try {
             return await timedSupabaseQuery(
-              supabase.from('company_variants').select('*').eq('organisation_id', orgId).eq('is_active', true).order('variant_name'),
+              supabase.from('company_variants').select('*').eq('organisation_id', effectiveOrgId).eq('is_active', true).order('variant_name'),
               'Company Variants'
             );
           } catch (error) {
@@ -103,7 +121,7 @@ export function useMaterialsPageData(orgId?: string | null) {
         (async () => {
           try {
             return await timedSupabaseQuery(
-              supabase.from('warehouses').select('*').eq('organisation_id', orgId).eq('is_active', true).order('warehouse_name'),
+              supabase.from('warehouses').select('*').eq('organisation_id', effectiveOrgId).eq('is_active', true).order('warehouse_name'),
               'Warehouses'
             );
           } catch (error) {
@@ -125,13 +143,18 @@ export function useMaterialsPageData(orgId?: string | null) {
         warehouses: warehousesResult || [],
       };
     },
-    enabled: !!orgId,
+    enabled: !!effectiveOrgId,
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
     refetchOnWindowFocus: false,
-    refetchOnMount: false,
+    refetchOnMount: 'ifStale',
   });
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MEMOIZED CELL COMPONENTS
+// These components are memoized to prevent unnecessary re-renders
+// ═══════════════════════════════════════════════════════════════════════════════
 
 export const MaterialNameCell = memo(function MaterialNameCell({ 
   material, 
@@ -235,6 +258,10 @@ export const MemoizedBoolCell = memo(function MemoizedBoolCell({
   return <span>{value ? 'Yes' : 'No'}</span>;
 });
 
+/**
+ * Hook for managing material table callbacks
+ * Returns memoized callbacks to prevent unnecessary re-renders
+ */
 export function useMaterialTableCallbacks(
   onEdit: (m: any) => void,
   onToggleActive: (m: any) => void,
@@ -252,6 +279,21 @@ export function useMaterialTableCallbacks(
     handleDelete,
     handleSelect,
   };
+}
+
+/**
+ * Create a memoized stock data map
+ * This is optimized for large datasets by avoiding repeated calculations
+ */
+export function useStockDataMap(stock: any[]) {
+  return useMemo(() => {
+    const stockMap: Record<string, number> = {};
+    for (const s of stock) {
+      if (!stockMap[s.item_id]) stockMap[s.item_id] = 0;
+      stockMap[s.item_id] += parseFloat(s.current_stock) || 0;
+    }
+    return stockMap;
+  }, [stock]);
 }
 
 export default useMaterialsPageData;
