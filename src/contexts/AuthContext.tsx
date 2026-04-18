@@ -2,8 +2,8 @@ import { createContext, useContext, useState, useEffect, type ReactNode } from '
 import type { User } from '@supabase/supabase-js';
 
 export type Organisation = {
-  id?: string;
-  name?: string;
+  id?: string | null;
+  name?: string | null;
   [key: string]: unknown;
 };
 
@@ -19,7 +19,7 @@ export type AuthContextValue = {
   organisations: OrganisationMember[];
   selectedOrganisation: Organisation | null;
   handleLogout: () => Promise<void>;
-  switchOrganisation: (orgId: string) => Promise<void>;
+  switchOrganisation: (org: Organisation) => void;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);

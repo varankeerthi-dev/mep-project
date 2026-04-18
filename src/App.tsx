@@ -629,7 +629,7 @@ export default function App() {
     selectedOrganisation: organisation,
     handleLogout,
     switchOrganisation: handleSelectOrganisation
-  }), [user, organisation, organisations]);
+  }), [user, organisation, organisations, handleLogout, handleSelectOrganisation]);
 
   return (
     <AuthContext.Provider value={authContextValue}>
