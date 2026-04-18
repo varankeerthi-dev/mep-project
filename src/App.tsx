@@ -235,6 +235,7 @@ type QuickAction =
 export default function App() {
   const location = useLocation();
   const routerNavigate = useNavigate();
+  const queryClient = useQueryClient();
   const [user, setUser] = useState<User | null>(null);
   const [organisation, setOrganisation] = useState<Organisation | null>(null);
   const [organisations, setOrganisations] = useState<OrganisationMember[]>([]);
@@ -249,6 +250,7 @@ export default function App() {
   const lastCheckRef = useRef(0);
   const isCheckingRef = useRef(false);
   const heartbeatAbortRef = useRef<AbortController | null>(null);
+  const lastRefetchRef = useRef<number>(0);
   // Stable ref to latest user so the focus handler never captures a stale closure
   const userRef = useRef(user);
   useEffect(() => { userRef.current = user; }, [user]);
@@ -499,8 +501,6 @@ export default function App() {
     // React Query handles data freshness via refetchOnWindowFocus: 'always' + staleTime.
     // This only checks if the Supabase session is still valid (token not expired).
     // Also handles independent data refetch on tab visibility (separate from auth check).
-    const queryClient = useQueryClient();
-    const lastRefetchRef = useRef<number>(0);
 
     const handleFocus = async () => {
       const now = Date.now();
