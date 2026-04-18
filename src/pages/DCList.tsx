@@ -87,7 +87,9 @@ export default function DCList() {
   const challans = challansQuery.data || [];
   const projects = projectsQuery.data || [];
   const templates = templatesQuery.data || [];
-  const loading = challansQuery.isLoading || projectsQuery.isLoading;
+  const loading = 
+    (challansQuery.isPending && !challansQuery.data) ||
+    (projectsQuery.isPending && !projectsQuery.data);
 
   const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;

@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo, useCallback, lazy, Suspense, useRef } fro
 import type { ComponentType, LazyExoticComponent } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import Sidebar from './components/Sidebar';
 import { supabase, getUserOrganisations, createOrganization, signOut } from './supabase';
@@ -497,6 +498,10 @@ export default function App() {
     // Validates auth session when user returns to tab after extended absence.
     // React Query handles data freshness via refetchOnWindowFocus: 'always' + staleTime.
     // This only checks if the Supabase session is still valid (token not expired).
+    // Also handles independent data refetch on tab visibility (separate from auth check).
+    const queryClient = useQueryClient();
+    const lastRefetchRef = useRef<number>(0);
+
     const handleFocus = async () => {
       const now = Date.now();
 
@@ -514,16 +519,17 @@ export default function App() {
       heartbeatAbortRef.current = new AbortController();
       const ctrl = heartbeatAbortRef.current;
 
-      try {
-        const sessionPromise = supabase.auth.getSession();
-        const timeoutPromise = new Promise<never>((_, reject) => {
-          const timer = setTimeout(() => reject(new Error('Session check timeout')), 5000);
-          ctrl.signal.addEventListener('abort', () => {
-            clearTimeout(timer);
-            reject(new Error('Aborted'));
-          });
+      // Part 1: Auth session check (existing logic)
+      const sessionPromise = supabase.auth.getSession();
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        const timer = setTimeout(() => reject(new Error('Session check timeout')), 5000);
+        ctrl.signal.addEventListener('abort', () => {
+          clearTimeout(timer);
+          reject(new Error('Aborted'));
         });
+      });
 
+      try {
         const { data: { session }, error } = await Promise.race([sessionPromise, timeoutPromise]) as any;
 
         if (!error && session?.user) {
@@ -539,6 +545,22 @@ export default function App() {
       } finally {
         isCheckingRef.current = false;
         heartbeatAbortRef.current = null;
+      }
+
+      // Part 2: Data refetch (INDEPENDENT of auth check)
+      // This runs regardless of auth check success/failure
+      const refetchNow = Date.now();
+      if (refetchNow - lastRefetchRef.current < 2000) {
+        return; // Debounce: prevent multiple refetches within 2 seconds
+      }
+      lastRefetchRef.current = refetchNow;
+
+      // Only refetch if tab is actually visible
+      if (document.visibilityState === 'visible') {
+        queryClient.refetchQueries({
+          type: 'active',  // Only currently mounted queries
+          stale: true,     // Only if data is older than staleTime (5 min)
+        });
       }
     };
 

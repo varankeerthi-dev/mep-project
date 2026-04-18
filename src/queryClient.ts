@@ -4,23 +4,20 @@ import { QueryClient } from '@tanstack/react-query';
 /**
  * Global React Query Client Configuration
  * 
- * How tab-return works (ZohoBooks-style):
- * - staleTime: 5min → Data served instantly from cache, no loading spinner
- * - refetchOnWindowFocus: 'always' → Background refetch when tab regains focus (only for stale data)
- * - refetchOnMount: true → Refetch stale data when component mounts
- * - gcTime: 30min → Cache survives long tab-away periods (no blank pages)
- * 
- * Flow: User returns to tab → sees cached data immediately → fresh data swaps in 2-5s background
+ * Hybrid refetch strategy:
+ * - Tab focus: manual via visibility handler (avoids double refetch)
+ * - Navigation: automatic on mount if data is stale (fixes sidebar navigation)
+ * - Reconnect: disabled (prevents network spikes)
  */
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5 * 60 * 1000,      // 5 min - data stays fresh in cache
-      gcTime: 30 * 60 * 1000,    // 30 min - cache survives long inactivity
-      refetchOnWindowFocus: false,  // ✅ CRITICAL: Prevent query storm on tab return
+      staleTime: 5 * 60 * 1000,        // 5 min - data is "fresh"
+      gcTime: 30 * 60 * 1000,          // 30 min - cache retention
+      refetchOnWindowFocus: false,    // ✅ Manual via visibility handler
+      refetchOnMount: true,             // ✅ CRITICAL FIX - refetch stale data on navigation
+      refetchOnReconnect: false,        // ✅ Prevent network spike
       retry: 1,
-      refetchOnMount: false,
-      refetchOnReconnect: false,     // ✅ CRITICAL: Prevent storm on network recovery
       networkMode: 'online',
     },
     mutations: {

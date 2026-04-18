@@ -289,8 +289,6 @@ export default function QuotationList() {
     enabled: !!organisation?.id,
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
-    refetchOnWindowFocus: false,
-    refetchOnMount: false,
   });
 
   const quotations = quotationsQuery.data || [];

@@ -53,7 +53,9 @@ export default function NonBillableDCList() {
 
   const challans = challansQuery.data || [];
   const projects = projectsQuery.data || [];
-  const loading = challansQuery.isLoading || projectsQuery.isLoading;
+  const loading = 
+    (challansQuery.isPending && !challansQuery.data) ||
+    (projectsQuery.isPending && !projectsQuery.data);
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;

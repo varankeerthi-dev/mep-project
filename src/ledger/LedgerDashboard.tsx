@@ -476,7 +476,10 @@ export default function LedgerDashboard() {
     setOpeningBalanceDrafts(drafts);
   };
 
-  const isLoading = clientsQuery.isLoading || invoicesQuery.isLoading || receiptsQuery.isLoading;
+  const isLoading = 
+    (clientsQuery.isPending && !clientsQuery.data) ||
+    (invoicesQuery.isPending && !invoicesQuery.data) ||
+    (receiptsQuery.isPending && !receiptsQuery.data);
 
   if (!orgId) {
     return (

@@ -635,7 +635,6 @@ export function SubcontractorDashboard({ onNavigate }: WithNavigate) {
       return data || [];
     },
     staleTime: STALE_TIME,
-    refetchOnWindowFocus: false,
     enabled: !!organisation?.id,
   });
 
