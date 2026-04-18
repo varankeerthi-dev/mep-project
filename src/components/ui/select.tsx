@@ -5,7 +5,6 @@ import { cn } from '@/lib/utils'
 type SelectItemOption = { value: string; label: string }
 
 type SelectProps = Omit<SelectHTMLAttributes<HTMLSelectElement>, 'onChange'> & {
-  items?: SelectItemOption[]
   options?: SelectItemOption[]
   label?: string
   error?: string
@@ -66,7 +65,6 @@ function extractItems(children: React.ReactNode): SelectItemOption[] {
 
 export function Select({
   className,
-  items,
   options,
   label,
   error,
@@ -77,7 +75,7 @@ export function Select({
   defaultValue,
   ...props
 }: SelectProps) {
-  const resolvedItems = items ?? options ?? extractItems(children)
+  const resolvedItems = options ?? extractItems(children)
   const triggerClass = extractTriggerClass(children)
   const placeholder = extractPlaceholder(children)
 

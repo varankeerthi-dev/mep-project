@@ -1,5 +1,6 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useDeferredValue } from 'react';
 import { supabase } from '../supabase';
 import { useAuth } from '../App';
 import { 
@@ -11,21 +12,16 @@ import {
   XCircle, 
   ChevronLeft, 
   ChevronRight,
-  LayoutDashboard,
+  ArrowRight,
+  User,
   CalendarDays,
   Search,
-  Camera,
-  FileText,
-  AlertCircle,
-  Settings2,
-  Filter,
   Trash2,
-  Pencil,
-  ArrowLeft,
-  ArrowRight,
+  AlertCircle,
   Check,
-  Map as MapIcon,
-  User
+  FileText,
+  Pencil,
+  Map as MapIcon
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { QuickAddClientModal } from '../components/QuickAddClientModal';
@@ -66,6 +62,7 @@ export function SiteVisits() {
   const [selectedVisit, setSelectedVisit] = useState<any | null>(null);
   const [visitToDelete, setVisitToDelete] = useState<any | null>(null);
   const [selectedVisits, setSelectedVisits] = useState<Array<string>>([]);
+  const [batchDeleteProgress, setBatchDeleteProgress] = useState<{ current: number; total: number } | null>(null);
 
   const toggleVisitSelection = (id: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
@@ -93,7 +90,13 @@ export function SiteVisits() {
   });
   
   const [searchQuery, setSearchQuery] = useState('');
+  const deferredSearchQuery = useDeferredValue(searchQuery);
   const [statusFilter, setStatusFilter] = useState('all');
+  
+  // Memoize status filter button onClick
+  const setStatusFilterCallback = useCallback((filter: string) => {
+    setStatusFilter(filter);
+  }, []);
   
   const defaultColumns = { date: true, client: true, visitedBy: true, status: true, nextStep: true, actions: true };
   const [visibleColumns, setVisibleColumns] = useState<Record<string, boolean>>(() => {
@@ -105,8 +108,15 @@ export function SiteVisits() {
     }
   });
 
+  // Debounced localStorage write
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    localStorage.setItem('siteVisitColumns', JSON.stringify(visibleColumns));
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    saveTimeoutRef.current = setTimeout(() => {
+      localStorage.setItem('siteVisitColumns', JSON.stringify(visibleColumns));
+    }, 500);
   }, [visibleColumns]);
 
   const queryClient = useQueryClient();
@@ -130,7 +140,8 @@ export function SiteVisits() {
       if (error) throw error;
       return data || [];
     },
-    enabled: !!organisation?.id
+    enabled: !!organisation?.id,
+    refetchInterval: 30000
   });
 
   const { data: clients } = useQuery({
@@ -146,7 +157,8 @@ export function SiteVisits() {
       if (error) throw error;
       return data || [];
     },
-    enabled: !!organisation?.id
+    enabled: !!organisation?.id,
+    refetchInterval: 30000
   });
 
   const { data: purposes } = useQuery({
@@ -234,6 +246,30 @@ export function SiteVisits() {
       toast.error(`Error deleting visit: ${error.message}`);
     },
   });
+
+  // Batch delete with sequential optimistic updates and progress tracking
+  const handleBatchDelete = useCallback(async (ids: string[]) => {
+    if (!window.confirm(`Are you sure you want to delete ${ids.length} selected visit(s)?`)) {
+      return;
+    }
+
+    setBatchDeleteProgress({ current: 0, total: ids.length });
+
+    for (let i = 0; i < ids.length; i++) {
+      // Optimistically remove from UI
+      setSelectedVisits(prev => prev.filter(id => id !== ids[i]));
+      
+      setBatchDeleteProgress({ current: i + 1, total: ids.length });
+
+      // Perform actual delete
+      deleteVisitMutation.mutate(ids[i]);
+      
+      // Small delay for visual feedback
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+
+    setBatchDeleteProgress(null);
+  }, [deleteVisitMutation]);
 
   const addClientMutation = useMutation({
     mutationFn: async (newClient: any) => {
@@ -342,30 +378,33 @@ export function SiteVisits() {
     });
   };
 
-  const handleAddPurpose = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleAddPurpose = (name: string) => {
+    if (name.trim()) {
+      addPurposeMutation.mutate({ name: name.trim() });
+    }
+  };
+
+  const [purposeName, setPurposeName] = useState('');
+  const handlePurposeSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const form = e.currentTarget;
-    const formDataObj = new FormData(form);
-    
-    addPurposeMutation.mutate({
-      name: formDataObj.get('name'),
-    });
+    handleAddPurpose(purposeName);
+    setPurposeName('');
   };
 
   const filteredVisits = useMemo(() => {
     if (!visits) return [];
     
     return visits.filter((visit: any) => {
-      const matchesSearch = searchQuery === '' || 
-        visit.clients?.client_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        visit.engineer?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        visit.visited_by?.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesSearch = deferredSearchQuery === '' || 
+        visit.clients?.client_name?.toLowerCase().includes(deferredSearchQuery.toLowerCase()) ||
+        visit.engineer?.toLowerCase().includes(deferredSearchQuery.toLowerCase()) ||
+        visit.visited_by?.toLowerCase().includes(deferredSearchQuery.toLowerCase());
       
       const matchesStatus = statusFilter === 'all' || visit.status === statusFilter;
       
       return matchesSearch && matchesStatus;
     });
-  }, [visits, searchQuery, statusFilter]);
+  }, [visits, deferredSearchQuery, statusFilter]);
 
   const toggleAll = () => {
     if (filteredVisits.length > 0 && selectedVisits.length === filteredVisits.length) {
@@ -423,16 +462,14 @@ export function SiteVisits() {
                 <Button
                   variant="danger"
                   className="h-12 px-6 rounded-xl font-bold text-[14px] shadow-xl hover:bg-rose-700 transition-all flex items-center gap-2"
-                  onClick={() => {
-                    if (window.confirm(`Are you sure you want to delete ${selectedVisits.length} selected visit(s)?`)) {
-                      // We can just call mutate sequentially for now, or build a bulk delete endpoint
-                      selectedVisits.forEach(id => deleteVisitMutation.mutate(id));
-                      setSelectedVisits([]);
-                    }
-                  }}
+                  onClick={() => handleBatchDelete(selectedVisits)}
+                  isLoading={batchDeleteProgress !== null}
                 >
                   <Trash2 className="w-4 h-4" />
-                  Delete Selected ({selectedVisits.length})
+                  {batchDeleteProgress 
+                    ? `Deleting ${batchDeleteProgress.current}/${batchDeleteProgress.total}...`
+                    : `Delete Selected (${selectedVisits.length})`
+                  }
                 </Button>
               )}
               <Button
@@ -490,7 +527,7 @@ export function SiteVisits() {
                 {['All', 'Pending', 'Scheduled', 'Completed'].map((filter) => (
                   <button
                     key={filter}
-                    onClick={() => setStatusFilter(filter.toLowerCase())}
+                    onClick={() => setStatusFilterCallback(filter.toLowerCase())}
                     className={cn(
                       "px-3 py-1.5 text-[12px] font-bold rounded-lg transition-all",
                       statusFilter === filter.toLowerCase() 
@@ -513,9 +550,63 @@ export function SiteVisits() {
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
             {/* Visits List */}
             {isLoadingVisits ? (
-              <div className="flex flex-col items-center justify-center py-32 gap-4">
-                <div className="w-10 h-10 border-4 border-slate-200 border-t-indigo-600 rounded-full animate-spin" />
-                <p className="text-sm font-bold text-slate-500 tracking-tight">Loading site visits...</p>
+              <div className="bg-white border border-slate-200/60 rounded-xl overflow-hidden shadow-sm">
+                <div className="overflow-x-auto">
+                  <Table className="w-full text-[13px]">
+                    <TableHeader className="bg-white border-b border-slate-200">
+                      <TableRow className="hover:bg-transparent">
+                        <TableHead className="w-12 px-4 py-3">
+                          <div className="w-5 h-5 bg-slate-100 rounded animate-pulse" />
+                        </TableHead>
+                        <TableHead className="px-4 py-3 font-semibold text-slate-600 whitespace-nowrap">Name ^</TableHead>
+                        <TableHead className="px-4 py-3 font-semibold text-slate-600 whitespace-nowrap">Phone number</TableHead>
+                        <TableHead className="px-4 py-3 font-semibold text-slate-600 whitespace-nowrap">Street name</TableHead>
+                        <TableHead className="px-4 py-3 font-semibold text-slate-600 whitespace-nowrap">Suburb</TableHead>
+                        <TableHead className="px-4 py-3 font-semibold text-slate-600 whitespace-nowrap">Postcode</TableHead>
+                        <TableHead className="px-4 py-3 font-semibold text-slate-600 whitespace-nowrap">Date added</TableHead>
+                        <TableHead className="px-4 py-3 font-semibold text-slate-600 whitespace-nowrap">Status</TableHead>
+                        <TableHead className="px-4 py-3 font-semibold text-slate-600 whitespace-nowrap">Rep</TableHead>
+                        <TableHead className="px-4 py-3 font-semibold text-slate-600 whitespace-nowrap">Last activity</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {Array.from({ length: 5 }).map((_, idx) => (
+                        <TableRow key={idx} className="border-b border-slate-100">
+                          <TableCell className="px-4 py-3.5">
+                            <div className="w-5 h-5 bg-slate-100 rounded animate-pulse" />
+                          </TableCell>
+                          <TableCell className="px-4 py-3.5">
+                            <div className="h-5 bg-slate-100 rounded animate-pulse w-32" />
+                          </TableCell>
+                          <TableCell className="px-4 py-3.5">
+                            <div className="h-5 bg-slate-100 rounded animate-pulse w-24" />
+                          </TableCell>
+                          <TableCell className="px-4 py-3.5">
+                            <div className="h-5 bg-slate-100 rounded animate-pulse w-36" />
+                          </TableCell>
+                          <TableCell className="px-4 py-3.5">
+                            <div className="h-5 bg-slate-100 rounded animate-pulse w-28" />
+                          </TableCell>
+                          <TableCell className="px-4 py-3.5">
+                            <div className="h-5 bg-slate-100 rounded animate-pulse w-20" />
+                          </TableCell>
+                          <TableCell className="px-4 py-3.5">
+                            <div className="h-5 bg-slate-100 rounded animate-pulse w-24" />
+                          </TableCell>
+                          <TableCell className="px-4 py-3.5">
+                            <div className="h-6 w-20 bg-slate-100 rounded-md animate-pulse" />
+                          </TableCell>
+                          <TableCell className="px-4 py-3.5">
+                            <div className="h-5 bg-slate-100 rounded animate-pulse w-28" />
+                          </TableCell>
+                          <TableCell className="px-4 py-3.5">
+                            <div className="h-5 bg-slate-100 rounded animate-pulse w-24" />
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
             ) : filteredVisits.length === 0 ? (
               <div className="bg-white rounded-[32px] border border-slate-200/60 p-20 text-center shadow-sm">
@@ -1020,48 +1111,54 @@ export function SiteVisits() {
       />
 
       {/* Add Purpose Modal */}
-      {isAddPurposeModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-6">
-            <h3 className="text-lg font-semibold mb-4">Add New Purpose</h3>
-            <form onSubmit={handleAddPurpose} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Purpose Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  name="name"
-                  required
-                  placeholder="e.g. Site Survey"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
-                />
-              </div>
-              <div className="flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setIsAddPurposeModalOpen(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={addPurposeMutation.isPending}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 text-sm"
-                >
-                  {addPurposeMutation.isPending ? 'Adding...' : 'Add Purpose'}
-                </button>
-              </div>
-            </form>
+      <Dialog open={isAddPurposeModalOpen} onOpenChange={setIsAddPurposeModalOpen}>
+        <DialogContent className="max-w-sm p-0 gap-0 overflow-hidden rounded-2xl shadow-2xl border border-slate-200/60">
+          <div className="px-6 pt-6 pb-4 border-b border-slate-100">
+            <h3 className="text-lg font-semibold text-slate-900">Add New Purpose</h3>
           </div>
-        </div>
-      )}
+          <form onSubmit={handlePurposeSubmit} className="p-6 space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Purpose Name <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={purposeName}
+                onChange={(e) => setPurposeName(e.target.value)}
+                required
+                placeholder="e.g. Site Survey"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+              />
+            </div>
+            <div className="flex justify-end gap-3">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => {
+                  setIsAddPurposeModalOpen(false);
+                  setPurposeName('');
+                }}
+                className="h-10 px-4 rounded-xl font-semibold text-sm"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                isLoading={addPurposeMutation.isPending}
+                disabled={!purposeName.trim()}
+                className="h-10 px-4 rounded-xl font-semibold text-sm"
+              >
+                Add Purpose
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Confirmation */}
-      {visitToDelete && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+      <Dialog open={!!visitToDelete} onOpenChange={(open) => !open && setVisitToDelete(null)}>
+        <DialogContent className="max-w-md p-0 gap-0 overflow-hidden rounded-2xl shadow-2xl border border-slate-200/60">
+          <div className="px-6 pt-6 pb-4">
             <div className="flex items-start gap-4 mb-4">
               <div className="p-2 bg-red-100 rounded-lg">
                 <AlertCircle className="w-6 h-6 text-red-600" />
@@ -1074,23 +1171,25 @@ export function SiteVisits() {
               </div>
             </div>
             <div className="flex justify-end gap-3">
-              <button
+              <Button
+                variant="secondary"
                 onClick={() => setVisitToDelete(null)}
-                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm"
+                className="h-10 px-4 rounded-xl font-semibold text-sm"
               >
                 Cancel
-              </button>
-              <button
-                onClick={() => deleteVisitMutation.mutate(visitToDelete.id)}
-                disabled={deleteVisitMutation.isPending}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 text-sm"
+              </Button>
+              <Button
+                variant="danger"
+                onClick={() => visitToDelete && deleteVisitMutation.mutate(visitToDelete.id)}
+                isLoading={deleteVisitMutation.isPending}
+                className="h-10 px-4 rounded-xl font-semibold text-sm"
               >
-                {deleteVisitMutation.isPending ? 'Deleting...' : 'Delete'}
-              </button>
+                Delete
+              </Button>
             </div>
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -1111,8 +1210,22 @@ function CalendarView({ visits, onDateClick, onVisitClick }: { visits: any[], on
   const nextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
   const prevMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
 
+  // Memoize visitsByDay using a Map keyed by yyyy-MM-dd
+  const visitsByDay = useMemo(() => {
+    const map = new Map<string, any[]>();
+    visits.forEach((visit: any) => {
+      const dateKey = format(parseISO(visit.visit_date), 'yyyy-MM-dd');
+      if (!map.has(dateKey)) {
+        map.set(dateKey, []);
+      }
+      map.get(dateKey)!.push(visit);
+    });
+    return map;
+  }, [visits]);
+
   const getVisitsForDay = (day: Date) => {
-    return visits.filter((visit: any) => isSameDay(parseISO(visit.visit_date), day));
+    const dateKey = format(day, 'yyyy-MM-dd');
+    return visitsByDay.get(dateKey) || [];
   };
 
   return (
