@@ -12,6 +12,7 @@ import {
   Clock, 
   XCircle, 
   ChevronRight, 
+  ChevronLeft,
   Edit2, 
   Trash2,
   Calendar,
@@ -19,8 +20,15 @@ import {
   FileCheck,
   RefreshCcw
 } from 'lucide-react';
-import { AppTable } from '../components/ui/AppTable';
 import { cn } from '../lib/utils';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '../components/ui/table';
 
 export default function POList() {
   const navigate = useNavigate();
@@ -30,10 +38,18 @@ export default function POList() {
   const [statusFilter, setStatusFilter] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 15;
 
   useEffect(() => {
     loadPOs();
   }, [statusFilter, dateFrom, dateTo]);
+
+  useEffect(() => {
+    // Reset to page 1 on filter or search changes
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, dateFrom, dateTo]);
 
   const loadPOs = async () => {
     setLoading(true);
@@ -68,6 +84,9 @@ export default function POList() {
     );
   });
 
+  const totalPages = Math.ceil(filteredPOs.length / pageSize);
+  const paginatedPOs = filteredPOs.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
   const getStatusBadge = (status: string) => {
     const config: Record<string, { bg: string, text: string, icon: any }> = {
       'Open': { bg: 'bg-blue-50', text: 'text-blue-700', icon: CheckCircle },
@@ -100,105 +119,8 @@ export default function POList() {
     }
   };
 
-  const tableColumns = useMemo(() => {
-    // Dynamic width for Client column based on longest name
-    const maxClientNameLength = Math.max(
-      ...filteredPOs.map(po => po.clients?.client_name?.length || 0),
-      8 // min width
-    );
-    const clientColWidth = Math.min(maxClientNameLength * 8, 280); // max 280px
-    
-    return [
-    {
-      header: 'Client',
-      accessorKey: 'clients.client_name',
-      cell: (info: any) => (
-        <div className="font-medium text-zinc-700" style={{ minWidth: clientColWidth }}>
-          {info.getValue() || '-'}
-        </div>
-      )
-    },
-    {
-      header: 'PO Number',
-      accessorKey: 'po_number',
-      cell: (info: any) => (
-        <span className="font-semibold text-blue-600">{info.getValue()}</span>
-      )
-    },
-    {
-      header: 'Date',
-      accessorKey: 'po_date',
-      cell: (info: any) => (
-        <span className="text-zinc-500">{formatDate(info.getValue())}</span>
-      )
-    },
-    {
-      header: 'Amount',
-      accessorKey: 'po_total_value',
-      cell: (info: any) => (
-        <div className="flex flex-col items-center">
-          <span className="font-medium text-zinc-700">₹{formatCurrency(info.getValue())}</span>
-        </div>
-      )
-    },
-    {
-      header: 'Utilised',
-      accessorKey: 'po_utilized_value',
-      cell: (info: any) => (
-        <span className="text-zinc-500">₹{formatCurrency(info.getValue())}</span>
-      )
-    },
-    {
-      header: 'Balance',
-      accessorKey: 'po_available_value',
-      cell: (info: any) => {
-        const val = info.getValue() as number;
-        return (
-          <span className={cn("font-medium", val > 0 ? "text-emerald-600" : "text-rose-600")}>
-            ₹{formatCurrency(val)}
-          </span>
-        );
-      }
-    },
-    {
-      header: 'Status',
-      accessorKey: 'status',
-      cell: (info: any) => getStatusBadge(info.getValue())
-    },
-    {
-      header: '',
-      accessorKey: 'actions',
-      cell: ({ row }: any) => (
-        <div className="flex items-center justify-end gap-0.5">
-          <button
-            className="flex h-6 w-6 items-center justify-center border border-zinc-200 bg-white text-zinc-400 hover:text-blue-600"
-            onClick={() => navigate(`/client-po/create?id=${row.original.id}`)}
-            title="Edit"
-          >
-            <Edit2 size={12} />
-          </button>
-          <button
-            className="flex h-6 w-6 items-center justify-center border border-zinc-200 bg-white text-zinc-400 hover:text-rose-600"
-            onClick={() => deletePO(row.original.id)}
-            title="Delete"
-          >
-            <Trash2 size={12} />
-          </button>
-          <button
-            className="flex h-6 w-6 items-center justify-center border border-zinc-200 bg-white text-zinc-400 hover:text-blue-600"
-            onClick={() => navigate(`/client-po/details?id=${row.original.id}`)}
-            title="View"
-          >
-            <ChevronRight size={12} />
-          </button>
-        </div>
-      )
-    }
-  ];
-  }, [navigate, filteredPOs]);
-
   return (
-    <div className="min-h-screen bg-zinc-50 p-4">
+    <div className="min-h-screen bg-zinc-50 p-4 font-inter">
       {/* Compact Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
@@ -206,7 +128,7 @@ export default function POList() {
           <h1 className="text-sm font-semibold text-zinc-800">Purchase Orders</h1>
         </div>
         <button 
-          className="inline-flex h-7 items-center gap-1.5 bg-blue-600 px-3 text-xs font-semibold text-white"
+          className="inline-flex h-7 items-center gap-1.5 bg-blue-600 px-3 text-xs font-semibold text-white rounded-md hover:bg-blue-700 transition-colors"
           onClick={() => navigate('/client-po/create')}
         >
           <Plus size={14} />
@@ -239,16 +161,16 @@ export default function POList() {
       </div>
 
       {/* Main Table Card */}
-      <div className="border border-zinc-200 bg-white">
+      <div className="border border-zinc-200 bg-white rounded-lg shadow-sm overflow-hidden font-inter">
         {/* Compact Filter Bar */}
-        <div className="flex items-center justify-between gap-2 border-b border-zinc-100 px-3 py-2">
+        <div className="flex items-center justify-between gap-2 border-b border-zinc-100 px-3 py-2 bg-white">
           <div className="flex items-center gap-2">
             <div className="relative">
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 text-zinc-400" size={14} />
               <input
                 type="text"
                 placeholder="Search..."
-                className="h-7 w-48 pl-7 text-xs border border-zinc-200 bg-white"
+                className="h-7 w-48 pl-7 text-xs border border-zinc-200 bg-white rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -256,27 +178,27 @@ export default function POList() {
             
             <div className="flex items-center gap-2">
               <select
-                className="h-7 text-xs border border-zinc-200 bg-white px-2"
+                className="h-7 text-xs border border-zinc-200 bg-white px-2 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
               >
-                <option value="">All</option>
+                <option value="">All Statuses</option>
                 <option value="Open">Open</option>
-                <option value="Partially Billed">Partial</option>
+                <option value="Partially Billed">Partially Billed</option>
                 <option value="Closed">Closed</option>
               </select>
 
-              <div className="flex items-center gap-1 rounded border border-zinc-200 bg-white px-1 py-0.5">
+              <div className="flex items-center gap-1 rounded-md border border-zinc-200 bg-white px-1 py-0.5">
                 <input
                   type="date"
-                  className="h-6 text-xs border-none bg-transparent px-1"
+                  className="h-6 text-xs border-none bg-transparent px-1 focus:outline-none"
                   value={dateFrom}
                   onChange={(e) => setDateFrom(e.target.value)}
                 />
                 <span className="text-zinc-300">→</span>
                 <input
                   type="date"
-                  className="h-6 text-xs border-none bg-transparent px-1"
+                  className="h-6 text-xs border-none bg-transparent px-1 focus:outline-none"
                   value={dateTo}
                   onChange={(e) => setDateTo(e.target.value)}
                 />
@@ -287,7 +209,7 @@ export default function POList() {
           <div className="flex items-center gap-2">
             <button 
               onClick={loadPOs}
-              className="flex h-7 w-7 items-center justify-center border border-zinc-200 bg-white text-zinc-400"
+              className="flex h-7 w-7 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-400 hover:bg-zinc-50 transition-colors"
               title="Refresh Data"
             >
               <RefreshCcw size={12} className={cn(loading && "animate-spin")} />
@@ -296,20 +218,123 @@ export default function POList() {
         </div>
 
         {/* Table Container */}
-        <div className="p-0.5">
+        <div>
           {loading ? (
             <div className="flex h-48 items-center justify-center text-zinc-300">
               <RefreshCcw size={20} className="animate-spin" />
             </div>
           ) : (
-            <AppTable
-              data={filteredPOs}
-              columns={tableColumns}
-              enableSorting={true}
-              enablePagination={true}
-              defaultPageSize={15}
-              emptyMessage="No matching purchase orders found"
-            />
+            <>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Client</TableHead>
+                      <TableHead>PO Number</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                      <TableHead className="text-right">Utilised</TableHead>
+                      <TableHead className="text-right">Balance</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedPOs.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={8} className="h-32 text-center text-zinc-500">
+                          No matching purchase orders found
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      paginatedPOs.map((po) => (
+                        <TableRow key={po.id}>
+                          <TableCell className="font-medium text-zinc-700 whitespace-nowrap">
+                            {po.clients?.client_name || '-'}
+                          </TableCell>
+                          <TableCell className="font-semibold text-blue-600 whitespace-nowrap">
+                            {po.po_number}
+                          </TableCell>
+                          <TableCell className="text-zinc-500 whitespace-nowrap">
+                            {formatDate(po.po_date)}
+                          </TableCell>
+                          <TableCell className="text-right font-medium text-zinc-700 tabular-nums whitespace-nowrap">
+                            ₹{formatCurrency(po.po_total_value)}
+                          </TableCell>
+                          <TableCell className="text-right text-zinc-500 tabular-nums whitespace-nowrap">
+                            ₹{formatCurrency(po.po_utilized_value)}
+                          </TableCell>
+                          <TableCell className={cn(
+                            "text-right font-medium tabular-nums whitespace-nowrap",
+                            (po.po_available_value || 0) > 0 ? "text-emerald-600" : "text-rose-600"
+                          )}>
+                            ₹{formatCurrency(po.po_available_value || 0)}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            {getStatusBadge(po.status)}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center justify-end gap-1">
+                              <button
+                                className="flex h-7 w-7 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                                onClick={() => navigate(`/client-po/create?id=${po.id}`)}
+                                title="Edit"
+                              >
+                                <Edit2 size={14} />
+                              </button>
+                              <button
+                                className="flex h-7 w-7 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                                onClick={() => deletePO(po.id)}
+                                title="Delete"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                              <button
+                                className="flex h-7 w-7 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                                onClick={() => navigate(`/client-po/details?id=${po.id}`)}
+                                title="View"
+                              >
+                                <ChevronRight size={14} />
+                              </button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Pagination Footer */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between border-t border-zinc-200 px-4 py-3 bg-zinc-50">
+                  <span className="text-sm text-zinc-500">
+                    Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, filteredPOs.length)} of {filteredPOs.length} results
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                      disabled={currentPage === 1}
+                      className="flex h-8 items-center justify-center gap-1 rounded-md border border-zinc-200 bg-white px-3 text-sm font-medium text-zinc-600 hover:bg-zinc-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <ChevronLeft size={16} />
+                      Previous
+                    </button>
+                    <span className="text-sm font-medium text-zinc-700 px-2">
+                      Page {currentPage} of {totalPages}
+                    </span>
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                      disabled={currentPage === totalPages}
+                      className="flex h-8 items-center justify-center gap-1 rounded-md border border-zinc-200 bg-white px-3 text-sm font-medium text-zinc-600 hover:bg-zinc-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      Next
+                      <ChevronRight size={16} />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
