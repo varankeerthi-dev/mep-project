@@ -528,7 +528,10 @@ export default function App() {
 
         if (!error && session?.user) {
           if (userRef.current?.id !== session.user.id) {
-            setUser(session.user);
+            // ✅ FIX 2: Defer state update to next frame to avoid blocking
+            requestAnimationFrame(() => {
+              setUser(session.user);
+            });
           }
         }
       } catch {
@@ -539,22 +542,24 @@ export default function App() {
       }
     };
 
+    // ✅ FIX 3: Defer handleFocus to prevent blocking tab activation
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') {
-        if ('requestIdleCallback' in window) {
-          requestIdleCallback(() => handleFocus(), { timeout: 2000 });
-        } else {
-          setTimeout(handleFocus, 100);
-        }
+        setTimeout(() => {
+          if ('requestIdleCallback' in window) {
+            requestIdleCallback(() => handleFocus(), { timeout: 5000 });
+          } else {
+            setTimeout(handleFocus, 500);
+          }
+        }, 0);
       }
     };
 
-    window.addEventListener('focus', handleFocus);
+    // ✅ FIX 4: Only use visibilitychange - it covers all tab switch cases
     window.addEventListener('visibilitychange', handleVisibility);
 
     return () => {
       unsubscribeAuth?.();
-      window.removeEventListener('focus', handleFocus);
       window.removeEventListener('visibilitychange', handleVisibility);
       heartbeatAbortRef.current?.abort();
     };
@@ -616,15 +621,18 @@ export default function App() {
     );
   }
 
+  // ✅ FIX 1: Memoize AuthContext value to prevent cascade re-renders
+  const authContextValue = useMemo(() => ({ 
+    user, 
+    organisation, 
+    organisations, 
+    selectedOrganisation: organisation,
+    handleLogout,
+    switchOrganisation: handleSelectOrganisation
+  }), [user, organisation, organisations]);
+
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      organisation, 
-      organisations, 
-      selectedOrganisation: organisation,
-      handleLogout,
-      switchOrganisation: handleSelectOrganisation
-    }}>
+    <AuthContext.Provider value={authContextValue}>
       <div className="app-container">
                 
         {/* Mobile backdrop - closes sidebar when clicked */}
