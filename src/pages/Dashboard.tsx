@@ -6,6 +6,8 @@ import { useProjects } from '../hooks/useProjects';
 // import { format, formatDistanceToNow, isToday, parseISO, startOfMonth, endOfMonth } from 'date-fns';
 import {
   RefreshCw,
+  Plus,
+  Building2,
 } from 'lucide-react';
 // import {
 //   Table,
@@ -43,7 +45,7 @@ export function invalidateDashboardQueries(queryClient: ReturnType<typeof useQue
   recentUpdates?: boolean;
   stats?: boolean;
 }) {
-  const today = format(new Date(), 'yyyy-MM-dd');
+  const today = new Date().toISOString().split('T')[0];
   const invalidateAll = !options || Object.values(options).every(v => v === undefined || v === true);
   
   const keysToInvalidate = [
