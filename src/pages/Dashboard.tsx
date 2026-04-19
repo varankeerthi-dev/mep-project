@@ -4,29 +4,9 @@ import { supabase } from '../supabase';
 import { useAuth } from '../App';
 import { useProjects } from '../hooks/useProjects';
 // import { format, formatDistanceToNow, isToday, parseISO, startOfMonth, endOfMonth } from 'date-fns';
-// import {
-//   MapPin,
-//   CheckCircle,
-//   Phone,
-//   Calendar,
-//   FileText,
-//   Receipt,
-//   Truck,
-//   RefreshCw,
-//   User,
-//   Building2,
-//   Activity,
-//   Plus,
-//   MessageSquare,
-//   Package,
-//   TrendingUp,
-//   TrendingDown,
-//   ArrowUpRight,
-//   Clock,
-//   Briefcase,
-//   DollarSign,
-//   AlertCircle,
-// } from 'lucide-react';
+import {
+  RefreshCw,
+} from 'lucide-react';
 // import {
 //   Table,
 //   TableHeader,
