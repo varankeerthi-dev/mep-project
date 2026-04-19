@@ -1,9 +1,8 @@
 // src/App.tsx
-import { useState, useEffect, useMemo, useCallback, lazy, Suspense, useRef } from 'react';
+import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
 import type { ComponentType, LazyExoticComponent } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import Sidebar from './components/Sidebar';
 import { supabase, getUserOrganisations, createOrganization, signOut } from './supabase';
@@ -13,89 +12,6 @@ import { AuthContext, type AuthContextValue, type Organisation, type Organisatio
 
 export { useAuth } from './contexts/AuthContext';
 export type { AuthContextValue, Organisation, OrganisationMember };
-
-// --- ROUTE SECTIONS FOR AUTO-PRELOADING ---
-// Group import factories by section for idle-time preloading
-type ImportFactory = () => Promise<{ default: ComponentType<any> }>;
-
-const ROUTE_SECTIONS: Record<string, ImportFactory[]> = {
-  dc: [
-    () => import('./pages/DCList'),
-    () => import('./pages/CreateDC'),
-    () => import('./pages/DCEdit'),
-    () => import('./pages/DateWiseConsolidation'),
-    () => import('./pages/MaterialWiseConsolidation'),
-  ],
-  'nb-dc': [
-    () => import('./pages/NonBillableDCList'),
-    () => import('./pages/CreateNonBillableDC'),
-    () => import('./pages/NonBillableDCEdit'),
-  ],
-  quotation: [
-    () => import('./pages/QuotationList'),
-    () => import('./pages/CreateQuotation'),
-    () => import('./pages/QuotationView'),
-  ],
-  store: [
-    () => import('./pages/MaterialsList'),
-    () => import('./pages/MaterialInward'),
-    () => import('./pages/MaterialOutward'),
-    () => import('./pages/StockTransfer'),
-  ],
-  reports: [
-    () => import('./pages/Reports').then(m => ({ default: m.StockBalance })),
-    () => import('./pages/Reports').then(m => ({ default: m.StockReport })),
-    () => import('./pages/Reports').then(m => ({ default: m.PurchaseReport })),
-    () => import('./pages/Reports').then(m => ({ default: m.SalesReport })),
-  ],
-  clients: [
-    () => import('./pages/ClientList'),
-    () => import('./pages/ClientManagement'),
-    () => import('./pages/OrganizationManagement'),
-    () => import('./pages/AcceptInvitation'),
-  ],
-  subcontractors: [
-    () => import('./pages/Subcontractors').then(m => ({ default: m.SubcontractorDashboard })),
-    () => import('./pages/Subcontractors').then(m => ({ default: m.CreateSubcontractor })),
-    () => import('./pages/Subcontractors').then(m => ({ default: m.SubcontractorView })),
-    () => import('./pages/Subcontractors').then(m => ({ default: m.SubcontractorEdit })),
-    () => import('./pages/Subcontractors').then(m => ({ default: m.SubcontractorAttendance })),
-    () => import('./pages/Subcontractors').then(m => ({ default: m.SubcontractorDailyLogs })),
-    () => import('./pages/Subcontractors').then(m => ({ default: m.SubcontractorPayments })),
-    () => import('./pages/Subcontractors').then(m => ({ default: m.SubcontractorInvoices })),
-    () => import('./pages/Subcontractors').then(m => ({ default: m.SubcontractorDocuments })),
-
-    () => import('./pages/SubcontractorWorkOrderProfessional').then(m => ({ default: m.WorkOrderList })),
-    () => import('./pages/WorkOrderDetailView').then(m => ({ default: m.WorkOrderDetailView })),
-  ],
-  meetings: [
-    () => import('./pages/Meetings').then(m => ({ default: m.MeetingsDashboard })),
-    () => import('./pages/Meetings').then(m => ({ default: m.CreateMeeting })),
-  ],
-  'client-po': [
-    () => import('./pages/POList'),
-    () => import('./pages/CreatePO'),
-    () => import('./pages/PODetails'),
-  ],
-  invoices: [
-    () => import('./invoices/pages/InvoiceListPage'),
-    () => import('./invoices/pages/InvoiceEditorPage'),
-  ],
-  boq: [
-    () => import('./pages/BOQList'),
-    () => import('./pages/BOQ'),
-  ],
-  settings: [
-    () => import('./pages/Settings'),
-    () => import('./pages/PrintSettings'),
-    () => import('./pages/TemplateSettings'),
-    () => import('./pages/DiscountSettings'),
-    () => import('./pages/QuickQuoteSettings'),
-    () => import('./pages/TransactionNumberSeries'),
-    () => import('./pages/Organisation').then(m => ({ default: m.OrganisationSettings })),
-    () => import('./pages/AccessControl'),
-  ],
-};
 
 const lazyAny = (
   factory: () => Promise<{ default: ComponentType<any> }>
@@ -235,7 +151,6 @@ type QuickAction =
 export default function App() {
   const location = useLocation();
   const routerNavigate = useNavigate();
-  const queryClient = useQueryClient();
   const [user, setUser] = useState<User | null>(null);
   const [organisation, setOrganisation] = useState<Organisation | null>(null);
   const [organisations, setOrganisations] = useState<OrganisationMember[]>([]);
@@ -246,20 +161,10 @@ export default function App() {
   const [dbSetup, setDbSetup] = useState(false);
   const currentPath = `${location.pathname}${location.search}` || '/';
 
-  // Use refs to avoid stale closures in event listeners
-  const lastCheckRef = useRef(0);
-  const isCheckingRef = useRef(false);
-  const heartbeatAbortRef = useRef<AbortController | null>(null);
-  const lastRefetchRef = useRef<number>(0);
-  // Stable ref to latest user so the focus handler never captures a stale closure
-  const userRef = useRef(user);
-  useEffect(() => { userRef.current = user; }, [user]);
-
   const navigate = useCallback((path?: string) => {
     routerNavigate(path || '/');
   }, [routerNavigate]);
 
-  
   const handleSidebarNavigate = useCallback((path: string) => {
     navigate(path);
     setMobileSidebarOpen(false);
@@ -269,10 +174,9 @@ export default function App() {
     setSidebarCollapsed(prev => !prev);
   }, []);
 
-  
   const renderedPage = useMemo(() => {
     const pathKey = (currentPath || '/').split('?')[0];
-    
+
     switch (pathKey) {
       case '/': 
         return user ? <Dashboard onNavigate={navigate} /> : <LandingPage />;
@@ -377,17 +281,17 @@ export default function App() {
     }
   }, [currentPath, navigate, user]);
 
-  const handleLogout = async () => {
+  const handleLogout = useCallback(async () => {
     await signOut();
     setUser(null);
     setOrganisation(null);
     setOrganisations([]);
     setAuthView('login');
-  };
+  }, []);
 
-  const handleSelectOrganisation = (org: Organisation) => {
+  const handleSelectOrganisation = useCallback((org: Organisation) => {
     setOrganisation(org);
-  };
+  }, []);
 
   const handleCreateOrganisation = async (orgName: string) => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -496,100 +400,38 @@ export default function App() {
 
     init();
 
-    // --- SESSION HEARTBEAT ON TAB RETURN ---
-    // Validates auth session when user returns to tab after extended absence.
-    // React Query handles data freshness via refetchOnWindowFocus: 'always' + staleTime.
-    // This only checks if the Supabase session is still valid (token not expired).
-    // Also handles independent data refetch on tab visibility (separate from auth check).
+    // Lightweight visibility handler - only refetches if user has been away >5 min
+    let lastVisibleTime = Date.now();
 
-    const handleFocus = async () => {
-      const now = Date.now();
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        const now = Date.now();
+        const awayTimeMs = now - lastVisibleTime;
 
-      // Throttle: max once every 5 minutes
-      if (now - lastCheckRef.current < 300000) return;
-
-      // Prevent concurrent checks
-      if (isCheckingRef.current) return;
-
-      lastCheckRef.current = now;
-      isCheckingRef.current = true;
-
-      // Abort previous heartbeat if still running
-      heartbeatAbortRef.current?.abort();
-      heartbeatAbortRef.current = new AbortController();
-      const ctrl = heartbeatAbortRef.current;
-
-      // Part 1: Auth session check (existing logic)
-      const sessionPromise = supabase.auth.getSession();
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        const timer = setTimeout(() => reject(new Error('Session check timeout')), 5000);
-        ctrl.signal.addEventListener('abort', () => {
-          clearTimeout(timer);
-          reject(new Error('Aborted'));
-        });
-      });
-
-      try {
-        const { data: { session }, error } = await Promise.race([sessionPromise, timeoutPromise]) as any;
-
-        if (!error && session?.user) {
-          if (userRef.current?.id !== session.user.id) {
-            // ✅ FIX 2: Defer state update to next frame to avoid blocking
-            requestAnimationFrame(() => {
-              setUser(session.user);
+        // Only refetch if user was away for >5 minutes (respects staleTime)
+        if (awayTimeMs > 5 * 60 * 1000) {
+          // Defer to avoid blocking tab activation
+          setTimeout(() => {
+            queryClient.refetchQueries({
+              type: 'active',  // Only mounted queries
+              stale: true,     // Only if stale per queryClient config
             });
-          }
+          }, 100);
         }
-      } catch {
-        // Silently ignore — auth will refresh on next real interaction
-      } finally {
-        isCheckingRef.current = false;
-        heartbeatAbortRef.current = null;
-      }
 
-      // Part 2: Data refetch (INDEPENDENT of auth check)
-      // This runs regardless of auth check success/failure
-      const refetchNow = Date.now();
-      if (refetchNow - lastRefetchRef.current < 2000) {
-        return; // Debounce: prevent multiple refetches within 2 seconds
-      }
-      lastRefetchRef.current = refetchNow;
-
-      // Only refetch if tab is actually visible
-      if (document.visibilityState === 'visible') {
-        queryClient.refetchQueries({
-          type: 'active',  // Only currently mounted queries
-          stale: true,     // Only if data is older than staleTime (5 min)
-        });
+        lastVisibleTime = now;
       }
     };
 
-    // ✅ FIX 3: Defer handleFocus to prevent blocking tab activation
-    const handleVisibility = () => {
-      if (document.visibilityState === 'visible') {
-        setTimeout(() => {
-          if ('requestIdleCallback' in window) {
-            requestIdleCallback(() => handleFocus(), { timeout: 5000 });
-          } else {
-            setTimeout(handleFocus, 500);
-          }
-        }, 0);
-      }
-    };
-
-    // ✅ FIX 4: Only use visibilitychange - it covers all tab switch cases
-    window.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       unsubscribeAuth?.();
-      window.removeEventListener('visibilitychange', handleVisibility);
-      heartbeatAbortRef.current?.abort();
+      window.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-    // ⚠️ INTENTIONALLY empty deps [] — listeners must only be registered ONCE at mount.
-    // We use refs (userRef, lastCheckRef, isCheckingRef) to read latest values without re-subscribing.
   }, []);
 
-  // ✅ FIX 1: Memoize AuthContext value to prevent cascade re-renders
+  // Memoize AuthContext value to prevent cascade re-renders
   const authContextValue = useMemo(() => ({ 
     user, 
     organisation, 
