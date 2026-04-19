@@ -118,9 +118,9 @@ export const Vendors: React.FC = () => {
       supabase.from('document_settings')
         .select('*')
         .eq('organisation_id', organisation.id)
-        .single()
-        .then(({ data }) => {
-          if (data) {
+        .maybeSingle()
+        .then(({ data, error }) => {
+          if (!error && data) {
             setDocSettings(data);
           }
         });
