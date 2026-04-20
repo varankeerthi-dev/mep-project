@@ -3,10 +3,10 @@ import { supabase } from '../supabase';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { formatCurrency } from '../utils/formatters';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { flexRender, getCoreRowModel, useReactTable } from '@tanstack/react-table';
 import { timedSupabaseQuery } from '../utils/queryTimeout';
-import { withSessionCheck } from '../queryClient';
+import { ensureValidSession } from '../queryClient';
 import { useMaterials } from '../hooks/useMaterials';
 import { useClients } from '../hooks/useClients';
 import { useProjects } from '../hooks/useProjects';
@@ -52,6 +52,7 @@ function numberToWords(num) {
 
 export default function CreateQuotation() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const editId = searchParams.get('id');
   const duplicateId = searchParams.get('duplicateId');
@@ -1238,7 +1239,9 @@ const loadQuoteNoPreview = useCallback(async () => {
     };
   }, [items, formData.extra_discount_percent, formData.extra_discount_amount, formData.round_off, formData.state, companyState]);
 
-  const handleSave = withSessionCheck(async (saveAndNew = false) => {
+  const handleSave = async (saveAndNew = false) => {
+    if (saving) return;
+    // --- Pre-flight validation (before setting saving=true) ---
     if (!formData.client_id) {
       alert('Please select a client');
       return;
@@ -1250,6 +1253,14 @@ const loadQuoteNoPreview = useCallback(async () => {
 
     setSaving(true);
     try {
+      // Inline session check — withSessionCheck throws SESSION_EXPIRED uncaught in onClick handlers
+      // which made the button appear dead after inactivity
+      const sessionValid = await withTimeout(ensureValidSession(), 'checking active session', 12000);
+      if (!sessionValid) {
+        alert('Your session has expired. Please refresh the page and log in again.');
+        return;
+      }
+
       const quotationData = {
         client_id: formData.client_id,
         project_id: formData.project_id || null,
@@ -1279,7 +1290,17 @@ const loadQuoteNoPreview = useCallback(async () => {
 
       // OPTIMIZED: Fetch series data in parallel with header operation for new quotes
       const seriesQuery = !editId 
-        ? supabase.from('document_series').select('*').eq('is_default', true).eq('organisation_id', organisation?.id).limit(1).maybeSingle()
+        ? withTimeout(
+            supabase
+              .from('document_series')
+              .select('*')
+              .eq('is_default', true)
+              .eq('organisation_id', organisation?.id)
+              .limit(1)
+              .maybeSingle(),
+            'loading document series',
+            20000
+          )
         : Promise.resolve({ data: null });
 
       if (editId) {
@@ -1305,12 +1326,16 @@ const loadQuoteNoPreview = useCallback(async () => {
         if (defaultSeries) {
           quotationNo = buildQuoteNoFromSeries(defaultSeries);
         } else {
-          const { data: existing } = await supabase
-            .from('quotation_header')
-            .select('quotation_no')
-            .eq('organisation_id', organisation?.id)
-            .order('created_at', { ascending: false })
-            .limit(1);
+          const { data: existing } = await withTimeout(
+            supabase
+              .from('quotation_header')
+              .select('quotation_no')
+              .eq('organisation_id', organisation?.id)
+              .order('created_at', { ascending: false })
+              .limit(1),
+            'loading latest quotation number',
+            20000
+          );
 
           quotationNo = 'QT-0001';
           if (existing && existing.length > 0) {
@@ -1384,16 +1409,39 @@ const loadQuoteNoPreview = useCallback(async () => {
 
       // OPTIMIZED: Delete and insert in single batch - run all operations in parallel
       await Promise.all([
-        supabase.from('quotation_items').delete().eq('quotation_id', quotationId),
-        supabase.from('quotation_revision_variant_discount').delete().eq('quotation_revision_id', quotationId)
+        withTimeout(
+          supabase.from('quotation_items').delete().eq('quotation_id', quotationId),
+          'deleting old quotation items',
+          30000
+        ),
+        withTimeout(
+          supabase.from('quotation_revision_variant_discount').delete().eq('quotation_revision_id', quotationId),
+          'deleting old quotation discounts',
+          30000
+        )
       ]);
 
       // Insert new items and discounts in parallel
-      const insertPromises = [supabase.from('quotation_items').insert(itemsToInsert)];
+      const insertPromises = [
+        withTimeout(
+          supabase.from('quotation_items').insert(itemsToInsert),
+          'saving quotation items',
+          35000
+        )
+      ];
       if (variantDiscountRecords.length > 0) {
-        insertPromises.push(supabase.from('quotation_revision_variant_discount').insert(variantDiscountRecords));
+        insertPromises.push(
+          withTimeout(
+            supabase.from('quotation_revision_variant_discount').insert(variantDiscountRecords),
+            'saving quotation discount overrides',
+            35000
+          )
+        );
       }
       await Promise.all(insertPromises);
+
+      queryClient.invalidateQueries({ queryKey: ['quotations'] });
+      queryClient.invalidateQueries({ queryKey: ['quotations', organisation?.id] });
 
       // alert removed
       
@@ -1406,11 +1454,11 @@ const loadQuoteNoPreview = useCallback(async () => {
       }
     } catch (err) {
       console.error('Error saving quotation:', err);
-      alert('Error: ' + err.message);
+      alert('Error: ' + (err as any)?.message || String(err));
     } finally {
       setSaving(false);
     }
-  });
+  };
 
   const compactFieldStyle = { minHeight: '26px', padding: '2px 6px', fontSize: '11px' };
   const headerFieldStyle = { display: 'flex', alignItems: 'center', gap: '6px' };

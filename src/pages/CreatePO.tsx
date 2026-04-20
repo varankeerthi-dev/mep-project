@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Plus, Save, X, FileText, Upload, CheckCircle, Clock, XCircle } from 'lucide-react';
+import { useClients } from '../hooks/useClients';
+import { useProjects } from '../hooks/useProjects';
 
 type POFormData = {
   client_id: string
@@ -21,10 +23,12 @@ export default function CreatePO() {
   const [searchParams] = useSearchParams();
   const editId = searchParams.get('id');
   const preSelectedProjectId = searchParams.get('project_id');
+
+  // Use shared hooks — they handle org filtering, session, and caching
+  const { data: clients = [] } = useClients();
+  const { data: allProjects = [] } = useProjects();
   
   const [loading, setLoading] = useState(false);
-  const [clients, setClients] = useState<any[]>([]);
-  const [projects, setProjects] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
   
   const [formData, setFormData] = useState<POFormData>({
@@ -44,25 +48,13 @@ export default function CreatePO() {
   const [attachmentUrl, setAttachmentUrl] = useState('');
 
   useEffect(() => {
-    loadClients();
-    loadProjects();
     if (editId) {
       loadPO(editId);
     }
   }, [editId]);
 
-  const loadClients = async () => {
-    const { data } = await supabase.from('clients').select('id, client_name').order('client_name');
-    setClients(data || []);
-  };
-
-  const loadProjects = async () => {
-    const { data } = await supabase
-      .from('projects')
-      .select('id, project_code, project_name, client_id')
-      .order('project_name');
-    setProjects(data || []);
-  };
+  // projects filtered for current client (uses hook data)
+  const projects = allProjects.filter(p => !formData.client_id || p.client_id === formData.client_id);
 
   const loadPO = async (id: string) => {
     setLoading(true);
@@ -522,7 +514,7 @@ export default function CreatePO() {
               }}
             >
               <option value="">Select project</option>
-              {projects.filter(p => !formData.client_id || p.client_id === formData.client_id).map(p => (
+              {projects.map(p => (
                 <option key={p.id} value={p.id}>{p.project_code || 'N/A'} - {p.project_name || 'Unnamed'}</option>
               ))}
             </select>

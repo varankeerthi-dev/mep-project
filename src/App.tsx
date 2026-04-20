@@ -402,7 +402,8 @@ export default function App() {
 
     init();
 
-    // Lightweight visibility handler - refreshes session and refetches if away >30 seconds
+    // Lightweight visibility handler - refreshes session and refetches if away >5 minutes
+    // 30s was too aggressive - minor tab switches should not trigger a DB query storm
     let lastVisibleTime = Date.now();
     
     const handleVisibilityChange = async () => {
@@ -410,48 +411,45 @@ export default function App() {
         const now = Date.now();
         const awayTimeMs = now - lastVisibleTime;
         
-        // Only act if user was away for >30 seconds
-        if (awayTimeMs > 30 * 1000) {
+        // Only act if user was away for >5 minutes to avoid re-fetch storms on minor switches
+        if (awayTimeMs > 5 * 60 * 1000) {
           // CRITICAL: Refresh session FIRST to prevent query failures
-          console.log('🔄 Tab visibility changed after inactivity - refreshing session...');
+          console.log('🔄 Tab visible after long inactivity - checking session...');
           const sessionValid = await refreshSessionIfNeeded();
           
           if (!sessionValid) {
-            // Session refresh failed - force logout
             console.warn('Session expired, logging out...');
             handleLogout();
             return;
           }
           
-          // Session is valid - now refetch stale queries
+          // Session is valid - only invalidate (not force-refetch) so React Query decides
           setTimeout(() => {
-            queryClient.refetchQueries({
-              type: 'active',
-              stale: true,
-            });
-          }, 100);
+            queryClient.invalidateQueries({ type: 'active' });
+          }, 500);
         }
         
         lastVisibleTime = now;
+      } else {
+        // Track when user hides the tab
+        lastVisibleTime = Date.now();
       }
     };
     
-    window.addEventListener('visibilitychange', handleVisibilityChange);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    // Auth state change listener - refetch queries on TOKEN_REFRESHED
+    // Auth state change listener — only re-fetch on TOKEN_REFRESHED (NOT INITIAL_SESSION)
+    // INITIAL_SESSION fires on every page load and causes unnecessary query storm
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       console.log('🔄 Auth state changed:', event);
       
-      // Refetch queries when session is refreshed or initial session is available
-      if (event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
+      // Only refetch when an existing token is silently refreshed
+      if (event === 'TOKEN_REFRESHED') {
         if (session?.user) {
           setTimeout(() => {
-            console.log('🔄 Refetching queries after auth state change...');
-            queryClient.refetchQueries({
-              type: 'active',
-              stale: true,
-            });
-          }, 100);
+            console.log('🔄 Token refreshed - invalidating stale queries...');
+            queryClient.invalidateQueries({ type: 'active', stale: true } as any);
+          }, 300);
         }
       }
     });
@@ -471,7 +469,7 @@ export default function App() {
 
     return () => {
       unsubscribeAuth?.();
-      window.removeEventListener('visibilitychange', handleVisibilityChange);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       subscription.unsubscribe();
       clearInterval(sessionCheckInterval);
     };

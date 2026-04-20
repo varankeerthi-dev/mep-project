@@ -3,6 +3,8 @@ import type { ChangeEvent, FormEvent, ComponentProps } from 'react';
 import { supabase } from '../supabase';
 import { useAuth } from '../App';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { ensureValidSession } from '../queryClient';
+import { withTimeout } from '../utils/queryTimeout';
 import {
   Button,
   Input,
@@ -571,6 +573,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
 
   const handleSubmit = async (e?: FormEvent<HTMLFormElement>) => {
     if (e) e.preventDefault();
+    if (saving) return;
     
     if (!formData.client_name || formData.client_name.trim() === '') {
       alert('The core identifier (Client Name) must be supplied.');
@@ -582,27 +585,42 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
       return;
     }
     
+    setSaving(true);
     try {
       const orgId = organisation?.id;
       if (!orgId) throw new Error('Organization context is missing. Please refresh and try again.');
 
+      const sessionValid = await withTimeout(ensureValidSession(), 12000, 'Client save session check');
+      if (!sessionValid) {
+        throw new Error('Session expired. Please refresh the page and sign in again.');
+      }
+
       if (editMode && clientData?.id) {
-        const { error } = await supabase
-          .from('clients')
-          .update({ ...formData, updated_at: new Date().toISOString() })
-          .eq('id', clientData.id)
-          .eq('organisation_id', orgId);
+        const { error } = await withTimeout(
+          supabase
+            .from('clients')
+            .update({ ...formData, updated_at: new Date().toISOString() })
+            .eq('id', clientData.id)
+            .eq('organisation_id', orgId),
+          30000,
+          'Client update'
+        );
         if (error) throw error;
       } else {
         const clientId = 'CLT-' + Date.now().toString().slice(-6);
-        const { error } = await supabase.from('clients').insert({ 
-          ...formData, 
-          client_id: clientId, 
-          organisation_id: orgId 
-        });
+        const { error } = await withTimeout(
+          supabase.from('clients').insert({ 
+            ...formData, 
+            client_id: clientId, 
+            organisation_id: orgId 
+          }),
+          30000,
+          'Client create'
+        );
         if (error) throw error;
       }
       queryClient.invalidateQueries({ queryKey: ['clients'] });
+      queryClient.invalidateQueries({ queryKey: ['clients', orgId] });
       setIsDirty(false);
       onSuccess();
     } catch (error: any) {

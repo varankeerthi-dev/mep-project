@@ -274,7 +274,9 @@ function ItemsTab() {
   };
 
   // PARALLEL QUERY: Single hook replaces 6 sequential queries
-  const { data: pageData, isLoading, isError, error, refetch } = useMaterialsPageData();
+  // Pass orgId so query is enabled; without it enabled:!!orgId=false and page never loads
+  const orgId = organisation?.id ?? null;
+  const { data: pageData, isLoading, isError, error, refetch } = useMaterialsPageData(orgId);
   
   // Extract datasets from parallel query result
   const materials = pageData?.materials ?? [];
@@ -325,11 +327,14 @@ function ItemsTab() {
   }, [refetch]);
 
   const updateMaterialsCache = useCallback((updater) => {
-    queryClient.setQueryData(['materials', 'product'], (old) => {
-      const base = Array.isArray(old) ? old : [];
-      return typeof updater === 'function' ? updater(base) : updater;
+    // Must use the same queryKey as useMaterialsPageData and update the nested materials array
+    queryClient.setQueryData(['materials-page-data', orgId], (old: any) => {
+      if (!old) return old;
+      const base = Array.isArray(old.materials) ? old.materials : [];
+      const next = typeof updater === 'function' ? updater(base) : updater;
+      return { ...old, materials: next };
     });
-  }, [queryClient]);
+  }, [queryClient, orgId]);
 
   const loadVariantPricing = useCallback(async (itemId: string) => {
     if (!itemId) return;

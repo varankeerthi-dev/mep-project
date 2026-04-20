@@ -47,20 +47,10 @@ export default function POList() {
 
   useEffect(() => {
     loadPOs();
-  }, [statusFilter, dateFrom, dateTo, organisation]);
+  }, [statusFilter, dateFrom, dateTo, organisation?.id]);
 
-  // Reload data when tab becomes visible (fixes background tab issue)
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        console.log('🔄 Tab became visible - reloading POs');
-        loadPOs();
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, []);
+  // NOTE: Tab visibility re-fetch is handled globally in App.tsx (5-min threshold)
+  // A duplicate visibilitychange handler here caused a DB query on every tab switch
 
   useEffect(() => {
     // Reset to page 1 on filter or search changes
@@ -68,64 +58,42 @@ export default function POList() {
   }, [searchTerm, statusFilter, dateFrom, dateTo]);
 
   const loadPOs = async () => {
-    console.log('🔄 loadPOs called');
+    // Guard: wait for organisation to be available before querying
+    if (!organisation?.id) {
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
-    
     try {
-      // Check session before making query
-      console.log('🔄 Checking session...');
       const sessionValid = await ensureValidSession();
-      console.log('🔄 Session check result:', sessionValid);
-      
       if (!sessionValid) {
-        console.error('❌ Session expired, please refresh the page');
+        console.error('Session expired - please refresh');
         setLoading(false);
         return;
       }
-      
-      console.log('🔄 Building query...');
+
       let query = supabase
         .from('client_purchase_orders')
-          .select(`
-            *,
-            clients!inner(client_name)
-          `)
-          .eq('organisation_id', organisation?.id)
-          .order('created_at', { ascending: false });
+        .select(`*, clients!inner(client_name)`)
+        .eq('organisation_id', organisation.id)
+        .order('created_at', { ascending: false });
 
-      if (statusFilter) {
-        query = query.eq('status', statusFilter);
-      }
-      if (dateFrom) {
-        query = query.gte('po_date', dateFrom);
-      }
-      if (dateTo) {
-        query = query.lte('po_date', dateTo);
-      }
+      if (statusFilter) query = query.eq('status', statusFilter);
+      if (dateFrom)     query = query.gte('po_date', dateFrom);
+      if (dateTo)       query = query.lte('po_date', dateTo);
 
-      console.log('🔄 Executing query...');
-      
-      // Add timeout to prevent infinite hanging
-      const timeoutPromise = new Promise((_, reject) => 
+      // 30-second timeout guard
+      const timeout = new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error('Query timeout after 30s')), 30000)
       );
-      
-      const queryPromise = query;
-      const { data, error } = await Promise.race([queryPromise, timeoutPromise]) as any;
-      
-      console.log('🔄 Query completed:', { data: data?.length, error });
-      
-      if (error) {
-        console.error('❌ Error loading POs:', error);
-      }
+      const { data, error } = await Promise.race([query, timeout]) as any;
+
+      if (error) console.error('Error loading POs:', error);
       setPos(data || []);
     } catch (err) {
-      console.error('❌ loadPOs error:', err);
-      if (err instanceof Error && err.message === 'Query timeout after 30s') {
-        console.error('❌ Query timed out - possible network or Supabase issue');
-      }
+      console.error('loadPOs error:', err);
     } finally {
-      console.log('🔄 Setting loading to false');
       setLoading(false);
     }
   };
