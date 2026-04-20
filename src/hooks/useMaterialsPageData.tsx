@@ -32,20 +32,23 @@ export function useMaterialsPageData(orgId?: string | null) {
         warehousesResult,
       ] = await Promise.all([
         timedSupabaseQuery(
-          supabase
-            .from('materials')
-            .select('*')
-            .eq('organisation_id', orgId)
-            .order('name'),
+          (() => {
+            let query = supabase.from('materials').select('*').order('name');
+            if (orgId) {
+              query = query.eq('organisation_id', orgId);
+            }
+            return query;
+          })(),
           'Materials'
         ),
 
         (async () => {
           try {
-            return await timedSupabaseQuery(
-              supabase.from('item_stock').select('*').eq('organisation_id', orgId),
-              'Item Stock'
-            );
+            let query = supabase.from('item_stock').select('*');
+            if (orgId) {
+              query = query.eq('organisation_id', orgId);
+            }
+            return await timedSupabaseQuery(query, 'Item Stock');
           } catch (error) {
             if (isMissingRelationError(error)) {
               console.log('item_stock table not found');
@@ -57,10 +60,11 @@ export function useMaterialsPageData(orgId?: string | null) {
 
         (async () => {
           try {
-            return await timedSupabaseQuery(
-              supabase.from('item_categories').select('*').eq('organisation_id', orgId).eq('is_active', true).order('category_name'),
-              'Item Categories'
-            );
+            let query = supabase.from('item_categories').select('*').eq('is_active', true).order('category_name');
+            if (orgId) {
+              query = query.eq('organisation_id', orgId);
+            }
+            return await timedSupabaseQuery(query, 'Item Categories');
           } catch (error) {
             if (isMissingRelationError(error)) {
               console.log('item_categories table not found, using defaults');
@@ -72,10 +76,11 @@ export function useMaterialsPageData(orgId?: string | null) {
 
         (async () => {
           try {
-            return await timedSupabaseQuery(
-              supabase.from('item_units').select('*').eq('organisation_id', orgId).eq('is_active', true).order('unit_name'),
-              'Item Units'
-            );
+            let query = supabase.from('item_units').select('*').eq('is_active', true).order('unit_name');
+            if (orgId) {
+              query = query.eq('organisation_id', orgId);
+            }
+            return await timedSupabaseQuery(query, 'Item Units');
           } catch (error) {
             if (isMissingRelationError(error)) {
               console.log('item_units table not found, using defaults');
@@ -87,10 +92,11 @@ export function useMaterialsPageData(orgId?: string | null) {
 
         (async () => {
           try {
-            return await timedSupabaseQuery(
-              supabase.from('company_variants').select('*').eq('organisation_id', orgId).eq('is_active', true).order('variant_name'),
-              'Company Variants'
-            );
+            let query = supabase.from('company_variants').select('*').eq('is_active', true).order('variant_name');
+            if (orgId) {
+              query = query.eq('organisation_id', orgId);
+            }
+            return await timedSupabaseQuery(query, 'Company Variants');
           } catch (error) {
             if (isMissingRelationError(error)) {
               console.log('company_variants table not found');
@@ -102,10 +108,11 @@ export function useMaterialsPageData(orgId?: string | null) {
 
         (async () => {
           try {
-            return await timedSupabaseQuery(
-              supabase.from('warehouses').select('*').eq('organisation_id', orgId).eq('is_active', true).order('warehouse_name'),
-              'Warehouses'
-            );
+            let query = supabase.from('warehouses').select('*').eq('is_active', true).order('warehouse_name');
+            if (orgId) {
+              query = query.eq('organisation_id', orgId);
+            }
+            return await timedSupabaseQuery(query, 'Warehouses');
           } catch (error) {
             if (isMissingRelationError(error)) {
               console.log('warehouses table not found');
