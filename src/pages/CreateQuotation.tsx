@@ -601,6 +601,7 @@ const loadQuoteNoPreview = useCallback(async () => {
             .from('discount_structures')
             .select('id')
             .eq('structure_name', structName)
+            .eq('organisation_id', organisation?.id)
             .maybeSingle();
           struct = data;
         }
@@ -609,7 +610,8 @@ const loadQuoteNoPreview = useCallback(async () => {
           const { data: varSettings } = await supabase
             .from('discount_variant_settings')
             .select('variant_id, default_discount_percent, min_discount_percent, max_discount_percent')
-            .eq('structure_id', struct.id);
+            .eq('structure_id', struct.id)
+            .eq('organisation_id', organisation?.id);
           
           varSettings?.forEach(s => {
             const variantId = s.variant_id;
