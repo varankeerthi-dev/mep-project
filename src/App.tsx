@@ -402,7 +402,7 @@ export default function App() {
 
     init();
 
-    // Lightweight visibility handler - refreshes session and refetches if away >5 min
+    // Lightweight visibility handler - refreshes session and refetches if away >30 seconds
     let lastVisibleTime = Date.now();
     
     const handleVisibilityChange = async () => {
@@ -438,6 +438,24 @@ export default function App() {
     
     window.addEventListener('visibilitychange', handleVisibilityChange);
 
+    // Auth state change listener - refetch queries on TOKEN_REFRESHED
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('🔄 Auth state changed:', event);
+      
+      // Refetch queries when session is refreshed or initial session is available
+      if (event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
+        if (session?.user) {
+          setTimeout(() => {
+            console.log('🔄 Refetching queries after auth state change...');
+            queryClient.refetchQueries({
+              type: 'active',
+              stale: true,
+            });
+          }, 100);
+        }
+      }
+    });
+
     // Periodic session refresh check (every 5 minutes)
     // This handles the case where user stays on the same tab for long periods
     const sessionCheckInterval = setInterval(async () => {
@@ -454,6 +472,7 @@ export default function App() {
     return () => {
       unsubscribeAuth?.();
       window.removeEventListener('visibilitychange', handleVisibilityChange);
+      subscription.unsubscribe();
       clearInterval(sessionCheckInterval);
     };
   }, [handleLogout]);
