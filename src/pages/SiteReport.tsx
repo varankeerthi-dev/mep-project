@@ -60,7 +60,7 @@ import {
   Clipboard,
   Search
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn } from '../lib/utils';
 import { useAuth } from '../App';
 
 // Removed Material-UI imports

@@ -176,57 +176,57 @@ export const Bills: React.FC = () => {
 
   const columns = [
     {
-      id: 'bill_number',
+      accessorKey: 'bill_number',
       header: 'Bill #',
-      cell: ({ row }: any) => (
+      cell: ({ getValue, row }: any) => (
         <span className="font-semibold text-primary hover:underline cursor-pointer">
-          {row.original.bill_number}
+          {getValue()}
         </span>
       ),
     },
     {
-      id: 'bill_date',
+      accessorKey: 'bill_date',
       header: 'Date',
-      cell: ({ row }: any) => new Date(row.original.bill_date).toLocaleDateString('en-IN'),
+      cell: ({ getValue }: any) => new Date(getValue()).toLocaleDateString('en-IN'),
     },
     {
-      id: 'vendor',
+      accessorKey: 'vendor',
       header: 'Vendor',
       cell: ({ row }: any) => row.original.vendor?.company_name || '-',
     },
     {
-      id: 'vendor_invoice_no',
+      accessorKey: 'vendor_invoice_no',
       header: 'Vendor Inv#',
-      cell: ({ row }: any) => row.original.vendor_invoice_no || '-',
+      cell: ({ getValue }: any) => getValue() || '-',
     },
     {
-      id: 'total_amount',
+      accessorKey: 'total_amount',
       header: 'Amount',
-      cell: ({ row }: any) => (
+      cell: ({ getValue }: any) => (
         <div className="font-medium text-right">
-          ₹{Number(row.original.total_amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+          ¥{Number(getValue()).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
         </div>
       ),
     },
     {
-      id: 'payment_status',
+      accessorKey: 'payment_status',
       header: 'Status',
-      cell: ({ row }: any) => {
-        const val = row.original.payment_status;
+      cell: ({ getValue }: any) => {
+        const val = getValue();
         const colors: any = {
           'Paid': 'bg-emerald-50 text-emerald-700 border-emerald-200',
           'Partially Paid': 'bg-amber-50 text-amber-700 border-amber-200',
           'Unpaid': 'bg-slate-50 text-slate-700 border-slate-200',
         };
         return (
-          <Badge className={cn("text-[10px] font-medium px-2 py-0 h-5 border shadow-none", colors[val])}>
+          <Badge variant={val === 'Paid' ? 'success' : val === 'Partially Paid' ? 'warning' : 'default'}>
             {val}
           </Badge>
         );
       },
     },
     {
-      id: 'direct_supply',
+      accessorKey: 'direct_supply',
       header: 'Direct',
       cell: ({ row }: any) => (
         <div className="flex justify-center">
@@ -239,20 +239,20 @@ export const Bills: React.FC = () => {
       ),
     },
     {
-      id: 'actions',
+      accessorKey: 'actions',
       header: 'Actions',
       cell: ({ row }: any) => (
         <div className="flex items-center gap-1">
           <ShadcnButton 
             variant="ghost" 
-            size="icon" 
+            size="sm" 
             className="h-8 w-8 text-rose-600 hover:bg-rose-50"
           >
             <FileText className="h-4 w-4" />
           </ShadcnButton>
           <ShadcnButton 
             variant="ghost" 
-            size="icon" 
+            size="sm" 
             className="h-8 w-8 text-slate-600 hover:bg-slate-100"
           >
             <Edit className="h-4 w-4" />
@@ -472,7 +472,7 @@ export const Bills: React.FC = () => {
                         <TableCell>
                           <ShadcnButton 
                             variant="ghost" 
-                            size="icon" 
+                            size="sm" 
                             onClick={() => { const updated = items.filter((_, i) => i !== idx); setItems(updated); calculateTotals(updated); }}
                             className="h-7 w-7 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-full"
                           >

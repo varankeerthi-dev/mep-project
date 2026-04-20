@@ -1332,7 +1332,7 @@ export function SubcontractorView({ onNavigate }: WithNavigate) {
                 columns={[
                   { header: 'Log Date', accessorKey: 'log_date', cell:(i:any)=><span className="font-black text-slate-900">{i.getValue()}</span> },
                   { header: 'Work Progress', accessorKey: 'work_done', cell:(i:any)=><span className="font-bold text-slate-700">{i.getValue()}</span> },
-                  { header: 'Safety/Issues', cell:({row}:any)=><div className="flex items-center gap-2">
+                  { header: 'Safety/Issues', accessorKey: 'safety_incidents', cell:({row}:any)=><div className="flex items-center gap-2">
                     <span className="text-xs font-bold text-slate-400">{row.original.delays || 'No Delays'}</span>
                     <span className="mx-2 text-slate-200">|</span>
                     <span className={cn("text-xs font-bold", row.original.safety_incidents ? "text-red-500":"text-emerald-500")}>{row.original.safety_incidents || 'No Incidents'}</span>

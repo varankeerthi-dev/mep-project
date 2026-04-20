@@ -12,7 +12,7 @@ import {
   type RowSelectionState,
   type PaginationState,
 } from '@tanstack/react-table';
-import { cn } from '@/lib/utils';
+import { cn } from '../../lib/utils';
 import { ChevronUp, ChevronDown, ChevronsUpDown, ChevronLeft, ChevronRight, MoreHorizontal, Search, X, Pencil, Download, Eye, Trash2 } from 'lucide-react';
 
 export type ColumnFilterType = 'text' | 'select' | 'date';

@@ -15,8 +15,7 @@
       "@/*": ["src/*"],
       "sonner": ["src/sonner.ts"]
     },
-    "ignoreDeprecations": "6.0",
-    "allowJs": true,
+        "allowJs": true,
     "checkJs": false
   },
   "include": ["src"]

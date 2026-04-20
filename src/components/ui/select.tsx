@@ -1,6 +1,6 @@
 import React from 'react'
 import type { SelectHTMLAttributes } from 'react'
-import { cn } from '@/lib/utils'
+import { cn } from '../../lib/utils'
 
 type SelectItemOption = { value: string; label: string }
 

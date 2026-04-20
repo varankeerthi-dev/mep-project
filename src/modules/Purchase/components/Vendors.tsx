@@ -246,80 +246,78 @@ export const Vendors: React.FC = () => {
 
   const columns = [
     {
-      key: 'vendor_code',
+      accessorKey: 'vendor_code',
       header: 'Code',
-      render: (vendor: any) => (
+      cell: ({ row }: any) => (
         <span className="font-mono text-xs font-semibold bg-slate-100 px-2 py-1 rounded text-slate-700 border border-slate-200">
-          {vendor.vendor_code}
+          {row.original.vendor_code}
         </span>
       ),
     },
     {
-      key: 'company_name',
+      accessorKey: 'company_name',
       header: 'Vendor Name',
-      render: (vendor: any) => (
+      cell: ({ row }: any) => (
         <div className="flex flex-col">
-          <span className="font-bold text-slate-900 line-clamp-1">{vendor.company_name}</span>
-          <span className="text-xs text-slate-500">{vendor.contact_person}</span>
+          <span className="font-bold text-slate-900 line-clamp-1">{row.original.company_name}</span>
+          <span className="text-xs text-slate-500">{row.original.contact_person}</span>
         </div>
       ),
     },
     {
-      key: 'remarks',
+      accessorKey: 'remarks',
       header: 'Material Type',
-      render: (vendor: any) => (
-        <span className="text-sm text-slate-600 line-clamp-1 max-w-[150px]" title={vendor.remarks}>
-          {vendor.remarks || '-'}
+      cell: ({ row }: any) => (
+        <span className="text-sm text-slate-600 line-clamp-1 max-w-[150px]" title={row.original.remarks}>
+          {row.original.remarks || '-'}
         </span>
       ),
     },
     {
-      key: 'gstin',
+      accessorKey: 'gstin',
       header: 'GSTIN',
-      render: (vendor: any) => (
+      cell: ({ getValue }: any) => (
         <span className="text-xs font-medium text-slate-600 tracking-tight">
-          {vendor.gstin || '-'}
+          {getValue() || '-'}
         </span>
       ),
     },
     {
-      key: 'default_currency',
+      accessorKey: 'default_currency',
       header: 'Currency',
-      render: (vendor: any) => (
-        <Badge variant="outline" className="text-[10px] font-bold">
-          {vendor.default_currency}
+      cell: ({ getValue }: any) => (
+        <Badge variant="neutral">
+          {getValue()}
         </Badge>
       ),
     },
     {
-      key: 'credit_limit',
+      accessorKey: 'credit_limit',
       header: 'Credit Limit',
-      align: 'right' as const,
-      render: (vendor: any) => (
+      cell: ({ getValue }: any) => (
         <span className="text-sm font-semibold text-slate-700">
-          ₹{Number(vendor.credit_limit || 0).toLocaleString('en-IN')}
+          ¥{Number(getValue() || 0).toLocaleString('en-IN')}
         </span>
       ),
     },
     {
-      key: 'status',
+      accessorKey: 'status',
       header: 'Status',
-      render: (vendor: any) => (
-        <Badge variant={vendor.status === 'Active' ? 'success' : 'secondary'} className="rounded-full px-3">
-          {vendor.status}
+      cell: ({ getValue }: any) => (
+        <Badge variant={getValue() === 'Active' ? 'success' : 'default'}>
+          {getValue()}
         </Badge>
       ),
     },
     {
-      key: 'actions',
+      accessorKey: 'actions',
       header: '',
-      align: 'right' as const,
-      render: (vendor: any) => (
+      cell: ({ row }: any) => (
         <div className="flex items-center justify-end gap-1">
           <Button 
             variant="ghost" 
-            size="icon" 
-            onClick={() => handleOpenLedger(vendor)}
+            size="sm" 
+            onClick={() => handleOpenLedger(row.original)}
             className="text-slate-500 hover:text-blue-600"
             title="Vendor Ledger"
           >
@@ -327,8 +325,8 @@ export const Vendors: React.FC = () => {
           </Button>
           <Button 
             variant="ghost" 
-            size="icon" 
-            onClick={() => handleEdit(vendor)}
+            size="sm" 
+            onClick={() => handleEdit(row.original)}
             className="text-slate-500 hover:text-blue-600"
             title="Edit Vendor"
           >
@@ -351,7 +349,7 @@ export const Vendors: React.FC = () => {
             <div>
               <h1 className="text-3xl font-black text-slate-900 tracking-tight">Vendors</h1>
               <div className="flex items-center gap-2 mt-1">
-                <Badge variant="secondary" className="bg-slate-100 text-slate-600 border-none font-bold px-3">
+                <Badge variant="default">
                   {filteredVendors.length} Suppliers
                 </Badge>
                 <span className="text-slate-300">/</span>
@@ -390,22 +388,7 @@ export const Vendors: React.FC = () => {
           columns={columns}
           data={filteredVendors}
           isLoading={isLoading}
-          emptyMessage={
-            <div className="flex flex-col items-center justify-center py-20 animate-in fade-in slide-in-from-bottom-4 duration-700">
-              <div className="w-24 h-24 rounded-full bg-slate-50 flex items-center justify-center mb-6">
-                <Building2 className="w-10 h-10 text-slate-200" />
-              </div>
-              <h3 className="text-xl font-bold text-slate-900">No vendors found</h3>
-              <p className="text-slate-500 mt-2 max-w-sm text-center">
-                {searchTerm ? "Try adjusting your search filters" : "Start by adding your first vendor to begin managing purchases."}
-              </p>
-              {!searchTerm && (
-                <Button variant="outline" className="mt-6 rounded-xl" onClick={handleAdd}>
-                  <Plus className="w-4 h-4 mr-2" /> Add New Vendor
-                </Button>
-              )}
-            </div>
-          }
+          emptyMessage="No vendors found"
         />
       </Card>
 
@@ -414,7 +397,7 @@ export const Vendors: React.FC = () => {
         isOpen={openDialog}
         onClose={() => setOpenDialog(false)}
         title={editMode ? "Edit Vendor Details" : "Register New Vendor"}
-        maxWidth="4xl"
+        size="lg"
       >
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 py-2">
           {/* Left Column: Basic Info */}

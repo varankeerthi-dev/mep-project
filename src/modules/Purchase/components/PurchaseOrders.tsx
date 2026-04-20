@@ -434,39 +434,39 @@ export const PurchaseOrders: React.FC = () => {
 
   const columns = [
     {
-      id: 'po_number',
+      accessorKey: 'po_number',
       header: 'PO Number',
-      cell: ({ row }: any) => (
+      cell: ({ getValue, row }: any) => (
         <span className="font-semibold text-primary hover:underline cursor-pointer">
-          {row.original.po_number}
+          {getValue()}
         </span>
       ),
     },
     {
-      id: 'po_date',
+      accessorKey: 'po_date',
       header: 'Date',
-      cell: ({ row }: any) => new Date(row.original.po_date).toLocaleDateString('en-IN'),
+      cell: ({ getValue }: any) => new Date(getValue()).toLocaleDateString('en-IN'),
     },
     {
-      id: 'vendor',
+      accessorKey: 'vendor',
       header: 'Vendor',
       cell: ({ row }: any) => row.original.vendor?.company_name || '-',
     },
     {
-      id: 'currency',
+      accessorKey: 'currency',
       header: 'Curr',
-      cell: ({ row }: any) => (
+      cell: ({ getValue }: any) => (
         <Badge variant="outline" className="text-[10px] font-medium px-1.5 py-0 h-5">
-          {row.original.currency}
+          {getValue()}
         </Badge>
       ),
     },
     {
-      id: 'total_amount',
+      accessorKey: 'total_amount',
       header: 'Amount',
-      cell: ({ row }: any) => {
-        const amount = Number(row.original.total_amount);
-        const currency = row.original.currency === 'INR' ? '₹' : row.original.currency + ' ';
+      cell: ({ getValue, row }: any) => {
+        const amount = Number(getValue());
+        const currency = row.original.currency === 'INR' ? '¥' : row.original.currency + ' ';
         return (
           <div className="font-medium text-right">
             {currency}{amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
@@ -475,10 +475,10 @@ export const PurchaseOrders: React.FC = () => {
       },
     },
     {
-      id: 'status',
+      accessorKey: 'status',
       header: 'Status',
-      cell: ({ row }: any) => {
-        const val = row.original.status || row.original.approval_status;
+      cell: ({ getValue, row }: any) => {
+        const val = getValue() || row.original.approval_status;
         const statusColors: any = {
           'Draft': 'bg-gray-100 text-gray-700 border-gray-200',
           'Pending Approval': 'bg-amber-50 text-amber-700 border-amber-200',
@@ -501,7 +501,7 @@ export const PurchaseOrders: React.FC = () => {
       },
     },
     {
-      id: 'actions',
+      accessorKey: 'actions',
       header: 'Actions',
       cell: ({ row }: any) => (
         <div className="flex items-center gap-1">
