@@ -20,6 +20,7 @@ import {
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, StatCard } from '../components/ui/Card';
 import { colors, shadows, radii, spacing, transitions } from '../design-system';
 
+// Dashboard query keys for React Query caching
 export const DASHBOARD_QUERY_KEYS = {
   todaySites: (date: string) => ['dashboard-today-sites', date] as const,
   approvals: () => ['dashboard-approvals'] as const,
