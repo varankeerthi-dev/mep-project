@@ -1,12 +1,13 @@
 // src/App.tsx
-import { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
+import { useState, useEffect, useMemo, useCallback, lazy, Suspense, useRef } from 'react';
 import type { ComponentType, LazyExoticComponent } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import Sidebar from './components/Sidebar';
 import { supabase, getUserOrganisations, createOrganization, signOut } from './supabase';
-import { queryClient } from './queryClient';
+import { queryClient, refreshSessionIfNeeded } from './queryClient';
 import LandingPage from './pages/LandingPage';
 import { AuthContext, type AuthContextValue, type Organisation, type OrganisationMember } from './contexts/AuthContext';
 
@@ -151,6 +152,7 @@ type QuickAction =
 export default function App() {
   const location = useLocation();
   const routerNavigate = useNavigate();
+  const queryClient = useQueryClient();
   const [user, setUser] = useState<User | null>(null);
   const [organisation, setOrganisation] = useState<Organisation | null>(null);
   const [organisations, setOrganisations] = useState<OrganisationMember[]>([]);
@@ -400,36 +402,46 @@ export default function App() {
 
     init();
 
-    // Lightweight visibility handler - only refetches if user has been away >5 min
+    // Lightweight visibility handler - refreshes session and refetches if away >5 min
     let lastVisibleTime = Date.now();
-
-    const handleVisibilityChange = () => {
+    
+    const handleVisibilityChange = async () => {
       if (document.visibilityState === 'visible') {
         const now = Date.now();
         const awayTimeMs = now - lastVisibleTime;
-
-        // Only refetch if user was away for >5 minutes (respects staleTime)
+        
+        // Only act if user was away for >5 minutes
         if (awayTimeMs > 5 * 60 * 1000) {
-          // Defer to avoid blocking tab activation
+          // CRITICAL: Refresh session FIRST to prevent query failures
+          const sessionValid = await refreshSessionIfNeeded();
+          
+          if (!sessionValid) {
+            // Session refresh failed - force logout
+            console.warn('Session expired, logging out...');
+            handleLogout();
+            return;
+          }
+          
+          // Session is valid - now refetch stale queries
           setTimeout(() => {
             queryClient.refetchQueries({
-              type: 'active',  // Only mounted queries
-              stale: true,     // Only if stale per queryClient config
+              type: 'active',
+              stale: true,
             });
           }, 100);
         }
-
+        
         lastVisibleTime = now;
       }
     };
-
+    
     window.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       unsubscribeAuth?.();
       window.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, []);
+  }, [handleLogout]);
 
   // Memoize AuthContext value to prevent cascade re-renders
   const authContextValue = useMemo(() => ({ 
