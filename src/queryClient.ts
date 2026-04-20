@@ -45,13 +45,12 @@ export async function ensureValidSession(): Promise<boolean> {
       const { data: { session: currentSession } } = await supabase.auth.getSession();
       
       if (currentSession) {
-        // Check if token is about to expire (within next 40 minutes)
-        // Increased threshold to trigger refresh for testing
+        // Check if token is about to expire (within next 5 minutes)
         const expiresAt = currentSession.expires_at || 0;
         const expiresIn = expiresAt - (Date.now() / 1000);
         
-        if (expiresIn > 2400) {
-          // Token is still valid for >40 min, no need to refresh
+        if (expiresIn > 300) {
+          // Token is still valid for >5 min, no need to refresh
           console.log(`✅ Session still valid (${Math.floor(expiresIn / 60)} minutes remaining)`);
           lastSessionRefresh = now;
           return true;
