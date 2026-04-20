@@ -1,13 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../supabase';
 import { useAuth } from '../App';
+import { withSessionCheck } from '../queryClient';
 
 export function useMaterials() {
   const { organisation } = useAuth();
   
   return useQuery({
     queryKey: ['materials', organisation?.id],
-    queryFn: async () => {
+    queryFn: withSessionCheck(async () => {
       if (!organisation?.id) return [];
       const { data, error } = await supabase
         .from('materials')
@@ -16,7 +17,7 @@ export function useMaterials() {
         .order('name');
       if (error) throw error;
       return data || [];
-    },
+    }),
     enabled: !!organisation?.id,
   });
 }

@@ -1372,13 +1372,33 @@ const loadQuoteNoPreview = useCallback(async () => {
           }
         }
 
-        const { data, error } = await withTimeout(
+        const createHeader = () =>
           supabase
             .from('quotation_header')
             .insert({ ...quotationData, quotation_no: quotationNo, organisation_id: organisation?.id })
-            .select(),
-          'creating quotation header'
-        );
+            .select();
+
+        let data = null;
+        let error = null;
+        try {
+          const result = await withTimeout(createHeader(), 'creating quotation header');
+          data = result?.data ?? null;
+          error = result?.error ?? null;
+        } catch (createHeaderErr) {
+          if (!isTimeoutError(createHeaderErr, 'creating quotation header')) {
+            throw createHeaderErr;
+          }
+
+          // One recovery retry after a timeout, typically needed after tab wake-up.
+          await ensureValidSession({ strict: false, timeoutMs: 7000 });
+          const retryResult = await withTimeout(
+            createHeader(),
+            'creating quotation header',
+            60000
+          );
+          data = retryResult?.data ?? null;
+          error = retryResult?.error ?? null;
+        }
         
         if (error) {
           if (error.code === '23505') {

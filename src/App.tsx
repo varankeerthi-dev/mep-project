@@ -402,41 +402,32 @@ export default function App() {
 
     init();
 
-    // Lightweight visibility handler - refreshes session and refetches if away >5 minutes
-    // 30s was too aggressive - minor tab switches should not trigger a DB query storm
-    let lastVisibleTime = Date.now();
-    
+    // Recover app state on tab return/focus.
+    const recoverAfterResume = async () => {
+      const sessionValid = await refreshSessionIfNeeded({ strict: false, timeoutMs: 7000 });
+      if (!sessionValid) {
+        console.warn('Session expired, logging out...');
+        handleLogout();
+        return;
+      }
+
+      setTimeout(() => {
+        queryClient.invalidateQueries({ type: 'active' });
+      }, 150);
+    };
+
     const handleVisibilityChange = async () => {
       if (document.visibilityState === 'visible') {
-        const now = Date.now();
-        const awayTimeMs = now - lastVisibleTime;
-        
-        // Only act if user was away for >5 minutes to avoid re-fetch storms on minor switches
-        if (awayTimeMs > 5 * 60 * 1000) {
-          // CRITICAL: Refresh session FIRST to prevent query failures
-          console.log('🔄 Tab visible after long inactivity - checking session...');
-          const sessionValid = await refreshSessionIfNeeded();
-          
-          if (!sessionValid) {
-            console.warn('Session expired, logging out...');
-            handleLogout();
-            return;
-          }
-          
-          // Session is valid - only invalidate (not force-refetch) so React Query decides
-          setTimeout(() => {
-            queryClient.invalidateQueries({ type: 'active' });
-          }, 500);
-        }
-        
-        lastVisibleTime = now;
-      } else {
-        // Track when user hides the tab
-        lastVisibleTime = Date.now();
+        await recoverAfterResume();
       }
     };
-    
+
+    const handleWindowFocus = async () => {
+      await recoverAfterResume();
+    };
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleWindowFocus);
 
     // Auth state change listener — only re-fetch on TOKEN_REFRESHED (NOT INITIAL_SESSION)
     // INITIAL_SESSION fires on every page load and causes unnecessary query storm
@@ -458,7 +449,7 @@ export default function App() {
     // This handles the case where user stays on the same tab for long periods
     const sessionCheckInterval = setInterval(async () => {
       console.log('🔄 Periodic session check...');
-      const sessionValid = await refreshSessionIfNeeded();
+      const sessionValid = await refreshSessionIfNeeded({ strict: false, timeoutMs: 7000 });
       
       if (!sessionValid) {
         console.warn('Session expired during periodic check, logging out...');
@@ -470,6 +461,7 @@ export default function App() {
     return () => {
       unsubscribeAuth?.();
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleWindowFocus);
       subscription.unsubscribe();
       clearInterval(sessionCheckInterval);
     };

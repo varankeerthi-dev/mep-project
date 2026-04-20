@@ -4,108 +4,117 @@ import { supabase } from './supabase';
 
 /**
  * Global React Query Client Configuration optimized for 60+ pages.
- * 
- * Performance Strategy:
- * - Tab focus: Disabled to prevent UI freezing on return.
- * - Mount: ENABLED to refetch stale data on navigation (keeps data fresh).
- * - StaleTime: 5 mins to balance freshness with performance.
- * 
- * Session Management:
- * - Proactively refreshes session before queries if expired
- * - Prevents "infinite spinner" when returning after long inactivity
  */
 
-// Track last session refresh to avoid spam
 let lastSessionRefresh = 0;
 let sessionRefreshPromise: Promise<boolean> | null = null;
 
+type SessionCheckOptions = {
+  timeoutMs?: number;
+  strict?: boolean;
+};
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  const timeoutPromise = new Promise<T>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(`Timeout while ${label}`)), ms);
+  });
+
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    if (timeoutId) clearTimeout(timeoutId);
+  });
+}
+
 /**
  * Ensure Supabase session is valid before making requests.
- * This runs BEFORE queries fire, not after they fail.
+ * In non-strict mode, timeout errors do not block user actions.
  */
-export async function ensureValidSession(): Promise<boolean> {
+export async function ensureValidSession(options: SessionCheckOptions = {}): Promise<boolean> {
+  const { timeoutMs = 8000, strict = false } = options;
   const now = Date.now();
-  
-  // If we refreshed in the last 10 seconds, assume it's still valid
-  // Reduced from 30s to 10s for more aggressive session checking
+
   if (now - lastSessionRefresh < 10000) {
     return true;
   }
-  
-  // If already refreshing, wait for that
+
   if (sessionRefreshPromise) {
     return sessionRefreshPromise;
   }
-  
+
   sessionRefreshPromise = (async () => {
     try {
-      console.log('🔄 Checking/refreshing session...');
-      
-      // Try to get current session first
-      const { data: { session: currentSession } } = await supabase.auth.getSession();
-      
+      const { data: { session: currentSession } } = await withTimeout(
+        supabase.auth.getSession(),
+        timeoutMs,
+        'getting auth session'
+      );
+
       if (currentSession) {
-        // Check if token is about to expire (within next 5 minutes)
         const expiresAt = currentSession.expires_at || 0;
         const expiresIn = expiresAt - (Date.now() / 1000);
-        
+
         if (expiresIn > 300) {
-          // Token is still valid for >5 min, no need to refresh
-          console.log(`✅ Session still valid (${Math.floor(expiresIn / 60)} minutes remaining)`);
           lastSessionRefresh = now;
           return true;
         }
       }
-      
-      // Token expired or expiring soon - refresh it
-      const { data: { session }, error } = await supabase.auth.refreshSession();
-      
+
+      const { data: { session }, error } = await withTimeout(
+        supabase.auth.refreshSession(),
+        timeoutMs,
+        'refreshing auth session'
+      );
+
       if (error) {
-        console.error('❌ Session refresh failed:', error.message);
-        
-        // Check if it's a terminal error (refresh token expired)
-        if (error.message?.includes('refresh_token_not_found') || 
-            error.message?.includes('invalid_grant')) {
-          return false;
+        const message = error.message || '';
+        const terminal = message.includes('refresh_token_not_found') || message.includes('invalid_grant');
+        if (terminal) return false;
+        if (!strict) {
+          lastSessionRefresh = now;
+          return true;
         }
-        
-        // Other errors might be transient, assume session might still work
         return !!currentSession;
       }
-      
+
       if (session) {
-        console.log('✅ Session refreshed successfully');
         lastSessionRefresh = now;
         return true;
       }
-      
+
       return false;
     } catch (err) {
-      console.error('❌ Session check error:', err);
+      const message = (err as any)?.message || String(err || '');
+      const timeoutHit = message.includes('Timeout while');
+
+      if (timeoutHit && !strict) {
+        // Avoid global app freeze behavior on tab wake-up latency.
+        lastSessionRefresh = now;
+        return true;
+      }
+
       return false;
     } finally {
       sessionRefreshPromise = null;
     }
   })();
-  
+
   return sessionRefreshPromise;
 }
 
 /**
- * Wrap query functions to ensure session is valid before executing
+ * Wrap query functions to ensure session is valid before executing.
  */
 export function withSessionCheck<T, Args extends any[] = []>(
   queryFn: (...args: Args) => Promise<T>
 ): (...args: Args) => Promise<T> {
   return async (...args: Args) => {
-    // Check session BEFORE running the query
-    const sessionValid = await ensureValidSession();
-    
+    const sessionValid = await ensureValidSession({ strict: false });
+
     if (!sessionValid) {
       throw new Error('SESSION_EXPIRED');
     }
-    
-    // Session is valid, run the actual query
+
     return queryFn(...args);
   };
 }
@@ -113,48 +122,27 @@ export function withSessionCheck<T, Args extends any[] = []>(
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      // Data stays "fresh" for 5 minutes
       staleTime: 5 * 60 * 1000,
-      
-      // Keep data in cache for 30 minutes after last use
       gcTime: 30 * 60 * 1000,
-      
-      // CRITICAL: Prevent tab-switch query storm
       refetchOnWindowFocus: false,
-      
-      // CRITICAL: Refetch stale data on navigation
       refetchOnMount: true,
-      
-      // Prevent network spikes on reconnect
-      refetchOnReconnect: false,
-      
-      // Simple retry - session check happens BEFORE query, not after
+      refetchOnReconnect: true,
       retry: (failureCount, error: any) => {
-        // Don't retry if session expired
         if (error?.message === 'SESSION_EXPIRED') {
           return false;
         }
-        // Retry other errors once
         return failureCount < 1;
       },
-      
-      retryDelay: (attemptIndex) => {
-        return Math.min(1000 * 2 ** attemptIndex, 30000);
-      },
-      
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
       networkMode: 'online',
     },
     mutations: {
-      // Mutations also get session check via withSessionCheck wrapper
       retry: false,
       networkMode: 'online',
     },
   },
 });
 
-/**
- * Prefetch Utility
- */
 export async function prefetchQuery<T>(
   queryKey: unknown[],
   queryFn: () => Promise<T>,
@@ -166,9 +154,6 @@ export async function prefetchQuery<T>(
   });
 }
 
-/**
- * Invalidate Pattern
- */
 export function invalidateAndRefetch(queryKeyPrefix: string[]) {
   queryClient.invalidateQueries({
     queryKey: queryKeyPrefix,
@@ -176,14 +161,8 @@ export function invalidateAndRefetch(queryKeyPrefix: string[]) {
   });
 }
 
-/**
- * Clear Cache
- */
 export function clearAllCache() {
   queryClient.clear();
 }
 
-/**
- * Exported for visibility handler in App.tsx
- */
 export const refreshSessionIfNeeded = ensureValidSession;
