@@ -47,46 +47,84 @@ export default function POList() {
     loadPOs();
   }, [statusFilter, dateFrom, dateTo]);
 
+  // Reload data when tab becomes visible (fixes background tab issue)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('🔄 Tab became visible - reloading POs');
+        loadPOs();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
+
   useEffect(() => {
     // Reset to page 1 on filter or search changes
     setCurrentPage(1);
   }, [searchTerm, statusFilter, dateFrom, dateTo]);
 
   const loadPOs = async () => {
+    console.log('🔄 loadPOs called');
     setLoading(true);
     
-    // Check session before making query
-    const sessionValid = await ensureValidSession();
-    if (!sessionValid) {
-      console.error('Session expired, please refresh the page');
+    try {
+      // Check session before making query
+      console.log('🔄 Checking session...');
+      const sessionValid = await ensureValidSession();
+      console.log('🔄 Session check result:', sessionValid);
+      
+      if (!sessionValid) {
+        console.error('❌ Session expired, please refresh the page');
+        setLoading(false);
+        return;
+      }
+      
+      console.log('🔄 Building query...');
+      let query = supabase
+        .from('client_purchase_orders')
+          .select(`
+            *,
+            clients!inner(client_name)
+          `)
+          .order('created_at', { ascending: false });
+
+      if (statusFilter) {
+        query = query.eq('status', statusFilter);
+      }
+      if (dateFrom) {
+        query = query.gte('po_date', dateFrom);
+      }
+      if (dateTo) {
+        query = query.lte('po_date', dateTo);
+      }
+
+      console.log('🔄 Executing query...');
+      
+      // Add timeout to prevent infinite hanging
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Query timeout after 30s')), 30000)
+      );
+      
+      const queryPromise = query;
+      const { data, error } = await Promise.race([queryPromise, timeoutPromise]) as any;
+      
+      console.log('🔄 Query completed:', { data: data?.length, error });
+      
+      if (error) {
+        console.error('❌ Error loading POs:', error);
+      }
+      setPos(data || []);
+    } catch (err) {
+      console.error('❌ loadPOs error:', err);
+      if (err instanceof Error && err.message === 'Query timeout after 30s') {
+        console.error('❌ Query timed out - possible network or Supabase issue');
+      }
+    } finally {
+      console.log('🔄 Setting loading to false');
       setLoading(false);
-      return;
     }
-    
-    let query = supabase
-      .from('client_purchase_orders')
-      .select(`
-        *,
-        clients!inner(client_name)
-      `)
-      .order('created_at', { ascending: false });
-
-    if (statusFilter) {
-      query = query.eq('status', statusFilter);
-    }
-    if (dateFrom) {
-      query = query.gte('po_date', dateFrom);
-    }
-    if (dateTo) {
-      query = query.lte('po_date', dateTo);
-    }
-
-    const { data, error } = await query;
-    if (error) {
-      console.error('Error loading POs:', error);
-    }
-    setPos(data || []);
-    setLoading(false);
   };
 
   const filteredPOs = pos.filter(po => {
