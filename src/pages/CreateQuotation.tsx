@@ -1255,7 +1255,19 @@ const loadQuoteNoPreview = useCallback(async () => {
     try {
       // Inline session check — withSessionCheck throws SESSION_EXPIRED uncaught in onClick handlers
       // which made the button appear dead after inactivity
-      const sessionValid = await withTimeout(ensureValidSession(), 'checking active session', 12000);
+      let sessionValid = true;
+      try {
+        sessionValid = await withTimeout(ensureValidSession(), 'checking active session', 8000);
+      } catch (sessionCheckErr) {
+        const sessionCheckMsg = (sessionCheckErr as any)?.message || String(sessionCheckErr || '');
+        if (/Timeout while checking active session/i.test(sessionCheckMsg)) {
+          console.warn('Session check timed out; continuing with save attempt:', sessionCheckMsg);
+          sessionValid = true;
+        } else {
+          throw sessionCheckErr;
+        }
+      }
+
       if (!sessionValid) {
         alert('Your session has expired. Please refresh the page and log in again.');
         return;
@@ -1454,7 +1466,12 @@ const loadQuoteNoPreview = useCallback(async () => {
       }
     } catch (err) {
       console.error('Error saving quotation:', err);
-      alert('Error: ' + (err as any)?.message || String(err));
+      const errMsg = (err as any)?.message || String(err || '');
+      if (/session|jwt|token|refresh_token|invalid_grant|not authenticated|auth/i.test(errMsg)) {
+        alert('Your session seems expired. Please refresh the page and log in again.');
+      } else {
+        alert('Error: ' + errMsg);
+      }
     } finally {
       setSaving(false);
     }
