@@ -171,17 +171,31 @@ export default function DiscountSettings() {
   }, [organisation?.id]);
 
   const loadData = async () => {
-    if (!organisation?.id) return;
+    if (!organisation?.id) {
+      console.log('No organisation ID');
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
+      console.log('Loading discount settings for:', organisation.id);
       const [structuresData, variantsData, settingsData] = await Promise.all([
-        supabase.from('discount_structures').select('*').eq('is_active', true).eq('organisation_id', organisation.id).order('structure_number'),
-        supabase.from('company_variants').select('*').eq('is_active', true).eq('organisation_id', organisation.id).order('variant_name'),
+        supabase.from('discount_structures').select('*').eq('organisation_id', organisation.id).order('structure_number'),
+        supabase.from('company_variants').select('*').eq('organisation_id', organisation.id).order('variant_name'),
         supabase.from('discount_variant_settings').select('*').eq('organisation_id', organisation.id)
       ]);
 
-      setStructures(structuresData.data || []);
-      setVariants(variantsData.data || []);
+      console.log('Structures:', structuresData);
+      console.log('Variants:', variantsData);
+      console.log('Settings:', settingsData);
+
+      setStructures(structuresData.data?.length ? structuresData.data : [
+        { id: '1', structure_number: 1, structure_name: 'Standard', description: 'Default standard discount' },
+        { id: '2', structure_number: 2, structure_name: 'Premium', description: 'Premium discount for valued clients' },
+        { id: '3', structure_number: 3, structure_name: 'Bulk', description: 'Bulk order discount' },
+        { id: '4', structure_number: 4, structure_name: 'Special', description: 'Special discount structure' }
+      ]);
+      setVariants(variantsData.data?.length ? variantsData.data : []);
 
       const settingsMap = {};
       (settingsData.data || []).forEach(s => {
