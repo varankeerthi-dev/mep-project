@@ -10,6 +10,7 @@ import { useMaterials } from '../hooks/useMaterials';
 import { useWarehouses } from '../hooks/useWarehouses';
 import { useVariants } from '../hooks/useVariants';
 import { useUnits } from '../hooks/useUnits';
+import { useAuth } from '../contexts/AuthContext';
 import BulkImportModal from '../components/BulkImportModal';
 import ExcelEditor, { FieldSelector } from '../components/ExcelEditor';
 import { AppTable } from '../components/ui/AppTable';
@@ -208,6 +209,7 @@ function TabButton({ active, onClick, children }) {
 
 function ItemsTab() {
   const queryClient = useQueryClient();
+  const { organisation } = useAuth();
   const [showForm, setShowForm] = useState(false);
   const [showColumnSettings, setShowColumnSettings] = useState(false);
   const [showBulkPriceModal, setShowBulkPriceModal] = useState(false);
@@ -958,7 +960,8 @@ function ItemsTab() {
       gst_rate: formData.gst_rate || null,
       is_active: formData.is_active,
       uses_variant: formData.uses_variant,
-      item_type: 'product'
+      item_type: 'product',
+      organisation_id: organisation?.id
     };
 
     try {
