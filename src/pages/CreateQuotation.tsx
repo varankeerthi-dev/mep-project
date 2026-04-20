@@ -1071,6 +1071,14 @@ const loadQuoteNoPreview = useCallback(async () => {
     }
   };
 
+  const isTimeoutError = (error, label) => {
+    const message = (error as any)?.message || String(error || '');
+    if (label) {
+      return message.includes(`Timeout while ${label}`);
+    }
+    return message.startsWith('Timeout while ');
+  };
+
   const updateItem = (id, field, value) => {
     setItems((prevItems) =>
       prevItems.map((item) => {
@@ -1259,9 +1267,7 @@ const loadQuoteNoPreview = useCallback(async () => {
       try {
         sessionValid = await withTimeout(ensureValidSession(), 'checking active session', 8000);
       } catch (sessionCheckErr) {
-        const sessionCheckMsg = (sessionCheckErr as any)?.message || String(sessionCheckErr || '');
-        if (/Timeout while checking active session/i.test(sessionCheckMsg)) {
-          console.warn('Session check timed out; continuing with save attempt:', sessionCheckMsg);
+        if (isTimeoutError(sessionCheckErr, 'checking active session')) {
           sessionValid = true;
         } else {
           throw sessionCheckErr;
@@ -1300,21 +1306,6 @@ const loadQuoteNoPreview = useCallback(async () => {
 
       let quotationId = editId;
 
-      // OPTIMIZED: Fetch series data in parallel with header operation for new quotes
-      const seriesQuery = !editId 
-        ? withTimeout(
-            supabase
-              .from('document_series')
-              .select('*')
-              .eq('is_default', true)
-              .eq('organisation_id', organisation?.id)
-              .limit(1)
-              .maybeSingle(),
-            'loading document series',
-            20000
-          )
-        : Promise.resolve({ data: null });
-
       if (editId) {
         const { data: updatedHeader, error: updateError } = await withTimeout(
           supabase
@@ -1331,28 +1322,53 @@ const loadQuoteNoPreview = useCallback(async () => {
         }
         quotationId = updatedHeader[0].id;
       } else {
-        const [seriesResult] = await Promise.all([seriesQuery]);
-        const defaultSeries = seriesResult?.data;
+        let defaultSeries = null;
+        try {
+          const seriesResult = await withTimeout(
+            supabase
+              .from('document_series')
+              .select('*')
+              .eq('is_default', true)
+              .eq('organisation_id', organisation?.id)
+              .limit(1)
+              .maybeSingle(),
+            'loading document series',
+            20000
+          );
+          defaultSeries = seriesResult?.data || null;
+        } catch (seriesError) {
+          if (!isTimeoutError(seriesError, 'loading document series')) {
+            throw seriesError;
+          }
+        }
         
         let quotationNo = '';
         if (defaultSeries) {
           quotationNo = buildQuoteNoFromSeries(defaultSeries);
         } else {
-          const { data: existing } = await withTimeout(
-            supabase
-              .from('quotation_header')
-              .select('quotation_no')
-              .eq('organisation_id', organisation?.id)
-              .order('created_at', { ascending: false })
-              .limit(1),
-            'loading latest quotation number',
-            20000
-          );
-
           quotationNo = 'QT-0001';
-          if (existing && existing.length > 0) {
-            const lastNum = parseInt((existing[0].quotation_no || '').replace(/[^0-9]/g, ''), 10) || 0;
-            quotationNo = `QT-${String(lastNum + 1).padStart(4, '0')}`;
+          try {
+            const { data: existing } = await withTimeout(
+              supabase
+                .from('quotation_header')
+                .select('quotation_no')
+                .eq('organisation_id', organisation?.id)
+                .order('created_at', { ascending: false })
+                .limit(1),
+              'loading latest quotation number',
+              20000
+            );
+
+            if (existing && existing.length > 0) {
+              const lastNum = parseInt((existing[0].quotation_no || '').replace(/[^0-9]/g, ''), 10) || 0;
+              quotationNo = `QT-${String(lastNum + 1).padStart(4, '0')}`;
+            }
+          } catch (noSeriesFallbackErr) {
+            if (!isTimeoutError(noSeriesFallbackErr, 'loading latest quotation number')) {
+              throw noSeriesFallbackErr;
+            }
+            // Last-resort fast fallback for slow connections
+            quotationNo = `QT-${Date.now().toString().slice(-6)}`;
           }
         }
 
