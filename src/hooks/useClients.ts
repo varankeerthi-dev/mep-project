@@ -13,7 +13,7 @@ export function useClients() {
       
       const { data, error } = await supabase
         .from('clients')
-        .select('id, client_name, client_id, contact, email, gstin, state, city, category, address1, address2, pincode, shipping_address')
+        .select('id, client_name, client_id, contact, email, gstin, state, city, category, address1, address2, pincode, shipping_address, discount_type, discount_profile_id, standard_pricelist_id, custom_discounts')
         .eq('organisation_id', organisation.id)
         .order('client_name');
       
