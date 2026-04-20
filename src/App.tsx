@@ -413,6 +413,7 @@ export default function App() {
         // Only act if user was away for >5 minutes
         if (awayTimeMs > 5 * 60 * 1000) {
           // CRITICAL: Refresh session FIRST to prevent query failures
+          console.log('🔄 Tab visibility changed after inactivity - refreshing session...');
           const sessionValid = await refreshSessionIfNeeded();
           
           if (!sessionValid) {
@@ -437,9 +438,23 @@ export default function App() {
     
     window.addEventListener('visibilitychange', handleVisibilityChange);
 
+    // Periodic session refresh check (every 5 minutes)
+    // This handles the case where user stays on the same tab for long periods
+    const sessionCheckInterval = setInterval(async () => {
+      console.log('🔄 Periodic session check...');
+      const sessionValid = await refreshSessionIfNeeded();
+      
+      if (!sessionValid) {
+        console.warn('Session expired during periodic check, logging out...');
+        handleLogout();
+        clearInterval(sessionCheckInterval);
+      }
+    }, 5 * 60 * 1000); // Every 5 minutes
+
     return () => {
       unsubscribeAuth?.();
       window.removeEventListener('visibilitychange', handleVisibilityChange);
+      clearInterval(sessionCheckInterval);
     };
   }, [handleLogout]);
 

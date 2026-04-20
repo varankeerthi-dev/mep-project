@@ -26,8 +26,9 @@ let sessionRefreshPromise: Promise<boolean> | null = null;
 export async function ensureValidSession(): Promise<boolean> {
   const now = Date.now();
   
-  // If we refreshed in the last 30 seconds, assume it's still valid
-  if (now - lastSessionRefresh < 30000) {
+  // If we refreshed in the last 10 seconds, assume it's still valid
+  // Reduced from 30s to 10s for more aggressive session checking
+  if (now - lastSessionRefresh < 10000) {
     return true;
   }
   
