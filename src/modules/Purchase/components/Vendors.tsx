@@ -208,7 +208,37 @@ export const Vendors: React.FC = () => {
         });
       } else {
         // Generate vendor code based on settings
-        const vendorCode = generateVendorCode();
+        let vendorCode = generateVendorCode();
+        
+        // Check if vendor code already exists and generate a unique one if needed
+        let isUnique = false;
+        let attempts = 0;
+        while (!isUnique && attempts < 10) {
+          const { data: existing } = await supabase
+            .from('purchase_vendors')
+            .select('vendor_code')
+            .eq('vendor_code', vendorCode)
+            .eq('organisation_id', organisation?.id)
+            .single();
+          
+          if (!existing) {
+            isUnique = true;
+          } else {
+            // Generate a new code by incrementing the number
+            const currentNum = (docSettings?.vendor_current_number || docSettings?.vendor_start_number || 1) + attempts + 1;
+            const prefix = docSettings?.vendor_prefix || 'VEN';
+            const suffix = docSettings?.vendor_suffix || '';
+            const padding = docSettings?.vendor_padding || 3;
+            const paddedNum = String(currentNum).padStart(padding, '0');
+            vendorCode = `${prefix}${paddedNum}${suffix}`;
+            attempts++;
+          }
+        }
+        
+        if (!isUnique) {
+          alert('Unable to generate unique vendor code. Please try again.');
+          return;
+        }
         
         await createVendor.mutateAsync({
           ...formData,
@@ -231,8 +261,13 @@ export const Vendors: React.FC = () => {
       }
       setOpenDialog(false);
       setErrors({});
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving vendor:', error);
+      if (error.code === '23505') {
+        alert('A vendor with this code already exists. Please try again.');
+      } else {
+        alert('Error saving vendor: ' + error.message);
+      }
     }
   };
 
