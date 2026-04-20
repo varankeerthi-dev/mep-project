@@ -48,6 +48,7 @@ type ClientDiscountPortfolioProps = {
   formData: any
   setFormData: (updater: any) => void
   isAdmin: boolean
+  organisation: any
 }
 
 type CreateClientProps = {
@@ -126,7 +127,7 @@ export function CreateClientEdit({ onSuccess, onCancel }: CreateClientEditProps)
   return <CreateClient editMode={true} clientData={clientQuery.data} onSuccess={onSuccess} onCancel={onCancel} />;
 }
 
-function ClientDiscountPortfolio({ formData, setFormData, isAdmin }: ClientDiscountPortfolioProps) {
+function ClientDiscountPortfolio({ formData, setFormData, isAdmin, organisation }: ClientDiscountPortfolioProps) {
   const [customDiscounts, setCustomDiscounts] = useState<Record<string, number>>({});
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<{ type: string; text: string }>({ type: '', text: '' });
@@ -653,36 +654,6 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
           </div>
         </div>
 
-        {/* 3-Phase Stepper */}
-        <div className="flex items-center justify-center gap-2 mb-6">
-          {[
-            { step: 0, label: 'Basic Details' },
-            { step: 1, label: 'Contacts' }, 
-            { step: 2, label: 'Address' }
-          ].map(({ step, label }) => (
-            <React.Fragment key={step}>
-              <button
-                type="button"
-                onClick={() => setActiveStep(step)}
-                className={cn(
-                  "flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors",
-                  activeStep === step 
-                    ? "bg-primary text-white" 
-                    : activeStep > step 
-                      ? "bg-emerald-100 text-emerald-700" 
-                      : "text-zinc-500 hover:bg-zinc-100"
-                )}
-              >
-                {activeStep > step ? '✓' : step + 1}
-                {label}
-              </button>
-              {step < 2 && (
-                <div className={cn("h-px w-8", activeStep > step ? "bg-emerald-300" : "bg-zinc-200")} />
-              )}
-            </React.Fragment>
-          ))}
-        </div>
-
         <Tabs defaultValue="general" value={activeTab} onValueChange={setActiveTab} className="w-full">
           <div className="px-2 pb-8">
             <TabsList className="h-14 w-full md:w-auto p-1.5 bg-slate-200/60 rounded-2xl">
@@ -967,7 +938,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
 <TabsContent value="pricing" className="mt-0 ring-0 outline-none">
             <div className="rounded-xl border border-slate-200 bg-white">
                <div className="p-6">
-                 <ClientDiscountPortfolio formData={formData} setFormData={setFormData} isAdmin={isAdmin} />
+                 <ClientDiscountPortfolio formData={formData} setFormData={setFormData} isAdmin={isAdmin} organisation={organisation} />
                </div>
                
                <div className="flex items-center justify-end border-t border-slate-200 bg-slate-50 px-6 py-4 gap-3">
