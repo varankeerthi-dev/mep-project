@@ -1,5 +1,5 @@
 import React, { forwardRef } from 'react';
-import { colors, radii, shadows, transitions } from '../../design-system';
+import { cn } from '../../lib/utils';
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
@@ -10,90 +10,47 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ label, error, hint, leftIcon, rightIcon, style, ...props }, ref) => {
+  ({ label, error, hint, leftIcon, rightIcon, className, style, ...props }, ref) => {
     return (
-      <div style={{ width: '100%' }}>
+      <div className="w-full font-[Inter]">
         {label && (
-          <label
-            style={{
-              display: 'block',
-              fontSize: '13px',
-              fontWeight: 500,
-              color: colors.gray[700],
-              marginBottom: '6px',
-            }}
-          >
+          <label className="block text-sm font-medium text-zinc-700 mb-1.5">
             {label}
           </label>
         )}
-        <div style={{ position: 'relative' }}>
+        <div className="relative">
           {leftIcon && (
-            <div
-              style={{
-                position: 'absolute',
-                left: '12px',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                color: colors.gray[400],
-                display: 'flex',
-                alignItems: 'center',
-              }}
-            >
+            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 flex items-center pointer-events-none">
               {leftIcon}
             </div>
           )}
           <input
             ref={ref}
-            style={{
-              width: '100%',
-              padding: leftIcon ? '10px 12px 10px 40px' : rightIcon ? '10px 40px 10px 12px' : '10px 12px',
-              fontSize: '14px',
-              lineHeight: '20px',
-              color: colors.gray[900],
-              background: '#ffffff',
-              border: `1px solid ${error ? colors.error.DEFAULT : colors.gray[300]}`,
-              borderRadius: radii.md,
-              outline: 'none',
-              transition: transitions.DEFAULT,
-              ...style,
-            }}
-            onFocus={(e) => {
-              e.currentTarget.style.borderColor = error ? colors.error.DEFAULT : colors.primary[500];
-              e.currentTarget.style.boxShadow = error 
-                ? `0 0 0 3px ${colors.error.light}` 
-                : `0 0 0 3px ${colors.primary[100]}`;
-            }}
-            onBlur={(e) => {
-              e.currentTarget.style.borderColor = error ? colors.error.DEFAULT : colors.gray[300];
-              e.currentTarget.style.boxShadow = 'none';
-            }}
+            className={cn(
+              "w-full px-3 py-2 text-sm text-zinc-900 bg-white border rounded-md outline-none transition-all duration-200 font-[Inter]",
+              "placeholder:text-zinc-400",
+              "focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100",
+              error 
+                ? "border-red-500 focus:border-red-500 focus:ring-red-100" 
+                : "border-zinc-300 hover:border-zinc-400",
+              leftIcon && "pl-10",
+              rightIcon && "pr-10",
+              className
+            )}
+            style={style}
             {...props}
           />
           {rightIcon && (
-            <div
-              style={{
-                position: 'absolute',
-                right: '12px',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                color: colors.gray[400],
-                display: 'flex',
-                alignItems: 'center',
-              }}
-            >
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 flex items-center pointer-events-none">
               {rightIcon}
             </div>
           )}
         </div>
         {error && (
-          <p style={{ fontSize: '12px', color: colors.error.DEFAULT, margin: '6px 0 0' }}>
-            {error}
-          </p>
+          <p className="text-xs text-red-500 mt-1.5">{error}</p>
         )}
         {hint && !error && (
-          <p style={{ fontSize: '12px', color: colors.gray[500], margin: '6px 0 0' }}>
-            {hint}
-          </p>
+          <p className="text-xs text-zinc-500 mt-1.5">{hint}</p>
         )}
       </div>
     );
@@ -109,51 +66,32 @@ interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
 }
 
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(
-  ({ label, error, options, style, ...props }, ref) => {
+  ({ label, error, options, className, style, ...props }, ref) => {
     return (
-      <div style={{ width: '100%' }}>
+      <div className="w-full font-[Inter]">
         {label && (
-          <label
-            style={{
-              display: 'block',
-              fontSize: '13px',
-              fontWeight: 500,
-              color: colors.gray[700],
-              marginBottom: '6px',
-            }}
-          >
+          <label className="block text-sm font-medium text-zinc-700 mb-1.5">
             {label}
           </label>
         )}
         <select
           ref={ref}
-          style={{
-            width: '100%',
-            padding: '10px 36px 10px 12px',
-            fontSize: '14px',
-            lineHeight: '20px',
-            color: colors.gray[900],
-            background: '#ffffff',
-            border: `1px solid ${error ? colors.error.DEFAULT : colors.gray[300]}`,
-            borderRadius: radii.md,
-            outline: 'none',
-            transition: transitions.DEFAULT,
+          className={cn(
+            "w-full px-3 py-2 text-sm text-zinc-900 bg-white border rounded-md outline-none transition-all duration-200 font-[Inter]",
+            "focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100",
+            error 
+              ? "border-red-500 focus:border-red-500 focus:ring-red-100" 
+              : "border-zinc-300 hover:border-zinc-400",
+            "cursor-pointer",
+            className
+          )}
+          style={{ 
             appearance: 'none',
-            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='${encodeURIComponent(colors.gray[500])}' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`,
+            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23718196' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`,
             backgroundRepeat: 'no-repeat',
-            backgroundPosition: 'right 12px center',
-            cursor: 'pointer',
-            ...style,
-          }}
-          onFocus={(e) => {
-            e.currentTarget.style.borderColor = error ? colors.error.DEFAULT : colors.primary[500];
-            e.currentTarget.style.boxShadow = error 
-              ? `0 0 0 3px ${colors.error.light}` 
-              : `0 0 0 3px ${colors.primary[100]}`;
-          }}
-          onBlur={(e) => {
-            e.currentTarget.style.borderColor = error ? colors.error.DEFAULT : colors.gray[300];
-            e.currentTarget.style.boxShadow = 'none';
+            backgroundPosition: 'right 10px center',
+            paddingRight: '36px',
+            ...style 
           }}
           {...props}
         >
@@ -164,9 +102,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
           ))}
         </select>
         {error && (
-          <p style={{ fontSize: '12px', color: colors.error.DEFAULT, margin: '6px 0 0' }}>
-            {error}
-          </p>
+          <p className="text-xs text-red-500 mt-1.5">{error}</p>
         )}
       </div>
     );
@@ -182,61 +118,33 @@ interface TextAreaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement
 }
 
 export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(
-  ({ label, error, hint, style, ...props }, ref) => {
+  ({ label, error, hint, className, style, ...props }, ref) => {
     return (
-      <div style={{ width: '100%' }}>
+      <div className="w-full font-[Inter]">
         {label && (
-          <label
-            style={{
-              display: 'block',
-              fontSize: '13px',
-              fontWeight: 500,
-              color: colors.gray[700],
-              marginBottom: '6px',
-            }}
-          >
+          <label className="block text-sm font-medium text-zinc-700 mb-1.5">
             {label}
           </label>
         )}
         <textarea
           ref={ref}
-          style={{
-            width: '100%',
-            padding: '10px 12px',
-            fontSize: '14px',
-            lineHeight: '20px',
-            color: colors.gray[900],
-            background: '#ffffff',
-            border: `1px solid ${error ? colors.error.DEFAULT : colors.gray[300]}`,
-            borderRadius: radii.md,
-            outline: 'none',
-            transition: transitions.DEFAULT,
-            resize: 'vertical',
-            minHeight: '80px',
-            fontFamily: 'inherit',
-            ...style,
-          }}
-          onFocus={(e) => {
-            e.currentTarget.style.borderColor = error ? colors.error.DEFAULT : colors.primary[500];
-            e.currentTarget.style.boxShadow = error 
-              ? `0 0 0 3px ${colors.error.light}` 
-              : `0 0 0 3px ${colors.primary[100]}`;
-          }}
-          onBlur={(e) => {
-            e.currentTarget.style.borderColor = error ? colors.error.DEFAULT : colors.gray[300];
-            e.currentTarget.style.boxShadow = 'none';
-          }}
+          className={cn(
+            "w-full px-3 py-2 text-sm text-zinc-900 bg-white border rounded-md outline-none transition-all duration-200 font-[Inter]",
+            "placeholder:text-zinc-400 resize-y min-h-[80px]",
+            "focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100",
+            error 
+              ? "border-red-500 focus:border-red-500 focus:ring-red-100" 
+              : "border-zinc-300 hover:border-zinc-400",
+            className
+          )}
+          style={style}
           {...props}
         />
         {error && (
-          <p style={{ fontSize: '12px', color: colors.error.DEFAULT, margin: '6px 0 0' }}>
-            {error}
-          </p>
+          <p className="text-xs text-red-500 mt-1.5">{error}</p>
         )}
         {hint && !error && (
-          <p style={{ fontSize: '12px', color: colors.gray[500], margin: '6px 0 0' }}>
-            {hint}
-          </p>
+          <p className="text-xs text-zinc-500 mt-1.5">{hint}</p>
         )}
       </div>
     );
