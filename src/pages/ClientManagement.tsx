@@ -716,7 +716,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                         <CompactInput value={val('client_name')} onChange={set('client_name')} required placeholder="Enter client name" />
                       </FieldGroup>
                       
-                      <FieldGroup label="Category">
+                      <FieldGroup label="Status">
                          <div className="relative">
                             <select className={selectCn} value={val('category') || 'Active'} onChange={e => setFormData({ ...formData, category: e.target.value })}>
                               <option value="Active">Active</option>
@@ -729,12 +729,12 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                          </div>
                       </FieldGroup>
 
-                      <FieldGroup label="GSTIN" error={gstError}>
-                        <CompactInput value={val('gstin')} onChange={handleGstChange} placeholder="15 Digit GSTIN" maxLength={15} className="font-mono text-[14px] font-semibold tracking-wider placeholder:tracking-normal placeholder:font-sans uppercase" />
+                      <FieldGroup label="GST Number" error={gstError}>
+                        <CompactInput value={val('gstin')} onChange={handleGstChange} placeholder="15 Digit GST Number" maxLength={15} className="font-mono text-[14px] font-semibold tracking-wider placeholder:tracking-normal placeholder:font-sans uppercase" />
                       </FieldGroup>
 
-                      <FieldGroup label="Vendor No">
-                        <CompactInput value={val('vendor_no')} onChange={set('vendor_no')} placeholder="Internal reference" />
+                      <FieldGroup label="Vendor Code">
+                        <CompactInput value={val('vendor_no')} onChange={set('vendor_no')} placeholder="Vendor Code" />
                       </FieldGroup>
                     </div>
                   </section>
@@ -752,7 +752,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                             <p className="text-[14px] font-bold text-slate-900 tracking-wide">Primary Contact</p>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 pl-9">
-                          <CompactInput value={val('contact_person')} onChange={set('contact_person')} placeholder="Contact name" />
+                          <CompactInput value={val('contact_person')} onChange={set('contact_person')} placeholder="Contact Person Name" />
                           <CompactInput value={val('contact_designation')} onChange={set('contact_designation')} placeholder="Designation" />
                           <CompactInput value={val('contact')} onChange={set('contact')} placeholder="Phone number" />
                           <CompactInput type="email" value={val('contact_person_email')} onChange={set('contact_person_email')} placeholder="Email address" />
@@ -767,10 +767,10 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                             <p className="text-[14px] font-bold text-slate-700 tracking-wide">Secondary Contact</p>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 pl-9">
-                          <CompactInput value={val('contact_person_2')} onChange={set('contact_person_2')} placeholder="FullName Identity" />
-                          <CompactInput value={val('contact_designation_2')} onChange={set('contact_designation_2')} placeholder="Role or Title" />
-                          <CompactInput value={val('contact_person_2_contact')} onChange={set('contact_person_2_contact')} placeholder="Secondary Phone" />
-                          <CompactInput type="email" value={val('contact_person_2_email')} onChange={set('contact_person_2_email')} placeholder="Digital Inbox" />
+                          <CompactInput value={val('contact_person_2')} onChange={set('contact_person_2')} placeholder="Contact Person Name" />
+                          <CompactInput value={val('contact_designation_2')} onChange={set('contact_designation_2')} placeholder="Designation" />
+                          <CompactInput value={val('contact_person_2_contact')} onChange={set('contact_person_2_contact')} placeholder="Phone Number" />
+                          <CompactInput type="email" value={val('contact_person_2_email')} onChange={set('contact_person_2_email')} placeholder="Email Address" />
                         </div>
                       </div>
 
@@ -782,10 +782,10 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                             <p className="text-[14px] font-bold text-slate-800 tracking-wide">Purchase Contact</p>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 pl-9">
-                          <CompactInput value={val('purchase_person')} onChange={set('purchase_person')} placeholder="Auth Agent" />
-                          <CompactInput value={val('purchase_designation')} onChange={set('purchase_designation')} placeholder="Contract Dept" />
-                          <CompactInput value={val('purchase_contact')} onChange={set('purchase_contact')} placeholder="Line Terminal" />
-                          <CompactInput type="email" value={val('purchase_email')} onChange={set('purchase_email')} placeholder="Financial Inbox" />
+                          <CompactInput value={val('purchase_person')} onChange={set('purchase_person')} placeholder="Contact Person Name" />
+                          <CompactInput value={val('purchase_designation')} onChange={set('purchase_designation')} placeholder="Designation" />
+                          <CompactInput value={val('purchase_contact')} onChange={set('purchase_contact')} placeholder="Phone Number" />
+                          <CompactInput type="email" value={val('purchase_email')} onChange={set('purchase_email')} placeholder="Email Address" />
                         </div>
                       </div>
                     </div>
@@ -802,16 +802,16 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                       <div className="rounded-2xl bg-[oklch(0.99_0.005_250)] border border-slate-200/80 p-8 shadow-sm">
                         <div className="flex items-center gap-3 mb-6">
                            <div className="w-2 h-2 rounded-full bg-indigo-500" />
-                           <h4 className="text-[15px] font-bold text-slate-900 tracking-tight">Main Registered Address (Billing)</h4>
+                           <h4 className="text-[15px] font-bold text-slate-900 tracking-tight">Billing Address</h4>
                         </div>
                         <div className="space-y-6">
-                          <CompactInput value={val('address1')} onChange={set('address1')} placeholder="Street Topology Line #1" className="h-[48px]" />
-                          <CompactInput value={val('address2')} onChange={set('address2')} placeholder="Continuation Plot / Building"  className="h-[48px]"/>
+                          <CompactInput value={val('address1')} onChange={set('address1')} placeholder="Address Line 1" className="h-[48px]" />
+                          <CompactInput value={val('address2')} onChange={set('address2')} placeholder="Address Line 2"  className="h-[48px]"/>
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <FieldGroup label="Registered State">
+                            <FieldGroup label="State">
                                <div className="relative">
                                   <select className={selectCn} value={val('state')} onChange={e => setFormData({ ...formData, state: e.target.value })}>
-                                    <option value="">Pending Selection</option>
+                                    <option value="">Select State</option>
                                     {indianStates.map(state => (<option key={state} value={state}>{state}</option>))}
                                   </select>
                                   <div className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-slate-400">
@@ -819,11 +819,11 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                                   </div>
                                </div>
                             </FieldGroup>
-                            <FieldGroup label="Local District / City">
-                              <CompactInput value={val('city')} onChange={set('city')} placeholder="Jurisdiction" />
+                            <FieldGroup label="City">
+                              <CompactInput value={val('city')} onChange={set('city')} placeholder="City" />
                             </FieldGroup>
-                            <FieldGroup label="Zone Pincode">
-                              <CompactInput value={val('pincode')} onChange={set('pincode')} placeholder="Code Node" className="font-mono tracking-wider text-[14px] font-semibold" />
+                            <FieldGroup label="PIN Code">
+                              <CompactInput value={val('pincode')} onChange={set('pincode')} placeholder="PIN Code" className="font-mono tracking-wider text-[14px] font-semibold" />
                             </FieldGroup>
                           </div>
                         </div>
@@ -838,7 +838,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                           </div>
                           {shippingAddresses.length > 0 && (
                             <Button type="button" variant="ghost" size="sm" onClick={copyBillingToShipping} className="text-indigo-600 font-semibold hover:bg-indigo-50">
-                               <Copy className="w-4 h-4 mr-2" /> Match via Billing
+                               <Copy className="w-4 h-4 mr-2" /> Copy from Billing
                             </Button>
                           )}
                         </div>
@@ -848,8 +848,8 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                             <div key={addr.id} className="group flex items-start justify-between gap-4 rounded-2xl border border-slate-200/80 bg-white p-6 transition-all hover:border-slate-300 hover:shadow-md">
                               <div className="min-w-0">
                                 <div className="flex items-center gap-3 text-[15px] font-bold text-slate-800 mb-1.5">
-                                  <span className="truncate">{addr.address_name || 'Unnamed Depot'}</span>
-                                  {addr.is_default && <Badge variant="default" className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100 border-emerald-200">System Default</Badge>}
+                                  <span className="truncate">{addr.address_name || 'Unnamed Address'}</span>
+                                  {addr.is_default && <Badge variant="default" className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100 border-emerald-200">Default</Badge>}
                                 </div>
                                 <p className="text-[14px] font-medium text-slate-600 line-clamp-2 md:line-clamp-none">{addr.address_line1} {addr.address_line2}</p>
                                 <p className="text-[14px] text-slate-500 mt-0.5">{addr.city}, {addr.state} • {addr.pincode}</p>
@@ -868,24 +868,24 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                               </div>
                               
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <FieldGroup label="Facility Alias">
-                                    <CompactInput value={newShipping.address_name} onChange={e => setNewShipping({ ...newShipping, address_name: (e.target as HTMLInputElement).value })} placeholder="e.g. Warehouse Gamma" className="bg-white/60" />
+                                <FieldGroup label="Address Name">
+                                    <CompactInput value={newShipping.address_name} onChange={e => setNewShipping({ ...newShipping, address_name: (e.target as HTMLInputElement).value })} placeholder="Address Name" className="bg-white/60" />
                                 </FieldGroup>
-                                <FieldGroup label="Local Dispatch Contact">
-                                    <CompactInput value={newShipping.contact} onChange={e => setNewShipping({ ...newShipping, contact: (e.target as HTMLInputElement).value })} placeholder="Handler phone" className="bg-white/60" />
+                                <FieldGroup label="Contact Phone">
+                                    <CompactInput value={newShipping.contact} onChange={e => setNewShipping({ ...newShipping, contact: (e.target as HTMLInputElement).value })} placeholder="Contact Phone" className="bg-white/60" />
                                 </FieldGroup>
                               </div>
                               
                               <div className="space-y-4">
-                                <CompactInput value={newShipping.address_line1} onChange={e => setNewShipping({ ...newShipping, address_line1: (e.target as HTMLInputElement).value })} placeholder="Address String 1" className="bg-white/60" />
-                                <CompactInput value={newShipping.address_line2} onChange={e => setNewShipping({ ...newShipping, address_line2: (e.target as HTMLInputElement).value })} placeholder="Address String 2" className="bg-white/60" />
+                                <CompactInput value={newShipping.address_line1} onChange={e => setNewShipping({ ...newShipping, address_line1: (e.target as HTMLInputElement).value })} placeholder="Address Line 1" className="bg-white/60" />
+                                <CompactInput value={newShipping.address_line2} onChange={e => setNewShipping({ ...newShipping, address_line2: (e.target as HTMLInputElement).value })} placeholder="Address Line 2" className="bg-white/60" />
                               </div>
                               
                               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                <FieldGroup label="State Bounds">
+                                <FieldGroup label="State">
                                    <div className="relative">
                                       <select className={cn(selectCn, "bg-white/60")} value={newShipping.state} onChange={e => setNewShipping({ ...newShipping, state: e.target.value })}>
-                                        <option value="">Undefined</option>
+                                        <option value="">Select State</option>
                                         {indianStates.map(state => (<option key={state} value={state}>{state}</option>))}
                                       </select>
                                       <div className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-slate-400">
@@ -893,8 +893,8 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                                       </div>
                                    </div>
                                 </FieldGroup>
-                                <FieldGroup label="Municipality">
-                                    <CompactInput value={newShipping.city} onChange={e => setNewShipping({ ...newShipping, city: (e.target as HTMLInputElement).value })} placeholder="City block" className="bg-white/60" />
+                                <FieldGroup label="City">
+                                    <CompactInput value={newShipping.city} onChange={e => setNewShipping({ ...newShipping, city: (e.target as HTMLInputElement).value })} placeholder="City" className="bg-white/60" />
                                 </FieldGroup>
                                 <FieldGroup label="Routing Code">
                                     <CompactInput value={newShipping.pincode} onChange={e => setNewShipping({ ...newShipping, pincode: (e.target as HTMLInputElement).value })} placeholder="Pincode" className="bg-white/60 font-mono" />
@@ -902,8 +902,8 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                               </div>
                               
                               <div className="flex gap-3 pt-2">
-                                <Button type="button" className="h-11 rounded-xl px-6 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold" onClick={addShippingAddress}>Mount Node</Button>
-                                <Button type="button" variant="secondary" className="h-11 rounded-xl px-6" onClick={() => setShowShippingForm(false)}>Discard</Button>
+                                <Button type="button" className="h-11 rounded-xl px-6 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold" onClick={addShippingAddress}>Add Shipping Address</Button>
+                                <Button type="button" variant="secondary" className="h-11 rounded-xl px-6" onClick={() => setShowShippingForm(false)}>Cancel</Button>
                               </div>
                             </div>
                           )}
@@ -919,7 +919,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                             >
                               <span className="flex items-center justify-center gap-2">
                                 <Plus className="w-5 h-5 pointer-events-none" />
-                                Append Physical Drop Location
+                                Add Shipping Address
                               </span>
                             </button>
                           )}
@@ -933,7 +933,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                               }}
                             >
                               <span className="flex items-center justify-center gap-2">
-                                <Plus className="w-4 h-4" /> Expand Network Nodes
+                                <Plus className="w-4 h-4" /> Add More Shipping Address
                               </span>
                             </button>
                           )}
@@ -944,13 +944,13 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
 
                   {/* Operational Notes */}
                   <section>
-<SectionHeading>Operational Notes</SectionHeading>
+<SectionHeading>Notes</SectionHeading>
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-5xl">
-                      <FieldGroup label="System Remarks">
-                        <CompactTextarea rows={4} value={val('remarks')} onChange={e => setFormData({ ...formData, remarks: e.target.value })} placeholder="Arbitrary operator remarks kept internally valid..." />
+                      <FieldGroup label="Internal Remarks">
+                        <CompactTextarea rows={4} value={val('remarks')} onChange={e => setFormData({ ...formData, remarks: e.target.value })} placeholder="Internal remarks..." />
                       </FieldGroup>
-                      <FieldGroup label="Background Dossier / Briefing">
-                        <CompactTextarea rows={4} value={val('about_client')} onChange={e => setFormData({ ...formData, about_client: e.target.value })} placeholder="Saturated client back-history, preferences, instructions..." />
+                      <FieldGroup label="Client Notes">
+                        <CompactTextarea rows={4} value={val('about_client')} onChange={e => setFormData({ ...formData, about_client: e.target.value })} placeholder="Client notes..." />
                       </FieldGroup>
                     </div>
                   </section>
@@ -961,15 +961,15 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                 <div className="sticky bottom-0 z-30 flex flex-col-reverse md:flex-row items-center justify-between rounded-b-[32px] border-t border-slate-200/80 bg-white/90 px-8 md:px-14 py-6 backdrop-blur-xl shadow-[0_-20px_40px_-20px_rgba(0,0,0,0.05)] gap-4">
                   <p className="text-[14px] font-bold text-slate-500 flex items-center gap-3 uppercase tracking-widest w-full md:w-auto justify-center md:justify-start">
                     <span className={cn("w-2.5 h-2.5 rounded-full shadow-inner", isDirty ? "bg-amber-400" : "bg-emerald-400")} />
-                    {isDirty ? 'UNCOMMITTED DRIFT' : 'SYNCHRONIZED'}
+                    {isDirty ? 'Unsaved Changes' : 'Saved'}
                   </p>
                   <div className="flex flex-wrap items-center justify-center gap-3 w-full md:w-auto">
-                    <Button type="button" variant="ghost" className="h-12 rounded-xl px-6 text-[14px] font-bold hover:bg-slate-100" onClick={onCancel} disabled={saving}>Halt & Return</Button>
+                    <Button type="button" variant="ghost" className="h-12 rounded-xl px-6 text-[14px] font-bold hover:bg-slate-100" onClick={onCancel} disabled={saving}>Cancel</Button>
                     {editMode && (
-                      <Button type="button" variant="danger" className="h-12 rounded-xl px-6 text-[14px] font-bold bg-white text-rose-600 border border-rose-200 hover:bg-rose-50 hover:border-rose-300" onClick={deleteClient} disabled={saving}>Eradicate Record</Button>
+                      <Button type="button" variant="danger" className="h-12 rounded-xl px-6 text-[14px] font-bold bg-white text-rose-600 border border-rose-200 hover:bg-rose-50 hover:border-rose-300" onClick={deleteClient} disabled={saving}>Delete Client</Button>
                     )}
                     <Button type="submit" className="h-12 rounded-xl px-10 text-[15px] font-bold shadow-lg shadow-indigo-600/20 bg-indigo-600 hover:bg-indigo-700 text-white focus:ring-4 focus:ring-indigo-600/20" disabled={saving}>
-                      {saving ? 'Processing Txn...' : editMode ? 'Deploy Edits' : 'Register Construct'}
+                      {saving ? 'Saving...' : editMode ? 'Update Client' : 'Add Client'}
                     </Button>
                   </div>
                 </div>
@@ -991,9 +991,9 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                     FINANCIAL COMPLIANCE
                   </p>
                   <div className="flex flex-wrap items-center justify-center gap-3 w-full md:w-auto">
-                    <Button type="button" variant="ghost" className="h-12 rounded-xl px-6 text-[14px] font-bold" onClick={onCancel}>Exit Settings</Button>
+                    <Button type="button" variant="ghost" className="h-12 rounded-xl px-6 text-[14px] font-bold" onClick={onCancel}>Save Pricing</Button>
                     <Button type="button" onClick={() => handleSubmit()} className="h-12 rounded-xl px-10 text-[15px] font-bold shadow-lg shadow-indigo-600/20 bg-indigo-600 hover:bg-indigo-700 text-white">
-                      {editMode ? 'Approve & Release Matrix' : 'Approve Baseline Matrix'}
+                      {editMode ? 'Update Pricing' : 'Save Pricing'}
                     </Button>
                   </div>
                 </div>
