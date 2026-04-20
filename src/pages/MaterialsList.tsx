@@ -2850,6 +2850,7 @@ function CategoryTab() {
 
 function UnitTab() {
   const { data: units = [], isLoading: loading } = useUnits();
+  const { organisation } = useAuth();
   const [showForm, setShowForm] = useState(false);
   const [editingUnit, setEditingUnit] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -2859,11 +2860,12 @@ function UnitTab() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      const dataToSave = { ...formData, organisation_id: organisation?.id };
       if (editingUnit) {
-        const { error } = await supabase.from('item_units').update(formData).eq('id', editingUnit.id);
+        const { error } = await supabase.from('item_units').update(dataToSave).eq('id', editingUnit.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from('item_units').insert(formData);
+        const { error } = await supabase.from('item_units').insert(dataToSave);
         if (error) throw error;
       }
       resetForm();
