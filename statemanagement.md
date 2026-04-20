@@ -162,6 +162,7 @@ This document tracks the migration to session-aware React Query client to solve 
 - Reduced session refresh cache from 30s to 10s for more aggressive checking
 - Tested with increased threshold (40min) to verify refresh works
 - Reset threshold to 5 minutes for production
+- **Bug Fix #2:** Wrapped CreateQuotation handleSave with withSessionCheck to fix infinite spinner on save after inactivity
 
 **Expected Results:**
 - No infinite spinners after long inactivity
