@@ -3,6 +3,7 @@ import { supabase } from '../supabase';
 import { useNavigate } from 'react-router-dom';
 import { formatDate, formatCurrency } from '../utils/formatters';
 import { ensureValidSession } from '../queryClient';
+import { useAuth } from '../contexts/AuthContext';
 import { 
   Plus, 
   Search, 
@@ -33,6 +34,7 @@ import {
 
 export default function POList() {
   const navigate = useNavigate();
+  const { organisation } = useAuth();
   const [pos, setPos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -45,7 +47,7 @@ export default function POList() {
 
   useEffect(() => {
     loadPOs();
-  }, [statusFilter, dateFrom, dateTo]);
+  }, [statusFilter, dateFrom, dateTo, organisation]);
 
   // Reload data when tab becomes visible (fixes background tab issue)
   useEffect(() => {
@@ -88,6 +90,7 @@ export default function POList() {
             *,
             clients!inner(client_name)
           `)
+          .eq('organisation_id', organisation?.id)
           .order('created_at', { ascending: false });
 
       if (statusFilter) {
