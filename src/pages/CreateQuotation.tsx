@@ -6,6 +6,7 @@ import { formatCurrency } from '../utils/formatters';
 import { useQuery } from '@tanstack/react-query';
 import { flexRender, getCoreRowModel, useReactTable } from '@tanstack/react-table';
 import { timedSupabaseQuery } from '../utils/queryTimeout';
+import { withSessionCheck } from '../queryClient';
 import { useMaterials } from '../hooks/useMaterials';
 import { useClients } from '../hooks/useClients';
 import { useProjects } from '../hooks/useProjects';
@@ -1237,7 +1238,7 @@ const loadQuoteNoPreview = useCallback(async () => {
     };
   }, [items, formData.extra_discount_percent, formData.extra_discount_amount, formData.round_off, formData.state, companyState]);
 
-  const handleSave = async (saveAndNew = false) => {
+  const handleSave = withSessionCheck(async (saveAndNew = false) => {
     if (!formData.client_id) {
       alert('Please select a client');
       return;
@@ -1409,7 +1410,7 @@ const loadQuoteNoPreview = useCallback(async () => {
     } finally {
       setSaving(false);
     }
-  };
+  });
 
   const compactFieldStyle = { minHeight: '26px', padding: '2px 6px', fontSize: '11px' };
   const headerFieldStyle = { display: 'flex', alignItems: 'center', gap: '6px' };
