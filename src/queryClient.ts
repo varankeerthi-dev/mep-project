@@ -50,14 +50,24 @@ export async function ensureValidSession(options: SessionCheckOptions = {}): Pro
         'getting auth session'
       );
 
-      if (currentSession) {
-        const expiresAt = currentSession.expires_at || 0;
-        const expiresIn = expiresAt - (Date.now() / 1000);
+      if (!currentSession) {
+        return false;
+      }
 
-        if (expiresIn > 300) {
-          lastSessionRefresh = now;
-          return true;
-        }
+      // IMPORTANT:
+      // After tab backgrounding, calling refreshSession() can hang in some browsers
+      // and block subsequent Supabase requests. In non-strict mode we only validate
+      // that a session exists, and rely on supabase-js autoRefreshToken to refresh.
+      if (!strict) {
+        lastSessionRefresh = now;
+        return true;
+      }
+
+      const expiresAt = currentSession.expires_at || 0;
+      const expiresIn = expiresAt - (Date.now() / 1000);
+      if (expiresIn > 300) {
+        lastSessionRefresh = now;
+        return true;
       }
 
       const { data: { session }, error } = await withTimeout(
@@ -70,11 +80,7 @@ export async function ensureValidSession(options: SessionCheckOptions = {}): Pro
         const message = error.message || '';
         const terminal = message.includes('refresh_token_not_found') || message.includes('invalid_grant');
         if (terminal) return false;
-        if (!strict) {
-          lastSessionRefresh = now;
-          return true;
-        }
-        return !!currentSession;
+        return true;
       }
 
       if (session) {
@@ -82,7 +88,7 @@ export async function ensureValidSession(options: SessionCheckOptions = {}): Pro
         return true;
       }
 
-      return false;
+      return true;
     } catch (err) {
       const message = (err as any)?.message || String(err || '');
       const timeoutHit = message.includes('Timeout while');
