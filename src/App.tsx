@@ -162,10 +162,20 @@ export default function App() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [dbSetup, setDbSetup] = useState(false);
   const currentPath = `${location.pathname}${location.search}` || '/';
+  const tokenInvalidateGateRef = useRef(0);
+  const refreshMembershipsGateRef = useRef(0);
 
   const navigate = useCallback((path?: string) => {
     routerNavigate(path || '/');
   }, [routerNavigate]);
+
+  const markActiveQueriesStale = useCallback(() => {
+    const now = Date.now();
+    if (now - tokenInvalidateGateRef.current < 1000) return;
+    tokenInvalidateGateRef.current = now;
+    // Avoid triggering network fetches from inside auth event callbacks.
+    queryClient.invalidateQueries({ type: 'active', stale: true, refetchType: 'none' } as any);
+  }, [queryClient]);
 
   const handleSidebarNavigate = useCallback((path: string) => {
     navigate(path);
@@ -367,16 +377,9 @@ export default function App() {
     setLoading(false);
 
     const { data: listener } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         if (event === 'SIGNED_IN' && session?.user) {
           setUser(session.user);
-
-          const { data: orgs } = await getUserOrganisations(session.user.id);
-          setOrganisations(orgs || []);
-
-          if (orgs && orgs.length > 0) {
-            setOrganisation(orgs[0].organisation as Organisation);
-          }
         }
 
         if (event === 'SIGNED_OUT') {
@@ -439,7 +442,7 @@ export default function App() {
         if (session?.user) {
           setTimeout(() => {
             console.log('🔄 Token refreshed - invalidating stale queries...');
-            queryClient.invalidateQueries({ type: 'active', stale: true } as any);
+            markActiveQueriesStale();
           }, 300);
         }
       }
@@ -466,6 +469,15 @@ export default function App() {
       clearInterval(sessionCheckInterval);
     };
   }, [handleLogout]);
+
+  // Refresh memberships outside auth event callbacks to avoid supabase-js event loops / stuck queries.
+  useEffect(() => {
+    if (!user?.id) return;
+    const now = Date.now();
+    if (now - refreshMembershipsGateRef.current < 500) return;
+    refreshMembershipsGateRef.current = now;
+    refreshMemberships();
+  }, [user?.id]);
 
   // Memoize AuthContext value to prevent cascade re-renders
   const authContextValue = useMemo(() => ({ 
