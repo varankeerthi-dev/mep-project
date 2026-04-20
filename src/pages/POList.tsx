@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabase';
 import { useNavigate } from 'react-router-dom';
 import { formatDate, formatCurrency } from '../utils/formatters';
+import { ensureValidSession } from '../queryClient';
 import { 
   Plus, 
   Search, 
@@ -54,6 +55,14 @@ export default function POList() {
   const loadPOs = async () => {
     setLoading(true);
     
+    // Check session before making query
+    const sessionValid = await ensureValidSession();
+    if (!sessionValid) {
+      console.error('Session expired, please refresh the page');
+      setLoading(false);
+      return;
+    }
+    
     let query = supabase
       .from('client_purchase_orders')
       .select(`
@@ -75,9 +84,6 @@ export default function POList() {
     const { data, error } = await query;
     if (error) {
       console.error('Error loading POs:', error);
-      if (error.message === 'SESSION_EXPIRED') {
-        alert('Session expired, please refresh the page');
-      }
     }
     setPos(data || []);
     setLoading(false);
