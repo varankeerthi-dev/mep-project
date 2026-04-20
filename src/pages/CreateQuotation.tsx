@@ -1509,14 +1509,14 @@ const loadQuoteNoPreview = useCallback(async () => {
         display_order: item.display_order || 0,
         custom1: item.custom1 || '',
         custom2: item.custom2 || '',
-        organisation_id: organisation?.id
+        organisation_id: organisation?.id || '00000000-0000-0000-0000-000000000000'
       }));
 
       const variantDiscountRecords = Object.entries(headerDiscounts).map(([variantId, discount]) => ({
         quotation_revision_id: quotationId,
         variant_id: variantId,
         header_discount_percent: parseFloat(discount) || 0,
-        organisation_id: organisation?.id
+        organisation_id: organisation?.id || '00000000-0000-0000-0000-000000000000'
       }));
 
       // OPTIMIZED: Delete and insert in single batch - run all operations in parallel
