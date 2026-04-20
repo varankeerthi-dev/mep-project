@@ -26,3 +26,13 @@ CREATE POLICY "Enable organisation access for clients" ON clients
   FOR ALL TO authenticated 
   USING (organisation_id IN (SELECT organisation_id FROM user_organisations WHERE user_id = auth.uid()))
   WITH CHECK (organisation_id IN (SELECT organisation_id FROM user_organisations WHERE user_id = auth.uid()));
+
+-- Update RLS policies for materials
+DROP POLICY IF EXISTS "Enable read for authenticated" ON materials;
+DROP POLICY IF EXISTS "Enable insert for authenticated" ON materials;
+DROP POLICY IF EXISTS "Enable update for authenticated" ON materials;
+DROP POLICY IF EXISTS "Enable delete for authenticated" ON materials;
+CREATE POLICY "Enable organisation access for materials" ON materials
+  FOR ALL TO authenticated 
+  USING (organisation_id IN (SELECT organisation_id FROM user_organisations WHERE user_id = auth.uid()))
+  WITH CHECK (organisation_id IN (SELECT organisation_id FROM user_organisations WHERE user_id = auth.uid()));
