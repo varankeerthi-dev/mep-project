@@ -1,13 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../supabase';
 import { useAuth } from '../App';
+import { withSessionCheck } from '../queryClient';
 
 export function useClients() {
   const { organisation } = useAuth();
   
   return useQuery({
     queryKey: ['clients', organisation?.id],
-    queryFn: async () => {
+    queryFn: withSessionCheck(async () => {
       if (!organisation?.id) return [];
       
       const { data, error } = await supabase
@@ -18,7 +19,7 @@ export function useClients() {
       
       if (error) throw error;
       return data || [];
-    },
+    }),
     enabled: !!organisation?.id,
   });
 }

@@ -47,18 +47,26 @@ This document tracks the migration to session-aware React Query client to solve 
 
 ---
 
-### Phase 3: Update High-Priority Hooks
-**Status:** PENDING
-**Files to Modify:**
+### Phase 3: Update High-Priority Hooks ✅ COMPLETED
+**Status:** COMPLETED
+**Files Modified:**
 - `src/hooks/useClients.ts`
 - `src/hooks/useProjects.ts`
 - `src/modules/Purchase/hooks/usePurchaseQueries.ts`
 - `src/invoices/hooks.ts`
+- `src/queryClient.ts` (updated withSessionCheck to accept arguments)
 
-**Changes Required:**
-- Import `withSessionCheck` from queryClient
-- Wrap all `queryFn` functions with `withSessionCheck()`
-- Wrap all `mutationFn` functions with `withSessionCheck()`
+**Changes:**
+- Import `withSessionCheck` from queryClient in all files
+- Wrapped all `queryFn` functions with `withSessionCheck()`
+- Wrapped all `mutationFn` functions with `withSessionCheck()`
+- Updated `withSessionCheck` signature to accept arguments for mutations
+
+**Audit Results:** ✅ PASSED
+- Code compiles successfully (tsconfig deprecation warning is unrelated)
+- All imports are correct
+- Session check wrapper applied to all query and mutation functions
+- Mutation functions now properly handle arguments
 
 ---
 
@@ -141,10 +149,10 @@ This document tracks the migration to session-aware React Query client to solve 
 
 ## Progress Summary
 - **Total Phases:** 8
-- **Completed:** 2/8
+- **Completed:** 3/8
 - **In Progress:** 0/8
-- **Pending:** 6/8
+- **Pending:** 5/8
 - **Total Files to Modify:** 41
 
 ## Last Updated
-Phase 2 completed at: 2026-04-20 07:30 UTC+05:30
+Phase 3 completed at: 2026-04-20 07:35 UTC+05:30

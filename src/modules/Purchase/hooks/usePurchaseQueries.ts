@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../../../supabase';
+import { withSessionCheck } from '../../../queryClient';
 
 const createPaymentVoucherNo = () => {
   const now = new Date();
@@ -14,7 +15,7 @@ const createPaymentVoucherNo = () => {
 export const useVendors = (organisationId: string | undefined) => {
   return useQuery({
     queryKey: ['purchase-vendors', organisationId],
-    queryFn: async () => {
+    queryFn: withSessionCheck(async () => {
       if (!organisationId) return [];
       const { data, error } = await supabase
         .from('purchase_vendors')
@@ -25,7 +26,7 @@ export const useVendors = (organisationId: string | undefined) => {
       
       if (error) throw error;
       return data || [];
-    },
+    }),
     enabled: !!organisationId,
   });
 };
@@ -34,7 +35,7 @@ export const useCreateVendor = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async (vendorData: any) => {
+    mutationFn: withSessionCheck(async (vendorData: any) => {
       const { data, error } = await supabase
         .from('purchase_vendors')
         .insert(vendorData)
@@ -43,7 +44,7 @@ export const useCreateVendor = () => {
       
       if (error) throw error;
       return data;
-    },
+    }),
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['purchase-vendors', variables.organisation_id] });
     },
@@ -54,7 +55,7 @@ export const useUpdateVendor = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async ({ id, ...updates }: any) => {
+    mutationFn: withSessionCheck(async ({ id, ...updates }: any) => {
       const { data, error } = await supabase
         .from('purchase_vendors')
         .update(updates)
@@ -64,7 +65,7 @@ export const useUpdateVendor = () => {
       
       if (error) throw error;
       return data;
-    },
+    }),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['purchase-vendors', data.organisation_id] });
     },
@@ -76,7 +77,7 @@ export const useUpdateVendor = () => {
 export const usePurchaseOrders = (organisationId: string | undefined, filters?: any) => {
   return useQuery({
     queryKey: ['purchase-orders', organisationId, filters],
-    queryFn: async () => {
+    queryFn: withSessionCheck(async () => {
       if (!organisationId) return [];
       
       let query = supabase
@@ -95,7 +96,7 @@ export const usePurchaseOrders = (organisationId: string | undefined, filters?: 
       const { data, error } = await query;
       if (error) throw error;
       return data || [];
-    },
+    }),
     enabled: !!organisationId,
   });
 };
@@ -103,7 +104,7 @@ export const usePurchaseOrders = (organisationId: string | undefined, filters?: 
 export const usePurchaseOrder = (poId: string | null) => {
   return useQuery({
     queryKey: ['purchase-order', poId],
-    queryFn: async () => {
+    queryFn: withSessionCheck(async () => {
       if (!poId) return null;
       
       const { data, error } = await supabase
@@ -114,7 +115,7 @@ export const usePurchaseOrder = (poId: string | null) => {
       
       if (error) throw error;
       return data;
-    },
+    }),
     enabled: !!poId,
   });
 };
@@ -123,7 +124,7 @@ export const useCreatePurchaseOrder = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async ({ poData, items }: any) => {
+    mutationFn: withSessionCheck(async ({ poData, items }: any) => {
       // Start transaction
       const { data: po, error: poError } = await supabase
         .from('purchase_orders')
@@ -147,7 +148,7 @@ export const useCreatePurchaseOrder = () => {
       if (itemsError) throw itemsError;
       
       return po;
-    },
+    }),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['purchase-orders', data.organisation_id] });
     },
@@ -158,7 +159,7 @@ export const useUpdatePOStatus = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async ({ poId, status, updates }: any) => {
+    mutationFn: withSessionCheck(async ({ poId, status, updates }: any) => {
       const { data, error } = await supabase
         .from('purchase_orders')
         .update({ status, ...updates })
@@ -168,7 +169,7 @@ export const useUpdatePOStatus = () => {
       
       if (error) throw error;
       return data;
-    },
+    }),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['purchase-orders', data.organisation_id] });
       queryClient.invalidateQueries({ queryKey: ['purchase-order', data.id] });
@@ -181,7 +182,7 @@ export const useUpdatePOStatus = () => {
 export const usePurchaseBills = (organisationId: string | undefined, filters?: any) => {
   return useQuery({
     queryKey: ['purchase-bills', organisationId, filters],
-    queryFn: async () => {
+    queryFn: withSessionCheck(async () => {
       if (!organisationId) return [];
       
       let query = supabase
@@ -204,7 +205,7 @@ export const usePurchaseBills = (organisationId: string | undefined, filters?: a
       const { data, error } = await query;
       if (error) throw error;
       return data || [];
-    },
+    }),
     enabled: !!organisationId,
   });
 };
@@ -216,7 +217,7 @@ export const useVendorOpenBills = (
 ) => {
   return useQuery({
     queryKey: ['purchase-bills', 'open', organisationId, vendorId],
-    queryFn: async () => {
+    queryFn: withSessionCheck(async () => {
       if (!organisationId || !vendorId) return [];
 
       const { data, error } = await supabase
@@ -229,7 +230,7 @@ export const useVendorOpenBills = (
 
       if (error) throw error;
       return data || [];
-    },
+    }),
     enabled: enabled && !!organisationId && !!vendorId,
   });
 };
@@ -238,7 +239,7 @@ export const useCreatePurchaseBill = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async ({ billData, items }: any) => {
+    mutationFn: withSessionCheck(async ({ billData, items }: any) => {
       // Insert bill
       const { data: bill, error: billError } = await supabase
         .from('purchase_bills')
@@ -265,7 +266,7 @@ export const useCreatePurchaseBill = () => {
       await updateVendorBalance(bill.vendor_id, bill.organisation_id);
       
       return bill;
-    },
+    }),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['purchase-bills', data.organisation_id] });
       queryClient.invalidateQueries({ queryKey: ['purchase-vendors', data.organisation_id] });
@@ -278,7 +279,7 @@ export const usePostBillToInventory = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async ({ billId, organisationId }: any) => {
+    mutationFn: withSessionCheck(async ({ billId, organisationId }: any) => {
       const { data, error } = await supabase
         .from('purchase_bills')
         .update({
@@ -295,7 +296,7 @@ export const usePostBillToInventory = () => {
       // This depends on your inventory module integration
       
       return data;
-    },
+    }),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['purchase-bills', data.organisation_id] });
     },
@@ -307,7 +308,7 @@ export const usePostBillToInventory = () => {
 export const usePayments = (organisationId: string | undefined) => {
   return useQuery({
     queryKey: ['purchase-payments', organisationId],
-    queryFn: async () => {
+    queryFn: withSessionCheck(async () => {
       if (!organisationId) return [];
       
       const { data, error } = await supabase
@@ -318,7 +319,7 @@ export const usePayments = (organisationId: string | undefined) => {
       
       if (error) throw error;
       return data || [];
-    },
+    }),
     enabled: !!organisationId,
   });
 };
@@ -330,7 +331,7 @@ export const useVendorLedger = (
 ) => {
   return useQuery({
     queryKey: ['purchase-vendor-ledger', organisationId, vendorId],
-    queryFn: async () => {
+    queryFn: withSessionCheck(async () => {
       if (!organisationId || !vendorId) {
         return {
           bills: [],
@@ -370,7 +371,7 @@ export const useVendorLedger = (
         payments: paymentsResult.data || [],
         debitNotes: debitNotesResult.data || [],
       };
-    },
+    }),
     enabled: enabled && !!organisationId && !!vendorId,
   });
 };
@@ -379,7 +380,7 @@ export const useCreatePayment = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async ({ paymentData, billAllocations }: any) => {
+    mutationFn: withSessionCheck(async ({ paymentData, billAllocations }: any) => {
       const normalizedPaymentData = {
         ...paymentData,
         voucher_no: paymentData.voucher_no || createPaymentVoucherNo(),
@@ -424,7 +425,7 @@ export const useCreatePayment = () => {
       });
       
       return payment;
-    },
+    }),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['purchase-payments', data.organisation_id] });
       queryClient.invalidateQueries({ queryKey: ['purchase-bills', data.organisation_id] });
@@ -439,7 +440,7 @@ export const useCreatePayment = () => {
 export const usePaymentRequests = (organisationId: string | undefined) => {
   return useQuery({
     queryKey: ['payment-requests', organisationId],
-    queryFn: async () => {
+    queryFn: withSessionCheck(async () => {
       if (!organisationId) return [];
       
       const { data, error } = await supabase
@@ -450,7 +451,7 @@ export const usePaymentRequests = (organisationId: string | undefined) => {
       
       if (error) throw error;
       return data || [];
-    },
+    }),
     enabled: !!organisationId,
   });
 };
@@ -459,7 +460,7 @@ export const useCreatePaymentRequest = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async (requestData: any) => {
+    mutationFn: withSessionCheck(async (requestData: any) => {
       const { data, error } = await supabase
         .from('payment_requests')
         .insert(requestData)
@@ -468,7 +469,7 @@ export const useCreatePaymentRequest = () => {
       
       if (error) throw error;
       return data;
-    },
+    }),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['payment-requests', data.organisation_id] });
     },
@@ -479,7 +480,7 @@ export const useApprovePaymentRequest = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async ({ requestId, approverId }: any) => {
+    mutationFn: withSessionCheck(async ({ requestId, approverId }: any) => {
       const { data, error } = await supabase
         .from('payment_requests')
         .update({
@@ -493,7 +494,7 @@ export const useApprovePaymentRequest = () => {
       
       if (error) throw error;
       return data;
-    },
+    }),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['payment-requests', data.organisation_id] });
     },
@@ -505,7 +506,7 @@ export const useApprovePaymentRequest = () => {
 export const useDebitNotes = (organisationId: string | undefined) => {
   return useQuery({
     queryKey: ['debit-notes', organisationId],
-    queryFn: async () => {
+    queryFn: withSessionCheck(async () => {
       if (!organisationId) return [];
       
       const { data, error } = await supabase
@@ -516,7 +517,7 @@ export const useDebitNotes = (organisationId: string | undefined) => {
       
       if (error) throw error;
       return data || [];
-    },
+    }),
     enabled: !!organisationId,
   });
 };
@@ -525,7 +526,7 @@ export const useCreateDebitNote = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async ({ dnData, items }: any) => {
+    mutationFn: withSessionCheck(async ({ dnData, items }: any) => {
       const { data: dn, error: dnError } = await supabase
         .from('debit_notes')
         .insert(dnData)
@@ -552,7 +553,7 @@ export const useCreateDebitNote = () => {
       await updateVendorBalance(dn.vendor_id, dn.organisation_id);
       
       return dn;
-    },
+    }),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['debit-notes', data.organisation_id] });
       queryClient.invalidateQueries({ queryKey: ['purchase-bills', data.organisation_id] });

@@ -93,10 +93,10 @@ export async function ensureValidSession(): Promise<boolean> {
 /**
  * Wrap query functions to ensure session is valid before executing
  */
-export function withSessionCheck<T>(
-  queryFn: () => Promise<T>
-): () => Promise<T> {
-  return async () => {
+export function withSessionCheck<T, Args extends any[] = []>(
+  queryFn: (...args: Args) => Promise<T>
+): (...args: Args) => Promise<T> {
+  return async (...args: Args) => {
     // Check session BEFORE running the query
     const sessionValid = await ensureValidSession();
     
@@ -105,7 +105,7 @@ export function withSessionCheck<T>(
     }
     
     // Session is valid, run the actual query
-    return queryFn();
+    return queryFn(...args);
   };
 }
 
