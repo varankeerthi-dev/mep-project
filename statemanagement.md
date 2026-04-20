@@ -25,10 +25,11 @@ This document tracks the migration to session-aware React Query client to solve 
 
 ---
 
-### Phase 2: Update App.tsx ✅ COMPLETED
+### Phase 2: Update App.tsx ✅ COMPLETED (with bug fix)
 **Status:** COMPLETED
 **Files Modified:**
 - `src/App.tsx`
+- `src/queryClient.ts` (updated cache time)
 
 **Changes:**
 - Import `refreshSessionIfNeeded` from queryClient
@@ -38,12 +39,15 @@ This document tracks the migration to session-aware React Query client to solve 
 - Force logout if session refresh fails
 - Fixed useCallback dependencies (added handleLogout to useEffect)
 - AuthContext value properly memoized with correct dependencies
+- **BUG FIX:** Added periodic session check every 5 minutes to handle same-tab inactivity
+- **BUG FIX:** Reduced session refresh cache from 30s to 10s for more aggressive checking
 
 **Audit Results:** ✅ PASSED
 - Code compiles successfully (tsconfig deprecation warning is unrelated)
 - All imports are correct
 - Session refresh logic implemented correctly
 - Visibility handler properly refreshes session before refetching
+- Periodic check added to handle same-tab inactivity scenarios
 
 ---
 
@@ -153,6 +157,8 @@ This document tracks the migration to session-aware React Query client to solve 
 - **In Progress:** 0/8
 - **Pending:** 5/8
 - **Total Files to Modify:** 41
+- **Bug Fixes:** 1 (Phase 2 same-tab inactivity fix)
 
 ## Last Updated
+Phase 2 bug fix completed at: 2026-04-20 07:42 UTC+05:30
 Phase 3 completed at: 2026-04-20 07:35 UTC+05:30
