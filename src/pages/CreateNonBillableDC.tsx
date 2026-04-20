@@ -658,12 +658,43 @@ export default function CreateNonBillableDC({ onSuccess, onCancel, editDC }) {
       .limit(1);
     
     // Get padding from series config if possible, else default 4
-    const { data: series } = await supabase
-      .from('document_series')
-      .select('configs')
-      .eq('is_default', true)
-      .single();
-    const padding = parseInt(series?.configs?.dc?.padding) || 4;
+    const isMissingColumnError = (error, columnName) => {
+      const code = error?.code;
+      const message = String(error?.message || '').toLowerCase();
+      if (code === '42703') return true;
+      return message.includes(String(columnName).toLowerCase()) && message.includes('does not exist');
+    };
+
+    let padding = 4;
+    try {
+      const { data: series, error: seriesError } = await supabase
+        .from('document_series')
+        .select('configs, created_at')
+        .eq('is_default', true)
+        .maybeSingle();
+
+      if (seriesError && !isMissingColumnError(seriesError, 'is_default') && !isMissingColumnError(seriesError, 'organisation_id')) {
+        throw seriesError;
+      }
+
+      if (series?.configs?.dc?.padding) {
+        padding = parseInt(series.configs.dc.padding) || 4;
+      } else if (seriesError && (isMissingColumnError(seriesError, 'is_default') || isMissingColumnError(seriesError, 'organisation_id'))) {
+        const { data: rows, error: rowsError } = await supabase
+          .from('document_series')
+          .select('configs, created_at')
+          .order('created_at', { ascending: false })
+          .limit(1);
+        if (rowsError && !isMissingColumnError(rowsError, 'is_default') && !isMissingColumnError(rowsError, 'organisation_id')) {
+          throw rowsError;
+        }
+        const fallback = Array.isArray(rows) ? rows[0] : null;
+        padding = parseInt(fallback?.configs?.dc?.padding) || 4;
+      }
+    } catch (e) {
+      // Keep default padding when schema doesn't match or series query fails.
+      console.warn('Unable to load document_series padding; using default padding=4', e);
+    }
 
     let num = 1;
     if (existingDCs && existingDCs.length > 0) {

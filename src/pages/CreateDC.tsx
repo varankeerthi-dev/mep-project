@@ -716,14 +716,46 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
     }
   };
 
+  const isMissingColumnError = (error, columnName) => {
+    const code = error?.code;
+    const message = String(error?.message || '').toLowerCase();
+    if (code === '42703') return true;
+    return message.includes(String(columnName).toLowerCase()) && message.includes('does not exist');
+  };
+
+  const fetchSeriesRowForDC = async () => {
+    const attempts = [
+      () =>
+        supabase
+          .from('document_series')
+          .select('id, configs, current_number, created_at')
+          .eq('is_default', true)
+          .maybeSingle(),
+      () =>
+        supabase
+          .from('document_series')
+          .select('id, configs, current_number, created_at')
+          .order('created_at', { ascending: false })
+          .limit(1),
+    ];
+
+    for (const runQuery of attempts) {
+      const { data, error } = await runQuery();
+      if (error) {
+        if (isMissingColumnError(error, 'is_default') || isMissingColumnError(error, 'organisation_id')) {
+          continue;
+        }
+        throw error;
+      }
+      if (Array.isArray(data)) return data[0] || null;
+      if (data) return data;
+    }
+    return null;
+  };
+
   const generateDCNo = async (reserveNumber = false) => {
-    // First try to get from new document_series table
-    const { data: seriesData } = await supabase
-      .from('document_series')
-      .select('configs, current_number')
-      .eq('is_default', true)
-      .single();
-    
+    const seriesData = await fetchSeriesRowForDC();
+
     if (seriesData?.configs?.dc?.enabled) {
       const config = seriesData.configs.dc;
       const currentNum = (seriesData.current_number || config.start_number || 1);
@@ -732,9 +764,12 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
       
       // Only reserve the number when actually saving
       if (reserveNumber) {
-        await supabase.from('document_series').update({ 
-          current_number: currentNum + 1 
-        }).eq('is_default', true);
+        await supabase
+          .from('document_series')
+          .update({
+            current_number: currentNum + 1
+          })
+          .eq('id', seriesData.id);
       }
       
       // Get FY prefix if auto

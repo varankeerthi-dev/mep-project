@@ -347,12 +347,7 @@ const buildQuoteNoFromSeries = useCallback((seriesRow) => {
 const loadQuoteNoPreview = useCallback(async () => {
   if (editId) return;
   try {
-    const { data: defaultSeries } = await supabase
-      .from('document_series')
-      .select('configs, current_number')
-      .eq('is_default', true)
-      .limit(1)
-      .maybeSingle();
+    const defaultSeries = await fetchDefaultSeriesRow();
 
     if (defaultSeries) {
       const seriesNo = buildQuoteNoFromSeries(defaultSeries);
@@ -381,7 +376,7 @@ const loadQuoteNoPreview = useCallback(async () => {
     setQuoteNoPreview('QT-0001');
     setFormData((prev) => ({ ...prev, quotation_no: 'QT-0001' }));
   }
-}, [buildQuoteNoFromSeries, editId]);
+}, [buildQuoteNoFromSeries, editId, organisation?.id]);
 
   const loadVariantDiscounts = async (quotationId) => {
     try {
@@ -1079,6 +1074,84 @@ const loadQuoteNoPreview = useCallback(async () => {
     return message.startsWith('Timeout while ');
   };
 
+  const isMissingColumnError = (error, columnName) => {
+    const code = (error as any)?.code;
+    const message = ((error as any)?.message || String(error || '')).toLowerCase();
+    if (code === '42703') return true;
+    if (!columnName) return message.includes('does not exist') && message.includes('column');
+    return message.includes(String(columnName).toLowerCase()) && message.includes('does not exist');
+  };
+
+  async function fetchDefaultSeriesRow() {
+    const tryFetch = async (buildQuery, label) => {
+      try {
+        const { data } = await withTimeout(buildQuery(), label, 20000);
+        return data || null;
+      } catch (error) {
+        const missingIsDefault = isMissingColumnError(error, 'is_default');
+        const missingOrganisationId = isMissingColumnError(error, 'organisation_id');
+        if (
+          isTimeoutError(error, label) ||
+          missingIsDefault ||
+          missingOrganisationId
+        ) {
+          return null;
+        }
+        throw error;
+      }
+    };
+
+    const organizationId = organisation?.id;
+
+    const primary = await tryFetch(
+      () =>
+        supabase
+          .from('document_series')
+          .select('id, configs, current_number, created_at')
+          .eq('is_default', true)
+          .eq('organisation_id', organizationId)
+          .limit(1)
+          .maybeSingle(),
+      'loading document series'
+    );
+    if (primary) return primary;
+
+    const byOrgLatestRows = await tryFetch(
+      () =>
+        supabase
+          .from('document_series')
+          .select('id, configs, current_number, created_at')
+          .eq('organisation_id', organizationId)
+          .order('created_at', { ascending: false })
+          .limit(1),
+      'loading fallback document series by organisation'
+    );
+    if (Array.isArray(byOrgLatestRows) && byOrgLatestRows[0]) return byOrgLatestRows[0];
+
+    const byDefaultLatestRows = await tryFetch(
+      () =>
+        supabase
+          .from('document_series')
+          .select('id, configs, current_number, created_at')
+          .eq('is_default', true)
+          .order('created_at', { ascending: false })
+          .limit(1),
+      'loading fallback default document series'
+    );
+    if (Array.isArray(byDefaultLatestRows) && byDefaultLatestRows[0]) return byDefaultLatestRows[0];
+
+    const globalLatestRows = await tryFetch(
+      () =>
+        supabase
+          .from('document_series')
+          .select('id, configs, current_number, created_at')
+          .order('created_at', { ascending: false })
+          .limit(1),
+      'loading fallback global document series'
+    );
+    return Array.isArray(globalLatestRows) ? globalLatestRows[0] || null : null;
+  }
+
   const updateItem = (id, field, value) => {
     setItems((prevItems) =>
       prevItems.map((item) => {
@@ -1324,20 +1397,9 @@ const loadQuoteNoPreview = useCallback(async () => {
       } else {
         let defaultSeries = null;
         try {
-          const seriesResult = await withTimeout(
-            supabase
-              .from('document_series')
-              .select('*')
-              .eq('is_default', true)
-              .eq('organisation_id', organisation?.id)
-              .limit(1)
-              .maybeSingle(),
-            'loading document series',
-            20000
-          );
-          defaultSeries = seriesResult?.data || null;
+          defaultSeries = await fetchDefaultSeriesRow();
         } catch (seriesError) {
-          if (!isTimeoutError(seriesError, 'loading document series')) {
+          if (!isTimeoutError(seriesError, 'loading document series') && !isMissingColumnError(seriesError, 'is_default')) {
             throw seriesError;
           }
         }
