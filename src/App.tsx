@@ -410,8 +410,8 @@ export default function App() {
         const now = Date.now();
         const awayTimeMs = now - lastVisibleTime;
         
-        // Only act if user was away for >5 minutes
-        if (awayTimeMs > 5 * 60 * 1000) {
+        // Only act if user was away for >30 seconds
+        if (awayTimeMs > 30 * 1000) {
           // CRITICAL: Refresh session FIRST to prevent query failures
           console.log('🔄 Tab visibility changed after inactivity - refreshing session...');
           const sessionValid = await refreshSessionIfNeeded();
