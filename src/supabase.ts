@@ -233,11 +233,108 @@ export const joinOrganisation = async (
 export const getOrganisationMembers = async (
   organisationId: string
 ): Promise<{ data: OrganisationMember[] | null; error: Error | null }> => {
-  const { data, error } = await supabase
+  // Avoid PostgREST embedded selects here.
+  // In some DB setups, org_members -> user_profiles FK is missing, causing PGRST200 (400).
+  const { data: members, error: membersError } = await supabase
     .from('org_members')
-    .select('*, user:user_profiles(*)')
-    .eq('organisation_id', organisationId)
-  return { data: data as OrganisationMember[] | null, error }
+    .select('*')
+    .eq('organisation_id', organisationId);
+
+  if (membersError) return { data: null, error: membersError as any };
+
+  const rows = (members || []) as any[];
+  const userIds = [...new Set(rows.map((m) => m.user_id).filter(Boolean))] as string[];
+
+  if (userIds.length === 0) {
+    return { data: rows as OrganisationMember[] | null, error: null };
+  }
+
+  const isMissingColumnError = (error: any, columnName: string) => {
+    const code = error?.code;
+    const message = String(error?.message || '').toLowerCase();
+    if (code === '42703') return true;
+    return message.includes(String(columnName).toLowerCase()) && message.includes('does not exist');
+  };
+
+  // Try matching on user_profiles.user_id first (preferred), then fallback to user_profiles.id.
+  let profiles: any[] = [];
+  let profileKey: 'user_id' | 'id' = 'user_id';
+
+  // Attempt A: user_profiles has user_id + email
+  const attemptA = await supabase
+    .from('user_profiles')
+    .select('id, user_id, email, full_name')
+    .in('user_id', userIds);
+
+  if (!attemptA.error) {
+    profiles = (attemptA.data || []) as any[];
+    profileKey = 'user_id';
+  } else {
+    // Attempt B: user_profiles has user_id but no email column
+    if (isMissingColumnError(attemptA.error, 'email')) {
+      const attemptB = await supabase
+        .from('user_profiles')
+        .select('id, user_id, full_name')
+        .in('user_id', userIds);
+      if (!attemptB.error) {
+        profiles = (attemptB.data || []) as any[];
+        profileKey = 'user_id';
+      } else if (isMissingColumnError(attemptB.error, 'user_id')) {
+        // Attempt C: user_profiles uses id = auth user id
+        const attemptC = await supabase
+          .from('user_profiles')
+          .select('id, email, full_name')
+          .in('id', userIds);
+        if (!attemptC.error) {
+          profiles = (attemptC.data || []) as any[];
+          profileKey = 'id';
+        } else if (isMissingColumnError(attemptC.error, 'email')) {
+          const attemptD = await supabase
+            .from('user_profiles')
+            .select('id, full_name')
+            .in('id', userIds);
+          if (!attemptD.error) {
+            profiles = (attemptD.data || []) as any[];
+            profileKey = 'id';
+          }
+        }
+      }
+    } else if (isMissingColumnError(attemptA.error, 'user_id')) {
+      // Attempt C: user_profiles uses id = auth user id
+      const attemptC = await supabase
+        .from('user_profiles')
+        .select('id, email, full_name')
+        .in('id', userIds);
+      if (!attemptC.error) {
+        profiles = (attemptC.data || []) as any[];
+        profileKey = 'id';
+      } else if (isMissingColumnError(attemptC.error, 'email')) {
+        const attemptD = await supabase
+          .from('user_profiles')
+          .select('id, full_name')
+          .in('id', userIds);
+        if (!attemptD.error) {
+          profiles = (attemptD.data || []) as any[];
+          profileKey = 'id';
+        }
+      }
+    } else {
+      return { data: null, error: attemptA.error as any };
+    }
+  }
+
+  const profileMap = new Map<string, any>();
+  for (const p of profiles) {
+    const k = p?.[profileKey];
+    if (k) profileMap.set(String(k), p);
+  }
+
+  const enriched = rows.map((m) => ({
+    ...m,
+    user: profileMap.get(String(m.user_id)) || null,
+  }));
+
+  return { data: enriched as OrganisationMember[] | null, error: null };
 }
 
 export const updateUserRole = async (

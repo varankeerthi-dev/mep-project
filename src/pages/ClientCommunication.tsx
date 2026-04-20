@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../supabase';
+import { getOrganisationMembers } from '../supabase';
 import { colors, radii, shadows, spacing } from '../design-system';
 import { Card } from '../components/ui/Card';
 import { Button, IconButton } from '../components/ui/Button';
@@ -170,23 +171,11 @@ export function ClientCommunication() {
   const { data: users = [] } = useQuery({
     queryKey: ['users', organisation?.id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('org_members')
-        .select(`
-          user:user_profiles (
-            id,
-            email,
-            full_name
-          )
-        `)
-        .eq('organisation_id', organisation?.id);
-
+      const { data, error } = await getOrganisationMembers(organisation?.id as string);
       if (error) throw error;
-
-      // Extract profiles from the relationship
       return (data || [])
         .map((member: any) => member.user)
-        .filter((u: any) => u && u.id); // Ensure we have a valid profile
+        .filter((u: any) => u && u.id);
     },
     enabled: !!organisation?.id,
     staleTime: 1000 * 60 * 30,
