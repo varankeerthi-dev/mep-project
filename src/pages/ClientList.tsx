@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '../supabase';
 import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useClients } from '../hooks/useClients';
@@ -132,7 +132,7 @@ function TransactionsTable({ rows, loading, onOpen, emptyMessage }: Transactions
         <table className="w-full caption-bottom text-sm">
           <thead className="[&_tr]:border-b">
             {table.getHeaderGroups().map(headerGroup => (
-              <>
+              <React.Fragment key={headerGroup.id}>
                 <tr key={`${headerGroup.id}-sort`} className="border-b transition-colors hover:bg-slate-50/50">
                   {headerGroup.headers.map(header => (
                     <th
@@ -166,7 +166,7 @@ function TransactionsTable({ rows, loading, onOpen, emptyMessage }: Transactions
                     ))}
                   </tr>
                 )}
-              </>
+              </React.Fragment>
             ))}
           </thead>
           <tbody className="[&_tr:last-child]:border-0">

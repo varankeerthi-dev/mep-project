@@ -936,19 +936,12 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
 
           {/* ─── PRICING TAB ─── */}
 <TabsContent value="pricing" className="mt-0 ring-0 outline-none">
-            <div className="rounded-xl border border-slate-200 bg-white">
-               <div className="p-6">
-                 <ClientDiscountPortfolio formData={formData} setFormData={setFormData} isAdmin={isAdmin} organisation={organisation} />
-               </div>
-               
-               <div className="flex items-center justify-end border-t border-slate-200 bg-slate-50 px-6 py-4 gap-3">
-                 <Button type="button" variant="ghost" className="h-11 rounded-xl px-6 text-[14px] font-semibold" onClick={onCancel}>Cancel</Button>
-                 <Button type="button" onClick={() => handleSubmit()} className="h-11 rounded-xl px-8 text-[14px] font-semibold bg-indigo-600 hover:bg-indigo-700 text-white">
-                   {editMode ? 'Update Pricing' : 'Save Pricing'}
-                 </Button>
-               </div>
-            </div>
-          </TabsContent>
+<div className="rounded-xl border border-slate-200 bg-white">
+                <div className="p-6">
+                  <ClientDiscountPortfolio formData={formData} setFormData={setFormData} isAdmin={isAdmin} organisation={organisation} />
+                </div>                
+              </div>
+            </TabsContent>
           
         </Tabs>
 

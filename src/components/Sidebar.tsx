@@ -57,17 +57,11 @@ const menuData: MenuSection[] = [
         submenu: [
           { id: 'clients-new', label: 'New Client', path: '/clients/new' },
           { id: 'clients-list', label: 'Client List', path: '/clients' },
-          { id: 'client-po-list', label: 'Purchase Orders', path: '/client-po' }
+          { id: 'client-po-list', label: 'Purchase Orders', path: '/client-po' },
+          { id: 'client-meetings', label: 'Meetings', path: '/meetings' }
         ]
       },
-      {
-        id: 'meetings',
-        label: 'Meetings',
-        submenu: [
-          { id: 'meetings-dashboard', label: 'Dashboard', path: '/meetings' },
-          { id: 'meetings-create', label: 'Create Meeting', path: '/meetings/create' }
-        ]
-      },
+      
       {
         id: 'site-visit',
         label: 'Site Visit',

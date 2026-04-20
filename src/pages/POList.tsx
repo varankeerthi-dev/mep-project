@@ -60,10 +60,12 @@ export default function POList() {
   const loadPOs = async () => {
     // Guard: wait for organisation to be available before querying
     if (!organisation?.id) {
+      console.log('No organisation ID available');
       setLoading(false);
       return;
     }
 
+    console.log('Loading POs for organisation:', organisation.id);
     setLoading(true);
     try {
       const sessionValid = await ensureValidSession();
