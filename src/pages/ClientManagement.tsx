@@ -60,14 +60,14 @@ type CreateClientProps = {
 const selectCn = 'h-11 w-full border border-zinc-200 bg-white px-3 text-sm outline-none';
 
 const SectionHeading = ({ children }: { children: React.ReactNode }) => (
-  <div className="mb-6">
-    <h3 className="text-base font-semibold text-zinc-900">{children}</h3>
+  <div className="mb-4">
+    <h3 className="text-base font-semibold" style={{ color: '#3A6963' }}>{children}</h3>
   </div>
 );
 
 const FieldGroup = ({ label, required, error, children }: { label: string; required?: boolean; error?: string; children: React.ReactNode }) => (
   <div className="flex flex-col gap-1.5">
-    <Label className="text-xs font-medium text-zinc-600">
+    <Label className="text-xs font-medium" style={{ color: '#3A6963' }}>
       {label}{required && <span className="text-red-500 ml-1">*</span>}
     </Label>
     {children}
@@ -706,12 +706,12 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
             <form onSubmit={handleSubmit} className="relative">
               <div className="border border-zinc-200 bg-white">
                 
-                <div className="p-8 md:p-14 space-y-16">
+                <div className="p-6 space-y-8">
                   
                   {/* Identity Block */}
                   <section>
                     <SectionHeading>Client Information</SectionHeading>
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-12 gap-y-8">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                       <FieldGroup label="Client Name" required>
                         <CompactInput value={val('client_name')} onChange={set('client_name')} required placeholder="Enter client name" />
                       </FieldGroup>
@@ -745,13 +745,10 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                         Contact Information
                     </SectionHeading>
                     
-                    <div className="space-y-10">
+                    <div className="space-y-8">
                       <div>
-                        <div className="flex items-center gap-3 mb-5">
-                            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-900 text-white text-[11px] font-black">1</span>
-                            <p className="text-[14px] font-bold text-slate-900 tracking-wide">Primary Contact</p>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 pl-9">
+                        <p className="text-[14px] font-semibold mb-4" style={{ color: '#3A6963' }}>Primary Contact</p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                           <CompactInput value={val('contact_person')} onChange={set('contact_person')} placeholder="Contact Person Name" />
                           <CompactInput value={val('contact_designation')} onChange={set('contact_designation')} placeholder="Designation" />
                           <CompactInput value={val('contact')} onChange={set('contact')} placeholder="Phone number" />
@@ -759,14 +756,11 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                         </div>
                       </div>
 
-                      <div className="pl-9"><Separator className="bg-slate-100" /></div>
+                      <div className="border-t border-slate-100"></div>
 
                       <div>
-                        <div className="flex items-center gap-3 mb-5">
-                            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-slate-400 text-[11px] font-black">2</span>
-                            <p className="text-[14px] font-bold text-slate-700 tracking-wide">Secondary Contact</p>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 pl-9">
+                        <p className="text-[14px] font-semibold mb-4" style={{ color: '#3A6963' }}>Secondary Contact</p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                           <CompactInput value={val('contact_person_2')} onChange={set('contact_person_2')} placeholder="Contact Person Name" />
                           <CompactInput value={val('contact_designation_2')} onChange={set('contact_designation_2')} placeholder="Designation" />
                           <CompactInput value={val('contact_person_2_contact')} onChange={set('contact_person_2_contact')} placeholder="Phone Number" />
@@ -774,14 +768,11 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                         </div>
                       </div>
 
-                      <div className="pl-9"><Separator className="bg-slate-100" /></div>
+                      <div className="border-t border-slate-100"></div>
 
                       <div>
-                        <div className="flex items-center gap-3 mb-5">
-                            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 text-[11px] font-black">$</span>
-                            <p className="text-[14px] font-bold text-slate-800 tracking-wide">Purchase Contact</p>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 pl-9">
+                        <p className="text-[14px] font-semibold mb-4" style={{ color: '#3A6963' }}>Purchase Contact</p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                           <CompactInput value={val('purchase_person')} onChange={set('purchase_person')} placeholder="Contact Person Name" />
                           <CompactInput value={val('purchase_designation')} onChange={set('purchase_designation')} placeholder="Designation" />
                           <CompactInput value={val('purchase_contact')} onChange={set('purchase_contact')} placeholder="Phone Number" />
@@ -793,21 +784,16 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
 
                   {/* Physical Domains */}
                   <section>
-<SectionHeading>
-                       Address Details
-                    </SectionHeading>
+<SectionHeading>Address Details</SectionHeading>
 
-                    <div className="grid grid-cols-1 max-w-4xl gap-12">
-                      {/* Primary Nexus */}
-                      <div className="rounded-2xl bg-[oklch(0.99_0.005_250)] border border-slate-200/80 p-8 shadow-sm">
-                        <div className="flex items-center gap-3 mb-6">
-                           <div className="w-2 h-2 rounded-full bg-indigo-500" />
-                           <h4 className="text-[15px] font-bold text-slate-900 tracking-tight">Billing Address</h4>
-                        </div>
-                        <div className="space-y-6">
-                          <CompactInput value={val('address1')} onChange={set('address1')} placeholder="Address Line 1" className="h-[48px]" />
-                          <CompactInput value={val('address2')} onChange={set('address2')} placeholder="Address Line 2"  className="h-[48px]"/>
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 max-w-4xl gap-8">
+                      {/* Billing Address */}
+                      <div className="rounded-xl border border-slate-200 p-6">
+                        <h4 className="text-[15px] font-semibold text-slate-900 mb-4">Billing Address</h4>
+                        <div className="space-y-4">
+                          <CompactInput value={val('address1')} onChange={set('address1')} placeholder="Address Line 1" />
+                          <CompactInput value={val('address2')} onChange={set('address2')} placeholder="Address Line 2" />
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <FieldGroup label="State">
                                <div className="relative">
                                   <select className={selectCn} value={val('state')} onChange={e => setFormData({ ...formData, state: e.target.value })}>
@@ -823,19 +809,16 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                               <CompactInput value={val('city')} onChange={set('city')} placeholder="City" />
                             </FieldGroup>
                             <FieldGroup label="PIN Code">
-                              <CompactInput value={val('pincode')} onChange={set('pincode')} placeholder="PIN Code" className="font-mono tracking-wider text-[14px] font-semibold" />
+                              <CompactInput value={val('pincode')} onChange={set('pincode')} placeholder="PIN Code" className="font-mono" />
                             </FieldGroup>
                           </div>
                         </div>
                       </div>
 
-                      {/* Terminals (Shipping) */}
+                      {/* Shipping Addresses */}
                       <div>
-                        <div className="flex items-center justify-between mb-6">
-                          <div className="flex items-center gap-3">
-                             <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                             <h4 className="text-[15px] font-bold text-slate-900 tracking-tight">Shipping Addresses</h4>
-                          </div>
+                        <div className="flex items-center justify-between mb-4">
+                          <h4 className="text-[15px] font-semibold text-slate-900">Shipping Addresses</h4>
                           {shippingAddresses.length > 0 && (
                             <Button type="button" variant="ghost" size="sm" onClick={copyBillingToShipping} className="text-indigo-600 font-semibold hover:bg-indigo-50">
                                <Copy className="w-4 h-4 mr-2" /> Copy from Billing
@@ -958,18 +941,20 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                 </div>
 
                 {/* Main Action Footer */}
-                <div className="sticky bottom-0 z-30 flex flex-col-reverse md:flex-row items-center justify-between rounded-b-[32px] border-t border-slate-200/80 bg-white/90 px-8 md:px-14 py-6 backdrop-blur-xl shadow-[0_-20px_40px_-20px_rgba(0,0,0,0.05)] gap-4">
-                  <p className="text-[14px] font-bold text-slate-500 flex items-center gap-3 uppercase tracking-widest w-full md:w-auto justify-center md:justify-start">
-                    <span className={cn("w-2.5 h-2.5 rounded-full shadow-inner", isDirty ? "bg-amber-400" : "bg-emerald-400")} />
-                    {isDirty ? 'Unsaved Changes' : 'Saved'}
-                  </p>
-                  <div className="flex flex-wrap items-center justify-center gap-3 w-full md:w-auto">
-                    <Button type="button" variant="ghost" className="h-12 rounded-xl px-6 text-[14px] font-bold hover:bg-slate-100" onClick={onCancel} disabled={saving}>Cancel</Button>
+                <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50 px-6 py-4 gap-4">
+                  <div className="flex items-center gap-3">
+                    <Button type="button" variant="ghost" className="h-11 rounded-xl px-5 text-[14px] font-semibold" onClick={onCancel as any}>
+                      <ChevronLeft className="h-4 w-4 mr-1" />
+                      Back
+                    </Button>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Button type="button" variant="ghost" className="h-11 rounded-xl px-6 text-[14px] font-semibold hover:bg-slate-100" onClick={onCancel} disabled={saving}>Cancel</Button>
                     {editMode && (
-                      <Button type="button" variant="danger" className="h-12 rounded-xl px-6 text-[14px] font-bold bg-white text-rose-600 border border-rose-200 hover:bg-rose-50 hover:border-rose-300" onClick={deleteClient} disabled={saving}>Delete Client</Button>
+                      <Button type="button" variant="danger" className="h-11 rounded-xl px-6 text-[14px] font-semibold" onClick={deleteClient} disabled={saving}>Delete Client</Button>
                     )}
-                    <Button type="submit" className="h-12 rounded-xl px-10 text-[15px] font-bold shadow-lg shadow-indigo-600/20 bg-indigo-600 hover:bg-indigo-700 text-white focus:ring-4 focus:ring-indigo-600/20" disabled={saving}>
-                      {saving ? 'Saving...' : editMode ? 'Update Client' : 'Add Client'}
+                    <Button type="submit" className="h-11 rounded-xl px-8 text-[14px] font-semibold bg-indigo-600 hover:bg-indigo-700 text-white" disabled={saving}>
+                      {saving ? 'Saving...' : editMode ? 'Update Client' : 'Save Client'}
                     </Button>
                   </div>
                 </div>
@@ -979,24 +964,18 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
           </TabsContent>
 
           {/* ─── PRICING TAB ─── */}
-          <TabsContent value="pricing" className="mt-0 ring-0 outline-none">
-            <div className="rounded-[32px] border border-slate-200/80 bg-white shadow-2xl shadow-slate-200/40">
-               <div className="p-8 md:p-14 pb-0">
+<TabsContent value="pricing" className="mt-0 ring-0 outline-none">
+            <div className="rounded-xl border border-slate-200 bg-white">
+               <div className="p-6">
                  <ClientDiscountPortfolio formData={formData} setFormData={setFormData} isAdmin={isAdmin} />
                </div>
                
-               <div className="sticky bottom-0 z-30 mt-6 flex flex-col-reverse md:flex-row items-center justify-between rounded-b-[32px] border-t border-slate-200/80 bg-white/90 px-8 md:px-14 py-6 backdrop-blur-xl shadow-[0_-20px_40px_-20px_rgba(0,0,0,0.05)] gap-4">
-                  <p className="text-[14px] font-bold text-slate-500 flex items-center gap-3 uppercase tracking-widest w-full md:w-auto justify-center md:justify-start">
-                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-inner" />
-                    FINANCIAL COMPLIANCE
-                  </p>
-                  <div className="flex flex-wrap items-center justify-center gap-3 w-full md:w-auto">
-                    <Button type="button" variant="ghost" className="h-12 rounded-xl px-6 text-[14px] font-bold" onClick={onCancel}>Save Pricing</Button>
-                    <Button type="button" onClick={() => handleSubmit()} className="h-12 rounded-xl px-10 text-[15px] font-bold shadow-lg shadow-indigo-600/20 bg-indigo-600 hover:bg-indigo-700 text-white">
-                      {editMode ? 'Update Pricing' : 'Save Pricing'}
-                    </Button>
-                  </div>
-                </div>
+               <div className="flex items-center justify-end border-t border-slate-200 bg-slate-50 px-6 py-4 gap-3">
+                 <Button type="button" variant="ghost" className="h-11 rounded-xl px-6 text-[14px] font-semibold" onClick={onCancel}>Cancel</Button>
+                 <Button type="button" onClick={() => handleSubmit()} className="h-11 rounded-xl px-8 text-[14px] font-semibold bg-indigo-600 hover:bg-indigo-700 text-white">
+                   {editMode ? 'Update Pricing' : 'Save Pricing'}
+                 </Button>
+               </div>
             </div>
           </TabsContent>
           
