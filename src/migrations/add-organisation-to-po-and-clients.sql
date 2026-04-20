@@ -17,12 +17,12 @@ CREATE INDEX IF NOT EXISTS idx_clients_organisation_id ON clients(organisation_i
 DROP POLICY IF EXISTS "Enable all access for client_purchase_orders" ON client_purchase_orders;
 CREATE POLICY "Enable organisation access for client_purchase_orders" ON client_purchase_orders
   FOR ALL TO authenticated 
-  USING (organisation_id IN (SELECT organisation_id FROM organisation_members WHERE user_id = auth.uid()))
-  WITH CHECK (organisation_id IN (SELECT organisation_id FROM organisation_members WHERE user_id = auth.uid()));
+  USING (organisation_id IN (SELECT organisation_id FROM user_organisations WHERE user_id = auth.uid()))
+  WITH CHECK (organisation_id IN (SELECT organisation_id FROM user_organisations WHERE user_id = auth.uid()));
 
 -- Update RLS policies for clients
 DROP POLICY IF EXISTS "Enable all access" ON clients;
 CREATE POLICY "Enable organisation access for clients" ON clients
   FOR ALL TO authenticated 
-  USING (organisation_id IN (SELECT organisation_id FROM organisation_members WHERE user_id = auth.uid()))
-  WITH CHECK (organisation_id IN (SELECT organisation_id FROM organisation_members WHERE user_id = auth.uid()));
+  USING (organisation_id IN (SELECT organisation_id FROM user_organisations WHERE user_id = auth.uid()))
+  WITH CHECK (organisation_id IN (SELECT organisation_id FROM user_organisations WHERE user_id = auth.uid()));
