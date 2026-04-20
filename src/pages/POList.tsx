@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabase';
 import { useNavigate } from 'react-router-dom';
-import { ensureValidSession } from '../queryClient';
 import { formatDate, formatCurrency } from '../utils/formatters';
 import { 
   Plus, 
@@ -55,14 +54,6 @@ export default function POList() {
   const loadPOs = async () => {
     setLoading(true);
     
-    // Check session before making query
-    const sessionValid = await ensureValidSession();
-    if (!sessionValid) {
-      console.error('Session expired, please refresh the page');
-      setLoading(false);
-      return;
-    }
-    
     let query = supabase
       .from('client_purchase_orders')
       .select(`
@@ -81,7 +72,13 @@ export default function POList() {
       query = query.lte('po_date', dateTo);
     }
 
-    const { data } = await query;
+    const { data, error } = await query;
+    if (error) {
+      console.error('Error loading POs:', error);
+      if (error.message === 'SESSION_EXPIRED') {
+        alert('Session expired, please refresh the page');
+      }
+    }
     setPos(data || []);
     setLoading(false);
   };
@@ -116,13 +113,6 @@ export default function POList() {
 
   const deletePO = async (id: string) => {
     if (!confirm('Are you sure you want to delete this PO?')) return;
-    
-    // Check session before making mutation
-    const sessionValid = await ensureValidSession();
-    if (!sessionValid) {
-      alert('Session expired, please refresh the page');
-      return;
-    }
     
     const { error } = await supabase
       .from('client_purchase_orders')

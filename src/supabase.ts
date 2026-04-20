@@ -8,7 +8,7 @@ if (!supabaseUrl || !supabaseKey) {
   throw new Error('Missing Supabase environment variables')
 }
 
-export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseKey, {
+const baseClient: SupabaseClient = createClient(supabaseUrl, supabaseKey, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
@@ -16,6 +16,73 @@ export const supabase: SupabaseClient = createClient(supabaseUrl, supabaseKey, {
     flowType: 'pkce',
     storageKey: 'mep-auth-token', // Explicit storage key to avoid collisions
     storage: localStorage,
+  }
+})
+
+// Import ensureValidSession dynamically to avoid circular dependency
+let ensureValidSession: (() => Promise<boolean>) | null = null
+
+// Lazy load the session check function
+async function getSessionChecker() {
+  if (!ensureValidSession) {
+    const module = await import('./queryClient')
+    ensureValidSession = module.ensureValidSession
+  }
+  return ensureValidSession!
+}
+
+// Create a wrapped client that checks session before database calls
+export const supabase = new Proxy(baseClient, {
+  get(target, prop) {
+    // For auth methods, use the base client directly
+    if (prop === 'auth') {
+      return target.auth
+    }
+
+    // For database methods, wrap with session check
+    const value = Reflect.get(target, prop)
+    if (typeof value === 'function' && prop === 'from') {
+      return function (table: string) {
+        const queryBuilder = value.call(target, table)
+        
+        // Wrap the query methods to check session before execution
+        return new Proxy(queryBuilder, {
+          get(qbTarget, qbProp) {
+            const qbValue = Reflect.get(qbTarget, qbProp)
+            
+            // Wrap methods that execute queries (select, insert, update, delete, etc.)
+            if (typeof qbValue === 'function' && 
+                ['select', 'insert', 'update', 'delete', 'rpc'].includes(qbProp as string)) {
+              return async function (...args: any[]) {
+                // Check session before executing query
+                try {
+                  const checker = await getSessionChecker()
+                  const sessionValid = await checker()
+                  if (!sessionValid) {
+                    console.error('Session expired - query blocked')
+                    // Return empty result for select queries
+                    if (qbProp === 'select') {
+                      return { data: null, error: new Error('SESSION_EXPIRED') }
+                    }
+                    // Return error for mutations
+                    return { data: null, error: new Error('SESSION_EXPIRED') }
+                  }
+                } catch (err) {
+                  console.error('Session check failed:', err)
+                }
+                
+                // Execute the original query
+                return qbValue.apply(qbTarget, args)
+              }
+            }
+            
+            return qbValue
+          }
+        })
+      }
+    }
+
+    return value
   }
 })
 
