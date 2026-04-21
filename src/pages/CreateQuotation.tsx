@@ -14,6 +14,7 @@ import { useVariants } from '../hooks/useVariants';
 import { generateQuickQuoteItems } from '../quotation/quick-quote/engine';
 import { loadQuickQuoteConfig, normalizeQuickQuoteConfig } from '../quotation/quick-quote/api';
 import type { QuickQuoteConfig } from '../quotation/quick-quote/types';
+import ItemCreateDrawer from '../components/ItemCreateDrawer';
 
 const INDIAN_STATES = [
   'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
@@ -93,6 +94,7 @@ export default function CreateQuotation() {
   const [quickQuoteSpec, setQuickQuoteSpec] = useState('');
   const [quickQuoteIncludeValves, setQuickQuoteIncludeValves] = useState(true);
   const [quickQuoteIncludeThreadItems, setQuickQuoteIncludeThreadItems] = useState(true);
+  const [showItemCreateDrawer, setShowItemCreateDrawer] = useState(false);
 
   const [formData, setFormData] = useState({
     quotation_no: '',
@@ -120,10 +122,13 @@ export default function CreateQuotation() {
   const itemsTableRef = useRef(null);
   const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth <= 768 : false);
   const [isDirty, setIsDirty] = useState(false);
+  const [hoveredItemId, setHoveredItemId] = useState(null);
 
   const initQuery = useQuery({
     queryKey: ['quotationInit', organisation?.id],
     staleTime: 1000 * 60 * 30, // Cache for 30 minutes - user may take up to 30min to prepare quotation
+    refetchOnWindowFocus: false,
+    refetchOnMount: true,
     queryFn: async () => {
       const [pricing, settings, template, quickQuoteConfig] = await Promise.all([
         timedSupabaseQuery(
@@ -143,7 +148,8 @@ export default function CreateQuotation() {
             .select('id, column_settings')
             .eq('document_type', 'Quotation')
             .eq('is_default', true)
-            .maybeSingle(),
+            .limit(1)
+            .single(),
           'Quotation template',
         ),
         organisation?.id ? loadQuickQuoteConfig(organisation.id) : Promise.resolve(null),
@@ -901,6 +907,53 @@ const loadQuoteNoPreview = useCallback(async () => {
     }
   };
 
+  const handleItemCreateSuccess = useCallback((newItem) => {
+    // Update local state immediately for better UX
+    const updatedMaterials = [...materials, newItem];
+    
+    // Update itemMakes if the new item has makes
+    if (newItem.make) {
+      const updatedItemMakes = { ...itemMakes };
+      if (!updatedItemMakes[newItem.id]) {
+        updatedItemMakes[newItem.id] = [];
+      }
+      updatedItemMakes[newItem.id] = [...new Set([...updatedItemMakes[newItem.id], newItem.make])];
+      setItemMakes(updatedItemMakes);
+    }
+    
+    // Invalidate queries to refresh materials list and variant pricing
+    queryClient.invalidateQueries({ queryKey: ['materials'] });
+    queryClient.invalidateQueries({ queryKey: ['itemVariantPricing'] });
+    
+    // Optionally, you can add the new item to the current quotation
+    // This is commented out for now, but you can enable it if needed
+    /*
+    const newQuotationItem = {
+      id: Date.now() + Math.random(),
+      item_id: newItem.id,
+      material: newItem,
+      qty: 1,
+      rate: getRateForMaterialVariant(newItem, null),
+      uom: newItem.unit || 'Nos',
+      tax_percent: newItem.gst_rate || 18,
+      discount_percent: 0,
+      description: newItem.display_name || newItem.name,
+      hsn_code: newItem.hsn_code || '',
+      make: '',
+      variant_id: '',
+      base_rate_snapshot: getRateForMaterialVariant(newItem, null),
+      applied_discount_percent: 0,
+      final_rate_snapshot: getRateForMaterialVariant(newItem, null),
+      is_override: false,
+      display_order: items.length,
+      custom1: '',
+      custom2: ''
+    };
+    
+    setItems(prev => [...prev, newQuotationItem]);
+    */
+  }, [queryClient, items.length, materials, itemMakes]);
+
   const pickerColumns = useMemo(() => [
     {
       header: 'Item',
@@ -1205,9 +1258,32 @@ const loadQuoteNoPreview = useCallback(async () => {
     );
   };
 
-  const removeItem = (id) => {
-    setItems(items.filter(i => i.id !== id));
-  };
+  const removeItem = useCallback((id) => {
+    setItems(prev => {
+      const filtered = prev.filter(item => item.id !== id);
+      // Renumber remaining items
+      return filtered.map((item, index) => ({
+        ...item,
+        display_order: index + 1
+      }));
+    });
+    setIsDirty(true);
+    
+    // If the deleted item was selected, clear it and open item picker for replacement
+    const deletedItem = items.find(item => item.id === id);
+    if (deletedItem) {
+      // Clear the deleted item's row but keep the row structure
+      setItems(prev => prev.map(item => 
+        item.id === id ? { ...item, item_id: '', material: null, description: '', hsn_code: '' } : item
+      ));
+      
+      // Open item picker for user to select replacement
+      setTimeout(() => {
+        setItemSearch('');
+        setShowItemPicker(true);
+      }, 100);
+    }
+  }, []);
 
   const addEmptyItemRow = () => {
     const rowId = Date.now() + Math.random();
@@ -1269,22 +1345,27 @@ const loadQuoteNoPreview = useCallback(async () => {
   };
 
   const calculations = useMemo(() => {
+    // In this UI, `rate` is treated as the final "rate after discount".
+    // So totals/tax should be computed off `qty * rate` (not applying discount_percent again).
     let subtotal = 0;
     let totalItemDiscount = 0;
     let totalTax = 0;
 
     items.forEach(item => {
+      if (item.is_header) return;
       const qty = parseFloat(item.qty) || 0;
-      const rate = parseFloat(item.rate) || 0;
-      const gross = qty * rate;
-      const discountPercent = parseFloat(item.discount_percent) || 0;
-      const discountAmount = (gross * discountPercent) / 100;
-      const taxable = gross - discountAmount;
+      const finalRate = parseFloat(item.rate) || 0;
+      const baseRate = parseFloat(item.base_rate_snapshot) || finalRate;
+
+      const grossBase = qty * baseRate;
+      const net = qty * finalRate;
+      const discountAmount = Math.max(0, grossBase - net);
+      const taxable = net;
       const taxPercent = parseFloat(item.tax_percent) || 0;
       const taxAmount = (taxable * taxPercent) / 100;
       const lineTotal = taxable + taxAmount;
 
-      subtotal += gross;
+      subtotal += net;
       totalItemDiscount += discountAmount;
       totalTax += taxAmount;
 
@@ -1293,7 +1374,8 @@ const loadQuoteNoPreview = useCallback(async () => {
       item.discount_amount = discountAmount;
     });
 
-    const afterItemDiscount = subtotal - totalItemDiscount;
+    // `subtotal` is already after item-level discounts.
+    const afterItemDiscount = subtotal;
     const extraDiscountPercent = parseFloat(formData.extra_discount_percent) || 0;
     const extraDiscountAmount = (afterItemDiscount * extraDiscountPercent) / 100;
     const extraDiscountManual = parseFloat(formData.extra_discount_amount) || 0;
@@ -1835,6 +1917,35 @@ const loadQuoteNoPreview = useCallback(async () => {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
           <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: '#1f2937' }}>Items</h3>
           <div style={{ display: 'flex', gap: '12px' }}>
+            <button 
+              type="button"
+              onClick={() => setShowItemCreateDrawer(true)}
+              className="btn btn-sm btn-primary"
+              style={{
+                padding: '4px 8px',
+                fontSize: '11px',
+                borderRadius: '6px',
+                background: '#10b981',
+                border: '1px solid #059669',
+                color: 'white',
+                fontWeight: '500',
+                boxShadow: '0 2px 4px rgba(16, 185, 129, 0.2)',
+                transform: 'scale(1)',
+                transition: 'all 0.2s ease-in-out',
+                cursor: 'pointer'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.transform = 'scale(1.05)';
+                e.target.style.boxShadow = '0 4px 8px rgba(16, 185, 129, 0.3)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.transform = 'scale(1)';
+                e.target.style.boxShadow = '0 2px 4px rgba(16, 185, 129, 0.2)';
+              }}
+              title="Add New Material"
+            >
+              + Add Material
+            </button>
             <button className="btn btn-secondary" onClick={addEmptyItemRow} style={{ borderRadius: '8px', fontWeight: 500 }}>+ Add Row</button>
             <button className="btn btn-secondary" onClick={addSectionHeader} style={{ borderRadius: '8px', fontWeight: 500, background: '#f8fafc', color: '#1e293b', border: '1px solid #e2e8f0' }}>+ Add Section Header</button>
             <button className="btn btn-primary" onClick={() => setShowItemPicker(true)} style={{ borderRadius: '8px', fontWeight: 500 }}>+ Add Multiple Items</button>
@@ -1848,7 +1959,47 @@ const loadQuoteNoPreview = useCallback(async () => {
               <tr>
                 <th className="col-shrink">#</th>
                 <th className="col-hsn">HSN</th>
-                <th className="col-item">ITEM</th>
+                <th className="col-item" style={{ position: 'relative' }}>
+  ITEM
+  <div 
+    style={{ 
+      position: 'absolute',
+      top: '-8px',
+      right: '-8px',
+      zIndex: 10
+    }}
+  >
+    <button
+      type="button"
+      onClick={() => setShowItemCreateDrawer(true)}
+      className="btn btn-sm btn-primary"
+      style={{
+        padding: '2px 6px',
+        fontSize: '10px',
+        borderRadius: '4px',
+        background: '#10b981',
+        border: '1px solid #059669',
+        color: 'white',
+        fontWeight: '500',
+        boxShadow: '0 2px 4px rgba(16, 185, 129, 0.2)',
+        transform: 'scale(0.9)',
+        transition: 'all 0.2s ease-in-out',
+        cursor: 'pointer'
+      }}
+      onMouseEnter={(e) => {
+        e.target.style.transform = 'scale(1)';
+        e.target.style.boxShadow = '0 4px 8px rgba(16, 185, 129, 0.3)';
+      }}
+      onMouseLeave={(e) => {
+        e.target.style.transform = 'scale(0.9)';
+        e.target.style.boxShadow = '0 2px 4px rgba(16, 185, 129, 0.2)';
+      }}
+      title="Add New Material"
+    >
+      + Add Material
+    </button>
+  </div>
+</th>
                 <th className="col-make">MAKE</th>
                 <th className="col-variant">VARIANT</th>
                 <th className="col-qty">QTY</th>
@@ -1916,6 +2067,8 @@ const loadQuoteNoPreview = useCallback(async () => {
                       onDragOver={handleDragOver}
                       onDrop={(e) => handleDropOnRow(e, item.id)}
                       className={draggingItemId === item.id ? 'row-dragging' : item.is_override ? 'override-indicator' : ''}
+                      onMouseEnter={() => setHoveredItemId(item.id)}
+                      onMouseLeave={() => setHoveredItemId(null)}
                     >
                       <td 
                         className="text-center cell-static col-shrink row-drag-handle" 
@@ -1936,7 +2089,7 @@ const loadQuoteNoPreview = useCallback(async () => {
                           style={{ background: '#f8fafc' }}
                         />
                       </td>
-                      <td className="col-item">
+                      <td className="col-item" style={{ position: 'relative' }}>
                         <select
                           className="cell-select"
                           value={item.item_id}
@@ -1947,6 +2100,7 @@ const loadQuoteNoPreview = useCallback(async () => {
                               updateItem(item.id, 'material', mat);
                               updateItem(item.id, 'hsn_code', mat.hsn_code || '');
                               updateItem(item.id, 'description', mat.display_name || mat.name);
+                              updateItem(item.id, 'tax_percent', mat.gst_rate || 18);
                               const firstMake = itemMakes[mat.id]?.[0] || '';
                               updateItem(item.id, 'make', firstMake);
                               const newRate = getRateForMaterialVariant(mat, item.variant_id || null, firstMake);
@@ -1961,6 +2115,50 @@ const loadQuoteNoPreview = useCallback(async () => {
                             <option key={m.id} value={m.id}>{m.display_name || m.name}</option>
                           ))}
                         </select>
+                        {hoveredItemId === item.id && item.item_id && (
+                          <button
+                            type="button"
+                            className="btn-x-hover"
+                            style={{
+                              position: 'absolute',
+                              top: '2px',
+                              right: '2px',
+                              padding: '2px 6px',
+                              fontSize: '12px',
+                              background: '#dc2626',
+                              color: 'white',
+                              border: 'none',
+                              cursor: 'pointer',
+                              borderRadius: '4px',
+                              opacity: 0,
+                              transform: 'scale(0)',
+                              transition: 'all 0.2s ease-in-out'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.target.style.opacity = '1';
+                              e.target.style.transform = 'scale(1.1)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.target.style.opacity = '0';
+                              e.target.style.transform = 'scale(1)';
+                            }}
+                            onClick={() => {
+                              // Clear item but keep row structure
+                              setItems(prev => prev.map(item => 
+                                item.id === item.id ? { ...item, item_id: '', material: null, description: '', hsn_code: '' } : item
+                              ));
+                              
+                              // Open item picker for replacement after a short delay
+                              setTimeout(() => {
+                                setItemSearch('');
+                                setShowItemPicker(true);
+                              }, 200);
+                            }}
+                            title="Clear item and select replacement"
+                          >
+                            ×
+                          </button>
+                        )}
                       </td>
                       <td className="col-shrink">
                         <select
@@ -2063,7 +2261,23 @@ const loadQuoteNoPreview = useCallback(async () => {
                         {formatCurrency((parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0))}
                       </td>
                       <td className="delete-cell col-shrink">
-                        <button type="button" className="btn-delete" onClick={() => removeItem(item.id)}>×</button>
+                        <button 
+                          type="button" 
+                          className="btn-delete" 
+                          onClick={() => removeItem(item.id)}
+                          style={{ 
+                            padding: '2px 6px', 
+                            fontSize: '14px',
+                            background: '#dc2626',
+                            color: 'white',
+                            border: 'none',
+                            cursor: 'pointer',
+                            borderRadius: '4px'
+                          }}
+                          title="Delete entire row"
+                        >
+                          ×
+                        </button>
                       </td>
                     </tr>
                   );
@@ -2250,10 +2464,15 @@ const loadQuoteNoPreview = useCallback(async () => {
       {saving && (
         <div style={{position:'fixed',inset:0,background:'rgba(255,255,255,0.92)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',zIndex:9999,gap:'16px'}}>
           <div style={{width:'48px',height:'48px',border:'4px solid #e5e7eb',borderTopColor:'#2563eb',borderRadius:'50%',animation:'spin 0.8s linear infinite'}}></div>
-          <span style={{fontSize:'16px',fontWeight:600,color:'#374161'}}>Saving Quotation...</span>
+          <span style={{fontSize:'16px',fontWeight:600,color:'#374151'}}>Saving Quotation...</span>
         </div>
       )}
+      
+      <ItemCreateDrawer
+        isOpen={showItemCreateDrawer}
+        onClose={() => setShowItemCreateDrawer(false)}
+        onSuccess={handleItemCreateSuccess}
+      />
     </div>
   );
 }
-
