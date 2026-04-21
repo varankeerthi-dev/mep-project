@@ -108,20 +108,36 @@ export default function TemplateSettings() {
   }, [organisation?.id]);
 
   const loadTemplates = async () => {
-    if (!organisation?.id) return;
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('document_templates')
-        .select('*')
-        .eq('organisation_id', organisation.id)
-        .order('document_type', { ascending: true })
-        .order('template_name', { ascending: true });
+      let dbTemplates = [];
+      
+      // Only load database templates if organisation exists
+      if (organisation?.id) {
+        const { data, error } = await supabase
+          .from('document_templates')
+          .select('*')
+          .eq('organisation_id', organisation.id)
+          .order('document_type', { ascending: true })
+          .order('template_name', { ascending: true });
 
-      if (error) throw error;
-      setTemplates(data || []);
+        if (error) throw error;
+        dbTemplates = data || [];
+      }
+      
+      // Merge database templates with built-in templates
+      const allTemplates = [...BUILT_IN_TEMPLATES, ...dbTemplates];
+      
+      // Remove duplicates (keep database version if it exists)
+      const uniqueTemplates = allTemplates.filter((template, index, self) => 
+        index === self.findIndex(t => t.template_code === template.template_code)
+      );
+      
+      setTemplates(uniqueTemplates);
     } catch (err: any) {
       console.error('Error loading templates:', err);
+      // If database fails, still show built-in templates
+      setTemplates(BUILT_IN_TEMPLATES);
     } finally {
       setLoading(false);
     }
@@ -631,9 +647,19 @@ export default function TemplateSettings() {
       return;
     }
 
+    
     setSaving(true);
     try {
-      if (selectedTemplate) {
+      if (selectedTemplate && selectedTemplate.id) {
+        // Check for duplicate template code (excluding current template)
+        const duplicateTemplate = templates.find(t => 
+          t.template_code === formData.template_code && t.id !== selectedTemplate.id
+        );
+        
+        if (duplicateTemplate) {
+          alert('Template code already exists. Please use a different code.');
+          return;
+        }
         const { error } = await supabase
           .from('document_templates')
           .update({
@@ -655,7 +681,22 @@ export default function TemplateSettings() {
 
         if (error) throw error;
       } else {
+        // Check for duplicate template code for new templates
+        if (formData.template_code) {
+          const duplicateTemplate = templates.find(t => 
+            t.template_code === formData.template_code
+          );
+          
+          if (duplicateTemplate) {
+            alert('Template code already exists. Please use a different code.');
+            setSaving(false);
+            return;
+          }
+        }
+
+        // Handle setting default flag for new template
         if (formData.is_default) {
+          // Unset existing default for this document type
           await supabase
             .from('document_templates')
             .update({ is_default: false })
@@ -695,11 +736,12 @@ export default function TemplateSettings() {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (template: any) => {
     if (!confirm('Are you sure you want to delete this template?')) return;
 
+    
     try {
-      await supabase.from('document_templates').delete().eq('id', id).eq('organisation_id', organisation.id);
+      await supabase.from('document_templates').delete().eq('id', template.id).eq('organisation_id', organisation.id);
       loadTemplates();
     } catch (err: any) {
       console.error('Error deleting template:', err);
@@ -707,7 +749,39 @@ export default function TemplateSettings() {
     }
   };
 
+  const handleClone = (template: any) => {
+    const clonedData = {
+      template_name: `${template.template_name} (Copy)`,
+      template_code: '', // Clear template code to avoid conflicts
+      document_type: template.document_type,
+      is_default: false, // Never clone as default
+      page_size: template.page_size || 'A4',
+      orientation: template.orientation || 'Portrait',
+      show_logo: template.show_logo !== false,
+      show_bank_details: template.show_bank_details !== false,
+      show_terms: template.show_terms !== false,
+      show_signature: template.show_signature !== false,
+      column_settings: {
+        ...template.column_settings,
+        // Deep copy nested objects
+        optional: { ...template.column_settings?.optional },
+        labels: { ...template.column_settings?.labels },
+        print: template.column_settings?.print ? {
+          ...template.column_settings.print,
+          gridMinimal: template.column_settings.print.gridMinimal ? {
+            ...template.column_settings.print.gridMinimal
+          } : undefined
+        } : undefined
+      }
+    };
+    
+    setSelectedTemplate(null);
+    setFormData(clonedData);
+    setShowForm(true);
+  };
+
   const handleSetDefault = async (template: any) => {
+    
     try {
       const { data: existingDefaults } = await supabase
         .from('document_templates')
@@ -1135,7 +1209,7 @@ export default function TemplateSettings() {
                   <div style={{ display: 'grid', gap: '8px' }}>
                     {typeTemplates.map(template => (
                       <div
-                        key={template.id}
+                        key={template.id || template.template_code}
                         style={{
                           padding: '16px',
                           background: template.is_default ? '#f0fdf4' : '#f9fafb',
@@ -1180,6 +1254,13 @@ export default function TemplateSettings() {
                               Set Default
                             </button>
                           )}
+                          <button
+                            className="btn btn-sm btn-secondary"
+                            onClick={() => handleClone(template)}
+                            title="Create a copy of this template"
+                          >
+                            Clone
+                          </button>
                           <button
                             className="btn btn-sm btn-secondary"
                             onClick={() => handleEdit(template)}
