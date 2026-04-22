@@ -14,8 +14,7 @@ const DailyUpdates = () => import('./DailyUpdates').then(m => ({ default: m.defa
 const SiteMaterials = () => import('./ProjectManagementInternal').then(m => ({ default: m.SiteMaterials }));
 
 const TABS = [
-  { id: 'list', label: 'List', icon: Folder, component: ProjectList },
-  { id: 'new', label: 'New', icon: Plus, component: null },
+  { id: 'list', label: 'Projects', icon: Folder, component: ProjectList },
   { id: 'material-management', label: 'Material', icon: Package, component: null },
 ];
 
@@ -51,21 +50,6 @@ export default function Projects() {
   }, [location.key]);
 
   const handleTabChange = (tabId: string) => {
-    console.log('Tab clicked:', tabId); // Debug log
-    console.log('Navigate function available:', typeof navigate); // Debug navigate availability
-    
-    if (tabId === 'new') {
-      // Navigate to create project page immediately
-      console.log('Attempting to navigate to /projects/new'); // Debug log
-      try {
-        navigate('/projects/new');
-        console.log('Navigation call successful'); // Debug log
-      } catch (error) {
-        console.error('Navigation error:', error); // Debug error
-      }
-      return;
-    }
-    // For other tabs, update URL params normally
     setSearchParams({ tab: tabId });
     if (tabId !== 'material-management') {
       setSelectedProjectId(null);
@@ -96,16 +80,11 @@ export default function Projects() {
             return (
               <button
                 key={tab.id}
-                onClick={(e) => {
-                  e.preventDefault();
-                  console.log('Button clicked:', tab.id);
-                  handleTabChange(tab.id);
-                }}
+                onClick={() => handleTabChange(tab.id)}
                 style={{
                   display: 'flex', alignItems: 'center', gap: '8px', padding: '16px 20px', border: 'none',
                   borderBottom: `2px solid ${isActive ? '#1d4ed8' : 'transparent'}`, background: 'transparent',
                   color: isActive ? '#1d4ed8' : '#6b7280', fontSize: '14px', fontWeight: isActive ? 600 : 500, cursor: 'pointer',
-                  ...(tab.id === 'new' ? { background: '#10b981', color: 'white', borderRadius: '6px' } : {})
                 }}
               >
                 <Icon size={18} />
