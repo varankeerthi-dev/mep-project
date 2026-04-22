@@ -7,6 +7,7 @@ import { useAuth } from '../App';
 import ProjectMaterialIntents from './ProjectMaterialIntents';
 import ReceiveMaterial from './ReceiveMaterial';
 import ProjectMaterialDashboard from './ProjectMaterialDashboard';
+import MaterialIntentsList from './MaterialIntentsList';
 
 const ProjectList = () => import('./ProjectList').then(m => ({ default: m.default }));
 const CreateProject = () => import('./CreateProject').then(m => ({ default: m.default }));
@@ -16,6 +17,11 @@ const SiteMaterials = () => import('./ProjectManagementInternal').then(m => ({ d
 const TABS = [
   { id: 'list', label: 'Projects', icon: Folder, component: ProjectList },
   { id: 'material-management', label: 'Material', icon: Package, component: null },
+];
+
+const MATERIAL_SUBTABS = [
+  { id: 'all-intents', label: 'All Intents', icon: ClipboardList },
+  { id: 'select-project', label: 'Select Project', icon: Folder },
 ];
 
 function FileText() { return <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>; }
@@ -31,6 +37,7 @@ export default function Projects() {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [organisationId, setOrganisationId] = useState<string>('');
   const [projectName, setProjectName] = useState<string>('');
+  const [materialSubTab, setMaterialSubTab] = useState(searchParams.get('subtab') || 'select-project');
 
   const loadComponent = (tabId: string) => {
     const tabConfig = TABS.find(t => t.id === tabId);
@@ -60,12 +67,22 @@ export default function Projects() {
     setSelectedProjectId(id);
     setOrganisationId(orgId);
     setProjectName(name);
+    setMaterialSubTab('intents');
     setSearchParams({ tab: 'material-management', subtab: 'intents' });
   };
 
   const handleBackToProjects = () => {
     setSelectedProjectId(null);
-    setSearchParams({ tab: 'material-management' });
+    setMaterialSubTab('select-project');
+    setSearchParams({ tab: 'material-management', subtab: 'select-project' });
+  };
+
+  const handleMaterialSubTabChange = (subTabId: string) => {
+    setMaterialSubTab(subTabId);
+    setSearchParams({ tab: 'material-management', subtab: subTabId });
+    if (subTabId !== 'intents') {
+      setSelectedProjectId(null);
+    }
   };
 
   const isMaterialManagement = activeTab === 'material-management';
@@ -97,16 +114,49 @@ export default function Projects() {
 
       <div style={{ flex: 1, overflow: 'auto', background: '#f8fafc' }}>
         {isMaterialManagement ? (
-          selectedProjectId ? (
-            <ProjectMaterialTabs 
-              projectId={selectedProjectId}
-              organisationId={organisationId}
-              projectName={projectName}
-              onBack={handleBackToProjects}
-            />
-          ) : (
-            <ProjectMaterialSelect onSelectProject={handleSelectProject} />
-          )
+          <>
+            {/* Material Sub-tabs */}
+            <div style={{ background: '#fff', borderBottom: '1px solid #e5e7eb', padding: '0 24px' }}>
+              <div style={{ display: 'flex', gap: '4px' }}>
+                {MATERIAL_SUBTABS.map((subtab) => {
+                  const Icon = subtab.icon;
+                  const isActive = materialSubTab === subtab.id;
+                  return (
+                    <button
+                      key={subtab.id}
+                      onClick={() => handleMaterialSubTabChange(subtab.id)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '8px', padding: '16px 20px', border: 'none',
+                        borderBottom: `2px solid ${isActive ? '#1d4ed8' : 'transparent'}`, background: 'transparent',
+                        color: isActive ? '#1d4ed8' : '#6b7280', fontSize: '14px', fontWeight: isActive ? 600 : 500, cursor: 'pointer',
+                      }}
+                    >
+                      <Icon size={18} />
+                      {subtab.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Material Sub-tab Content */}
+            <div style={{ flex: 1, overflow: 'auto' }}>
+              {materialSubTab === 'all-intents' ? (
+                <MaterialIntentsList organisationId={organisationId} />
+              ) : materialSubTab === 'select-project' ? (
+                selectedProjectId ? (
+                  <ProjectMaterialTabs 
+                    projectId={selectedProjectId}
+                    organisationId={organisationId}
+                    projectName={projectName}
+                    onBack={handleBackToProjects}
+                  />
+                ) : (
+                  <ProjectMaterialSelect onSelectProject={handleSelectProject} />
+                )
+              ) : null}
+            </div>
+          </>
         ) : (
           Component && <Component />
         )}
