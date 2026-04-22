@@ -851,7 +851,7 @@ export function SiteVisits() {
           )}
 
           {/* Table */}
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto pt-4">
             <Table>
               <TableHeader>
                 <TableRow className="bg-slate-50/50">
