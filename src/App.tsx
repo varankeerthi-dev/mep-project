@@ -59,6 +59,8 @@ const POList = lazyAny(() => import('./pages/POList'));
 const PODetails = lazyAny(() => import('./pages/PODetails'));
 const InvoiceListPage = lazyAny(() => import('./invoices/pages/InvoiceListPage'));
 const InvoiceEditorPage = lazyAny(() => import('./invoices/pages/InvoiceEditorPage'));
+const ProformaListPage = lazyAny(() => import('./proforma-invoices/pages/ProformaListPage'));
+const ProformaEditorPage = lazyAny(() => import('./proforma-invoices/pages/ProformaEditorPage'));
 const LedgerDashboard = lazyAny(() => import('./ledger/LedgerDashboard'));
 const ProjectList = lazyAny(() => import('./pages/ProjectList'));
 const CreateProject = lazyAny(() => import('./pages/CreateProject'));
@@ -235,6 +237,9 @@ export default function App() {
       case '/quotation/edit': return <CreateQuotation onSuccess={() => navigate('/quotation')} onCancel={() => navigate('/quotation')} editMode={true} />;
       case '/invoices': return <InvoiceListPage />;
       case '/invoices/create': return <InvoiceEditorPage />;
+      case '/proforma-invoices': return <ProformaListPage />;
+      case '/proforma-invoices/create': return <ProformaEditorPage />;
+      case '/proforma-invoices/edit': return <ProformaEditorPage />;
       case '/ledger': return <LedgerDashboard onNavigate={navigate} />;
       case '/boq': return <BOQList />;
       case '/boq/create': return <BOQ onSuccess={() => navigate('/boq')} onCancel={() => navigate('/boq')} />;

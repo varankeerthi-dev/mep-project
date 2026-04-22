@@ -230,9 +230,9 @@ html, body {
 }
 
 :root {
-  --primary: oklch(0.205 0 0);
-  --primary-dark: #2563eb;
-  --primary-light: #60a5fa;
+  --primary: #4f46e5;
+  --primary-dark: #4338ca;
+  --primary-light: #818cf8;
   --success: #10b981;
   --warning: #f59e0b;
   --danger: #ef4444;

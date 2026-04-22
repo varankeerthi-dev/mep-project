@@ -120,6 +120,11 @@ const menuData: MenuSection[] = [
         ]
       },
       {
+        id: 'proforma-invoices',
+        label: 'Proforma Invoices',
+        path: '/proforma-invoices'
+      },
+      {
         id: 'ledger',
         label: 'Ledger',
         path: '/ledger'

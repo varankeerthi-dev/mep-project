@@ -519,7 +519,7 @@ export default function TodoList() {
           <div className="md:col-span-2">
             <button
               type="submit"
-              className="w-full bg-gray-900 hover:bg-black text-white py-4 rounded-none text-sm uppercase tracking-widest transition-all shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] active:translate-y-1 active:shadow-none flex items-center justify-center gap-2"
+              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-none text-sm uppercase tracking-widest transition-all shadow-[4px_4px_0px_0px_rgba(79,70,229,0.2)] active:translate-y-1 active:shadow-none flex items-center justify-center gap-2"
             >
               <Plus size={18} />
               Save Idea
@@ -528,8 +528,8 @@ export default function TodoList() {
         </form>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border-2 border-gray-900 overflow-hidden font-sans">
-        <div className="bg-gray-900 px-6 py-3 border-b-2 border-gray-900">
+      <div className="bg-white rounded-xl shadow-sm border-2 border-indigo-200 overflow-hidden font-sans">
+        <div className="bg-indigo-600 px-6 py-3 border-b-2 border-indigo-700">
           <h4 className="text-white text-xs uppercase tracking-widest flex items-center gap-2">
             <Lightbulb size={14} />
             Ideas Dashboard
@@ -538,7 +538,7 @@ export default function TodoList() {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[800px]">
             <thead>
-              <tr className="bg-gray-50 border-b-2 border-gray-900">
+              <tr className="bg-gray-50 border-b-2 border-indigo-200">
                 <th className="px-6 py-4 text-[11px] text-gray-900 uppercase tracking-wider w-32">Date</th>
                 <th className="px-6 py-4 text-[11px] text-gray-900 uppercase tracking-wider">Ideas</th>
                 <th className="px-6 py-4 text-[11px] text-gray-900 uppercase tracking-wider">Remarks</th>

@@ -92,6 +92,8 @@ export function SiteVisits() {
   const [searchQuery, setSearchQuery] = useState('');
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const [statusFilter, setStatusFilter] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 15;
   
   // Memoize status filter button onClick
   const setStatusFilterCallback = useCallback((filter: string) => {
@@ -406,6 +408,20 @@ export function SiteVisits() {
     });
   }, [visits, deferredSearchQuery, statusFilter]);
 
+  // Reset page when search or filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [deferredSearchQuery, statusFilter]);
+
+  // Calculate paginated visits
+  const paginatedVisits = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return filteredVisits.slice(startIndex, endIndex);
+  }, [filteredVisits, currentPage]);
+
+  const totalPages = Math.ceil(filteredVisits.length / itemsPerPage);
+
   const toggleAll = () => {
     if (filteredVisits.length > 0 && selectedVisits.length === filteredVisits.length) {
       setSelectedVisits([]);
@@ -622,26 +638,26 @@ export function SiteVisits() {
                   <Table className="w-full text-[13px]">
                     <TableHeader className="bg-white border-b border-slate-200">
                       <TableRow className="hover:bg-transparent">
-                        <TableHead className="w-12 px-4 py-3">
+                        <TableHead className="w-12 px-4 py-3 text-left">
                           <Checkbox 
                             checked={filteredVisits.length > 0 && selectedVisits.length === filteredVisits.length}
                             onCheckedChange={toggleAll}
                             className="rounded-[4px] border-slate-300 text-slate-900 focus:ring-slate-900 cursor-pointer"
                           />
                         </TableHead>
-                        <TableHead className="px-4 py-3 font-semibold text-slate-600 whitespace-nowrap">Name ^</TableHead>
-                        <TableHead className="px-4 py-3 font-semibold text-slate-600 whitespace-nowrap">Phone number</TableHead>
-                        <TableHead className="px-4 py-3 font-semibold text-slate-600 whitespace-nowrap">Street name</TableHead>
-                        <TableHead className="px-4 py-3 font-semibold text-slate-600 whitespace-nowrap">Suburb</TableHead>
-                        <TableHead className="px-4 py-3 font-semibold text-slate-600 whitespace-nowrap">Postcode</TableHead>
-                        <TableHead className="px-4 py-3 font-semibold text-slate-600 whitespace-nowrap">Date added</TableHead>
-                        <TableHead className="px-4 py-3 font-semibold text-slate-600 whitespace-nowrap">Status</TableHead>
-                        <TableHead className="px-4 py-3 font-semibold text-slate-600 whitespace-nowrap">Rep</TableHead>
-                        <TableHead className="px-4 py-3 font-semibold text-slate-600 whitespace-nowrap">Last activity</TableHead>
+                        <TableHead className="px-4 py-3 font-semibold text-slate-600 whitespace-nowrap text-left">Name ^</TableHead>
+                        <TableHead className="px-4 py-3 font-semibold text-slate-600 whitespace-nowrap text-left">Phone number</TableHead>
+                        <TableHead className="px-4 py-3 font-semibold text-slate-600 whitespace-nowrap text-left">Street name</TableHead>
+                        <TableHead className="px-4 py-3 font-semibold text-slate-600 whitespace-nowrap text-left">Suburb</TableHead>
+                        <TableHead className="px-4 py-3 font-semibold text-slate-600 whitespace-nowrap text-left">Postcode</TableHead>
+                        <TableHead className="px-4 py-3 font-semibold text-slate-600 whitespace-nowrap text-left">Date added</TableHead>
+                        <TableHead className="px-4 py-3 font-semibold text-slate-600 whitespace-nowrap text-left">Status</TableHead>
+                        <TableHead className="px-4 py-3 font-semibold text-slate-600 whitespace-nowrap text-left">Rep</TableHead>
+                        <TableHead className="px-4 py-3 font-semibold text-slate-600 whitespace-nowrap text-left">Last activity</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredVisits.map((visit: any) => {
+                      {paginatedVisits.map((visit: any) => {
                         const isSelected = selectedVisits.includes(visit.id);
                         
                         return (
@@ -653,32 +669,32 @@ export function SiteVisits() {
                             )}
                             onClick={() => openFormForEdit(visit)}
                           >
-                            <TableCell className="px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
+                            <TableCell className="px-4 py-3.5 text-left" onClick={(e) => e.stopPropagation()}>
                               <Checkbox 
                                 checked={isSelected}
                                 onCheckedChange={() => toggleVisitSelection(visit.id)}
                                 className="rounded-[4px] border-slate-300 text-slate-900 focus:ring-slate-900 cursor-pointer"
                               />
                             </TableCell>
-                            <TableCell className="px-4 py-3.5 font-medium text-slate-900 whitespace-nowrap">
+                            <TableCell className="px-4 py-3.5 font-medium text-slate-900 text-left whitespace-nowrap">
                               {visit.clients?.client_name || 'Anonymous Project'}
                             </TableCell>
-                            <TableCell className="px-4 py-3.5 text-slate-600 whitespace-nowrap">
+                            <TableCell className="px-4 py-3.5 text-slate-600 text-left whitespace-nowrap">
                               {visit.clients?.phone || '-'}
                             </TableCell>
-                            <TableCell className="px-4 py-3.5 text-slate-600 whitespace-nowrap">
+                            <TableCell className="px-4 py-3.5 text-slate-600 text-left whitespace-nowrap">
                               {visit.site_address || '-'}
                             </TableCell>
-                            <TableCell className="px-4 py-3.5 text-slate-600 whitespace-nowrap">
+                            <TableCell className="px-4 py-3.5 text-slate-600 text-left whitespace-nowrap">
                               {visit.clients?.city || '-'}
                             </TableCell>
-                            <TableCell className="px-4 py-3.5 text-slate-600 whitespace-nowrap">
+                            <TableCell className="px-4 py-3.5 text-slate-600 text-left whitespace-nowrap">
                               {visit.clients?.postcode || '-'}
                             </TableCell>
-                            <TableCell className="px-4 py-3.5 text-slate-600 whitespace-nowrap">
+                            <TableCell className="px-4 py-3.5 text-slate-600 text-left whitespace-nowrap">
                               {visit.visit_date ? format(parseISO(visit.visit_date), 'd MMM yyyy') : '-'}
                             </TableCell>
-                            <TableCell className="px-4 py-3.5 whitespace-nowrap">
+                            <TableCell className="px-4 py-3.5 text-left whitespace-nowrap">
                               <span className={cn(
                                 "inline-flex items-center px-2.5 py-1 rounded-md text-[12px] font-medium",
                                 visit.status === 'completed' || visit.status === 'Survey completed' ? "bg-amber-100/50 text-amber-800" :
@@ -693,10 +709,10 @@ export function SiteVisits() {
                                  visit.status ? visit.status.charAt(0).toUpperCase() + visit.status.slice(1) : '-'}
                               </span>
                             </TableCell>
-                            <TableCell className="px-4 py-3.5 text-slate-600 whitespace-nowrap">
+                            <TableCell className="px-4 py-3.5 text-slate-600 text-left whitespace-nowrap">
                               {visit.visited_by || visit.engineer || 'Maya Patel'} 
                             </TableCell>
-                            <TableCell className="px-4 py-3.5 text-slate-600 whitespace-nowrap">
+                            <TableCell className="px-4 py-3.5 text-slate-600 text-left whitespace-nowrap">
                               {visit.updated_at ? format(parseISO(visit.updated_at), 'd MMM yyyy') : (visit.visit_date ? format(parseISO(visit.visit_date), 'd MMM yyyy') : '-')}
                             </TableCell>
                           </TableRow>
@@ -705,6 +721,58 @@ export function SiteVisits() {
                     </TableBody>
                   </Table>
                 </div>
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200 bg-slate-50/50">
+                    <div className="text-sm text-slate-600">
+                      Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredVisits.length)} of {filteredVisits.length} entries
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                        disabled={currentPage === 1}
+                        className="inline-flex items-center justify-center w-8 h-8 rounded-md border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                      </button>
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                          let pageNum;
+                          if (totalPages <= 5) {
+                            pageNum = i + 1;
+                          } else if (currentPage <= 3) {
+                            pageNum = i + 1;
+                          } else if (currentPage >= totalPages - 2) {
+                            pageNum = totalPages - 4 + i;
+                          } else {
+                            pageNum = currentPage - 2 + i;
+                          }
+                          return (
+                            <button
+                              key={pageNum}
+                              onClick={() => setCurrentPage(pageNum)}
+                              className={cn(
+                                "inline-flex items-center justify-center w-8 h-8 rounded-md text-sm font-medium transition-colors",
+                                currentPage === pageNum
+                                  ? "bg-indigo-600 text-white border border-indigo-600"
+                                  : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                              )}
+                            >
+                              {pageNum}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <button
+                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                        disabled={currentPage === totalPages}
+                        className="inline-flex items-center justify-center w-8 h-8 rounded-md border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

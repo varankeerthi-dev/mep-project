@@ -154,7 +154,7 @@ export function WorkOrderAmendmentModal({ workOrder, onClose, onSuccess }: WorkO
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-4 py-2 border border-black bg-black text-white hover:bg-gray-800 flex items-center gap-2 disabled:opacity-50"
+              className="px-4 py-2 border border-indigo-600 bg-indigo-600 text-white hover:bg-indigo-700 flex items-center gap-2 disabled:opacity-50"
             >
               <Save size={16} />
               {isSubmitting ? 'Submitting...' : 'Submit for Approval'}

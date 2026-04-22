@@ -306,7 +306,7 @@ export function SpreadsheetMeasurementSheet({
           <button
             onClick={handleSave}
             disabled={isSubmitting}
-            className="px-3 py-1 border border-black bg-black text-white hover:bg-gray-800 flex items-center gap-1 text-sm disabled:opacity-50"
+            className="px-3 py-1 border border-indigo-600 bg-indigo-600 text-white hover:bg-indigo-700 flex items-center gap-1 text-sm disabled:opacity-50"
           >
             <Save size={14} />
             {isSubmitting ? 'Saving...' : 'Save'}

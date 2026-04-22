@@ -93,7 +93,7 @@ export function MeasurementSheetList({
         <h3 className="font-bold">MEASUREMENT SHEETS ({sheets?.length || 0})</h3>
         <button
           onClick={onCreateNew}
-          className="px-4 py-2 border border-black bg-black text-white hover:bg-gray-800 text-sm"
+          className="px-4 py-2 border border-indigo-600 bg-indigo-600 text-white hover:bg-indigo-700 text-sm"
         >
           + Create Measurement Sheet
         </button>

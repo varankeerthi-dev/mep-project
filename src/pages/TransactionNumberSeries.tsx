@@ -15,7 +15,8 @@ const DOCUMENT_TYPES = [
   { id: 'branch', label: 'Branch' },
   { id: 'site_visit', label: 'Site Visit' },
   { id: 'material_indent', label: 'Material Indent' },
-  { id: 'client_request', label: 'Client Request' }
+  { id: 'client_request', label: 'Client Request' },
+  { id: 'proforma', label: 'Proforma Invoice' }
 ];
 
 export default function TransactionNumberSeries() {
