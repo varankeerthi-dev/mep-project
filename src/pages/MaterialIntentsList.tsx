@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../supabase';
 import { useAuth } from '../App';
-import { Search, MoreVertical, Eye, Edit, FileText, Package, ChevronDown, ChevronRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Search, MoreVertical, Eye, Edit, FileText, Package, ChevronDown, ChevronRight, PackageSearch, FileDown } from 'lucide-react';
 import { getAllIntents, MaterialIntent } from '../material-intents/api';
 
 const STATUS_COLORS = {
@@ -21,9 +22,11 @@ interface MaterialIntentsListProps {
 }
 
 export default function MaterialIntentsList({ organisationId }: MaterialIntentsListProps) {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [dropdownOpen, setDropdownOpen] = useState<string | null>(null);
 
   const { data: intents = [], isLoading } = useQuery({
     queryKey: ['allMaterialIntents', organisationId],
@@ -51,6 +54,17 @@ export default function MaterialIntentsList({ organisationId }: MaterialIntentsL
     }
     setExpandedRows(newExpanded);
   };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      if (dropdownOpen) {
+        setDropdownOpen(null);
+      }
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [dropdownOpen]);
 
   const statusOptions = [
     { value: 'all', label: 'All Status' },
@@ -167,7 +181,7 @@ export default function MaterialIntentsList({ organisationId }: MaterialIntentsL
                 <div style={{ fontSize: '13px', color: '#6b7280', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {intent.stores_remarks || '-'}
                 </div>
-                <div style={{ display: 'flex', gap: '4px' }}>
+                <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
                   <button 
                     onClick={(e) => { e.stopPropagation(); }}
                     style={{ padding: '6px', border: '1px solid #e5e7eb', borderRadius: '4px', background: 'white', cursor: 'pointer' }}
@@ -182,13 +196,99 @@ export default function MaterialIntentsList({ organisationId }: MaterialIntentsL
                   >
                     <Edit size={16} color="#6b7280" />
                   </button>
-                  <button 
-                    onClick={(e) => { e.stopPropagation(); }}
-                    style={{ padding: '6px', border: '1px solid #e5e7eb', borderRadius: '4px', background: 'white', cursor: 'pointer' }}
-                    title="More"
-                  >
-                    <MoreVertical size={16} color="#6b7280" />
-                  </button>
+                  <div style={{ position: 'relative' }}>
+                    <button 
+                      onClick={(e) => { 
+                        e.stopPropagation(); 
+                        setDropdownOpen(dropdownOpen === intent.id ? null : intent.id);
+                      }}
+                      style={{ padding: '6px', border: '1px solid #e5e7eb', borderRadius: '4px', background: 'white', cursor: 'pointer' }}
+                      title="More"
+                    >
+                      <MoreVertical size={16} color="#6b7280" />
+                    </button>
+                    {dropdownOpen === intent.id && (
+                      <div 
+                        style={{
+                          position: 'absolute',
+                          right: 0,
+                          top: '100%',
+                          marginTop: '4px',
+                          background: 'white',
+                          border: '1px solid #e5e7eb',
+                          borderRadius: '6px',
+                          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                          zIndex: 50,
+                          minWidth: '160px',
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <button
+                          onClick={() => {
+                            navigate(`/quick-stock?intent_id=${intent.id}`);
+                            setDropdownOpen(null);
+                          }}
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            border: 'none',
+                            background: 'none',
+                            textAlign: 'left',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            fontSize: '13px',
+                          }}
+                        >
+                          <PackageSearch size={14} color="#6b7280" />
+                          Check Stock
+                        </button>
+                        <button
+                          onClick={() => {
+                            navigate(`/create-dc?intent_id=${intent.id}`);
+                            setDropdownOpen(null);
+                          }}
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            border: 'none',
+                            background: 'none',
+                            textAlign: 'left',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            fontSize: '13px',
+                          }}
+                        >
+                          <FileText size={14} color="#6b7280" />
+                          Create DC
+                        </button>
+                        <button
+                          onClick={() => {
+                            // TODO: Implement PDF download
+                            setDropdownOpen(null);
+                          }}
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            border: 'none',
+                            background: 'none',
+                            textAlign: 'left',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            fontSize: '13px',
+                          }}
+                        >
+                          <FileDown size={14} color="#6b7280" />
+                          Download PDF
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
