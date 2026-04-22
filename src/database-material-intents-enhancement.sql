@@ -132,3 +132,26 @@ BEGIN
   ADD CONSTRAINT material_intents_status_check 
   CHECK (status IN ('Pending', 'Approved', 'Partial', 'Received', 'Rejected', 'Assigned', 'In Transit', 'Fulfilled'));
 END $$;
+
+-- Step 9: Create trigger function to auto-update intent status to Fulfilled
+CREATE OR REPLACE FUNCTION update_intent_status_on_receive()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- Check if received_qty >= requested_qty
+  IF NEW.received_qty >= NEW.requested_qty AND NEW.status != 'Fulfilled' THEN
+    NEW.status := 'Fulfilled';
+    NEW.in_transit_qty := 0;
+  ELSIF NEW.received_qty > 0 AND NEW.received_qty < NEW.requested_qty AND NEW.status IN ('Pending', 'Assigned') THEN
+    NEW.status := 'Partial';
+  END IF;
+  
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Step 10: Add trigger to material_intents table
+DROP TRIGGER IF EXISTS trigger_update_intent_status_on_receive ON material_intents;
+CREATE TRIGGER trigger_update_intent_status_on_receive
+  BEFORE UPDATE OF received_qty, requested_qty ON material_intents
+  FOR EACH ROW
+  EXECUTE FUNCTION update_intent_status_on_receive();

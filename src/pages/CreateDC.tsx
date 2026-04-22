@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import type { FormEvent } from 'react';
 import { format } from 'date-fns';
 import { useQuery } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { useAuth } from '../App';
 import { generateProGridDeliveryChallanPdf } from '../pdf/proGridDeliveryChallanPdf';
@@ -11,6 +12,7 @@ import { useProjects } from '../hooks/useProjects';
 import { useWarehouses } from '../hooks/useWarehouses';
 import { useVariants } from '../hooks/useVariants';
 import { useUnits } from '../hooks/useUnits';
+import { updateIntentOnDCCreated } from '../material-intents/api';
 
 type CreateDCProps = {
   onSuccess: () => void
@@ -20,6 +22,8 @@ type CreateDCProps = {
 
 export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps) {
   const { organisation } = useAuth();
+  const [searchParams] = useSearchParams();
+  const intentId = searchParams.get('intent_id');
   const [loading, setLoading] = useState(false);
   // Use shared hooks - NO local state needed
   const clientsQuery = useClients();
@@ -212,8 +216,59 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
         eway_valid_till: editDC.eway_valid_till || ''
       });
       loadExistingItems(editDC.id);
+    } else if (intentId && organisation?.id) {
+      loadIntentData(intentId);
     }
-  }, [editDC]);
+  }, [editDC, intentId, organisation?.id]);
+
+  const loadIntentData = async (intentId: string) => {
+    try {
+      const { data: intent, error } = await supabase
+        .from('material_intents')
+        .select('*, projects(project_name, client_id, client:clients(client_name, address1, address2, city, state, gstin, contact))')
+        .eq('id', intentId)
+        .single();
+
+      if (error) throw error;
+
+      if (intent) {
+        // Pre-fill form data from intent
+        setFormData(prev => ({
+          ...prev,
+          project_id: intent.project_id,
+          client_name: intent.projects?.client?.client_name || '',
+          ship_to_name: intent.projects?.client?.client_name || '',
+          ship_to_address_line1: intent.projects?.client?.address1 || '',
+          ship_to_address_line2: intent.projects?.client?.address2 || '',
+          ship_to_city: intent.projects?.client?.city || '',
+          ship_to_state: intent.projects?.client?.state || '',
+          ship_to_gstin: intent.projects?.client?.gstin || '',
+          ship_to_contact: intent.projects?.client?.contact || '',
+          remarks: `For Intent: ${intent.indent_number || intent.id}`,
+        }));
+
+        // Pre-fill items from intent
+        const material = materials.find(m => m.id === intent.item_id);
+        const newItem = {
+          id: 1,
+          material_id: intent.item_id,
+          variant_id: intent.variant_id,
+          material_name: intent.item_name,
+          unit: intent.uom,
+          quantity: intent.requested_qty.toString(),
+          rate: '0',
+          amount: 0,
+          uses_variant: !!intent.variant_id,
+          available_qty: 0,
+          valid: true,
+          is_service: false
+        };
+        setItems([newItem]);
+      }
+    } catch (error) {
+      console.error('Error loading intent data:', error);
+    }
+  };
 
   const loadExistingItems = async (dcId) => {
     const { data } = await supabase.from('delivery_challan_items').select('*').eq('delivery_challan_id', dcId);
@@ -681,6 +736,16 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
       }));
       
       await supabase.from('delivery_challan_items').insert(itemsToSave);
+
+      // Update intent status if creating DC from intent
+      if (intentId && organisation?.id) {
+        try {
+          await updateIntentOnDCCreated(intentId, dcId, organisation.id);
+        } catch (error) {
+          console.error('Error updating intent status:', error);
+          // Don't fail the DC creation if intent update fails
+        }
+      }
       
       if (formData.source_type === 'WAREHOUSE' && formData.warehouse_id) {
         for (const item of validItems) {
