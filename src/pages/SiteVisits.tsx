@@ -471,33 +471,33 @@ export function SiteVisits() {
   // Filter visits based on search and filters
   const filteredVisits = useMemo(() => {
     if (!visits) return [];
-    
+
     return visits.filter((v: any) => {
       // Status filter
-      if (activeTab !== 'all' && v.status !== activeTab) return false;
-      
+      if (statusFilter !== 'all' && v.status !== statusFilter) return false;
+
       // Search filter
       if (deferredSearchQuery) {
         const query = deferredSearchQuery.toLowerCase();
         const clientMatch = v.clients?.client_name?.toLowerCase().includes(query);
         const engineerMatch = v.engineer?.toLowerCase().includes(query) || v.visited_by?.toLowerCase().includes(query);
         const locationMatch = v.site_address?.toLowerCase().includes(query);
-        
+
         if (!clientMatch && !engineerMatch && !locationMatch) return false;
       }
-      
+
       // Project filter (client)
       if (projectFilter !== 'all' && v.client_id !== projectFilter) return false;
-      
+
       // Engineer filter
       if (engineerFilter !== 'all') {
         const engineer = v.engineer || v.visited_by;
         if (engineer !== engineerFilter) return false;
       }
-      
+
       return true;
     });
-  }, [visits, activeTab, deferredSearchQuery, projectFilter, engineerFilter]);
+  }, [visits, statusFilter, deferredSearchQuery, projectFilter, engineerFilter]);
 
   // Calculate stats
   const stats = useMemo(() => {
@@ -717,10 +717,13 @@ export function SiteVisits() {
         {/* Tabs */}
         <div className="bg-white border border-slate-200 rounded-2xl p-1.5 inline-flex gap-1">
           <button
-            onClick={() => setActiveTab('all')}
+            onClick={() => {
+              setActiveTab('all');
+              setViewMode('table');
+            }}
             className={cn(
               "px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2",
-              activeTab === 'all'
+              activeTab === 'all' && viewMode === 'table'
                 ? "bg-blue-600 text-white shadow-sm"
                 : "text-slate-600 hover:bg-slate-50"
             )}
@@ -729,52 +732,16 @@ export function SiteVisits() {
             All Visits
           </button>
           <button
-            onClick={() => setActiveTab('scheduled')}
+            onClick={() => setViewMode('calendar')}
             className={cn(
               "px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2",
-              activeTab === 'scheduled'
+              viewMode === 'calendar'
                 ? "bg-blue-600 text-white shadow-sm"
                 : "text-slate-600 hover:bg-slate-50"
             )}
           >
-            <Clock className="w-4 h-4" />
-            Scheduled
-          </button>
-          <button
-            onClick={() => setActiveTab('in_progress')}
-            className={cn(
-              "px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2",
-              activeTab === 'in_progress'
-                ? "bg-blue-600 text-white shadow-sm"
-                : "text-slate-600 hover:bg-slate-50"
-            )}
-          >
-            <RefreshCcw className="w-4 h-4" />
-            In Progress
-          </button>
-          <button
-            onClick={() => setActiveTab('completed')}
-            className={cn(
-              "px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2",
-              activeTab === 'completed'
-                ? "bg-blue-600 text-white shadow-sm"
-                : "text-slate-600 hover:bg-slate-50"
-            )}
-          >
-            <CheckCircle2 className="w-4 h-4" />
-            Completed
-          </button>
-          <button
-            onClick={() => setActiveTab('cancelled')}
-            className={cn(
-              "px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2",
-              activeTab === 'cancelled'
-                ? "bg-blue-600 text-white shadow-sm"
-                : "text-slate-600 hover:bg-slate-50"
-            )}
-          >
-            <XCircle className="w-4 h-4" />
-            Cancelled
+            <CalendarIcon className="w-4 h-4" />
+            Calendar
           </button>
         </div>
 
@@ -782,7 +749,7 @@ export function SiteVisits() {
         {viewMode === 'table' && (
           <Card className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
           {/* Filter Controls */}
-          <div className="p-4 border-b border-slate-200 bg-slate-50/50">
+          <div className="p-5 border-b border-slate-200 bg-slate-50/50">
             <div className="flex items-center gap-3 flex-wrap">
               {/* Search */}
               <div className="relative flex-1 min-w-[200px]">
@@ -791,12 +758,12 @@ export function SiteVisits() {
                   placeholder="Search by client, engineer, address..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 bg-white border-slate-200"
+                  className="pl-10 h-12 bg-white border-slate-200 text-sm"
                 />
               </div>
 
               {/* Date Range */}
-              <button className="px-4 py-2 border border-slate-200 rounded-lg bg-white hover:bg-slate-50 flex items-center gap-2 text-sm text-slate-700">
+              <button className="px-5 py-3 border border-slate-200 rounded-lg bg-white hover:bg-slate-50 flex items-center gap-2 text-sm text-slate-700 h-12">
                 <CalendarIcon className="w-4 h-4" />
                 Select date range
               </button>
@@ -805,7 +772,7 @@ export function SiteVisits() {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-4 py-2 border border-slate-200 rounded-lg bg-white hover:bg-slate-50 text-sm text-slate-700"
+                className="px-5 py-3 border border-slate-200 rounded-lg bg-white hover:bg-slate-50 text-sm text-slate-700 h-12"
               >
                 <option value="all">All Status</option>
                 <option value="scheduled">Scheduled</option>
@@ -818,7 +785,7 @@ export function SiteVisits() {
               <select
                 value={projectFilter}
                 onChange={(e) => setProjectFilter(e.target.value)}
-                className="px-4 py-2 border border-slate-200 rounded-lg bg-white hover:bg-slate-50 text-sm text-slate-700"
+                className="px-5 py-3 border border-slate-200 rounded-lg bg-white hover:bg-slate-50 text-sm text-slate-700 h-12"
               >
                 <option value="all">All Projects</option>
                 {clients?.map((client: any) => (
@@ -830,7 +797,7 @@ export function SiteVisits() {
               <select
                 value={engineerFilter}
                 onChange={(e) => setEngineerFilter(e.target.value)}
-                className="px-4 py-2 border border-slate-200 rounded-lg bg-white hover:bg-slate-50 text-sm text-slate-700"
+                className="px-5 py-3 border border-slate-200 rounded-lg bg-white hover:bg-slate-50 text-sm text-slate-700 h-12"
               >
                 <option value="all">All Engineers</option>
                 {engineers.map((engineer: string) => (
@@ -839,7 +806,7 @@ export function SiteVisits() {
               </select>
 
               {/* Filters Button */}
-              <button className="px-4 py-2 border border-slate-200 rounded-lg bg-white hover:bg-slate-50 flex items-center gap-2 text-sm text-slate-700">
+              <button className="px-5 py-3 border border-slate-200 rounded-lg bg-white hover:bg-slate-50 flex items-center gap-2 text-sm text-slate-700 h-12">
                 <Filter className="w-4 h-4" />
                 Filters
               </button>
@@ -852,8 +819,9 @@ export function SiteVisits() {
                   setProjectFilter('all');
                   setEngineerFilter('all');
                   setActiveTab('all');
+                  setViewMode('table');
                 }}
-                className="px-4 py-2 text-sm text-blue-600 hover:underline"
+                className="px-5 py-3 text-sm text-blue-600 hover:underline h-12"
               >
                 Reset
               </button>
