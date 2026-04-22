@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabase';
 import { useNavigate } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import html2canvas from 'html2canvas';
@@ -9,17 +10,20 @@ import { useAuth } from '../App';
 import { useMaterials } from '../hooks/useMaterials';
 import { useWarehouses } from '../hooks/useWarehouses';
 import { useVariants } from '../hooks/useVariants';
+import { getItemStockBreakdown, assignStockToIntent } from '../material-intents/api';
 
 const VARIANT_FILTERS = ['All', 'Green', 'Blue', 'Non-Variant'];
 
 export default function QuickStockCheck() {
   const { organisation } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const hashPath = window.location.hash.slice(1);
   const query = window.location.search.slice(1) || window.location.hash.split('?')[1] || '';
   const currentPath = `${window.location.pathname}${window.location.search}` || hashPath;
   const editId = new URLSearchParams(query).get('id');
   const viewId = new URLSearchParams(query).get('id');
+  const intentId = searchParams.get('intent_id');
   const isViewMode = currentPath.includes('/quick-stock-check/view') || hashPath.includes('/quick-stock-check/view');
   
   const { data: materials = [] } = useMaterials();
@@ -132,10 +136,16 @@ export default function QuickStockCheck() {
         totalAvailable += qty;
       });
 
-      return { warehouseStock, totalAvailable };
+      // Get stock breakdown if intent_id is present
+      let stockBreakdown = null;
+      if (intentId && organisation?.id) {
+        stockBreakdown = await getItemStockBreakdown(itemId, variantId, organisation.id);
+      }
+
+      return { warehouseStock, totalAvailable, stockBreakdown };
     } catch (err) {
       console.error('Error fetching stock:', err);
-      return { warehouseStock: {}, totalAvailable: 0 };
+      return { warehouseStock: {}, totalAvailable: 0, stockBreakdown: null };
     }
   };
 
@@ -161,9 +171,10 @@ export default function QuickStockCheck() {
       const variantId = field === 'company_variant_id' ? value : updatedItems[index].company_variant_id;
 
       if (itemId) {
-        const { warehouseStock, totalAvailable } = await fetchStockForItem(itemId, variantId);
+        const { warehouseStock, totalAvailable, stockBreakdown } = await fetchStockForItem(itemId, variantId);
         updatedItems[index].warehouse_snapshot = warehouseStock;
         updatedItems[index].total_available = totalAvailable;
+        updatedItems[index].stock_breakdown = stockBreakdown;
         updatedItems[index].pending_qty = Math.max(0, parseFloat(updatedItems[index].qty_required || 0) - totalAvailable);
       }
     }
@@ -177,6 +188,45 @@ export default function QuickStockCheck() {
 
   const handleRemoveItem = (index) => {
     setItems(items.filter((_, i) => i !== index));
+  };
+
+  const handleAssignToIntent = async (item, index) => {
+    if (!intentId || !organisation?.id) {
+      alert('Intent ID or Organisation ID missing');
+      return;
+    }
+
+    const assignQty = prompt(`Enter quantity to assign (Available: ${item.stock_breakdown.available}):`, item.stock_breakdown.available.toString());
+    if (!assignQty) return;
+
+    const qty = parseFloat(assignQty);
+    if (isNaN(qty) || qty <= 0 || qty > item.stock_breakdown.available) {
+      alert('Invalid quantity');
+      return;
+    }
+
+    try {
+      await assignStockToIntent(
+        organisation.id,
+        intentId,
+        item.item_id,
+        item.company_variant_id,
+        null, // warehouse_id - can be enhanced later
+        qty,
+        `Assigned via Quick Stock Check`,
+        'Stores Team'
+      );
+
+      alert('Stock assigned successfully!');
+      // Refresh stock breakdown
+      const { stockBreakdown } = await fetchStockForItem(item.item_id, item.company_variant_id);
+      const updatedItems = [...items];
+      updatedItems[index].stock_breakdown = stockBreakdown;
+      setItems(updatedItems);
+    } catch (error) {
+      console.error('Error assigning stock:', error);
+      alert('Failed to assign stock: ' + (error?.message || 'Unknown error'));
+    }
   };
 
   const handleSave = async () => {
@@ -524,8 +574,17 @@ export default function QuickStockCheck() {
                     <th key={wh.id} style={{ ...excelHeaderStyle, width: '90px', textAlign: 'right' }}>{wh.warehouse_name}</th>
                   ))}
                   <th style={{ ...excelHeaderStyle, width: '110px', textAlign: 'right' }}>Total Avail</th>
-                  <th style={{ ...excelHeaderStyle, width: '100px', textAlign: 'right' }}>Pending</th>
-                  {!isReadOnly && <th style={{ ...excelHeaderStyle, width: '40px', textAlign: 'center' }}></th>}
+                  {intentId ? (
+                    <>
+                      <th style={{ ...excelHeaderStyle, width: '120px', textAlign: 'right' }}>Stock Breakdown</th>
+                      <th style={{ ...excelHeaderStyle, width: '80px', textAlign: 'center' }}>Action</th>
+                    </>
+                  ) : (
+                    <>
+                      <th style={{ ...excelHeaderStyle, width: '100px', textAlign: 'right' }}>Pending</th>
+                      {!isReadOnly && <th style={{ ...excelHeaderStyle, width: '40px', textAlign: 'center' }}></th>}
+                    </>
+                  )}
                 </tr>
               </thead>
               <tbody>
@@ -585,18 +644,49 @@ export default function QuickStockCheck() {
                     <td style={{ ...excelCellStyle, textAlign: 'right', fontWeight: 'bold', color: '#0f172a' }}>
                       {formatCurrency(item.total_available || 0)}
                     </td>
-                    <td style={{ ...excelCellStyle, textAlign: 'right', fontWeight: 'bold', color: (item.pending_qty || 0) > 0 ? '#be123c' : '#15803d' }}>
-                      {formatCurrency(item.pending_qty || 0)}
-                    </td>
-                    {!isReadOnly && (
-                      <td style={{ ...excelCellStyle, textAlign: 'center' }}>
-                        <button
-                          style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '16px' }}
-                          onClick={() => handleRemoveItem(index)}
-                        >
-                          ×
-                        </button>
-                      </td>
+                    {intentId && item.stock_breakdown ? (
+                      <>
+                        <td style={{ ...excelCellStyle, textAlign: 'right', color: '#6b7280', fontSize: '10px' }}>
+                          <div>Total: {formatCurrency(item.stock_breakdown.total)}</div>
+                          <div style={{ color: '#22c55e' }}>Avail: {formatCurrency(item.stock_breakdown.available)}</div>
+                          <div style={{ color: '#8b5cf6' }}>Res: {formatCurrency(item.stock_breakdown.reserved)}</div>
+                          <div style={{ color: '#06b6d4' }}>Transit: {formatCurrency(item.stock_breakdown.inTransit)}</div>
+                        </td>
+                        <td style={{ ...excelCellStyle, textAlign: 'center' }}>
+                          {!isReadOnly && item.stock_breakdown.available > 0 && (
+                            <button
+                              onClick={() => handleAssignToIntent(item, index)}
+                              style={{
+                                padding: '4px 8px',
+                                fontSize: '10px',
+                                background: '#8b5cf6',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              Assign
+                            </button>
+                          )}
+                        </td>
+                      </>
+                    ) : (
+                      <>
+                        <td style={{ ...excelCellStyle, textAlign: 'right', fontWeight: 'bold', color: (item.pending_qty || 0) > 0 ? '#be123c' : '#15803d' }}>
+                          {formatCurrency(item.pending_qty || 0)}
+                        </td>
+                        {!isReadOnly && (
+                          <td style={{ ...excelCellStyle, textAlign: 'center' }}>
+                            <button
+                              style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '16px' }}
+                              onClick={() => handleRemoveItem(index)}
+                            >
+                              ×
+                            </button>
+                          </td>
+                        )}
+                      </>
                     )}
                   </tr>
                 ))}
