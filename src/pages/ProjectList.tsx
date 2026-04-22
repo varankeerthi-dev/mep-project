@@ -600,7 +600,6 @@ export default function ProjectList() {
         supabase.from('project_expenses').select('*').eq('project_id', selectedProject!.id).eq('organisation_id', organisation?.id).order('expense_date', { ascending: false }),
         supabase.from('project_payments').select('*').eq('project_id', selectedProject!.id).eq('organisation_id', organisation?.id).order('payment_date', { ascending: false }),
       ]);
-      console.log('POs fetched:', posResult.data);
       if (posResult.error) throw posResult.error;
       if (invoicesResult.error) throw invoicesResult.error;
       if (expensesResult.error) throw expensesResult.error;
@@ -623,10 +622,13 @@ export default function ProjectList() {
 
   const financialSummary = useMemo(() => {
     if (!projectDetails) return null;
+    console.log('projectPOs:', projectPOs);
+    console.log('projectInvoices:', projectInvoices);
     const totalPOValue = projectPOs.reduce((s, p) => s + (parseFloat(p.po_total_value) || 0), 0);
     const totalInvoiceValue = projectInvoices.reduce((s, i) => s + (parseFloat(i.total_amount) || 0), 0);
     const totalPaymentReceived = projectPayments.reduce((s, p) => s + (parseFloat(p.payment_amount) || 0), 0);
     const totalExpense = projectExpenses.reduce((s, e) => s + (parseFloat(e.amount) || 0), 0);
+    console.log('totalPOValue:', totalPOValue);
     return {
       total_po_value: totalPOValue,
       total_invoice_value: totalInvoiceValue,
