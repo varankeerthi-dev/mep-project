@@ -12,6 +12,8 @@ type ProjectFormData = {
   project_estimated_value: string
   po_required: boolean
   po_status: string
+  po_number: string
+  po_date: string
   start_date: string
   expected_end_date: string
   actual_end_date: string
@@ -369,6 +371,7 @@ export default function CreateProject() {
   const [saving, setSaving] = useState(false);
   const [clients, setClients] = useState<any[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
+  const [clientPOs, setClientPOs] = useState<any[]>([]);
 
   const [formData, setFormData] = useState<ProjectFormData>({
     client_id: '',
@@ -378,6 +381,8 @@ export default function CreateProject() {
     project_estimated_value: '',
     po_required: true,
     po_status: 'Pending',
+    po_number: '',
+    po_date: '',
     start_date: '',
     expected_end_date: '',
     actual_end_date: '',
@@ -394,10 +399,29 @@ export default function CreateProject() {
     }
   }, [editId, organisation?.id]);
 
+  useEffect(() => {
+    if (formData.client_id) {
+      loadClientPOs(formData.client_id);
+    }
+  }, [formData.client_id]);
+
   const loadClients = async () => {
     if (!organisation?.id) return;
     const { data } = await supabase.from('clients').select('id, client_name').eq('organisation_id', organisation.id).order('client_name');
     setClients(data || []);
+  };
+
+  const loadClientPOs = async (clientId: string) => {
+    if (!organisation?.id || !clientId) {
+      setClientPOs([]);
+      return;
+    }
+    const { data } = await supabase
+      .from('client_purchase_orders')
+      .select('id, po_number, po_date, po_total_value, status')
+      .eq('client_id', clientId)
+      .order('po_date', { ascending: false });
+    setClientPOs(data || []);
   };
 
   const loadProjects = async () => {
@@ -432,6 +456,8 @@ export default function CreateProject() {
           project_estimated_value: data.project_estimated_value || '',
           po_required: data.po_required !== false,
           po_status: data.po_status || 'Pending',
+          po_number: data.po_number || '',
+          po_date: data.po_date || '',
           start_date: data.start_date || '',
           expected_end_date: data.expected_end_date || '',
           actual_end_date: data.actual_end_date || '',
@@ -483,6 +509,8 @@ export default function CreateProject() {
         project_estimated_value: formData.project_estimated_value ? parseFloat(formData.project_estimated_value) : null,
         po_required: formData.po_required,
         po_status: formData.po_required ? formData.po_status : 'Not Required',
+        po_number: formData.po_number || null,
+        po_date: formData.po_date || null,
         start_date: formData.start_date || null,
         expected_end_date: formData.expected_end_date || null,
         actual_end_date: formData.actual_end_date || null,
@@ -640,7 +668,7 @@ export default function CreateProject() {
               <h2 className="pf-section-title">Commercial</h2>
             </div>
             <div className="pf-section-body">
-              <div className="pf-grid pf-grid-2">
+              <div className="pf-grid pf-grid-3">
                 <div className="pf-field">
                   <label className="pf-label">Estimated Value</label>
                   <input
@@ -680,19 +708,79 @@ export default function CreateProject() {
                 </div>
 
                 {formData.po_required && (
-                  <div className="pf-field">
-                    <label className="pf-label">PO Status</label>
-                    <select
-                      name="po_status"
-                      className="pf-select"
-                      value={formData.po_status}
-                      onChange={handleInputChange}
-                    >
-                      <option value="Not Required">Not Required</option>
-                      <option value="Pending">Pending</option>
-                      <option value="Received">Received</option>
-                    </select>
-                  </div>
+                  <>
+                    <div className="pf-field">
+                      <label className="pf-label">PO Status</label>
+                      <select
+                        name="po_status"
+                        className="pf-select"
+                        value={formData.po_status}
+                        onChange={handleInputChange}
+                      >
+                        <option value="Not Required">Not Required</option>
+                        <option value="Pending">Pending</option>
+                        <option value="Received">Received</option>
+                      </select>
+                    </div>
+
+                    {formData.po_status === 'Received' && (
+                      <>
+                        <div className="pf-field">
+                          <label className="pf-label">Select PO</label>
+                          <select
+                            className="pf-select"
+                            value={formData.po_number}
+                            onChange={(e) => {
+                              const selectedPO = clientPOs.find(po => po.po_number === e.target.value);
+                              if (selectedPO) {
+                                setFormData(prev => ({
+                                  ...prev,
+                                  po_number: selectedPO.po_number,
+                                  po_date: selectedPO.po_date
+                                }));
+                              } else {
+                                setFormData(prev => ({
+                                  ...prev,
+                                  po_number: e.target.value,
+                                  po_date: ''
+                                }));
+                              }
+                            }}
+                          >
+                            <option value="">Select existing PO or enter manually</option>
+                            {clientPOs.map(po => (
+                              <option key={po.id} value={po.po_number}>
+                                {po.po_number} - {po.po_date} (₹{po.po_total_value})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="pf-field">
+                          <label className="pf-label">PO Number</label>
+                          <input
+                            type="text"
+                            name="po_number"
+                            className="pf-input"
+                            value={formData.po_number}
+                            onChange={handleInputChange}
+                            placeholder="Enter PO number"
+                          />
+                        </div>
+
+                        <div className="pf-field">
+                          <label className="pf-label">PO Date</label>
+                          <input
+                            type="date"
+                            name="po_date"
+                            className="pf-input"
+                            value={formData.po_date}
+                            onChange={handleInputChange}
+                          />
+                        </div>
+                      </>
+                    )}
+                  </>
                 )}
               </div>
             </div>

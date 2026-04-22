@@ -52,6 +52,16 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'projects' AND column_name = 'po_status') THEN
     ALTER TABLE projects ADD COLUMN po_status VARCHAR(50);
   END IF;
+
+  -- Add po_number column
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'projects' AND column_name = 'po_number') THEN
+    ALTER TABLE projects ADD COLUMN po_number VARCHAR(50);
+  END IF;
+
+  -- Add po_date column
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'projects' AND column_name = 'po_date') THEN
+    ALTER TABLE projects ADD COLUMN po_date DATE;
+  END IF;
   
   -- Add start_date column
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'projects' AND column_name = 'start_date') THEN
