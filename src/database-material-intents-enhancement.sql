@@ -56,29 +56,29 @@ CREATE POLICY "Users can view intent assignments for their organisation"
   ON intent_assignments
   FOR SELECT
   TO authenticated
-  USING (organisation_id IN (SELECT id FROM organisations WHERE user_id = auth.uid()));
+  USING (organisation_id IN (SELECT organisation_id FROM user_organisations WHERE user_id = auth.uid() AND status = 'active'));
 
 DROP POLICY IF EXISTS "Users can insert intent assignments for their organisation" ON intent_assignments;
 CREATE POLICY "Users can insert intent assignments for their organisation"
   ON intent_assignments
   FOR INSERT
   TO authenticated
-  WITH CHECK (organisation_id IN (SELECT id FROM organisations WHERE user_id = auth.uid()));
+  WITH CHECK (organisation_id IN (SELECT organisation_id FROM user_organisations WHERE user_id = auth.uid() AND status = 'active'));
 
 DROP POLICY IF EXISTS "Users can update intent assignments for their organisation" ON intent_assignments;
 CREATE POLICY "Users can update intent assignments for their organisation"
   ON intent_assignments
   FOR UPDATE
   TO authenticated
-  USING (organisation_id IN (SELECT id FROM organisations WHERE user_id = auth.uid()))
-  WITH CHECK (organisation_id IN (SELECT id FROM organisations WHERE user_id = auth.uid()));
+  USING (organisation_id IN (SELECT organisation_id FROM user_organisations WHERE user_id = auth.uid() AND status = 'active'))
+  WITH CHECK (organisation_id IN (SELECT organisation_id FROM user_organisations WHERE user_id = auth.uid() AND status = 'active'));
 
 DROP POLICY IF EXISTS "Users can delete intent assignments for their organisation" ON intent_assignments;
 CREATE POLICY "Users can delete intent assignments for their organisation"
   ON intent_assignments
   FOR DELETE
   TO authenticated
-  USING (organisation_id IN (SELECT id FROM organisations WHERE user_id = auth.uid()));
+  USING (organisation_id IN (SELECT organisation_id FROM user_organisations WHERE user_id = auth.uid() AND status = 'active'));
 
 -- Step 5: Create indexes for intent_assignments
 CREATE INDEX IF NOT EXISTS idx_intent_assignments_organisation_id ON intent_assignments(organisation_id);
