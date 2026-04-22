@@ -26,6 +26,7 @@ type Project = {
   client?: { client_name?: string } | null;
   client_id?: string;
   organisation_id?: string;
+  pos?: Array<{ po_total_value?: number }>;
 };
 
 type ProjectDetails = {
@@ -580,7 +581,7 @@ export default function ProjectList() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('projects')
-        .select('*, client_id')
+        .select('*, client:clients(id, client_name), pos:client_purchase_orders(po_total_value)')
         .eq('organisation_id', organisation?.id)
         .order('created_at', { ascending: false });
       if (error) throw error;
@@ -1057,6 +1058,7 @@ export default function ProjectList() {
                   <th>Client</th>
                   <th>Type</th>
                   <th>Est. Value</th>
+                  <th>PO Value</th>
                   <th>PO Status</th>
                   <th>Status</th>
                   <th>Completion</th>
@@ -1084,6 +1086,9 @@ export default function ProjectList() {
                       <td style={{ color: 'var(--text-secondary)' }}>{p.project_type || '-'}</td>
                       <td style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 500 }}>
                         {p.project_estimated_value ? fmt(p.project_estimated_value) : '-'}
+                      </td>
+                      <td style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 500 }}>
+                        {p.pos && p.pos.length > 0 ? fmt(p.pos.reduce((sum, po) => sum + (po.po_total_value || 0), 0)) : '-'}
                       </td>
                       <td>
                         <span className="pl-status">
