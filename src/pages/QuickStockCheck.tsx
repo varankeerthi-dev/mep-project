@@ -51,6 +51,12 @@ export default function QuickStockCheck() {
   }, [editId, viewId, organisation?.id]);
 
   useEffect(() => {
+    if (intentId && organisation?.id) {
+      loadIntentItem();
+    }
+  }, [intentId, organisation?.id]);
+
+  useEffect(() => {
     if (warehouses.length > 0) {
       const initialCols = {
         sno: true,
@@ -78,6 +84,41 @@ export default function QuickStockCheck() {
       console.error('Error loading data:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadIntentItem = async () => {
+    if (!intentId || !organisation?.id) return;
+    
+    try {
+      const { data: intent, error } = await supabase
+        .from('material_intents')
+        .select('*')
+        .eq('id', intentId)
+        .eq('organisation_id', organisation.id)
+        .single();
+
+      if (error) throw error;
+
+      if (intent) {
+        // Pre-fill with the intent item
+        const { warehouseStock, totalAvailable, stockBreakdown } = await fetchStockForItem(intent.item_id, intent.variant_id);
+        
+        const newItem = {
+          id: Date.now(),
+          item_id: intent.item_id,
+          company_variant_id: intent.variant_id,
+          qty_required: intent.requested_qty,
+          warehouse_snapshot: warehouseStock,
+          total_available: totalAvailable,
+          stock_breakdown: stockBreakdown,
+          pending_qty: Math.max(0, intent.requested_qty - totalAvailable)
+        };
+        
+        setItems([newItem]);
+      }
+    } catch (error) {
+      console.error('Error loading intent item:', error);
     }
   };
 
