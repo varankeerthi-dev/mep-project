@@ -225,7 +225,7 @@ export default function MaterialIntentsList({ organisationId }: MaterialIntentsL
                       >
                         <button
                           onClick={() => {
-                            navigate(`/quick-stock?intent_id=${intent.id}`);
+                            navigate(`/quick-stock-check?intent_id=${intent.id}`);
                             setDropdownOpen(null);
                           }}
                           style={{
