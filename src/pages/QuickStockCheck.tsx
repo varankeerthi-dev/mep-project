@@ -45,6 +45,7 @@ export default function QuickStockCheck() {
   });
 
   const [items, setItems] = useState([]);
+  const [intentInfo, setIntentInfo] = useState<any>(null);
 
   useEffect(() => {
     loadInitialData();
@@ -93,7 +94,7 @@ export default function QuickStockCheck() {
     try {
       const { data: intent, error } = await supabase
         .from('material_intents')
-        .select('*')
+        .select('*, projects(project_name)')
         .eq('id', intentId)
         .eq('organisation_id', organisation.id)
         .single();
@@ -101,6 +102,9 @@ export default function QuickStockCheck() {
       if (error) throw error;
 
       if (intent) {
+        // Store intent info for display
+        setIntentInfo(intent);
+        
         // Pre-fill with the intent item
         const { warehouseStock, totalAvailable, stockBreakdown } = await fetchStockForItem(intent.item_id, intent.variant_id);
         
@@ -112,7 +116,8 @@ export default function QuickStockCheck() {
           warehouse_snapshot: warehouseStock,
           total_available: totalAvailable,
           stock_breakdown: stockBreakdown,
-          pending_qty: Math.max(0, intent.requested_qty - totalAvailable)
+          pending_qty: Math.max(0, intent.requested_qty - totalAvailable),
+          locked: true // Lock the item when coming from intent
         };
         
         setItems([newItem]);
@@ -588,10 +593,28 @@ export default function QuickStockCheck() {
         </div>
       </div>
 
+      {intentInfo && (
+        <div style={{ background: '#e0e7ff', padding: '12px 16px', borderRadius: '6px', marginBottom: '12px', border: '1px solid #c7d2fe' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <div style={{ fontSize: '12px', fontWeight: 600, color: '#3730a3', marginBottom: '4px' }}>
+                Intent: {intentInfo.indent_number || intentInfo.id}
+              </div>
+              <div style={{ fontSize: '11px', color: '#4338ca' }}>
+                Project: {intentInfo.projects?.project_name || 'N/A'}
+              </div>
+            </div>
+            <div style={{ fontSize: '11px', color: '#6366f1' }}>
+              Status: {intentInfo.status}
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="card" style={{ marginBottom: '8px', padding: '0', overflow: 'hidden', border: 'none' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: '#fff' }}>
           <h3 style={{ margin: 0, fontSize: '13px', fontWeight: 600 }}>Items</h3>
-          {!isReadOnly && (
+          {!isReadOnly && !intentId && (
             <button className="btn btn-primary btn-sm" onClick={handleAddItem} style={{ fontSize: '11px', padding: '2px 8px' }}>
               + Add Item
             </button>
@@ -635,10 +658,10 @@ export default function QuickStockCheck() {
                     <td style={{ ...excelCellStyle, padding: '0' }}>
                       <select
                         className="excel-select"
-                        style={{ width: '100%', border: 'none', padding: '0 8px', height: '100%', fontSize: '11px', background: 'transparent', outline: 'none' }}
+                        style={{ width: '100%', border: 'none', padding: '0 8px', height: '100%', fontSize: '11px', background: item.locked ? '#f1f5f9' : 'transparent', outline: 'none' }}
                         value={item.item_id}
                         onChange={(e) => handleItemChange(index, 'item_id', e.target.value)}
-                        disabled={isReadOnly}
+                        disabled={isReadOnly || item.locked}
                       >
                         <option value="">Search or Select Item...</option>
                         {materials.map(m => (
@@ -650,10 +673,10 @@ export default function QuickStockCheck() {
                       <td style={{ ...excelCellStyle, padding: '0' }}>
                         <select
                           className="excel-select"
-                          style={{ width: '100%', border: 'none', padding: '0 8px', height: '100%', fontSize: '11px', background: 'transparent', outline: 'none' }}
+                          style={{ width: '100%', border: 'none', padding: '0 8px', height: '100%', fontSize: '11px', background: item.locked ? '#f1f5f9' : 'transparent', outline: 'none' }}
                           value={item.company_variant_id || ''}
                           onChange={(e) => handleItemChange(index, 'company_variant_id', e.target.value || null)}
-                          disabled={isReadOnly}
+                          disabled={isReadOnly || item.locked}
                         >
                           <option value="">Default</option>
                           {variants.map(v => (
