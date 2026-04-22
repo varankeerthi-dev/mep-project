@@ -1123,7 +1123,7 @@ export function SiteVisits() {
       {isFormOpen && (
         <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
           <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto p-0">
-            <div className="bg-gradient-to-r from-slate-50 to-slate-100 px-6 py-5 border-b border-slate-200">
+            <div className="bg-white px-6 py-5 border-b border-slate-200">
               <DialogTitle className="text-xl font-semibold text-slate-900">
                 {selectedVisit ? 'Edit Site Visit' : 'New Site Visit'}
               </DialogTitle>
