@@ -1122,102 +1122,136 @@ export function SiteVisits() {
       {/* Form Dialog - keeping existing form logic */}
       {isFormOpen && (
         <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>{selectedVisit ? 'Edit Site Visit' : 'New Site Visit'}</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleFormSubmit} className="space-y-4">
-              {/* Keep existing form fields */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Client</Label>
-                  <select
-                    value={formData.client_id}
-                    onChange={(e) => setFormData({ ...formData, client_id: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg"
-                    required
-                  >
-                    <option value="">Select client</option>
-                    {clients?.map((client: any) => (
-                      <option key={client.id} value={client.id}>{client.client_name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <Label>Visit Date</Label>
-                  <Input
-                    type="date"
-                    value={formData.visit_date}
-                    onChange={(e) => setFormData({ ...formData, visit_date: e.target.value })}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label>Purpose</Label>
-                  <select
-                    value={formData.purpose_of_visit}
-                    onChange={(e) => setFormData({ ...formData, purpose_of_visit: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg"
-                  >
-                    <option value="">Select purpose</option>
-                    {purposes?.map((purpose: any) => (
-                      <option key={purpose.id} value={purpose.name}>{purpose.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <Label>Engineer</Label>
-                  <Input
-                    value={formData.engineer}
-                    onChange={(e) => setFormData({ ...formData, engineer: e.target.value })}
-                    placeholder="Engineer name"
-                  />
-                </div>
-                <div>
-                  <Label>Visit Time</Label>
-                  <Input
-                    type="time"
-                    value={formData.visit_time}
-                    onChange={(e) => setFormData({ ...formData, visit_time: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <Label>Status</Label>
-                  <select
-                    value={formData.status}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg"
-                  >
-                    <option value="scheduled">Scheduled</option>
-                    <option value="in_progress">In Progress</option>
-                    <option value="completed">Completed</option>
-                    <option value="cancelled">Cancelled</option>
-                  </select>
-                </div>
-              </div>
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto p-0">
+            <div className="bg-gradient-to-r from-slate-50 to-slate-100 px-6 py-5 border-b border-slate-200">
+              <DialogTitle className="text-xl font-semibold text-slate-900">
+                {selectedVisit ? 'Edit Site Visit' : 'New Site Visit'}
+              </DialogTitle>
+              <p className="text-sm text-slate-500 mt-1">
+                {selectedVisit ? 'Update the site visit details below' : 'Fill in the details to schedule a new site visit'}
+              </p>
+            </div>
+            <form onSubmit={handleFormSubmit} className="p-6 space-y-6">
+              {/* Visit Details Section */}
               <div>
-                <Label>Site Address</Label>
-                <Textarea
-                  value={formData.site_address}
-                  onChange={(e) => setFormData({ ...formData, site_address: e.target.value })}
-                  placeholder="Enter site address"
-                />
+                <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-wider mb-4 flex items-center gap-2">
+                  <span className="w-1 h-4 bg-blue-600 rounded-full"></span>
+                  Visit Details
+                </h3>
+                <div className="grid grid-cols-2 gap-5">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-slate-600 uppercase tracking-wide">Client</label>
+                    <select
+                      value={formData.client_id}
+                      onChange={(e) => setFormData({ ...formData, client_id: e.target.value })}
+                      className="w-full px-4 py-3 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                      required
+                    >
+                      <option value="">Select client</option>
+                      {clients?.map((client: any) => (
+                        <option key={client.id} value={client.id}>{client.client_name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-slate-600 uppercase tracking-wide">Visit Date</label>
+                    <Input
+                      type="date"
+                      value={formData.visit_date}
+                      onChange={(e) => setFormData({ ...formData, visit_date: e.target.value })}
+                      className="w-full px-4 py-3 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-slate-600 uppercase tracking-wide">Purpose</label>
+                    <select
+                      value={formData.purpose_of_visit}
+                      onChange={(e) => setFormData({ ...formData, purpose_of_visit: e.target.value })}
+                      className="w-full px-4 py-3 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                    >
+                      <option value="">Select purpose</option>
+                      {purposes?.map((purpose: any) => (
+                        <option key={purpose.id} value={purpose.name}>{purpose.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-slate-600 uppercase tracking-wide">Engineer</label>
+                    <Input
+                      value={formData.engineer}
+                      onChange={(e) => setFormData({ ...formData, engineer: e.target.value })}
+                      placeholder="Enter engineer name"
+                      className="w-full px-4 py-3 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-slate-600 uppercase tracking-wide">Visit Time</label>
+                    <Input
+                      type="time"
+                      value={formData.visit_time}
+                      onChange={(e) => setFormData({ ...formData, visit_time: e.target.value })}
+                      className="w-full px-4 py-3 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-slate-600 uppercase tracking-wide">Status</label>
+                    <select
+                      value={formData.status}
+                      onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                      className="w-full px-4 py-3 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                    >
+                      <option value="scheduled">Scheduled</option>
+                      <option value="in_progress">In Progress</option>
+                      <option value="completed">Completed</option>
+                      <option value="cancelled">Cancelled</option>
+                    </select>
+                  </div>
+                </div>
               </div>
+
+              {/* Location & Notes Section */}
               <div>
-                <Label>Discussion Points</Label>
-                <Textarea
-                  value={formData.discussion_points}
-                  onChange={(e) => setFormData({ ...formData, discussion_points: e.target.value })}
-                  placeholder="Enter discussion points"
-                />
+                <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-wider mb-4 flex items-center gap-2">
+                  <span className="w-1 h-4 bg-blue-600 rounded-full"></span>
+                  Location & Notes
+                </h3>
+                <div className="space-y-5">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-slate-600 uppercase tracking-wide">Site Address</label>
+                    <Textarea
+                      value={formData.site_address}
+                      onChange={(e) => setFormData({ ...formData, site_address: e.target.value })}
+                      placeholder="Enter complete site address with landmarks"
+                      className="w-full px-4 py-3 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all min-h-[80px] resize-none"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-slate-600 uppercase tracking-wide">Discussion Points</label>
+                    <Textarea
+                      value={formData.discussion_points}
+                      onChange={(e) => setFormData({ ...formData, discussion_points: e.target.value })}
+                      placeholder="Key points to discuss during the visit"
+                      className="w-full px-4 py-3 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all min-h-[100px] resize-none"
+                    />
+                  </div>
+                </div>
               </div>
-              <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => setIsFormOpen(false)}>
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setIsFormOpen(false)}
+                  className="px-6 py-2.5 text-sm font-medium border-slate-300 text-slate-700 hover:bg-slate-50"
+                >
                   Cancel
                 </Button>
                 <Button
                   type="submit"
                   disabled={addVisitMutation.isPending || updateVisitMutation.isPending}
+                  className="px-6 py-2.5 text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white"
                 >
                   {addVisitMutation.isPending || updateVisitMutation.isPending
                     ? 'Saving...'
