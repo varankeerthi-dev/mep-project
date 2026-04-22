@@ -561,10 +561,6 @@ export default function CreateProject() {
             <button className="pf-btn pf-btn-secondary" onClick={() => navigate('/projects')}>
               Cancel
             </button>
-            <button type="submit" className="pf-btn pf-btn-primary" disabled={saving}>
-              <Save size={16} />
-              {saving ? 'Saving...' : editId ? 'Update' : 'Create'}
-            </button>
           </div>
         </div>
 
@@ -800,6 +796,21 @@ export default function CreateProject() {
                     placeholder="Add any additional notes..."
                   />
                 </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Form Actions */}
+          <div className="pf-section">
+            <div className="pf-section-body">
+              <div className="flex justify-end gap-3">
+                <button type="button" className="pf-btn pf-btn-secondary" onClick={() => navigate('/projects')}>
+                  Cancel
+                </button>
+                <button type="submit" className="pf-btn pf-btn-primary" disabled={saving}>
+                  <Save size={16} />
+                  {saving ? 'Saving...' : editId ? 'Update' : 'Create'}
+                </button>
               </div>
             </div>
           </div>
