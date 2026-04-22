@@ -121,10 +121,19 @@ END $$;
 -- If still NULL, generate from id
 UPDATE projects SET project_name = 'Untitled-' || SUBSTRING(id::TEXT FROM 1 FOR 8) WHERE project_name IS NULL;
 
--- Add CHECK constraints (will fail gracefully if already exists)
-ALTER TABLE projects ADD CONSTRAINT chk_project_type CHECK (project_type IN ('Main', 'Expansion', 'Service'));
-ALTER TABLE projects ADD CONSTRAINT chk_po_status CHECK (po_status IN ('Not Required', 'Pending', 'Received'));
-ALTER TABLE projects ADD CONSTRAINT chk_status CHECK (status IN ('Draft', 'Active', 'Execution Completed', 'Financially Closed', 'Closed'));
+-- Add CHECK constraints (check if they exist first)
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_project_type') THEN
+    ALTER TABLE projects ADD CONSTRAINT chk_project_type CHECK (project_type IN ('Main', 'Expansion', 'Service'));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_po_status') THEN
+    ALTER TABLE projects ADD CONSTRAINT chk_po_status CHECK (po_status IN ('Not Required', 'Pending', 'Received'));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_status') THEN
+    ALTER TABLE projects ADD CONSTRAINT chk_status CHECK (status IN ('Draft', 'Active', 'Execution Completed', 'Financially Closed', 'Closed'));
+  END IF;
+END $$;
 
 -- Step 2: Create function to generate project code
 -- Drop existing function and trigger first to ensure clean update
