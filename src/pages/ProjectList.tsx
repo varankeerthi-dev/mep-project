@@ -595,11 +595,12 @@ export default function ProjectList() {
     queryKey: ['project-details', selectedProject?.id],
     queryFn: async () => {
       const [posResult, invoicesResult, expensesResult, paymentsResult] = await Promise.all([
-        supabase.from('client_purchase_orders').select('*').eq('project_id', selectedProject!.id).eq('organisation_id', organisation?.id),
+        supabase.from('client_purchase_orders').select('*').eq('project_id', selectedProject!.id),
         supabase.from('project_invoices').select('*').eq('project_id', selectedProject!.id).eq('organisation_id', organisation?.id).order('invoice_date', { ascending: false }),
         supabase.from('project_expenses').select('*').eq('project_id', selectedProject!.id).eq('organisation_id', organisation?.id).order('expense_date', { ascending: false }),
         supabase.from('project_payments').select('*').eq('project_id', selectedProject!.id).eq('organisation_id', organisation?.id).order('payment_date', { ascending: false }),
       ]);
+      console.log('POs fetched:', posResult.data);
       if (posResult.error) throw posResult.error;
       if (invoicesResult.error) throw invoicesResult.error;
       if (expensesResult.error) throw expensesResult.error;
