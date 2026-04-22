@@ -280,10 +280,20 @@ CREATE TRIGGER trigger_update_invoice_status
   EXECUTE FUNCTION update_invoice_status();
 
 -- Step 10: Add unique constraint for invoice_number per project
-ALTER TABLE project_invoices ADD CONSTRAINT unique_invoice_number_per_project UNIQUE (project_id, invoice_number);
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'unique_invoice_number_per_project') THEN
+    ALTER TABLE project_invoices ADD CONSTRAINT unique_invoice_number_per_project UNIQUE (project_id, invoice_number);
+  END IF;
+END $$;
 
 -- Step 11: Add unique constraint for payment_number per project
-ALTER TABLE project_payments ADD CONSTRAINT unique_payment_number_per_project UNIQUE (project_id, payment_number);
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'unique_payment_number_per_project') THEN
+    ALTER TABLE project_payments ADD CONSTRAINT unique_payment_number_per_project UNIQUE (project_id, payment_number);
+  END IF;
+END $$;
 
 -- Step 12: Create view for project financial summary
 CREATE OR REPLACE VIEW project_financial_summary AS
