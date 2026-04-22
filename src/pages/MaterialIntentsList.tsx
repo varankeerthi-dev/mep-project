@@ -246,7 +246,7 @@ export default function MaterialIntentsList({ organisationId }: MaterialIntentsL
                         </button>
                         <button
                           onClick={() => {
-                            navigate(`/create-dc?intent_id=${intent.id}`);
+                            navigate(`/dc/create?intent_id=${intent.id}`);
                             setDropdownOpen(null);
                           }}
                           style={{
