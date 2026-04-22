@@ -1,8 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '../contexts/AuthContext';
 import type { ProformaFilters } from './types';
 import type { ProformaInput } from './schemas';
 import {
   getProformaInvoices,
+  getProformaInvoicesCount,
   getProformaById,
   createProforma,
   updateProforma,
@@ -11,6 +13,8 @@ import {
   markRejected,
   convertToInvoice,
   deleteProforma,
+  cloneProforma,
+  getClientPOs,
 } from './api';
 
 export function useProformaInvoices(filters: ProformaFilters = {}) {
@@ -18,6 +22,24 @@ export function useProformaInvoices(filters: ProformaFilters = {}) {
     queryKey: ['proforma-invoices', filters],
     queryFn: () => getProformaInvoices(filters),
     enabled: !!filters.organisationId,
+  });
+}
+
+export function useProformaInvoicesCount(filters: ProformaFilters = {}) {
+  const { organisation } = useAuth();
+  return useQuery({
+    queryKey: ['proformaInvoicesCount', filters.organisationId],
+    queryFn: () => getProformaInvoicesCount(filters),
+    enabled: !!filters.organisationId,
+  });
+}
+
+export function useClientPOs(clientId: string) {
+  const { organisation } = useAuth();
+  return useQuery({
+    queryKey: ['clientPOs', clientId, organisation?.id],
+    queryFn: () => getClientPOs(clientId, organisation?.id!),
+    enabled: !!clientId && !!organisation?.id,
   });
 }
 
@@ -101,6 +123,18 @@ export function useConvertToInvoice() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['proforma-invoices'] });
       queryClient.invalidateQueries({ queryKey: ['invoices'] });
+    },
+  });
+}
+
+export function useCloneProforma() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, organisationId, newClientId }: { id: string; organisationId: string; newClientId?: string }) =>
+      cloneProforma(id, organisationId, { newClientId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['proforma-invoices'] });
     },
   });
 }

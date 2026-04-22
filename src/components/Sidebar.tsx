@@ -122,7 +122,10 @@ const menuData: MenuSection[] = [
       {
         id: 'proforma-invoices',
         label: 'Proforma Invoices',
-        path: '/proforma-invoices'
+        submenu: [
+          { id: 'proforma-list', label: 'Proforma List', path: '/proforma-invoices' },
+          { id: 'proforma-create', label: 'Create Proforma', path: '/proforma-invoices/create' }
+        ]
       },
       {
         id: 'ledger',

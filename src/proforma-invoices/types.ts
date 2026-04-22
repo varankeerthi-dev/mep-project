@@ -10,6 +10,13 @@ export interface ProformaFilters {
   sourceType?: ProformaSourceType;
   limit?: number;
   organisationId?: string;
+  search?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  minAmount?: number;
+  maxAmount?: number;
+  page?: number;
+  pageSize?: number;
 }
 
 export interface ProformaSourceLine {
@@ -31,4 +38,5 @@ export interface ProformaClientSummary {
   gst_number: string | null;
   state: string | null;
   default_template_id: string | null;
+  email: string | null;
 }

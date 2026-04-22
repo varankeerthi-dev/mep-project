@@ -15,6 +15,8 @@ const PROFORMA_SELECT = `
   client_id,
   status,
   subtotal,
+  discount_amount,
+  discount_percent,
   cgst,
   sgst,
   igst,
@@ -26,11 +28,16 @@ const PROFORMA_SELECT = `
   source_type,
   source_id,
   converted_invoice_id,
+  po_number,
+  po_date,
+  template_id,
   notes,
+  terms,
+  payment_terms,
   created_at,
   updated_at,
-  client:clients(id, name, gst_number, state, default_template_id),
-  items:proforma_items(id, proforma_id, description, hsn_code, qty, rate, amount, meta_json, sort_order)
+  client:clients(id, name, gst_number, state, default_template_id, email),
+  items:proforma_items(id, proforma_id, organisation_id, description, hsn_code, qty, rate, amount, discount_percent, discount_amount, tax_percent, meta_json, sort_order)
 `;
 
 function parseClientSummary(client: any): ProformaClientSummary | null {
@@ -41,6 +48,7 @@ function parseClientSummary(client: any): ProformaClientSummary | null {
     gst_number: client.gst_number ?? null,
     state: client.state ?? null,
     default_template_id: client.default_template_id ?? null,
+    email: client.email ?? null,
   };
 }
 
@@ -55,6 +63,9 @@ function parseProformaRecord(row: any): ProformaWithRelations {
           qty: item.qty,
           rate: item.rate,
           amount: item.amount,
+          discount_percent: item.discount_percent ?? 0,
+          discount_amount: item.discount_amount ?? 0,
+          tax_percent: item.tax_percent ?? 18,
           meta_json: item.meta_json ?? {},
           sort_order: item.sort_order ?? 0,
         }),
@@ -68,6 +79,8 @@ function parseProformaRecord(row: any): ProformaWithRelations {
     client_id: row.client_id,
     status: row.status,
     subtotal: row.subtotal,
+    discount_amount: row.discount_amount ?? 0,
+    discount_percent: row.discount_percent ?? 0,
     cgst: row.cgst,
     sgst: row.sgst,
     igst: row.igst,
@@ -79,7 +92,12 @@ function parseProformaRecord(row: any): ProformaWithRelations {
     source_type: row.source_type,
     source_id: row.source_id ?? null,
     converted_invoice_id: row.converted_invoice_id ?? null,
+    po_number: row.po_number ?? null,
+    po_date: row.po_date ?? null,
+    template_id: row.template_id ?? null,
     notes: row.notes ?? null,
+    terms: row.terms ?? null,
+    payment_terms: row.payment_terms ?? null,
     created_at: row.created_at,
     updated_at: row.updated_at,
     items,
@@ -99,6 +117,9 @@ function buildProformaPayload(proforma: Proforma): {
     qty: number;
     rate: number;
     amount: number;
+    discount_percent: number;
+    discount_amount: number;
+    tax_percent: number;
     meta_json: Record<string, unknown>;
     sort_order: number;
   }>;
@@ -106,19 +127,40 @@ function buildProformaPayload(proforma: Proforma): {
   const DEFAULT_TAX = 18;
   const items = proforma.items.map((item, idx) => {
     const amt = roundCurrency(item.qty * item.rate);
+    const discountAmt = item.discount_amount || 0;
     return {
       ...item,
       id: item.id ?? undefined,
       proforma_id: item.proforma_id ?? undefined,
       amount: amt,
-      meta_json: { tax_percent: item.meta_json?.tax_percent ?? DEFAULT_TAX, ...item.meta_json },
+      discount_percent: item.discount_percent ?? 0,
+      discount_amount: discountAmt,
+      tax_percent: item.tax_percent ?? DEFAULT_TAX,
+      meta_json: { tax_percent: item.tax_percent ?? DEFAULT_TAX, ...item.meta_json },
       sort_order: idx,
     };
   });
 
   const subtotal = roundCurrency(items.reduce((sum, i) => sum + i.amount, 0));
+  const itemDiscountTotal = roundCurrency(items.reduce((sum, i) => sum + (i.discount_amount || 0), 0));
+  
+  // Calculate invoice-level discount
+  let invoiceDiscount = 0;
+  if (proforma.discount_percent && proforma.discount_percent > 0) {
+    invoiceDiscount = roundCurrency((subtotal - itemDiscountTotal) * (proforma.discount_percent / 100));
+  } else if (proforma.discount_amount && proforma.discount_amount > 0) {
+    invoiceDiscount = proforma.discount_amount;
+  }
+  
+  const totalDiscount = roundCurrency(itemDiscountTotal + invoiceDiscount);
+  const taxableAmount = roundCurrency(subtotal - totalDiscount);
+  
   const taxTotal = roundCurrency(
-    items.reduce((sum, i) => sum + i.amount * ((i.meta_json?.tax_percent ?? DEFAULT_TAX) / 100), 0)
+    items.reduce((sum, i) => {
+      const itemTaxPercent = i.tax_percent ?? DEFAULT_TAX;
+      const itemAmountAfterDiscount = i.amount - (i.discount_amount || 0);
+      return sum + itemAmountAfterDiscount * (itemTaxPercent / 100);
+    }, 0)
   );
 
   let cgst = 0, sgst = 0, igst = 0;
@@ -133,10 +175,12 @@ function buildProformaPayload(proforma: Proforma): {
     client_id: proforma.client_id,
     status: proforma.status,
     subtotal,
+    discount_amount: totalDiscount,
+    discount_percent: proforma.discount_percent || 0,
     cgst,
     sgst,
     igst,
-    total: roundCurrency(subtotal + taxTotal),
+    total: roundCurrency(taxableAmount + taxTotal),
     company_state: proforma.company_state,
     client_state: proforma.client_state,
     valid_until: proforma.valid_until,
@@ -144,7 +188,12 @@ function buildProformaPayload(proforma: Proforma): {
     source_type: proforma.source_type,
     source_id: proforma.source_id,
     converted_invoice_id: proforma.converted_invoice_id,
+    po_number: proforma.po_number,
+    po_date: proforma.po_date,
+    template_id: proforma.template_id,
     notes: proforma.notes,
+    terms: proforma.terms,
+    payment_terms: proforma.payment_terms,
   };
 
   return {
@@ -155,8 +204,12 @@ function buildProformaPayload(proforma: Proforma): {
       qty: item.qty,
       rate: item.rate,
       amount: item.amount,
+      discount_percent: item.discount_percent ?? 0,
+      discount_amount: item.discount_amount ?? 0,
+      tax_percent: item.tax_percent ?? DEFAULT_TAX,
       meta_json: item.meta_json ?? {},
       sort_order: index,
+      organisation_id: proformaRow.organisation_id,
     })),
   };
 }
@@ -260,21 +313,68 @@ export async function getProformaById(id: string, organisationId?: string): Prom
 }
 
 export async function getProformaInvoices(filters: ProformaFilters = {}): Promise<ProformaWithRelations[]> {
+  const page = filters.page ?? 1;
+  const pageSize = filters.pageSize ?? 50;
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
   let query = supabase
     .from('proforma_invoices')
-    .select(PROFORMA_SELECT)
+    .select(PROFORMA_SELECT, { count: 'exact' })
     .eq('organisation_id', filters.organisationId)
     .order('created_at', { ascending: false });
 
   if (filters.clientId) query = query.eq('client_id', filters.clientId);
   if (filters.status) query = query.eq('status', filters.status);
   if (filters.sourceType) query = query.eq('source_type', filters.sourceType);
-  if (filters.limit) query = query.limit(filters.limit);
+  
+  if (filters.dateFrom) query = query.gte('created_at', filters.dateFrom);
+  if (filters.dateTo) query = query.lte('created_at', filters.dateTo);
+  
+  if (filters.minAmount) query = query.gte('total', filters.minAmount);
+  if (filters.maxAmount) query = query.lte('total', filters.maxAmount);
+  
+  if (filters.search) {
+    query = query.or(`pi_number.ilike.%${filters.search}%,notes.ilike.%${filters.search}%`);
+  }
+
+  if (filters.limit) {
+    query = query.limit(filters.limit);
+  } else {
+    query = query.range(from, to);
+  }
 
   const { data, error } = await query;
   if (error) throw error;
 
   return (data ?? []).map(parseProformaRecord);
+}
+
+export async function getProformaInvoicesCount(filters: ProformaFilters = {}): Promise<number> {
+  const { count, error } = await supabase
+    .from('proforma_invoices')
+    .select('*', { count: 'exact', head: true })
+    .eq('organisation_id', filters.organisationId);
+
+  if (error) throw error;
+  return count || 0;
+}
+
+export async function getClientPOs(clientId: string, organisationId: string): Promise<any[]> {
+  const { data, error } = await supabase
+    .from('client_purchase_orders')
+    .select('*')
+    .eq('client_id', clientId)
+    .eq('organisation_id', organisationId)
+    .in('status', ['Open', 'Partially Billed'])
+    .gt('po_available_value', 0)
+    .order('po_date', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching client POs:', error);
+    return [];
+  }
+  return data || [];
 }
 
 export async function sendProforma(id: string, organisationId: string, validDays = 30): Promise<ProformaWithRelations> {
@@ -369,6 +469,40 @@ export async function convertToInvoice(
     .eq('id', proformaId);
 
   return invoice;
+}
+
+export async function cloneProforma(
+  id: string,
+  organisationId: string,
+  options?: { newClientId?: string },
+): Promise<ProformaWithRelations> {
+  const original = await getProformaById(id, organisationId);
+
+  const cloneInput: ProformaInput & { organisation_id: string } = {
+    client_id: options?.newClientId || original.client_id,
+    status: 'draft',
+    source_type: 'manual',
+    source_id: null,
+    subtotal: original.subtotal,
+    cgst: original.cgst,
+    sgst: original.sgst,
+    igst: original.igst,
+    total: original.total,
+    company_state: original.company_state,
+    client_state: original.client_state,
+    notes: original.notes,
+    items: original.items.map((item) => ({
+      description: item.description,
+      hsn_code: item.hsn_code,
+      qty: item.qty,
+      rate: item.rate,
+      amount: item.amount,
+      meta_json: item.meta_json,
+    })),
+    organisation_id: organisationId,
+  };
+
+  return createProforma(cloneInput);
 }
 
 export async function deleteProforma(id: string, organisationId: string): Promise<void> {

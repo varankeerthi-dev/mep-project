@@ -37,15 +37,36 @@ export function normalizeProformaItems(items: ProformaItem[], defaultTaxPercent 
 }
 
 export function calculateTotals(
-  proforma: Pick<Proforma, 'items' | 'company_state' | 'client_state'>,
+  proforma: Pick<Proforma, 'items' | 'company_state' | 'client_state' | 'discount_amount' | 'discount_percent'>,
   options?: { defaultTaxPercent?: number },
-): Pick<Proforma, 'subtotal' | 'cgst' | 'sgst' | 'igst' | 'total'> & { taxTotal: number; items: ProformaItem[] } {
+): Pick<Proforma, 'subtotal' | 'cgst' | 'sgst' | 'igst' | 'total' | 'discount_amount'> & { taxTotal: number; items: ProformaItem[] } {
   const defaultTaxPercent = options?.defaultTaxPercent ?? DEFAULT_GST_PERCENT;
   const items = normalizeProformaItems(proforma.items, defaultTaxPercent);
 
   const subtotal = roundCurrency(items.reduce((sum, item) => sum + item.amount, 0));
+  
+  // Calculate item-level discounts
+  const itemDiscountTotal = roundCurrency(
+    items.reduce((sum, item) => sum + (item.discount_amount || 0), 0)
+  );
+  
+  // Calculate invoice-level discount
+  let invoiceDiscount = 0;
+  if (proforma.discount_percent && proforma.discount_percent > 0) {
+    invoiceDiscount = roundCurrency((subtotal - itemDiscountTotal) * (proforma.discount_percent / 100));
+  } else if (proforma.discount_amount && proforma.discount_amount > 0) {
+    invoiceDiscount = proforma.discount_amount;
+  }
+  
+  const totalDiscount = roundCurrency(itemDiscountTotal + invoiceDiscount);
+  const taxableAmount = roundCurrency(subtotal - totalDiscount);
+  
   const taxTotal = roundCurrency(
-    items.reduce((sum, item) => sum + item.amount * (getItemTaxPercent(item, defaultTaxPercent) / 100), 0),
+    items.reduce((sum, item) => {
+      const itemTaxPercent = item.tax_percent ?? getItemTaxPercent(item, defaultTaxPercent);
+      const itemAmountAfterDiscount = item.amount - (item.discount_amount || 0);
+      return sum + itemAmountAfterDiscount * (itemTaxPercent / 100);
+    }, 0),
   );
 
   let cgst = 0;
@@ -61,10 +82,11 @@ export function calculateTotals(
 
   return {
     subtotal,
+    discount_amount: totalDiscount,
     cgst,
     sgst,
     igst,
-    total: roundCurrency(subtotal + taxTotal),
+    total: roundCurrency(taxableAmount + taxTotal),
     taxTotal,
     items,
   };

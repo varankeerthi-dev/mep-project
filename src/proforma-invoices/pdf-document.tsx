@@ -1,0 +1,393 @@
+import React from 'react';
+import {
+  Document,
+  Image,
+  Page,
+  PDFViewer,
+  StyleSheet,
+  Text,
+  View,
+} from '@react-pdf/renderer';
+import type { ProformaPdfData } from './pdf-types';
+
+const styles = StyleSheet.create({
+  page: {
+    paddingTop: 30,
+    paddingRight: 28,
+    paddingBottom: 30,
+    paddingLeft: 28,
+    fontFamily: 'Helvetica',
+    fontSize: 9,
+    color: '#0f172a',
+    backgroundColor: '#ffffff',
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  content: {
+    flexGrow: 1,
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  panel: {
+    border: '1 solid #cbd5e1',
+    borderRadius: 6,
+    padding: 12,
+  },
+  headerPanel: {
+    border: '1 solid #cbd5e1',
+    borderRadius: 6,
+    padding: 14,
+    marginBottom: 10,
+  },
+  headerTop: {
+    display: 'flex',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  companyWrap: {
+    display: 'flex',
+    flexDirection: 'row',
+    gap: 10,
+    flexGrow: 1,
+    paddingRight: 10,
+  },
+  logo: {
+    width: 44,
+    height: 44,
+    objectFit: 'contain',
+    marginTop: 2,
+  },
+  companyText: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 3,
+    flexGrow: 1,
+  },
+  titleWrap: {
+    width: 140,
+    alignItems: 'flex-end',
+  },
+  invoiceTitle: {
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 19,
+    marginBottom: 4,
+  },
+  titleMeta: {
+    fontSize: 8.5,
+    color: '#475569',
+    textAlign: 'right',
+  },
+  companyName: {
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 15,
+  },
+  muted: {
+    color: '#475569',
+  },
+  smallMuted: {
+    color: '#64748b',
+    fontSize: 8,
+  },
+  gridRow: {
+    display: 'flex',
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 10,
+  },
+  gridCol: {
+    flexGrow: 1,
+    flexBasis: 0,
+  },
+  sectionLabel: {
+    fontSize: 8,
+    color: '#64748b',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: 5,
+    fontFamily: 'Helvetica-Bold',
+  },
+  valueLine: {
+    marginBottom: 3,
+    fontSize: 9,
+  },
+  valueStrong: {
+    fontFamily: 'Helvetica-Bold',
+  },
+  tableWrap: {
+    border: '1 solid #cbd5e1',
+    borderBottom: '0 solid #cbd5e1',
+    borderRadius: 6,
+    overflow: 'hidden',
+    marginBottom: 10,
+  },
+  tableRow: {
+    display: 'flex',
+    flexDirection: 'row',
+    borderBottom: '1 solid #e2e8f0',
+  },
+  tableHead: {
+    backgroundColor: '#f8fafc',
+  },
+  tableCell: {
+    paddingTop: 7,
+    paddingRight: 6,
+    paddingBottom: 7,
+    paddingLeft: 6,
+    borderRight: '1 solid #e2e8f0',
+    fontSize: 8.5,
+    justifyContent: 'center',
+  },
+  lastCell: {
+    borderRight: '0 solid #e2e8f0',
+  },
+  headText: {
+    fontFamily: 'Helvetica-Bold',
+    color: '#475569',
+    textTransform: 'uppercase',
+    fontSize: 7.6,
+    letterSpacing: 0.4,
+  },
+  amountText: {
+    textAlign: 'right',
+  },
+  summaryArea: {
+    marginTop: 'auto',
+    display: 'flex',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+    alignItems: 'flex-end',
+  },
+  noteBlock: {
+    flexGrow: 1,
+    flexBasis: 0,
+    paddingRight: 12,
+  },
+  summaryBlock: {
+    width: 210,
+    border: '1 solid #cbd5e1',
+    borderRadius: 6,
+    paddingTop: 10,
+    paddingRight: 12,
+    paddingBottom: 10,
+    paddingLeft: 12,
+    backgroundColor: '#f8fafc',
+  },
+  summaryRow: {
+    display: 'flex',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 5,
+    fontSize: 9,
+    color: '#334155',
+  },
+  totalRow: {
+    borderTop: '1 solid #cbd5e1',
+    marginTop: 7,
+    paddingTop: 8,
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 11,
+    color: '#0f172a',
+  },
+  footerLine: {
+    marginTop: 10,
+    paddingTop: 8,
+    borderTop: '1 solid #e2e8f0',
+    fontSize: 7.5,
+    color: '#64748b',
+    textAlign: 'center',
+  },
+  validUntil: {
+    marginTop: 4,
+    fontSize: 8,
+    color: '#dc2626',
+    fontFamily: 'Helvetica-Bold',
+  },
+});
+
+function formatCurrency(value?: number | null): string {
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 2,
+  }).format(value ?? 0);
+}
+
+function formatDate(value?: string | null): string {
+  if (!value) return '-';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '-';
+  return date.toLocaleDateString('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
+function stringValue(value: unknown, fallback = '-'): string {
+  if (typeof value === 'string' && value.trim()) return value.trim();
+  if (typeof value === 'number' && Number.isFinite(value)) return String(value);
+  if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+  return fallback;
+}
+
+function ProformaItemsTable({ data }: { data: ProformaPdfData }) {
+  const widths = ['42%', '14%', '10%', '14%', '20%'];
+
+  return (
+    <View style={styles.tableWrap}>
+      <View style={[styles.tableRow, styles.tableHead]} fixed>
+        <View style={[styles.tableCell, { width: widths[0] }]}>
+          <Text style={styles.headText}>Description</Text>
+        </View>
+        <View style={[styles.tableCell, { width: widths[1] }]}>
+          <Text style={styles.headText}>HSN</Text>
+        </View>
+        <View style={[styles.tableCell, { width: widths[2] }]}>
+          <Text style={styles.headText}>Qty</Text>
+        </View>
+        <View style={[styles.tableCell, { width: widths[3] }]}>
+          <Text style={styles.headText}>Rate</Text>
+        </View>
+        <View style={[styles.tableCell, styles.lastCell, { width: widths[4] }]}>
+          <Text style={styles.headText}>Amount</Text>
+        </View>
+      </View>
+
+      {data.proforma.items.map((item, index) => (
+        <View key={`${item.proforma_id ?? data.proforma.id}-line-${index}`} style={styles.tableRow} wrap={false}>
+          <View style={[styles.tableCell, { width: widths[0] }]}>
+            <Text>{stringValue(item.description)}</Text>
+          </View>
+          <View style={[styles.tableCell, { width: widths[1] }]}>
+            <Text>{stringValue(item.hsn_code)}</Text>
+          </View>
+          <View style={[styles.tableCell, { width: widths[2] }]}>
+            <Text style={styles.amountText}>{stringValue(item.qty, '0')}</Text>
+          </View>
+          <View style={[styles.tableCell, { width: widths[3] }]}>
+            <Text style={styles.amountText}>{formatCurrency(item.rate)}</Text>
+          </View>
+          <View style={[styles.tableCell, styles.lastCell, { width: widths[4] }]}>
+            <Text style={styles.amountText}>{formatCurrency(item.amount)}</Text>
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+export function ProformaPdfDocument({ data }: { data: ProformaPdfData }) {
+  const company = data.company;
+  const proforma = data.proforma;
+
+  return (
+    <Document title={`Proforma ${proforma.pi_number || proforma.id}`} author={company?.name ?? undefined}>
+      <Page size="A4" style={styles.page}>
+        <View style={styles.content}>
+          <View style={styles.headerPanel} wrap={false}>
+            <View style={styles.headerTop}>
+              <View style={styles.companyWrap}>
+                {company?.logo_url ? <Image src={company.logo_url} style={styles.logo} /> : null}
+                <View style={styles.companyText}>
+                  <Text style={styles.companyName}>{company?.name ?? 'Organisation'}</Text>
+                  <Text style={styles.muted}>{stringValue(company?.address)}</Text>
+                  <Text style={styles.muted}>
+                    GSTIN: {stringValue(company?.gstin)} | State: {stringValue(company?.state)}
+                  </Text>
+                  <Text style={styles.smallMuted}>
+                    {stringValue(company?.phone, 'Phone not set')} | {stringValue(company?.email, 'Email not set')}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.titleWrap}>
+                <Text style={styles.invoiceTitle}>PROFORMA INVOICE</Text>
+                <Text style={styles.titleMeta}>Preliminary Invoice</Text>
+                <Text style={styles.titleMeta}>Status: {proforma.status}</Text>
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.gridRow} wrap={false}>
+            <View style={[styles.gridCol, styles.panel]}>
+              <Text style={styles.sectionLabel}>Client Details</Text>
+              <Text style={[styles.valueLine, styles.valueStrong]}>{stringValue(proforma.client?.name)}</Text>
+              <Text style={styles.valueLine}>GSTIN: {stringValue(proforma.client?.gst_number)}</Text>
+              <Text style={styles.valueLine}>State: {stringValue(proforma.client?.state)}</Text>
+            </View>
+
+            <View style={[styles.gridCol, styles.panel]}>
+              <Text style={styles.sectionLabel}>Proforma Info</Text>
+              <Text style={styles.valueLine}>PI No: {stringValue(proforma.pi_number)}</Text>
+              <Text style={styles.valueLine}>Date: {formatDate(proforma.created_at)}</Text>
+              <Text style={styles.valueLine}>Source: {stringValue(proforma.source_type)}</Text>
+              {proforma.valid_until && (
+                <Text style={styles.validUntil}>Valid Until: {formatDate(proforma.valid_until)}</Text>
+              )}
+            </View>
+          </View>
+
+          <ProformaItemsTable data={data} />
+
+          <View style={styles.summaryArea} wrap={false}>
+            <View style={styles.noteBlock}>
+              <Text style={styles.sectionLabel}>Notes</Text>
+              <Text style={styles.muted}>{stringValue(proforma.notes, 'No additional notes')}</Text>
+              <Text style={[styles.muted, { marginTop: 4 }]}>
+                {proforma.igst > 0
+                  ? 'Interstate supply: IGST applied.'
+                  : 'Intrastate supply: CGST and SGST applied.'}
+              </Text>
+            </View>
+
+            <View style={styles.summaryBlock}>
+              <View style={styles.summaryRow}>
+                <Text>Subtotal</Text>
+                <Text>{formatCurrency(proforma.subtotal)}</Text>
+              </View>
+              <View style={styles.summaryRow}>
+                <Text>CGST</Text>
+                <Text>{formatCurrency(proforma.cgst)}</Text>
+              </View>
+              <View style={styles.summaryRow}>
+                <Text>SGST</Text>
+                <Text>{formatCurrency(proforma.sgst)}</Text>
+              </View>
+              <View style={styles.summaryRow}>
+                <Text>IGST</Text>
+                <Text>{formatCurrency(proforma.igst)}</Text>
+              </View>
+              <View style={[styles.summaryRow, styles.totalRow]}>
+                <Text>Total</Text>
+                <Text>{formatCurrency(proforma.total)}</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        <Text style={styles.footerLine}>
+          This is a proforma invoice. Final invoice will be issued upon acceptance.
+        </Text>
+      </Page>
+    </Document>
+  );
+}
+
+export function ProformaPdfPreview({
+  data,
+  width = '100%',
+  height = '100%',
+}: {
+  data: ProformaPdfData;
+  width?: string | number;
+  height?: string | number;
+}) {
+  return (
+    <PDFViewer width={width} height={height} showToolbar>
+      <ProformaPdfDocument data={data} />
+    </PDFViewer>
+  );
+}

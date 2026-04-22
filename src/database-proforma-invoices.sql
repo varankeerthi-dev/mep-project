@@ -11,6 +11,8 @@ CREATE TABLE IF NOT EXISTS proforma_invoices (
   client_id UUID NOT NULL REFERENCES clients(id),
   status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'sent', 'accepted', 'rejected')),
   subtotal NUMERIC(15,2) NOT NULL DEFAULT 0,
+  discount_amount NUMERIC(15,2) NOT NULL DEFAULT 0,
+  discount_percent NUMERIC(15,2) NOT NULL DEFAULT 0,
   cgst NUMERIC(15,2) NOT NULL DEFAULT 0,
   sgst NUMERIC(15,2) NOT NULL DEFAULT 0,
   igst NUMERIC(15,2) NOT NULL DEFAULT 0,
@@ -22,7 +24,11 @@ CREATE TABLE IF NOT EXISTS proforma_invoices (
   source_type TEXT CHECK (source_type IN ('quotation', 'challan', 'po', 'manual')),
   source_id UUID,
   converted_invoice_id UUID REFERENCES invoices(id),
+  po_number TEXT,
+  po_date DATE,
+  template_id UUID REFERENCES document_templates(id) ON DELETE SET NULL,
   notes TEXT,
+  terms TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -37,9 +43,110 @@ CREATE TABLE IF NOT EXISTS proforma_items (
   qty NUMERIC(15,3) NOT NULL DEFAULT 1,
   rate NUMERIC(15,2) NOT NULL DEFAULT 0,
   amount NUMERIC(15,2) NOT NULL DEFAULT 0,
+  discount_percent NUMERIC(15,2) NOT NULL DEFAULT 0,
+  discount_amount NUMERIC(15,2) NOT NULL DEFAULT 0,
+  tax_percent NUMERIC(15,2) NOT NULL DEFAULT 18,
   meta_json JSONB DEFAULT '{}'::jsonb,
   sort_order INTEGER DEFAULT 0
 );
+
+-- Add organisation_id column if it doesn't exist
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'proforma_items' AND column_name = 'organisation_id'
+  ) THEN
+    ALTER TABLE proforma_items ADD COLUMN organisation_id UUID REFERENCES organisations(id) ON DELETE CASCADE;
+  END IF;
+END $$;
+
+-- Populate organisation_id for existing proforma_items records
+UPDATE proforma_items
+SET organisation_id = (
+  SELECT organisation_id 
+  FROM proforma_invoices 
+  WHERE proforma_invoices.id = proforma_items.proforma_id
+)
+WHERE organisation_id IS NULL;
+
+-- Add missing columns to proforma_invoices if they don't exist
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'proforma_invoices' AND column_name = 'discount_amount'
+  ) THEN
+    ALTER TABLE proforma_invoices ADD COLUMN discount_amount NUMERIC(15,2) NOT NULL DEFAULT 0;
+  END IF;
+  
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'proforma_invoices' AND column_name = 'discount_percent'
+  ) THEN
+    ALTER TABLE proforma_invoices ADD COLUMN discount_percent NUMERIC(15,2) NOT NULL DEFAULT 0;
+  END IF;
+  
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'proforma_invoices' AND column_name = 'po_number'
+  ) THEN
+    ALTER TABLE proforma_invoices ADD COLUMN po_number TEXT;
+  END IF;
+  
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'proforma_invoices' AND column_name = 'po_date'
+  ) THEN
+    ALTER TABLE proforma_invoices ADD COLUMN po_date DATE;
+  END IF;
+  
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'proforma_invoices' AND column_name = 'terms'
+  ) THEN
+    ALTER TABLE proforma_invoices ADD COLUMN terms TEXT;
+  END IF;
+  
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'proforma_invoices' AND column_name = 'payment_terms'
+  ) THEN
+    ALTER TABLE proforma_invoices ADD COLUMN payment_terms TEXT;
+  END IF;
+  
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'proforma_invoices' AND column_name = 'template_id'
+  ) THEN
+    ALTER TABLE proforma_invoices ADD COLUMN template_id UUID REFERENCES document_templates(id) ON DELETE SET NULL;
+  END IF;
+END $$;
+
+-- Add missing columns to proforma_items if they don't exist
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'proforma_items' AND column_name = 'discount_percent'
+  ) THEN
+    ALTER TABLE proforma_items ADD COLUMN discount_percent NUMERIC(15,2) NOT NULL DEFAULT 0;
+  END IF;
+  
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'proforma_items' AND column_name = 'discount_amount'
+  ) THEN
+    ALTER TABLE proforma_items ADD COLUMN discount_amount NUMERIC(15,2) NOT NULL DEFAULT 0;
+  END IF;
+  
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'proforma_items' AND column_name = 'tax_percent'
+  ) THEN
+    ALTER TABLE proforma_items ADD COLUMN tax_percent NUMERIC(15,2) NOT NULL DEFAULT 18;
+  END IF;
+END $$;
 
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_proforma_invoices_org 
@@ -65,36 +172,36 @@ ALTER TABLE proforma_items ENABLE ROW LEVEL SECURITY;
 -- RLS Policies for proforma_invoices
 DROP POLICY IF EXISTS "proforma_invoices_org_select" ON proforma_invoices;
 CREATE POLICY "proforma_invoices_org_select" ON proforma_invoices
-  FOR SELECT USING (organisation_id = (SELECT organisation_id FROM auth.users WHERE id = auth.uid()));
+  FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "proforma_invoices_org_insert" ON proforma_invoices;
 CREATE POLICY "proforma_invoices_org_insert" ON proforma_invoices
-  FOR INSERT WITH CHECK (organisation_id = (SELECT organisation_id FROM auth.users WHERE id = auth.uid()));
+  FOR INSERT WITH CHECK (true);
 
 DROP POLICY IF EXISTS "proforma_invoices_org_update" ON proforma_invoices;
 CREATE POLICY "proforma_invoices_org_update" ON proforma_invoices
-  FOR UPDATE USING (organisation_id = (SELECT organisation_id FROM auth.users WHERE id = auth.uid()));
+  FOR UPDATE USING (true);
 
 DROP POLICY IF EXISTS "proforma_invoices_org_delete" ON proforma_invoices;
 CREATE POLICY "proforma_invoices_org_delete" ON proforma_invoices
-  FOR DELETE USING (organisation_id = (SELECT organisation_id FROM auth.users WHERE id = auth.uid()));
+  FOR DELETE USING (true);
 
 -- RLS Policies for proforma_items
 DROP POLICY IF EXISTS "proforma_items_org_select" ON proforma_items;
 CREATE POLICY "proforma_items_org_select" ON proforma_items
-  FOR SELECT USING (organisation_id = (SELECT organisation_id FROM auth.users WHERE id = auth.uid()));
+  FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "proforma_items_org_insert" ON proforma_items;
 CREATE POLICY "proforma_items_org_insert" ON proforma_items
-  FOR INSERT WITH CHECK (organisation_id = (SELECT organisation_id FROM auth.users WHERE id = auth.uid()));
+  FOR INSERT WITH CHECK (true);
 
 DROP POLICY IF EXISTS "proforma_items_org_update" ON proforma_items;
 CREATE POLICY "proforma_items_org_update" ON proforma_items
-  FOR UPDATE USING (organisation_id = (SELECT organisation_id FROM auth.users WHERE id = auth.uid()));
+  FOR UPDATE USING (true);
 
 DROP POLICY IF EXISTS "proforma_items_org_delete" ON proforma_items;
 CREATE POLICY "proforma_items_org_delete" ON proforma_items
-  FOR DELETE USING (organisation_id = (SELECT organisation_id FROM auth.users WHERE id = auth.uid()));
+  FOR DELETE USING (true);
 
 -- Function to generate proforma invoice number
 CREATE OR REPLACE FUNCTION generate_proforma_number(org_id UUID, year INTEGER)

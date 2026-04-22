@@ -10,6 +10,15 @@ import {
   CheckCircle,
   XCircle,
   FileCheck,
+  Download,
+  Copy,
+  Mail,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  Trash2,
+  FileSpreadsheet,
+  Printer,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../App';
@@ -17,6 +26,9 @@ import { withSessionCheck } from '../../queryClient';
 import { getProformaInvoices, convertToInvoice, type ProformaWithRelations } from '../api';
 import { formatCurrency, formatDate } from '../../invoices/ui-utils';
 import type { ProformaStatus } from '../types';
+import { downloadProformaPdf, emailProformaInvoice } from '../pdf';
+import { useProformaInvoices, useCloneProforma, useSendProforma, useMarkAccepted, useMarkRejected, useDeleteProforma } from '../hooks';
+import { useClients } from '../../hooks/useClients';
 
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap');
@@ -330,6 +342,92 @@ const styles = `
   
   .pi-loading, .pi-empty { padding: 3rem; text-align: center; }
   .pi-empty-icon { width: 3rem; height: 3rem; margin: 0 auto 1rem; color: var(--pi-text-muted); opacity: 0.4; }
+  
+  .pi-checkbox {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+  }
+  
+  .pi-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem;
+    border-top: 1px solid var(--pi-border);
+  }
+  
+  .pi-pagination-info {
+    font-size: 0.8125rem;
+    color: var(--pi-text-secondary);
+  }
+  
+  .pi-pagination-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  
+  .pi-page-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    background: var(--pi-bg-card);
+    border: 1px solid var(--pi-border);
+    border-radius: 0.375rem;
+    font-size: 0.8125rem;
+    color: var(--pi-text-secondary);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  
+  .pi-page-btn:hover:not(:disabled) {
+    background: var(--pi-bg-hover);
+    border-color: var(--pi-border-hover);
+    color: var(--pi-text-primary);
+  }
+  
+  .pi-page-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  
+  .pi-bulk-actions {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    background: var(--pi-accent);
+    border-radius: 0.5rem;
+    align-items: center;
+  }
+  
+  .pi-bulk-actions-text {
+    color: white;
+    font-size: 0.8125rem;
+    font-weight: 500;
+  }
+  
+  .pi-bulk-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.75rem;
+    background: white;
+    border: none;
+    border-radius: 0.375rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--pi-accent);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  
+  .pi-bulk-btn:hover {
+    background: var(--pi-bg-hover);
+  }
 `;
 
 if (typeof document !== 'undefined') {
@@ -363,6 +461,38 @@ export default function ProformaListPage() {
   const { organisation } = useAuth();
   const [statusFilter, setStatusFilter] = useState<ProformaStatus | ''>('');
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [clientFilter, setClientFilter] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [minAmount, setMinAmount] = useState('');
+  const [maxAmount, setMaxAmount] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const { data: clients = [] } = useClients();
+
+  const filters = useMemo(() => ({
+    organisationId: organisation?.id,
+    status: statusFilter || undefined,
+    search: searchTerm || undefined,
+    clientId: clientFilter || undefined,
+    dateFrom: dateFrom || undefined,
+    dateTo: dateTo || undefined,
+    minAmount: minAmount ? Number(minAmount) : undefined,
+    maxAmount: maxAmount ? Number(maxAmount) : undefined,
+    page,
+    pageSize,
+  }), [organisation?.id, statusFilter, searchTerm, clientFilter, dateFrom, dateTo, minAmount, maxAmount, page, pageSize]);
+
+  const { data: proformas, isLoading } = useProformaInvoices(filters);
+
+  const { mutate: cloneMutate } = useCloneProforma();
+  const { mutate: sendMutate } = useSendProforma();
+  const { mutate: acceptMutate } = useMarkAccepted();
+  const { mutate: rejectMutate } = useMarkRejected();
+  const { mutate: deleteMutate } = useDeleteProforma();
 
   useEffect(() => {
     if (!openMenuId) return undefined;
@@ -378,17 +508,6 @@ export default function ProformaListPage() {
     };
   }, [openMenuId]);
 
-  const { data: proformas, isLoading } = useQuery({
-    queryKey: ['proforma-invoices', organisation?.id, statusFilter],
-    queryFn: withSessionCheck(() =>
-      getProformaInvoices({
-        organisationId: organisation?.id,
-        status: statusFilter || undefined,
-      }),
-    ),
-    enabled: !!organisation?.id,
-  });
-
   const { mutate: convertMutate } = useMutation({
     mutationFn: async ({ proformaId }: { proformaId: string }) => {
       if (!organisation?.id) throw new Error('No organisation');
@@ -399,6 +518,106 @@ export default function ProformaListPage() {
       navigate(`/invoices/edit?id=${invoice.id}`);
     },
   });
+
+  const handleDownloadPdf = async (proforma: ProformaWithRelations) => {
+    if (!organisation?.id) return;
+    try {
+      await downloadProformaPdf(proforma, { organisationId: organisation.id });
+    } catch (error) {
+      console.error('Failed to download PDF:', error);
+      alert('Failed to download PDF. Please try again.');
+    }
+  };
+
+  const handleEmail = async (proforma: ProformaWithRelations) => {
+    if (!organisation?.id || !proforma.client?.email) {
+      alert('Client email not available');
+      return;
+    }
+    try {
+      await emailProformaInvoice(proforma.id, organisation.id, proforma.client.email);
+    } catch (error) {
+      console.error('Failed to send email:', error);
+      alert('Failed to send email. Please try again.');
+    }
+  };
+
+  const handleClone = (proforma: ProformaWithRelations) => {
+    if (!organisation?.id) return;
+    cloneMutate(
+      { id: proforma.id!, organisationId: organisation.id },
+      {
+        onSuccess: (newProforma) => {
+          navigate(`/proforma-invoices/edit?id=${newProforma.id}`);
+        },
+      },
+    );
+  };
+
+  const handleBulkDelete = () => {
+    if (!organisation?.id || selectedIds.size === 0) return;
+    if (!confirm(`Delete ${selectedIds.size} proforma invoice(s)?`)) return;
+
+    selectedIds.forEach((id) => {
+      deleteMutate({ id, organisationId: organisation.id });
+    });
+    setSelectedIds(new Set());
+  };
+
+  const handleBulkSend = () => {
+    if (!organisation?.id || selectedIds.size === 0) return;
+    selectedIds.forEach((id) => {
+      sendMutate({ id, organisationId: organisation.id });
+    });
+    setSelectedIds(new Set());
+  };
+
+  const handleExportCsv = () => {
+    if (!proformas || proformas.length === 0) return;
+
+    const headers = ['PI Number', 'Client', 'Status', 'Subtotal', 'GST', 'Total', 'Created Date', 'Valid Until'];
+    const rows = proformas.map((p) => [
+      p.pi_number || p.id,
+      p.client?.name || '',
+      p.status,
+      p.subtotal,
+      p.cgst + p.sgst + p.igst,
+      p.total,
+      p.created_at ? formatDate(p.created_at) : '',
+      p.valid_until ? formatDate(p.valid_until) : '',
+    ]);
+
+    const csvContent = [headers, ...rows].map((row) => row.join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'proforma-invoices.csv';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedIds(new Set(proformas?.map((p) => p.id!) || []));
+    } else {
+      setSelectedIds(new Set());
+    }
+  };
+
+  const handleSelectOne = (id: string, checked: boolean) => {
+    const newSelected = new Set(selectedIds);
+    if (checked) {
+      newSelected.add(id);
+    } else {
+      newSelected.delete(id);
+    }
+    setSelectedIds(newSelected);
+  };
+
+  const totalPages = Math.ceil((proformas?.length || 0) / pageSize);
 
   const stats = useMemo(() => {
     const list = proformas ?? [];
@@ -435,19 +654,55 @@ export default function ProformaListPage() {
         </button>
         {openMenuId === proforma.id && (
           <div className="pi-dropdown">
+            <button
+              type="button"
+              onClick={() => handleDownloadPdf(proforma)}
+              className="pi-dropdown-item"
+            >
+              <Download size={14} />
+              Download PDF
+            </button>
+            <button
+              type="button"
+              onClick={() => handleEmail(proforma)}
+              className="pi-dropdown-item"
+            >
+              <Mail size={14} />
+              Send Email
+            </button>
+            <button
+              type="button"
+              onClick={() => handleClone(proforma)}
+              className="pi-dropdown-item"
+            >
+              <Copy size={14} />
+              Clone
+            </button>
             {proforma.status === 'draft' && (
-              <button type="button" className="pi-dropdown-item">
+              <button
+                type="button"
+                onClick={() => sendMutate({ id: proforma.id!, organisationId: organisation?.id! })}
+                className="pi-dropdown-item"
+              >
                 <Send size={14} />
                 Send to Client
               </button>
             )}
             {proforma.status === 'sent' && (
               <>
-                <button type="button" className="pi-dropdown-item">
+                <button
+                  type="button"
+                  onClick={() => acceptMutate({ id: proforma.id!, organisationId: organisation?.id! })}
+                  className="pi-dropdown-item"
+                >
                   <CheckCircle size={14} />
                   Mark Accepted
                 </button>
-                <button type="button" className="pi-dropdown-item">
+                <button
+                  type="button"
+                  onClick={() => rejectMutate({ id: proforma.id!, organisationId: organisation?.id! })}
+                  className="pi-dropdown-item"
+                >
                   <XCircle size={14} />
                   Mark Rejected
                 </button>
@@ -483,14 +738,24 @@ export default function ProformaListPage() {
               Manage preliminary invoices before final billing. Send to clients for approval, then convert to final invoice.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => navigate('/proforma-invoices/create')}
-            className="pi-btn pi-btn-primary"
-          >
-            <Plus size={16} />
-            Create Proforma
-          </button>
+          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              onClick={handleExportCsv}
+              className="pi-btn"
+            >
+              <FileSpreadsheet size={16} />
+              Export CSV
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/proforma-invoices/create')}
+              className="pi-btn pi-btn-primary"
+            >
+              <Plus size={16} />
+              Create Proforma
+            </button>
+          </div>
         </div>
 
         <div className="pi-stats-row">
@@ -515,6 +780,16 @@ export default function ProformaListPage() {
         <div className="pi-filters-card">
           <div className="pi-filters-row">
             <div className="pi-filter-block">
+              <span className="pi-filter-block-title">Search</span>
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="PI number, notes..."
+                className="pi-input"
+              />
+            </div>
+            <div className="pi-filter-block">
               <span className="pi-filter-block-title">Status</span>
               <select
                 value={statusFilter}
@@ -528,16 +803,113 @@ export default function ProformaListPage() {
                 <option value="rejected">Rejected</option>
               </select>
             </div>
-            <span className="pi-muted" style={{ marginLeft: 'auto' }}>
-              {proformas?.length ?? 0} proforma{proformas?.length === 1 ? '' : 's'}
-            </span>
+            <div className="pi-filter-block">
+              <span className="pi-filter-block-title">Client</span>
+              <select
+                value={clientFilter}
+                onChange={(e) => setClientFilter(e.target.value)}
+                className="pi-select"
+              >
+                <option value="">All Clients</option>
+                {clients.map((client) => (
+                  <option key={client.id} value={client.id}>
+                    {client.client_name || client.id}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="pi-filter-block">
+              <span className="pi-filter-block-title">Date From</span>
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="pi-input"
+              />
+            </div>
+            <div className="pi-filter-block">
+              <span className="pi-filter-block-title">Date To</span>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="pi-input"
+              />
+            </div>
+            <div className="pi-filter-block">
+              <span className="pi-filter-block-title">Min Amount</span>
+              <input
+                type="number"
+                value={minAmount}
+                onChange={(e) => setMinAmount(e.target.value)}
+                placeholder="0"
+                className="pi-input"
+              />
+            </div>
+            <div className="pi-filter-block">
+              <span className="pi-filter-block-title">Max Amount</span>
+              <input
+                type="number"
+                value={maxAmount}
+                onChange={(e) => setMaxAmount(e.target.value)}
+                placeholder="0"
+                className="pi-input"
+              />
+            </div>
+            <div className="pi-filter-block">
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchTerm('');
+                  setStatusFilter('');
+                  setClientFilter('');
+                  setDateFrom('');
+                  setDateTo('');
+                  setMinAmount('');
+                  setMaxAmount('');
+                  setPage(1);
+                }}
+                className="pi-action-btn"
+              >
+                Clear Filters
+              </button>
+            </div>
           </div>
         </div>
+
+        {selectedIds.size > 0 && (
+          <div className="pi-bulk-actions">
+            <span className="pi-bulk-actions-text">{selectedIds.size} selected</span>
+            <button type="button" onClick={handleBulkSend} className="pi-bulk-btn">
+              <Send size={12} />
+              Send
+            </button>
+            <button type="button" onClick={handleBulkDelete} className="pi-bulk-btn">
+              <Trash2 size={12} />
+              Delete
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedIds(new Set())}
+              className="pi-bulk-btn"
+            >
+              Cancel
+            </button>
+          </div>
+        )}
 
         <div className="pi-table-card">
           <table className="pi-table">
             <thead>
               <tr>
+                <th style={{ width: '40px' }}>
+                  <input
+                    type="checkbox"
+                    className="pi-checkbox"
+                    checked={selectedIds.size === proformas?.length && proformas?.length > 0}
+                    onChange={(e) => handleSelectAll(e.target.checked)}
+                  />
+                </th>
                 <th>Proforma #</th>
                 <th>Client</th>
                 <th style={{ textAlign: 'right' }}>Amount</th>
@@ -551,14 +923,14 @@ export default function ProformaListPage() {
             <tbody>
               {isLoading && (
                 <tr>
-                  <td colSpan={8} className="pi-loading">
+                  <td colSpan={9} className="pi-loading">
                     Loading...
                   </td>
                 </tr>
               )}
               {!isLoading && (proformas?.length ?? 0) === 0 && (
                 <tr>
-                  <td colSpan={8} className="pi-empty">
+                  <td colSpan={9} className="pi-empty">
                     <FileText className="pi-empty-icon" />
                     <div>No proforma invoices found</div>
                   </td>
@@ -567,6 +939,14 @@ export default function ProformaListPage() {
               {!isLoading &&
                 proformas?.map((proforma) => (
                   <tr key={proforma.id}>
+                    <td>
+                      <input
+                        type="checkbox"
+                        className="pi-checkbox"
+                        checked={selectedIds.has(proforma.id!)}
+                        onChange={(e) => handleSelectOne(proforma.id!, e.target.checked)}
+                      />
+                    </td>
                     <td>
                       <span className="pi-number">{proforma.pi_number ?? proforma.id?.slice(0, 8)}</span>
                     </td>
@@ -595,6 +975,33 @@ export default function ProformaListPage() {
                 ))}
             </tbody>
           </table>
+        </div>
+
+        <div className="pi-pagination">
+          <div className="pi-pagination-info">
+            Showing {((page - 1) * pageSize) + 1} to {Math.min(page * pageSize, proformas?.length || 0)} of {proformas?.length || 0} proforma invoices
+          </div>
+          <div className="pi-pagination-controls">
+            <button
+              type="button"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="pi-page-btn"
+            >
+              <ChevronLeft size={14} />
+            </button>
+            <span style={{ fontSize: '0.8125rem', color: 'var(--pi-text-secondary)', minWidth: '40px', textAlign: 'center' }}>
+              {page}
+            </span>
+            <button
+              type="button"
+              onClick={() => setPage((p) => p + 1)}
+              disabled={page >= totalPages}
+              className="pi-page-btn"
+            >
+              <ChevronRight size={14} />
+            </button>
+          </div>
         </div>
       </div>
     </div>
