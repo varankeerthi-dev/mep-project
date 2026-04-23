@@ -60,21 +60,49 @@ async function loadClientOptions(organisationId: string): Promise<InvoiceClientO
 }
 
 async function loadMaterialOptions(organisationId: string): Promise<InvoiceMaterialOption[]> {
-  const { data, error } = await supabase.from('materials').select('id, name, display_name, hsn_code, make, unit, sale_price, material, size').eq('organisation_id', organisationId);
-  if (error) throw error;
+  const { data: materialsData, error: materialsError } = await supabase.from('materials').select('id, name, display_name, hsn_code, make, unit, sale_price, material, size').eq('organisation_id', organisationId);
+  if (materialsError) throw materialsError;
 
-  console.log('Materials data:', data);
+  // Fetch variant pricing data
+  const { data: variantPricingData, error: pricingError } = await supabase
+    .from('item_variant_pricing')
+    .select('item_id, make, sale_price, company_variants(variant_name)')
+    .in('item_id', (materialsData ?? []).map(m => m.id));
 
-  return (data ?? [])
-    .map((material: any) => ({
-      id: String(material.id),
-      name: String(material.display_name ?? material.name ?? 'Unnamed material'),
-      display_name: material.display_name,
-      hsn_code: material.hsn_code ?? null,
-      make: material.make ?? material.material ?? null,
-      unit: material.unit ?? null,
-      sale_price: material.sale_price ?? null,
-    }))
+  if (pricingError) {
+    console.warn('Failed to fetch variant pricing:', pricingError);
+  }
+
+  // Build pricing map: material_id -> { make -> sale_price }
+  const pricingMap: Record<string, Record<string, number>> = {};
+  (variantPricingData ?? []).forEach((row: any) => {
+    if (!pricingMap[row.item_id]) {
+      pricingMap[row.item_id] = {};
+    }
+    const make = row.make || '';
+    pricingMap[row.item_id][make] = row.sale_price;
+  });
+
+  console.log('Materials data:', materialsData);
+  console.log('Variant pricing map:', pricingMap);
+
+  return (materialsData ?? [])
+    .map((material: any) => {
+      const materialPricing = pricingMap[material.id] || {};
+      // Get the first available make and its price, or use material's own data
+      const firstMake = Object.keys(materialPricing)[0] || material.make || material.material || '';
+      const firstPrice = materialPricing[firstMake] || material.sale_price || 0;
+
+      return {
+        id: String(material.id),
+        name: String(material.display_name ?? material.name ?? 'Unnamed material'),
+        display_name: material.display_name,
+        hsn_code: material.hsn_code ?? null,
+        make: firstMake || null,
+        unit: material.unit || 'nos',
+        sale_price: firstPrice || null,
+      };
+    })
     .sort((left, right) => left.name.localeCompare(right.name));
 }
 
