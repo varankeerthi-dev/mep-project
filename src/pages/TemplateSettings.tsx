@@ -810,12 +810,35 @@ export default function TemplateSettings() {
             .select('id')
             .single();
 
-          if (insertError || !inserted) {
+          // Handle duplicate key error - template might already exist
+          if (insertError) {
             console.error('Error inserting template:', insertError);
-            alert('Error: Could not seed template to database - ' + (insertError?.message || 'Unknown error'));
+            // If it's a duplicate key error, try to fetch the existing template
+            if (insertError.message?.includes('duplicate key') || insertError.code === '23505') {
+              const { data: existingAfterError } = await supabase
+                .from('document_templates')
+                .select('id')
+                .eq('template_code', template.template_code)
+                .eq('document_type', template.document_type)
+                .eq('organisation_id', organisation.id)
+                .maybeSingle();
+
+              if (existingAfterError) {
+                templateId = existingAfterError.id;
+              } else {
+                alert('Error: Could not find template in database after duplicate key error');
+                return;
+              }
+            } else {
+              alert('Error: Could not seed template to database - ' + (insertError?.message || 'Unknown error'));
+              return;
+            }
+          } else if (!inserted) {
+            alert('Error: Could not seed template to database - No data returned');
             return;
+          } else {
+            templateId = inserted.id;
           }
-          templateId = inserted.id;
         }
       }
 
