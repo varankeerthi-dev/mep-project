@@ -48,7 +48,12 @@ export function InvoiceItemsEditor({
       setValue(`items.${index}.meta_json.variant`, material.variant || '', { shouldDirty: true });
       setValue(`items.${index}.meta_json.unit`, material.unit || '', { shouldDirty: true });
       if (material.sale_price) {
-        setValue(`items.${index}.rate`, material.sale_price, { shouldDirty: true });
+        // Set base_rate to the material's sale price
+        setValue(`items.${index}.meta_json.base_rate`, material.sale_price, { shouldDirty: true });
+        // Calculate rate after discount (initially with 0% discount)
+        const rateAfterDiscount = material.sale_price;
+        setValue(`items.${index}.rate`, rateAfterDiscount, { shouldDirty: true });
+        setValue(`items.${index}.meta_json.rate_after_discount`, rateAfterDiscount, { shouldDirty: true });
       }
     }
     setOpenDropdowns(prev => ({ ...prev, [index]: false }));
@@ -606,7 +611,18 @@ export function InvoiceItemsEditor({
                     <input
                       type="number"
                       step="0.01"
-                      {...register(`items.${index}.discount_percent` as const)}
+                      {...register(`items.${index}.discount_percent` as const, {
+                        onChange: () => {
+                          const baseRate = Number(items[index]?.meta_json?.base_rate || items[index]?.rate || 0);
+                          const discountPercent = Number(items[index]?.discount_percent || 0);
+                          const rateAfterDiscount = baseRate - (baseRate * discountPercent / 100);
+                          const roundedRate = Math.round(rateAfterDiscount * 10) / 10; // Round to nearest 0.1
+                          if (setValue) {
+                            setValue(`items.${index}.rate`, roundedRate, { shouldDirty: true });
+                            setValue(`items.${index}.meta_json.rate_after_discount`, roundedRate, { shouldDirty: true });
+                          }
+                        }
+                      })}
                       placeholder="0"
                       style={{
                         width: '100%',
@@ -624,8 +640,9 @@ export function InvoiceItemsEditor({
                   <td style={{ padding: '4px' }}>
                     <input
                       type="number"
-                      step="0.01"
+                      step="0.1"
                       {...register(`items.${index}.rate`, { valueAsNumber: true })}
+                      placeholder="0.0"
                       style={{
                         width: '100%',
                         padding: '4px 6px',
