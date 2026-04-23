@@ -781,8 +781,39 @@ export default function TemplateSettings() {
   };
 
   const handleSetDefault = async (template: any) => {
-    
+    if (!organisation?.id) {
+      alert('Please select an organisation first');
+      return;
+    }
+
     try {
+      // Check if template is built-in (no database id)
+      if (!template.id && template.template_code) {
+        // Seed built-in template to database first
+        await seedBuiltInTemplates();
+        // Reload templates to get the database id
+        await loadTemplates();
+        // Find the seeded template
+        const { data: seededTemplate } = await supabase
+          .from('document_templates')
+          .select('id')
+          .eq('template_code', template.template_code)
+          .eq('document_type', template.document_type)
+          .eq('organisation_id', organisation.id)
+          .single();
+        
+        if (!seededTemplate) {
+          alert('Error: Could not seed template to database');
+          return;
+        }
+        template.id = seededTemplate.id;
+      }
+
+      if (!template.id) {
+        alert('Error: Template does not have a valid ID');
+        return;
+      }
+
       const { data: existingDefaults } = await supabase
         .from('document_templates')
         .select('id')
@@ -805,6 +836,8 @@ export default function TemplateSettings() {
         .eq('organisation_id', organisation.id);
 
       loadTemplates();
+      setSuccessMessage('Default template updated successfully');
+      setTimeout(() => setSuccessMessage(''), 3000);
     } catch (err: any) {
       console.error('Error setting default:', err);
       alert('Error: ' + (err?.message || err));
