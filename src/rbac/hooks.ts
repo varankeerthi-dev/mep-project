@@ -16,6 +16,7 @@ import {
   type PublicOrganisation,
 } from './api';
 import type { EmployeeInput, OrgAccessRequestInput, RoleInput } from './schemas';
+import { useAuth } from '../contexts/AuthContext';
 
 export function usePublicOrganisations() {
   return useQuery<PublicOrganisation[]>({
