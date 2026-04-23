@@ -563,6 +563,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
       const { error } = await supabase.from('clients').delete().eq('id', clientData.id);
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ['clients'] });
+      queryClient.invalidateQueries({ queryKey: ['invoice-ui', 'clients', organisation?.id] });
       setIsDirty(false);
       onCancel();
     } catch (err: any) {
@@ -622,6 +623,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
       }
       queryClient.invalidateQueries({ queryKey: ['clients'] });
       queryClient.invalidateQueries({ queryKey: ['clients', orgId] });
+      queryClient.invalidateQueries({ queryKey: ['invoice-ui', 'clients', orgId] });
       setIsDirty(false);
       onSuccess();
     } catch (error: any) {
