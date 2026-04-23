@@ -6,7 +6,7 @@ import { Download, Eye, Loader2, Mail, Plus, Printer, Save, X } from 'lucide-rea
 import { useAuth } from '@/contexts/AuthContext';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '@/supabase';
-import { mapInvoiceSourceToDraft } from '../api';
+import { mapInvoiceSourceToDraft, generateInvoiceNumber, loadClientPOs, incrementInvoiceNumber } from '../api';
 import { InvoiceItemsEditor } from '../components/InvoiceItemsEditor';
 import { InvoiceMaterialsEditor } from '../components/InvoiceMaterialsEditor';
 import { InvoiceSummaryFooter } from '../components/InvoiceSummaryFooter';
@@ -74,6 +74,10 @@ async function loadMaterialOptions(organisationId: string): Promise<InvoiceMater
 }
 
 async function loadSourceOptions(sourceType: InvoiceEditorFormValues['source_type'], organisationId: string): Promise<InvoiceSourceOption[]> {
+  if (sourceType === 'direct') {
+    return [];
+  }
+
   if (sourceType === 'quotation') {
     const { data, error } = await supabase
       .from('quotation_header')
@@ -131,7 +135,7 @@ export default function InvoiceEditorPage() {
 
   const form = useForm<InvoiceEditorFormValues>({
     resolver: zodResolver(InvoiceEditorSchema),
-    defaultValues: createEmptyInvoiceFormValues(),
+    defaultValues: createEmptyInvoiceFormValues((organisation?.state as string | null | undefined) || null),
     mode: 'onSubmit',
   });
 
@@ -153,6 +157,7 @@ export default function InvoiceEditorPage() {
   const selectedSourceType = useWatch({ control, name: 'source_type' });
   const selectedSourceId = useWatch({ control, name: 'source_id' });
   const selectedMode = useWatch({ control, name: 'mode' });
+  const selectedPoNumber = useWatch({ control, name: 'po_number' });
   const watchedItems = useWatch({ control, name: 'items' }) ?? [];
   const watchedMaterials = useWatch({ control, name: 'materials' }) ?? [];
   const companyState = useWatch({ control, name: 'company_state' }) ?? DEFAULT_COMPANY_STATE;
@@ -190,6 +195,14 @@ export default function InvoiceEditorPage() {
     enabled: Boolean(selectedSourceType && selectedSourceId && organisation?.id),
     staleTime: 0,
   });
+
+  const clientPOsQuery = useQuery({
+    queryKey: ['invoice-ui', 'client-pos', selectedClientId, organisation?.id],
+    queryFn: () => loadClientPOs(selectedClientId, organisation?.id!),
+    enabled: Boolean(selectedClientId && organisation?.id),
+    staleTime: 2 * 60 * 1000,
+  });
+  const clientPOs = clientPOsQuery.data ?? [];
 
   const initialSourceKeyRef = useRef<string>('');
   const hydratedSourceKeyRef = useRef<string>('');
@@ -332,12 +345,38 @@ export default function InvoiceEditorPage() {
     sourceDraftQuery.data,
   ]);
 
+  useEffect(() => {
+    if (selectedPoNumber && clientPOs.length > 0) {
+      const selectedPO = clientPOs.find(po => po.po_number === selectedPoNumber);
+      if (selectedPO?.po_date) {
+        setValue('po_date', selectedPO.po_date, {
+          shouldDirty: false,
+          shouldValidate: false,
+        });
+      }
+    }
+  }, [selectedPoNumber, clientPOs, setValue]);
+
   const customColumnLabel = getTemplateExtraColumnLabel(selectedTemplate, watchedItems);
   const showCustomColumn = getValues('template_type') === 'client_custom';
   const isSaving = createInvoice.isPending || updateInvoice.isPending;
 
+  console.log('InvoiceEditorPage - fields:', itemsFieldArray.fields.length, 'watchedItems:', watchedItems.length);
+
   const onSubmit = handleSubmit(async (values) => {
-    const payload = composeInvoiceInput(values, totals);
+    let invoiceNo = values.invoice_no;
+    let seriesId: string | null = null;
+    
+    if (!isEditMode && !invoiceNo && organisation?.id) {
+      const result = await generateInvoiceNumber(organisation.id);
+      invoiceNo = result.invoiceNo;
+      seriesId = result.seriesId;
+    }
+
+    const payload = composeInvoiceInput({
+      ...values,
+      invoice_no: invoiceNo || null,
+    }, totals);
 
     if (values.mode === 'lot' && (payload.materials ?? []).length === 0) {
       form.setError('materials', {
@@ -350,7 +389,10 @@ export default function InvoiceEditorPage() {
     if (isEditMode && invoiceId) {
       await updateInvoice.mutateAsync(payload);
     } else {
-      await createInvoice.mutateAsync(payload);
+      const result = await createInvoice.mutateAsync(payload);
+      if (seriesId && organisation?.id) {
+        incrementInvoiceNumber(seriesId, organisation.id).then();
+      }
     }
 
     navigate('/invoices');
@@ -589,6 +631,64 @@ export default function InvoiceEditorPage() {
           gap: '12px',
           marginBottom: '16px'
         }}>
+          {/* Invoice No */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label style={{
+              fontSize: '11px',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em',
+              color: '#737373'
+            }}>
+              Invoice No
+            </label>
+            <input
+              {...register('invoice_no')}
+              placeholder="Auto-generated"
+              style={{
+                width: '100%',
+                padding: '6px 10px',
+                border: '1px solid #d4d4d4',
+                borderRadius: '4px',
+                fontSize: '13px',
+                color: '#171717',
+                background: '#fff'
+              }}
+            />
+            {errors.invoice_no && (
+              <span style={{ fontSize: '11px', color: '#dc2626', fontWeight: 500 }}>
+                {errors.invoice_no.message}
+              </span>
+            )}
+          </div>
+
+          {/* Invoice Date */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label style={{
+              fontSize: '11px',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em',
+              color: '#737373'
+            }}>
+              Invoice Date
+            </label>
+            <input
+              type="date"
+              {...register('invoice_date')}
+              style={{
+                width: '100%',
+                padding: '6px 10px',
+                border: '1px solid #d4d4d4',
+                borderRadius: '4px',
+                fontSize: '13px',
+                color: '#171717',
+                background: '#fff'
+              }}
+            />
+          </div>
+
+          {/* Client */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <label style={{
               fontSize: '11px',
@@ -624,6 +724,65 @@ export default function InvoiceEditorPage() {
             )}
           </div>
 
+          {/* PO Number */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label style={{
+              fontSize: '11px',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em',
+              color: '#737373'
+            }}>
+              PO Number
+            </label>
+            <select
+              {...register('po_number')}
+              style={{
+                width: '100%',
+                padding: '6px 10px',
+                border: '1px solid #d4d4d4',
+                borderRadius: '4px',
+                fontSize: '13px',
+                color: '#171717',
+                background: '#fff',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="">Select PO</option>
+              {clientPOs.map((po) => (
+                <option key={po.id} value={po.po_number}>
+                  {po.po_number}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* PO Date (display only, auto-filled from PO) */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label style={{
+              fontSize: '11px',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em',
+              color: '#737373'
+            }}>
+              PO Date
+            </label>
+            <input
+              type="date"
+              {...register('po_date')}
+              style={{
+                width: '100%',
+                padding: '6px 10px',
+                border: '1px solid #d4d4d4',
+                borderRadius: '4px',
+                fontSize: '13px',
+                color: '#171717',
+                background: '#fff'
+              }}
+            />
+          </div>
+
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <label style={{
               fontSize: '11px',
@@ -647,6 +806,7 @@ export default function InvoiceEditorPage() {
                 cursor: 'pointer'
               }}
             >
+              <option value="direct">Direct</option>
               <option value="quotation">Quotation</option>
               <option value="challan">Delivery Challan</option>
               <option value="po">Client PO</option>
@@ -663,26 +823,40 @@ export default function InvoiceEditorPage() {
             }}>
               Source Document
             </label>
-            <select
-              {...register('source_id')}
-              style={{
+            {selectedSourceType === 'direct' ? (
+              <div style={{
                 width: '100%',
                 padding: '6px 10px',
-                border: '1px solid #d4d4d4',
+                border: '1px solid #e5e5e5',
                 borderRadius: '4px',
                 fontSize: '13px',
-                color: '#171717',
-                background: '#fff',
-                cursor: 'pointer'
-              }}
-            >
-              <option value="">Select {getSourceLabel(selectedSourceType).toLowerCase()}</option>
-              {(sourceOptionsQuery.data ?? []).map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+                color: '#737373',
+                background: '#f5f5f5'
+              }}>
+                Direct Invoice (No source)
+              </div>
+            ) : (
+              <select
+                {...register('source_id')}
+                style={{
+                  width: '100%',
+                  padding: '6px 10px',
+                  border: '1px solid #d4d4d4',
+                  borderRadius: '4px',
+                  fontSize: '13px',
+                  color: '#171717',
+                  background: '#fff',
+                  cursor: 'pointer'
+                }}
+              >
+                <option value="">Select {getSourceLabel(selectedSourceType).toLowerCase()}</option>
+                {(sourceOptionsQuery.data ?? []).map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            )}
             {errors.source_id && (
               <span style={{ fontSize: '11px', color: '#dc2626', fontWeight: 500 }}>
                 {errors.source_id.message}
@@ -817,15 +991,17 @@ export default function InvoiceEditorPage() {
             </label>
             <input
               {...register('company_state')}
-              placeholder={DEFAULT_COMPANY_STATE}
+              placeholder={(organisation?.state as string | null | undefined) || DEFAULT_COMPANY_STATE}
+              readOnly
               style={{
                 width: '100%',
                 padding: '6px 10px',
                 border: '1px solid #d4d4d4',
                 borderRadius: '4px',
                 fontSize: '13px',
-                color: '#171717',
-                background: '#fff'
+                color: '#525252',
+                background: '#f5f5f5',
+                cursor: 'not-allowed'
               }}
             />
           </div>

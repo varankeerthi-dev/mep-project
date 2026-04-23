@@ -13,14 +13,16 @@ export const InvoiceEditorItemSchema = z.object({
   qty: z.coerce.number().positive('Qty must be greater than zero.'),
   rate: z.coerce.number().min(0, 'Rate cannot be negative.'),
   amount: z.coerce.number().min(0).default(0),
-  meta_json: z
-    .object({
-      tax_percent: z.coerce.number().min(0).max(100).optional(),
-      client_custom_label: z.string().trim().optional(),
-      client_custom_value: CustomValueSchema.optional(),
-    })
-    .catchall(z.any())
-    .default({}),
+  discount_percent: z.coerce.number().min(0).max(100).optional().default(0),
+  meta_json: z.object({
+    tax_percent: z.number().optional().default(18),
+    uom: z.string().optional().default('Nos'),
+    make: z.string().optional(),
+    variant: z.string().optional(),
+    base_rate: z.number().optional(),
+    client_custom_label: z.string().optional(),
+    client_custom_value: z.union([z.string(), z.number(), z.boolean(), z.null()]).optional(),
+  }).catchall(z.unknown()).optional().default({ tax_percent: 18, uom: 'Nos' }),
 });
 
 export const InvoiceEditorMaterialSchema = z.object({
@@ -32,8 +34,12 @@ export const InvoiceEditorSchema = z
   .object({
     client_id: z.string().uuid('Client is required.'),
     template_id: z.string().uuid('Template is required.').nullable().optional(),
+    invoice_no: z.string().optional(),
+    invoice_date: z.string().optional(),
+    po_number: z.string().optional(),
+    po_date: z.string().optional(),
     source_type: z.enum(invoiceSourceTypes),
-    source_id: z.string().uuid('Source document is required.'),
+    source_id: z.string().uuid('Source document is required.').optional().or(z.literal('')),
     template_type: z.enum(invoiceTemplateTypes),
     mode: z.enum(invoiceModes),
     status: z.enum(invoiceStatuses),
@@ -56,6 +62,22 @@ export const InvoiceEditorSchema = z
         code: z.ZodIssueCode.custom,
         path: ['materials'],
         message: 'Materials are only used in lot mode.',
+      });
+    }
+
+    if (value.source_type !== 'direct' && !value.source_id) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['source_id'],
+        message: 'Source document is required.',
+      });
+    }
+
+    if (value.status === 'final' && !value.invoice_no) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['invoice_no'],
+        message: 'Invoice number is required for final invoices.',
       });
     }
   });
@@ -94,14 +116,22 @@ export function isInterstateStates(companyState?: string | null, clientState?: s
   return normalizeState(companyState) !== normalizeState(clientState);
 }
 
-export function createEmptyItem(overrides: Partial<InvoiceItem> = {}): InvoiceEditorFormValues['items'][number] {
+export function createEmptyItem(overrides: any = {}): InvoiceEditorFormValues['items'][number] {
+  const meta = overrides.meta_json as Record<string, unknown> | undefined;
   return {
     description: overrides.description ?? '',
     hsn_code: overrides.hsn_code ?? '',
     qty: overrides.qty ?? 1,
     rate: overrides.rate ?? 0,
     amount: overrides.amount ?? 0,
-    meta_json: (overrides.meta_json as Record<string, unknown> | undefined) ?? {},
+    discount_percent: overrides.discount_percent ?? 0,
+    meta_json: {
+      tax_percent: Number(meta?.tax_percent) || 18,
+      uom: String(meta?.uom || 'Nos'),
+      make: meta?.make as string | undefined,
+      variant: meta?.variant as string | undefined,
+      base_rate: meta?.base_rate as number | undefined,
+    },
   };
 }
 
@@ -115,7 +145,7 @@ export function createLotItem(description = 'As per PO'): InvoiceEditorFormValue
 }
 
 export function createEmptyMaterial(
-  overrides: Partial<InvoiceMaterial> = {},
+  overrides: Partial<InvoiceEditorFormValues['materials'][number]> = {},
 ): InvoiceEditorFormValues['materials'][number] {
   return {
     product_id: overrides.product_id ?? '',
@@ -123,16 +153,21 @@ export function createEmptyMaterial(
   };
 }
 
-export function createEmptyInvoiceFormValues(): InvoiceEditorFormValues {
+export function createEmptyInvoiceFormValues(companyState?: string | null): InvoiceEditorFormValues {
+  const today = new Date().toISOString().split('T')[0];
   return {
     client_id: '',
     template_id: null,
-    source_type: 'quotation',
+    invoice_no: '',
+    invoice_date: today,
+    po_number: '',
+    po_date: '',
+    source_type: 'direct',
     source_id: '',
     template_type: 'standard',
     mode: 'itemized',
     status: 'draft',
-    company_state: DEFAULT_COMPANY_STATE,
+    company_state: companyState || DEFAULT_COMPANY_STATE,
     client_state: null,
     items: [createEmptyItem()],
     materials: [],
@@ -143,14 +178,32 @@ export function invoiceToFormValues(invoice: InvoiceWithRelations): InvoiceEdito
   return {
     client_id: invoice.client_id,
     template_id: invoice.template_id ?? null,
+    invoice_no: invoice.invoice_no ?? '',
+    invoice_date: invoice.invoice_date ?? new Date().toISOString().split('T')[0],
+    po_number: invoice.po_number ?? '',
+    po_date: invoice.po_date ?? '',
     source_type: invoice.source_type,
-    source_id: invoice.source_id,
+    source_id: invoice.source_id ?? '',
     template_type: invoice.template_type,
     mode: invoice.mode,
     status: invoice.status,
     company_state: invoice.company_state ?? DEFAULT_COMPANY_STATE,
     client_state: invoice.client_state ?? null,
-    items: invoice.items.map((item) => createEmptyItem(item)),
+    items: invoice.items.map((item: any) => ({
+      description: item.description,
+      hsn_code: item.hsn_code ?? '',
+      qty: item.qty,
+      rate: item.rate,
+      amount: item.amount,
+      discount_percent: 0,
+      meta_json: {
+        tax_percent: item.meta_json?.tax_percent ?? 18,
+        uom: item.meta_json?.uom ?? 'Nos',
+        make: item.meta_json?.make,
+        variant: item.meta_json?.variant,
+        base_rate: item.rate,
+      },
+    })),
     materials: invoice.materials.map((material) => createEmptyMaterial(material)),
   };
 }
@@ -159,11 +212,17 @@ export function composeInvoiceInput(
   values: InvoiceEditorFormValues,
   totals: Pick<Invoice, 'subtotal' | 'cgst' | 'sgst' | 'igst' | 'total'>,
 ): InvoiceInput {
+  const effectiveSourceId = values.source_type === 'direct' ? null : values.source_id;
+  
   return {
     client_id: values.client_id,
     template_id: values.template_id ?? null,
+    invoice_no: values.invoice_no || null,
+    invoice_date: values.invoice_date || null,
+    po_number: values.po_number || null,
+    po_date: values.po_date || null,
     source_type: values.source_type,
-    source_id: values.source_id,
+    source_id: effectiveSourceId,
     template_type: values.template_type,
     mode: values.mode,
     subtotal: totals.subtotal,
@@ -174,19 +233,33 @@ export function composeInvoiceInput(
     status: values.status,
     company_state: values.company_state,
     client_state: values.client_state ?? null,
-    items: values.items.map((item) => ({
-      description: item.description.trim(),
-      hsn_code: item.hsn_code?.trim() ? item.hsn_code.trim() : null,
-      qty: round2(item.qty),
-      rate: round2(item.rate),
-      amount: round2(item.qty * item.rate),
-      meta_json: item.meta_json ?? {},
-    })),
+    items: values.items.map((item) => {
+      const baseRate = Number(item.meta_json?.base_rate) || Number(item.rate) || 0;
+      const discountPercent = Number(item.discount_percent) || 0;
+      const rateAfterDiscount = baseRate - (baseRate * discountPercent / 100);
+      const meta = item.meta_json as any;
+      
+      return {
+        description: item.description.trim(),
+        hsn_code: item.hsn_code?.trim() ? item.hsn_code.trim() : null,
+        qty: round2(item.qty),
+        rate: round2(rateAfterDiscount),
+        amount: round2(item.qty * rateAfterDiscount),
+        meta_json: {
+          tax_percent: Number(meta?.tax_percent) || 18,
+          uom: String(meta?.uom || 'Nos'),
+          make: meta?.make,
+          variant: meta?.variant,
+          base_rate: baseRate,
+          discount_percent: discountPercent,
+        },
+      };
+    }),
     materials: values.materials.map((material) => ({
       product_id: material.product_id,
       qty_used: round2(material.qty_used),
     })),
-  };
+  } as InvoiceInput;
 }
 
 export function formatCurrency(value?: number | null): string {
@@ -249,6 +322,7 @@ export function getTemplateTypeFromTemplate(
 export function getSourceLabel(value: InvoiceEditorFormValues['source_type']): string {
   if (value === 'quotation') return 'Quotation';
   if (value === 'challan') return 'Delivery Challan';
+  if (value === 'direct') return 'Direct';
   return 'Client PO';
 }
 
@@ -256,12 +330,20 @@ export function calculateDraftTotals(
   values: Pick<InvoiceEditorFormValues, 'items' | 'company_state' | 'client_state'>,
 ) {
   const subtotal = round2(
-    values.items.reduce((sum, item) => sum + round2((Number(item.qty) || 0) * (Number(item.rate) || 0)), 0),
+    values.items.reduce((sum, item) => {
+      const baseRate = Number(item.meta_json?.base_rate) || Number(item.rate) || 0;
+      const discountPercent = Number(item.discount_percent) || 0;
+      const rateAfterDiscount = baseRate - (baseRate * discountPercent / 100);
+      return sum + round2((Number(item.qty) || 0) * rateAfterDiscount);
+    }, 0),
   );
 
   const taxTotal = round2(
     values.items.reduce((sum, item) => {
-      const amount = round2((Number(item.qty) || 0) * (Number(item.rate) || 0));
+      const baseRate = Number(item.meta_json?.base_rate) || Number(item.rate) || 0;
+      const discountPercent = Number(item.discount_percent) || 0;
+      const rateAfterDiscount = baseRate - (baseRate * discountPercent / 100);
+      const amount = round2((Number(item.qty) || 0) * rateAfterDiscount);
       const taxPercentRaw = item.meta_json?.tax_percent;
       const taxPercent = typeof taxPercentRaw === 'number' ? taxPercentRaw : Number(taxPercentRaw ?? 18);
       return sum + amount * ((Number.isFinite(taxPercent) ? taxPercent : 18) / 100);
