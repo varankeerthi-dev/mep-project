@@ -455,7 +455,7 @@ export default function InvoiceEditorPage() {
   const onSubmit = handleSubmit(async (values) => {
     let invoiceNo = values.invoice_no;
     let seriesId: string | null = null;
-    
+
     if (!isEditMode && !invoiceNo && organisation?.id) {
       const result = await generateInvoiceNumber(organisation.id);
       invoiceNo = result.invoiceNo;
@@ -475,50 +475,92 @@ export default function InvoiceEditorPage() {
       return;
     }
 
-    if (isEditMode && invoiceId) {
-      await updateInvoice.mutateAsync(payload);
-    } else {
-      const result = await createInvoice.mutateAsync(payload);
-      if (seriesId && organisation?.id) {
-        incrementInvoiceNumber(seriesId, organisation.id).then();
+    try {
+      if (isEditMode && invoiceId) {
+        await updateInvoice.mutateAsync(payload);
+      } else {
+        const result = await createInvoice.mutateAsync(payload);
+        if (seriesId && organisation?.id) {
+          incrementInvoiceNumber(seriesId, organisation.id).then();
+        }
       }
+      navigate('/invoices');
+    } catch (error) {
+      console.error('Failed to save invoice:', error);
+      alert('Failed to save invoice: ' + (error as Error).message);
     }
-
-    navigate('/invoices');
   });
 
   const handlePreviewPdf = async () => {
-    if (!invoiceId) return;
+    if (!invoiceId) {
+      alert('Please save the invoice first before previewing.');
+      return;
+    }
 
     setPdfAction('preview');
     try {
       await previewInvoicePDF(invoiceId);
+    } catch (error) {
+      console.error('Failed to preview PDF:', error);
+      alert('Failed to preview PDF: ' + (error as Error).message);
     } finally {
       setPdfAction(null);
     }
   };
 
   const handleDownloadPdf = async () => {
-    if (!invoiceId) return;
+    if (!invoiceId) {
+      alert('Please save the invoice first before downloading.');
+      return;
+    }
 
     setPdfAction('download');
     try {
       await downloadInvoicePDF(invoiceId);
+    } catch (error) {
+      console.error('Failed to download PDF:', error);
+      alert('Failed to download PDF: ' + (error as Error).message);
     } finally {
       setPdfAction(null);
     }
   };
 
   const handlePrintPdf = async () => {
-    if (!invoiceId) return;
+    if (!invoiceId) {
+      alert('Please save the invoice first before printing.');
+      return;
+    }
 
     setPdfAction('print');
     try {
       await printInvoicePDF(invoiceId);
+    } catch (error) {
+      console.error('Failed to print PDF:', error);
+      alert('Failed to print PDF: ' + (error as Error).message);
     } finally {
       setPdfAction(null);
     }
   };
+
+  const handleSaveAsDraft = handleSubmit(async (values) => {
+    const payload = composeInvoiceInput({
+      ...values,
+      invoice_no: null, // Drafts don't have invoice numbers
+      status: 'draft',
+    }, totals);
+
+    try {
+      if (isEditMode && invoiceId) {
+        await updateInvoice.mutateAsync(payload);
+      } else {
+        await createInvoice.mutateAsync(payload);
+      }
+      navigate('/invoices');
+    } catch (error) {
+      console.error('Failed to save draft:', error);
+      alert('Failed to save draft: ' + (error as Error).message);
+    }
+  });
 
   const handleEmailPdf = async () => {
     if (!invoiceId) return;
@@ -681,32 +723,7 @@ export default function InvoiceEditorPage() {
               transition: 'all 0.15s'
             }}
           >
-            <X size={14} />
             Cancel
-          </button>
-          
-          <button
-            type="submit"
-            form="invoice-form"
-            disabled={isSaving}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '4px',
-              padding: '6px 14px',
-              border: 'none',
-              borderRadius: '4px',
-              background: '#171717',
-              color: '#fff',
-              fontSize: '12px',
-              fontWeight: 600,
-              cursor: isSaving ? 'not-allowed' : 'pointer',
-              opacity: isSaving ? 0.6 : 1,
-              transition: 'all 0.15s'
-            }}
-          >
-            {isSaving ? <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={14} /> : <Save size={14} />}
-            {isEditMode ? 'Save' : 'Create'}
           </button>
         </div>
       </div>
