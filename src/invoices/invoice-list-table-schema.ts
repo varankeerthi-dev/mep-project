@@ -34,7 +34,7 @@ export const invoiceListTableSchema = createTableSchema({
 
   customerName: col
     .string()
-    .label('Customer Name')
+    .label('Client Name')
     .display('badge')
     .filterable('checkbox', { options: [] })
     .size(160)

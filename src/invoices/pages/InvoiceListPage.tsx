@@ -14,6 +14,8 @@ import {
   FileText,
   RotateCcw,
   Pencil,
+  Columns,
+  Check,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import type { TableColumn } from '@/lib/table-schema';
@@ -521,6 +523,8 @@ export default function InvoiceListPage() {
   } | null>(null);
   const [selectedPdfTemplate, setSelectedPdfTemplate] = useState<'default' | 'progrid'>('default');
   const [openMenuInvoiceId, setOpenMenuInvoiceId] = useState<string | null>(null);
+  const [openColumnsMenu, setOpenColumnsMenu] = useState(false);
+  const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!openMenuInvoiceId) return undefined;
@@ -536,6 +540,20 @@ export default function InvoiceListPage() {
     };
   }, [openMenuInvoiceId]);
 
+  useEffect(() => {
+    if (!openColumnsMenu) return undefined;
+    const handleCloseMenu = () => setOpenColumnsMenu(false);
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpenColumnsMenu(false);
+    };
+    document.addEventListener('click', handleCloseMenu);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('click', handleCloseMenu);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [openColumnsMenu]);
+
   const invoicesQuery = useInvoices({});
 
   const paired = useMemo(
@@ -546,9 +564,9 @@ export default function InvoiceListPage() {
   const allRows = useMemo(() => paired.map((p) => p.row), [paired]);
 
   const visibleColumns = useMemo(() => {
-    const base = invoiceListTableSchema.columns.filter((c) => !c.hidden);
+    const base = invoiceListTableSchema.columns.filter((c) => !c.hidden && !hiddenColumns.has(c.key));
     return mergeCheckboxOptions(base, allRows);
-  }, [allRows]);
+  }, [allRows, hiddenColumns]);
 
   const dataBounds = useMemo(() => {
     const bounds: Record<string, { min: number; max: number }> = {};
@@ -631,6 +649,31 @@ export default function InvoiceListPage() {
       return { ...prev, [columnKey]: [...cur] };
     });
   };
+
+  const toggleColumnVisibility = (columnKey: string) => {
+    setHiddenColumns((prev) => {
+      const next = new Set(prev);
+      if (next.has(columnKey)) next.delete(columnKey);
+      else next.add(columnKey);
+      return next;
+    });
+  };
+
+  const saveColumnPreferences = () => {
+    localStorage.setItem('invoice-table-hidden-columns', JSON.stringify([...hiddenColumns]));
+    setOpenColumnsMenu(false);
+  };
+
+  useEffect(() => {
+    const saved = localStorage.getItem('invoice-table-hidden-columns');
+    if (saved) {
+      try {
+        setHiddenColumns(new Set(JSON.parse(saved)));
+      } catch (e) {
+        console.error('Failed to load column preferences', e);
+      }
+    }
+  }, []);
 
   const resetFilters = () => {
     setCheckboxSelections({});
@@ -938,6 +981,69 @@ export default function InvoiceListPage() {
         </div>
 
         <div className="il-table-card">
+          <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '0.75rem 1rem', borderBottom: '1px solid var(--border-light)' }}>
+            <div style={{ position: 'relative' }} onClick={(e) => e.stopPropagation()}>
+              <button
+                type="button"
+                onClick={() => setOpenColumnsMenu((c) => !c)}
+                className="il-btn il-btn-secondary"
+                style={{ padding: '0.5rem 1rem', fontSize: '0.8125rem' }}
+              >
+                <Columns size={14} />
+                Columns
+              </button>
+              {openColumnsMenu && (
+                <div className="il-dropdown" style={{ right: 0, top: 'calc(100% + 0.5rem)', minWidth: '200px' }}>
+                  <div style={{ padding: '0.5rem', borderBottom: '1px solid var(--border-light)', fontWeight: 600, fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    Show Columns
+                  </div>
+                  {invoiceListTableSchema.columns.map((col) => (
+                    <label
+                      key={col.key}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        width: '100%',
+                        padding: '0.5rem 0.75rem',
+                        fontSize: '0.8125rem',
+                        color: 'var(--text-secondary)',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={!hiddenColumns.has(col.key)}
+                        onChange={() => toggleColumnVisibility(col.key)}
+                      />
+                      <span>{col.label}</span>
+                    </label>
+                  ))}
+                  <div style={{ padding: '0.5rem', borderTop: '1px solid var(--border-light)', marginTop: '0.25rem' }}>
+                    <button
+                      type="button"
+                      onClick={saveColumnPreferences}
+                      style={{
+                        width: '100%',
+                        padding: '0.5rem 0.75rem',
+                        background: 'var(--accent)',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '0.375rem',
+                        fontSize: '0.8125rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = 'var(--accent-hover)'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'var(--accent)'}
+                    >
+                      Save
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
           <table className="il-table">
             <thead>
               <tr>
