@@ -730,15 +730,183 @@ export default function InvoiceEditorPage() {
 
       {/* Main Form */}
       <form id="invoice-form" onSubmit={onSubmit} style={{ marginBottom: '16px' }}>
-        {/* Header Row - Client Name & Invoice Details */}
+        {/* Header - 5 Column Grid */}
         <div style={{
           display: 'grid',
-          gridTemplateColumns: '1fr 2fr',
-          gap: '16px',
-          marginBottom: '16px',
-          alignItems: 'start'
+          gridTemplateColumns: 'repeat(5, 1fr)',
+          gap: '12px',
+          marginBottom: '16px'
         }}>
-          {/* Client Name - Left */}
+          {/* Column 1-2: Client with Address Section */}
+          <div style={{ gridColumn: 'span 2', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {/* Client Dropdown */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{
+                fontSize: '11px',
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: '0.04em',
+                color: '#737373'
+              }}>
+                Client
+              </label>
+              <select
+                {...register('client_id')}
+                style={{
+                  width: '100%',
+                  padding: '6px 10px',
+                  border: '1px solid #d4d4d4',
+                  borderRadius: '4px',
+                  fontSize: '13px',
+                  color: '#171717',
+                  background: '#fff',
+                  cursor: 'pointer'
+                }}
+              >
+                <option value="">Select client</option>
+                {clients.map((client) => (
+                  <option key={client.id} value={client.id}>{client.name}</option>
+                ))}
+              </select>
+              {errors.client_id && (
+                <span style={{ fontSize: '11px', color: '#dc2626', fontWeight: 500 }}>
+                  {errors.client_id.message}
+                </span>
+              )}
+            </div>
+
+            {/* Address Section - Compact 2-column grid */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: '8px'
+            }}>
+              {/* Billing Address */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{
+                  fontSize: '10px',
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                  color: '#737373'
+                }}>
+                  Billing
+                </label>
+                <div style={{
+                  padding: '8px',
+                  border: '1px solid #e5e5e5',
+                  borderRadius: '6px',
+                  fontSize: '11px',
+                  color: '#525252',
+                  background: '#f9fafb',
+                  minHeight: '48px',
+                  whiteSpace: 'pre-line'
+                }}>
+                  {clientDetailsQuery.data ? (
+                    <>
+                      {clientDetailsQuery.data.gst_number && (
+                        <span style={{ display: 'block', fontSize: '10px', color: '#737373' }}>
+                          GST: {clientDetailsQuery.data.gst_number}
+                        </span>
+                      )}
+                      {clientDetailsQuery.data.address1 && (
+                        <span style={{ display: 'block' }}>
+                          {clientDetailsQuery.data.address1}
+                          {clientDetailsQuery.data.address2 && `, ${clientDetailsQuery.data.address2}`}
+                        </span>
+                      )}
+                      {clientDetailsQuery.data.city && clientDetailsQuery.data.state && clientDetailsQuery.data.pincode && (
+                        <span style={{ display: 'block' }}>
+                          {clientDetailsQuery.data.city}, {clientDetailsQuery.data.state} - {clientDetailsQuery.data.pincode}
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    <span style={{ color: '#a3a3a3', fontSize: '10px' }}>Select client</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Shipping Address */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label style={{
+                    fontSize: '10px',
+                    fontWeight: 600,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em',
+                    color: '#737373'
+                  }}>
+                    Shipping
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setIsShippingAddressModalOpen(true)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: '2px 6px',
+                      border: '1px solid #d4d4d4',
+                      borderRadius: '4px',
+                      background: '#fff',
+                      color: '#171717',
+                      cursor: 'pointer',
+                      fontSize: '10px',
+                      transition: 'all 0.15s'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#f5f5f5';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = '#fff';
+                    }}
+                    title="Add new shipping address"
+                  >
+                    <Plus size={12} />
+                  </button>
+                </div>
+                <select
+                  {...register('shipping_address_id')}
+                  style={{
+                    width: '100%',
+                    padding: '4px 8px',
+                    border: '1px solid #d4d4d4',
+                    borderRadius: '4px',
+                    fontSize: '11px',
+                    color: '#171717',
+                    background: '#fff',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <option value="">Same as billing</option>
+                  {(shippingAddressesQuery.data ?? []).map((addr) => (
+                    <option key={addr.id} value={addr.id}>
+                      {addr.address_line1}, {addr.city} {addr.is_default && '(Default)'}
+                    </option>
+                  ))}
+                </select>
+                {selectedShippingAddress && (
+                  <div style={{
+                    padding: '6px',
+                    border: '1px solid #e5e5e5',
+                    borderRadius: '4px',
+                    fontSize: '10px',
+                    color: '#525252',
+                    background: '#fafafa',
+                    whiteSpace: 'pre-line'
+                  }}>
+                    {selectedShippingAddress.address_line1}
+                    {selectedShippingAddress.address_line2 && `, ${selectedShippingAddress.address_line2}`}
+                    <br />
+                    {selectedShippingAddress.city}, {selectedShippingAddress.state} - {selectedShippingAddress.pincode}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Column 3: Invoice No */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <label style={{
               fontSize: '11px',
@@ -747,10 +915,68 @@ export default function InvoiceEditorPage() {
               letterSpacing: '0.04em',
               color: '#737373'
             }}>
-              Client
+              Invoice No
+            </label>
+            <input
+              {...register('invoice_no')}
+              placeholder="Auto-generated"
+              style={{
+                width: '100%',
+                padding: '6px 10px',
+                border: '1px solid #d4d4d4',
+                borderRadius: '4px',
+                fontSize: '13px',
+                color: '#171717',
+                background: '#fff'
+              }}
+            />
+            {errors.invoice_no && (
+              <span style={{ fontSize: '11px', color: '#dc2626', fontWeight: 500 }}>
+                {errors.invoice_no.message}
+              </span>
+            )}
+          </div>
+
+          {/* Column 4: Invoice Date */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label style={{
+              fontSize: '11px',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em',
+              color: '#737373'
+            }}>
+              Invoice Date
+            </label>
+            <input
+              type="date"
+              {...register('invoice_date')}
+              style={{
+                width: '100%',
+                maxWidth: '140px',
+                padding: '6px 10px',
+                border: '1px solid #d4d4d4',
+                borderRadius: '4px',
+                fontSize: '13px',
+                color: '#171717',
+                background: '#fff'
+              }}
+            />
+          </div>
+
+          {/* Column 5: Source Type */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label style={{
+              fontSize: '11px',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em',
+              color: '#737373'
+            }}>
+              Source
             </label>
             <select
-              {...register('client_id')}
+              {...register('source_type')}
               style={{
                 width: '100%',
                 padding: '6px 10px',
@@ -762,228 +988,16 @@ export default function InvoiceEditorPage() {
                 cursor: 'pointer'
               }}
             >
-              <option value="">Select client</option>
-              {clients.map((client) => (
-                <option key={client.id} value={client.id}>{client.name}</option>
-              ))}
+              <option value="direct">Direct</option>
+              <option value="quotation">Quotation</option>
+              <option value="challan">Delivery Challan</option>
+              <option value="po">Client PO</option>
             </select>
-            {errors.client_id && (
-              <span style={{ fontSize: '11px', color: '#dc2626', fontWeight: 500 }}>
-                {errors.client_id.message}
-              </span>
-            )}
           </div>
 
-          {/* Invoice Details - Right (3 columns x 2 rows) */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
-            gap: '12px'
-          }}>
-            {/* Invoice No */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{
-                fontSize: '11px',
-                fontWeight: 600,
-                textTransform: 'uppercase',
-                letterSpacing: '0.04em',
-                color: '#737373'
-              }}>
-                Invoice No
-              </label>
-              <input
-                {...register('invoice_no')}
-                placeholder="Auto-generated"
-                style={{
-                  width: '100%',
-                  padding: '6px 10px',
-                  border: '1px solid #d4d4d4',
-                  borderRadius: '4px',
-                  fontSize: '13px',
-                  color: '#171717',
-                  background: '#fff'
-                }}
-              />
-              {errors.invoice_no && (
-                <span style={{ fontSize: '11px', color: '#dc2626', fontWeight: 500 }}>
-                  {errors.invoice_no.message}
-                </span>
-              )}
-            </div>
-
-            {/* Invoice Date */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{
-                fontSize: '11px',
-                fontWeight: 600,
-                textTransform: 'uppercase',
-                letterSpacing: '0.04em',
-                color: '#737373'
-              }}>
-                Invoice Date
-              </label>
-              <input
-                type="date"
-                {...register('invoice_date')}
-                style={{
-                  width: '100%',
-                  padding: '6px 10px',
-                  border: '1px solid #d4d4d4',
-                  borderRadius: '4px',
-                  fontSize: '13px',
-                  color: '#171717',
-                  background: '#fff'
-                }}
-              />
-            </div>
-
-            {/* PO Number */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{
-                fontSize: '11px',
-                fontWeight: 600,
-                textTransform: 'uppercase',
-                letterSpacing: '0.04em',
-                color: '#737373'
-              }}>
-                PO Number
-              </label>
-              <input
-                {...register('po_number')}
-                placeholder="Enter PO number"
-                style={{
-                  width: '100%',
-                  padding: '6px 10px',
-                  border: '1px solid #d4d4d4',
-                  borderRadius: '4px',
-                  fontSize: '13px',
-                  color: '#171717',
-                  background: '#fff'
-                }}
-              />
-            </div>
-
-            {/* PO Date */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{
-                fontSize: '11px',
-                fontWeight: 600,
-                textTransform: 'uppercase',
-                letterSpacing: '0.04em',
-                color: '#737373'
-              }}>
-                PO Date
-              </label>
-              <input
-                type="date"
-                {...register('po_date')}
-                style={{
-                  width: '100%',
-                  padding: '6px 10px',
-                  border: '1px solid #d4d4d4',
-                  borderRadius: '4px',
-                  fontSize: '13px',
-                  color: '#171717',
-                  background: '#fff'
-                }}
-              />
-            </div>
-
-            {/* Source Type */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{
-                fontSize: '11px',
-                fontWeight: 600,
-                textTransform: 'uppercase',
-                letterSpacing: '0.04em',
-                color: '#737373'
-              }}>
-                Source Type
-              </label>
-              <select
-                {...register('source_type')}
-                style={{
-                  width: '100%',
-                  padding: '6px 10px',
-                  border: '1px solid #d4d4d4',
-                  borderRadius: '4px',
-                  fontSize: '13px',
-                  color: '#171717',
-                  background: '#fff',
-                  cursor: 'pointer'
-                }}
-              >
-                <option value="direct">Direct</option>
-                <option value="quotation">Quotation</option>
-                <option value="challan">Delivery Challan</option>
-                <option value="po">Client PO</option>
-              </select>
-            </div>
-
-            {/* Source Document */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{
-                fontSize: '11px',
-                fontWeight: 600,
-                textTransform: 'uppercase',
-                letterSpacing: '0.04em',
-                color: '#737373'
-              }}>
-                Source Document
-              </label>
-              {selectedSourceType === 'direct' ? (
-                <div style={{
-                  width: '100%',
-                  padding: '6px 10px',
-                  border: '1px solid #e5e5e5',
-                  borderRadius: '4px',
-                  fontSize: '13px',
-                  color: '#737373',
-                  background: '#f5f5f5'
-                }}>
-                  Direct Invoice (No source)
-                </div>
-              ) : (
-                <select
-                  {...register('source_id')}
-                  style={{
-                    width: '100%',
-                    padding: '6px 10px',
-                    border: '1px solid #d4d4d4',
-                    borderRadius: '4px',
-                    fontSize: '13px',
-                    color: '#171717',
-                    background: '#fff',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <option value="">Select {getSourceLabel(selectedSourceType).toLowerCase()}</option>
-                  {(sourceOptionsQuery.data ?? []).map((option) => (
-                    <option key={option.id} value={option.id}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              )}
-              {errors.source_id && (
-                <span style={{ fontSize: '11px', color: '#dc2626', fontWeight: 500 }}>
-                  {errors.source_id.message}
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Address Section - 2 Column Grid */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: '12px',
-          marginBottom: '16px'
-        }}>
-
-          {/* Billing Address */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          {/* Row 2 - Secondary Fields */}
+          {/* Column 3: PO Number */}
+          <div style={{ gridColumn: '3', display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <label style={{
               fontSize: '11px',
               fontWeight: 600,
@@ -991,50 +1005,25 @@ export default function InvoiceEditorPage() {
               letterSpacing: '0.04em',
               color: '#737373'
             }}>
-              Billing Address
+              PO Number
             </label>
-            <div style={{
-              padding: '6px 10px',
-              border: '1px solid #e5e5e5',
-              borderRadius: '4px',
-              fontSize: '12px',
-              color: '#525252',
-              background: '#f5f5f5',
-              minHeight: '60px',
-              whiteSpace: 'pre-line'
-            }}>
-              {clientDetailsQuery.data ? (
-                <>
-                  {clientDetailsQuery.data.gst_number && (
-                    <span style={{ display: 'block', fontSize: '11px', color: '#737373' }}>
-                      GST: {clientDetailsQuery.data.gst_number}
-                    </span>
-                  )}
-                  {clientDetailsQuery.data.address1 && (
-                    <span style={{ display: 'block' }}>
-                      {clientDetailsQuery.data.address1}
-                      {clientDetailsQuery.data.address2 && `, ${clientDetailsQuery.data.address2}`}
-                    </span>
-                  )}
-                  {clientDetailsQuery.data.city && clientDetailsQuery.data.state && clientDetailsQuery.data.pincode && (
-                    <span style={{ display: 'block' }}>
-                      {clientDetailsQuery.data.city}, {clientDetailsQuery.data.state} - {clientDetailsQuery.data.pincode}
-                    </span>
-                  )}
-                  {clientDetailsQuery.data.contact && (
-                    <span style={{ display: 'block', fontSize: '11px', color: '#737373' }}>
-                      Contact: {clientDetailsQuery.data.contact}
-                    </span>
-                  )}
-                </>
-              ) : (
-                <span style={{ color: '#a3a3a3' }}>Select a client to view billing address</span>
-              )}
-            </div>
+            <input
+              {...register('po_number')}
+              placeholder="Enter PO number"
+              style={{
+                width: '100%',
+                padding: '6px 10px',
+                border: '1px solid #d4d4d4',
+                borderRadius: '4px',
+                fontSize: '13px',
+                color: '#171717',
+                background: '#fff'
+              }}
+            />
           </div>
 
-          {/* Shipping Address */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          {/* Column 4: PO Date */}
+          <div style={{ gridColumn: '4', display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <label style={{
               fontSize: '11px',
               fontWeight: 600,
@@ -1042,83 +1031,73 @@ export default function InvoiceEditorPage() {
               letterSpacing: '0.04em',
               color: '#737373'
             }}>
-              Shipping Address
+              PO Date
             </label>
-            <div style={{ display: 'flex', gap: '4px' }}>
-              <select
-                {...register('shipping_address_id')}
-                style={{
-                  flex: 1,
-                  padding: '6px 10px',
-                  border: '1px solid #d4d4d4',
-                  borderRadius: '4px',
-                  fontSize: '13px',
-                  color: '#171717',
-                  background: '#fff',
-                  cursor: 'pointer'
-                }}
-              >
-                <option value="">Same as billing</option>
-                {(shippingAddressesQuery.data ?? []).map((addr) => (
-                  <option key={addr.id} value={addr.id}>
-                    {addr.address_line1}, {addr.city} {addr.is_default && '(Default)'}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                onClick={() => setIsShippingAddressModalOpen(true)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: '6px 10px',
-                  border: '1px solid #d4d4d4',
-                  borderRadius: '4px',
-                  background: '#fff',
-                  color: '#171717',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = '#f5f5f5';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = '#fff';
-                }}
-                title="Add new shipping address"
-              >
-                <Plus size={16} />
-              </button>
-            </div>
-            {selectedShippingAddress && (
+            <input
+              type="date"
+              {...register('po_date')}
+              style={{
+                width: '100%',
+                maxWidth: '140px',
+                padding: '6px 10px',
+                border: '1px solid #d4d4d4',
+                borderRadius: '4px',
+                fontSize: '13px',
+                color: '#171717',
+                background: '#fff'
+              }}
+            />
+          </div>
+
+          {/* Column 5: Source Document */}
+          <div style={{ gridColumn: '5', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label style={{
+              fontSize: '11px',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em',
+              color: '#737373'
+            }}>
+              Source Document
+            </label>
+            {selectedSourceType === 'direct' ? (
               <div style={{
+                width: '100%',
                 padding: '6px 10px',
                 border: '1px solid #e5e5e5',
                 borderRadius: '4px',
-                fontSize: '11px',
-                color: '#525252',
-                background: '#fafafa',
-                whiteSpace: 'pre-line'
+                fontSize: '13px',
+                color: '#737373',
+                background: '#f5f5f5'
               }}>
-                {clientDetailsQuery.data?.name}
-                {clientDetailsQuery.data?.gst_number && (
-                  <span style={{ display: 'block', fontSize: '10px', color: '#737373' }}>
-                    GST: {clientDetailsQuery.data.gst_number}
-                  </span>
-                )}
-                {selectedShippingAddress.address_line1}
-                {selectedShippingAddress.address_line2 && `, ${selectedShippingAddress.address_line2}`}
-                <br />
-                {selectedShippingAddress.city}, {selectedShippingAddress.state} - {selectedShippingAddress.pincode}
-                {selectedShippingAddress.contact_person && (
-                  <>
-                    <br />
-                    Contact: {selectedShippingAddress.contact_person}
-                    {selectedShippingAddress.contact_phone && ` (${selectedShippingAddress.contact_phone})`}
-                  </>
-                )}
+                Direct Invoice (No source)
               </div>
+            ) : (
+              <select
+                {...register('source_id')}
+                style={{
+                  width: '100%',
+                  padding: '6px 10px',
+                  border: '1px solid #d4d4d4',
+                  borderRadius: '4px',
+                  fontSize: '13px',
+                  color: '#171717',
+                  background: '#fff',
+                  cursor: 'pointer'
+                }}
+              >
+                <option value="">Select {getSourceLabel(selectedSourceType).toLowerCase()}</option>
+                {(sourceOptionsQuery.data ?? []).map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            )}
+            {errors.source_id && (
+              <span style={{ fontSize: '11px', color: '#dc2626', fontWeight: 500 }}>
+                {errors.source_id.message}
+              </span>
             )}
           </div>
         </div>
