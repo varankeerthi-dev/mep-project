@@ -799,19 +799,19 @@ export default function InvoiceEditorPage() {
                   fontSize: '11px',
                   color: '#525252',
                   background: '#f9fafb',
-                  minHeight: '48px',
+                  minHeight: '100px',
                   whiteSpace: 'pre-line'
                 }}>
                   {clientDetailsQuery.data ? (
                     <>
                       {clientDetailsQuery.data.gst_number && (
-                        <span style={{ display: 'block', fontSize: '10px', color: '#737373' }}>
-                          GST: {clientDetailsQuery.data.gst_number}
+                        <span style={{ display: 'block', fontSize: '10px', color: '#737373', marginBottom: '4px' }}>
+                          GSTIN: {clientDetailsQuery.data.gst_number}
                         </span>
                       )}
                       {clientDetailsQuery.data.address1 && (
                         <span style={{ display: 'block' }}>
-                          {clientDetailsQuery.data.address1}
+                          Address: {clientDetailsQuery.data.address1}
                           {clientDetailsQuery.data.address2 && `, ${clientDetailsQuery.data.address2}`}
                         </span>
                       )}
