@@ -237,6 +237,7 @@ export default function App() {
       case '/quotation/edit': return <CreateQuotation onSuccess={() => navigate('/quotation')} onCancel={() => navigate('/quotation')} editMode={true} />;
       case '/invoices': return <InvoiceListPage />;
       case '/invoices/create': return <InvoiceEditorPage />;
+      case '/invoices/edit': return <InvoiceEditorPage />;
       case '/proforma-invoices': return <ProformaListPage />;
       case '/proforma-invoices/create': return <ProformaEditorPage />;
       case '/proforma-invoices/edit': return <ProformaEditorPage />;
