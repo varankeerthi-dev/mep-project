@@ -60,8 +60,10 @@ async function loadClientOptions(organisationId: string): Promise<InvoiceClientO
 }
 
 async function loadMaterialOptions(organisationId: string): Promise<InvoiceMaterialOption[]> {
-  const { data, error } = await supabase.from('materials').select('id, name, display_name, hsn_code, make, unit, sale_price').eq('organisation_id', organisationId);
+  const { data, error } = await supabase.from('materials').select('id, name, display_name, hsn_code, make, unit, sale_price, material, size').eq('organisation_id', organisationId);
   if (error) throw error;
+
+  console.log('Materials data:', data);
 
   return (data ?? [])
     .map((material: any) => ({
@@ -69,7 +71,7 @@ async function loadMaterialOptions(organisationId: string): Promise<InvoiceMater
       name: String(material.display_name ?? material.name ?? 'Unnamed material'),
       display_name: material.display_name,
       hsn_code: material.hsn_code ?? null,
-      make: material.make ?? null,
+      make: material.make ?? material.material ?? null,
       unit: material.unit ?? null,
       sale_price: material.sale_price ?? null,
     }))
