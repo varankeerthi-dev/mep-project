@@ -466,17 +466,6 @@ export function InvoiceItemsEditor({
                     <input
                       {...register(`items.${index}.description`)}
                       placeholder="Item description"
-                      onKeyDown={(e) => {
-                        if (e.key === 'Delete' && mode === 'itemized') {
-                          e.preventDefault();
-                          if (setValue) {
-                            setValue(`items.${index}.meta_json.material_id`, '', { shouldDirty: true });
-                            setValue(`items.${index}.description`, '', { shouldDirty: true });
-                            setValue(`items.${index}.hsn_code`, '', { shouldDirty: true });
-                            setSearchTerms({ ...searchTerms, [index]: '' });
-                          }
-                        }
-                      }}
                       style={{
                         width: '100%',
                         padding: '4px 6px',
