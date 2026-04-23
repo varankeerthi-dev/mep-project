@@ -11,13 +11,12 @@ import { InvoiceItemsEditor } from '../components/InvoiceItemsEditor';
 import { InvoiceMaterialsEditor } from '../components/InvoiceMaterialsEditor';
 import { InvoiceSummaryFooter } from '../components/InvoiceSummaryFooter';
 import { InvoiceStatusBadge } from '../components/InvoiceStatusBadge';
+import { AddShippingAddressModal } from '../components/AddShippingAddressModal';
 import { useCreateInvoice, useInvoice, useInvoiceTemplates, useUpdateInvoice } from '../hooks';
 import { downloadInvoicePDF, emailInvoicePDF, previewInvoicePDF, printInvoicePDF } from '../pdf';
+import type { InvoiceEditorFormValues, InvoiceClientOption, InvoiceMaterialOption, ClientShippingAddress } from './ui-utils';
 import {
   InvoiceEditorSchema,
-  type InvoiceClientOption,
-  type InvoiceEditorFormValues,
-  type InvoiceMaterialOption,
   type InvoiceSourceOption,
   DEFAULT_COMPANY_STATE,
   calculateDraftTotals,
@@ -71,6 +70,42 @@ async function loadMaterialOptions(organisationId: string): Promise<InvoiceMater
       hsn_code: material.hsn_code ?? null,
     }))
     .sort((left, right) => left.name.localeCompare(right.name));
+}
+
+async function loadClientShippingAddresses(clientId: string, organisationId: string): Promise<ClientShippingAddress[]> {
+  const { data, error } = await supabase
+    .from('client_shipping_addresses')
+    .select('*')
+    .eq('client_id', clientId)
+    .eq('organisation_id', organisationId)
+    .order('is_default', { ascending: false });
+  
+  if (error) throw error;
+
+  return (data ?? []).map((addr: any) => ({
+    id: String(addr.id),
+    address_line1: addr.address_line1,
+    address_line2: addr.address_line2,
+    city: addr.city,
+    state: addr.state,
+    pincode: addr.pincode,
+    contact_person: addr.contact_person,
+    contact_phone: addr.contact_phone,
+    is_default: addr.is_default,
+  }));
+}
+
+async function loadClientDetails(clientId: string, organisationId: string) {
+  const { data, error } = await supabase
+    .from('clients')
+    .select('id, name, gst_number, state, city, address1, address2, pincode, contact, email')
+    .eq('id', clientId)
+    .eq('organisation_id', organisationId)
+    .single();
+  
+  if (error) throw error;
+
+  return data;
 }
 
 async function loadSourceOptions(sourceType: InvoiceEditorFormValues['source_type'], organisationId: string): Promise<InvoiceSourceOption[]> {
@@ -132,6 +167,7 @@ export default function InvoiceEditorPage() {
   const invoiceId = queryParam(location.search, 'id');
   const isEditMode = Boolean(invoiceId);
   const [pdfAction, setPdfAction] = useState<'preview' | 'download' | 'print' | 'email' | null>(null);
+  const [isShippingAddressModalOpen, setIsShippingAddressModalOpen] = useState(false);
 
   const form = useForm<InvoiceEditorFormValues>({
     resolver: zodResolver(InvoiceEditorSchema),
@@ -161,6 +197,12 @@ export default function InvoiceEditorPage() {
   const watchedMaterials = useWatch({ control, name: 'materials' }) ?? [];
   const companyState = useWatch({ control, name: 'company_state' }) ?? DEFAULT_COMPANY_STATE;
   const clientState = useWatch({ control, name: 'client_state' }) ?? null;
+  const selectedShippingAddressId = useWatch({ control, name: 'shipping_address_id' }) ?? null;
+
+  const selectedShippingAddress = useMemo(() => {
+    if (!selectedShippingAddressId || !shippingAddressesQuery.data) return null;
+    return shippingAddressesQuery.data.find(addr => addr.id === selectedShippingAddressId) || null;
+  }, [selectedShippingAddressId, shippingAddressesQuery.data]);
 
   const invoiceQuery = useInvoice(invoiceId ?? undefined);
   const createInvoice = useCreateInvoice();
@@ -176,6 +218,20 @@ export default function InvoiceEditorPage() {
     queryKey: ['invoice-ui', 'materials', organisation?.id],
     queryFn: () => loadMaterialOptions(organisation?.id!),
     enabled: !!organisation?.id,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const shippingAddressesQuery = useQuery({
+    queryKey: ['invoice-ui', 'shipping-addresses', selectedClientId, organisation?.id],
+    queryFn: () => loadClientShippingAddresses(selectedClientId, organisation?.id!),
+    enabled: Boolean(selectedClientId && organisation?.id),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const clientDetailsQuery = useQuery({
+    queryKey: ['invoice-ui', 'client-details', selectedClientId, organisation?.id],
+    queryFn: () => loadClientDetails(selectedClientId, organisation?.id!),
+    enabled: Boolean(selectedClientId && organisation?.id),
     staleTime: 5 * 60 * 1000,
   });
   const sourceOptionsQuery = useQuery({
@@ -606,6 +662,150 @@ export default function InvoiceEditorPage() {
 
       {/* Main Form */}
       <form id="invoice-form" onSubmit={onSubmit}>
+        {/* Address Section - 2 Column Grid */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: '12px',
+          marginBottom: '16px'
+        }}>
+
+          {/* Billing Address */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label style={{
+              fontSize: '11px',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em',
+              color: '#737373'
+            }}>
+              Billing Address
+            </label>
+            <div style={{
+              padding: '6px 10px',
+              border: '1px solid #e5e5e5',
+              borderRadius: '4px',
+              fontSize: '12px',
+              color: '#525252',
+              background: '#f5f5f5',
+              minHeight: '60px',
+              whiteSpace: 'pre-line'
+            }}>
+              {clientDetailsQuery.data ? (
+                <>
+                  {clientDetailsQuery.data.name}
+                  {clientDetailsQuery.data.gst_number && (
+                    <span style={{ display: 'block', fontSize: '11px', color: '#737373' }}>
+                      GST: {clientDetailsQuery.data.gst_number}
+                    </span>
+                  )}
+                  {clientDetailsQuery.data.address1 && (
+                    <span style={{ display: 'block' }}>
+                      {clientDetailsQuery.data.address1}
+                      {clientDetailsQuery.data.address2 && `, ${clientDetailsQuery.data.address2}`}
+                    </span>
+                  )}
+                  {clientDetailsQuery.data.city && clientDetailsQuery.data.state && clientDetailsQuery.data.pincode && (
+                    <span style={{ display: 'block' }}>
+                      {clientDetailsQuery.data.city}, {clientDetailsQuery.data.state} - {clientDetailsQuery.data.pincode}
+                    </span>
+                  )}
+                  {clientDetailsQuery.data.contact && (
+                    <span style={{ display: 'block', fontSize: '11px', color: '#737373' }}>
+                      Contact: {clientDetailsQuery.data.contact}
+                    </span>
+                  )}
+                </>
+              ) : (
+                <span style={{ color: '#a3a3a3' }}>Select a client to view billing address</span>
+              )}
+            </div>
+          </div>
+
+          {/* Shipping Address */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <label style={{
+              fontSize: '11px',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em',
+              color: '#737373'
+            }}>
+              Shipping Address
+            </label>
+            <div style={{ display: 'flex', gap: '4px' }}>
+              <select
+                {...register('shipping_address_id')}
+                style={{
+                  flex: 1,
+                  padding: '6px 10px',
+                  border: '1px solid #d4d4d4',
+                  borderRadius: '4px',
+                  fontSize: '13px',
+                  color: '#171717',
+                  background: '#fff',
+                  cursor: 'pointer'
+                }}
+              >
+                <option value="">Same as billing</option>
+                {(shippingAddressesQuery.data ?? []).map((addr) => (
+                  <option key={addr.id} value={addr.id}>
+                    {addr.address_line1}, {addr.city} {addr.is_default && '(Default)'}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => setIsShippingAddressModalOpen(true)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '6px 10px',
+                  border: '1px solid #d4d4d4',
+                  borderRadius: '4px',
+                  background: '#fff',
+                  color: '#171717',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#f5f5f5';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = '#fff';
+                }}
+                title="Add new shipping address"
+              >
+                <Plus size={16} />
+              </button>
+            </div>
+            {selectedShippingAddress && (
+              <div style={{
+                padding: '6px 10px',
+                border: '1px solid #e5e5e5',
+                borderRadius: '4px',
+                fontSize: '11px',
+                color: '#525252',
+                background: '#fafafa',
+                whiteSpace: 'pre-line'
+              }}>
+                {selectedShippingAddress.address_line1}
+                {selectedShippingAddress.address_line2 && `, ${selectedShippingAddress.address_line2}`}
+                <br />
+                {selectedShippingAddress.city}, {selectedShippingAddress.state} - {selectedShippingAddress.pincode}
+                {selectedShippingAddress.contact_person && (
+                  <>
+                    <br />
+                    Contact: {selectedShippingAddress.contact_person}
+                    {selectedShippingAddress.contact_phone && ` (${selectedShippingAddress.contact_phone})`}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Top Fields - 4 Column Grid */}
         <div style={{
           display: 'grid',
@@ -1031,6 +1231,8 @@ export default function InvoiceEditorPage() {
           showCustomColumn={showCustomColumn}
           extraColumnLabel={customColumnLabel}
           error={fieldErrorMessage(errors.items)}
+          productOptions={materialsQuery.data ?? []}
+          setValue={setValue}
         />
 
         {/* Materials Editor - Compact Excel Style */}
@@ -1136,6 +1338,18 @@ export default function InvoiceEditorPage() {
           onToggleRoundOff={() => setEnableRoundOff(!enableRoundOff)}
         />
       </form>
+
+      {/* Add Shipping Address Modal */}
+      {selectedClientId && (
+        <AddShippingAddressModal
+          isOpen={isShippingAddressModalOpen}
+          onClose={() => setIsShippingAddressModalOpen(false)}
+          clientId={selectedClientId}
+          onSuccess={() => {
+            shippingAddressesQuery.refetch();
+          }}
+        />
+      )}
     </div>
   );
 }

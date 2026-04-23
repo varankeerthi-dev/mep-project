@@ -45,6 +45,7 @@ export const InvoiceEditorSchema = z
     status: z.enum(invoiceStatuses),
     company_state: z.string().trim().min(1, 'Company state is required.'),
     client_state: z.string().trim().nullable().optional(),
+    shipping_address_id: z.string().uuid().nullable().optional(),
     items: z.array(InvoiceEditorItemSchema).min(1, 'At least one line item is required.'),
     materials: z.array(InvoiceEditorMaterialSchema).default([]),
   })
@@ -101,6 +102,18 @@ export type InvoiceSourceOption = {
   id: string;
   label: string;
   sublabel: string;
+};
+
+export type ClientShippingAddress = {
+  id: string;
+  address_line1: string;
+  address_line2: string | null;
+  city: string;
+  state: string;
+  pincode: string;
+  contact_person: string | null;
+  contact_phone: string | null;
+  is_default: boolean;
 };
 
 export function round2(value: number): number {

@@ -45,6 +45,11 @@ export const InvoiceItemMetaSchema = z
     tax_percent: PercentSchema.optional(),
     client_custom_label: z.string().min(1).optional(),
     client_custom_value: JsonValueSchema.optional(),
+    make: z.string().optional(),
+    variant: z.string().optional(),
+    uom: z.string().optional(),
+    base_rate: CurrencySchema.optional(),
+    discount_percent: PercentSchema.optional(),
   })
   .catchall(JsonValueSchema);
 
@@ -59,7 +64,6 @@ export const InvoiceItemSchema = z
     amount: CurrencySchema,
     meta_json: InvoiceItemMetaSchema.default({}),
   })
-  .strict()
   .superRefine((item, ctx) => {
     const computed = roundCurrency(item.qty * item.rate);
     if (Math.abs(item.amount - computed) > 0.05) {
@@ -77,16 +81,19 @@ export const InvoiceMaterialSchema = z
     invoice_id: z.string().uuid().optional(),
     product_id: z.string().uuid('Valid product id is required.'),
     qty_used: PositiveQuantitySchema,
-  })
-  .strict();
+  });
 
 export const InvoiceSchema = z
   .object({
     id: z.string().uuid().optional(),
     client_id: z.string().uuid('Valid client id is required.'),
     template_id: z.string().uuid('Valid template id is required.').optional().nullable(),
+    invoice_no: z.string().optional().nullable(),
+    invoice_date: z.string().optional().nullable(),
+    po_number: z.string().optional().nullable(),
+    po_date: z.string().optional().nullable(),
     source_type: z.enum(invoiceSourceTypes),
-    source_id: z.string().uuid('Valid source id is required.'),
+    source_id: z.string().uuid('Valid source id is required.').optional().nullable(),
     template_type: z.enum(invoiceTemplateTypes),
     mode: z.enum(invoiceModes),
     subtotal: CurrencySchema,
@@ -98,10 +105,10 @@ export const InvoiceSchema = z
     created_at: z.string().datetime({ offset: true }).optional(),
     company_state: z.string().trim().min(1).optional().nullable(),
     client_state: z.string().trim().min(1).optional().nullable(),
+    shipping_address_id: z.string().uuid().optional().nullable(),
     items: z.array(InvoiceItemSchema).min(1, 'At least one invoice item is required.').default([]),
     materials: z.array(InvoiceMaterialSchema).default([]),
   })
-  .strict()
   .superRefine((invoice, ctx) => {
     const taxTotal = roundCurrency(invoice.cgst + invoice.sgst + invoice.igst);
     const expectedTotal = roundCurrency(invoice.subtotal + taxTotal);
