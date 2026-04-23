@@ -1,7 +1,10 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import type { KeyboardEvent } from 'react';
 import type { FieldArrayWithId, UseFieldArrayAppend, UseFieldArrayRemove, UseFormRegister, UseFormSetValue } from 'react-hook-form';
-import { Plus, X } from 'lucide-react';
+import { Plus, X, GripVertical } from 'lucide-react';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
+import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import type { InvoiceEditorFormValues, InvoiceMaterialOption } from '../ui-utils';
 import { createEmptyItem, createLotItem, formatCurrency, round2 } from '../ui-utils';
 import { useAuth } from '../../App';
@@ -12,6 +15,7 @@ type InvoiceItemsEditorProps = {
   register: UseFormRegister<InvoiceEditorFormValues>;
   append: UseFieldArrayAppend<InvoiceEditorFormValues, 'items'>;
   remove: UseFieldArrayRemove;
+  move: (from: number, to: number) => void;
   mode: InvoiceEditorFormValues['mode'];
   extraColumnLabel?: string;
   showCustomColumn?: boolean;
@@ -20,12 +24,29 @@ type InvoiceItemsEditorProps = {
   setValue?: UseFormSetValue<InvoiceEditorFormValues>;
 };
 
+function SortableRow({ children, id, index }: { children: React.ReactNode; id: string; index: number }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <tr ref={setNodeRef} style={{ ...style, borderBottom: '1px solid #f0f0f0' }}>
+      {children}
+    </tr>
+  );
+}
+
 export function InvoiceItemsEditor({
   fields,
   items,
   register,
   append,
   remove,
+  move,
   mode,
   extraColumnLabel = 'Custom',
   showCustomColumn = false,
@@ -42,6 +63,29 @@ export function InvoiceItemsEditor({
 
   // Get round off setting from organisation
   const roundOffEnabled = organisation?.round_off_enabled !== false;
+
+  // DnD sensors for smooth drag and drop
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      const oldIndex = fields.findIndex((field) => field.id === active.id);
+      const newIndex = fields.findIndex((field) => field.id === over.id);
+      if (oldIndex !== -1 && newIndex !== -1) {
+        move(oldIndex, newIndex);
+      }
+    }
+  };
 
   const handleMaterialChange = useCallback((index: number, materialId: string) => {
     const material = productOptions.find(m => m.id === materialId);
@@ -224,7 +268,17 @@ export function InvoiceItemsEditor({
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
           <thead>
-            <tr style={{ background: '#fafafa', borderBottom: '1px solid #e5e5e5' }}>
+            <tr style={{ background: '#fafafa', borderBottom: '2px solid #e5e5e5' }}>
+              <th style={{ 
+                padding: '6px 4px', 
+                textAlign: 'center', 
+                fontSize: '10px', 
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: '0.03em',
+                color: '#737373',
+                width: '32px'
+              }} />
               <th style={{ 
                 padding: '6px 4px', 
                 textAlign: 'center', 
@@ -400,22 +454,27 @@ export function InvoiceItemsEditor({
               <th style={{ padding: '6px 4px', width: '32px' }} />
             </tr>
           </thead>
-          <tbody>
-            {fields.map((field, index) => {
-              const item = items[index] ?? createEmptyItem();
-              const meta = item.meta_json as Record<string, unknown> | undefined;
-              const taxPercent = Number(meta?.tax_percent) || 18;
-              const discountPercent = Number(item.discount_percent) || 0;
-              const baseRate = Number(item.rate || 0);
-              const rateAfterDiscount = baseRate - (baseRate * discountPercent / 100);
-              const amount = round2((Number(item.qty) || 0) * rateAfterDiscount);
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={fields.map(f => f.id)} strategy={verticalListSortingStrategy}>
+              <tbody>
+                {fields.map((field, index) => {
+                  const item = items[index] ?? createEmptyItem();
+                  const meta = item.meta_json as Record<string, unknown> | undefined;
+                  const taxPercent = Number(meta?.tax_percent) || 18;
+                  const discountPercent = Number(item.discount_percent) || 0;
+                  const baseRate = Number(item.rate || 0);
+                  const rateAfterDiscount = baseRate - (baseRate * discountPercent / 100);
+                  const amount = round2((Number(item.qty) || 0) * rateAfterDiscount);
 
-              return (
-                <tr key={field.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                  <td style={{ padding: '4px', textAlign: 'center' }}>
-                    <span style={{ fontSize: '11px', color: '#737373' }}>{index + 1}</span>
-                  </td>
-                  {mode === 'itemized' && (
+                  return (
+                    <SortableRow key={field.id} id={field.id} index={index}>
+                      <td style={{ padding: '4px', textAlign: 'center', cursor: 'grab' }}>
+                        <GripVertical size={14} style={{ color: '#a3a3a3' }} />
+                      </td>
+                      <td style={{ padding: '4px', textAlign: 'center' }}>
+                        <span style={{ fontSize: '11px', color: '#737373' }}>{index + 1}</span>
+                      </td>
+                      {mode === 'itemized' && (
                     <td style={{ padding: '4px', position: 'relative' }}>
                       <input
                         ref={(el) => { inputRefs.current[index] = el; }}
@@ -719,36 +778,32 @@ export function InvoiceItemsEditor({
                         type="button"
                         onClick={() => remove(index)}
                         style={{
-                          display: 'flex',
+                          display: 'inline-flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          width: '24px',
-                          height: '24px',
+                          padding: '4px',
                           border: 'none',
-                          borderRadius: '2px',
                           background: 'transparent',
                           color: '#dc2626',
-                          cursor: 'pointer'
+                          cursor: 'pointer',
+                          borderRadius: '2px',
                         }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.background = '#fef2f2';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.background = 'transparent';
-                        }}
-                        title="Delete row"
+                        onMouseEnter={(e) => e.currentTarget.style.background = '#fef2f2'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                       >
                         <X size={14} />
                       </button>
                     ) : null}
                   </td>
-                </tr>
+                </SortableRow>
               );
             })}
-          </tbody>
+              </tbody>
+            </SortableContext>
+          </DndContext>
           <tfoot>
             <tr style={{ background: '#fafafa', borderTop: '1px solid #e5e5e5' }}>
-              <td colSpan={4} style={{ padding: '8px 4px', fontWeight: 600, fontSize: '11px', color: '#171717' }}>
+              <td colSpan={5} style={{ padding: '8px 4px', fontWeight: 600, fontSize: '11px', color: '#171717' }}>
                 TOTAL
               </td>
               <td style={{ padding: '8px 4px', textAlign: 'right', fontWeight: 600, fontSize: '11px', color: '#171717' }}>

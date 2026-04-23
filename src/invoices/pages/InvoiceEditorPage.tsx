@@ -1318,6 +1318,7 @@ export default function InvoiceEditorPage() {
           register={register}
           append={itemsFieldArray.append}
           remove={itemsFieldArray.remove}
+          move={itemsFieldArray.move}
           mode={selectedMode}
           showCustomColumn={showCustomColumn}
           extraColumnLabel={customColumnLabel}
