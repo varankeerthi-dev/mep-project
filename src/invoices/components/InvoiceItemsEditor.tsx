@@ -44,6 +44,11 @@ export function InvoiceItemsEditor({
       setValue(`items.${index}.description`, material.name, { shouldDirty: true });
       setValue(`items.${index}.hsn_code`, material.hsn_code || '', { shouldDirty: true });
       setValue(`items.${index}.meta_json.material_id`, materialId, { shouldDirty: true });
+      setValue(`items.${index}.meta_json.make`, material.make || '', { shouldDirty: true });
+      setValue(`items.${index}.meta_json.unit`, material.unit || '', { shouldDirty: true });
+      if (material.sale_price) {
+        setValue(`items.${index}.rate`, material.sale_price, { shouldDirty: true });
+      }
     }
     setOpenDropdowns({ ...openDropdowns, [index]: false });
     setSelectedIndices({ ...selectedIndices, [index]: 0 });

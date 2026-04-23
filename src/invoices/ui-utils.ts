@@ -95,7 +95,11 @@ export type InvoiceClientOption = {
 export type InvoiceMaterialOption = {
   id: string;
   name: string;
+  display_name: string | null;
   hsn_code: string | null;
+  make: string | null;
+  unit: string | null;
+  sale_price: number | null;
 };
 
 export type InvoiceSourceOption = {
