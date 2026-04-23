@@ -906,175 +906,138 @@ export default function InvoiceEditorPage() {
             </div>
           </div>
 
-          {/* Column 3: Invoice No */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{
-              fontSize: '11px',
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: '0.04em',
-              color: '#737373'
-            }}>
-              Invoice No
-            </label>
-            <input
-              {...register('invoice_no')}
-              placeholder="Auto-generated"
-              style={{
-                width: '100%',
-                padding: '6px 10px',
-                border: '1px solid #d4d4d4',
-                borderRadius: '4px',
-                fontSize: '13px',
-                color: '#171717',
-                background: '#fff'
-              }}
-            />
-            {errors.invoice_no && (
-              <span style={{ fontSize: '11px', color: '#dc2626', fontWeight: 500 }}>
-                {errors.invoice_no.message}
-              </span>
-            )}
-          </div>
-
-          {/* Column 4: Invoice Date */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{
-              fontSize: '11px',
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: '0.04em',
-              color: '#737373'
-            }}>
-              Invoice Date
-            </label>
-            <input
-              type="date"
-              {...register('invoice_date')}
-              style={{
-                width: '100%',
-                maxWidth: '140px',
-                padding: '6px 10px',
-                border: '1px solid #d4d4d4',
-                borderRadius: '4px',
-                fontSize: '13px',
-                color: '#171717',
-                background: '#fff'
-              }}
-            />
-          </div>
-
-          {/* Column 5: Source Type */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{
-              fontSize: '11px',
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: '0.04em',
-              color: '#737373'
-            }}>
-              Source
-            </label>
-            <select
-              {...register('source_type')}
-              style={{
-                width: '100%',
-                padding: '6px 10px',
-                border: '1px solid #d4d4d4',
-                borderRadius: '4px',
-                fontSize: '13px',
-                color: '#171717',
-                background: '#fff',
-                cursor: 'pointer'
-              }}
-            >
-              <option value="direct">Direct</option>
-              <option value="quotation">Quotation</option>
-              <option value="challan">Delivery Challan</option>
-              <option value="po">Client PO</option>
-            </select>
-          </div>
-
-          {/* Row 2 - Secondary Fields */}
-          {/* Column 3: PO Number */}
-          <div style={{ gridColumn: '3', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{
-              fontSize: '11px',
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: '0.04em',
-              color: '#737373'
-            }}>
-              PO Number
-            </label>
-            <input
-              {...register('po_number')}
-              placeholder="Enter PO number"
-              style={{
-                width: '100%',
-                padding: '6px 10px',
-                border: '1px solid #d4d4d4',
-                borderRadius: '4px',
-                fontSize: '13px',
-                color: '#171717',
-                background: '#fff'
-              }}
-            />
-          </div>
-
-          {/* Column 4: PO Date */}
-          <div style={{ gridColumn: '4', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{
-              fontSize: '11px',
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: '0.04em',
-              color: '#737373'
-            }}>
-              PO Date
-            </label>
-            <input
-              type="date"
-              {...register('po_date')}
-              style={{
-                width: '100%',
-                maxWidth: '140px',
-                padding: '6px 10px',
-                border: '1px solid #d4d4d4',
-                borderRadius: '4px',
-                fontSize: '13px',
-                color: '#171717',
-                background: '#fff'
-              }}
-            />
-          </div>
-
-          {/* Column 5: Source Document */}
-          <div style={{ gridColumn: '5', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{
-              fontSize: '11px',
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: '0.04em',
-              color: '#737373'
-            }}>
-              Source Document
-            </label>
-            {selectedSourceType === 'direct' ? (
-              <div style={{
-                width: '100%',
-                padding: '6px 10px',
-                border: '1px solid #e5e5e5',
-                borderRadius: '4px',
-                fontSize: '13px',
-                color: '#737373',
-                background: '#f5f5f5'
+          {/* Column 3: Invoice No + PO Number */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {/* Invoice No */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{
+                fontSize: '11px',
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: '0.04em',
+                color: '#737373'
               }}>
-                Direct Invoice (No source)
-              </div>
-            ) : (
+                Invoice No
+              </label>
+              <input
+                {...register('invoice_no')}
+                placeholder="Auto-generated"
+                style={{
+                  width: '100%',
+                  padding: '6px 10px',
+                  border: '1px solid #d4d4d4',
+                  borderRadius: '4px',
+                  fontSize: '13px',
+                  color: '#171717',
+                  background: '#fff'
+                }}
+              />
+              {errors.invoice_no && (
+                <span style={{ fontSize: '11px', color: '#dc2626', fontWeight: 500 }}>
+                  {errors.invoice_no.message}
+                </span>
+              )}
+            </div>
+
+            {/* PO Number */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{
+                fontSize: '11px',
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: '0.04em',
+                color: '#737373'
+              }}>
+                PO Number
+              </label>
+              <input
+                {...register('po_number')}
+                placeholder="Enter PO number"
+                style={{
+                  width: '100%',
+                  padding: '6px 10px',
+                  border: '1px solid #d4d4d4',
+                  borderRadius: '4px',
+                  fontSize: '13px',
+                  color: '#171717',
+                  background: '#fff'
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Column 4: Invoice Date + PO Date */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {/* Invoice Date */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{
+                fontSize: '11px',
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: '0.04em',
+                color: '#737373'
+              }}>
+                Invoice Date
+              </label>
+              <input
+                type="date"
+                {...register('invoice_date')}
+                style={{
+                  width: '100%',
+                  maxWidth: '140px',
+                  padding: '6px 10px',
+                  border: '1px solid #d4d4d4',
+                  borderRadius: '4px',
+                  fontSize: '13px',
+                  color: '#171717',
+                  background: '#fff'
+                }}
+              />
+            </div>
+
+            {/* PO Date */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{
+                fontSize: '11px',
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: '0.04em',
+                color: '#737373'
+              }}>
+                PO Date
+              </label>
+              <input
+                type="date"
+                {...register('po_date')}
+                style={{
+                  width: '100%',
+                  maxWidth: '140px',
+                  padding: '6px 10px',
+                  border: '1px solid #d4d4d4',
+                  borderRadius: '4px',
+                  fontSize: '13px',
+                  color: '#171717',
+                  background: '#fff'
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Column 5: Source Type + Source Document */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {/* Source Type */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{
+                fontSize: '11px',
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: '0.04em',
+                color: '#737373'
+              }}>
+                Source
+              </label>
               <select
-                {...register('source_id')}
+                {...register('source_type')}
                 style={{
                   width: '100%',
                   padding: '6px 10px',
@@ -1086,19 +1049,64 @@ export default function InvoiceEditorPage() {
                   cursor: 'pointer'
                 }}
               >
-                <option value="">Select {getSourceLabel(selectedSourceType).toLowerCase()}</option>
-                {(sourceOptionsQuery.data ?? []).map((option) => (
-                  <option key={option.id} value={option.id}>
-                    {option.label}
-                  </option>
-                ))}
+                <option value="direct">Direct</option>
+                <option value="quotation">Quotation</option>
+                <option value="challan">Delivery Challan</option>
+                <option value="po">Client PO</option>
               </select>
-            )}
-            {errors.source_id && (
-              <span style={{ fontSize: '11px', color: '#dc2626', fontWeight: 500 }}>
-                {errors.source_id.message}
-              </span>
-            )}
+            </div>
+
+            {/* Source Document */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{
+                fontSize: '11px',
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: '0.04em',
+                color: '#737373'
+              }}>
+                Source Document
+              </label>
+              {selectedSourceType === 'direct' ? (
+                <div style={{
+                  width: '100%',
+                  padding: '6px 10px',
+                  border: '1px solid #e5e5e5',
+                  borderRadius: '4px',
+                  fontSize: '13px',
+                  color: '#737373',
+                  background: '#f5f5f5'
+                }}>
+                  Direct Invoice (No source)
+                </div>
+              ) : (
+                <select
+                  {...register('source_id')}
+                  style={{
+                    width: '100%',
+                    padding: '6px 10px',
+                    border: '1px solid #d4d4d4',
+                    borderRadius: '4px',
+                    fontSize: '13px',
+                    color: '#171717',
+                    background: '#fff',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <option value="">Select {getSourceLabel(selectedSourceType).toLowerCase()}</option>
+                  {(sourceOptionsQuery.data ?? []).map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              )}
+              {errors.source_id && (
+                <span style={{ fontSize: '11px', color: '#dc2626', fontWeight: 500 }}>
+                  {errors.source_id.message}
+                </span>
+              )}
+            </div>
           </div>
         </div>
 
