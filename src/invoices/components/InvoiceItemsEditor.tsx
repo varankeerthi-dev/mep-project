@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import type { KeyboardEvent } from 'react';
 import type { FieldArrayWithId, UseFieldArrayAppend, UseFieldArrayRemove, UseFormRegister, UseFormSetValue } from 'react-hook-form';
-import { Minus, Plus } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
 import type { InvoiceEditorFormValues, InvoiceMaterialOption } from '../ui-utils';
 import { createEmptyItem, createLotItem, formatCurrency, round2 } from '../ui-utils';
 
@@ -102,9 +102,13 @@ export function InvoiceItemsEditor({
         setOpenDropdowns({ ...openDropdowns, [index]: false });
         break;
       case 'Delete':
-        if (mode !== 'lot' && fields.length > 1) {
-          e.preventDefault();
-          remove(index);
+        // Clear selected material (not delete row)
+        e.preventDefault();
+        if (setValue) {
+          setValue(`items.${index}.meta_json.material_id`, '', { shouldDirty: true });
+          setValue(`items.${index}.description`, '', { shouldDirty: true });
+          setValue(`items.${index}.hsn_code`, '', { shouldDirty: true });
+          setSearchTerms({ ...searchTerms, [index]: '' });
         }
         break;
     }
@@ -663,20 +667,18 @@ export function InvoiceItemsEditor({
                           border: 'none',
                           borderRadius: '2px',
                           background: 'transparent',
-                          color: '#a3a3a3',
+                          color: '#dc2626',
                           cursor: 'pointer'
                         }}
                         onMouseEnter={(e) => {
                           e.currentTarget.style.background = '#fef2f2';
-                          e.currentTarget.style.color = '#dc2626';
                         }}
                         onMouseLeave={(e) => {
                           e.currentTarget.style.background = 'transparent';
-                          e.currentTarget.style.color = '#a3a3a3';
                         }}
-                        title="Remove"
+                        title="Delete row"
                       >
-                        <Minus size={14} />
+                        <X size={14} />
                       </button>
                     ) : null}
                   </td>
