@@ -391,69 +391,16 @@ export default function DCList() {
     }
   };
 
-  const handleConvertToQuotation = async () => {
+  const handleConvertToQuotation = () => {
     if (!convertDC) return;
-    try {
-      const { data: existing } = await supabase
-        .from('quotation_header')
-        .select('quotation_no')
-        .order('created_at', { ascending: false })
-        .limit(1);
-      
-      let quotationNo = 'QT-0001';
-      if (existing && existing.length > 0) {
-        const lastNum = parseInt(existing[0].quotation_no.replace(/[^0-9]/g, ''));
-        quotationNo = `QT-${String(lastNum + 1).padStart(4, '0')}`;
-      }
+    navigate(`/quotation/create?convertFrom=dc-to-quotation&sourceId=${convertDC.id}`);
+    setShowConvertModal(false);
+    setConvertDC(null);
+  };
 
-      const dcWithItems = await loadDCWithItems(convertDC.id);
-      const quotationData = {
-        quotation_no: quotationNo,
-        client_id: dcWithItems.client_id,
-        project_id: dcWithItems.project_id,
-        billing_address: dcWithItems.site_address || dcWithItems.client_address,
-        gstin: dcWithItems.client_gstin,
-        state: dcWithItems.client_state,
-        date: new Date().toISOString().split('T')[0],
-        valid_till: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        payment_terms: 'Net 30 Days',
-        reference: `From DC: ${dcWithItems.dc_number}`,
-        remarks: dcWithItems.remarks,
-        status: 'Draft',
-        negotiation_mode: false
-      };
-
-      const { data: quotation, error } = await supabase
-        .from('quotation_header')
-        .insert(quotationData)
-        .select()
-        .single();
-
-      if (error) throw error;
-      if (dcWithItems.items && dcWithItems.items.length > 0) {
-        const itemsToInsert = dcWithItems.items.map((item: any) => ({
-          quotation_id: quotation.id,
-          item_id: item.material_id,
-          variant_id: item.variant_id,
-          description: item.material_name,
-          qty: item.quantity,
-          uom: item.unit,
-          rate: item.rate,
-          discount_percent: 0,
-          discount_amount: 0,
-          tax_percent: 0,
-          tax_amount: 0,
-          line_total: item.amount,
-          override_flag: false
-        }));
-        await supabase.from('quotation_items').insert(itemsToInsert);
-      }
-      alert('DC converted to Quotation successfully!');
-      navigate(`/quotation/edit?id=${quotation.id}`);
-    } catch (error: any) {
-      console.error('Error converting to quotation:', error);
-      alert('Error converting to quotation: ' + error.message);
-    }
+  const handleConvertToProforma = () => {
+    if (!convertDC) return;
+    navigate(`/proforma-invoices/create?convertFrom=dc-to-proforma&sourceId=${convertDC.id}`);
     setShowConvertModal(false);
     setConvertDC(null);
   };
@@ -716,8 +663,8 @@ export default function DCList() {
                 </div>
               </button>
               
-              <button 
-                onClick={() => { alert('Proforma feature coming soon!'); }}
+              <button
+                onClick={handleConvertToProforma}
                 className="w-full p-6 h-auto flex flex-col items-center justify-center gap-3 border-2 border-slate-100 hover:border-emerald-600 hover:bg-emerald-50/50 transition-all rounded-[24px]"
               >
                 <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition-transform">

@@ -31,6 +31,8 @@ import {
   getTemplateTypeFromTemplate,
   invoiceToFormValues,
 } from '../ui-utils';
+import { useConvertDocument, useConversionStatus, getSourceTableName } from '../../conversions/hooks';
+import type { ConversionType } from '../../conversions/types';
 
 function queryParam(search: string, key: string) {
   return new URLSearchParams(search).get(key);
@@ -216,6 +218,9 @@ export default function InvoiceEditorPage() {
   const navigate = useNavigate();
   const invoiceId = queryParam(location.search, 'id');
   const isEditMode = Boolean(invoiceId);
+  const convertFrom = queryParam(location.search, 'convertFrom') as ConversionType | null;
+  const sourceId = queryParam(location.search, 'sourceId');
+  const isConverting = Boolean(convertFrom && sourceId && !isEditMode);
   const [pdfAction, setPdfAction] = useState<'preview' | 'download' | 'print' | 'email' | null>(null);
   const [isShippingAddressModalOpen, setIsShippingAddressModalOpen] = useState(false);
 
@@ -305,6 +310,10 @@ export default function InvoiceEditorPage() {
   const initialSourceKeyRef = useRef<string>('');
   const hydratedSourceKeyRef = useRef<string>('');
   const loadedInvoiceIdRef = useRef<string>('');
+  const conversionInfoRef = useRef<{ type: ConversionType; sourceId: string } | null>(null);
+
+  // Conversion query
+  const conversionQuery = useConvertDocument(convertFrom!, sourceId!);
 
   const clients = clientsQuery.data ?? [];
   const selectedClient = useMemo(
@@ -350,6 +359,71 @@ export default function InvoiceEditorPage() {
     initialSourceKeyRef.current = `${invoiceQuery.data.source_type}:${invoiceQuery.data.source_id}`;
     hydratedSourceKeyRef.current = `${invoiceQuery.data.source_type}:${invoiceQuery.data.source_id}:${invoiceQuery.data.mode}`;
   }, [invoiceQuery.data, reset]);
+
+  // Load conversion data when converting from another document
+  useEffect(() => {
+    if (!isConverting || !conversionQuery.data) return;
+
+    // Store conversion info for status update on save
+    conversionInfoRef.current = {
+      type: convertFrom!,
+      sourceId: sourceId!,
+    };
+
+    const convertedData = conversionQuery.data.data as any;
+
+    // Pre-fill form with converted data
+    setValue('client_id', convertedData.client_id, {
+      shouldDirty: true,
+      shouldValidate: false,
+    });
+    setValue('source_type', convertedData.source_type, {
+      shouldDirty: true,
+      shouldValidate: false,
+    });
+    setValue('source_id', convertedData.source_id, {
+      shouldDirty: true,
+      shouldValidate: false,
+    });
+    setValue('template_type', convertedData.template_type, {
+      shouldDirty: true,
+      shouldValidate: false,
+    });
+    setValue('mode', convertedData.mode, {
+      shouldDirty: true,
+      shouldValidate: false,
+    });
+    setValue('invoice_date', convertedData.invoice_date, {
+      shouldDirty: true,
+      shouldValidate: false,
+    });
+    setValue('po_number', convertedData.po_number || null, {
+      shouldDirty: true,
+      shouldValidate: false,
+    });
+    setValue('po_date', convertedData.po_date || null, {
+      shouldDirty: true,
+      shouldValidate: false,
+    });
+    setValue('company_state', convertedData.company_state || organisation?.state || null, {
+      shouldDirty: false,
+      shouldValidate: false,
+    });
+    setValue('client_state', convertedData.client_state || null, {
+      shouldDirty: false,
+      shouldValidate: false,
+    });
+
+    // Pre-fill items
+    if (convertedData.items && convertedData.items.length > 0) {
+      itemsFieldArray.replace(convertedData.items.map((item: any) => createEmptyItem(item)));
+    }
+
+    // Pre-fill materials if present
+    if (convertedData.materials && convertedData.materials.length > 0) {
+      materialsFieldArray.replace(convertedData.materials.map((material: any) => createEmptyMaterial(material)));
+    }
+  }, [isConverting, conversionQuery.data, convertFrom, sourceId, setValue, itemsFieldArray, materialsFieldArray, organisation?.state]);
 
   useEffect(() => {
     if (!selectedClient) return;
@@ -476,14 +550,33 @@ export default function InvoiceEditorPage() {
     }
 
     try {
+      let newInvoiceId: string | null = null;
       if (isEditMode && invoiceId) {
         await updateInvoice.mutateAsync(payload);
       } else {
         const result = await createInvoice.mutateAsync(payload);
+        newInvoiceId = result.id;
         if (seriesId && organisation?.id) {
           incrementInvoiceNumber(seriesId, organisation.id).then();
         }
       }
+
+      // Update source document status if this was a conversion
+      if (conversionInfoRef.current && newInvoiceId) {
+        const { type, sourceId } = conversionInfoRef.current;
+        const { status } = useConversionStatus(type);
+        const tableName = getSourceTableName(type);
+
+        await supabase
+          .from(tableName)
+          .update({
+            status,
+            converted_to_id: newInvoiceId,
+            converted_to_type: 'invoice',
+          })
+          .eq('id', sourceId);
+      }
+
       navigate('/invoices');
     } catch (error) {
       console.error('Failed to save invoice:', error);

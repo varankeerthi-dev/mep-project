@@ -23,7 +23,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../App';
 import { withSessionCheck } from '../../queryClient';
-import { getProformaInvoices, convertToInvoice, type ProformaWithRelations } from '../api';
+import { getProformaInvoices, type ProformaWithRelations } from '../api';
 import { formatCurrency, formatDate } from '../../invoices/ui-utils';
 import type { ProformaStatus } from '../types';
 import { downloadProformaPdf, emailProformaInvoice } from '../pdf';
@@ -630,7 +630,7 @@ export default function ProformaListPage() {
   }, [proformas]);
 
   const handleConvert = (proformaId: string) => {
-    convertMutate({ proformaId });
+    navigate(`/invoices/create?convertFrom=proforma-to-invoice&sourceId=${proformaId}`);
   };
 
   const renderActions = (proforma: ProformaWithRelations) => (

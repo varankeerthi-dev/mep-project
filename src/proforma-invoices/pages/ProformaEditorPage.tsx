@@ -1,16 +1,18 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useAuth } from '../../App';
 import { withSessionCheck } from '../../queryClient';
 import { supabase } from '../../supabase';
-import { getProformaById, createProforma, updateProforma, sendProforma, markAccepted, markRejected, convertToInvoice } from '../api';
+import { getProformaById, createProforma, updateProforma, sendProforma, markAccepted, markRejected } from '../api';
 import { calculateTotals, isInterstate } from '../logic';
 import { formatCurrency } from '../../invoices/ui-utils';
 import type { ProformaInput } from '../schemas';
 import type { ProformaStatus } from '../types';
 import { useClients } from '../../hooks/useClients';
 import { useClientPOs } from '../hooks';
+import { useConvertDocument, useConversionStatus, getSourceTableName } from '../../conversions/hooks';
+import type { ConversionType } from '../../conversions/types';
 import { ArrowLeft, Save, Send, CheckCircle, FileCheck, Loader2, Plus, Trash2 } from 'lucide-react';
 
 const styles = `
@@ -282,7 +284,11 @@ export default function ProformaEditorPage() {
   const [searchParams] = useSearchParams();
   const { organisation } = useAuth();
   const id = searchParams.get('id');
+  const convertFrom = searchParams.get('convertFrom') as ConversionType | null;
+  const sourceId = searchParams.get('sourceId');
   const isNew = !id;
+  const isConverting = Boolean(convertFrom && sourceId && !id);
+  const conversionInfoRef = useRef<{ type: ConversionType; sourceId: string } | null>(null);
 
   const [clientId, setClientId] = useState('');
   const [items, setItems] = useState<LineItem[]>([{ description: '', hsn_code: null, qty: 1, rate: 0, amount: 0, discount_percent: 0, discount_amount: 0, tax_percent: 18 }]);
@@ -305,19 +311,20 @@ export default function ProformaEditorPage() {
   const { data: clients = [] } = useClients();
   const { data: clientPOs = [] } = useClientPOs(clientId);
   const { data: templates = [] } = useQuery({
-    queryKey: ['document-templates', organisation?.id],
+    queryKey: ['document-templates'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('document_templates')
-        .select('id, name, type')
-        .eq('organisation_id', organisation?.id)
-        .in('type', ['proforma', 'invoice'])
-        .order('name', { ascending: true });
+        .select('id, template_name, document_type')
+        .order('template_name', { ascending: true });
       if (error) throw error;
-      return data || [];
+      // Filter for proforma and invoice on client side
+      return (data || []).filter(t => t.document_type === 'proforma' || t.document_type === 'invoice');
     },
-    enabled: !!organisation?.id,
   });
+
+  // Conversion query
+  const conversionQuery = useConvertDocument(convertFrom!, sourceId!);
 
   // Auto-select client's default template when client changes
   useEffect(() => {
@@ -442,10 +449,45 @@ export default function ProformaEditorPage() {
       setPaymentTerms(proforma.payment_terms ?? '');
       setDiscountPercent(proforma.discount_percent || 0);
       setDiscountAmount(proforma.discount_amount || 0);
-      setPoNumber(proforma.po_number ?? '');
-      setPoDate(proforma.po_date ?? '');
     }
   }, [proforma]);
+
+  // Load conversion data when converting from another document
+  useEffect(() => {
+    if (!isConverting || !conversionQuery.data) return;
+
+    // Store conversion info for status update on save
+    conversionInfoRef.current = {
+      type: convertFrom!,
+      sourceId: sourceId!,
+    };
+
+    const convertedData = conversionQuery.data.data as any;
+
+    // Pre-fill form with converted data
+    setClientId(convertedData.client_id);
+    setCompanyState(convertedData.company_state || organisation?.state || '');
+    setClientState(convertedData.client_state || '');
+    setNotes(convertedData.notes || '');
+    setTerms(convertedData.terms || '');
+    setPaymentTerms(convertedData.payment_terms || '');
+    setPoNumber(convertedData.po_number || '');
+    setPoDate(convertedData.po_date || '');
+
+    // Pre-fill items
+    if (convertedData.items && convertedData.items.length > 0) {
+      setItems(convertedData.items.map((item: any) => ({
+        description: item.description,
+        hsn_code: item.hsn_code,
+        qty: item.qty,
+        rate: item.rate,
+        amount: item.amount,
+        discount_percent: item.discount_percent || 0,
+        discount_amount: item.discount_amount || 0,
+        tax_percent: item.tax_percent || 18,
+      })));
+    }
+  }, [isConverting, conversionQuery.data, convertFrom, sourceId, organisation?.state]);
 
   const calculateTotals = () => {
     const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
@@ -572,12 +614,28 @@ export default function ProformaEditorPage() {
       } else if (id) {
         savedProforma = await updateProforma(id, input);
       }
-      
+
+      // Update source document status if this was a conversion
+      if (conversionInfoRef.current && savedProforma) {
+        const { type, sourceId } = conversionInfoRef.current;
+        const { status } = useConversionStatus(type);
+        const tableName = getSourceTableName(type);
+
+        await supabase
+          .from(tableName)
+          .update({
+            status,
+            converted_to_id: savedProforma.id,
+            converted_to_type: 'proforma',
+          })
+          .eq('id', sourceId);
+      }
+
       if (shouldPrint && savedProforma) {
         const { downloadProformaPdf } = await import('../pdf');
         await downloadProformaPdf(savedProforma.id, organisation.id);
       }
-      
+
       navigate('/proforma-invoices');
     } catch (error) {
       console.error('Failed to save:', error);
@@ -606,16 +664,10 @@ export default function ProformaEditorPage() {
     },
   });
 
-  const { mutate: convertMutate } = useMutation({
-    mutationFn: async () => {
-      if (!id || !organisation?.id) throw new Error('Missing params');
-      const invoice = await convertToInvoice(id, organisation.id);
-      return invoice;
-    },
-    onSuccess: (invoice) => {
-      navigate(`/invoices/edit?id=${invoice.id}`);
-    },
-  });
+  const handleConvertToInvoice = () => {
+    if (!id) return;
+    navigate(`/invoices/create?convertFrom=proforma-to-invoice&sourceId=${id}`);
+  };
 
   if (isLoading) {
     return (
@@ -1029,7 +1081,7 @@ export default function ProformaEditorPage() {
           )}
           
           {!isNew && status === 'accepted' && !proforma?.converted_invoice_id && (
-            <button type="button" onClick={() => convertMutate()} className="pe-btn pe-btn-secondary">
+            <button type="button" onClick={handleConvertToInvoice} className="pe-btn pe-btn-secondary">
               <FileCheck size={16} />
               Convert to Invoice
             </button>

@@ -14,6 +14,8 @@ import { useVariants } from '../hooks/useVariants';
 import { generateQuickQuoteItems } from '../quotation/quick-quote/engine';
 import { loadQuickQuoteConfig, normalizeQuickQuoteConfig } from '../quotation/quick-quote/api';
 import type { QuickQuoteConfig } from '../quotation/quick-quote/types';
+import { useConvertDocument, useConversionStatus, getSourceTableName } from '../conversions/hooks';
+import type { ConversionType } from '../conversions/types';
 import ItemCreateDrawer from '../components/ItemCreateDrawer';
 
 const INDIAN_STATES = [
@@ -57,6 +59,10 @@ export default function CreateQuotation() {
   const [searchParams] = useSearchParams();
   const editId = searchParams.get('id');
   const duplicateId = searchParams.get('duplicateId');
+  const convertFrom = searchParams.get('convertFrom') as ConversionType | null;
+  const sourceId = searchParams.get('sourceId');
+  const isConverting = Boolean(convertFrom && sourceId && !editId && !duplicateId);
+  const conversionInfoRef = useRef<{ type: ConversionType; sourceId: string } | null>(null);
   const { organisation } = useAuth();
   
   const [saving, setSaving] = useState(false);
@@ -171,6 +177,9 @@ export default function CreateQuotation() {
   const initLoading = initQuery.isPending && !initQuery.data;
   const initErrorMessage = initQuery.error instanceof Error ? initQuery.error.message : 'Unable to load quotation setup data.';
 
+  // Conversion query
+  const conversionQuery = useConvertDocument(convertFrom!, sourceId!);
+
   useEffect(() => {
     if (!initQuery.data) return;
 
@@ -273,6 +282,46 @@ export default function CreateQuotation() {
       loadQuoteNoPreview();
     }
   }, [initQuery.data, editId, duplicateId]);
+
+  // Load conversion data when converting from DC
+  useEffect(() => {
+    if (!isConverting || !conversionQuery.data) return;
+
+    // Store conversion info for status update on save
+    conversionInfoRef.current = {
+      type: convertFrom!,
+      sourceId: sourceId!,
+    };
+
+    const convertedData = conversionQuery.data.data as any;
+
+    // Pre-fill form with converted data
+    setFormData(prev => ({
+      ...prev,
+      client_id: convertedData.client_id || '',
+      project_id: convertedData.project_id || '',
+      state: convertedData.state || '',
+      date: convertedData.date || new Date().toISOString().split('T')[0],
+      reference: convertedData.reference || '',
+      remarks: convertedData.remarks || '',
+    }));
+
+    // Pre-fill items
+    if (convertedData.items && convertedData.items.length > 0) {
+      const newItems = convertedData.items.map((item: any, index: number) => ({
+        id: `temp-${Date.now()}-${index}`,
+        item_id: item.item_id || null,
+        description: item.description,
+        qty: item.qty,
+        rate: item.rate,
+        tax_percent: item.tax_percent || 18,
+        uom: item.uom || 'nos',
+        discount_percent: 0,
+        line_total: item.qty * item.rate,
+      }));
+      setItems(newItems);
+    }
+  }, [isConverting, conversionQuery.data, convertFrom, sourceId]);
 
 const handleDragStart = useCallback((e, itemId) => {
   setDraggingItemId(itemId);
@@ -1634,11 +1683,27 @@ const loadQuoteNoPreview = useCallback(async () => {
       }
       await Promise.all(insertPromises);
 
+      // Update source document status if this was a conversion
+      if (conversionInfoRef.current && quotationId && !editId) {
+        const { type, sourceId } = conversionInfoRef.current;
+        const { status } = useConversionStatus(type);
+        const tableName = getSourceTableName(type);
+
+        await supabase
+          .from(tableName)
+          .update({
+            status,
+            converted_to_id: quotationId,
+            converted_to_type: 'quotation',
+          })
+          .eq('id', sourceId);
+      }
+
       queryClient.invalidateQueries({ queryKey: ['quotations'] });
       queryClient.invalidateQueries({ queryKey: ['quotations', organisation?.id] });
 
       // alert removed
-      
+
       if (saveAndNew) {
         alert('Quotation saved as draft successfully!');
         setSaving(false);

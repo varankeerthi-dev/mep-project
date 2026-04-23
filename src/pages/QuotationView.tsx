@@ -162,27 +162,18 @@ export default function QuotationView() {
     }
   };
 
-  const handleConvert = async (type) => {
-    try {
-      await supabase
-        .from('quotation_header')
-        .update({ status: 'Converted' })
-        .eq('id', quotationId);
-
-      if (type === 'sales-order') {
-        alert('Quotation marked as Converted. Create Sales Order from the converted quotation.');
-      } else if (type === 'proforma-invoice') {
-        alert('Quotation marked as Converted. Proforma Invoice feature coming soon.');
-      } else if (type === 'delivery-challan') {
-        alert('Quotation marked as Converted. Delivery Challan feature coming soon.');
-      }
-      
-      setShowConvertMenu(false);
-      quotationQuery.refetch();
-    } catch (err) {
-      console.error('Error converting quotation:', err);
-      alert('Error: ' + err.message);
+  const handleConvert = (type) => {
+    if (type === 'proforma-invoice') {
+      navigate(`/proforma-invoices/create?convertFrom=quotation-to-proforma&sourceId=${quotationId}`);
+    } else if (type === 'invoice') {
+      navigate(`/invoices/create?convertFrom=quotation-to-invoice&sourceId=${quotationId}`);
+    } else if (type === 'delivery-challan') {
+      alert('Delivery Challan conversion not implemented yet.');
+    } else if (type === 'sales-order') {
+      alert('Sales Order conversion not implemented yet.');
     }
+
+    setShowConvertMenu(false);
   };
 
   const handleCancel = async () => {
