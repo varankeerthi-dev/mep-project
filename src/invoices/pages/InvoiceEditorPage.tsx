@@ -199,11 +199,6 @@ export default function InvoiceEditorPage() {
   const clientState = useWatch({ control, name: 'client_state' }) ?? null;
   const selectedShippingAddressId = useWatch({ control, name: 'shipping_address_id' }) ?? null;
 
-  const selectedShippingAddress = useMemo(() => {
-    if (!selectedShippingAddressId || !shippingAddressesQuery.data) return null;
-    return shippingAddressesQuery.data.find(addr => addr.id === selectedShippingAddressId) || null;
-  }, [selectedShippingAddressId, shippingAddressesQuery.data]);
-
   const invoiceQuery = useInvoice(invoiceId ?? undefined);
   const createInvoice = useCreateInvoice();
   const updateInvoice = useUpdateInvoice(invoiceId ?? '');
@@ -234,6 +229,12 @@ export default function InvoiceEditorPage() {
     enabled: Boolean(selectedClientId && organisation?.id),
     staleTime: 5 * 60 * 1000,
   });
+
+  const selectedShippingAddress = useMemo(() => {
+    if (!selectedShippingAddressId || !shippingAddressesQuery.data) return null;
+    return shippingAddressesQuery.data.find(addr => addr.id === selectedShippingAddressId) || null;
+  }, [selectedShippingAddressId, shippingAddressesQuery.data]);
+
   const sourceOptionsQuery = useQuery({
     queryKey: ['invoice-ui', 'sources', selectedSourceType, organisation?.id],
     queryFn: () => loadSourceOptions(selectedSourceType, organisation?.id!),
