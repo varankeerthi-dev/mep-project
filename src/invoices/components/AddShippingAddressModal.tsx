@@ -28,13 +28,13 @@ export function AddShippingAddressModal({ isOpen, onClose, clientId, onSuccess }
   const createShippingAddress = useMutation({
     mutationFn: async (data: typeof formData) => {
       if (!organisation?.id) throw new Error('Organisation not found');
-      
+
       const { error } = await supabase.from('client_shipping_addresses').insert({
         client_id: clientId,
         organisation_id: organisation.id,
         ...data,
       });
-      
+
       if (error) throw error;
     },
     onSuccess: () => {
@@ -51,6 +51,10 @@ export function AddShippingAddressModal({ isOpen, onClose, clientId, onSuccess }
         contact_phone: '',
         is_default: false,
       });
+    },
+    onError: (error) => {
+      console.error('Failed to add shipping address:', error);
+      alert('Failed to add shipping address: ' + (error as Error).message);
     },
   });
 
