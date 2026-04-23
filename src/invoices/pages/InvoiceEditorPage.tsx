@@ -73,17 +73,17 @@ async function loadMaterialOptions(organisationId: string): Promise<InvoiceMater
     console.warn('Failed to fetch variant pricing:', pricingError);
   }
 
-  // Build pricing map: material_id -> { make -> { sale_price, variant_name } }
-  const pricingMap: Record<string, Record<string, { sale_price: number; variant_name: string | null }>> = {};
+  // Build pricing map: material_id -> array of { make, sale_price, variant_name }
+  const pricingMap: Record<string, { make: string; sale_price: number; variant_name: string | null }[]> = {};
   (variantPricingData ?? []).forEach((row: any) => {
     if (!pricingMap[row.item_id]) {
-      pricingMap[row.item_id] = {};
+      pricingMap[row.item_id] = [];
     }
-    const make = row.make || '';
-    pricingMap[row.item_id][make] = {
+    pricingMap[row.item_id].push({
+      make: row.make || '',
       sale_price: row.sale_price,
       variant_name: row.company_variants?.variant_name || null,
-    };
+    });
   });
 
   console.log('Materials data:', materialsData);
@@ -91,22 +91,32 @@ async function loadMaterialOptions(organisationId: string): Promise<InvoiceMater
 
   return (materialsData ?? [])
     .map((material: any) => {
-      const materialPricing = pricingMap[material.id] || {};
-      // Get the first available make and its price/variant, or use material's own data
-      const firstMake = Object.keys(materialPricing)[0] || material.make || material.material || '';
-      const pricingData = materialPricing[firstMake] || { sale_price: material.sale_price || 0, variant_name: null };
-      const firstPrice = pricingData.sale_price;
-      const firstVariant = pricingData.variant_name;
+      const materialVariants = pricingMap[material.id] || [];
+      // If no variants, use material's own data
+      if (materialVariants.length === 0) {
+        return {
+          id: String(material.id),
+          name: String(material.display_name ?? material.name ?? 'Unnamed material'),
+          display_name: material.display_name,
+          hsn_code: material.hsn_code ?? null,
+          make: material.make || material.material || null,
+          unit: material.unit || 'nos',
+          sale_price: material.sale_price || null,
+          variants: [],
+        };
+      }
 
+      // Use first variant as default
+      const firstVariant = materialVariants[0];
       return {
         id: String(material.id),
         name: String(material.display_name ?? material.name ?? 'Unnamed material'),
         display_name: material.display_name,
         hsn_code: material.hsn_code ?? null,
-        make: firstMake || null,
+        make: firstVariant.make || null,
         unit: material.unit || 'nos',
-        sale_price: firstPrice || null,
-        variant: firstVariant || null,
+        sale_price: firstVariant.sale_price || null,
+        variants: materialVariants,
       };
     })
     .sort((left, right) => left.name.localeCompare(right.name));

@@ -45,7 +45,9 @@ export function InvoiceItemsEditor({
       setValue(`items.${index}.hsn_code`, material.hsn_code || '', { shouldDirty: true });
       setValue(`items.${index}.meta_json.material_id`, materialId, { shouldDirty: true });
       setValue(`items.${index}.meta_json.make`, material.make || '', { shouldDirty: true });
-      setValue(`items.${index}.meta_json.variant`, material.variant || '', { shouldDirty: true });
+      // Set variant to first variant if available, or empty string
+      const firstVariant = material.variants && material.variants.length > 0 ? material.variants[0].variant_name || '' : '';
+      setValue(`items.${index}.meta_json.variant`, firstVariant, { shouldDirty: true });
       setValue(`items.${index}.meta_json.unit`, material.unit || '', { shouldDirty: true });
       if (material.sale_price) {
         // Set base_rate to the material's sale price
@@ -616,7 +618,7 @@ export function InvoiceItemsEditor({
                           const baseRate = Number(items[index]?.meta_json?.base_rate || items[index]?.rate || 0);
                           const discountPercent = Number(items[index]?.discount_percent || 0);
                           const rateAfterDiscount = baseRate - (baseRate * discountPercent / 100);
-                          const roundedRate = Math.round(rateAfterDiscount * 10) / 10; // Round to nearest 0.1
+                          const roundedRate = Math.round(rateAfterDiscount); // Round to nearest integer
                           if (setValue) {
                             setValue(`items.${index}.rate`, roundedRate, { shouldDirty: true });
                             setValue(`items.${index}.meta_json.rate_after_discount`, roundedRate, { shouldDirty: true });
@@ -640,9 +642,9 @@ export function InvoiceItemsEditor({
                   <td style={{ padding: '4px' }}>
                     <input
                       type="number"
-                      step="0.1"
+                      step="1"
                       {...register(`items.${index}.rate`, { valueAsNumber: true })}
-                      placeholder="0.0"
+                      placeholder="0"
                       style={{
                         width: '100%',
                         padding: '4px 6px',

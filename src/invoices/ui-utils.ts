@@ -93,6 +93,12 @@ export type InvoiceClientOption = {
   default_template_id: string | null;
 };
 
+export type MaterialVariant = {
+  variant_name: string | null;
+  make: string;
+  sale_price: number;
+};
+
 export type InvoiceMaterialOption = {
   id: string;
   name: string;
@@ -101,7 +107,7 @@ export type InvoiceMaterialOption = {
   make: string | null;
   unit: string | null;
   sale_price: number | null;
-  variant: string | null;
+  variants: MaterialVariant[];
 };
 
 export type InvoiceSourceOption = {
