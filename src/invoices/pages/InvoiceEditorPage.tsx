@@ -729,7 +729,7 @@ export default function InvoiceEditorPage() {
       </div>
 
       {/* Main Form */}
-      <form id="invoice-form" onSubmit={onSubmit}>
+      <form id="invoice-form" onSubmit={onSubmit} style={{ marginBottom: '16px' }}>
         {/* Header Row - Client Name & Invoice Details */}
         <div style={{
           display: 'grid',
@@ -1414,62 +1414,6 @@ export default function InvoiceEditorPage() {
           </div>
         </div>
 
-        {/* Action Buttons */}
-        <div style={{ 
-          display: 'flex', 
-          gap: '12px', 
-          justifyContent: 'flex-end', 
-          marginTop: '24px',
-          paddingTop: '16px',
-          borderTop: '1px solid #e5e5e5'
-        }}>
-          <button
-            type="submit"
-            disabled={isSaving}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '10px 20px',
-              border: 'none',
-              borderRadius: '4px',
-              background: '#171717',
-              color: '#fff',
-              fontSize: '13px',
-              fontWeight: 600,
-              cursor: isSaving ? 'not-allowed' : 'pointer',
-              opacity: isSaving ? 0.6 : 1,
-              transition: 'all 0.15s'
-            }}
-          >
-            {isSaving ? <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={14} /> : <Save size={14} />}
-            {isEditMode ? 'Save' : 'Create'}
-          </button>
-          <button
-            type="button"
-            onClick={handleSaveAsDraft}
-            disabled={isSaving}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '10px 20px',
-              border: '1px solid #d4d4d4',
-              borderRadius: '4px',
-              background: '#fff',
-              color: '#525252',
-              fontSize: '13px',
-              fontWeight: 600,
-              cursor: isSaving ? 'not-allowed' : 'pointer',
-              opacity: isSaving ? 0.6 : 1,
-              transition: 'all 0.15s'
-            }}
-          >
-            {isSaving ? <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={14} /> : <Save size={14} />}
-            Save as Draft
-          </button>
-        </div>
-
         {/* Invoice Summary Footer */}
         <InvoiceSummaryFooter
           subtotal={totals.subtotal}
@@ -1485,6 +1429,69 @@ export default function InvoiceEditorPage() {
           onToggleRoundOff={() => setEnableRoundOff(!enableRoundOff)}
         />
       </form>
+
+      {/* Sticky Action Buttons */}
+      <div style={{
+        position: 'sticky',
+        bottom: '0',
+        left: '0',
+        right: '0',
+        background: '#fff',
+        borderTop: '1px solid #e5e5e5',
+        padding: '16px',
+        marginTop: '16px',
+        display: 'flex',
+        gap: '12px',
+        justifyContent: 'flex-end',
+        zIndex: 100
+      }}>
+        <button
+          type="button"
+          onClick={handleSaveAsDraft}
+          disabled={isSaving}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '10px 20px',
+            border: '1px solid #d4d4d4',
+            borderRadius: '4px',
+            background: '#fff',
+            color: '#525252',
+            fontSize: '13px',
+            fontWeight: 600,
+            cursor: isSaving ? 'not-allowed' : 'pointer',
+            opacity: isSaving ? 0.6 : 1,
+            transition: 'all 0.15s'
+          }}
+        >
+          {isSaving ? <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={14} /> : <Save size={14} />}
+          Save as Draft
+        </button>
+        <button
+          type="button"
+          onClick={onSubmit}
+          disabled={isSaving}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '10px 20px',
+            border: 'none',
+            borderRadius: '4px',
+            background: '#171717',
+            color: '#fff',
+            fontSize: '13px',
+            fontWeight: 600,
+            cursor: isSaving ? 'not-allowed' : 'pointer',
+            opacity: isSaving ? 0.6 : 1,
+            transition: 'all 0.15s'
+          }}
+        >
+          {isSaving ? <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={14} /> : <Save size={14} />}
+          {isEditMode ? 'Save' : 'Create'}
+        </button>
+      </div>
 
       {/* Add Shipping Address Modal */}
       {selectedClientId && (
