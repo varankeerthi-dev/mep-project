@@ -157,7 +157,6 @@ export default function InvoiceEditorPage() {
   const selectedSourceType = useWatch({ control, name: 'source_type' });
   const selectedSourceId = useWatch({ control, name: 'source_id' });
   const selectedMode = useWatch({ control, name: 'mode' });
-  const selectedPoNumber = useWatch({ control, name: 'po_number' });
   const watchedItems = useWatch({ control, name: 'items' }) ?? [];
   const watchedMaterials = useWatch({ control, name: 'materials' }) ?? [];
   const companyState = useWatch({ control, name: 'company_state' }) ?? DEFAULT_COMPANY_STATE;
@@ -195,14 +194,6 @@ export default function InvoiceEditorPage() {
     enabled: Boolean(selectedSourceType && selectedSourceId && organisation?.id),
     staleTime: 0,
   });
-
-  const clientPOsQuery = useQuery({
-    queryKey: ['invoice-ui', 'client-pos', selectedClientId, organisation?.id],
-    queryFn: () => loadClientPOs(selectedClientId, organisation?.id!),
-    enabled: Boolean(selectedClientId && organisation?.id),
-    staleTime: 2 * 60 * 1000,
-  });
-  const clientPOs = clientPOsQuery.data ?? [];
 
   const initialSourceKeyRef = useRef<string>('');
   const hydratedSourceKeyRef = useRef<string>('');
@@ -347,17 +338,6 @@ export default function InvoiceEditorPage() {
     sourceDraftQuery.data,
   ]);
 
-  useEffect(() => {
-    if (selectedPoNumber && clientPOs.length > 0) {
-      const selectedPO = clientPOs.find(po => po.po_number === selectedPoNumber);
-      if (selectedPO?.po_date) {
-        setValue('po_date', selectedPO.po_date, {
-          shouldDirty: false,
-          shouldValidate: false,
-        });
-      }
-    }
-  }, [selectedPoNumber, clientPOs, setValue]);
 
   const customColumnLabel = getTemplateExtraColumnLabel(selectedTemplate, watchedItems);
   const showCustomColumn = getValues('template_type') === 'client_custom';
@@ -737,8 +717,9 @@ export default function InvoiceEditorPage() {
             }}>
               PO Number
             </label>
-            <select
+            <input
               {...register('po_number')}
+              placeholder="Enter PO number"
               style={{
                 width: '100%',
                 padding: '6px 10px',
@@ -746,17 +727,9 @@ export default function InvoiceEditorPage() {
                 borderRadius: '4px',
                 fontSize: '13px',
                 color: '#171717',
-                background: '#fff',
-                cursor: 'pointer'
+                background: '#fff'
               }}
-            >
-              <option value="">Select PO</option>
-              {clientPOs.map((po) => (
-                <option key={po.id} value={po.po_number}>
-                  {po.po_number}
-                </option>
-              ))}
-            </select>
+            />
           </div>
 
           {/* PO Date (display only, auto-filled from PO) */}
