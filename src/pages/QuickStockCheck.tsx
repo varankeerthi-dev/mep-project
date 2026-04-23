@@ -11,11 +11,12 @@ import { useMaterials } from '../hooks/useMaterials';
 import { useWarehouses } from '../hooks/useWarehouses';
 import { useVariants } from '../hooks/useVariants';
 import { getItemStockBreakdown, assignStockToIntent } from '../material-intents/api';
+import { useHasPermission } from '../rbac/hooks';
 
 const VARIANT_FILTERS = ['All', 'Green', 'Blue', 'Non-Variant'];
 
 export default function QuickStockCheck() {
-  const { organisation } = useAuth();
+  const { organisation, user } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const hashPath = window.location.hash.slice(1);
@@ -25,6 +26,9 @@ export default function QuickStockCheck() {
   const viewId = new URLSearchParams(query).get('id');
   const intentId = searchParams.get('intent_id');
   const isViewMode = currentPath.includes('/quick-stock-check/view') || hashPath.includes('/quick-stock-check/view');
+
+  // Permission check for assigning stock
+  const { data: canAssignStock } = useHasPermission('material_intents.assign' as any);
   
   const { data: materials = [] } = useMaterials();
   const { data: warehouses = [] } = useWarehouses();
@@ -260,7 +264,7 @@ export default function QuickStockCheck() {
         null, // warehouse_id - can be enhanced later
         qty,
         `Assigned via Quick Stock Check`,
-        'Stores Team'
+        user?.id || 'Unknown'
       );
 
       alert('Stock assigned successfully!');
@@ -717,7 +721,7 @@ export default function QuickStockCheck() {
                           <div style={{ color: '#06b6d4' }}>Transit: {formatCurrency(item.stock_breakdown.inTransit)}</div>
                         </td>
                         <td style={{ ...excelCellStyle, textAlign: 'center' }}>
-                          {!isReadOnly && item.stock_breakdown.available > 0 && (
+                          {!isReadOnly && canAssignStock && item.stock_breakdown.available > 0 && (
                             <button
                               onClick={() => handleAssignToIntent(item, index)}
                               style={{

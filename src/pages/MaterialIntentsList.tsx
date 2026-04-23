@@ -5,6 +5,7 @@ import { useAuth } from '../App';
 import { useNavigate } from 'react-router-dom';
 import { Search, MoreVertical, Eye, Edit, FileText, Package, ChevronDown, ChevronRight, PackageSearch, FileDown } from 'lucide-react';
 import { getAllIntents, MaterialIntent } from '../material-intents/api';
+import { useHasPermission } from '../rbac/hooks';
 
 const STATUS_COLORS = {
   'Pending': '#6b7280',
@@ -27,6 +28,10 @@ export default function MaterialIntentsList({ organisationId }: MaterialIntentsL
   const [statusFilter, setStatusFilter] = useState('all');
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [dropdownOpen, setDropdownOpen] = useState<string | null>(null);
+
+  // Permission checks
+  const { data: canAssignStock } = useHasPermission('material_intents.assign' as any);
+  const { data: canCreateDC } = useHasPermission('material_intents.create_dc' as any);
 
   const { data: intents = [], isLoading } = useQuery({
     queryKey: ['allMaterialIntents', organisationId],
@@ -223,35 +228,38 @@ export default function MaterialIntentsList({ organisationId }: MaterialIntentsL
                         }}
                         onClick={(e) => e.stopPropagation()}
                       >
-                        <button
-                          onClick={() => {
-                            navigate(`/quick-stock-check?intent_id=${intent.id}`);
-                            setDropdownOpen(null);
-                          }}
-                          style={{
-                            width: '100%',
-                            padding: '8px 12px',
-                            border: 'none',
-                            background: 'none',
-                            textAlign: 'left',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '8px',
-                            fontSize: '13px',
-                          }}
-                        >
-                          <PackageSearch size={14} color="#6b7280" />
-                          Check Stock
-                        </button>
-                        <button
-                          onClick={() => {
-                            navigate(`/dc/create?intent_id=${intent.id}`);
-                            setDropdownOpen(null);
-                          }}
-                          style={{
-                            width: '100%',
-                            padding: '8px 12px',
+                        {canAssignStock && (
+                          <button
+                            onClick={() => {
+                              navigate(`/quick-stock-check?intent_id=${intent.id}`);
+                              setDropdownOpen(null);
+                            }}
+                            style={{
+                              width: '100%',
+                              padding: '8px 12px',
+                              border: 'none',
+                              background: 'none',
+                              textAlign: 'left',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              fontSize: '13px',
+                            }}
+                          >
+                            <PackageSearch size={14} color="#6b7280" />
+                            Check Stock
+                          </button>
+                        )}
+                        {canCreateDC && (
+                          <button
+                            onClick={() => {
+                              navigate(`/dc/create?intent_id=${intent.id}`);
+                              setDropdownOpen(null);
+                            }}
+                            style={{
+                              width: '100%',
+                              padding: '8px 12px',
                             border: 'none',
                             background: 'none',
                             textAlign: 'left',
@@ -265,6 +273,7 @@ export default function MaterialIntentsList({ organisationId }: MaterialIntentsL
                           <FileText size={14} color="#6b7280" />
                           Create DC
                         </button>
+                        )}
                         <button
                           onClick={() => {
                             // TODO: Implement PDF download

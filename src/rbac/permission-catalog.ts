@@ -74,6 +74,18 @@ export const PERMISSION_MODULES: PermissionModule[] = [
     ],
   },
   {
+    id: 'material_intents',
+    label: 'Material Intents',
+    actions: [
+      { key: make('material_intents', 'read'), label: 'View' },
+      { key: make('material_intents', 'create'), label: 'Create' },
+      { key: make('material_intents', 'update'), label: 'Edit' },
+      { key: make('material_intents', 'delete'), label: 'Delete' },
+      { key: make('material_intents', 'assign'), label: 'Assign Stock' },
+      { key: make('material_intents', 'create_dc'), label: 'Create DC' },
+    ],
+  },
+  {
     id: 'org',
     label: 'Organisation',
     actions: [

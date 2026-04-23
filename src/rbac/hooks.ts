@@ -139,3 +139,23 @@ export function useReplaceRolePermissions(organisationId?: string | null) {
   });
 }
 
+export function useHasPermission(permissionKey: PermissionKey | PermissionKey[]) {
+  const { user, organisations, selectedOrganisation } = useAuth();
+  const qc = useQueryClient();
+
+  return useQuery({
+    queryKey: ['rbac', 'has-permission', user?.id, selectedOrganisation?.id, permissionKey],
+    queryFn: async () => {
+      if (!user?.id || !selectedOrganisation?.id) return false;
+      const { hasPermission } = await import('./api');
+      const keys = Array.isArray(permissionKey) ? permissionKey : [permissionKey];
+      const results = await Promise.all(
+        keys.map(key => hasPermission(user.id, selectedOrganisation.id, key))
+      );
+      return Array.isArray(permissionKey) ? results : results[0];
+    },
+    enabled: !!user?.id && !!selectedOrganisation?.id,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+

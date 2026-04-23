@@ -1,4 +1,7 @@
 import { supabase } from '../supabase';
+import type { Organisation } from '../supabase';
+import { hasPermission } from '../rbac/api';
+import type { PermissionKey } from '../rbac/schemas';
 
 export interface IntentAssignment {
   id: string;
@@ -51,6 +54,12 @@ export async function assignStockToIntent(
   notes: string | null,
   assignedBy: string
 ): Promise<IntentAssignment> {
+  // RBAC check: user must have material_intents.assign permission
+  const canAssign = await hasPermission(assignedBy, organisationId, 'material_intents.assign' as PermissionKey);
+  if (!canAssign) {
+    throw new Error('You do not have permission to assign stock to intents');
+  }
+
   const { data, error } = await supabase
     .from('intent_assignments')
     .insert({
@@ -234,8 +243,15 @@ export async function getItemStockBreakdown(
 export async function updateIntentOnDCCreated(
   intentId: string,
   dcId: string,
-  organisationId: string
+  organisationId: string,
+  userId: string
 ): Promise<void> {
+  // RBAC check: user must have material_intents.create_dc permission
+  const canCreateDC = await hasPermission(userId, organisationId, 'material_intents.create_dc' as PermissionKey);
+  if (!canCreateDC) {
+    throw new Error('You do not have permission to create DC for intents');
+  }
+
   const { data: intent, error: fetchError } = await supabase
     .from('material_intents')
     .select('reserved_qty, requested_qty')

@@ -10,6 +10,37 @@ import {
   type RoleInput,
 } from './schemas';
 
+export async function hasPermission(userId: string, organisationId: string, permissionKey: PermissionKey): Promise<boolean> {
+  // Check if user is admin (full access)
+  const { data: orgMember } = await supabase
+    .from('org_members')
+    .select('role')
+    .eq('user_id', userId)
+    .eq('organisation_id', organisationId)
+    .single();
+
+  if (orgMember?.role === 'admin') return true;
+
+  // Check role permissions
+  const { data: roleData } = await supabase
+    .from('org_members')
+    .select('role_id')
+    .eq('user_id', userId)
+    .eq('organisation_id', organisationId)
+    .single();
+
+  if (!roleData?.role_id) return false;
+
+  const { data: permission } = await supabase
+    .from('role_permissions')
+    .select('permission_key')
+    .eq('role_id', roleData.role_id)
+    .eq('permission_key', permissionKey)
+    .single();
+
+  return !!permission;
+}
+
 export type PublicOrganisation = {
   id: string;
   name: string;

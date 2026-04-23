@@ -738,9 +738,9 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
       await supabase.from('delivery_challan_items').insert(itemsToSave);
 
       // Update intent status if creating DC from intent
-      if (intentId && organisation?.id) {
+      if (intentId && organisation?.id && user?.id) {
         try {
-          await updateIntentOnDCCreated(intentId, dcId, organisation.id);
+          await updateIntentOnDCCreated(intentId, dcId, organisation.id, user.id);
         } catch (error) {
           console.error('Error updating intent status:', error);
           // Don't fail the DC creation if intent update fails
