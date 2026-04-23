@@ -10,6 +10,7 @@ import {
 } from '@react-pdf/renderer';
 import type { InvoicePdfData } from './pdf-types';
 import { getInvoiceDisplayNumber } from './ui-utils';
+import { numberToIndianWords } from './utils/numberToWords';
 
 const styles = StyleSheet.create({
   page: {
@@ -152,6 +153,24 @@ const styles = StyleSheet.create({
   },
   amountText: {
     textAlign: 'right',
+  },
+  amountInWords: {
+    marginTop: 12,
+    marginBottom: 12,
+    padding: 10,
+    backgroundColor: '#f8fafc',
+    border: '1 solid #cbd5e1',
+    borderRadius: 6,
+  },
+  amountInWordsLabel: {
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 8,
+    color: '#475569',
+    marginBottom: 4,
+  },
+  amountInWordsText: {
+    fontSize: 9,
+    color: '#334155',
   },
   summaryArea: {
     marginTop: 'auto',
@@ -411,6 +430,11 @@ export function InvoicePdfDocument({ data }: { data: InvoicePdfData }) {
 
           <InvoiceItemsTable data={data} />
           <InvoiceMaterialsTable data={data} />
+
+          <View style={styles.amountInWords} wrap={false}>
+            <Text style={styles.amountInWordsLabel}>Amount in Words:</Text>
+            <Text style={styles.amountInWordsText}>{numberToIndianWords(invoice.total)}</Text>
+          </View>
 
           <View style={styles.summaryArea} wrap={false}>
             <View style={styles.noteBlock}>
