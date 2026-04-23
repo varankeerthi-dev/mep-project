@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import type { KeyboardEvent } from 'react';
 import type { FieldArrayWithId, UseFieldArrayAppend, UseFieldArrayRemove, UseFormRegister, UseFormSetValue } from 'react-hook-form';
 import { Minus, Plus } from 'lucide-react';
@@ -34,6 +34,9 @@ export function InvoiceItemsEditor({
 }: InvoiceItemsEditorProps) {
   const [searchTerms, setSearchTerms] = useState<Record<number, string>>({});
   const [openDropdowns, setOpenDropdowns] = useState<Record<number, boolean>>({});
+  const [selectedIndices, setSelectedIndices] = useState<Record<number, number>>({});
+  const dropdownRefs = useRef<Record<number, HTMLDivElement | null>>({});
+  const inputRefs = useRef<Record<number, HTMLInputElement | null>>({});
 
   const handleMaterialChange = (index: number, materialId: string) => {
     const material = productOptions.find(m => m.id === materialId);
@@ -43,11 +46,13 @@ export function InvoiceItemsEditor({
       setValue(`items.${index}.meta_json.material_id`, materialId, { shouldDirty: true });
     }
     setOpenDropdowns({ ...openDropdowns, [index]: false });
+    setSelectedIndices({ ...selectedIndices, [index]: 0 });
   };
 
   const handleSearchChange = (index: number, value: string) => {
     setSearchTerms({ ...searchTerms, [index]: value });
     setOpenDropdowns({ ...openDropdowns, [index]: true });
+    setSelectedIndices({ ...selectedIndices, [index]: 0 });
   };
 
   const getFilteredMaterials = useCallback((index: number) => {
@@ -66,6 +71,76 @@ export function InvoiceItemsEditor({
     }
     return searchTerms[index] || '';
   }, [items, productOptions, searchTerms]);
+
+  const handleKeyDown = (index: number, e: KeyboardEvent<HTMLInputElement>) => {
+    const filtered = getFilteredMaterials(index);
+    const currentIdx = selectedIndices[index] || 0;
+
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        if (filtered.length > 0) {
+          const nextIdx = Math.min(currentIdx + 1, filtered.length - 1);
+          setSelectedIndices({ ...selectedIndices, [index]: nextIdx });
+        }
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        if (filtered.length > 0) {
+          const prevIdx = Math.max(currentIdx - 1, 0);
+          setSelectedIndices({ ...selectedIndices, [index]: prevIdx });
+        }
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (filtered.length > 0 && filtered[currentIdx]) {
+          handleMaterialChange(index, filtered[currentIdx].id);
+        }
+        break;
+      case 'Escape':
+        e.preventDefault();
+        setOpenDropdowns({ ...openDropdowns, [index]: false });
+        break;
+      case 'Delete':
+        if (mode !== 'lot' && fields.length > 1) {
+          e.preventDefault();
+          remove(index);
+        }
+        break;
+    }
+  };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      Object.keys(dropdownRefs.current).forEach(index => {
+        const dropdown = dropdownRefs.current[Number(index)];
+        const input = inputRefs.current[Number(index)];
+        if (dropdown && !dropdown.contains(e.target as Node) && input && !input.contains(e.target as Node)) {
+          setOpenDropdowns(prev => ({ ...prev, [Number(index)]: false }));
+        }
+      });
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Position dropdown below input
+  useEffect(() => {
+    Object.keys(openDropdowns).forEach(index => {
+      if (openDropdowns[Number(index)]) {
+        const input = inputRefs.current[Number(index)];
+        const dropdown = dropdownRefs.current[Number(index)];
+        if (input && dropdown) {
+          const rect = input.getBoundingClientRect();
+          dropdown.style.top = `${rect.bottom + 2}px`;
+          dropdown.style.left = `${rect.left}px`;
+          dropdown.style.width = `${rect.width}px`;
+        }
+      }
+    });
+  }, [openDropdowns]);
 
   return (
     <div style={{ border: '1px solid #d4d4d4', borderRadius: '4px', overflow: 'hidden' }}>
@@ -303,11 +378,12 @@ export function InvoiceItemsEditor({
                   {mode === 'itemized' && (
                     <td style={{ padding: '4px', position: 'relative' }}>
                       <input
+                        ref={(el) => { inputRefs.current[index] = el; }}
                         type="text"
                         value={getSelectedMaterialName(index)}
                         onChange={(e) => handleSearchChange(index, e.target.value)}
                         onFocus={() => setOpenDropdowns({ ...openDropdowns, [index]: true })}
-                        onBlur={() => setTimeout(() => setOpenDropdowns({ ...openDropdowns, [index]: false }), 200)}
+                        onKeyDown={(e) => handleKeyDown(index, e)}
                         placeholder=""
                         style={{
                           width: '100%',
@@ -321,26 +397,26 @@ export function InvoiceItemsEditor({
                         onBlur={(e) => e.currentTarget.style.borderColor = 'transparent'}
                       />
                       {openDropdowns[index] && (
-                        <div style={{
-                          position: 'absolute',
-                          top: '100%',
-                          left: 0,
-                          right: 0,
-                          maxHeight: '200px',
-                          overflowY: 'auto',
-                          background: '#fff',
-                          border: '1px solid #d4d4d4',
-                          borderRadius: '4px',
-                          boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-                          zIndex: 1000,
-                          marginTop: '2px'
-                        }}>
+                        <div
+                          ref={(el) => { dropdownRefs.current[index] = el; }}
+                          style={{
+                            position: 'fixed',
+                            maxHeight: '200px',
+                            overflowY: 'auto',
+                            background: '#fff',
+                            border: '1px solid #d4d4d4',
+                            borderRadius: '4px',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                            zIndex: 9999,
+                            minWidth: '150px',
+                          }}
+                        >
                           {getFilteredMaterials(index).length === 0 ? (
                             <div style={{ padding: '8px', fontSize: '11px', color: '#737373' }}>
                               No materials found
                             </div>
                           ) : (
-                            getFilteredMaterials(index).slice(0, 50).map((option) => (
+                            getFilteredMaterials(index).slice(0, 50).map((option, idx) => (
                               <div
                                 key={option.id}
                                 onClick={() => handleMaterialChange(index, option.id)}
@@ -348,10 +424,14 @@ export function InvoiceItemsEditor({
                                   padding: '6px 8px',
                                   fontSize: '11px',
                                   cursor: 'pointer',
-                                  borderBottom: '1px solid #f0f0f0'
+                                  borderBottom: '1px solid #f0f0f0',
+                                  background: idx === (selectedIndices[index] || 0) ? '#e5e7eb' : '#fff'
                                 }}
-                                onMouseEnter={(e) => e.currentTarget.style.background = '#f5f5f5'}
-                                onMouseLeave={(e) => e.currentTarget.style.background = '#fff'}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.background = '#f5f5f5';
+                                  setSelectedIndices({ ...selectedIndices, [index]: idx });
+                                }}
+                                onMouseLeave={(e) => e.currentTarget.style.background = idx === (selectedIndices[index] || 0) ? '#e5e7eb' : '#fff'}
                               >
                                 {option.name}
                               </div>
