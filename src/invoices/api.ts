@@ -34,9 +34,22 @@ type InvoiceInsertPayload = Omit<
   'id' | 'created_at' | 'items' | 'materials' | 'company_state' | 'client_state'
 >;
 
+const INVOICE_FIELDS = [
+  'invoice_no',
+  'invoice_date',
+  'po_number',
+  'po_date',
+  'source_type',
+  'source_id',
+];
+
 const INVOICE_SELECT = `
   id,
   client_id,
+  invoice_no,
+  invoice_date,
+  po_number,
+  po_date,
   source_type,
   source_id,
   template_id,
@@ -88,6 +101,10 @@ function buildInvoicePayload(invoice: Invoice): {
   const invoiceRow: InvoiceInsertPayload = {
     client_id: invoice.client_id,
     template_id: invoice.template_id ?? null,
+    invoice_no: invoice.invoice_no ?? null,
+    invoice_date: invoice.invoice_date ?? null,
+    po_number: invoice.po_number ?? null,
+    po_date: invoice.po_date ?? null,
     source_type: invoice.source_type,
     source_id: invoice.source_id,
     template_type: invoice.template_type,
@@ -148,9 +165,13 @@ function parseInvoiceRecord(row: any): InvoiceWithRelations {
   const base = InvoiceSchema.parse({
     id: row.id,
     client_id: row.client_id,
+    invoice_no: row.invoice_no ?? null,
+    invoice_date: row.invoice_date ?? null,
+    po_number: row.po_number ?? null,
+    po_date: row.po_date ?? null,
     template_id: row.template_id ?? null,
     source_type: row.source_type,
-    source_id: row.source_id,
+    source_id: row.source_id ?? null,
     template_type: row.template_type,
     mode: row.mode,
     subtotal: row.subtotal,
@@ -485,4 +506,183 @@ export async function mapInvoiceSourceToDraft(
 ): Promise<Invoice> {
   const source = await loadInvoiceSource(sourceType, sourceId, organisationId);
   return mapSourceToInvoice(source, options);
+}
+
+export interface InvoiceSeriesConfig {
+  prefix: string;
+  suffix: string;
+  startNumber: number;
+  padding: number;
+}
+
+function getFyPrefix(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  if (month < 3) return `${year - 1}-${String(year).slice(-2)}`;
+  return `${year}-${String(year + 1).slice(-2)}`;
+}
+
+export async function getInvoiceNumberPreview(organisationId: string): Promise<string> {
+  const fallbackNo = `INV-${Date.now().toString().slice(-6)}`;
+  
+  if (!organisationId) return fallbackNo;
+  
+  try {
+    let defaultSeries = null;
+    
+    const { data: byOrgDefault } = await supabase
+      .from('document_series')
+      .select('id, configs, current_number, created_at')
+      .eq('is_default', true)
+      .eq('organisation_id', organisationId)
+      .limit(1)
+      .maybeSingle();
+    
+    if (byOrgDefault) {
+      defaultSeries = byOrgDefault;
+    } else {
+      const { data: byOrgLatest } = await supabase
+        .from('document_series')
+        .select('id, configs, current_number, created_at')
+        .eq('organisation_id', organisationId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      
+      if (byOrgLatest) defaultSeries = byOrgLatest;
+    }
+
+    if (!defaultSeries) return fallbackNo;
+
+    const cfg = defaultSeries?.configs?.invoice;
+    if (!cfg || !cfg.enabled) return fallbackNo;
+
+    const rawPrefix = cfg.prefix || 'INV-';
+    const suffix = cfg.suffix || '';
+    const number = parseInt(cfg.start_number || defaultSeries.current_number || 1, 10);
+    const padded = String(number).padStart(parseInt(cfg.padding || 4, 10), '0');
+    const fy = getFyPrefix();
+    const prefix = String(rawPrefix).replace('{FY}', fy);
+    
+    return `${prefix}${padded}${suffix}`;
+  } catch (err) {
+    console.warn('Unable to load invoice series:', err);
+    return fallbackNo;
+  }
+}
+
+export async function incrementInvoiceNumber(seriesId: string, organisationId: string): Promise<void> {
+  try {
+    const { data: series } = await supabase
+      .from('document_series')
+      .select('configs, current_number')
+      .eq('id', seriesId)
+      .single();
+    
+    if (!series) return;
+    
+    const cfg = series.configs?.invoice || {};
+    const nextNumber = parseInt(cfg.start_number || series.current_number || 1, 10) + 1;
+    const updatedCfg = { ...series.configs, invoice: { ...cfg, start_number: nextNumber } };
+    
+    await supabase
+      .from('document_series')
+      .update({ current_number: nextNumber, configs: updatedCfg })
+      .eq('id', seriesId);
+  } catch (err) {
+    console.warn('Failed to increment invoice number:', err);
+  }
+}
+
+export async function findInvoiceSeries(organisationId: string): Promise<{ id: string; config: InvoiceSeriesConfig } | null> {
+  if (!organisationId) return null;
+  
+  try {
+    let defaultSeries = null;
+    
+    const { data: byOrgDefault } = await supabase
+      .from('document_series')
+      .select('id, configs, current_number')
+      .eq('is_default', true)
+      .eq('organisation_id', organisationId)
+      .limit(1)
+      .maybeSingle();
+    
+    if (byOrgDefault) {
+      defaultSeries = byOrgDefault;
+    } else {
+      const { data: byOrgLatest } = await supabase
+        .from('document_series')
+        .select('id, configs, current_number')
+        .eq('organisation_id', organisationId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      
+      if (byOrgLatest) defaultSeries = byOrgLatest;
+    }
+
+    if (!defaultSeries) return null;
+
+    const cfg = defaultSeries.configs?.invoice;
+    if (!cfg || !cfg.enabled) return null;
+
+    return {
+      id: defaultSeries.id,
+      config: {
+        prefix: cfg.prefix || 'INV-',
+        suffix: cfg.suffix || '',
+        startNumber: parseInt(cfg.start_number || defaultSeries.current_number || 1, 10),
+        padding: parseInt(cfg.padding || 4, 10),
+      },
+    };
+  } catch (err) {
+    console.warn('Unable to find invoice series:', err);
+    return null;
+  }
+}
+
+export async function generateInvoiceNumber(organisationId: string): Promise<{ invoiceNo: string; seriesId: string | null }> {
+  const series = await findInvoiceSeries(organisationId);
+  
+  if (!series) {
+    return {
+      invoiceNo: `INV-${Date.now().toString().slice(-6)}`,
+      seriesId: null,
+    };
+  }
+
+  const { prefix, suffix, startNumber, padding } = series.config;
+  const fy = getFyPrefix();
+  const paddedNumber = String(startNumber).padStart(padding, '0');
+  const invoiceNo = `${prefix.replace('{FY}', fy)}${paddedNumber}${suffix}`;
+
+  return {
+    invoiceNo,
+    seriesId: series.id,
+  };
+}
+
+export async function loadClientPOs(clientId: string, organisationId: string): Promise<Array<{ id: string; po_number: string; po_date: string | null }>> {
+  if (!clientId) return [];
+  
+  const { data, error } = await supabase
+    .from('client_purchase_orders')
+    .select('id, po_number, po_date')
+    .eq('client_id', clientId)
+    .eq('organisation_id', organisationId)
+    .order('po_date', { ascending: false })
+    .limit(50);
+  
+  if (error) {
+    console.warn('Failed to load client POs:', error);
+    return [];
+  }
+  
+  return (data || []).map(row => ({
+    id: row.id,
+    po_number: row.po_number,
+    po_date: row.po_date,
+  }));
 }

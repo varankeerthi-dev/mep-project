@@ -97,15 +97,15 @@ as $$
 declare
   v_client_org_id uuid;
 begin
-  if new.org_id is null then
-    raise exception 'org_id is required.';
+  if new.organisation_id is null then
+    raise exception 'organisation_id is required.';
   end if;
 
   if new.client_id is null then
     raise exception 'client_id is required.';
   end if;
 
-  select c.org_id into v_client_org_id
+  select c.organisation_id into v_client_org_id
   from public.clients c
   where c.id = new.client_id
   limit 1;
@@ -114,7 +114,7 @@ begin
     raise exception 'Selected client is not linked to any organisation.';
   end if;
 
-  if v_client_org_id <> new.org_id then
+  if v_client_org_id <> new.organisation_id then
     raise exception 'Selected client does not belong to the provided organisation.';
   end if;
 

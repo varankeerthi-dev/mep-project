@@ -1,4 +1,4 @@
-export const invoiceSourceTypes = ['quotation', 'challan', 'po'] as const;
+export const invoiceSourceTypes = ['quotation', 'challan', 'po', 'direct'] as const;
 export const invoiceTemplateTypes = ['standard', 'lot', 'client_custom'] as const;
 export const invoiceModes = ['itemized', 'lot'] as const;
 export const invoiceStatuses = ['draft', 'final'] as const;
