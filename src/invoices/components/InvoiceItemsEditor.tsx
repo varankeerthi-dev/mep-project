@@ -38,7 +38,7 @@ export function InvoiceItemsEditor({
   const dropdownRefs = useRef<Record<number, HTMLDivElement | null>>({});
   const inputRefs = useRef<Record<number, HTMLInputElement | null>>({});
 
-  const handleMaterialChange = (index: number, materialId: string) => {
+  const handleMaterialChange = useCallback((index: number, materialId: string) => {
     const material = productOptions.find(m => m.id === materialId);
     if (material && setValue) {
       setValue(`items.${index}.description`, material.name, { shouldDirty: true });
@@ -50,20 +50,20 @@ export function InvoiceItemsEditor({
         setValue(`items.${index}.rate`, material.sale_price, { shouldDirty: true });
       }
     }
-    setOpenDropdowns({ ...openDropdowns, [index]: false });
-    setSelectedIndices({ ...selectedIndices, [index]: 0 });
-  };
+    setOpenDropdowns(prev => ({ ...prev, [index]: false }));
+    setSelectedIndices(prev => ({ ...prev, [index]: 0 }));
+  }, [productOptions, setValue]);
 
-  const handleSearchChange = (index: number, value: string) => {
-    setSearchTerms({ ...searchTerms, [index]: value });
-    setOpenDropdowns({ ...openDropdowns, [index]: true });
-    setSelectedIndices({ ...selectedIndices, [index]: 0 });
-  };
+  const handleSearchChange = useCallback((index: number, value: string) => {
+    setSearchTerms(prev => ({ ...prev, [index]: value }));
+    setOpenDropdowns(prev => ({ ...prev, [index]: true }));
+    setSelectedIndices(prev => ({ ...prev, [index]: 0 }));
+  }, []);
 
-  const handleInputClick = (index: number) => {
-    setOpenDropdowns({ ...openDropdowns, [index]: true });
-    setSelectedIndices({ ...selectedIndices, [index]: 0 });
-  };
+  const handleInputClick = useCallback((index: number) => {
+    setOpenDropdowns(prev => ({ ...prev, [index]: true }));
+    setSelectedIndices(prev => ({ ...prev, [index]: 0 }));
+  }, []);
 
   const getFilteredMaterials = useCallback((index: number) => {
     const searchTerm = searchTerms[index] || '';
@@ -82,7 +82,7 @@ export function InvoiceItemsEditor({
     return searchTerms[index] || '';
   }, [items, productOptions, searchTerms]);
 
-  const handleKeyDown = (index: number, e: KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = useCallback((index: number, e: KeyboardEvent<HTMLInputElement>) => {
     const filtered = getFilteredMaterials(index);
     const currentIdx = selectedIndices[index] || 0;
 
@@ -91,14 +91,14 @@ export function InvoiceItemsEditor({
         e.preventDefault();
         if (filtered.length > 0) {
           const nextIdx = Math.min(currentIdx + 1, filtered.length - 1);
-          setSelectedIndices({ ...selectedIndices, [index]: nextIdx });
+          setSelectedIndices(prev => ({ ...prev, [index]: nextIdx }));
         }
         break;
       case 'ArrowUp':
         e.preventDefault();
         if (filtered.length > 0) {
           const prevIdx = Math.max(currentIdx - 1, 0);
-          setSelectedIndices({ ...selectedIndices, [index]: prevIdx });
+          setSelectedIndices(prev => ({ ...prev, [index]: prevIdx }));
         }
         break;
       case 'Enter':
@@ -109,7 +109,7 @@ export function InvoiceItemsEditor({
         break;
       case 'Escape':
         e.preventDefault();
-        setOpenDropdowns({ ...openDropdowns, [index]: false });
+        setOpenDropdowns(prev => ({ ...prev, [index]: false }));
         break;
       case 'Delete':
       case 'Backspace':
@@ -119,11 +119,11 @@ export function InvoiceItemsEditor({
           setValue(`items.${index}.meta_json.material_id`, '', { shouldDirty: true });
           setValue(`items.${index}.description`, '', { shouldDirty: true });
           setValue(`items.${index}.hsn_code`, '', { shouldDirty: true });
-          setSearchTerms({ ...searchTerms, [index]: '' });
+          setSearchTerms(prev => ({ ...prev, [index]: '' }));
         }
         break;
     }
-  };
+  }, [getFilteredMaterials, selectedIndices, handleMaterialChange, setValue]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -140,6 +140,18 @@ export function InvoiceItemsEditor({
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Cleanup refs when fields are removed
+  useEffect(() => {
+    const currentFieldIds = new Set(fields.map(f => f.id));
+    Object.keys(dropdownRefs.current).forEach(key => {
+      const index = Number(key);
+      if (index >= fields.length) {
+        dropdownRefs.current[index] = null;
+        inputRefs.current[index] = null;
+      }
+    });
+  }, [fields.length]);
 
   // Position dropdown below input
   useEffect(() => {
