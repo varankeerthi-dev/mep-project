@@ -791,6 +791,12 @@ export default function InvoiceEditorPage() {
                 background: '#fafafa',
                 whiteSpace: 'pre-line'
               }}>
+                {clientDetailsQuery.data?.name}
+                {clientDetailsQuery.data?.gst_number && (
+                  <span style={{ display: 'block', fontSize: '10px', color: '#737373' }}>
+                    GST: {clientDetailsQuery.data.gst_number}
+                  </span>
+                )}
                 {selectedShippingAddress.address_line1}
                 {selectedShippingAddress.address_line2 && `, ${selectedShippingAddress.address_line2}`}
                 <br />
