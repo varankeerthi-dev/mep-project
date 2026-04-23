@@ -11,8 +11,7 @@ export function invoiceToListRow(invoice: InvoiceWithRelations): Record<string, 
   const taxAmount = invoice.cgst + invoice.sgst + invoice.igst;
   return {
     invoiceNumber: getInvoiceDisplayNumber(invoice),
-    clientId: invoice.client_id,
-    customerName: invoice.client?.name ?? 'Unknown client',
+    customerName: invoice.client?.name ?? 'Unknown',
     issueDate: invoice.created_at ?? null,
     dueDate: null,
     subtotal: invoice.subtotal,
@@ -28,14 +27,6 @@ export const invoiceListTableSchema = createTableSchema({
   invoiceNumber: col
     .string()
     .label('Invoice No')
-    .display('code')
-    .filterable('checkbox', { options: [] })
-    .size(130)
-    .sheet(),
-
-  clientId: col
-    .string()
-    .label('Client Id')
     .display('code')
     .filterable('checkbox', { options: [] })
     .size(130)
@@ -118,7 +109,6 @@ export const invoiceListTableSchema = createTableSchema({
 
 export type InvoiceListRowView = {
   invoiceNumber: string;
-  clientId: string;
   customerName: string;
   issueDate: string | null;
   dueDate: string | null;

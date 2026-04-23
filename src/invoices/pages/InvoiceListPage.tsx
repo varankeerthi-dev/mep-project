@@ -13,6 +13,7 @@ import {
   Filter,
   FileText,
   RotateCcw,
+  Pencil,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import type { TableColumn } from '@/lib/table-schema';
@@ -504,7 +505,7 @@ function renderCell(column: TableColumn, value: unknown): ReactNode {
   return <span>{String(value)}</span>;
 }
 
-const MOBILE_HIDE_KEYS = new Set(['clientId', 'subtotal', 'taxAmount', 'primaryDescription']);
+const MOBILE_HIDE_KEYS = new Set(['subtotal', 'taxAmount', 'primaryDescription']);
 
 export default function InvoiceListPage() {
   const navigate = useNavigate();
@@ -695,6 +696,30 @@ export default function InvoiceListPage() {
       >
         View
         <ArrowRight size={14} />
+      </button>
+      <button
+        type="button"
+        onClick={() => navigate(`/invoices/edit?id=${invoice.id}`)}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '0.375rem',
+          padding: '0.375rem 0.75rem',
+          background: '#16a34a',
+          color: 'white',
+          border: 'none',
+          borderRadius: '0.375rem',
+          fontSize: '0.75rem',
+          fontWeight: 600,
+          cursor: 'pointer',
+          transition: 'all 0.15s ease',
+          whiteSpace: 'nowrap',
+        }}
+        onMouseEnter={(e) => e.currentTarget.style.background = '#15803d'}
+        onMouseLeave={(e) => e.currentTarget.style.background = '#16a34a'}
+      >
+        <Pencil size={14} />
+        Edit
       </button>
       <div style={{ position: 'relative' }} onClick={(e) => e.stopPropagation()}>
         <button
