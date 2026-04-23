@@ -220,14 +220,16 @@ export default function InvoiceEditorPage() {
     [selectedTemplateId, templates],
   );
 
+  const [enableRoundOff, setEnableRoundOff] = useState(false);
+
   const totals = useMemo(
     () =>
       calculateDraftTotals({
         items: watchedItems,
         company_state: companyState,
         client_state: clientState,
-      }),
-    [companyState, clientState, watchedItems],
+      }, enableRoundOff),
+    [companyState, clientState, watchedItems, enableRoundOff],
   );
 
   useEffect(() => {
@@ -1156,6 +1158,9 @@ export default function InvoiceEditorPage() {
           interstate={totals.interstate}
           companyState={companyState}
           clientState={clientState}
+          roundOff={totals.roundOff}
+          enableRoundOff={enableRoundOff}
+          onToggleRoundOff={() => setEnableRoundOff(!enableRoundOff)}
         />
       </form>
     </div>

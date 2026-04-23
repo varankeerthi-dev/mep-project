@@ -10,6 +10,9 @@ type InvoiceSummaryFooterProps = {
   interstate: boolean;
   clientState?: string | null;
   companyState?: string | null;
+  roundOff?: number;
+  enableRoundOff?: boolean;
+  onToggleRoundOff?: () => void;
 };
 
 const summaryRowClass =
@@ -24,6 +27,9 @@ export function InvoiceSummaryFooter({
   interstate,
   clientState,
   companyState,
+  roundOff = 0,
+  enableRoundOff = false,
+  onToggleRoundOff,
 }: InvoiceSummaryFooterProps) {
   return (
     <div className="sticky bottom-0 z-20 border-t border-slate-200 bg-white/95 px-5 py-4 backdrop-blur supports-[backdrop-filter]:bg-white/85">
@@ -57,10 +63,38 @@ export function InvoiceSummaryFooter({
             <span className={cn(!interstate && 'text-slate-400')}>IGST</span>
             <span>{formatCurrency(igst)}</span>
           </div>
+          {enableRoundOff && (
+            <div className={summaryRowClass}>
+              <span>Round Off</span>
+              <span className={cn(roundOff >= 0 ? 'text-green-600' : 'text-red-600')}>
+                {roundOff >= 0 ? '+' : ''}{formatCurrency(roundOff)}
+              </span>
+            </div>
+          )}
           <div className="mt-3 flex items-center justify-between border-t border-slate-200 pt-3 text-[15px] font-semibold text-slate-950">
             <span>Total</span>
             <span>{formatCurrency(total)}</span>
           </div>
+          {onToggleRoundOff && (
+            <div className="mt-3 flex items-center justify-between pt-2">
+              <span className="text-[12px] text-slate-500">Round off to nearest rupee</span>
+              <button
+                type="button"
+                onClick={onToggleRoundOff}
+                className={cn(
+                  'relative inline-flex h-5 w-9 items-center rounded-full transition-colors',
+                  enableRoundOff ? 'bg-slate-900' : 'bg-slate-300'
+                )}
+              >
+                <span
+                  className={cn(
+                    'inline-block h-4 w-4 transform rounded-full bg-white transition-transform',
+                    enableRoundOff ? 'translate-x-5' : 'translate-x-0.5'
+                  )}
+                />
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

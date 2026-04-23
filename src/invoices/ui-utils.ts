@@ -328,6 +328,7 @@ export function getSourceLabel(value: InvoiceEditorFormValues['source_type']): s
 
 export function calculateDraftTotals(
   values: Pick<InvoiceEditorFormValues, 'items' | 'company_state' | 'client_state'>,
+  enableRoundOff: boolean = false,
 ) {
   const subtotal = round2(
     values.items.reduce((sum, item) => {
@@ -354,7 +355,16 @@ export function calculateDraftTotals(
   const cgst = interstate ? 0 : round2(taxTotal / 2);
   const sgst = interstate ? 0 : round2(taxTotal - cgst);
   const igst = interstate ? taxTotal : 0;
-  const total = round2(subtotal + taxTotal);
+  
+  const totalBeforeRoundOff = round2(subtotal + taxTotal);
+  let roundOff = 0;
+  let total = totalBeforeRoundOff;
+  
+  if (enableRoundOff) {
+    const roundedTotal = Math.round(totalBeforeRoundOff);
+    roundOff = round2(roundedTotal - totalBeforeRoundOff);
+    total = round2(roundedTotal);
+  }
 
   return {
     subtotal,
@@ -363,5 +373,6 @@ export function calculateDraftTotals(
     igst,
     total,
     interstate,
+    roundOff,
   };
 }
