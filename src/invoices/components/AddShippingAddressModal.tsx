@@ -20,8 +20,7 @@ export function AddShippingAddressModal({ isOpen, onClose, clientId, onSuccess }
     city: '',
     state: '',
     pincode: '',
-    contact_person: '',
-    contact_phone: '',
+    contact: '',
     is_default: false,
   });
 
@@ -47,8 +46,7 @@ export function AddShippingAddressModal({ isOpen, onClose, clientId, onSuccess }
         city: '',
         state: '',
         pincode: '',
-        contact_person: '',
-        contact_phone: '',
+        contact: '',
         is_default: false,
       });
     },
@@ -250,52 +248,27 @@ export function AddShippingAddressModal({ isOpen, onClose, clientId, onSuccess }
               />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  color: '#525252',
-                }}>
-                  Contact Person
-                </label>
-                <input
-                  type="text"
-                  value={formData.contact_person}
-                  onChange={(e) => setFormData({ ...formData, contact_person: e.target.value })}
-                  placeholder="Contact person name"
-                  style={{
-                    padding: '8px 12px',
-                    border: '1px solid #d4d4d4',
-                    borderRadius: '4px',
-                    fontSize: '14px',
-                    color: '#171717',
-                  }}
-                />
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <label style={{
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  color: '#525252',
-                }}>
-                  Contact Phone
-                </label>
-                <input
-                  type="text"
-                  value={formData.contact_phone}
-                  onChange={(e) => setFormData({ ...formData, contact_phone: e.target.value })}
-                  placeholder="Phone number"
-                  style={{
-                    padding: '8px 12px',
-                    border: '1px solid #d4d4d4',
-                    borderRadius: '4px',
-                    fontSize: '14px',
-                    color: '#171717',
-                  }}
-                />
-              </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{
+                fontSize: '12px',
+                fontWeight: 600,
+                color: '#525252',
+              }}>
+                Contact
+              </label>
+              <input
+                type="text"
+                value={formData.contact}
+                onChange={(e) => setFormData({ ...formData, contact: e.target.value })}
+                placeholder="Contact person or phone"
+                style={{
+                  padding: '8px 12px',
+                  border: '1px solid #d4d4d4',
+                  borderRadius: '4px',
+                  fontSize: '14px',
+                  color: '#171717',
+                }}
+              />
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
