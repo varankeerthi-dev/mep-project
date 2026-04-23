@@ -100,6 +100,7 @@ export type InvoiceMaterialOption = {
   make: string | null;
   unit: string | null;
   sale_price: number | null;
+  variant: string | null;
 };
 
 export type InvoiceSourceOption = {

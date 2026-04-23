@@ -63,7 +63,7 @@ async function loadMaterialOptions(organisationId: string): Promise<InvoiceMater
   const { data: materialsData, error: materialsError } = await supabase.from('materials').select('id, name, display_name, hsn_code, make, unit, sale_price, material, size').eq('organisation_id', organisationId);
   if (materialsError) throw materialsError;
 
-  // Fetch variant pricing data
+  // Fetch variant pricing data with variant names
   const { data: variantPricingData, error: pricingError } = await supabase
     .from('item_variant_pricing')
     .select('item_id, make, sale_price, company_variants(variant_name)')
@@ -73,14 +73,17 @@ async function loadMaterialOptions(organisationId: string): Promise<InvoiceMater
     console.warn('Failed to fetch variant pricing:', pricingError);
   }
 
-  // Build pricing map: material_id -> { make -> sale_price }
-  const pricingMap: Record<string, Record<string, number>> = {};
+  // Build pricing map: material_id -> { make -> { sale_price, variant_name } }
+  const pricingMap: Record<string, Record<string, { sale_price: number; variant_name: string | null }>> = {};
   (variantPricingData ?? []).forEach((row: any) => {
     if (!pricingMap[row.item_id]) {
       pricingMap[row.item_id] = {};
     }
     const make = row.make || '';
-    pricingMap[row.item_id][make] = row.sale_price;
+    pricingMap[row.item_id][make] = {
+      sale_price: row.sale_price,
+      variant_name: row.company_variants?.variant_name || null,
+    };
   });
 
   console.log('Materials data:', materialsData);
@@ -89,9 +92,11 @@ async function loadMaterialOptions(organisationId: string): Promise<InvoiceMater
   return (materialsData ?? [])
     .map((material: any) => {
       const materialPricing = pricingMap[material.id] || {};
-      // Get the first available make and its price, or use material's own data
+      // Get the first available make and its price/variant, or use material's own data
       const firstMake = Object.keys(materialPricing)[0] || material.make || material.material || '';
-      const firstPrice = materialPricing[firstMake] || material.sale_price || 0;
+      const pricingData = materialPricing[firstMake] || { sale_price: material.sale_price || 0, variant_name: null };
+      const firstPrice = pricingData.sale_price;
+      const firstVariant = pricingData.variant_name;
 
       return {
         id: String(material.id),
@@ -101,6 +106,7 @@ async function loadMaterialOptions(organisationId: string): Promise<InvoiceMater
         make: firstMake || null,
         unit: material.unit || 'nos',
         sale_price: firstPrice || null,
+        variant: firstVariant || null,
       };
     })
     .sort((left, right) => left.name.localeCompare(right.name));
