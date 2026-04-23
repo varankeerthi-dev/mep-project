@@ -113,11 +113,12 @@ export const InvoiceSchema = z
     const taxTotal = roundCurrency(invoice.cgst + invoice.sgst + invoice.igst);
     const expectedTotal = roundCurrency(invoice.subtotal + taxTotal);
 
-    if (Math.abs(invoice.total - expectedTotal) > 0.05) {
+    // Allow for round off differences (up to ±1 when rounding to nearest integer)
+    if (Math.abs(invoice.total - expectedTotal) > 1.0) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['total'],
-        message: 'Total must equal subtotal plus GST.',
+        message: 'Total must equal subtotal plus GST (allowing for round off).',
       });
     }
 
