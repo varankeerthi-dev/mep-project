@@ -41,13 +41,18 @@ export default function SettingsPage() {
     nb_dc_suffix: '',
     nb_dc_padding: 4,
   });
-  
+
+  const [generalSettings, setGeneralSettings] = useState({
+    round_off_enabled: true,
+  });
+
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => { 
+  useEffect(() => {
     loadUsers();
     if (organisation?.id) {
       loadDocSettings();
+      loadGeneralSettings();
     }
   }, [organisation?.id]);
 
@@ -89,6 +94,15 @@ export default function SettingsPage() {
     }
   };
 
+  const loadGeneralSettings = async () => {
+    const { data } = await supabase.from('organisations').select('round_off_enabled').eq('id', organisation.id).single();
+    if (data) {
+      setGeneralSettings({
+        round_off_enabled: data.round_off_enabled !== false,
+      });
+    }
+  };
+
   const handleUserSubmit = async (e) => {
     e.preventDefault();
     const empId = 'EMP-' + Date.now().toString().slice(-6);
@@ -114,12 +128,30 @@ export default function SettingsPage() {
         ...docSettings,
         updated_at: new Date().toISOString()
       }, { onConflict: 'organisation_id' });
-      
+
       if (error) throw error;
       alert('Settings saved successfully!');
     } catch (error) {
       console.error('Error saving settings:', error);
       alert('Error saving settings: ' + error.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const saveGeneralSettings = async () => {
+    setSaving(true);
+    try {
+      const { error } = await supabase.from('organisations').update({
+        round_off_enabled: generalSettings.round_off_enabled,
+        updated_at: new Date().toISOString()
+      }).eq('id', organisation?.id);
+
+      if (error) throw error;
+      alert('General settings saved successfully!');
+    } catch (error) {
+      console.error('Error saving general settings:', error);
+      alert('Error saving general settings: ' + error.message);
     } finally {
       setSaving(false);
     }
@@ -301,66 +333,30 @@ export default function SettingsPage() {
 
         <TabsContent value="general">
           <Card style={{ border: '1px solid #e5e5e5', borderRadius: '8px' }}>
-            <CardContent style={{ padding: 0 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', minHeight: '280px' }}>
-                <div style={{ 
-                  background: '#0f0f0f', 
-                  padding: '32px 24px', 
-                  display: 'flex', 
-                  flexDirection: 'column', 
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '16px'
-                }}>
-                  <div style={{ 
-                    width: '72px', 
-                    height: '72px', 
-                    borderRadius: '50%', 
-                    background: '#fff', 
-                    color: '#0f0f0f', 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'center', 
-                    fontSize: '28px', 
-                    fontWeight: 600,
-                    letterSpacing: '-0.5px'
-                  }}>
-                    {(user?.email || '?').charAt(0).toUpperCase()}
-                  </div>
-                  <div style={{ color: '#fff', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px', opacity: 0.6 }}>
-                    Account
-                  </div>
+            <CardHeader style={{ padding: '20px 24px', borderBottom: '1px solid #e5e5e5' }}>
+              <CardTitle style={{ fontSize: '16px', fontWeight: 600 }}>General Settings</CardTitle>
+              <CardDescription style={{ fontSize: '13px', color: '#666' }}>
+                Configure invoice and pricing preferences
+              </CardDescription>
+            </CardHeader>
+            <CardContent style={{ padding: '24px' }}>
+              <div style={{ marginBottom: '24px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <Label style={{ fontSize: '14px', fontWeight: 500 }}>Enable Round Off</Label>
+                  <input
+                    type="checkbox"
+                    checked={generalSettings.round_off_enabled}
+                    onChange={(e) => setGeneralSettings(prev => ({ ...prev, round_off_enabled: e.target.checked }))}
+                    style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                  />
                 </div>
-                <div style={{ padding: '32px' }}>
-                  <div style={{ marginBottom: '32px' }}>
-                    <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px', color: '#999', marginBottom: '6px' }}>
-                      Email
-                    </div>
-                    <div style={{ fontSize: '15px', fontWeight: 500 }}>{user?.email}</div>
-                  </div>
-                  <div style={{ marginBottom: '32px' }}>
-                    <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px', color: '#999', marginBottom: '6px' }}>
-                      Organisation
-                    </div>
-                    <div style={{ fontSize: '15px', fontWeight: 500 }}>{organisation?.name}</div>
-                  </div>
-                  <div style={{ paddingTop: '16px', borderTop: '1px solid #e5e5e5' }}>
-                    <Button 
-                      variant="ghost" 
-                      onClick={handleLogout}
-                      style={{ 
-                        color: '#666', 
-                        fontSize: '13px',
-                        padding: '8px 0',
-                        marginLeft: '-8px'
-                      }}
-                    >
-                      <LogOut size={14} style={{ marginRight: '8px' }} />
-                      Sign out
-                    </Button>
-                  </div>
-                </div>
+                <p style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
+                  When enabled, the rate after discount will be rounded to the nearest integer (e.g., 1.54 → 2, 1.45 → 1)
+                </p>
               </div>
+              <Button onClick={saveGeneralSettings} disabled={saving} style={{ marginTop: '16px' }}>
+                {saving ? 'Saving...' : 'Save Settings'}
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>

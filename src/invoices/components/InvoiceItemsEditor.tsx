@@ -4,6 +4,7 @@ import type { FieldArrayWithId, UseFieldArrayAppend, UseFieldArrayRemove, UseFor
 import { Plus, X } from 'lucide-react';
 import type { InvoiceEditorFormValues, InvoiceMaterialOption } from '../ui-utils';
 import { createEmptyItem, createLotItem, formatCurrency, round2 } from '../ui-utils';
+import { useAuth } from '../../App';
 
 type InvoiceItemsEditorProps = {
   fields: FieldArrayWithId<InvoiceEditorFormValues, 'items', 'id'>[];
@@ -32,11 +33,15 @@ export function InvoiceItemsEditor({
   productOptions = [],
   setValue,
 }: InvoiceItemsEditorProps) {
+  const { organisation } = useAuth();
   const [searchTerms, setSearchTerms] = useState<Record<number, string>>({});
   const [openDropdowns, setOpenDropdowns] = useState<Record<number, boolean>>({});
   const [selectedIndices, setSelectedIndices] = useState<Record<number, number>>({});
   const dropdownRefs = useRef<Record<number, HTMLDivElement | null>>({});
   const inputRefs = useRef<Record<number, HTMLInputElement | null>>({});
+
+  // Get round off setting from organisation
+  const roundOffEnabled = organisation?.round_off_enabled !== false;
 
   const handleMaterialChange = useCallback((index: number, materialId: string) => {
     const material = productOptions.find(m => m.id === materialId);
@@ -618,7 +623,7 @@ export function InvoiceItemsEditor({
                           const baseRate = Number(items[index]?.meta_json?.base_rate || items[index]?.rate || 0);
                           const discountPercent = Number(items[index]?.discount_percent || 0);
                           const rateAfterDiscount = baseRate - (baseRate * discountPercent / 100);
-                          const roundedRate = Math.round(rateAfterDiscount); // Round to nearest integer
+                          const roundedRate = roundOffEnabled ? Math.round(rateAfterDiscount) : rateAfterDiscount;
                           if (setValue) {
                             setValue(`items.${index}.rate`, roundedRate, { shouldDirty: true });
                             setValue(`items.${index}.meta_json.rate_after_discount`, roundedRate, { shouldDirty: true });
@@ -642,7 +647,7 @@ export function InvoiceItemsEditor({
                   <td style={{ padding: '4px' }}>
                     <input
                       type="number"
-                      step="1"
+                      step={roundOffEnabled ? "1" : "0.01"}
                       {...register(`items.${index}.rate`, { valueAsNumber: true })}
                       placeholder="0"
                       style={{
