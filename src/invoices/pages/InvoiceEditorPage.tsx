@@ -1186,11 +1186,11 @@ export default function InvoiceEditorPage() {
               letterSpacing: '0.04em',
               color: '#737373'
             }}>
-              Company State
+              Client State
             </label>
             <input
-              {...register('company_state')}
-              placeholder={(organisation?.state as string | null | undefined) || DEFAULT_COMPANY_STATE}
+              {...register('client_state')}
+              placeholder={clientState || 'Select client to view state'}
               readOnly
               style={{
                 width: '100%',

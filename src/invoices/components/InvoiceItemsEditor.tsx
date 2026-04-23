@@ -55,6 +55,11 @@ export function InvoiceItemsEditor({
     setSelectedIndices({ ...selectedIndices, [index]: 0 });
   };
 
+  const handleInputClick = (index: number) => {
+    setOpenDropdowns({ ...openDropdowns, [index]: true });
+    setSelectedIndices({ ...selectedIndices, [index]: 0 });
+  };
+
   const getFilteredMaterials = useCallback((index: number) => {
     const searchTerm = searchTerms[index] || '';
     if (!searchTerm) return productOptions;
@@ -388,6 +393,7 @@ export function InvoiceItemsEditor({
                         value={getSelectedMaterialName(index)}
                         onChange={(e) => handleSearchChange(index, e.target.value)}
                         onFocus={() => setOpenDropdowns({ ...openDropdowns, [index]: true })}
+                        onClick={() => handleInputClick(index)}
                         onKeyDown={(e) => handleKeyDown(index, e)}
                         placeholder=""
                         style={{
