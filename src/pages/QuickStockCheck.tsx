@@ -6,7 +6,7 @@ import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import html2canvas from 'html2canvas';
 import { formatDate } from '../utils/formatters';
-import { useAuth } from '../App';
+import { useAuth } from '../contexts/AuthContext';
 import { useMaterials } from '../hooks/useMaterials';
 import { useWarehouses } from '../hooks/useWarehouses';
 import { useVariants } from '../hooks/useVariants';
