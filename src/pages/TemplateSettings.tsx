@@ -787,29 +787,39 @@ export default function TemplateSettings() {
     }
 
     try {
+      let templateId = template.id;
+
       // Check if template is built-in (no database id)
-      if (!template.id && template.template_code) {
-        // Seed built-in template to database first
-        await seedBuiltInTemplates();
-        // Reload templates to get the database id
-        await loadTemplates();
-        // Find the seeded template
-        const { data: seededTemplate } = await supabase
+      if (!templateId && template.template_code) {
+        // First check if it already exists
+        const { data: existing } = await supabase
           .from('document_templates')
           .select('id')
           .eq('template_code', template.template_code)
           .eq('document_type', template.document_type)
           .eq('organisation_id', organisation.id)
-          .single();
-        
-        if (!seededTemplate) {
-          alert('Error: Could not seed template to database');
-          return;
+          .maybeSingle();
+
+        if (existing) {
+          templateId = existing.id;
+        } else {
+          // Seed only this specific built-in template
+          const { data: inserted, error: insertError } = await supabase
+            .from('document_templates')
+            .insert({ ...template, organisation_id: organisation.id })
+            .select('id')
+            .single();
+
+          if (insertError || !inserted) {
+            console.error('Error inserting template:', insertError);
+            alert('Error: Could not seed template to database - ' + (insertError?.message || 'Unknown error'));
+            return;
+          }
+          templateId = inserted.id;
         }
-        template.id = seededTemplate.id;
       }
 
-      if (!template.id) {
+      if (!templateId) {
         alert('Error: Template does not have a valid ID');
         return;
       }
@@ -832,7 +842,7 @@ export default function TemplateSettings() {
       await supabase
         .from('document_templates')
         .update({ is_default: true })
-        .eq('id', template.id)
+        .eq('id', templateId)
         .eq('organisation_id', organisation.id);
 
       loadTemplates();
