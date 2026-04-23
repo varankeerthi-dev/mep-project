@@ -326,6 +326,18 @@ export default function ProformaEditorPage() {
   // Conversion query
   const conversionQuery = useConvertDocument(convertFrom!, sourceId!);
 
+  // Debug: Log conversion state
+  useEffect(() => {
+    console.log('Conversion Debug:', {
+      convertFrom,
+      sourceId,
+      isConverting,
+      conversionQueryData: conversionQuery.data,
+      conversionQueryError: conversionQuery.error,
+      conversionQueryIsLoading: conversionQuery.isLoading,
+    });
+  }, [convertFrom, sourceId, isConverting, conversionQuery.data, conversionQuery.error, conversionQuery.isLoading]);
+
   // Auto-select client's default template when client changes
   useEffect(() => {
     if (clientId && !templateId) {
@@ -464,8 +476,16 @@ export default function ProformaEditorPage() {
 
     const convertedData = conversionQuery.data.data as any;
 
+    console.log('Conversion Data Pre-fill:', {
+      convertedData,
+      clientId: convertedData.client_id,
+      items: convertedData.items,
+    });
+
     // Pre-fill form with converted data
-    setClientId(convertedData.client_id);
+    if (convertedData.client_id) {
+      setClientId(convertedData.client_id);
+    }
     setCompanyState(convertedData.company_state || organisation?.state || '');
     setClientState(convertedData.client_state || '');
     setNotes(convertedData.notes || '');
@@ -476,7 +496,7 @@ export default function ProformaEditorPage() {
 
     // Pre-fill items
     if (convertedData.items && convertedData.items.length > 0) {
-      setItems(convertedData.items.map((item: any) => ({
+      const mappedItems = convertedData.items.map((item: any) => ({
         description: item.description,
         hsn_code: item.hsn_code,
         qty: item.qty,
@@ -485,7 +505,9 @@ export default function ProformaEditorPage() {
         discount_percent: item.discount_percent || 0,
         discount_amount: item.discount_amount || 0,
         tax_percent: item.tax_percent || 18,
-      })));
+      }));
+      console.log('Setting items:', mappedItems);
+      setItems(mappedItems);
     }
   }, [isConverting, conversionQuery.data, convertFrom, sourceId, organisation?.state]);
 

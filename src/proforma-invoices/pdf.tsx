@@ -3,6 +3,7 @@ import { supabase } from '../supabase';
 import { ensurePdfFontsRegistered } from '../pdf/registerFonts';
 import { getProformaById, type ProformaWithRelations } from './api';
 import { ProformaPdfDocument } from './pdf-document';
+import { generateProGridProformaPdf } from '../pdf/proGridProformaPdf';
 import type {
   ProformaPdfCompany,
   ProformaPdfData,
@@ -81,11 +82,19 @@ export async function generateProformaPdf(
   proforma: ProformaLike,
   options: ProformaPdfOptions = {},
 ): Promise<Blob> {
-  ensurePdfFontsRegistered();
-
   const resolvedProforma = await resolveProforma(proforma, options.organisationId);
-  const data = await buildProformaPdfData(resolvedProforma, options);
+  const template = options.template ?? (options.organisationId && resolvedProforma.template_id ? await getProformaTemplateById(resolvedProforma.template_id, options.organisationId) : null);
 
+  // Use Classic Proforma Template if selected
+  if (template?.template_code === 'PI_CLASSIC') {
+    const company = options.company ?? (options.organisationId ? await getOrganisationDetails(options.organisationId) : null);
+    const doc = generateProGridProformaPdf(resolvedProforma, company, template);
+    return doc.output('blob') as Blob;
+  }
+
+  // Default to React-PDF document
+  ensurePdfFontsRegistered();
+  const data = await buildProformaPdfData(resolvedProforma, { ...options, template });
   const doc = <ProformaPdfDocument data={data} />;
   const pdfBlob = await pdf(doc).toBlob();
 

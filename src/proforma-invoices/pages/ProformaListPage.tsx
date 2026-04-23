@@ -19,10 +19,13 @@ import {
   Trash2,
   FileSpreadsheet,
   Printer,
+  Layout,
+  X,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../App';
 import { withSessionCheck } from '../../queryClient';
+import { supabase } from '../../supabase';
 import { getProformaInvoices, type ProformaWithRelations } from '../api';
 import { formatCurrency, formatDate } from '../../invoices/ui-utils';
 import type { ProformaStatus } from '../types';
@@ -53,6 +56,7 @@ const styles = `
     background: var(--pi-bg-page);
     min-height: 100vh;
     padding: 2rem;
+    position: relative;
   }
   
   .pi-container { max-width: 1600px; margin: 0 auto; }
@@ -428,6 +432,111 @@ const styles = `
   .pi-bulk-btn:hover {
     background: var(--pi-bg-hover);
   }
+
+  .pi-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+  }
+
+  .pi-modal {
+    background: var(--pi-bg-card);
+    border: 1px solid var(--pi-border);
+    border-radius: 0.75rem;
+    max-width: 500px;
+    width: 90%;
+    max-height: 80vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .pi-modal-header {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--pi-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .pi-modal-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--pi-text-primary);
+  }
+
+  .pi-modal-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background: transparent;
+    border: none;
+    border-radius: 0.375rem;
+    color: var(--pi-text-muted);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .pi-modal-close:hover {
+    background: var(--pi-bg-hover);
+    color: var(--pi-text-primary);
+  }
+
+  .pi-modal-body {
+    padding: 1.25rem;
+    overflow-y: auto;
+    flex: 1;
+  }
+
+  .pi-template-card {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    border: 1px solid var(--pi-border);
+    border-radius: 0.5rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    margin-bottom: 0.5rem;
+  }
+
+  .pi-template-card:hover {
+    background: var(--pi-bg-hover);
+    border-color: var(--pi-border-hover);
+  }
+
+  .pi-template-icon {
+    width: 40px;
+    height: 40px;
+    background: var(--pi-bg-muted);
+    border-radius: 0.375rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--pi-accent);
+  }
+
+  .pi-template-info {
+    flex: 1;
+  }
+
+  .pi-template-name {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--pi-text-primary);
+  }
+
+  .pi-template-type {
+    font-size: 0.75rem;
+    color: var(--pi-text-muted);
+  }
 `;
 
 if (typeof document !== 'undefined') {
@@ -470,8 +579,28 @@ export default function ProformaListPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [templates, setTemplates] = useState<any[]>([]);
 
   const { data: clients = [] } = useClients();
+
+  // Fetch templates when modal opens
+  useEffect(() => {
+    if (showTemplateModal) {
+      supabase
+        .from('document_templates')
+        .select('*')
+        .eq('document_type', 'Proforma Invoice')
+        .order('template_name', { ascending: true })
+        .then(({ data, error }) => {
+          if (error) console.error('Error fetching templates:', error);
+          else {
+            console.log('Templates fetched:', data);
+            setTemplates(data || []);
+          }
+        });
+    }
+  }, [showTemplateModal]);
 
   const filters = useMemo(() => ({
     organisationId: organisation?.id,
@@ -749,6 +878,14 @@ export default function ProformaListPage() {
             </button>
             <button
               type="button"
+              onClick={() => setShowTemplateModal(true)}
+              className="pi-btn"
+            >
+              <Layout size={16} />
+              Choose Template
+            </button>
+            <button
+              type="button"
               onClick={() => navigate('/proforma-invoices/create')}
               className="pi-btn pi-btn-primary"
             >
@@ -1004,6 +1141,50 @@ export default function ProformaListPage() {
           </div>
         </div>
       </div>
+
+      {showTemplateModal && (
+        <div className="pi-modal-overlay" onClick={() => setShowTemplateModal(false)}>
+          <div className="pi-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="pi-modal-header">
+              <h3 className="pi-modal-title">Choose Proforma Template</h3>
+              <button
+                type="button"
+                onClick={() => setShowTemplateModal(false)}
+                className="pi-modal-close"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="pi-modal-body">
+              {templates.length === 0 ? (
+                <div style={{ textAlign: 'center', color: 'var(--pi-text-muted)', padding: '2rem' }}>
+                  No proforma templates found
+                </div>
+              ) : (
+                templates.map((template) => (
+                  <div
+                    key={template.id}
+                    className="pi-template-card"
+                    onClick={() => {
+                      console.log('Template clicked:', template);
+                      navigate(`/proforma-invoices/create?templateId=${template.id}`);
+                      setShowTemplateModal(false);
+                    }}
+                  >
+                    <div className="pi-template-icon">
+                      <Layout size={20} />
+                    </div>
+                    <div className="pi-template-info">
+                      <div className="pi-template-name">{template.template_name}</div>
+                      <div className="pi-template-type">{template.document_type}</div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

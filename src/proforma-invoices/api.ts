@@ -36,7 +36,7 @@ const PROFORMA_SELECT = `
   payment_terms,
   created_at,
   updated_at,
-  client:clients(id, name, gst_number, state, default_template_id, email),
+  client:clients(id, client_name, gstin, state, default_template_id, email),
   items:proforma_items(id, proforma_id, organisation_id, description, hsn_code, qty, rate, amount, discount_percent, discount_amount, tax_percent, meta_json, sort_order)
 `;
 
@@ -44,8 +44,8 @@ function parseClientSummary(client: any): ProformaClientSummary | null {
   if (!client) return null;
   return {
     id: String(client.id),
-    name: client.name ?? null,
-    gst_number: client.gst_number ?? null,
+    name: client.client_name ?? null,
+    gst_number: client.gstin ?? null,
     state: client.state ?? null,
     default_template_id: client.default_template_id ?? null,
     email: client.email ?? null,
