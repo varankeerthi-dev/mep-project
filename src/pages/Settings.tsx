@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { useAuth } from '../App';
-import { Settings as SettingsIcon, User, FileText, LogOut, Save, Plus, Trash2, Hash, FileCode, Receipt, Truck, Settings, LogOut as LogOutIcon } from 'lucide-react';
+import { Settings as SettingsIcon, User, FileText, LogOut, Save, Plus, Trash2, Hash, FileCode, Receipt, Truck, Settings, LogOut as LogOutIcon, CreditCard } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '../components/ui/Card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/Tabs';
 import { Label } from '../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import PricingPage from './PricingPage';
 
 export default function SettingsPage() {
   const { user, organisation, handleLogout } = useAuth();
@@ -235,6 +236,7 @@ export default function SettingsPage() {
         <TabsList style={{ background: '#f5f5f5', padding: '4px', borderRadius: '8px' }}>
           <TabsTrigger value="documents" style={{ fontSize: '13px', padding: '8px 16px' }}>Documents</TabsTrigger>
           <TabsTrigger value="general" style={{ fontSize: '13px', padding: '8px 16px' }}>General</TabsTrigger>
+          <TabsTrigger value="pricing" style={{ fontSize: '13px', padding: '8px 16px' }}>Pricing</TabsTrigger>
           <TabsTrigger value="users" style={{ fontSize: '13px', padding: '8px 16px' }}>Users</TabsTrigger>
         </TabsList>
 
@@ -359,6 +361,12 @@ export default function SettingsPage() {
               </Button>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="pricing">
+          <div style={{ minHeight: '600px' }}>
+            <PricingPage />
+          </div>
         </TabsContent>
 
         <TabsContent value="users">
