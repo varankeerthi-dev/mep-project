@@ -27,7 +27,8 @@ import {
   RotateCcw,
   TrendingUp,
   TrendingDown,
-  RefreshCcw
+  RefreshCcw,
+  X
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { QuickAddClientModal } from '../components/QuickAddClientModal';
@@ -168,6 +169,104 @@ const CalendarView = ({ visits, onDateClick, onVisitClick }: any) => {
   );
 };
 
+const SiteVisitUpdatesView = ({ visits, onEdit, onDelete }: any) => {
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse text-left text-[13px]">
+          <thead>
+            <tr className="bg-slate-50/80 border-b border-slate-200">
+              <th className="px-4 py-3 font-semibold text-slate-700 border-r border-slate-200 w-[120px]">Date</th>
+              <th className="px-4 py-3 font-semibold text-slate-700 border-r border-slate-200">Client</th>
+              <th className="px-4 py-3 font-semibold text-slate-700 border-r border-slate-200">Purpose</th>
+              <th className="px-4 py-3 font-semibold text-slate-700 border-r border-slate-200 w-[140px]">In / Out</th>
+              <th className="px-4 py-3 font-semibold text-slate-700 border-r border-slate-200">Technical Details (Measurements)</th>
+              <th className="px-4 py-3 font-semibold text-slate-700 border-r border-slate-200">Discussion & Notes</th>
+              <th className="px-4 py-3 font-semibold text-slate-700 border-r border-slate-200">Next Action</th>
+              <th className="px-4 py-3 font-semibold text-slate-700 border-r border-slate-200">Status</th>
+              <th className="px-4 py-3 font-semibold text-slate-700 w-[120px]">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {visits?.map((v: any) => (
+              <tr key={v.id} className="border-b border-slate-100 hover:bg-blue-50/30 transition-colors group">
+                <td className="px-4 py-[8px] border-r border-slate-100 align-top whitespace-nowrap text-slate-500 font-medium">
+                  {v.visit_date ? format(parseISO(v.visit_date), 'dd MMM yyyy') : '--'}
+                </td>
+                <td className="px-4 py-[8px] border-r border-slate-100 align-top font-semibold text-slate-900">
+                  {v.clients?.client_name || 'N/A'}
+                </td>
+                <td className="px-4 py-[8px] border-r border-slate-100 align-top text-slate-600">
+                  <div className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
+                    {v.purpose_of_visit}
+                  </div>
+                </td>
+                <td className="px-4 py-[8px] border-r border-slate-100 align-top text-slate-600 font-mono text-[12px]">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-emerald-600">↑ {v.visit_time || '--:--'}</span>
+                    <span className="text-rose-600">↓ {v.out_time || '--:--'}</span>
+                  </div>
+                </td>
+                <td className="px-4 py-[8px] border-r border-slate-100 align-top text-slate-600 max-w-[200px]">
+                  <div className="line-clamp-3 whitespace-pre-wrap">{v.measurements || '--'}</div>
+                </td>
+                <td className="px-4 py-[8px] border-r border-slate-100 align-top text-slate-600 max-w-[300px]">
+                  <div className="line-clamp-3 whitespace-pre-wrap">{v.discussion_points || '--'}</div>
+                </td>
+                <td className="px-4 py-[8px] border-r border-slate-100 align-top">
+                  <div className="text-slate-900 font-medium">{v.next_step || '--'}</div>
+                  {v.follow_up_date && (
+                    <div className="text-[10px] text-blue-600 mt-1.5 bg-blue-50 px-2 py-0.5 rounded-full inline-block border border-blue-100">
+                      Follow-up: {format(parseISO(v.follow_up_date), 'dd MMM')}
+                    </div>
+                  )}
+                </td>
+                <td className="px-4 py-[8px] border-r border-slate-100 align-top">
+                   <div className={cn(
+                     "inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold uppercase tracking-wider",
+                     v.status === 'completed' ? 'bg-green-100 text-green-700' :
+                     v.status === 'scheduled' ? 'bg-blue-100 text-blue-700' :
+                     v.status === 'postponed' ? 'bg-amber-100 text-amber-700' :
+                     'bg-slate-100 text-slate-600'
+                   )}>
+                    {v.status}
+                   </div>
+                </td>
+                <td className="px-4 py-[8px] align-top">
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={() => onEdit(v)}
+                      className="p-1.5 text-blue-600 hover:bg-blue-100 rounded-md transition-colors"
+                      title="Edit"
+                    >
+                      <Edit2 size={16} />
+                    </button>
+                    <button 
+                      onClick={() => window.print()} 
+                      className="p-1.5 text-slate-600 hover:bg-slate-100 rounded-md transition-colors"
+                      title="Print PDF"
+                    >
+                      <FileText size={16} />
+                    </button>
+                    <button 
+                      onClick={() => onDelete(v)}
+                      className="p-1.5 text-rose-600 hover:bg-rose-100 rounded-md transition-colors"
+                      title="Delete"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
 export function SiteVisits() {
   const { user, organisation } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -180,6 +279,8 @@ export function SiteVisits() {
   const [visitToDelete, setVisitToDelete] = useState<any | null>(null);
   const [selectedVisits, setSelectedVisits] = useState<Array<string>>([]);
   const [batchDeleteProgress, setBatchDeleteProgress] = useState<{ current: number; total: number } | null>(null);
+  const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
+  const [newPurposeName, setNewPurposeName] = useState('');
 
   const toggleVisitSelection = (id: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
@@ -193,17 +294,19 @@ export function SiteVisits() {
   const [formData, setFormData] = useState({
     client_id: '',
     visit_date: format(new Date(), 'yyyy-MM-dd'),
-    purpose_of_visit: '', // Database column name
+    purpose_of_visit: '',
     visited_by: '',
     engineer: '',
-    visit_time: '',      // Database column name
+    visit_time: '',
     out_time: '',
     site_address: '',
     location_url: '',
-    discussion_points: '', // Database column name
+    discussion_points: '',
     measurements: '',
-    status: 'pending',
-    next_step: ''
+    status: 'scheduled',
+    next_step: '',
+    follow_up_date: '',
+    postponed_reason: ''
   });
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -305,6 +408,25 @@ export function SiteVisits() {
     enabled: !!organisation?.id
   });
 
+  const addPurposeMutation = useMutation({
+    mutationFn: async (name: string) => {
+      const { data, error } = await supabase
+        .from('visit_purposes')
+        .insert([{ name, organisation_id: organisation?.id }])
+        .select();
+      if (error) throw error;
+      return data[0];
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['visit-purposes'] });
+      toast.success('Purpose added successfully');
+      setIsAddPurposeModalOpen(false);
+    },
+    onError: (error: any) => {
+      toast.error(`Error adding purpose: ${error.message}`);
+    }
+  });
+
   const addVisitMutation = useMutation({
     mutationFn: async (newVisit: any) => {
       const { data, error } = await supabase
@@ -318,6 +440,7 @@ export function SiteVisits() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['site-visits'] });
       setIsFormOpen(false);
+      setIsUpdateModalOpen(false);
       resetForm();
       toast.success('Site visit saved successfully');
     },
@@ -344,6 +467,7 @@ export function SiteVisits() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['site-visits'] });
       setIsFormOpen(false);
+      setIsUpdateModalOpen(false);
       setSelectedVisit(null);
       resetForm();
       toast.success('Visit updated successfully');
@@ -410,18 +534,26 @@ export function SiteVisits() {
       location_url: '',
       discussion_points: '',
       measurements: '',
-      status: 'pending',
-      next_step: ''
+      status: 'scheduled',
+      next_step: '',
+      follow_up_date: '',
+      postponed_reason: ''
     });
     setCurrentStep(1);
+    setSelectedVisit(null);
   };
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (!organisation?.id) {
+      toast.error('Organisation ID missing. Please reload.');
+      return;
+    }
+
     const visitData = {
       ...formData,
-      organisation_id: organisation?.id,
+      organisation_id: organisation.id,
       created_by: user?.id,
     };
 
@@ -447,9 +579,14 @@ export function SiteVisits() {
       discussion_points: visit.discussion_points || '',
       measurements: visit.measurements || '',
       status: visit.status || 'pending',
-      next_step: visit.next_step || ''
+      next_step: visit.next_step || '',
+      follow_up_date: visit.follow_up_date || '',
+      postponed_reason: visit.postponed_reason || ''
     });
-    setIsFormOpen(true);
+    // Open the simple form only if the detailed update modal is not active
+    if (!isUpdateModalOpen) {
+      setIsFormOpen(true);
+    }
   };
 
   const handleDeleteVisit = (visit: any) => {
@@ -604,17 +741,23 @@ export function SiteVisits() {
                 className="pl-10 w-[320px] bg-white border-slate-200"
               />
             </div>
-            <Button
-              onClick={() => {
-                setSelectedVisit(null);
-                resetForm();
-                setIsFormOpen(true);
-              }}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
-            >
-              <Plus className="w-4 h-4" />
-              New Site Visit
-            </Button>
+          <div className="flex flex-wrap items-center gap-3">
+                <Button 
+                  onClick={() => setIsUpdateModalOpen(true)}
+                  variant="outline"
+                  className="h-11 px-6 rounded-xl border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-all active:scale-[0.98] font-semibold text-[13px] shadow-sm flex items-center gap-2"
+                >
+                  <RefreshCcw className="w-4 h-4 text-blue-500" />
+                  Site Visit Update
+                </Button>
+                <Button 
+                  onClick={() => setIsFormOpen(true)}
+                  className="h-11 px-6 rounded-xl bg-slate-900 text-white hover:bg-slate-800 transition-all active:scale-[0.98] font-semibold text-[13px] shadow-lg shadow-slate-900/10 flex items-center gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  New Site Visit
+                </Button>
+              </div>
           </div>
         </div>
 
@@ -724,24 +867,32 @@ export function SiteVisits() {
             className={cn(
               "px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2",
               activeTab === 'all' && viewMode === 'table'
-                ? "bg-blue-600 text-white shadow-sm"
-                : "text-slate-600 hover:bg-slate-50"
+                ? "bg-white text-slate-900 shadow-sm"
+                : "text-slate-500 hover:text-slate-700"
             )}
           >
             <CalendarDays className="w-4 h-4" />
             All Visits
           </button>
-          <button
+          <button 
             onClick={() => setViewMode('calendar')}
             className={cn(
               "px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2",
-              viewMode === 'calendar'
-                ? "bg-blue-600 text-white shadow-sm"
-                : "text-slate-600 hover:bg-slate-50"
+              viewMode === 'calendar' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
             )}
           >
             <CalendarIcon className="w-4 h-4" />
             Calendar
+          </button>
+          <button 
+            onClick={() => setViewMode('updates')}
+            className={cn(
+              "px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2",
+              viewMode === 'updates' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+            )}
+          >
+            <FileText className="w-4 h-4" />
+            Site Visit Updates
           </button>
         </div>
 
@@ -1119,33 +1270,75 @@ export function SiteVisits() {
         </DialogContent>
       </Dialog>
 
-      {/* Form Dialog - keeping existing form logic */}
+      {/* Form Dialog - Revamped with professional aesthetic */}
       {isFormOpen && (
-        <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto p-0">
-            <div className="bg-white px-6 py-5 border-b border-slate-200">
-              <DialogTitle className="text-xl font-semibold text-slate-900">
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+        }}>
+          <div style={{
+            background: '#fff',
+            borderRadius: '8px',
+            width: '95%',
+            maxWidth: '650px',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            boxShadow: '0 4px 24px rgba(0, 0, 0, 0.15)',
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '16px 20px',
+              borderBottom: '1px solid #e5e5e5',
+            }}>
+              <h3 style={{
+                fontSize: '16px',
+                fontWeight: 600,
+                color: '#171717',
+                margin: 0,
+              }}>
                 {selectedVisit ? 'Edit Site Visit' : 'New Site Visit'}
-              </DialogTitle>
-              <p className="text-sm text-slate-500 mt-1">
-                {selectedVisit ? 'Update the site visit details below' : 'Fill in the details to schedule a new site visit'}
-              </p>
+              </h3>
+              <button
+                type="button"
+                onClick={() => { setIsFormOpen(false); resetForm(); }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '4px',
+                  border: 'none',
+                  background: 'transparent',
+                  color: '#525252',
+                  cursor: 'pointer',
+                  borderRadius: '4px',
+                }}
+              >
+                <X size={20} />
+              </button>
             </div>
-            <form onSubmit={handleFormSubmit} className="p-6 space-y-6">
-              {/* Visit Details Section */}
-              <div>
-                <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-wider mb-4 flex items-center gap-2">
-                  <span className="w-1 h-4 bg-blue-600 rounded-full"></span>
-                  Visit Details
-                </h3>
-                <div className="grid grid-cols-2 gap-5">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-slate-600 uppercase tracking-wide">Client</label>
+
+            <form onSubmit={handleFormSubmit} style={{ padding: '20px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                
+                {/* Section 1: Core Details */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '12px', fontWeight: 600, color: '#525252' }}>CLIENT *</label>
                     <select
                       value={formData.client_id}
                       onChange={(e) => setFormData({ ...formData, client_id: e.target.value })}
-                      className="w-full px-4 py-3 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                       required
+                      style={{ padding: '8px 12px', border: '1px solid #d4d4d4', borderRadius: '4px', fontSize: '14px', color: '#171717', background: '#fff' }}
                     >
                       <option value="">Select client</option>
                       {clients?.map((client: any) => (
@@ -1153,22 +1346,33 @@ export function SiteVisits() {
                       ))}
                     </select>
                   </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-slate-600 uppercase tracking-wide">Visit Date</label>
-                    <Input
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '12px', fontWeight: 600, color: '#525252' }}>VISIT DATE *</label>
+                    <input
                       type="date"
                       value={formData.visit_date}
                       onChange={(e) => setFormData({ ...formData, visit_date: e.target.value })}
-                      className="w-full px-4 py-3 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                       required
+                      style={{ padding: '8px 12px', border: '1px solid #d4d4d4', borderRadius: '4px', fontSize: '14px', color: '#171717' }}
                     />
                   </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-slate-600 uppercase tracking-wide">Purpose</label>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <label style={{ fontSize: '12px', fontWeight: 600, color: '#525252' }}>PURPOSE</label>
+                      <button 
+                        type="button"
+                        onClick={() => setIsAddPurposeModalOpen(true)}
+                        style={{ fontSize: '11px', color: '#3b82f6', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontWeight: 600 }}
+                      >
+                        + Add Purpose
+                      </button>
+                    </div>
                     <select
                       value={formData.purpose_of_visit}
                       onChange={(e) => setFormData({ ...formData, purpose_of_visit: e.target.value })}
-                      className="w-full px-4 py-3 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                      style={{ padding: '8px 12px', border: '1px solid #d4d4d4', borderRadius: '4px', fontSize: '14px', color: '#171717', background: '#fff' }}
                     >
                       <option value="">Select purpose</option>
                       {purposes?.map((purpose: any) => (
@@ -1176,30 +1380,34 @@ export function SiteVisits() {
                       ))}
                     </select>
                   </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-slate-600 uppercase tracking-wide">Engineer</label>
-                    <Input
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '12px', fontWeight: 600, color: '#525252' }}>ENGINEER / ASSIGNED TO</label>
+                    <input
+                      type="text"
                       value={formData.engineer}
                       onChange={(e) => setFormData({ ...formData, engineer: e.target.value })}
-                      placeholder="Enter engineer name"
-                      className="w-full px-4 py-3 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                      placeholder="Engineer name"
+                      style={{ padding: '8px 12px', border: '1px solid #d4d4d4', borderRadius: '4px', fontSize: '14px', color: '#171717' }}
                     />
                   </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-slate-600 uppercase tracking-wide">Visit Time</label>
-                    <Input
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '12px', fontWeight: 600, color: '#525252' }}>VISIT TIME</label>
+                    <input
                       type="time"
                       value={formData.visit_time}
                       onChange={(e) => setFormData({ ...formData, visit_time: e.target.value })}
-                      className="w-full px-4 py-3 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                      style={{ padding: '8px 12px', border: '1px solid #d4d4d4', borderRadius: '4px', fontSize: '14px', color: '#171717' }}
                     />
                   </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-slate-600 uppercase tracking-wide">Status</label>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '12px', fontWeight: 600, color: '#525252' }}>STATUS</label>
                     <select
                       value={formData.status}
                       onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                      className="w-full px-4 py-3 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                      style={{ padding: '8px 12px', border: '1px solid #d4d4d4', borderRadius: '4px', fontSize: '14px', color: '#171717', background: '#fff' }}
                     >
                       <option value="scheduled">Scheduled</option>
                       <option value="in_progress">In Progress</option>
@@ -1208,64 +1416,417 @@ export function SiteVisits() {
                     </select>
                   </div>
                 </div>
-              </div>
 
-              {/* Location & Notes Section */}
-              <div>
-                <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-wider mb-4 flex items-center gap-2">
-                  <span className="w-1 h-4 bg-blue-600 rounded-full"></span>
-                  Location & Notes
-                </h3>
-                <div className="space-y-5">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-slate-600 uppercase tracking-wide">Site Address</label>
-                    <Textarea
+                {/* Section 2: Text Areas */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '12px', fontWeight: 600, color: '#525252' }}>SITE ADDRESS</label>
+                    <textarea
                       value={formData.site_address}
                       onChange={(e) => setFormData({ ...formData, site_address: e.target.value })}
-                      placeholder="Enter complete site address with landmarks"
-                      className="w-full px-4 py-3 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all min-h-[80px] resize-none"
+                      placeholder="Enter site address..."
+                      style={{ padding: '8px 12px', border: '1px solid #d4d4d4', borderRadius: '4px', fontSize: '14px', color: '#171717', minHeight: '60px', resize: 'vertical' }}
                     />
                   </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-slate-600 uppercase tracking-wide">Discussion Points</label>
-                    <Textarea
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '12px', fontWeight: 600, color: '#525252' }}>DISCUSSION POINTS / NOTES</label>
+                    <textarea
                       value={formData.discussion_points}
                       onChange={(e) => setFormData({ ...formData, discussion_points: e.target.value })}
-                      placeholder="Key points to discuss during the visit"
-                      className="w-full px-4 py-3 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all min-h-[100px] resize-none"
+                      placeholder="What was discussed or observed..."
+                      style={{ padding: '8px 12px', border: '1px solid #d4d4d4', borderRadius: '4px', fontSize: '14px', color: '#171717', minHeight: '80px', resize: 'vertical' }}
                     />
                   </div>
                 </div>
               </div>
 
               {/* Action Buttons */}
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200">
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={() => setIsFormOpen(false)}
-                  className="px-6 py-2.5 text-sm font-medium border-slate-300 text-slate-700 hover:bg-slate-50"
+              <div style={{
+                display: 'flex',
+                gap: '12px',
+                marginTop: '24px',
+                paddingTop: '16px',
+                borderTop: '1px solid #e5e5e5',
+              }}>
+                <button
+                  type="button"
+                  onClick={() => { setIsFormOpen(false); resetForm(); }}
+                  style={{
+                    flex: 1,
+                    padding: '10px 16px',
+                    border: '1px solid #d4d4d4',
+                    borderRadius: '4px',
+                    background: '#fff',
+                    color: '#525252',
+                    fontSize: '14px',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                  }}
                 >
                   Cancel
-                </Button>
-                <Button
+                </button>
+                <button
                   type="submit"
                   disabled={addVisitMutation.isPending || updateVisitMutation.isPending}
-                  className="px-6 py-2.5 text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white"
+                  style={{
+                    flex: 1,
+                    padding: '10px 16px',
+                    border: 'none',
+                    borderRadius: '4px',
+                    background: '#171717',
+                    color: '#fff',
+                    fontSize: '14px',
+                    fontWeight: 500,
+                    cursor: (addVisitMutation.isPending || updateVisitMutation.isPending) ? 'not-allowed' : 'pointer',
+                    opacity: (addVisitMutation.isPending || updateVisitMutation.isPending) ? 0.6 : 1,
+                  }}
                 >
                   {addVisitMutation.isPending || updateVisitMutation.isPending
                     ? 'Saving...'
                     : selectedVisit
                     ? 'Update Visit'
                     : 'Create Visit'}
-                </Button>
+                </button>
               </div>
             </form>
-          </DialogContent>
-        </Dialog>
+          </div>
+        </div>
       )}
 
-      {/* Calendar View */}
+      {/* Add Purpose Dialog */}
+      <Dialog open={isAddPurposeModalOpen} onOpenChange={setIsAddPurposeModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add New Purpose</DialogTitle>
+            <DialogDescription>
+              Create a new purpose for site visits.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Label className="text-xs font-semibold mb-2 block uppercase tracking-wide">Purpose Name</Label>
+            <Input
+              value={newPurposeName}
+              onChange={(e) => setNewPurposeName(e.target.value)}
+              placeholder="e.g. Site Audit, Quality Check"
+              className="w-full"
+              autoFocus
+            />
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => { setIsAddPurposeModalOpen(false); setNewPurposeName(''); }}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (!newPurposeName.trim()) return;
+                addPurposeMutation.mutate(newPurposeName);
+                setNewPurposeName('');
+              }}
+              disabled={addPurposeMutation.isPending}
+              className="bg-black hover:bg-black/90 text-white"
+            >
+              {addPurposeMutation.isPending ? 'Saving...' : 'Save Purpose'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      {/* Site Visit Update Modal (Detailed) */}
+      {isUpdateModalOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.6)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10000,
+          backdropFilter: 'blur(4px)',
+        }}>
+          <div style={{
+            background: '#fff',
+            borderRadius: '12px',
+            width: '95%',
+            maxWidth: '900px',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            boxShadow: '0 20px 50px rgba(0, 0, 0, 0.3)',
+          }}>
+            {/* Header */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '20px 24px',
+              borderBottom: '1px solid #f0f0f0',
+              background: '#fafafa',
+              borderTopLeftRadius: '12px',
+              borderTopRightRadius: '12px',
+            }}>
+              <div>
+                <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#171717', margin: 0 }}>Site Visit Update</h3>
+                <p style={{ fontSize: '12px', color: '#737373', margin: '4px 0 0 0' }}>Comprehensive update for site operations</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setIsUpdateModalOpen(false); resetForm(); }}
+                style={{ padding: '8px', border: 'none', background: 'transparent', color: '#a3a3a3', cursor: 'pointer', borderRadius: '50%' }}
+              >
+                <X size={22} />
+              </button>
+            </div>
+
+            <form onSubmit={handleFormSubmit} style={{ padding: '24px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+                
+                {/* LEFT COLUMN */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  
+                  {/* Select Visit (Optional if new, required if update) */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>SELECT VISIT TO UPDATE</label>
+                    <select
+                      value={selectedVisit?.id || ''}
+                      onChange={(e) => {
+                        const visit = visits?.find((v: any) => v.id === e.target.value);
+                        if (visit) handleEditVisit(visit);
+                      }}
+                      style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', background: '#fff' }}
+                    >
+                      <option value="">-- Choose existing visit --</option>
+                      {visits?.slice(0, 20).map((v: any) => (
+                        <option key={v.id} value={v.id}>
+                          {format(parseISO(v.visit_date), 'dd MMM')} - {v.clients?.client_name} ({v.purpose_of_visit})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>CLIENT *</label>
+                    <select
+                      value={formData.client_id}
+                      onChange={(e) => setFormData({ ...formData, client_id: e.target.value })}
+                      required
+                      style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', background: '#fff' }}
+                    >
+                      <option value="">Select client</option>
+                      {clients?.map((client: any) => (
+                        <option key={client.id} value={client.id}>{client.client_name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>IN TIME</label>
+                      <input
+                        type="time"
+                        value={formData.visit_time}
+                        onChange={(e) => setFormData({ ...formData, visit_time: e.target.value })}
+                        style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px' }}
+                      />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>OUT TIME</label>
+                      <input
+                        type="time"
+                        value={formData.out_time}
+                        onChange={(e) => setFormData({ ...formData, out_time: e.target.value })}
+                        style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px' }}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>VISITED BY</label>
+                    <input
+                      type="text"
+                      value={formData.visited_by}
+                      onChange={(e) => setFormData({ ...formData, visited_by: e.target.value })}
+                      placeholder="Person who visited"
+                      style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px' }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>SITE ADDRESS</label>
+                    <textarea
+                      value={formData.site_address}
+                      onChange={(e) => setFormData({ ...formData, site_address: e.target.value })}
+                      placeholder="Physical site location..."
+                      style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', minHeight: '80px' }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>DISCUSSION POINTS</label>
+                    <textarea
+                      value={formData.discussion_points}
+                      onChange={(e) => setFormData({ ...formData, discussion_points: e.target.value })}
+                      placeholder="Summary of site meeting/observations..."
+                      style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', minHeight: '100px' }}
+                    />
+                  </div>
+                </div>
+
+                {/* RIGHT COLUMN */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>VISIT DATE *</label>
+                    <input
+                      type="date"
+                      value={formData.visit_date}
+                      onChange={(e) => setFormData({ ...formData, visit_date: e.target.value })}
+                      required
+                      style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px' }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>ENGINEER / ASSIGNED TO</label>
+                    <input
+                      type="text"
+                      value={formData.engineer}
+                      onChange={(e) => setFormData({ ...formData, engineer: e.target.value })}
+                      placeholder="Engineer name"
+                      style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px' }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>PURPOSE</label>
+                      <button type="button" onClick={() => setIsAddPurposeModalOpen(true)} style={{ fontSize: '11px', color: '#3b82f6', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>+ Add New</button>
+                    </div>
+                    <select
+                      value={formData.purpose_of_visit}
+                      onChange={(e) => setFormData({ ...formData, purpose_of_visit: e.target.value })}
+                      style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', background: '#fff' }}
+                    >
+                      <option value="">Select purpose</option>
+                      {purposes?.map((p: any) => (
+                        <option key={p.id} value={p.name}>{p.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>FOLLOW UP DATE</label>
+                      <input
+                        type="date"
+                        value={formData.follow_up_date}
+                        onChange={(e) => setFormData({ ...formData, follow_up_date: e.target.value })}
+                        style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px' }}
+                      />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>LOCATION URL</label>
+                      <input
+                        type="url"
+                        value={formData.location_url}
+                        onChange={(e) => setFormData({ ...formData, location_url: e.target.value })}
+                        placeholder="Google Maps link"
+                        style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px' }}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>NEXT STEP</label>
+                    <select
+                      value={formData.next_step}
+                      onChange={(e) => setFormData({ ...formData, next_step: e.target.value })}
+                      style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', background: '#fff' }}
+                    >
+                      <option value="">Select next action</option>
+                      <option value="Quote to be Sent">Quote to be Sent</option>
+                      <option value="Follow up call">Follow up call</option>
+                      <option value="Second Visit">Second Visit</option>
+                      <option value="Order Confirmation">Order Confirmation</option>
+                    </select>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>MEASUREMENTS</label>
+                    <textarea
+                      value={formData.measurements}
+                      onChange={(e) => setFormData({ ...formData, measurements: e.target.value })}
+                      placeholder="Technical measurements or dimensions..."
+                      style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', minHeight: '80px' }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>STATUS *</label>
+                    <select
+                      value={formData.status}
+                      onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                      style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', background: '#fff' }}
+                    >
+                      <option value="pending">Pending</option>
+                      <option value="scheduled">Scheduled</option>
+                      <option value="completed">Completed</option>
+                      <option value="postponed">Postponed</option>
+                      <option value="cancelled">Cancelled</option>
+                    </select>
+                  </div>
+
+                  {formData.status === 'postponed' && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>REASON FOR POSTPONEMENT</label>
+                      <textarea
+                        value={formData.postponed_reason}
+                        onChange={(e) => setFormData({ ...formData, postponed_reason: e.target.value })}
+                        placeholder="Why was this visit delayed?"
+                        style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', minHeight: '60px' }}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div style={{
+                display: 'flex',
+                gap: '12px',
+                marginTop: '32px',
+                paddingTop: '20px',
+                borderTop: '1px solid #f0f0f0',
+              }}>
+                <button
+                  type="button"
+                  onClick={() => { setIsUpdateModalOpen(false); resetForm(); }}
+                  style={{ flex: 1, padding: '12px', border: '1px solid #d4d4d4', borderRadius: '8px', background: '#fff', color: '#525252', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={addVisitMutation.isPending || updateVisitMutation.isPending}
+                  style={{ flex: 1, padding: '12px', border: 'none', borderRadius: '8px', background: '#171717', color: '#fff', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}
+                >
+                  {addVisitMutation.isPending || updateVisitMutation.isPending ? 'Processing...' : selectedVisit ? 'Update Records' : 'Save Update'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {viewMode === 'updates' && (
+        <SiteVisitUpdatesView 
+          visits={filteredVisits} 
+          onEdit={handleEditVisit}
+          onDelete={handleDeleteVisit}
+        />
+      )}
+
       {viewMode === 'calendar' && (
         <CalendarView 
           visits={filteredVisits || []}

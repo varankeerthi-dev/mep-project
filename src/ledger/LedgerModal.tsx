@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Download, FilePenLine, Printer, X } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -19,7 +19,6 @@ type Props = {
   organisation: Record<string, unknown> | null;
   client: LedgerClient | null;
   summary: LedgerSummaryRow | null;
-  rangeLabel: string;
   onManageDetails: (clientId: string) => void;
   openingBalance?: OpeningBalance | null;
 };
@@ -172,15 +171,54 @@ export default function LedgerModal({
   organisation,
   client,
   summary,
-  rangeLabel,
   onManageDetails,
   openingBalance,
 }: Props) {
   const orgDetails = useMemo(() => getOrganisationLine(organisation), [organisation]);
-  const rows = useMemo(
-    () => buildLedgerStatementRows(summary?.invoices ?? [], summary?.receipts ?? [], openingBalance),
-    [summary, openingBalance],
-  );
+
+  // Date filters
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+
+  const rows = useMemo(() => {
+    let allRows = buildLedgerStatementRows(summary?.invoices ?? [], summary?.receipts ?? [], openingBalance);
+
+    if (startDate) {
+      let carriedForward = 0;
+      allRows.forEach(row => {
+        if (!row.date || row.date < startDate) {
+          carriedForward += row.debit;
+          carriedForward -= row.credit;
+        }
+      });
+      
+      allRows = allRows.filter(row => row.date && row.date >= startDate);
+      
+      if (carriedForward !== 0 || allRows.length > 0) {
+        allRows.unshift({
+          id: 'dynamic-ob',
+          date: startDate,
+          type: 'Opening Balance',
+          remarks: `Balance as of ${formatDisplayDate(startDate)}`,
+          debit: carriedForward > 0 ? carriedForward : 0,
+          credit: carriedForward < 0 ? Math.abs(carriedForward) : 0,
+        });
+      }
+    }
+
+    if (endDate) {
+      allRows = allRows.filter(row => row.date && row.date <= endDate);
+    }
+
+    return allRows;
+  }, [summary, openingBalance, startDate, endDate]);
+
+  const currentRangeLabel = useMemo(() => {
+    if (startDate && endDate) return `${formatDisplayDate(startDate)} to ${formatDisplayDate(endDate)}`;
+    if (startDate) return `From ${formatDisplayDate(startDate)}`;
+    if (endDate) return `Until ${formatDisplayDate(endDate)}`;
+    return 'All Time';
+  }, [startDate, endDate]);
 
   const totalDebit = rows.reduce((sum, row) => sum + row.debit, 0);
   const totalCredit = rows.reduce((sum, row) => sum + row.credit, 0);
@@ -215,26 +253,47 @@ export default function LedgerModal({
               Ledger Statement
             </DialogTitle>
             <DialogDescription className="font-body text-sm text-navy-500">
-              {client?.name ?? 'Client'} • {rangeLabel}
+              {client?.name ?? 'Client'} • {currentRangeLabel}
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => client && summary && downloadLedgerPdf(orgDetails, client, rows, summary, rangeLabel)}
-              disabled={!client || !summary}
-              className="font-body inline-flex items-center gap-2 rounded-lg border border-navy-200 px-3 py-2 text-xs font-semibold text-navy-700 transition hover:bg-cream-50 disabled:cursor-not-allowed disabled:opacity-40"
-            >
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 rounded-lg bg-cream-50 p-1 border border-navy-100">
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="font-body w-32 rounded-md border-none bg-transparent px-2 py-1 text-xs text-navy-700 outline-none hover:bg-white focus:bg-white focus:ring-1 focus:ring-navy-200"
+                placeholder="From"
+              />
+              <span className="text-navy-300">-</span>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="font-body w-32 rounded-md border-none bg-transparent px-2 py-1 text-xs text-navy-700 outline-none hover:bg-white focus:bg-white focus:ring-1 focus:ring-navy-200"
+                placeholder="To"
+              />
+            </div>
+            
+            <div className="h-6 w-px bg-navy-100" />
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => client && summary && downloadLedgerPdf(orgDetails, client, rows, summary, currentRangeLabel)}
+                disabled={!client || !summary}
+                className="font-body inline-flex items-center gap-2 rounded-lg border border-navy-200 px-3 py-2 text-xs font-semibold text-navy-700 transition hover:bg-cream-50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
               <Download size={14} />
               PDF
             </button>
-            <button
-              type="button"
-              onClick={() => client && summary && printLedgerPdf(orgDetails, client, rows, summary, rangeLabel)}
-              disabled={!client || !summary}
-              className="font-body inline-flex items-center gap-2 rounded-lg border border-navy-200 px-3 py-2 text-xs font-semibold text-navy-700 transition hover:bg-cream-50 disabled:cursor-not-allowed disabled:opacity-40"
-            >
+              <button
+                type="button"
+                onClick={() => client && summary && printLedgerPdf(orgDetails, client, rows, summary, currentRangeLabel)}
+                disabled={!client || !summary}
+                className="font-body inline-flex items-center gap-2 rounded-lg border border-navy-200 px-3 py-2 text-xs font-semibold text-navy-700 transition hover:bg-cream-50 disabled:cursor-not-allowed disabled:opacity-40"
+              >
               <Printer size={14} />
               Print
             </button>
@@ -252,14 +311,15 @@ export default function LedgerModal({
               <FilePenLine size={14} />
               Manage Details
             </button>
-            <button
-              type="button"
-              onClick={() => onOpenChange(false)}
-              className="font-body inline-flex h-9 w-9 items-center justify-center rounded-lg border border-navy-200 text-navy-600 transition hover:bg-cream-50"
-              aria-label="Close"
-            >
-              <X size={14} />
-            </button>
+              <button
+                type="button"
+                onClick={() => onOpenChange(false)}
+                className="font-body inline-flex h-9 w-9 items-center justify-center rounded-lg border border-navy-200 text-navy-600 transition hover:bg-cream-50"
+                aria-label="Close"
+              >
+                <X size={14} />
+              </button>
+            </div>
           </div>
         </div>
 

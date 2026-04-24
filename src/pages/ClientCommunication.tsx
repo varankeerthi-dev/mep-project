@@ -1016,118 +1016,249 @@ export function ClientCommunication() {
         </div>
       </div>
 
-      {/* Create Communication Modal */}
-      <Modal
-        isOpen={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
-        title="New Communication"
-        size="lg"
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setShowCreateModal(false)}>
-              Cancel
-            </Button>
-            <Button
-              variant="primary"
-              onClick={() =>
-                createMutation.mutate({
-                  ...formData,
-                  created_at: new Date().toISOString(),
-                })
+      {/* Create Communication Modal - REVAMPED */}
+      {showCreateModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.6)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10000,
+          backdropFilter: 'blur(4px)',
+        }}>
+          <div style={{
+            background: '#fff',
+            borderRadius: '12px',
+            width: '95%',
+            maxWidth: '800px',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            boxShadow: '0 20px 50px rgba(0, 0, 0, 0.3)',
+            animation: 'modalSlideUp 0.3s ease-out',
+          }}>
+            <style>{`
+              @keyframes modalSlideUp {
+                from { transform: translateY(20px); opacity: 0; }
+                to { transform: translateY(0); opacity: 1; }
               }
-              isLoading={createMutation.isPending}
-              disabled={!formData.client_id || !formData.call_brief}
-            >
-              Create Communication
-            </Button>
-          </>
-        }
-      >
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-          <div style={{ gridColumn: 'span 2' }}>
-            <label style={{ fontSize: '13px', fontWeight: 500, color: colors.gray[700], marginBottom: '6px', display: 'block' }}>
-              Client *
-            </label>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <Select
-                value={formData.client_id}
-                onChange={(e) => setFormData({ ...formData, client_id: e.target.value })}
-                options={[
-                  { value: '', label: 'Select a client' },
-                  ...clients.map((c) => ({ value: c.id, label: c.client_name }))
-                ]}
-                style={{ flex: 1 }}
-              />
-              <Button variant="secondary" onClick={() => setShowAddClientModal(true)}>
-                <Plus size={18} />
-              </Button>
+            `}</style>
+            
+            {/* Header */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '20px 24px',
+              borderBottom: '1px solid #f0f0f0',
+              background: '#fafafa',
+              borderTopLeftRadius: '12px',
+              borderTopRightRadius: '12px',
+            }}>
+              <div>
+                <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#171717', margin: 0 }}>New Communication</h3>
+                <p style={{ fontSize: '12px', color: '#737373', margin: '4px 0 0 0' }}>Log a new interaction with a client</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCreateModal(false)}
+                style={{ padding: '8px', border: 'none', background: 'transparent', color: '#a3a3a3', cursor: 'pointer', borderRadius: '50%' }}
+              >
+                <XCircle size={22} />
+              </button>
             </div>
-            {clients.length === 0 && (
-              <p style={{ fontSize: '12px', color: colors.warning.DEFAULT, marginTop: '6px' }}>
-                No clients found. Please add a client first.
-              </p>
-            )}
+
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              createMutation.mutate({
+                ...formData,
+                created_at: new Date().toISOString(),
+              });
+            }} style={{ padding: '24px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+                
+                {/* Client Selection - Full Width Row */}
+                <div style={{ gridColumn: 'span 2', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>CLIENT *</label>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <select
+                      value={formData.client_id}
+                      onChange={(e) => setFormData({ ...formData, client_id: e.target.value })}
+                      required
+                      style={{ flex: 1, padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', background: '#fff' }}
+                    >
+                      <option value="">Select a client</option>
+                      {clients.map((c) => (
+                        <option key={c.id} value={c.id}>{c.client_name}</option>
+                      ))}
+                    </select>
+                    <button 
+                      type="button"
+                      onClick={() => setShowAddClientModal(true)}
+                      style={{ padding: '0 12px', background: '#171717', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer' }}
+                    >
+                      <Plus size={18} />
+                    </button>
+                  </div>
+                  {clients.length === 0 && (
+                    <p style={{ fontSize: '11px', color: '#f59e0b', marginTop: '4px' }}>No clients found. Add a client first.</p>
+                  )}
+                </div>
+
+                {/* Communication Type */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>COMMUNICATION TYPE</label>
+                  <select
+                    value={formData.call_category}
+                    onChange={(e) => setFormData({ ...formData, call_category: e.target.value })}
+                    style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', background: '#fff' }}
+                  >
+                    {CALL_CATEGORIES.filter((c) => c.value !== '').map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Regarding */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>REGARDING</label>
+                  <select
+                    value={formData.call_regarding}
+                    onChange={(e) => setFormData({ ...formData, call_regarding: e.target.value })}
+                    style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', background: '#fff' }}
+                  >
+                    <option value="">General</option>
+                    {CALL_REGARDING.filter((r) => r.value !== '').map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Call Brief */}
+                <div style={{ gridColumn: 'span 2', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>CALL BRIEF *</label>
+                  <textarea
+                    value={formData.call_brief}
+                    onChange={(e) => setFormData({ ...formData, call_brief: e.target.value })}
+                    required
+                    placeholder="Briefly describe what was discussed..."
+                    style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', minHeight: '100px', lineHeight: '1.5' }}
+                  />
+                </div>
+
+                {/* Next Action */}
+                <div style={{ gridColumn: 'span 2', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>NEXT ACTION</label>
+                  <textarea
+                    value={formData.next_action}
+                    onChange={(e) => setFormData({ ...formData, next_action: e.target.value })}
+                    placeholder="Any follow-up tasks required?"
+                    style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', minHeight: '60px', lineHeight: '1.5' }}
+                  />
+                </div>
+
+                {/* Priority */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>PRIORITY</label>
+                  <select
+                    value={formData.priority}
+                    onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
+                    style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', background: '#fff' }}
+                  >
+                    {PRIORITY_OPTIONS.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Status */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>STATUS</label>
+                  <select
+                    value={formData.status}
+                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                    style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', background: '#fff' }}
+                  >
+                    {STATUS_OPTIONS.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Received By */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>RECEIVED BY</label>
+                  <select
+                    value={formData.call_received_by}
+                    onChange={(e) => setFormData({ ...formData, call_received_by: e.target.value })}
+                    style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', background: '#fff' }}
+                  >
+                    <option value="">Select user</option>
+                    {users.map((u) => (
+                      <option key={u.id} value={u.id}>{u.full_name || u.email}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Entered By */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ fontSize: '11px', fontWeight: 700, color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px' }}>ENTERED BY</label>
+                  <select
+                    value={formData.call_entered_by}
+                    onChange={(e) => setFormData({ ...formData, call_entered_by: e.target.value })}
+                    style={{ padding: '10px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '14px', background: '#fff' }}
+                  >
+                    <option value="">Select user</option>
+                    {users.map((u) => (
+                      <option key={u.id} value={u.id}>{u.full_name || u.email}</option>
+                    ))}
+                  </select>
+                </div>
+
+              </div>
+
+              {/* Action Buttons */}
+              <div style={{
+                display: 'flex',
+                gap: '12px',
+                marginTop: '32px',
+                paddingTop: '20px',
+                borderTop: '1px solid #f0f0f0',
+              }}>
+                <button
+                  type="button"
+                  onClick={() => setShowCreateModal(false)}
+                  style={{ flex: 1, padding: '12px', border: '1px solid #d4d4d4', borderRadius: '8px', background: '#fff', color: '#525252', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={createMutation.isPending || !formData.client_id || !formData.call_brief}
+                  style={{ 
+                    flex: 1, 
+                    padding: '12px', 
+                    border: 'none', 
+                    borderRadius: '8px', 
+                    background: '#171717', 
+                    color: '#fff', 
+                    fontSize: '14px', 
+                    fontWeight: 600, 
+                    cursor: (createMutation.isPending || !formData.client_id || !formData.call_brief) ? 'not-allowed' : 'pointer',
+                    opacity: (createMutation.isPending || !formData.client_id || !formData.call_brief) ? 0.7 : 1
+                  }}
+                >
+                  {createMutation.isPending ? 'Logging...' : 'Create Communication'}
+                </button>
+              </div>
+            </form>
           </div>
-
-          <Select
-            label="Communication Type"
-            value={formData.call_category}
-            onChange={(e) => setFormData({ ...formData, call_category: e.target.value })}
-            options={CALL_CATEGORIES.filter((c) => c.value !== '')}
-          />
-
-          <Select
-            label="Regarding"
-            value={formData.call_regarding}
-            onChange={(e) => setFormData({ ...formData, call_regarding: e.target.value })}
-            options={CALL_REGARDING.filter((r) => r.value !== '')}
-          />
-
-          <TextArea
-            label="Call Brief *"
-            value={formData.call_brief}
-            onChange={(e) => setFormData({ ...formData, call_brief: e.target.value })}
-            placeholder="Describe the conversation..."
-            style={{ gridColumn: 'span 2' }}
-          />
-
-          <TextArea
-            label="Next Action"
-            value={formData.next_action}
-            onChange={(e) => setFormData({ ...formData, next_action: e.target.value })}
-            placeholder="What needs to be done next?"
-            style={{ gridColumn: 'span 2' }}
-          />
-
-          <Select
-            label="Priority"
-            value={formData.priority}
-            onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
-            options={PRIORITY_OPTIONS}
-          />
-
-          <Select
-            label="Status"
-            value={formData.status}
-            onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-            options={STATUS_OPTIONS}
-          />
-
-          <Select
-            label="Call Received By"
-            value={formData.call_received_by}
-            onChange={(e) => setFormData({ ...formData, call_received_by: e.target.value })}
-            options={[{ value: '', label: 'Select user' }, ...users.map((u) => ({ value: u.id, label: u.full_name || u.email }))]}
-          />
-
-          <Select
-            label="Call Entered By"
-            value={formData.call_entered_by}
-            onChange={(e) => setFormData({ ...formData, call_entered_by: e.target.value })}
-            options={[{ value: '', label: 'Select user' }, ...users.map((u) => ({ value: u.id, label: u.full_name || u.email }))]}
-          />
         </div>
-      </Modal>
+      )}
 
       {/* Site Visit Modal */}
       <QuickAddClientModal 

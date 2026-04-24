@@ -7,6 +7,8 @@ import {
   CheckCircle2 as CheckIcon,
   Info as InfoIcon,
   AlertTriangle as WarningIcon,
+  Plus as PlusIcon,
+  Trash2 as TrashIcon,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 
@@ -26,6 +28,10 @@ interface ExcelEditRow {
   id: string;
   item_code: string;
   name: string;
+  variant_id?: string | null;
+  variant_name?: string | null;
+  is_variant_row?: boolean;
+  base_item_id?: string;
   [key: string]: any;
 }
 
@@ -33,15 +39,18 @@ interface ExcelEditorProps {
   materials: any[];
   warehouses: any[];
   selectedFields: string[];
-  onSave: (changes: ChangeAuditEntry[]) => void;
+  variants?: any[];
+  units?: any[];
+  onSave: (changes: ChangeAuditEntry[], newItems?: any[], deletedItems?: string[]) => void;
   onCancel: () => void;
 }
 
-const EDITABLE_COLUMNS: { key: string; label: string; width: number; editable: boolean; type?: string; warehouseId?: string }[] = [
-  { key: 'item_code', label: 'Item Code', width: 120, editable: false },
-  { key: 'name', label: 'Item Name', width: 200, editable: false },
+const EDITABLE_COLUMNS: { key: string; label: string; width: number; editable: boolean; type?: string; warehouseId?: string; mandatory?: boolean; editableForNew?: boolean }[] = [
+  { key: 'item_code', label: 'Item Code', width: 120, editable: false, editableForNew: true },
+  { key: 'name', label: 'Item Name', width: 200, editable: true, mandatory: true },
+  { key: 'variant_name', label: 'Variant', width: 100, editable: true, editableForNew: true },
   { key: 'display_name', label: 'Display Name', width: 200, editable: true },
-  { key: 'main_category', label: 'Category', width: 120, editable: true },
+  { key: 'main_category', label: 'Category', width: 120, editable: true, mandatory: true },
   { key: 'sub_category', label: 'Sub Category', width: 120, editable: true },
   { key: 'size', label: 'Size', width: 100, editable: true },
   { key: 'size_lwh', label: 'L×W×H', width: 100, editable: true },
@@ -49,11 +58,11 @@ const EDITABLE_COLUMNS: { key: string; label: string; width: number; editable: b
   { key: 'make', label: 'Make', width: 120, editable: true },
   { key: 'material', label: 'Material', width: 120, editable: true },
   { key: 'end_connection', label: 'Connection', width: 120, editable: true },
-  { key: 'unit', label: 'Unit', width: 80, editable: true },
+  { key: 'unit', label: 'Unit', width: 80, editable: true, mandatory: true, editableForNew: true },
   { key: 'sale_price', label: 'Sale Price', width: 100, editable: true, type: 'number' },
   { key: 'purchase_price', label: 'Purchase Price', width: 120, editable: true, type: 'number' },
   { key: 'hsn_code', label: 'HSN', width: 100, editable: true },
-  { key: 'gst_rate', label: 'GST%', width: 80, editable: true, type: 'number' },
+  { key: 'gst_rate', label: 'GST%', width: 80, editable: true, type: 'number', mandatory: true },
   { key: 'part_number', label: 'Part #', width: 120, editable: true },
   { key: 'taxable', label: 'Taxable', width: 100, editable: true },
   { key: 'weight', label: 'Weight', width: 80, editable: true, type: 'number' },
@@ -64,9 +73,10 @@ const EDITABLE_COLUMNS: { key: string; label: string; width: number; editable: b
   { key: 'is_active', label: 'Active', width: 80, editable: true, type: 'boolean' },
   { key: 'uses_variant', label: 'Uses Variant', width: 100, editable: true, type: 'boolean' },
   { key: 'low_stock_level', label: 'Low Stock', width: 100, editable: true, type: 'number' },
+  { key: '_delete', label: '', width: 50, editable: false },
 ];
 
-export function ExcelEditor({ materials, warehouses, selectedFields, onSave, onCancel }: ExcelEditorProps) {
+export function ExcelEditor({ materials, warehouses, selectedFields, variants = [], units = [], onSave, onCancel }: ExcelEditorProps) {
   const [rows, setRows] = useState<ExcelEditRow[]>([]);
   const [dirtyCells, setDirtyCells] = useState<Set<string>>(new Set());
   const [cellValues, setCellValues] = useState<Record<string, any>>({});
@@ -75,6 +85,10 @@ export function ExcelEditor({ materials, warehouses, selectedFields, onSave, onC
   const [showPreview, setShowPreview] = useState(false);
   const [activeCell, setActiveCell] = useState<{ rowId: string; colKey: string } | null>(null);
   const [editValue, setEditValue] = useState('');
+  const [newItems, setNewItems] = useState<any[]>([]);
+  const [deletedItems, setDeletedItems] = useState<Set<string>>(new Set());
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 30;
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -85,32 +99,72 @@ export function ExcelEditor({ materials, warehouses, selectedFields, onSave, onC
       .map(wh => ({
         key: `stock_${wh.id}`,
         label: `Stock: ${wh.warehouse_name || wh.name || 'Warehouse'}`,
-        width: 120,
+        width: 100,
         editable: true,
-        type: 'number',
+        type: 'number' as const,
         warehouseId: wh.id,
+        mandatory: false as const,
+        editableForNew: true as const,
       }));
     const idCols = EDITABLE_COLUMNS.filter(col => col.key === 'item_code' || col.key === 'name');
     return [...idCols, ...baseCols, ...stockCols];
   }, [selectedFields, warehouses]);
 
   useEffect(() => {
-    const initialRows = materials.map(m => {
-      const row: ExcelEditRow = {
-        id: m.id,
-        item_code: m.item_code || '',
-        name: m.name || '',
-      };
-      getColumnConfig.forEach(col => {
-        if (col.key.startsWith('stock_')) {
-          const stockValue = m.stock?.[col.warehouseId] || m.current_stock || 0;
-          row[col.key] = stockValue;
-        } else {
-          row[col.key] = m[col.key] ?? '';
-        }
-      });
-      return row;
+    const initialRows: ExcelEditRow[] = [];
+
+    materials.forEach(m => {
+      // Only expand if material has actual variant pricing data
+      const hasVariantPricing = m.variant_pricing && m.variant_pricing.length > 0;
+
+      if (m.uses_variant && hasVariantPricing && variants.length > 0) {
+        // Expand into one row per variant that has pricing
+        m.variant_pricing.forEach((vp: any) => {
+          const variant = variants.find(v => v.id === vp.company_variant_id);
+          if (variant) {
+            const variantRow: ExcelEditRow = {
+              id: `${m.id}_variant_${variant.id}`,
+              item_code: m.item_code || '',
+              name: m.name || '',
+              variant_id: variant.id,
+              variant_name: variant.variant_name,
+              is_variant_row: true,
+              base_item_id: m.id,
+            };
+            getColumnConfig.forEach(col => {
+              if (col.key.startsWith('stock_')) {
+                const stockValue = m.stock?.[col.warehouseId] || m.current_stock || 0;
+                variantRow[col.key] = stockValue;
+              } else if (col.key === 'sale_price' || col.key === 'purchase_price') {
+                variantRow[col.key] = vp[col.key] ?? m[col.key] ?? '';
+              } else {
+                variantRow[col.key] = m[col.key] ?? '';
+              }
+            });
+            initialRows.push(variantRow);
+          }
+        });
+      } else {
+        // Single row for non-variant items or items without variant pricing
+        const row: ExcelEditRow = {
+          id: m.id,
+          item_code: m.item_code || '',
+          name: m.name || '',
+          variant_name: '',
+          is_variant_row: false,
+        };
+        getColumnConfig.forEach(col => {
+          if (col.key.startsWith('stock_')) {
+            const stockValue = m.stock?.[col.warehouseId] || m.current_stock || 0;
+            row[col.key] = stockValue;
+          } else {
+            row[col.key] = m[col.key] ?? '';
+          }
+        });
+        initialRows.push(row);
+      }
     });
+
     setRows(initialRows);
     const origValues: Record<string, any> = {};
     initialRows.forEach(row => {
@@ -121,7 +175,7 @@ export function ExcelEditor({ materials, warehouses, selectedFields, onSave, onC
       });
     });
     setOriginalValues(origValues);
-  }, [materials, getColumnConfig]);
+  }, [materials, getColumnConfig, variants]);
 
   const handleCellClick = (rowId: string, colKey: string, col: any) => {
     if (!col.editable) return;
@@ -217,8 +271,36 @@ export function ExcelEditor({ materials, warehouses, selectedFields, onSave, onC
     return changes;
   };
 
+  const handleAddRow = () => {
+    const newId = `new-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const newRow: ExcelEditRow = {
+      id: newId,
+      item_code: '',
+      name: '',
+      variant_name: '',
+      is_variant_row: false,
+    };
+    getColumnConfig.forEach(col => {
+      newRow[col.key] = '';
+    });
+    setRows(prev => [...prev, newRow]);
+    setNewItems(prev => [...prev, newRow]);
+  };
+
+  const handleDeleteRow = (rowId: string) => {
+    if (isNewItem(rowId)) {
+      // Remove from new items
+      setNewItems(prev => prev.filter(item => item.id !== rowId));
+      setRows(prev => prev.filter(row => row.id !== rowId));
+    } else {
+      // Mark for deletion
+      setDeletedItems(prev => new Set([...prev, rowId]));
+      setRows(prev => prev.filter(row => row.id !== rowId));
+    }
+  };
+
   const handleSave = () => {
-    if (dirtyCells.size === 0) {
+    if (dirtyCells.size === 0 && newItems.length === 0 && deletedItems.size === 0) {
       onCancel();
       return;
     }
@@ -229,7 +311,7 @@ export function ExcelEditor({ materials, warehouses, selectedFields, onSave, onC
     setIsSaving(true);
     const changes = generateChangeLog();
     try {
-      await onSave(changes);
+      await onSave(changes, newItems, Array.from(deletedItems));
       setIsSaving(false);
       setShowPreview(false);
       onCancel();
@@ -240,6 +322,17 @@ export function ExcelEditor({ materials, warehouses, selectedFields, onSave, onC
   };
 
   const dirtyCount = dirtyCells.size;
+  const isNewItem = (rowId: string) => rowId.startsWith('new-');
+
+  const totalPages = Math.ceil(rows.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedRows = rows.slice(startIndex, endIndex);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    setActiveCell(null);
+  };
 
   return (
     <div className="h-full flex flex-col">
@@ -249,13 +342,20 @@ export function ExcelEditor({ materials, warehouses, selectedFields, onSave, onC
           <h2 className="text-lg font-bold text-slate-900">Excel Edit Mode</h2>
           <span className={cn(
             "px-2.5 py-1 rounded-full text-xs font-black uppercase tracking-wider",
-            dirtyCount > 0 ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-500"
+            dirtyCount > 0 || newItems.length > 0 || deletedItems.size > 0 ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-500"
           )}>
-            {dirtyCount} changes
+            {dirtyCount} changes {newItems.length > 0 && `+ ${newItems.length} new`} {deletedItems.size > 0 && `+ ${deletedItems.size} deleted`}
           </span>
         </div>
-        
+
         <div className="flex gap-2">
+          <button
+            onClick={handleAddRow}
+            disabled={isSaving}
+            className="px-4 py-2 border border-blue-200 bg-blue-50 text-blue-700 rounded-lg text-sm font-bold hover:bg-blue-100 transition-colors flex items-center gap-2"
+          >
+            <PlusIcon className="w-4 h-4" /> Add New Row
+          </button>
           <button
             onClick={onCancel}
             disabled={isSaving}
@@ -265,10 +365,10 @@ export function ExcelEditor({ materials, warehouses, selectedFields, onSave, onC
           </button>
           <button
             onClick={handleSave}
-            disabled={dirtyCount === 0 || isSaving}
+            disabled={dirtyCount === 0 && newItems.length === 0 && deletedItems.size === 0 || isSaving}
             className="px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-bold hover:bg-slate-800 transition-all flex items-center gap-2 disabled:opacity-50"
           >
-            <SaveIcon className="w-4 h-4" /> {isSaving ? 'Saving...' : `Save ${dirtyCount} Changes`}
+            <SaveIcon className="w-4 h-4" /> {isSaving ? 'Saving...' : `Save ${dirtyCount + newItems.length + deletedItems.size} Changes`}
           </button>
         </div>
       </div>
@@ -278,6 +378,7 @@ export function ExcelEditor({ materials, warehouses, selectedFields, onSave, onC
         <InfoIcon className="w-5 h-5 text-blue-600 mt-0.5" />
         <div className="text-sm text-blue-800">
           <p><strong>Navigation:</strong> Click any cell to edit. Use Tab to move right, Shift+Tab to move left, Enter to move down.</p>
+          <p><strong>Add New:</strong> Click "Add New Row" to create a new material. Fill in required fields (Item Code, Name, Category, Unit).</p>
           <p><strong>Saving:</strong> Click "Save Changes" when done. All changes will be logged for audit.</p>
         </div>
       </div>
@@ -288,6 +389,9 @@ export function ExcelEditor({ materials, warehouses, selectedFields, onSave, onC
           <thead className="sticky top-0 z-10">
             <tr className="bg-slate-50 border-b border-slate-200">
               <th className="p-2 border-r border-slate-200 w-12 text-center font-bold text-slate-500 bg-slate-50">#</th>
+              {selectedFields.includes('_delete') && (
+                <th className="p-2 border-r border-slate-200 w-12 text-center font-bold text-slate-500 bg-slate-50"></th>
+              )}
               {getColumnConfig.map(col => (
                 <th 
                   key={col.key} 
@@ -298,25 +402,45 @@ export function ExcelEditor({ materials, warehouses, selectedFields, onSave, onC
                   style={{ width: col.width, minWidth: col.width }}
                 >
                   {col.label}
-                  {col.editable && <span className="text-blue-600 ml-1">*</span>}
+                  {col.mandatory === true && <span className="text-red-500 ml-1">*</span>}
                 </th>
               ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {rows.map((row, rowIndex) => (
-              <tr key={row.id} className={rowIndex % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'}>
-                <td className="p-2 border-r border-slate-200 text-center text-slate-400 bg-slate-50/50">{rowIndex + 1}</td>
+            {paginatedRows.map((row, rowIndex) => (
+              <tr key={row.id} className={cn(
+                rowIndex % 2 === 0 ? 'bg-white' : 'bg-slate-50/30',
+                isNewItem(row.id) && 'bg-green-50/30'
+              )}>
+                <td className={cn(
+                  "p-2 border-r border-slate-200 text-center bg-slate-50/50",
+                  isNewItem(row.id) ? "text-green-600 font-bold" : "text-slate-400"
+                )}>
+                  {isNewItem(row.id) ? 'NEW' : startIndex + rowIndex + 1}
+                </td>
+                {selectedFields.includes('_delete') && (
+                  <td className="p-2 border-r border-slate-200 text-center bg-slate-50/50">
+                    <button
+                      onClick={() => handleDeleteRow(row.id)}
+                      className="text-red-500 hover:text-red-700 hover:bg-red-50 rounded p-1 transition-colors"
+                      title="Delete row"
+                    >
+                      <TrashIcon className="w-4 h-4" />
+                    </button>
+                  </td>
+                )}
                 {getColumnConfig.map(col => {
                   const cellKey = `${row.id}_${col.key}`;
                   const isDirty = dirtyCells.has(cellKey);
                   const isActive = activeCell?.rowId === row.id && activeCell?.colKey === col.key;
                   const displayValue = isActive ? editValue : (cellValues[cellKey] ?? row[col.key] ?? '');
-                  
+                  const isEditable = col.editable || (isNewItem(row.id) && col.editableForNew);
+
                   return (
-                    <td 
+                    <td
                       key={col.key}
-                      onClick={() => handleCellClick(row.id, col.key, col)}
+                      onClick={() => isEditable && handleCellClick(row.id, col.key, col)}
                       className={cn(
                         "p-0 border-r border-slate-200 relative group",
                         col.editable ? "cursor-cell" : "cursor-default",
@@ -324,15 +448,46 @@ export function ExcelEditor({ materials, warehouses, selectedFields, onSave, onC
                       )}
                     >
                       {isActive ? (
-                        <input
-                          ref={inputRef}
-                          type={col.type === 'number' ? 'number' : 'text'}
-                          value={editValue}
-                          onChange={(e) => setEditValue(e.target.value)}
-                          onBlur={handleCellBlur}
-                          onKeyDown={handleKeyDown}
-                          className="w-full h-full p-2.5 border-2 border-blue-500 outline-none text-[13px] bg-white shadow-sm"
-                        />
+                        col.key === 'variant_name' ? (
+                          <select
+                            ref={inputRef}
+                            value={editValue}
+                            onChange={e => setEditValue(e.target.value)}
+                            onBlur={() => handleCellBlur(row.id, col.key)}
+                            className="w-full h-full px-3 py-2 text-sm outline-none bg-transparent"
+                            autoFocus
+                          >
+                            <option value="">Select Variant</option>
+                            {variants.map(v => (
+                              <option key={v.id} value={v.variant_name}>{v.variant_name}</option>
+                            ))}
+                          </select>
+                        ) : col.key === 'unit' ? (
+                          <select
+                            ref={inputRef}
+                            value={editValue}
+                            onChange={e => setEditValue(e.target.value)}
+                            onBlur={() => handleCellBlur(row.id, col.key)}
+                            className="w-full h-full px-3 py-2 text-sm outline-none bg-transparent"
+                            autoFocus
+                          >
+                            <option value="">Select Unit</option>
+                            {units.map(u => (
+                              <option key={u.id} value={u.unit_name}>{u.unit_name}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <input
+                            ref={inputRef}
+                            type={col.type === 'number' ? 'number' : 'text'}
+                            value={editValue}
+                            onChange={e => setEditValue(e.target.value)}
+                            onKeyDown={e => handleKeyDown(e, row.id, col.key)}
+                            onBlur={() => handleCellBlur(row.id, col.key)}
+                            className="w-full h-full px-3 py-2 text-sm outline-none bg-transparent"
+                            autoFocus
+                          />
+                        )
                       ) : (
                         <div className="p-2.5 truncate h-full min-h-[36px]">
                           {displayValue}
@@ -350,6 +505,45 @@ export function ExcelEditor({ materials, warehouses, selectedFields, onSave, onC
         </table>
       </div>
 
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="mt-4 flex items-center justify-between bg-white rounded-xl border border-slate-200 p-3">
+          <div className="text-sm text-slate-600">
+            Showing {startIndex + 1} to {Math.min(endIndex, rows.length)} of {rows.length} items
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Previous
+            </button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+              <button
+                key={page}
+                onClick={() => handlePageChange(page)}
+                className={cn(
+                  "px-3 py-1.5 text-sm font-medium rounded-lg border",
+                  currentPage === page
+                    ? "bg-slate-900 text-white border-slate-900"
+                    : "border-slate-200 hover:bg-slate-50"
+                )}
+              >
+                {page}
+              </button>
+            ))}
+            <button
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Preview Modal */}
       {showPreview && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
@@ -362,33 +556,64 @@ export function ExcelEditor({ materials, warehouses, selectedFields, onSave, onC
             <div className="flex-1 overflow-y-auto p-8">
               <div className="mb-6 p-4 bg-amber-50 border border-amber-100 rounded-2xl flex gap-3 text-amber-800 text-sm">
                 <WarningIcon className="w-5 h-5 flex-shrink-0" />
-                <p>You are about to save <strong>{dirtyCount} changes</strong>. These modifications will be logged for audit purposes.</p>
+                <p>You are about to save <strong>{dirtyCount} changes</strong> {newItems.length > 0 && `and <strong>${newItems.length} new items</strong>`} {deletedItems.size > 0 && `and <strong>${deletedItems.size} deleted items</strong>`}. These modifications will be logged for audit purposes.</p>
               </div>
-              
-              <div className="border border-slate-100 rounded-2xl overflow-hidden">
-                <table className="w-full text-left text-sm">
-                  <thead className="bg-slate-50 border-b border-slate-100">
-                    <tr>
-                      <th className="p-4 font-black text-slate-500 uppercase tracking-widest text-[10px]">Item Code</th>
-                      <th className="p-4 font-black text-slate-500 uppercase tracking-widest text-[10px]">Item Name</th>
-                      <th className="p-4 font-black text-slate-500 uppercase tracking-widest text-[10px]">Field</th>
-                      <th className="p-4 font-black text-slate-500 uppercase tracking-widest text-[10px]">Old Value</th>
-                      <th className="p-4 font-black text-slate-500 uppercase tracking-widest text-[10px]">New Value</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 text-[13px]">
-                    {generateChangeLog().map((change, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50/50">
-                        <td className="p-4 font-mono text-slate-500 uppercase">{change.itemCode}</td>
-                        <td className="p-4 font-bold text-slate-700">{change.itemName}</td>
-                        <td className="p-4 text-slate-600">{change.field}</td>
-                        <td className="p-4 text-slate-400 line-through decoration-slate-300 font-mono italic">{String(change.oldValue)}</td>
-                        <td className="p-4 text-blue-600 font-black font-mono">{String(change.newValue)}</td>
-                      </tr>
+
+              {newItems.length > 0 && (
+                <div className="mb-6 p-4 bg-green-50 border border-green-100 rounded-2xl">
+                  <h4 className="font-bold text-green-800 mb-3 text-sm">New Items to Add</h4>
+                  <div className="space-y-2">
+                    {newItems.map((item, idx) => (
+                      <div key={item.id} className="text-sm text-green-700">
+                        <span className="font-mono">{item.item_code || '(No code)'}</span> - {item.name || '(No name)'}
+                      </div>
                     ))}
-                  </tbody>
-                </table>
-              </div>
+                  </div>
+                </div>
+              )}
+
+              {deletedItems.size > 0 && (
+                <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-2xl">
+                  <h4 className="font-bold text-red-800 mb-3 text-sm">Items to Delete</h4>
+                  <div className="space-y-2">
+                    {Array.from(deletedItems).map(itemId => {
+                      const row = rows.find(r => r.id === itemId);
+                      return (
+                        <div key={itemId} className="text-sm text-red-700">
+                          <span className="font-mono">{row?.item_code || '(No code)'}</span> - {row?.name || '(No name)'}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {dirtyCount > 0 && (
+                <div className="border border-slate-100 rounded-2xl overflow-hidden">
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-slate-50 border-b border-slate-100">
+                      <tr>
+                        <th className="p-4 font-black text-slate-500 uppercase tracking-widest text-[10px]">Item Code</th>
+                        <th className="p-4 font-black text-slate-500 uppercase tracking-widest text-[10px]">Item Name</th>
+                        <th className="p-4 font-black text-slate-500 uppercase tracking-widest text-[10px]">Field</th>
+                        <th className="p-4 font-black text-slate-500 uppercase tracking-widest text-[10px]">Old Value</th>
+                        <th className="p-4 font-black text-slate-500 uppercase tracking-widest text-[10px]">New Value</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 text-[13px]">
+                      {generateChangeLog().map((change, idx) => (
+                        <tr key={idx} className="hover:bg-slate-50/50">
+                          <td className="p-4 font-mono text-slate-500 uppercase">{change.itemCode}</td>
+                          <td className="p-4 font-bold text-slate-700">{change.itemName}</td>
+                          <td className="p-4 text-slate-600">{change.field}</td>
+                          <td className="p-4 text-slate-400 line-through decoration-slate-300 font-mono italic">{String(change.oldValue)}</td>
+                          <td className="p-4 text-blue-600 font-black font-mono">{String(change.newValue)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
 
             <div className="px-8 py-6 border-t border-slate-100 flex justify-end gap-3 bg-slate-50/50">

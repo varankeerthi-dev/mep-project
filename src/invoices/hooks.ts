@@ -7,6 +7,7 @@ import {
   getInvoices,
   getInvoiceTemplates,
   updateInvoice,
+  deleteInvoice,
   type InvoiceTemplateRecord,
   type InvoiceWithRelations,
 } from './api';
@@ -16,9 +17,9 @@ import type { InvoiceInput } from './schemas';
 export const invoiceKeys = {
   all: ['invoices'] as const,
   lists: () => [...invoiceKeys.all, 'list'] as const,
-  list: (filters: InvoiceFilters = {}) => [...invoiceKeys.lists(), filters] as const,
+  list: (filters: InvoiceFilters = {}) => [...invoiceKeys.lists(), filters],
   details: () => [...invoiceKeys.all, 'detail'] as const,
-  detail: (id: string, orgId?: string) => [...invoiceKeys.details(), id, orgId].filter(Boolean) as const,
+  detail: (id: string, orgId?: string) => [...invoiceKeys.details(), id, orgId].filter(Boolean),
   templates: () => [...invoiceKeys.all, 'templates'] as const,
 };
 
@@ -79,6 +80,21 @@ export function useInvoiceTemplates() {
     queryFn: withSessionCheck(() => getInvoiceTemplates(organisation?.id)),
     enabled: !!organisation?.id,
     staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useDeleteInvoice() {
+  const queryClient = useQueryClient();
+  const { organisation } = useAuth();
+
+  return useMutation({
+    mutationFn: withSessionCheck((id: string) => {
+      if (!organisation?.id) throw new Error('Not authenticated');
+      return deleteInvoice(id, organisation.id);
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: invoiceKeys.lists() });
+    },
   });
 }
 

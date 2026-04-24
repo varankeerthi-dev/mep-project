@@ -62,7 +62,7 @@ const INVOICE_SELECT = `
   total,
   status,
   created_at,
-  client:clients(id, name, gst_number, state, default_template_id),
+  client:clients(id, client_name, gstin, state, default_template_id, email),
   items:invoice_items(id, invoice_id, description, hsn_code, qty, rate, amount, meta_json),
   materials:invoice_materials(id, invoice_id, product_id, qty_used)
 `;
@@ -72,10 +72,11 @@ function parseClientSummary(client: any): InvoiceClientSummary | null {
 
   return {
     id: String(client.id),
-    name: client.name ?? null,
-    gst_number: client.gst_number ?? null,
+    name: client.client_name ?? null,
+    gst_number: client.gstin ?? null,
     state: client.state ?? null,
     default_template_id: client.default_template_id ?? null,
+    email: client.email ?? null,
   };
 }
 
@@ -281,6 +282,11 @@ export async function updateInvoice(id: string, input: InvoiceInput & { organisa
   }
 
   return getInvoiceById(id, input.organisation_id);
+}
+
+export async function deleteInvoice(id: string, organisationId: string): Promise<void> {
+  const { error } = await supabase.from('invoices').delete().eq('id', id).eq('organisation_id', organisationId);
+  if (error) throw error;
 }
 
 export async function getInvoiceById(id: string, organisationId?: string): Promise<InvoiceWithRelations> {

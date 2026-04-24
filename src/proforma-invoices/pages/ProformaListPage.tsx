@@ -693,6 +693,14 @@ export default function ProformaListPage() {
     setSelectedIds(new Set());
   };
 
+  const handleDelete = (proforma: ProformaWithRelations) => {
+    if (!organisation?.id) return;
+    if (!confirm(`Are you sure you want to delete proforma invoice ${proforma.pi_number || proforma.id}?`)) return;
+    if (!confirm('This action cannot be undone. Continue?')) return;
+
+    deleteMutate({ id: proforma.id!, organisationId: organisation.id });
+  };
+
   const handleBulkSend = () => {
     if (!organisation?.id || selectedIds.size === 0) return;
     selectedIds.forEach((id) => {
@@ -837,6 +845,15 @@ export default function ProformaListPage() {
                 </button>
               </>
             )}
+            <button
+              type="button"
+              onClick={() => handleDelete(proforma)}
+              className="pi-dropdown-item"
+              style={{ color: '#dc2626' }}
+            >
+              <Trash2 size={14} />
+              Delete
+            </button>
             {!proforma.converted_invoice_id && proforma.status === 'accepted' && (
               <button
                 type="button"

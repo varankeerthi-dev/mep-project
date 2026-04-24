@@ -98,20 +98,24 @@ export async function listLedgerClients(orgId: string): Promise<LedgerClient[]> 
   }));
 }
 
-export async function listLedgerInvoices(orgId: string, range: LedgerDateRange): Promise<LedgerInvoice[]> {
-  const { data, error } = await supabase
+export async function listLedgerInvoices(orgId: string, range?: LedgerDateRange): Promise<LedgerInvoice[]> {
+  let query = supabase
     .from('invoices')
-    .select('id, org_id, client_id, invoice_no, invoice_date, due_date, total, remarks, created_at, client:clients(id, client_name, name)')
-    .eq('org_id', orgId)
-    .gte('invoice_date', range.startDate)
-    .lte('invoice_date', range.endDate)
+    .select('id, organisation_id, client_id, invoice_no, invoice_date, due_date, total, remarks, created_at, client:clients(id, client_name, name)')
+    .eq('organisation_id', orgId)
     .order('invoice_date', { ascending: true });
+
+  if (range && range.startDate !== '2000-01-01') {
+    query = query.gte('invoice_date', range.startDate).lte('invoice_date', range.endDate);
+  }
+
+  const { data, error } = await query;
 
   if (error) throw error;
 
   return (data ?? []).map((row: any, index: number) => ({
     id: String(row.id),
-    org_id: row.org_id ?? null,
+    org_id: row.organisation_id ?? null,
     client_id: String(row.client_id),
     invoice_no: String(row.invoice_no ?? `INV-${String(index + 1).padStart(4, '0')}`),
     invoice_date: row.invoice_date ?? null,
@@ -129,14 +133,18 @@ export async function listLedgerInvoices(orgId: string, range: LedgerDateRange):
   }));
 }
 
-export async function listLedgerReceipts(orgId: string, range: LedgerDateRange): Promise<LedgerReceipt[]> {
-  const { data, error } = await supabase
+export async function listLedgerReceipts(orgId: string, range?: LedgerDateRange): Promise<LedgerReceipt[]> {
+  let query = supabase
     .from('receipts')
     .select('id, org_id, client_id, invoice_id, receipt_no, amount, receipt_date, remarks, payment_type, created_at')
     .eq('org_id', orgId)
-    .gte('receipt_date', range.startDate)
-    .lte('receipt_date', range.endDate)
     .order('receipt_date', { ascending: true });
+
+  if (range && range.startDate !== '2000-01-01') {
+    query = query.gte('receipt_date', range.startDate).lte('receipt_date', range.endDate);
+  }
+
+  const { data, error } = await query;
 
   if (error) throw error;
 

@@ -210,6 +210,7 @@ function TabButton({ active, onClick, children }) {
 function ItemsTab() {
   const queryClient = useQueryClient();
   const { organisation } = useAuth();
+  const organisationId = organisation?.id;
   const [showForm, setShowForm] = useState(false);
   const [showColumnSettings, setShowColumnSettings] = useState(false);
   const [showBulkPriceModal, setShowBulkPriceModal] = useState(false);
@@ -264,7 +265,7 @@ function ItemsTab() {
   // Excel Edit Mode state
   const [excelEditMode, setExcelEditMode] = useState(false);
   const [showFieldSelector, setShowFieldSelector] = useState(false);
-  const [selectedEditFields, setSelectedEditFields] = useState<string[]>(['sale_price', 'purchase_price']);
+  const [selectedEditFields, setSelectedEditFields] = useState<string[]>(['variant_name', 'sale_price', 'purchase_price']);
   const [showExcelImportFieldSelector, setShowExcelImportFieldSelector] = useState(false);
   const [excelImportFields, setExcelImportFields] = useState<string[]>([]);
 
@@ -2493,8 +2494,84 @@ function ItemsTab() {
               materials={materials}
               warehouses={warehouses}
               selectedFields={selectedEditFields}
-              onSave={async (changes) => {
+              variants={variants}
+              units={units}
+              onSave={async (changes, newItems, deletedItems) => {
                 const nowIso = new Date().toISOString();
+
+                // Handle new items first
+                for (const newItem of newItems || []) {
+                  if (!newItem.name || !newItem.main_category || !newItem.unit || !newItem.gst_rate) {
+                    alert(`Skipping new item with missing required fields. Name: ${newItem.name || 'missing'}, Category: ${newItem.main_category || 'missing'}, Unit: ${newItem.unit || 'missing'}, GST Rate: ${newItem.gst_rate || 'missing'}`);
+                    continue;
+                  }
+
+                  const { data: createdItem, error: createError } = await supabase
+                    .from('materials')
+                    .insert({
+                      item_code: newItem.item_code,
+                      name: newItem.name,
+                      display_name: newItem.display_name || newItem.name,
+                      main_category: newItem.main_category,
+                      sub_category: newItem.sub_category || null,
+                      size: newItem.size || null,
+                      size_lwh: newItem.size_lwh || null,
+                      pressure_class: newItem.pressure_class || null,
+                      make: newItem.make || null,
+                      material: newItem.material || null,
+                      end_connection: newItem.end_connection || null,
+                      unit: newItem.unit,
+                      sale_price: newItem.sale_price ? parseFloat(newItem.sale_price) : null,
+                      purchase_price: newItem.purchase_price ? parseFloat(newItem.purchase_price) : null,
+                      hsn_code: newItem.hsn_code || null,
+                      gst_rate: newItem.gst_rate ? parseFloat(newItem.gst_rate) : null,
+                      part_number: newItem.part_number || null,
+                      taxable: newItem.taxable !== undefined ? newItem.taxable : true,
+                      weight: newItem.weight ? parseFloat(newItem.weight) : null,
+                      upc: newItem.upc || null,
+                      mpn: newItem.mpn || null,
+                      ean: newItem.ean || null,
+                      inventory_account: newItem.inventory_account || null,
+                      is_active: newItem.is_active !== undefined ? newItem.is_active : true,
+                      uses_variant: newItem.uses_variant !== undefined ? newItem.uses_variant : false,
+                      low_stock_level: newItem.low_stock_level ? parseFloat(newItem.low_stock_level) : null,
+                      organisation_id: organisationId,
+                      created_at: nowIso,
+                      updated_at: nowIso,
+                    })
+                    .select('id')
+                    .single();
+
+                  if (createError) {
+                    alert(`Failed to create item ${newItem.item_code}: ${createError.message}`);
+                    continue;
+                  }
+
+                  // Handle stock for new items
+                  for (const wh of warehouses) {
+                    const stockKey = `stock_${wh.id}`;
+                    const stockValue = newItem[stockKey];
+                    if (stockValue && parseFloat(stockValue) > 0) {
+                      await supabase.from('item_stock').insert({
+                        item_id: createdItem.id,
+                        warehouse_id: wh.id,
+                        current_stock: parseFloat(stockValue),
+                        created_at: nowIso,
+                        updated_at: nowIso,
+                      });
+                    }
+                  }
+
+                  await supabase.from('item_audit_logs').insert({
+                    item_id: createdItem.id,
+                    action: 'EXCEL_CREATE',
+                    notes: `Item created via Excel Edit Mode`,
+                    changes: JSON.stringify({ created: true }),
+                    created_at: nowIso,
+                  });
+                }
+
+                // Handle existing item changes
                 for (const change of changes) {
                   const fieldMapping = {
                     'Sale Price': 'sale_price',
@@ -2522,7 +2599,12 @@ function ItemsTab() {
                     'Uses Variant': 'uses_variant',
                     'Low Stock': 'low_stock_level',
                   };
-                  
+
+                  // Check if this is a variant row (itemId contains '_variant_')
+                  const isVariantRow = change.itemId.includes('_variant_');
+                  const baseItemId = isVariantRow ? change.itemId.split('_variant_')[0] : change.itemId;
+                  const variantId = isVariantRow ? change.itemId.split('_variant_')[1] : null;
+
                   if (change.field.startsWith('Stock:')) {
                     const whName = change.field.replace('Stock: ', '');
                     const warehouse = warehouses.find(w => (w.warehouse_name || w.name) === whName);
@@ -2530,31 +2612,118 @@ function ItemsTab() {
                       const { data: existingStock } = await supabase
                         .from('item_stock')
                         .select('id')
-                        .eq('item_id', change.itemId)
+                        .eq('item_id', baseItemId)
                         .eq('warehouse_id', warehouse.id)
                         .maybeSingle();
-                      
+
                       if (existingStock) {
                         await supabase.from('item_stock').update({ current_stock: change.newValue, updated_at: nowIso }).eq('id', existingStock.id);
                       } else {
-                        await supabase.from('item_stock').insert({ item_id: change.itemId, warehouse_id: warehouse.id, current_stock: change.newValue, created_at: nowIso, updated_at: nowIso });
+                        await supabase.from('item_stock').insert({ item_id: baseItemId, warehouse_id: warehouse.id, current_stock: change.newValue, created_at: nowIso, updated_at: nowIso });
+                      }
+                    }
+                  } else if (isVariantRow && (change.field === 'Sale Price' || change.field === 'Purchase Price')) {
+                    // Update variant pricing table
+                    const dbField = fieldMapping[change.field];
+                    if (dbField && variantId) {
+                      const { data: existingVariantPricing } = await supabase
+                        .from('item_variant_pricing')
+                        .select('id')
+                        .eq('item_id', baseItemId)
+                        .eq('company_variant_id', variantId)
+                        .maybeSingle();
+
+                      if (existingVariantPricing) {
+                        await supabase.from('item_variant_pricing').update({ [dbField]: change.newValue, updated_at: nowIso }).eq('id', existingVariantPricing.id);
+                      } else {
+                        await supabase.from('item_variant_pricing').insert({
+                          item_id: baseItemId,
+                          company_variant_id: variantId,
+                          [dbField]: change.newValue,
+                          created_at: nowIso,
+                          updated_at: nowIso,
+                        });
                       }
                     }
                   } else {
+                    // Update materials table (base item fields)
                     const dbField = fieldMapping[change.field];
                     if (dbField) {
-                      await supabase.from('materials').update({ [dbField]: change.newValue, updated_at: nowIso }).eq('id', change.itemId);
+                      await supabase.from('materials').update({ [dbField]: change.newValue, updated_at: nowIso }).eq('id', baseItemId);
                     }
                   }
-                  
+
                   await supabase.from('item_audit_logs').insert({
-                    item_id: change.itemId,
-                    action: 'BULK_EXCEL_UPDATE',
-                    notes: `Field "${change.field}" changed from "${change.oldValue}" to "${change.newValue}" via Excel Edit Mode`,
-                    changes: JSON.stringify([{ field: change.field, old_value: change.oldValue, new_value: change.newValue }]),
+                    item_id: baseItemId,
+                    action: isVariantRow ? 'VARIANT_EXCEL_UPDATE' : 'BULK_EXCEL_UPDATE',
+                    notes: `Field "${change.field}" changed from "${change.oldValue}" to "${change.newValue}" via Excel Edit Mode${isVariantRow ? ` (Variant: ${variantId})` : ''}`,
+                    changes: JSON.stringify([{ field: change.field, old_value: change.oldValue, new_value: change.newValue, variant_id: variantId }]),
                     created_at: nowIso,
                   });
                 }
+
+                // Handle deleted items
+                for (const deletedItemId of deletedItems || []) {
+                  const baseItemId = deletedItemId.includes('_variant_') ? deletedItemId.split('_variant_')[0] : deletedItemId;
+
+                  // Check if item is used in any past transactions
+                  const { data: invoiceItems } = await supabase
+                    .from('invoice_items')
+                    .select('id')
+                    .eq('material_id', baseItemId)
+                    .limit(1);
+
+                  const { data: quotationItems } = await supabase
+                    .from('quotation_items')
+                    .select('id')
+                    .eq('material_id', baseItemId)
+                    .limit(1);
+
+                  const { data: proformaItems } = await supabase
+                    .from('proforma_items')
+                    .select('id')
+                    .eq('material_id', baseItemId)
+                    .limit(1);
+
+                  const { data: dcItems } = await supabase
+                    .from('dc_items')
+                    .select('id')
+                    .eq('material_id', baseItemId)
+                    .limit(1);
+
+                  const hasTransactions = (invoiceItems?.length || 0) > 0 ||
+                    (quotationItems?.length || 0) > 0 ||
+                    (proformaItems?.length || 0) > 0 ||
+                    (dcItems?.length || 0) > 0;
+
+                  if (hasTransactions) {
+                    // Mark as inactive instead of deleting
+                    await supabase.from('materials').update({
+                      is_active: false,
+                      updated_at: nowIso,
+                    }).eq('id', baseItemId);
+
+                    await supabase.from('item_audit_logs').insert({
+                      item_id: baseItemId,
+                      action: 'MARK_INACTIVE',
+                      notes: `Item marked as inactive via Excel Edit Mode due to existing transactions`,
+                      changes: JSON.stringify({ is_active: false, reason: 'has_transactions' }),
+                      created_at: nowIso,
+                    });
+                  } else {
+                    // Safe to delete
+                    await supabase.from('materials').delete().eq('id', baseItemId);
+
+                    await supabase.from('item_audit_logs').insert({
+                      item_id: baseItemId,
+                      action: 'DELETE',
+                      notes: `Item deleted via Excel Edit Mode`,
+                      changes: JSON.stringify({ deleted: true }),
+                      created_at: nowIso,
+                    });
+                  }
+                }
+
                 await queryClient.invalidateQueries({ queryKey: ['materials'] });
               }}
               onCancel={() => setExcelEditMode(false)}

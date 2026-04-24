@@ -32,12 +32,14 @@ export default function Projects() {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { organisation } = useAuth();
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'list');
   const [Component, setComponent] = useState<React.ComponentType | null>(null);
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
-  const [organisationId, setOrganisationId] = useState<string>('');
-  const [projectName, setProjectName] = useState<string>('');
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(searchParams.get('projectId'));
+  const [projectName, setProjectName] = useState<string>(searchParams.get('projectName') || '');
   const [materialSubTab, setMaterialSubTab] = useState(searchParams.get('subtab') || 'select-project');
+
+  const organisationId = organisation?.id || '';
 
   const loadComponent = (tabId: string) => {
     const tabConfig = TABS.find(t => t.id === tabId);
@@ -65,24 +67,24 @@ export default function Projects() {
 
   const handleSelectProject = (id: string, orgId: string, name: string) => {
     setSelectedProjectId(id);
-    setOrganisationId(orgId);
     setProjectName(name);
-    setMaterialSubTab('intents');
-    setSearchParams({ tab: 'material-management', subtab: 'intents' });
+    setSearchParams({ 
+      tab: 'material-management', 
+      subtab: 'select-project',
+      projectId: id,
+      projectName: name
+    });
   };
 
   const handleBackToProjects = () => {
     setSelectedProjectId(null);
-    setMaterialSubTab('select-project');
     setSearchParams({ tab: 'material-management', subtab: 'select-project' });
   };
 
   const handleMaterialSubTabChange = (subTabId: string) => {
     setMaterialSubTab(subTabId);
+    setSelectedProjectId(null);
     setSearchParams({ tab: 'material-management', subtab: subTabId });
-    if (subTabId !== 'intents') {
-      setSelectedProjectId(null);
-    }
   };
 
   const isMaterialManagement = activeTab === 'material-management';
@@ -114,7 +116,7 @@ export default function Projects() {
 
       <div style={{ flex: 1, overflow: 'auto', background: '#f8fafc' }}>
         {isMaterialManagement ? (
-          <>
+          <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
             {/* Material Sub-tabs */}
             <div style={{ background: '#fff', borderBottom: '1px solid #e5e7eb', padding: '0 24px' }}>
               <div style={{ display: 'flex', gap: '4px' }}>
@@ -154,9 +156,13 @@ export default function Projects() {
                 ) : (
                   <ProjectMaterialSelect onSelectProject={handleSelectProject} />
                 )
-              ) : null}
+              ) : (
+                <div style={{ padding: '40px', textAlign: 'center', color: '#6b7280' }}>
+                  Select a sub-tab to continue
+                </div>
+              )}
             </div>
-          </>
+          </div>
         ) : (
           Component && <Component />
         )}

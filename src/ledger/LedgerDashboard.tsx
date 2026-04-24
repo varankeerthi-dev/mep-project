@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/table';
 
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -46,7 +47,7 @@ import { buildLedgerSummaries, formatCurrency, formatDisplayDate, generateFyOpti
 const DEFAULT_STORAGE_KEY = 'ledger.dashboard.default-range.v1';
 
 type RangePreset = 'monthly' | 'financial-year' | 'last-3-months' | 'last-6-months' | 'last-2-years';
-type TabType = 'ledger' | 'details' | 'opening-balance';
+type TabType = 'ledger' | 'payments' | 'opening-balance';
 type EditingReceipt = {
   id: string;
   amount: number;
@@ -145,59 +146,34 @@ export default function LedgerDashboard() {
   const paymentCardRef = useRef<HTMLDivElement | null>(null);
   const qc = useQueryClient();
 
-  const storedDefault = useMemo(() => readStoredDefault(), []);
-  const [selectedPreset, setSelectedPreset] = useState<RangePreset | null>(storedDefault?.preset ?? 'monthly');
-  const [startDate, setStartDate] = useState(storedDefault?.startDate ?? getPresetRange('monthly').startDate);
-  const [endDate, setEndDate] = useState(storedDefault?.endDate ?? getPresetRange('monthly').endDate);
-  const [appliedStartDate, setAppliedStartDate] = useState(storedDefault?.startDate ?? getPresetRange('monthly').startDate);
-  const [appliedEndDate, setAppliedEndDate] = useState(storedDefault?.endDate ?? getPresetRange('monthly').endDate);
-  const [saveAsDefault, setSaveAsDefault] = useState(Boolean(storedDefault));
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
-  const [filtersOpen, setFiltersOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('ledger');
+  const [detailsDrawerOpen, setDetailsDrawerOpen] = useState(false);
   const [editingReceiptId, setEditingReceiptId] = useState<string | null>(null);
   const [editingForm, setEditingForm] = useState<EditingReceipt | null>(null);
-  const [pendingDeletes, setPendingDeletes] = useState<Set<string>>(new Set());
-  const [selectedFy, setSelectedFy] = useState<string>('');
+  const [selectedFy, setSelectedFy] = useState<string>(generateFyOptions('FY24-25')[2]);
+  const [showLedger, setShowLedger] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [paymentsSearch, setPaymentsSearch] = useState('');
+  const [paymentsStartDate, setPaymentsStartDate] = useState('');
+  const [paymentsEndDate, setPaymentsEndDate] = useState('');
   const [openingBalanceEditMode, setOpeningBalanceEditMode] = useState(false);
   const [openingBalanceDrafts, setOpeningBalanceDrafts] = useState<Record<string, BulkOpeningBalanceInput>>({});
-
-  // Enquiry mode - new design
-  const [enquiryDone, setEnquiryDone] = useState(false);
-  const [enquiryType, setEnquiryType] = useState<'client' | 'date'>('client');
-  const [enquiryClientId, setEnquiryClientId] = useState<string | null>(null);
-  const [enquiryStartDate, setEnquiryStartDate] = useState(() => getPresetRange('monthly').startDate);
-  const [enquiryEndDate, setEnquiryEndDate] = useState(() => getPresetRange('monthly').endDate);
 
   const clientsQuery = useQuery({
     queryKey: ['ledger', 'clients', orgId],
     queryFn: () => listLedgerClients(orgId),
-    enabled: Boolean(orgId),
+    enabled: Boolean(orgId) && showLedger,
     staleTime: 5 * 60 * 1000,
   });
 
-  useEffect(() => {
-    if (organisation?.current_financial_year) {
-      setSelectedFy(String(organisation.current_financial_year));
-    }
-  }, [organisation]);
 
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (filtersOpen && !target.closest('.filter-dropdown-container')) {
-        setFiltersOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [filtersOpen]);
 
   const openingBalancesQuery = useQuery({
     queryKey: ['ledger', 'opening-balances', orgId, selectedFy],
     queryFn: () => getOpeningBalances(orgId, selectedFy),
-    enabled: Boolean(orgId) && Boolean(selectedFy),
+    enabled: Boolean(orgId) && Boolean(selectedFy) && showLedger,
   });
 
   const saveOpeningBalancesMutation = useMutation({
@@ -251,15 +227,15 @@ export default function LedgerDashboard() {
   }, [openingBalances]);
 
   const invoicesQuery = useQuery({
-    queryKey: ['ledger', 'invoices', orgId, appliedStartDate, appliedEndDate],
-    queryFn: () => listLedgerInvoices(orgId, { startDate: appliedStartDate, endDate: appliedEndDate }),
-    enabled: Boolean(orgId) && enquiryDone,
+    queryKey: ['ledger', 'invoices', orgId, 'all-time'],
+    queryFn: () => listLedgerInvoices(orgId, { startDate: '2000-01-01', endDate: '2099-12-31' }),
+    enabled: Boolean(orgId) && showLedger,
   });
 
   const receiptsQuery = useQuery({
-    queryKey: ['ledger', 'receipts', orgId, appliedStartDate, appliedEndDate],
-    queryFn: () => listLedgerReceipts(orgId, { startDate: appliedStartDate, endDate: appliedEndDate }),
-    enabled: Boolean(orgId) && enquiryDone,
+    queryKey: ['ledger', 'receipts', orgId, 'all-time'],
+    queryFn: () => listLedgerReceipts(orgId, { startDate: '2000-01-01', endDate: '2099-12-31' }),
+    enabled: Boolean(orgId) && showLedger,
   });
 
   const paymentForm = useForm<RecordPaymentValues>({
@@ -293,10 +269,7 @@ export default function LedgerDashboard() {
         remarks: '',
       });
 
-      void qc.invalidateQueries({ queryKey: ['ledger', 'receipts', orgId] });
-      void qc.invalidateQueries({ queryKey: ['ledger', 'invoices', orgId] });
-      void qc.invalidateQueries({ queryKey: ['ledger', 'clients', orgId] });
-      void qc.invalidateQueries({ queryKey: ['ledger', 'opening-balances', orgId, selectedFy] });
+      void qc.invalidateQueries({ queryKey: ['ledger'] });
     },
     onError: (error: any) => {
       toast.error(error?.message ?? 'Unable to record payment.');
@@ -309,10 +282,7 @@ export default function LedgerDashboard() {
       toast.success('Receipt updated successfully.');
       setEditingReceiptId(null);
       setEditingForm(null);
-      void qc.invalidateQueries({ queryKey: ['ledger', 'receipts', orgId] });
-      void qc.invalidateQueries({ queryKey: ['ledger', 'invoices', orgId] });
-      void qc.invalidateQueries({ queryKey: ['ledger', 'clients', orgId] });
-      void qc.invalidateQueries({ queryKey: ['ledger', 'opening-balances', orgId, selectedFy] });
+      void qc.invalidateQueries({ queryKey: ['ledger'] });
     },
     onError: (error: any) => {
       toast.error(error?.message ?? 'Unable to update receipt.');
@@ -323,31 +293,14 @@ export default function LedgerDashboard() {
     mutationFn: deleteReceipt,
     onSuccess: () => {
       toast.success('Receipt deleted successfully.');
-      void qc.invalidateQueries({ queryKey: ['ledger', 'receipts', orgId] });
-      void qc.invalidateQueries({ queryKey: ['ledger', 'invoices', orgId] });
-      void qc.invalidateQueries({ queryKey: ['ledger', 'clients', orgId] });
-      void qc.invalidateQueries({ queryKey: ['ledger', 'opening-balances', orgId, selectedFy] });
+      void qc.invalidateQueries({ queryKey: ['ledger'] });
     },
     onError: (error: any) => {
       toast.error(error?.message ?? 'Unable to delete receipt.');
     },
   });
 
-  useEffect(() => {
-    if (saveAsDefault) {
-      window.localStorage.setItem(
-        DEFAULT_STORAGE_KEY,
-        JSON.stringify({
-          preset: selectedPreset,
-          startDate: appliedStartDate,
-          endDate: appliedEndDate,
-        }),
-      );
-      return;
-    }
 
-    window.localStorage.removeItem(DEFAULT_STORAGE_KEY);
-  }, [appliedEndDate, appliedStartDate, saveAsDefault, selectedPreset]);
 
   const clients = clientsQuery.data ?? [];
 
@@ -394,22 +347,37 @@ export default function LedgerDashboard() {
     };
   }, [invoicesQuery.data, receiptsQuery.data, summaries]);
 
-  const rangeLabel = `${formatDisplayDate(appliedStartDate)} to ${formatDisplayDate(appliedEndDate)}`;
-  const hasPendingFilterChanges = startDate !== appliedStartDate || endDate !== appliedEndDate;
-  const hasPendingDetailsChanges = editingReceiptId !== null || pendingDeletes.size > 0;
+  const filteredSummaries = useMemo(() => {
+    if (!searchTerm.trim()) return summaries;
+    const lower = searchTerm.toLowerCase();
+    return summaries.filter((s) => s.clientName.toLowerCase().includes(lower));
+  }, [summaries, searchTerm]);
 
-  const handlePreset = (preset: RangePreset) => {
-    const range = getPresetRange(preset);
-    setSelectedPreset(preset);
-    setStartDate(range.startDate);
-    setEndDate(range.endDate);
-  };
+  const filteredPayments = useMemo(() => {
+    if (!receiptsQuery.data) return [];
+    let list = [...receiptsQuery.data]; // Clone to prevent mutating frozen react-query cache
 
-  const handleApplyFilters = () => {
-    setAppliedStartDate(startDate);
-    setAppliedEndDate(endDate);
-    setFiltersOpen(false);
-  };
+    if (paymentsStartDate) {
+      list = list.filter(r => r.receipt_date && r.receipt_date >= paymentsStartDate);
+    }
+    if (paymentsEndDate) {
+      list = list.filter(r => r.receipt_date && r.receipt_date <= paymentsEndDate);
+    }
+    if (paymentsSearch.trim()) {
+      const lower = paymentsSearch.toLowerCase();
+      list = list.filter(r => {
+        const clientName = clients.find(c => c.id === r.client_id)?.name?.toLowerCase() || '';
+        return clientName.includes(lower) || 
+               (r.remarks && r.remarks.toLowerCase().includes(lower)) ||
+               (r.payment_type && r.payment_type.toLowerCase().includes(lower));
+      });
+    }
+    return list.sort((a, b) => {
+      const timeA = new Date(a.receipt_date || 0).getTime() || 0;
+      const timeB = new Date(b.receipt_date || 0).getTime() || 0;
+      return timeB - timeA;
+    });
+  }, [receiptsQuery.data, paymentsStartDate, paymentsEndDate, paymentsSearch, clients]);
 
   const handleView = (clientId: string) => {
     setSelectedClientId(clientId);
@@ -419,7 +387,7 @@ export default function LedgerDashboard() {
 
   const handleEditLedger = (clientId: string) => {
     setSelectedClientId(clientId);
-    setActiveTab('details');
+    setDetailsDrawerOpen(true);
   };
 
   const handleStartEdit = (receipt: LedgerReceipt) => {
@@ -431,32 +399,11 @@ export default function LedgerDashboard() {
       payment_type: receipt.payment_type || '',
       remarks: receipt.remarks || '',
     });
-    setPendingDeletes((prev) => {
-      const next = new Set(prev);
-      next.delete(receipt.id);
-      return next;
-    });
   };
 
   const handleCancelEdit = () => {
     setEditingReceiptId(null);
     setEditingForm(null);
-  };
-
-  const handleMarkDelete = (id: string) => {
-    setPendingDeletes((prev) => new Set(prev).add(id));
-    if (editingReceiptId === id) {
-      setEditingReceiptId(null);
-      setEditingForm(null);
-    }
-  };
-
-  const handleUndoDelete = (id: string) => {
-    setPendingDeletes((prev) => {
-      const next = new Set(prev);
-      next.delete(id);
-      return next;
-    });
   };
 
   const handleSaveEdit = () => {
@@ -468,13 +415,6 @@ export default function LedgerDashboard() {
       payment_type: editingForm.payment_type || null,
       remarks: editingForm.remarks,
     });
-  };
-
-  const handleSaveAllChanges = async () => {
-    const deletePromises = Array.from(pendingDeletes).map((id) => deleteReceiptMutation.mutateAsync(id));
-    await Promise.all(deletePromises);
-    setPendingDeletes(new Set());
-    toast.success('All changes saved successfully.');
   };
 
   const handleStartOpeningBalanceEdit = () => {
@@ -512,114 +452,6 @@ export default function LedgerDashboard() {
     );
   }
 
-  // Enquiry Landing UI
-  if (!enquiryDone) {
-    return (
-      <div className="min-h-screen bg-zinc-50/50">
-        <div className="mx-auto max-w-2xl px-6 py-8">
-          {/* Header */}
-          <div className="mb-8">
-            <span className="text-xs font-medium uppercase tracking-widest text-zinc-400">
-              Finance
-            </span>
-            <h1 className="mt-2 text-2xl font-semibold tracking-tight text-zinc-700">
-              Ledger
-            </h1>
-            <p className="mt-1 text-sm text-zinc-500">
-              View client outstanding, invoices, and payment history
-            </p>
-          </div>
-
-          {/* Enquiry Card */}
-          <div className="rounded-xl border border-zinc-200 bg-white p-8 shadow-sm">
-            <h2 className="text-sm font-medium text-zinc-700 mb-6">Enquiry Type</h2>
-            
-            {/* Enquiry Type Toggle */}
-            <div className="flex gap-3 mb-8">
-              <button
-                type="button"
-                onClick={() => setEnquiryType('client')}
-                className={`flex-1 rounded-lg border px-5 py-3.5 text-sm font-medium transition ${
-                  enquiryType === 'client'
-                    ? 'border-zinc-400 bg-zinc-600 text-white'
-                    : 'border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50'
-                }`}
-              >
-                Single Client
-              </button>
-              <button
-                type="button"
-                onClick={() => setEnquiryType('date')}
-                className={`flex-1 rounded-lg border px-5 py-3.5 text-sm font-medium transition ${
-                  enquiryType === 'date'
-                    ? 'border-zinc-400 bg-zinc-600 text-white'
-                    : 'border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50'
-                }`}
-              >
-                Date-Wise Report
-              </button>
-            </div>
-
-            {/* Enquiry Fields */}
-            <div className="grid gap-6 md:grid-cols-2 mb-8">
-              {enquiryType === 'client' && (
-                <div className="md:col-span-2">
-                  <label className="text-sm font-medium text-zinc-600 mb-3 block">Client</label>
-                  <select
-                    value={enquiryClientId || ''}
-                    onChange={(e) => setEnquiryClientId(e.target.value || null)}
-                    className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-200"
-                  >
-                    <option value="">Select client...</option>
-                    {(clientsQuery.data || []).map((client) => (
-                      <option key={client.id} value={client.id}>
-                        {client.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-<div>
-                  <label className="text-sm font-medium text-zinc-600 mb-3 block">From Date</label>
-                  <input
-                    type="date"
-                    value={enquiryStartDate}
-                    onChange={(e) => setEnquiryStartDate(e.target.value)}
-                    className="w-full rounded-lg border border-zinc-200 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-200"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-zinc-600 mb-3 block">To Date</label>
-                  <input
-                    type="date"
-                    value={enquiryEndDate}
-                    onChange={(e) => setEnquiryEndDate(e.target.value)}
-                    className="w-full rounded-lg border border-zinc-200 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-200"
-                  />
-                </div>
-            </div>
-
-            {/* Search Button */}
-            <button
-              type="button"
-              onClick={() => {
-                setAppliedStartDate(enquiryStartDate);
-                setAppliedEndDate(enquiryEndDate);
-                setSelectedClientId(enquiryClientId);
-                setEnquiryDone(true);
-              }}
-              disabled={enquiryType === 'client' && !enquiryClientId}
-              className="w-full rounded-lg bg-zinc-600 px-5 py-4 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Search Ledger
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-zinc-50/50">
       <div className="mx-auto max-w-7xl px-6 py-8">
@@ -633,19 +465,9 @@ export default function LedgerDashboard() {
               Ledger
             </h1>
             <p className="mt-1 text-sm text-zinc-500">
-              {enquiryType === 'client' 
-                ? `Client: ${clients.find(c => c.id === selectedClientId)?.name || 'Unknown'}`
-                : 'All Clients'
-              } | {enquiryStartDate} - {enquiryEndDate}
+              View client outstanding, invoices, and payment history
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => setEnquiryDone(false)}
-            className="text-sm text-zinc-500 hover:text-zinc-700"
-          >
-            Change Enquiry
-          </button>
         </div>
 
         {/* Stats Cards */}
@@ -694,36 +516,19 @@ export default function LedgerDashboard() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setActiveTab('details')}
+                    onClick={() => setActiveTab('payments')}
                     className={`inline-flex items-center gap-1.5 rounded px-3 py-1.5 text-xs font-medium transition ${
-                      activeTab === 'details'
+                      activeTab === 'payments'
                         ? 'bg-white text-zinc-700 shadow-sm'
                         : 'text-zinc-500 hover:text-zinc-700'
                     }`}
                   >
-                    <Pencil size={13} />
-                    Details
-                    {hasPendingDetailsChanges && (
-                      <span className="ml-1 h-1.5 w-1.5 rounded-full bg-amber-500" />
-                    )}
+                    <Wallet size={13} />
+                    Payments
                   </button>
                 </div>
 
-                {activeTab === 'ledger' && (
-                  <button
-                    type="button"
-                    onClick={() => setFiltersOpen(!filtersOpen)}
-                    className="filter-dropdown-container inline-flex items-center gap-2 rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50"
-                  >
-                    <span>{rangeLabel}</span>
-                    <ChevronDown size={11} className={`transition-transform ${filtersOpen ? 'rotate-180' : ''}`} />
-                  </button>
-                )}
-                {activeTab === 'details' && selectedClient && (
-                  <span className="text-sm font-medium text-zinc-700">
-                    {selectedClient.name}
-                  </span>
-                )}
+
                 {activeTab === 'opening-balance' && (
                   <div className="flex items-center gap-2">
                     <select
@@ -744,18 +549,6 @@ export default function LedgerDashboard() {
               </div>
 
               <div className="flex items-center gap-2">
-                {activeTab === 'details' && hasPendingDetailsChanges && (
-                  <Button
-                    size="sm"
-                    variant="primary"
-                    onClick={handleSaveAllChanges}
-                    isLoading={deleteReceiptMutation.isPending}
-                    leftIcon={<Save size={12} />}
-                  >
-                    Save Changes
-                  </Button>
-                )}
-
                 {activeTab === 'opening-balance' && !openingBalanceEditMode && selectedFy && (
                   <Button
                     size="sm"
@@ -767,97 +560,30 @@ export default function LedgerDashboard() {
                   </Button>
                 )}
 
-                {/* Opening Balance Button */}
+                {/* Show Ledger / Opening Balance Buttons */}
                 {activeTab !== 'opening-balance' && (
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => setActiveTab('opening-balance')}
-                    leftIcon={<Calculator size={12} />}
-                  >
-                    Opening Balance
-                  </Button>
-                )}
-
-                {activeTab === 'ledger' && filtersOpen && (
-                  <div className="filter-dropdown-container absolute right-6 top-full z-50 mt-2 w-72 rounded-lg border border-zinc-200 bg-white p-3 shadow-lg">
-                    <div className="space-y-3">
-                      <div className="text-[10px] font-medium uppercase tracking-wider text-zinc-400">
-                        Presets
-                      </div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {(['monthly', 'financial-year', 'last-3-months', 'last-6-months', 'last-2-years'] as RangePreset[]).map((preset) => (
-                          <button
-                            key={preset}
-                            type="button"
-                            onClick={() => handlePreset(preset)}
-                            className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition ${
-                              selectedPreset === preset
-                                ? 'bg-zinc-600 text-white'
-                                : 'border border-zinc-200 bg-white text-zinc-500 hover:bg-zinc-50'
-                            }`}
-                          >
-                            {getPresetLabel(preset)}
-                          </button>
-                        ))}
-                      </div>
-
-                      <div className="border-t border-zinc-100 pt-3">
-                        <div className="mb-2 text-[10px] font-medium uppercase tracking-wider text-zinc-400">
-                          Custom Range
-                        </div>
-                        <div className="grid gap-2">
-                          <div className="space-y-1">
-                            <label className="block text-[11px] font-medium text-zinc-500">From</label>
-                            <input
-                              type="date"
-                              value={startDate}
-                              onChange={(event) => {
-                                setSelectedPreset(null);
-                                setStartDate(event.target.value);
-                              }}
-                              className="h-8 w-full rounded border border-zinc-200 bg-white px-2.5 text-xs text-zinc-900 outline-none transition focus:border-zinc-400"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <label className="block text-[11px] font-medium text-zinc-500">To</label>
-                            <input
-                              type="date"
-                              value={endDate}
-                              onChange={(event) => {
-                                setSelectedPreset(null);
-                                setEndDate(event.target.value);
-                              }}
-                              className="h-8 w-full rounded border border-zinc-200 bg-white px-2.5 text-xs text-zinc-900 outline-none transition focus:border-zinc-400"
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="border-t border-zinc-100 pt-3">
-                        <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-600">
-                          <input
-                            type="checkbox"
-                            checked={saveAsDefault}
-                            onChange={(event) => setSaveAsDefault(event.target.checked)}
-                            className="h-3.5 w-3.5 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-500"
-                          />
-                          Save as default
-                        </label>
-                      </div>
-
+                  <div className="flex gap-2">
+                    {!showLedger && (
                       <Button
                         size="sm"
-                        onClick={handleApplyFilters}
-                        disabled={!hasPendingFilterChanges}
-                        leftIcon={<Search size={12} />}
-                        className="w-full"
+                        variant="primary"
+                        onClick={() => setShowLedger(true)}
+                        leftIcon={<Filter size={12} />}
                       >
-                        Apply Filters
+                        Show Ledger
                       </Button>
-                    </div>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => setActiveTab('opening-balance')}
+                      leftIcon={<Calculator size={12} />}
+                    >
+                      Opening Balance
+                    </Button>
                   </div>
                 )}
+
               </div>
             </div>
           </div>
@@ -865,32 +591,236 @@ export default function LedgerDashboard() {
           {/* Content Area */}
           <div className="grid gap-5 p-4 xl:grid-cols-[1fr_320px]">
             {/* Main Table Area */}
-            <div className="overflow-hidden rounded-lg border border-zinc-200">
+            <div className="overflow-hidden rounded-xl border border-zinc-200/60 bg-white shadow-sm ring-1 ring-black/[0.02]">
+              {activeTab === 'payments' && (
+                <div className="flex flex-col font-sans" style={{ fontFamily: 'Roboto, sans-serif' }}>
+                  <div className="flex items-center justify-between border-b border-zinc-200 bg-zinc-50/50 p-3">
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400" size={13} />
+                      <input
+                        type="text"
+                        placeholder="Search payments..."
+                        value={paymentsSearch}
+                        onChange={(e) => setPaymentsSearch(e.target.value)}
+                        className="h-8 w-64 rounded-md border border-zinc-200 bg-white pl-8 pr-3 text-xs outline-none transition-all focus:border-zinc-400"
+                      />
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2">
+                      <input
+                        type="date"
+                        value={paymentsStartDate}
+                        onChange={(e) => setPaymentsStartDate(e.target.value)}
+                        className="h-8 rounded-md border border-zinc-200 bg-white px-2 text-xs outline-none focus:border-zinc-400"
+                      />
+                      <span className="text-xs font-medium text-zinc-400">to</span>
+                      <input
+                        type="date"
+                        value={paymentsEndDate}
+                        onChange={(e) => setPaymentsEndDate(e.target.value)}
+                        className="h-8 rounded-md border border-zinc-200 bg-white px-2 text-xs outline-none focus:border-zinc-400"
+                      />
+                    </div>
+                  </div>
+                </div>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="border-b border-zinc-200 bg-zinc-100/50 hover:bg-zinc-100/50">
+                          <TableHead className="h-9 px-4 text-left align-middle text-[11px] font-semibold text-zinc-600">Date</TableHead>
+                          <TableHead className="h-9 px-4 text-left align-middle text-[11px] font-semibold text-zinc-600">Client Name</TableHead>
+                          <TableHead className="h-9 px-4 text-left align-middle text-[11px] font-semibold text-zinc-600">Payment Type</TableHead>
+                          <TableHead className="h-9 px-4 text-left align-middle text-[11px] font-semibold text-zinc-600">Remarks</TableHead>
+                          <TableHead className="h-9 px-4 text-right align-middle text-[11px] font-semibold text-zinc-600">Amount</TableHead>
+                          <TableHead className="h-9 px-4 text-right align-middle text-[11px] font-semibold text-zinc-600">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody className="[&_tr:last-child]:border-0">
+                        {!showLedger ? (
+                          <TableRow>
+                            <TableCell colSpan={6} className="py-12 text-center">
+                              <div className="mx-auto max-w-sm space-y-2">
+                                <div className="text-sm font-medium text-zinc-700">Payments hidden</div>
+                                <div className="text-xs text-zinc-500">
+                                  Click the "Show Ledger" button above to load and display all payment data.
+                                </div>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ) : filteredPayments.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={6} className="py-8 text-center text-xs text-zinc-500">No payments found.</TableCell>
+                          </TableRow>
+                        ) : (
+                          filteredPayments.map(receipt => {
+                            const isEditing = editingReceiptId === receipt.id;
+
+                            if (isEditing && editingForm) {
+                              return (
+                                <TableRow key={receipt.id} className="bg-amber-50/50 border-b border-amber-100">
+                                  <TableCell className="py-2 px-4">
+                                    <input
+                                      type="date"
+                                      value={editingForm.receipt_date}
+                                      onChange={(e) => setEditingForm({ ...editingForm, receipt_date: e.target.value })}
+                                      className="h-8 w-full rounded border border-zinc-200 bg-white px-2 text-xs"
+                                    />
+                                  </TableCell>
+                                  <TableCell className="py-2 px-4">
+                                    <div className="text-[13px] font-medium text-zinc-800">
+                                      {clients.find(c => c.id === receipt.client_id)?.name || 'Unknown'}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="py-2 px-4">
+                                    <select
+                                      value={editingForm.payment_type}
+                                      onChange={(e) => setEditingForm({ ...editingForm, payment_type: e.target.value })}
+                                      className="h-8 w-full rounded border border-zinc-200 bg-white px-2 text-xs"
+                                    >
+                                      <option value="">-</option>
+                                      <option value="Opening Balance">Opening Balance</option>
+                                      <option value="Advance">Advance</option>
+                                    </select>
+                                  </TableCell>
+                                  <TableCell className="py-2 px-4">
+                                    <input
+                                      type="text"
+                                      value={editingForm.remarks}
+                                      onChange={(e) => setEditingForm({ ...editingForm, remarks: e.target.value })}
+                                      className="h-8 w-full rounded border border-zinc-200 bg-white px-2 text-xs"
+                                    />
+                                  </TableCell>
+                                  <TableCell className="py-2 px-4">
+                                    <input
+                                      type="number"
+                                      step="0.01"
+                                      value={editingForm.amount}
+                                      onChange={(e) => setEditingForm({ ...editingForm, amount: parseFloat(e.target.value) || 0 })}
+                                      className="h-8 w-full rounded border border-zinc-200 bg-white px-2 text-xs text-right tabular-nums"
+                                    />
+                                  </TableCell>
+                                  <TableCell className="py-2 px-4 text-right">
+                                    <div className="flex items-center justify-end gap-1">
+                                      <button
+                                        type="button"
+                                        onClick={handleSaveEdit}
+                                        className="inline-flex items-center gap-1 rounded bg-zinc-900 px-2 py-1 text-[11px] font-medium text-white hover:bg-zinc-800 transition"
+                                      >
+                                        Save
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={handleCancelEdit}
+                                        className="inline-flex items-center gap-1 rounded px-2 py-1 text-[11px] font-medium text-zinc-600 hover:bg-zinc-100 transition"
+                                      >
+                                        Cancel
+                                      </button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            }
+
+                            return (
+                              <TableRow key={receipt.id} className="group border-b border-zinc-100 hover:bg-zinc-50/80">
+                                <TableCell className="py-2.5 px-4 text-[12.5px] tabular-nums text-zinc-600">{formatDisplayDate(receipt.receipt_date)}</TableCell>
+                                <TableCell className="py-2.5 px-4 text-[13px] font-medium text-zinc-800">
+                                  {clients.find(c => c.id === receipt.client_id)?.name || 'Unknown'}
+                                </TableCell>
+                                <TableCell className="py-2.5 px-4 text-[12.5px] text-zinc-600">{receipt.payment_type || '-'}</TableCell>
+                                <TableCell className="py-2.5 px-4 text-[12.5px] text-zinc-500">{receipt.remarks || '-'}</TableCell>
+                                <TableCell className="py-2.5 px-4 text-right text-[13px] font-medium tabular-nums text-emerald-600">
+                                  {formatCurrency(receipt.amount)}
+                                </TableCell>
+                                <TableCell className="py-2.5 px-4 text-right">
+                                  <div className="flex items-center justify-end gap-3 opacity-0 transition-opacity group-hover:opacity-100">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleStartEdit(receipt)}
+                                      className="text-zinc-400 hover:text-zinc-900 transition-colors"
+                                      title="Edit Payment"
+                                    >
+                                      <Pencil size={12} />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        if (window.confirm('Are you sure you want to delete this payment? This action cannot be undone.')) {
+                                          deleteReceiptMutation.mutate(receipt.id);
+                                        }
+                                      }}
+                                      className="text-rose-400 hover:text-rose-600 transition-colors"
+                                      title="Delete Payment"
+                                    >
+                                      <Trash2 size={12} />
+                                    </button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              )}
+
               {activeTab === 'ledger' && (
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
-                      <TableRow className="border-b border-zinc-200 bg-zinc-50/80">
-                        <TableHead className="h-10 px-4 text-left align-middle text-[11px] font-medium text-zinc-500">Client</TableHead>
-                        <TableHead className="h-10 px-4 text-right align-middle text-[11px] font-medium text-zinc-500">Outstanding</TableHead>
-                        <TableHead className="h-10 px-4 text-left align-middle text-[11px] font-medium text-zinc-500">Due Date</TableHead>
-                        <TableHead className="h-10 px-4 text-left align-middle text-[11px] font-medium text-zinc-500">Status</TableHead>
-                        <TableHead className="h-10 px-4 text-right align-middle text-[11px] font-medium text-zinc-500">Actions</TableHead>
+                      <TableRow className="border-b border-zinc-200/60 bg-zinc-50/50 backdrop-blur-xl">
+                        <TableHead className="h-12 w-[350px] px-5 text-left align-middle">
+                          <div className="flex items-center gap-3">
+                            <span className="text-[10.5px] font-medium uppercase tracking-wider text-zinc-500/80">Client Name</span>
+                            {showLedger && (
+                              <div className="relative">
+                                <Search className="absolute left-2 top-1/2 -translate-y-1/2 text-zinc-400" size={11} />
+                                <input
+                                  type="text"
+                                  placeholder="Filter..."
+                                  value={searchTerm}
+                                  onChange={(e) => setSearchTerm(e.target.value)}
+                                  className="h-7 w-32 rounded border border-zinc-200/60 bg-white px-2 pl-6 text-[11px] text-zinc-700 shadow-sm outline-none transition-all placeholder:text-zinc-400 focus:w-48 focus:border-zinc-400 focus:ring-1 focus:ring-zinc-400"
+                                />
+                              </div>
+                            )}
+                          </div>
+                        </TableHead>
+                        <TableHead className="h-12 w-[180px] px-5 text-right align-middle text-[10.5px] font-medium uppercase tracking-wider text-zinc-500/80">Outstanding</TableHead>
+                        <TableHead className="h-12 w-[160px] px-5 text-left align-middle text-[10.5px] font-medium uppercase tracking-wider text-zinc-500/80">Due Date</TableHead>
+                        <TableHead className="h-12 w-[160px] px-5 text-left align-middle text-[10.5px] font-medium uppercase tracking-wider text-zinc-500/80">Status</TableHead>
+                        <TableHead className="h-12 w-auto px-5 text-right align-middle text-[10.5px] font-medium uppercase tracking-wider text-zinc-500/80">Action</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody className="[&_tr:last-child]:border-0">
-                      {isLoading && (
+                      {isLoading && showLedger && (
+                        Array.from({ length: 5 }).map((_, i) => (
+                          <tr key={i} className="border-b border-zinc-100/60 bg-white/30">
+                            <td className="px-5 py-4"><Skeleton className="h-4 w-32 rounded-md bg-zinc-200/60" /></td>
+                            <td className="px-5 py-4"><Skeleton className="h-4 w-24 ml-auto rounded-md bg-zinc-200/60" /></td>
+                            <td className="px-5 py-4"><Skeleton className="h-4 w-20 rounded-md bg-zinc-200/60" /></td>
+                            <td className="px-5 py-4"><Skeleton className="h-4 w-16 rounded-md bg-zinc-200/60" /></td>
+                            <td className="px-5 py-4"><Skeleton className="h-4 w-24 ml-auto rounded-md bg-zinc-200/60" /></td>
+                          </tr>
+                        ))
+                      )}
+
+                      {!showLedger && (
                         <tr>
-                          <td colSpan={5} className="px-4 py-12 text-center">
-                            <span className="inline-flex items-center gap-1.5 text-xs text-zinc-500">
-                              <Loader2 size={12} className="animate-spin" />
-                              Loading ledger data...
-                            </span>
+                          <td colSpan={5} className="px-5 py-12 text-center">
+                            <div className="mx-auto max-w-sm space-y-2">
+                              <div className="text-sm font-medium text-zinc-700">Ledger hidden</div>
+                              <div className="text-xs text-zinc-500">
+                                Click the "Show Ledger" button above to load and display the client ledger data.
+                              </div>
+                            </div>
                           </td>
                         </tr>
                       )}
 
-                      {!isLoading && summaries.length === 0 && (
+                      {!isLoading && showLedger && summaries.length === 0 && (
                         <tr>
                           <td colSpan={5} className="px-4 py-12 text-center">
                             <div className="mx-auto max-w-sm space-y-2">
@@ -903,18 +833,18 @@ export default function LedgerDashboard() {
                         </tr>
                       )}
 
-                      {summaries.map((summary) => (
-                        <tr key={summary.clientId} className="border-b border-zinc-100 hover:bg-zinc-50/50">
-                          <td className="px-4 py-3.5 align-middle">
-                            <span className="text-sm font-medium text-zinc-700">{summary.clientName}</span>
+                      {filteredSummaries.map((summary) => (
+                        <tr key={summary.clientId} className="group relative border-b border-zinc-100/60 transition-colors hover:bg-zinc-50/80">
+                          <td className="px-5 py-5 align-middle cursor-pointer" onClick={() => handleView(summary.clientId)}>
+                            <span className="text-[13px] font-medium text-zinc-800 transition-colors group-hover:text-zinc-950 group-hover:underline decoration-zinc-300 underline-offset-4">{summary.clientName}</span>
                           </td>
-                          <td className="px-4 py-3.5 text-right align-middle">
-                            <span className="text-sm font-medium text-zinc-700">{formatCurrency(summary.outstanding)}</span>
+                          <td className="px-5 py-5 text-right align-middle">
+                            <span className="tabular-nums tracking-tight text-[13px] font-semibold text-zinc-800">{formatCurrency(summary.outstanding)}</span>
                           </td>
-                          <td className="px-4 py-3.5 align-middle">
-                            <span className="text-xs text-zinc-500">{formatDisplayDate(summary.oldestDueDate)}</span>
+                          <td className="px-5 py-5 align-middle">
+                            <span className="tabular-nums text-[12.5px] text-zinc-500/90">{formatDisplayDate(summary.oldestDueDate)}</span>
                           </td>
-                          <td className="px-4 py-3.5 align-middle">
+                          <td className="px-5 py-5 align-middle">
                             {(() => {
                               const status = statusBadge(summary);
                               const dotColors = {
@@ -922,29 +852,35 @@ export default function LedgerDashboard() {
                                 rose: 'bg-rose-500',
                                 amber: 'bg-amber-500',
                               };
+                              const bgColors = {
+                                emerald: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20',
+                                rose: 'bg-rose-50 text-rose-700 ring-rose-600/20',
+                                amber: 'bg-amber-50 text-amber-700 ring-amber-600/20',
+                              };
+                              const variant = status.icon as keyof typeof dotColors;
                               return (
-                                <span className={`inline-flex items-center gap-1.5 text-xs ${status.color}`}>
-                                  <span className={`h-1.5 w-1.5 rounded-full ${dotColors[status.icon as keyof typeof dotColors]}`} />
+                                <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10.5px] font-medium ring-1 ring-inset ${bgColors[variant]}`}>
+                                  <span className={`h-1 w-1 rounded-full ${dotColors[variant]}`} />
                                   {status.label}
                                 </span>
                               );
                             })()}
                           </td>
-                          <td className="px-4 py-3.5 text-right align-middle">
+                          <td className="px-5 py-5 text-right align-middle opacity-0 transition-opacity group-hover:opacity-100">
                             <button
                               type="button"
                               onClick={() => handleView(summary.clientId)}
-                              className="text-[11px] text-zinc-500 underline underline-offset-2 hover:text-zinc-700"
+                              className="inline-flex h-7 items-center justify-center rounded-md bg-white px-2.5 text-[11px] font-medium text-zinc-700 shadow-sm ring-1 ring-inset ring-zinc-300 transition-all hover:bg-zinc-50 hover:text-zinc-900"
                             >
-                              View Ledger
+                              Open
                             </button>
-                            <span className="mx-1.5 text-zinc-300">·</span>
+                            <span className="mx-2 text-zinc-200">|</span>
                             <button
                               type="button"
                               onClick={() => handleEditLedger(summary.clientId)}
-                              className="text-[11px] text-zinc-500 underline underline-offset-2 hover:text-zinc-700"
+                              className="text-[11px] font-medium text-zinc-500 transition-colors hover:text-zinc-900"
                             >
-                              Edit Details
+                              Edit
                             </button>
                           </td>
                         </tr>
@@ -954,8 +890,27 @@ export default function LedgerDashboard() {
                 </div>
               )}
 
-              {activeTab === 'details' && (
-                <div className="p-4">
+              {detailsDrawerOpen && (
+                <div className="fixed inset-0 z-50 flex justify-end bg-zinc-900/20 backdrop-blur-sm transition-all duration-300">
+                  <div className="w-full max-w-2xl bg-white shadow-2xl flex flex-col h-full animate-in slide-in-from-right overflow-y-auto">
+                    <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-4 sticky top-0 bg-white z-10">
+                      <div>
+                        <h2 className="text-lg font-semibold text-zinc-800">
+                          Manage Details
+                        </h2>
+                        {selectedClient && <p className="text-xs text-zinc-500">{selectedClient.name}</p>}
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setDetailsDrawerOpen(false)}
+                          className="text-zinc-500 hover:text-zinc-700 bg-zinc-100 hover:bg-zinc-200 p-1.5 rounded-md transition"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="p-6">
                   {!selectedClient && (
                     <div className="py-12 text-center">
                       <div className="mx-auto max-w-sm space-y-2">
@@ -997,30 +952,6 @@ export default function LedgerDashboard() {
                           <TableBody className="[&_tr:last-child]:border-0">
                             {selectedClientReceipts.map((receipt) => {
                               const isEditing = editingReceiptId === receipt.id;
-                              const isPendingDelete = pendingDeletes.has(receipt.id);
-
-                              if (isPendingDelete) {
-                                return (
-                                  <tr key={receipt.id} className="bg-rose-50/50 border-b border-rose-100">
-                                    <td colSpan={4} className="px-4 py-3 text-xs text-rose-600">
-                                      <span className="line-through opacity-60">
-                                        {formatDisplayDate(receipt.receipt_date)} — {receipt.remarks || 'Receipt'}
-                                      </span>
-                                      <span className="ml-2 text-[10px] font-semibold">(Marked for deletion)</span>
-                                    </td>
-                                    <td className="px-4 py-3 text-right">
-                                      <button
-                                        type="button"
-                                        onClick={() => handleUndoDelete(receipt.id)}
-                                        className="inline-flex items-center gap-1 rounded px-2 py-1 text-[11px] font-medium text-zinc-600 hover:bg-zinc-100"
-                                      >
-                                        <X size={10} />
-                                        Undo
-                                      </button>
-                                    </td>
-                                  </tr>
-                                );
-                              }
 
                               if (isEditing && editingForm) {
                                 return (
@@ -1105,7 +1036,11 @@ export default function LedgerDashboard() {
                                       </button>
                                       <button
                                         type="button"
-                                        onClick={() => handleMarkDelete(receipt.id)}
+                                        onClick={() => {
+                                          if (window.confirm('Are you sure you want to delete this payment? This action cannot be undone.')) {
+                                            deleteReceiptMutation.mutate(receipt.id);
+                                          }
+                                        }}
                                         className="inline-flex h-7 w-7 items-center justify-center rounded border border-rose-200 text-rose-600 hover:bg-rose-50"
                                       >
                                         <Trash2 size={10} />
@@ -1120,6 +1055,8 @@ export default function LedgerDashboard() {
                       </div>
                     </div>
                   )}
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -1247,7 +1184,6 @@ export default function LedgerDashboard() {
           organisation={(organisation as Record<string, unknown>) ?? null}
           client={selectedClient}
           summary={selectedSummary}
-          rangeLabel={rangeLabel}
           onManageDetails={handleEditLedger}
           openingBalance={selectedClientId ? openingBalancesMap[selectedClientId] ?? null : null}
         />

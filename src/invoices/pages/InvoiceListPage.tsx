@@ -16,11 +16,12 @@ import {
   Pencil,
   Columns,
   Check,
+  Trash2,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import type { TableColumn } from '@/lib/table-schema';
 import { distinctOptions } from '@/lib/table-schema';
-import { useInvoices } from '../hooks';
+import { useInvoices, useDeleteInvoice } from '../hooks';
 import { invoiceListTableSchema, invoiceToListRow } from '../invoice-list-table-schema';
 import { downloadInvoicePDF, emailInvoicePDF, previewInvoicePDF, printInvoicePDF, generateProGridInvoicePDF } from '../pdf';
 import type { InvoiceWithRelations } from '../api';
@@ -554,7 +555,8 @@ export default function InvoiceListPage() {
     };
   }, [openColumnsMenu]);
 
-  const invoicesQuery = useInvoices({});
+  const invoicesQuery = useInvoices();
+  const { mutate: deleteMutate } = useDeleteInvoice();
 
   const paired = useMemo(
     () => (invoicesQuery.data ?? []).map((invoice) => ({ invoice, row: invoiceToListRow(invoice) })),
@@ -726,6 +728,12 @@ export default function InvoiceListPage() {
     }
   };
 
+  const handleDelete = (invoice: InvoiceWithRelations) => {
+    if (!confirm(`Are you sure you want to delete invoice ${invoice.invoice_no || invoice.id}?`)) return;
+    if (!confirm('This action cannot be undone. Continue?')) return;
+    deleteMutate(invoice.id!);
+  };
+
   const checkboxFilterColumns = visibleColumns.filter((c) => c.filter?.type === 'checkbox');
   const sliderFilterColumns = visibleColumns.filter((c) => c.filter?.type === 'slider');
   const colSpan = visibleColumns.length + 1;
@@ -823,6 +831,18 @@ export default function InvoiceListPage() {
             >
               <Mail size={14} />
               Email
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setOpenMenuInvoiceId(null);
+                handleDelete(invoice);
+              }}
+              className="il-dropdown-item"
+              style={{ color: '#dc2626' }}
+            >
+              <Trash2 size={14} />
+              Delete
             </button>
           </div>
         )}
