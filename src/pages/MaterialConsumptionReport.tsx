@@ -9,6 +9,10 @@ interface ProjectProps {
 }
 
 export default function MaterialConsumptionReport({ projectId, organisationId }: ProjectProps) {
+  if (!organisationId) {
+    return <div className="p-6 text-center text-red-600">Organisation ID is required</div>;
+  }
+
   const { data: consumptionData = [], isLoading } = useQuery({
     queryKey: ['materialConsumptionSummary', projectId],
     queryFn: () => getMaterialConsumptionSummary(projectId),

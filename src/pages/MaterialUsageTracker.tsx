@@ -19,7 +19,13 @@ interface ProjectProps {
 export default function MaterialUsageTracker({ projectId, organisationId }: ProjectProps) {
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  
+  const { data: materials } = useMaterials();
+  const { data: variants } = useVariants();
+
+  if (!organisationId) {
+    return <div className="p-6 text-center text-red-600">Organisation ID is required</div>;
+  }
+
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
