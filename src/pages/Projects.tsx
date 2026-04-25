@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
-import { Folder, Plus, ClipboardList, Package, ArrowLeft } from 'lucide-react';
+import { Folder, Plus, ClipboardList, Package, ArrowLeft, List, Calendar, BarChart3 } from 'lucide-react';
 import { supabase } from '../supabase';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../App';
@@ -8,6 +8,9 @@ import ProjectMaterialIntents from './ProjectMaterialIntents';
 import ReceiveMaterial from './ReceiveMaterial';
 import ProjectMaterialDashboard from './ProjectMaterialDashboard';
 import MaterialIntentsList from './MaterialIntentsList';
+import ProjectMaterialList from './ProjectMaterialList';
+import MaterialUsageTracker from './MaterialUsageTracker';
+import MaterialConsumptionReport from './MaterialConsumptionReport';
 
 const ProjectList = () => import('./ProjectList').then(m => ({ default: m.default }));
 const CreateProject = () => import('./CreateProject').then(m => ({ default: m.default }));
@@ -235,6 +238,15 @@ function ProjectMaterialTabs({ projectId, organisationId, projectName, onBack }:
     if (activeSubTab === 'dashboard') {
       return <ProjectMaterialDashboard projectId={projectId} organisationId={organisationId} projectName={projectName} isAdmin={true} />;
     }
+    if (activeSubTab === 'material-list') {
+      return <ProjectMaterialList projectId={projectId} organisationId={organisationId} />;
+    }
+    if (activeSubTab === 'usage') {
+      return <MaterialUsageTracker projectId={projectId} organisationId={organisationId} />;
+    }
+    if (activeSubTab === 'consumption') {
+      return <MaterialConsumptionReport projectId={projectId} organisationId={organisationId} />;
+    }
     return null;
   };
 
@@ -250,6 +262,9 @@ function ProjectMaterialTabs({ projectId, organisationId, projectName, onBack }:
               { id: 'intents', label: 'Raise Intent', Icon: FileText },
               { id: 'receive', label: 'Receive Material', Icon: Truck },
               { id: 'dashboard', label: 'Dashboard', Icon: BarChart },
+              { id: 'material-list', label: 'Material List', Icon: List },
+              { id: 'usage', label: 'Usage', Icon: Calendar },
+              { id: 'consumption', label: 'Consumption Report', Icon: BarChart3 },
             ].map(tab => {
               const isActive = activeSubTab === tab.id;
               return (
