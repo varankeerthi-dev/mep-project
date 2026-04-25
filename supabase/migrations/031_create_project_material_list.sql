@@ -22,6 +22,12 @@ CREATE INDEX IF NOT EXISTS idx_project_material_list_item ON project_material_li
 ALTER TABLE project_material_list ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Users can view project material list" ON project_material_list;
+DROP POLICY IF EXISTS "Users can insert project material list" ON project_material_list;
+DROP POLICY IF EXISTS "Users can update project material list" ON project_material_list;
+DROP POLICY IF EXISTS "Users can delete project material list" ON project_material_list;
+
 -- Users can view material list for their organisations
 CREATE POLICY "Users can view project material list"
   ON project_material_list FOR SELECT

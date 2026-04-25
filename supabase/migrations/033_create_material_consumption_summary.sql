@@ -27,6 +27,10 @@ CREATE INDEX IF NOT EXISTS idx_material_consumption_summary_item ON material_con
 ALTER TABLE material_consumption_summary ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Users can view material consumption summary" ON material_consumption_summary;
+DROP POLICY IF EXISTS "Service role can manage material consumption summary" ON material_consumption_summary;
+
 -- Users can view consumption summary for their organisations
 CREATE POLICY "Users can view material consumption summary"
   ON material_consumption_summary FOR SELECT

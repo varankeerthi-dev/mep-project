@@ -26,6 +26,12 @@ CREATE INDEX IF NOT EXISTS idx_daily_material_usage_project_date ON daily_materi
 ALTER TABLE daily_material_usage ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Users can view daily material usage" ON daily_material_usage;
+DROP POLICY IF EXISTS "Users can insert daily material usage" ON daily_material_usage;
+DROP POLICY IF EXISTS "Users can update daily material usage" ON daily_material_usage;
+DROP POLICY IF EXISTS "Users can delete daily material usage" ON daily_material_usage;
+
 -- Users can view usage logs for their organisations
 CREATE POLICY "Users can view daily material usage"
   ON daily_material_usage FOR SELECT
