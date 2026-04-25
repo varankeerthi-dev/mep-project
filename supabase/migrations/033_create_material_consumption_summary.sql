@@ -49,6 +49,7 @@ CREATE POLICY "Service role can manage material consumption summary"
   USING (true);
 
 -- Function to update consumption summary
+DROP FUNCTION IF EXISTS update_material_consumption_summary() CASCADE;
 CREATE OR REPLACE FUNCTION update_material_consumption_summary()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -119,12 +120,14 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Trigger to update consumption summary on daily usage insert/update
+DROP TRIGGER IF EXISTS trigger_update_consumption_on_usage ON daily_material_usage;
 CREATE TRIGGER trigger_update_consumption_on_usage
   AFTER INSERT OR UPDATE ON daily_material_usage
   FOR EACH ROW
   EXECUTE FUNCTION update_material_consumption_summary();
 
 -- Trigger to update consumption summary on project material list update
+DROP TRIGGER IF EXISTS trigger_update_consumption_on_material_list ON project_material_list;
 CREATE TRIGGER trigger_update_consumption_on_material_list
   AFTER INSERT OR UPDATE ON project_material_list
   FOR EACH ROW

@@ -80,6 +80,7 @@ CREATE POLICY "Users can delete daily material usage"
   );
 
 -- Trigger for updated_at
+DROP TRIGGER IF EXISTS update_daily_material_usage_updated_at ON daily_material_usage;
 CREATE TRIGGER update_daily_material_usage_updated_at
   BEFORE UPDATE ON daily_material_usage
   FOR EACH ROW

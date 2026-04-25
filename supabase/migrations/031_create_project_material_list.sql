@@ -73,6 +73,7 @@ CREATE POLICY "Users can delete project material list"
   );
 
 -- Trigger for updated_at
+DROP TRIGGER IF EXISTS update_project_material_list_updated_at ON project_material_list;
 CREATE TRIGGER update_project_material_list_updated_at
   BEFORE UPDATE ON project_material_list
   FOR EACH ROW
