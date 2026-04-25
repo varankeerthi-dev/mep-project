@@ -14,9 +14,9 @@ CREATE TABLE IF NOT EXISTS project_material_list (
 );
 
 -- Add indexes for performance
-CREATE INDEX idx_project_material_list_project ON project_material_list(project_id);
-CREATE INDEX idx_project_material_list_organisation ON project_material_list(organisation_id);
-CREATE INDEX idx_project_material_list_item ON project_material_list(item_id);
+CREATE INDEX IF NOT EXISTS idx_project_material_list_project ON project_material_list(project_id);
+CREATE INDEX IF NOT EXISTS idx_project_material_list_organisation ON project_material_list(organisation_id);
+CREATE INDEX IF NOT EXISTS idx_project_material_list_item ON project_material_list(item_id);
 
 -- Enable RLS
 ALTER TABLE project_material_list ENABLE ROW LEVEL SECURITY;

@@ -19,9 +19,9 @@ CREATE TABLE IF NOT EXISTS material_consumption_summary (
 );
 
 -- Add indexes for performance
-CREATE INDEX idx_material_consumption_summary_project ON material_consumption_summary(project_id);
-CREATE INDEX idx_material_consumption_summary_organisation ON material_consumption_summary(organisation_id);
-CREATE INDEX idx_material_consumption_summary_item ON material_consumption_summary(item_id);
+CREATE INDEX IF NOT EXISTS idx_material_consumption_summary_project ON material_consumption_summary(project_id);
+CREATE INDEX IF NOT EXISTS idx_material_consumption_summary_organisation ON material_consumption_summary(organisation_id);
+CREATE INDEX IF NOT EXISTS idx_material_consumption_summary_item ON material_consumption_summary(item_id);
 
 -- Enable RLS
 ALTER TABLE material_consumption_summary ENABLE ROW LEVEL SECURITY;

@@ -16,11 +16,11 @@ CREATE TABLE IF NOT EXISTS daily_material_usage (
 );
 
 -- Add indexes for performance
-CREATE INDEX idx_daily_material_usage_project ON daily_material_usage(project_id);
-CREATE INDEX idx_daily_material_usage_organisation ON daily_material_usage(organisation_id);
-CREATE INDEX idx_daily_material_usage_date ON daily_material_usage(usage_date);
-CREATE INDEX idx_daily_material_usage_item ON daily_material_usage(item_id);
-CREATE INDEX idx_daily_material_usage_project_date ON daily_material_usage(project_id, usage_date);
+CREATE INDEX IF NOT EXISTS idx_daily_material_usage_project ON daily_material_usage(project_id);
+CREATE INDEX IF NOT EXISTS idx_daily_material_usage_organisation ON daily_material_usage(organisation_id);
+CREATE INDEX IF NOT EXISTS idx_daily_material_usage_date ON daily_material_usage(usage_date);
+CREATE INDEX IF NOT EXISTS idx_daily_material_usage_item ON daily_material_usage(item_id);
+CREATE INDEX IF NOT EXISTS idx_daily_material_usage_project_date ON daily_material_usage(project_id, usage_date);
 
 -- Enable RLS
 ALTER TABLE daily_material_usage ENABLE ROW LEVEL SECURITY;
