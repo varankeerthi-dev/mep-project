@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../supabase';
 import { timedSupabaseQuery, withTimeout } from '../utils/queryTimeout';
-import { useAuth } from '../App';
+import { useAuth } from '../contexts/AuthContext';
 import { useMaterials } from '../hooks/useMaterials';
 import { useWarehouses } from '../hooks/useWarehouses';
 import { useVariants } from '../hooks/useVariants';

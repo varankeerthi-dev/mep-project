@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { useMaterials } from '../hooks/useMaterials';
+import { useVariants } from '../hooks/useVariants';
 import { 
   getDailyUsageByDate, 
   getProjectMaterialList,

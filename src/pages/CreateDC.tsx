@@ -4,7 +4,7 @@ import { format } from 'date-fns';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { supabase } from '../supabase';
-import { useAuth } from '../App';
+import { useAuth } from '../contexts/AuthContext';
 import { generateProGridDeliveryChallanPdf } from '../pdf/proGridDeliveryChallanPdf';
 import { useClients } from '../hooks/useClients';
 import { useMaterials } from '../hooks/useMaterials';

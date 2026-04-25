@@ -64,8 +64,6 @@ export async function getProjectMaterialList(projectId: string) {
       materials (
         id,
         name,
-        display_name,
-        item_code,
         unit
       ),
       company_variants (

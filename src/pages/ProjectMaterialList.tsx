@@ -124,7 +124,7 @@ export default function ProjectMaterialList({ projectId, organisationId }: Proje
 
   const getMaterialName = (itemId: string) => {
     const material = materials?.find(m => m.id === itemId);
-    return material?.display_name || material?.name || 'Unknown';
+    return material?.name || 'Unknown';
   };
 
   const getVariantName = (variantId: string | null) => {
@@ -161,12 +161,19 @@ export default function ProjectMaterialList({ projectId, organisationId }: Proje
               <label className="block text-sm font-medium mb-1">Material *</label>
               <select
                 value={formData.item_id}
-                onChange={(e) => setFormData({ ...formData, item_id: e.target.value })}
+                onChange={(e) => {
+                  const selectedMaterial = materials?.find(m => m.id === e.target.value);
+                  setFormData({ 
+                    ...formData, 
+                    item_id: e.target.value,
+                    unit: selectedMaterial?.unit || ''
+                  });
+                }}
                 className="w-full px-3 py-2 border rounded-lg"
               >
                 <option value="">Select material</option>
                 {materials?.map(m => (
-                  <option key={m.id} value={m.id}>{m.display_name || m.name}</option>
+                  <option key={m.id} value={m.id}>{m.name}</option>
                 ))}
               </select>
             </div>
@@ -342,8 +349,8 @@ export default function ProjectMaterialList({ projectId, organisationId }: Proje
                       <td className="px-4 py-3 text-sm">{getVariantName(item.variant_id)}</td>
                       <td className="px-4 py-3 text-right">{item.planned_qty}</td>
                       <td className="px-4 py-3">{item.unit}</td>
-                      <td className="px-4 py-3 text-right">{item.rate.toFixed(2)}</td>
-                      <td className="px-4 py-3 text-right font-medium">{(item.planned_qty * item.rate).toFixed(2)}</td>
+                      <td className="px-4 py-3 text-right">{item.rate?.toFixed(2) || '0.00'}</td>
+                      <td className="px-4 py-3 text-right font-medium">{((item.planned_qty || 0) * (item.rate || 0)).toFixed(2)}</td>
                       <td className="px-4 py-3 text-sm text-gray-600">{item.remarks || '-'}</td>
                       <td className="px-4 py-3 text-center">
                         <div className="flex justify-center gap-2">
