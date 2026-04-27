@@ -513,12 +513,20 @@ export default function QuotationView() {
       if (template?.column_settings?.print?.style === 'saas') {
         const container = document.createElement('div');
         container.id = 'pdf-capture-container';
-        container.style.position = 'absolute';
-        container.style.left = '-10000px';
+        container.style.position = 'fixed';
+        container.style.left = '0';
         container.style.top = '0';
         container.style.width = '210mm';
         container.style.background = 'white';
-        container.style.padding = '0'; 
+        container.style.zIndex = '-9999';
+        container.style.pointerEvents = 'none';
+        
+        // Inject fonts for capture
+        const fontLink = document.createElement('link');
+        fontLink.rel = 'stylesheet';
+        fontLink.href = 'https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap';
+        document.head.appendChild(fontLink);
+        
         document.body.appendChild(container);
 
         const root = createRoot(container);
@@ -527,9 +535,12 @@ export default function QuotationView() {
             root.render(<SaaSTemplate data={quotation} organisation={organisation} templateConfig={template.column_settings} />);
           });
 
-          // Wait longer for fonts and the custom min-h-[297mm] layout to settle
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          // Wait longer for fonts and layout
+          await new Promise(resolve => setTimeout(resolve, 2000));
           await htmlToPdf(container, `${safeFileName}.pdf`);
+        } catch (captureErr) {
+          console.error('SaaS PDF Capture Error:', captureErr);
+          throw captureErr;
         } finally {
           root.unmount();
           document.body.removeChild(container);
@@ -541,12 +552,20 @@ export default function QuotationView() {
       if (template?.column_settings?.print?.style === 'vertical' || template?.template_code === 'QTN_VERTICAL') {
         const container = document.createElement('div');
         container.id = 'pdf-capture-container';
-        container.style.position = 'absolute';
-        container.style.left = '-10000px';
+        container.style.position = 'fixed';
+        container.style.left = '0';
         container.style.top = '0';
         container.style.width = '210mm';
         container.style.background = 'white';
-        container.style.padding = '0'; 
+        container.style.zIndex = '-9999';
+        container.style.pointerEvents = 'none';
+
+        // Inject fonts for capture
+        const fontLink = document.createElement('link');
+        fontLink.rel = 'stylesheet';
+        fontLink.href = 'https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap';
+        document.head.appendChild(fontLink);
+
         document.body.appendChild(container);
 
         const root = createRoot(container);
@@ -555,9 +574,12 @@ export default function QuotationView() {
             root.render(<VerticalTemplate data={quotation} organisation={organisation} templateConfig={template.column_settings} />);
           });
 
-          // Wait longer for fonts and the custom min-h-[297mm] layout to settle
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          // Wait longer for fonts and layout
+          await new Promise(resolve => setTimeout(resolve, 2000));
           await htmlToPdf(container, `${safeFileName}.pdf`);
+        } catch (captureErr) {
+          console.error('Vertical PDF Capture Error:', captureErr);
+          throw captureErr;
         } finally {
           root.unmount();
           document.body.removeChild(container);

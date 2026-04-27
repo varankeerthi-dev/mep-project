@@ -159,6 +159,10 @@ export default function CreateQuotation() {
           'Quotation template',
         ),
         organisation?.id ? loadQuickQuoteConfig(organisation.id) : Promise.resolve(null),
+        organisation?.id ? timedSupabaseQuery(
+          supabase.from('organisations').select('*').eq('id', organisation.id).single(),
+          'Organisation details'
+        ) : Promise.resolve(null),
       ]);
 
       return {
@@ -169,7 +173,8 @@ export default function CreateQuotation() {
         pricing: pricing || [],
         settings: settings || [],
         template: template || null,
-        quickQuoteConfig: quickQuoteConfig || null
+        quickQuoteConfig: quickQuoteConfig || null,
+        orgFullDetails: orgDetails || null
       };
     },
   });
@@ -183,7 +188,7 @@ export default function CreateQuotation() {
   useEffect(() => {
     if (!initQuery.data) return;
 
-    const { pricing, settings, template, quickQuoteConfig } = initQuery.data;
+    const { pricing, settings, template, quickQuoteConfig, orgFullDetails } = initQuery.data;
 
     const materialsWithService = materials.map(item => ({
       ...item,
@@ -1844,6 +1849,25 @@ const loadQuoteNoPreview = useCallback(async () => {
           ))}
           {renderHeaderField('Prepared By:', (
             <input type="text" className="form-input" style={compactFieldStyle} value={formData.prepared_by} onChange={(e) => setFormData({ ...formData, prepared_by: e.target.value })} placeholder="Prepared By" />
+          ))}
+          {renderHeaderField('Signatory:', (
+            <select 
+              className="form-select" 
+              style={compactFieldStyle} 
+              value={formData.authorized_signatory_id || ''} 
+              onChange={(e) => setFormData({ ...formData, authorized_signatory_id: e.target.value })}
+            >
+              <option value="">Select Signatory</option>
+              {organisation?.signatures?.map((sig: any) => (
+                <option key={sig.id} value={sig.id}>{sig.name}</option>
+              ))}
+              {/* Fallback if useAuth org is stale but initQuery org has data */}
+              {(!organisation?.signatures || organisation.signatures.length === 0) && 
+                initQuery.data?.orgFullDetails?.signatures?.map((sig: any) => (
+                  <option key={sig.id} value={sig.id}>{sig.name}</option>
+                ))
+              }
+            </select>
           ))}
         </div>
       </div>

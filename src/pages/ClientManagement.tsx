@@ -100,7 +100,7 @@ export function CreateClientEdit({ onSuccess, onCancel }: CreateClientEditProps)
 
   if (clientQuery.isLoading) {
     return (
-      <div className="min-h-[80vh] flex items-center justify-center bg-[oklch(0.98_0.005_250)] p-6 md:p-10">
+      <div className="min-h-[80vh] flex items-center justify-center bg-[#f8fafc] p-6 md:p-10">
         <div className="flex flex-col items-center gap-4">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-200 border-t-indigo-600"></div>
           <p className="text-sm font-medium text-slate-500 tracking-wide uppercase">Initializing...</p>
@@ -111,7 +111,7 @@ export function CreateClientEdit({ onSuccess, onCancel }: CreateClientEditProps)
 
   if (clientQuery.isError) {
     return (
-      <div className="min-h-screen bg-[oklch(0.98_0.005_250)] p-6 md:p-10 flex items-center justify-center">
+      <div className="min-h-screen bg-[#f8fafc] p-6 md:p-10 flex items-center justify-center">
         <div className="mx-auto max-w-lg w-full rounded-3xl bg-white border border-rose-100 p-10 text-center shadow-xl shadow-rose-900/5">
           <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-rose-100 text-rose-600">
              <Info className="h-6 w-6" />
@@ -270,7 +270,7 @@ function ClientDiscountPortfolio({ formData, setFormData, isAdmin, organisation 
             <FieldGroup label="Active Price List" required>
                <div className="relative">
                   <select
-                    className={cn(selectCn, "bg-[oklch(0.98_0.02_260)] border-indigo-200/60")}
+                    className={cn(selectCn, "bg-[#f1f5f9] border-indigo-200/60")}
                     value={formData.standard_pricelist_id || ''}
                     onChange={e => setFormData({ ...formData, standard_pricelist_id: e.target.value })}
                     required
@@ -638,7 +638,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
   const set = (field: string) => (e: any) => setFormData({ ...formData, [field]: (e.target as HTMLInputElement).value });
 
   return (
-    <div className="min-h-screen bg-[oklch(0.98_0.005_255)] px-4 pt-4 pb-8 md:px-10 md:pt-6 md:pb-16 font-sans">
+    <div className="min-h-screen bg-[#f8fafc] px-4 pt-4 pb-8 md:px-10 md:pt-6 md:pb-16 font-sans">
       <div className="mx-auto max-w-[1000px]">
 
         {/* Header Block & Navigation Row */}

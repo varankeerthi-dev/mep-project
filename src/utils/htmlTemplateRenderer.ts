@@ -72,9 +72,18 @@ export async function htmlToPdf(
   try {
     // Convert HTML to canvas with higher scale for better quality
     const canvas = await html2canvas(element, {
-      scale: 2, // Higher scale for better quality
+      scale: 2,
       useCORS: true,
-      logging: false,
+      allowTaint: true,
+      logging: true,
+      backgroundColor: '#ffffff',
+      scrollY: -window.scrollY,
+      windowWidth: element.scrollWidth,
+      windowHeight: element.scrollHeight,
+      ignoreElements: (el) => {
+        // Ignore internal canvases or hidden elements that might be tainted
+        return el.tagName === 'CANVAS' || el.getAttribute('aria-hidden') === 'true';
+      }
     });
     
     // Create PDF with PNG for better quality

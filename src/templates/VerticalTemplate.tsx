@@ -1,12 +1,6 @@
 import React from "react";
 import { formatCurrency, formatDate } from "../utils/formatters";
 import { 
-  Calendar, 
-  User, 
-  Truck, 
-  FileText, 
-  ClipboardList, 
-  Building2,
   Phone,
   Mail,
   Globe,
@@ -16,6 +10,12 @@ import {
 /* ---------------- HELPERS ---------------- */
 
 const getDocumentNumber = (data: any) => {
+  if (data.quotation_no) return data.quotation_no;
+  if (data.invoice_no) return data.invoice_no;
+  if (data.proforma_no) return data.proforma_no;
+  if (data.dc_number) return data.dc_number;
+  if (data.challan_no) return data.challan_no;
+  
   const type = data.document_type?.toUpperCase();
   switch (type) {
     case "QUOTATION": return data.quotation_no;
@@ -46,17 +46,29 @@ const getActiveColumns = (config: any) => {
     { key: "make", label: labels.make || "Make", width: "10%" },
     { key: "qty", label: labels.qty || "Qty", width: "7%" },
     { key: "uom", label: labels.uom || "Unit", width: "7%" },
-    { key: "rate", label: labels.rate || "Rate", width: "12%", align: "right" },
+    { key: "rate", label: labels.rate || "Rate(before disc)", width: "12%", align: "right" },
     { key: "discount_percent", label: labels.discount_percent || "Disc %", width: "7%", align: "right" },
-    { key: "tax_percent", label: labels.tax_percent || "Tax %", width: "7%", align: "right" },
+    { key: "rate_after_discount", label: labels.rate_after_discount || "Rate(after discount)", width: "12%", align: "right" },
+    { key: "tax_percent", label: labels.tax_percent || "GST %", width: "7%", align: "right" },
+    { key: "base_amount", label: labels.base_amount || "Amount", width: "15%", align: "right" },
     { key: "tax_amount", label: labels.tax_amount || "Tax Amt", width: "10%", align: "right" },
-    { key: "line_total", label: labels.line_total || "Total", width: "12%", align: "right" }
+    { key: "line_total", label: labels.line_total || "Final Total", width: "12%", align: "right" }
   ];
 
   return allPossible.filter(c => optional[c.key] !== false);
 };
 
 const getCellValue = (item: any, key: string, index: number) => {
+  const beforeDiscRate = Number(item.base_rate_snapshot || item.rate || 0);
+  const netRate = Number(item.rate || 0);
+  const qty = Number(item.qty || 0);
+  const discPct = Number(item.discount_percent || 0);
+  
+  const baseAmount = qty * netRate;
+  const taxPct = Number(item.tax_percent || 0);
+  const taxAmount = (baseAmount * taxPct) / 100;
+  const finalTotal = baseAmount + taxAmount;
+  
   switch (key) {
     case "sno": return index + 1;
     case "hsn_code": return item.item?.hsn_code || "-";
@@ -64,15 +76,44 @@ const getCellValue = (item: any, key: string, index: number) => {
     case "variant": return item.variant || "-";
     case "description": return item.description || "-";
     case "make": return item.make || item.item?.make || "-";
-    case "qty": return item.qty;
+    case "qty": return qty;
     case "uom": return item.uom || item.item?.uom || "Nos";
-    case "rate": return item.rate;
-    case "discount_percent": return item.discount_percent ? `${item.discount_percent}%` : "0%";
-    case "tax_percent": return item.tax_percent ? `${item.tax_percent}%` : "0%";
-    case "tax_amount": return item.tax_amount || 0;
-    case "line_total": return item.line_total;
+    case "rate": return beforeDiscRate;
+    case "discount_percent": return discPct;
+    case "rate_after_discount": return netRate;
+    case "base_amount": return baseAmount;
+    case "tax_percent": return taxPct;
+    case "tax_amount": return taxAmount;
+    case "line_total": return finalTotal;
     default: return item[key] ?? "";
   }
+};
+
+const numberToWords = (num: number): string => {
+  const a = ['', 'One ', 'Two ', 'Three ', 'Four ', 'Five ', 'Six ', 'Seven ', 'Eight ', 'Nine ', 'Ten ', 'Eleven ', 'Twelve ', 'Thirteen ', 'Fourteen ', 'Fifteen ', 'Sixteen ', 'Seventeen ', 'Eighteen ', 'Nineteen '];
+  const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+
+  const convert = (val: number): string => {
+    if (val === 0) return '';
+    const s = ('000000000' + val).substr(-9).match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
+    if (!s) return '';
+    let str = '';
+    str += (Number(s[1]) !== 0) ? (a[Number(s[1])] || b[Number(s[1][0])] + ' ' + a[Number(s[1][1])]) + 'Crore ' : '';
+    str += (Number(s[2]) !== 0) ? (a[Number(s[2])] || b[Number(s[2][0])] + ' ' + a[Number(s[2][1])]) + 'Lakh ' : '';
+    str += (Number(s[3]) !== 0) ? (a[Number(s[3])] || b[Number(s[3][0])] + ' ' + a[Number(s[3][1])]) + 'Thousand ' : '';
+    str += (Number(s[4]) !== 0) ? (a[Number(s[4])] || b[Number(s[4][0])] + ' ' + a[Number(s[4][1])]) + 'Hundred ' : '';
+    str += (Number(s[5]) !== 0) ? ((str !== '') ? 'and ' : '') + (a[Number(s[5])] || b[Number(s[5][0])] + ' ' + a[Number(s[5][1])]) : '';
+    return str.trim();
+  };
+
+  const rupees = Math.floor(num);
+  const paise = Math.round((num - rupees) * 100);
+
+  let result = convert(rupees);
+  if (paise > 0) {
+    result += (result ? ' and ' : '') + convert(paise) + ' Paise';
+  }
+  return result || 'Zero';
 };
 
 /* ---------------- MAIN COMPONENT ---------------- */
@@ -87,7 +128,7 @@ export default function VerticalTemplate({
   const docType = data.document_type || "QUOTATION";
   const optional = templateConfig?.optional || {};
 
-  // Group items by a "group" field if it exists, or just handle headers
+  // Group items
   const processedItems: any[] = [];
   let currentGroup = "";
   let groupIndex = 0;
@@ -109,314 +150,434 @@ export default function VerticalTemplate({
     }
   });
 
-  // Prepare info bar fields dynamically
+  // Prepare info bar fields
   const infoFields = [
     { label: "PO No.", value: data.po_no, key: 'po_no' },
     { label: "PO Date", value: formatDate(data.po_date), key: 'po_date' },
     { label: "Valid Till", value: formatDate(data.valid_till), key: 'valid_till' },
     { label: "Payment Terms", value: data.payment_terms, key: 'payment_terms' },
     { label: "Reference", value: data.reference, key: 'reference' },
-    { label: "E-Way Bill", value: data.eway_bill, key: 'eway_bill' }
-  ].filter(f => optional[f.key] !== false && (f.key !== 'po_no' && f.key !== 'po_date' && f.key !== 'eway_bill' || f.value));
+    { label: "E-Way Bill", value: data.eway_bill, key: 'eway_bill' },
+    { label: "Vendor No.", value: data.client?.vendor_no, key: 'vendor_no' }
+  ].filter(f => optional[f.key] !== false);
 
   return (
-    <div className="w-[210mm] min-h-[297mm] bg-white text-[11px] text-slate-800 flex flex-col font-sans">
-      {/* ---------------- HEADER ---------------- */}
-      <div className="p-8 pb-4 flex justify-between items-start border-b-2 border-blue-50">
-        <div className="flex gap-4">
-          <div className="w-16 h-16 bg-blue-900 rounded-xl flex items-center justify-center text-white shrink-0 overflow-hidden border-2 border-blue-100">
-            {organisation.logo_url ? (
-              <img 
-                src={organisation.logo_url} 
-                alt="Logo" 
-                className="w-full h-full object-contain bg-white p-1" 
-                crossOrigin="anonymous"
-              />
-            ) : (
-              <span className="text-4xl font-bold italic select-none">
-                {organisation.name?.[0] || 'S'}
-              </span>
-            )}
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900 leading-tight">
-              {organisation.name}
-            </h1>
-            <p className="text-slate-500 font-medium text-[10px] uppercase tracking-wider mb-2">
-              {organisation.subtitle || "Manufacturer of Precision Components"}
-            </p>
-            <div className="grid grid-cols-1 gap-1 text-slate-600 text-[9px]">
-              <div className="flex items-center gap-1">
-                <MapPin size={10} className="text-blue-600" />
-                <span>{organisation.address}</span>
+    <div className="vertical-template-container">
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&family=Manrope:wght@800;900&display=swap');
+        
+        .vertical-template-container {
+          font-family: 'Roboto', sans-serif;
+          width: 210mm;
+          min-height: 297mm;
+          background: white;
+          color: #1e293b;
+          font-size: 11px;
+          line-height: 1.3;
+          display: flex;
+          flex-direction: column;
+          -webkit-print-color-adjust: exact;
+        }
+
+        .org-name-font {
+          font-family: 'Manrope', sans-serif !important;
+          font-weight: 900 !important;
+        }
+
+        .doc-no-font {
+          font-family: 'Manrope', sans-serif !important;
+          font-weight: 800 !important;
+        }
+
+        /* Hex-based Color Fallbacks for html2canvas (OKLCH not supported) */
+        .txt-slate-900 { color: #0f172a !important; }
+        .txt-slate-800 { color: #1e293b !important; }
+        .txt-slate-700 { color: #334155 !important; }
+        .txt-slate-600 { color: #475569 !important; }
+        .txt-slate-500 { color: #64748b !important; }
+        .txt-slate-400 { color: #94a3b8 !important; }
+        .txt-blue-600 { color: #2563eb !important; }
+        .txt-blue-700 { color: #1d4ed8 !important; }
+        .txt-red-600 { color: #dc2626 !important; }
+        
+        .bg-slate-50 { background-color: #f8fafc !important; }
+        .bg-slate-100 { background-color: #f1f5f9 !important; }
+        .bg-slate-900 { background-color: #0f172a !important; }
+        
+        .brd-slate-100 { border-color: #f1f5f9 !important; }
+        .brd-slate-200 { border-color: #e2e8f0 !important; }
+        .brd-slate-300 { border-color: #cbd5e1 !important; }
+        .brd-slate-900 { border-color: #0f172a !important; }
+        
+        /* Force Hex on SVGs for html2canvas */
+        svg {
+          stroke: currentColor !important;
+          fill: none;
+        }
+        svg * {
+          stroke: inherit !important;
+          fill: inherit !important;
+        }
+
+        .a4-page {
+          height: 297mm;
+          padding: 10mm;
+          display: flex;
+          flex-direction: column;
+          position: relative;
+          page-break-after: always;
+        }
+
+        .dense-header {
+          padding-bottom: 8px;
+          border-bottom: 1.5px solid #e2e8f0;
+        }
+
+        .grid-table {
+          width: 100%;
+          border: 1px solid #94a3b8;
+          border-collapse: collapse;
+        }
+
+        .grid-table th {
+          background: #f1f5f9;
+          border: 1px solid #94a3b8;
+          padding: 4px 6px;
+          text-transform: uppercase;
+          font-weight: 700;
+          font-size: 9px;
+          color: #334155;
+          font-family: 'Roboto', sans-serif;
+        }
+
+        .grid-table td {
+          border-right: 1px solid #cbd5e1;
+          border-bottom: 0.5px solid #f1f5f9;
+          padding: 4px 6px;
+          vertical-align: top;
+          font-size: 10px;
+          font-weight: 400; /* normal thickness */
+          color: #0f172a;
+          font-family: 'Roboto', sans-serif;
+        }
+
+        .grid-table tr:last-child td {
+          border-bottom: none;
+        }
+
+        .footer-fixed {
+          margin-top: auto;
+          border-top: 1.5px solid #94a3b8;
+          padding-top: 8px;
+        }
+
+        .amount-words {
+          font-style: italic;
+          color: #475569;
+          font-size: 10px;
+          margin-top: 4px;
+          font-weight: 600;
+        }
+
+        @media print {
+          .vertical-template-container { width: 210mm; }
+          .a4-page { height: 297mm; border: none; }
+        }
+      `}</style>
+
+      {/* ---------------- PAGE 1 ---------------- */}
+      <div className="a4-page">
+        {/* Header */}
+        <div className="dense-header flex justify-between items-start pt-2">
+          <div className="flex gap-5">
+            <div className="w-20 h-20 bg-slate-900 rounded-lg flex items-center justify-center text-white shrink-0 overflow-hidden border brd-slate-200">
+              {organisation.logo_url ? (
+                <img src={organisation.logo_url} alt="Logo" className="w-full h-full object-contain bg-white p-1" crossOrigin="anonymous" />
+              ) : (
+                <span className="text-4xl font-bold italic">{organisation.name?.[0] || 'S'}</span>
+              )}
+            </div>
+            <div className="flex flex-col justify-center">
+              <div className="text-2xl font-black txt-slate-900 tracking-tight leading-tight org-name-font">
+                {organisation.name}
               </div>
-              <div className="flex gap-4">
-                <div className="flex items-center gap-1">
-                  <Phone size={10} className="text-blue-600" />
-                  <span>{organisation.phone}</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <Mail size={10} className="text-blue-600" />
-                  <span>{organisation.email}</span>
-                </div>
+              <div className="text-[10px] txt-blue-600 font-bold uppercase tracking-widest mb-2">
+                {organisation.subtitle || organisation.description || "Engineering & Manufacturing Solutions"}
               </div>
-              <div className="flex gap-4">
-                <div className="flex items-center gap-1">
-                  <Globe size={10} className="text-blue-600" />
-                  <span>{organisation.website}</span>
+              <div className="grid grid-cols-1 gap-1 txt-slate-600 text-[10px]">
+                <div className="flex items-center gap-1.5">
+                  <MapPin size={10} className="txt-slate-400" />
+                  <span className="max-w-[450px]">{organisation.address}</span>
                 </div>
-                <div className="flex items-center gap-1">
-                  <span className="text-blue-600 font-bold">GSTIN:</span>
-                  <span>{organisation.gstin}</span>
+                <div className="flex gap-4">
+                  <div className="flex items-center gap-1.5">
+                    <Phone size={10} className="txt-slate-400" />
+                    <span className="font-bold">{organisation.phone}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 font-bold txt-slate-800 uppercase">
+                    <span className="txt-slate-400">GSTIN:</span>
+                    <span>{organisation.gstin}</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Mail size={10} className="txt-slate-400" />
+                  <span className="font-bold">{organisation.email}</span>
                 </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <div className="text-right">
-          <h2 className="text-4xl font-black text-blue-800 tracking-tighter opacity-90">
-            {docType.toUpperCase()}
-          </h2>
-          <div className="mt-4 inline-flex flex-col items-end">
-            <div className="flex gap-6 text-[10px]">
-              <div className="flex flex-col items-end">
-                <span className="text-slate-400 font-semibold uppercase">Quotation No.</span>
-                <span className="text-blue-700 font-bold text-sm">{docNo}</span>
-              </div>
-              <div className="flex flex-col items-end border-l pl-6 border-slate-200">
-                <span className="text-slate-400 font-semibold uppercase">Date</span>
-                <div className="flex items-center gap-1 text-slate-800 font-bold text-sm">
-                  <Calendar size={12} className="text-blue-600" />
-                  <span>{formatDate(data.date)}</span>
-                </div>
-              </div>
+          <div className="text-right">
+            <div className="text-4xl font-black txt-slate-900 tracking-tighter leading-none">
+              {docType.toUpperCase()}
             </div>
           </div>
         </div>
-      </div>
 
-      {/* ---------------- INFO BAR ---------------- */}
-      {infoFields.length > 0 && (
-        <div className="mx-8 mt-4 bg-slate-50 border border-slate-200 rounded-lg grid grid-cols-3 divide-x divide-slate-200 overflow-hidden">
-          {/* First column: 2 fields */}
-          <div className="p-2 grid grid-cols-2 gap-y-1">
+        {/* Info Bar - Clean Layout */}
+        <div className="mt-4 grid grid-cols-3 divide-x divide-slate-200 border-y border-slate-200 py-1 text-[11px]">
+          <div className="p-2 grid grid-cols-[90px_1fr] gap-x-2">
+            <div className="txt-slate-500 font-bold uppercase text-[9px]">{docType} No</div><div className="font-bold doc-no-font">: {docNo}</div>
+            <div className="txt-slate-500 font-bold uppercase text-[9px]">{docType} Date</div><div className="font-bold">: {formatDate(data.date)}</div>
+          </div>
+          <div className="p-2 grid grid-cols-[90px_1fr] gap-x-2">
             {infoFields.slice(0, 2).map((f, i) => (
               <React.Fragment key={i}>
-                <div className="text-slate-500 font-medium">{f.label}</div>
-                <div className="font-semibold">: {f.value || "-"}</div>
+                <div className="txt-slate-500 font-bold uppercase text-[9px]">{f.label}</div>
+                <div className="font-bold">: {f.value || "-"}</div>
               </React.Fragment>
             ))}
           </div>
-          {/* Second column: 2 fields */}
-          <div className="p-2 grid grid-cols-2 gap-y-1">
-            {infoFields.slice(2, 4).map((f, i) => (
+          <div className="p-2 grid grid-cols-[90px_1fr] gap-x-2">
+            {infoFields.slice(2).map((f, i) => (
               <React.Fragment key={i}>
-                <div className="text-slate-500 font-medium">{f.label}</div>
-                <div className="font-semibold">: {f.value || "-"}</div>
-              </React.Fragment>
-            ))}
-          </div>
-          {/* Third column: Remaining fields */}
-          <div className="p-2 grid grid-cols-2 gap-y-1">
-            {infoFields.slice(4).map((f, i) => (
-              <React.Fragment key={i}>
-                <div className="text-slate-500 font-medium">{f.label}</div>
-                <div className="font-semibold">: {f.value || "-"}</div>
+                <div className="txt-slate-500 font-bold uppercase text-[9px]">{f.label}</div>
+                <div className="font-bold">: {f.value || "-"}</div>
               </React.Fragment>
             ))}
           </div>
         </div>
-      )}
 
-      {/* ---------------- BILLING ---------------- */}
-      <div className="mx-8 mt-4 grid grid-cols-2 gap-6">
-        <div className="bg-white border-l-4 border-blue-600 shadow-sm p-4 rounded-r-lg ring-1 ring-slate-200">
-          <div className="flex items-center gap-2 text-blue-700 font-bold mb-2 uppercase tracking-wide">
-            <User size={14} />
-            <span>Bill To</span>
+        {/* Billing & Shipping */}
+        {(optional.bill_to !== false || optional.ship_to !== false) && (
+          <div className="mt-3 grid grid-cols-2 gap-4">
+            {optional.bill_to !== false && (
+              <div className="bg-slate-50/50 p-2 border-l-2 brd-slate-900">
+                <div className="text-[10px] font-black uppercase txt-slate-900 mb-1 tracking-widest">Bill To</div>
+                <div className="font-extrabold txt-slate-900 text-[12px] leading-tight mb-1">
+                  {data.client?.client_name || data.client?.name}
+                </div>
+                <div className="text-[11px] txt-slate-600 leading-relaxed mb-2">
+                  {data.billing_address || [data.client?.address, data.client?.city, data.client?.state, data.client?.pincode].filter(Boolean).join(", ")}
+                </div>
+                <div className="mt-auto grid grid-cols-1 gap-0.5 text-[10px] font-bold">
+                  <div className="flex gap-2"><span className="txt-slate-400 uppercase w-12">GSTIN</span><span className="txt-slate-900">: {data.client?.gstin || data.gstin || "-"}</span></div>
+                  <div className="flex gap-2"><span className="txt-slate-400 uppercase w-12">Contact</span><span className="txt-slate-900">: {data.client?.phone || data.client_contact || "-"}</span></div>
+                </div>
+              </div>
+            )}
+            {optional.ship_to !== false && (
+              <div className="bg-slate-50/50 p-2 border-l-2 brd-slate-300">
+                <div className="text-[10px] font-black uppercase txt-slate-900 mb-1 tracking-widest">Ship To / Project</div>
+                <div className="font-extrabold txt-slate-900 text-[12px] leading-tight mb-1">
+                  {data.shipping_company_name || data.client?.client_name || data.client?.name}
+                </div>
+                <div className="text-[11px] txt-slate-600 leading-relaxed mb-2">
+                  {data.shipping_address || data.billing_address || [data.client?.address, data.client?.city, data.client?.state, data.client?.pincode].filter(Boolean).join(", ")}
+                </div>
+                <div className="mt-auto grid grid-cols-1 gap-0.5 text-[10px] font-bold">
+                  <div className="flex gap-2"><span className="txt-slate-400 uppercase w-12">GSTIN</span><span className="txt-slate-900">: {data.client?.gstin || data.gstin || "-"}</span></div>
+                  <div className="flex gap-2"><span className="txt-slate-400 uppercase w-12">Contact</span><span className="txt-slate-900">: {data.client?.phone || data.client_contact || "-"}</span></div>
+                  {optional.project_name !== false && data.project_name && <div className="txt-blue-700 mt-1 uppercase text-[9px] tracking-tight font-black">Project: {data.project_name}</div>}
+                </div>
+              </div>
+            )}
           </div>
-          <div className="font-bold text-sm text-slate-900">{data.client?.client_name || "ABC Industries Pvt. Ltd."}</div>
-          <div className="text-slate-600 mt-1 leading-relaxed whitespace-pre-line">
-            {data.billing_address || "Address not provided"}
-          </div>
-          <div className="mt-2 text-[10px]">
-            <span className="text-blue-700 font-bold uppercase">GSTIN: </span>
-            <span className="font-semibold text-slate-800">{data.gstin || data.client?.gstin || "-"}</span>
-          </div>
-        </div>
+        )}
 
-        <div className="bg-white border-l-4 border-blue-400 shadow-sm p-4 rounded-r-lg ring-1 ring-slate-200">
-          <div className="flex items-center gap-2 text-blue-600 font-bold mb-2 uppercase tracking-wide">
-            <Truck size={14} />
-            <span>Ship To</span>
-          </div>
-          <div className="font-bold text-sm text-slate-900">{data.shipping_name || data.client?.client_name || "ABC Industries Pvt. Ltd."}</div>
-          <div className="text-slate-600 mt-1 leading-relaxed whitespace-pre-line">
-            {data.shipping_address || data.billing_address || "Address not provided"}
-          </div>
-          <div className="mt-2 text-[10px]">
-            <span className="text-blue-600 font-bold uppercase">GSTIN: </span>
-            <span className="font-semibold text-slate-800">{data.gstin || data.client?.gstin || "-"}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* ---------------- TABLE ---------------- */}
-      <div className="mx-8 mt-6 flex-1">
-        <table className="w-full border-collapse">
-          <thead>
-            <tr className="bg-blue-900 text-white text-[10px] font-bold uppercase tracking-wider">
-              {columns.map((col: any) => (
-                <th 
-                  key={col.key} 
-                  className={`p-3 text-left border-r border-blue-800 last:border-r-0`}
-                  style={{ width: col.width, textAlign: col.align || 'left' }}
-                >
-                  {col.label}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {processedItems.map((item, idx) => {
-              if (item.type === 'header') {
-                return (
-                  <tr key={`h-${idx}`} className="bg-blue-50/50">
-                    <td className="p-2 border font-bold text-blue-800" colSpan={1}>{item.group_no}</td>
-                    <td className="p-2 border font-bold text-blue-800" colSpan={columns.length - 1}>
-                      {item.description}
-                    </td>
-                  </tr>
-                );
-              }
-
-              return (
-                <tr 
-                  key={`i-${idx}`} 
-                  className={`${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'} border-b border-slate-100 hover:bg-blue-50/30 transition-colors`}
-                >
-                  {columns.map((col: any) => {
-                    let val = col.key === 'sno' ? item.sno_display : getCellValue(item, col.key, idx);
-                    const isCurrency = col.key === 'rate' || col.key === 'amount';
-                    
-                    return (
-                      <td 
-                        key={col.key} 
-                        className={`p-2.5 border-x border-slate-100 first:border-l-0 last:border-r-0 ${isCurrency ? 'font-mono' : ''}`}
-                        style={{ textAlign: col.align || 'left' }}
-                      >
-                        {isCurrency ? formatCurrency(val) : val}
+        {/* Table - Optimized for 15+ items */}
+        <div className="mt-3 flex-1 overflow-hidden">
+          <table className="grid-table">
+            <thead>
+              <tr>
+                {columns.map((col: any) => (
+                  <th key={col.key} style={{ width: col.width, textAlign: col.align || 'left' }}>
+                    {col.label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {processedItems.map((item, idx) => (
+                <React.Fragment key={idx}>
+                  {item.type === 'header' ? (
+                    <tr className="bg-slate-50">
+                      <td colSpan={columns.length} className="font-black text-blue-900 uppercase tracking-tight py-1 text-[10px]">
+                        {item.group_no}. {item.description}
                       </td>
-                    );
-                  })}
+                    </tr>
+                  ) : (
+                    <tr>
+                      {columns.map((col: any) => (
+                        <td key={col.key} style={{ textAlign: col.align || 'left' }}>
+                          {col.key === 'sno' ? (
+                            <span className="font-bold text-slate-400 text-[10px]">{item.sno_display}</span>
+                          ) : col.key === 'item' ? (
+                            <div>
+                              <div className="font-bold text-slate-900">{getCellValue(item, col.key, idx)}</div>
+                              {item.description && <div className="text-[9px] text-slate-500 mt-0.5 leading-none">{item.description}</div>}
+                            </div>
+                          ) : (
+                            <span className={col.align === 'right' ? 'font-bold' : ''}>
+                              {(() => {
+                                const val = getCellValue(item, col.key, idx);
+                                const isCurrency = ["rate", "rate_after_discount", "base_amount", "tax_amount", "line_total"].includes(col.key);
+                                const isPercent = ["discount_percent", "tax_percent"].includes(col.key);
+                                if (isCurrency) return formatCurrency(val);
+                                if (isPercent) return `${val}%`;
+                                return val;
+                              })()}
+                            </span>
+                          )}
+                        </td>
+                      ))}
+                    </tr>
+                  )}
+                </React.Fragment>
+              ))}
+              {/* Fill remaining space to keep layout consistent */}
+              {Array.from({ length: Math.max(0, 20 - processedItems.length) }).map((_, i) => (
+                <tr key={`empty-${i}`} className="h-6">
+                  {columns.map((col: any) => (
+                    <td key={col.key}>&nbsp;</td>
+                  ))}
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+              ))}
+            </tbody>
+          </table>
+        </div>
 
-      {/* ---------------- FOOTER ---------------- */}
-      <div className="p-8 pt-4 grid grid-cols-12 gap-8 border-t-2 border-blue-50">
-        {/* Left Side: Words, Terms, Bank */}
-        <div className="col-span-7 flex flex-col gap-4">
-          <div className="bg-slate-50 rounded-lg p-3 ring-1 ring-slate-100">
-            <div className="flex items-center gap-2 text-blue-800 font-bold mb-1 uppercase tracking-tight">
-              <FileText size={12} />
-              <span>Total Amount In Words</span>
+        {/* Bottom Footer Section - FIXED AT BOTTOM */}
+        <div className="footer-fixed mt-auto">
+          <div className="flex justify-between items-start gap-8">
+            {/* Left Column: Amount in Words and Bank Details */}
+            <div className="flex-grow flex flex-col justify-between self-stretch py-1">
+              <div className="brd-slate-200 border-t border-b py-2 mb-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-[8px] font-black uppercase txt-slate-400 tracking-widest">Amount in Words</span>
+                  <div className="h-px bg-slate-100 flex-grow"></div>
+                </div>
+                <div className="text-[12px] font-black txt-slate-900 italic uppercase">
+                  Indian Rupees {numberToWords(data.grand_total)} Only
+                </div>
+              </div>
+
+              <div>
+                <div className="text-[10px] font-black uppercase txt-slate-400 mb-1 tracking-widest flex items-center gap-2">
+                  <span>Bank Details</span>
+                  <div className="h-px bg-slate-100 flex-grow"></div>
+                </div>
+                <div className="grid grid-cols-[80px_1fr] gap-x-2 text-[12px] border brd-slate-100 p-2 rounded bg-slate-50/30">
+                  <div className="txt-slate-500 font-bold uppercase text-[8px]">Bank</div><div className="font-bold text-slate-900">: {organisation.bank_details?.bank_name}</div>
+                  <div className="txt-slate-500 font-bold uppercase text-[8px]">A/C No</div><div className="font-bold text-slate-900">: {organisation.bank_details?.account_no}</div>
+                  <div className="txt-slate-500 font-bold uppercase text-[8px]">IFSC</div><div className="font-bold text-slate-900">: {organisation.bank_details?.ifsc_code}</div>
+                  <div className="txt-slate-500 font-bold uppercase text-[8px]">Branch</div><div className="font-bold text-slate-900">: {organisation.bank_details?.branch_name || organisation.bank_details?.branch}</div>
+                </div>
+              </div>
             </div>
-            <div className="font-bold text-slate-900 italic">
-              Indian Rupee {data.amount_words || "Fifty Eight Thousand Four Hundred Fifty Only"}
+
+            {/* Right Column: Financial Totals */}
+            <div className="w-[300px] shrink-0">
+              <div className="space-y-1.5 p-1">
+                {optional.subtotal !== false && (
+                  <div className="flex justify-between txt-slate-600 text-[11px]">
+                    <span className="font-bold uppercase">Sub-Total</span>
+                    <span className="font-bold">{formatCurrency(data.subtotal)}</span>
+                  </div>
+                )}
+                {data.discount_amount > 0 && (
+                  <div className="flex justify-between txt-red-600 text-[11px]">
+                    <span className="font-bold uppercase">Discount</span>
+                    <span className="font-bold">-{formatCurrency(data.discount_amount)}</span>
+                  </div>
+                )}
+                {optional.total_tax !== false && (
+                  <>
+                    <div className="flex justify-between txt-slate-500 text-[10px] border-t brd-slate-100 mt-1 pt-1">
+                      <span className="font-bold uppercase">SGST</span>
+                      <span className="font-bold">{formatCurrency(data.total_tax / 2)}</span>
+                    </div>
+                    <div className="flex justify-between txt-slate-500 text-[10px]">
+                      <span className="font-bold uppercase">CGST</span>
+                      <span className="font-bold">{formatCurrency(data.total_tax / 2)}</span>
+                    </div>
+                  </>
+                )}
+                {optional.round_off !== false && (
+                  <div className="flex justify-between txt-slate-400 text-[10px]">
+                    <span className="font-bold uppercase">Round Off</span>
+                    <span className="font-bold">{formatCurrency(data.round_off || 0)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between border-t border-slate-900 pt-2 mt-2">
+                  <span className="font-black uppercase text-[12px] txt-slate-900">Grand Total</span>
+                  <span className="font-black text-xl txt-slate-900 leading-none">{formatCurrency(data.grand_total)}</span>
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="bg-slate-50 rounded-lg p-3 ring-1 ring-slate-100">
-            <div className="flex items-center gap-2 text-blue-800 font-bold mb-2 uppercase tracking-tight">
-              <ClipboardList size={12} />
-              <span>Terms & Conditions</span>
+          <div className="mt-6 flex justify-between items-end">
+            <div className="text-[9px] txt-slate-400 font-bold uppercase italic">
+              * This is a computer generated document.
             </div>
-            <ul className="text-[9px] text-slate-600 space-y-1 list-disc list-inside">
-              {data.terms_conditions?.split('\n').map((line: string, i: number) => (
-                <li key={i}>{line}</li>
-              )) || (
-                <>
-                  <li>Payment - Purchase Order & 100% Advance</li>
-                  <li>Delivery - 3-4 days from the date of confirmation</li>
-                  <li>Freight - Client Scope</li>
-                  <li>GST Extra as applicable</li>
-                  <li>Subject to Pune Jurisdiction</li>
-                </>
-              )}
-            </ul>
-          </div>
-
-          <div className="bg-slate-50 rounded-lg p-3 ring-1 ring-slate-100">
-            <div className="flex items-center gap-2 text-blue-800 font-bold mb-2 uppercase tracking-tight">
-              <Building2 size={12} />
-              <span>Bank Details</span>
-            </div>
-            <div className="grid grid-cols-2 text-[10px] gap-x-4 gap-y-1">
-              <div className="flex justify-between text-slate-500">Bank Name <span>:</span></div>
-              <div className="font-semibold">{organisation.bank_name || "HDFC Bank Ltd."}</div>
-              <div className="flex justify-between text-slate-500">Account No. <span>:</span></div>
-              <div className="font-semibold">{organisation.bank_account_no || "50200012345678"}</div>
-              <div className="flex justify-between text-slate-500">IFSC Code <span>:</span></div>
-              <div className="font-semibold font-mono">{organisation.bank_ifsc || "HDFC0001234"}</div>
-              <div className="flex justify-between text-slate-500">Branch <span>:</span></div>
-              <div className="font-semibold">{organisation.bank_branch || "Chakan, Pune"}</div>
+            <div className="text-right">
+              <div className="font-black uppercase text-[11px] txt-slate-900 mb-1">
+                FOR {organisation.name}
+              </div>
+              <div className="h-16 flex items-center justify-end mb-1">
+                {organisation.signatures?.find((s: any) => String(s.id) === String(data.authorized_signatory_id))?.url ? (
+                  <img 
+                    src={organisation.signatures.find((s: any) => String(s.id) === String(data.authorized_signatory_id)).url} 
+                    alt="Signature" 
+                    className="max-h-full max-w-[200px] object-contain"
+                  />
+                ) : organisation.signatures?.[0]?.url ? (
+                  <img 
+                    src={organisation.signatures[0].url} 
+                    alt="Signature" 
+                    className="max-h-full max-w-[200px] object-contain"
+                  />
+                ) : (
+                  <div className="h-10"></div>
+                )}
+              </div>
+              <div className="font-black uppercase text-[11px] txt-slate-900 border-t-2 brd-slate-900 pt-1 px-6 inline-block">
+                Authorised Signature
+              </div>
             </div>
           </div>
         </div>
-
-        {/* Right Side: Totals & Signature */}
-        <div className="col-span-5 flex flex-col justify-between">
-          <div className="space-y-1.5 px-2">
-            <div className="flex justify-between text-slate-600 font-medium">
-              <span>Sub Total</span>
-              <span className="font-mono">{formatCurrency(data.subtotal)}</span>
-            </div>
-            <div className="flex justify-between text-slate-600 font-medium">
-              <span>SGST @ 9%</span>
-              <span className="font-mono">{formatCurrency(data.sgst_amount || (data.total_tax / 2))}</span>
-            </div>
-            <div className="flex justify-between text-slate-600 font-medium">
-              <span>CGST @ 9%</span>
-              <span className="font-mono">{formatCurrency(data.cgst_amount || (data.total_tax / 2))}</span>
-            </div>
-            <div className="flex justify-between text-slate-600 font-medium">
-              <span>Rounding Off</span>
-              <span className="font-mono">{formatCurrency(data.round_off)}</span>
-            </div>
-            <div className="mt-4 pt-4 border-t-2 border-blue-900 flex justify-between items-center bg-blue-50 -mx-2 px-4 py-2 rounded-lg">
-              <span className="text-blue-900 font-black text-sm uppercase">Total Amount</span>
-              <span className="text-blue-900 font-black text-lg font-mono">
-                {formatCurrency(data.grand_total || data.total)}
-              </span>
-            </div>
-          </div>
-
-          <div className="mt-12 text-center relative">
-            <div className="text-slate-800 font-bold text-[10px] mb-8">
-              For {organisation.name || "Shivam Engineering Pvt. Ltd."}
-            </div>
-            
-            {/* Signature Placeholder */}
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 opacity-80">
-               {/* This would be the signature image if available */}
-               <div className="w-24 h-12 border-b border-dotted border-blue-200"></div>
-            </div>
-
-            <div className="mt-10 border-t border-slate-300 pt-1 inline-block px-8 text-slate-500 font-bold uppercase tracking-widest text-[9px]">
-              Authorized Signature
-            </div>
-          </div>
-        </div>
       </div>
 
-      {/* Page Numbering */}
-      <div className="mt-auto p-4 text-center text-slate-400 text-[9px] font-medium border-t border-slate-50">
-        Page 1 of 1
+      {/* ---------------- PAGE 2: TERMS ---------------- */}
+      <div className="a4-page">
+        <div className="dense-header flex justify-between items-center">
+          <div className="text-lg font-black txt-slate-900 uppercase tracking-tighter">Terms & Conditions</div>
+          <div className="txt-slate-400 font-bold text-[10px]">Annexure to {docNo}</div>
+        </div>
+        
+        <div className="mt-4 flex-1 text-[11px] leading-relaxed txt-slate-700 font-medium">
+          <div dangerouslySetInnerHTML={{ 
+            __html: data.terms_conditions?.replace(/\n/g, '<br/>') || 
+                   organisation.terms_conditions?.replace(/\n/g, '<br/>') || 
+                   'Standard terms and conditions apply.' 
+          }} />
+        </div>
+
+        <div className="footer-fixed text-center pt-2">
+          <div className="text-slate-400 font-bold uppercase text-[9px]">End of Document</div>
+        </div>
       </div>
     </div>
   );

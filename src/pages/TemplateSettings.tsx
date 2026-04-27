@@ -10,21 +10,22 @@ const PAGE_SIZES = ['A4', 'Letter'];
 const ORIENTATIONS = ['Portrait', 'Landscape'];
 
 const OPTIONAL_COLUMNS = [
-  { key: 'sno', label: 'S.No' },
-  { key: 'item', label: 'Item Name' },
-  { key: 'qty', label: 'Quantity' },
+  { key: 'sno', label: 'S.No.', isMandatory: true },
+  { key: 'item', label: 'Item Name', isMandatory: true },
+  { key: 'qty', label: 'Qty', isMandatory: true },
   { key: 'uom', label: 'Unit (UOM)' },
   { key: 'item_code', label: 'Item Code' },
   { key: 'variant', label: 'Variant' },
   { key: 'description', label: 'Description' },
   { key: 'hsn_code', label: 'HSN Code' },
-  { key: 'rate', label: 'Rate (Before Discount)' },
-  { key: 'discount_percent', label: 'Discount %' },
+  { key: 'rate', label: 'Rate(before disc)' },
+  { key: 'base_amount', label: 'Amount', isMandatory: true },
+  { key: 'discount_percent', label: 'Disc %' },
   { key: 'discount_amount', label: 'Discount Amount' },
-  { key: 'rate_after_discount', label: 'Rate/Unit (After Discount)' },
-  { key: 'tax_percent', label: 'Tax %' },
+  { key: 'rate_after_discount', label: 'Rate(after discount)' },
+  { key: 'tax_percent', label: 'GST %', isMandatory: true },
   { key: 'tax_amount', label: 'Tax Amount' },
-  { key: 'line_total', label: 'Line Total' },
+  { key: 'line_total', label: 'Final Total' },
   { key: 'category', label: 'Category' },
   { key: 'make', label: 'Make' },
   { key: 'custom1', label: 'Custom 1' },
@@ -34,7 +35,16 @@ const OPTIONAL_COLUMNS = [
   { key: 'round_off', label: 'Round Off' },
   { key: 'grand_total', label: 'Grand Total' },
   { key: 'po_no', label: 'PO No' },
-  { key: 'eway_bill', label: 'E-Way Bill' }
+  { key: 'po_date', label: 'PO Date' },
+  { key: 'vendor_no', label: 'Vendor No.' },
+  { key: 'valid_till', label: 'Valid Till' },
+  { key: 'payment_terms', label: 'Payment Terms' },
+  { key: 'reference', label: 'Reference' },
+  { key: 'eway_bill', label: 'E-Way Bill' },
+  { key: 'bill_to', label: 'Billing Details' },
+  { key: 'ship_to', label: 'Shipping Details' },
+  { key: 'project_name', label: 'Project Name' },
+  { key: 'prepared_by', label: 'Prepared By' }
 ];
 
 export default function TemplateSettings() {
@@ -71,6 +81,7 @@ export default function TemplateSettings() {
         description: true,
         hsn_code: false,
         rate: true,
+        base_amount: true,
         discount_percent: true,
         discount_amount: false,
         rate_after_discount: true,
@@ -1276,20 +1287,29 @@ export default function TemplateSettings() {
                   flexDirection: 'column',
                   gap: '8px'
                 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }} onClick={() => handleColumnToggle(col.key, !formData.column_settings?.optional?.[col.key])}>
-                    <span style={{ fontSize: '13px', fontWeight: 500 }}>{col.label}</span>
+                  <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'space-between', 
+                    cursor: col.isMandatory ? 'default' : 'pointer',
+                    opacity: col.isMandatory ? 0.7 : 1
+                  }} onClick={() => !col.isMandatory && handleColumnToggle(col.key, !formData.column_settings?.optional?.[col.key])}>
+                    <span style={{ fontSize: '13px', fontWeight: col.isMandatory ? 700 : 500 }}>
+                      {col.label} {col.isMandatory && <span style={{ color: '#ef4444', fontSize: '10px' }}>*</span>}
+                    </span>
                     <div style={{ position: 'relative', width: '36px', height: '20px' }}>
                       <input 
                         type="checkbox" 
-                        checked={formData.column_settings?.optional?.[col.key] || false}
-                        onChange={(e) => handleColumnToggle(col.key, e.target.checked)}
-                        style={{ opacity: 0, width: '100%', height: '100%', cursor: 'pointer', position: 'absolute' }}
+                        checked={col.isMandatory || formData.column_settings?.optional?.[col.key] || false}
+                        disabled={col.isMandatory}
+                        onChange={(e) => !col.isMandatory && handleColumnToggle(col.key, e.target.checked)}
+                        style={{ opacity: 0, width: '100%', height: '100%', cursor: col.isMandatory ? 'default' : 'pointer', position: 'absolute' }}
                         onClick={(e) => e.stopPropagation()}
                       />
                       <div style={{
                         width: '36px',
                         height: '20px',
-                        background: formData.column_settings?.optional?.[col.key] ? '#2563eb' : '#d1d5db',
+                        background: (col.isMandatory || formData.column_settings?.optional?.[col.key]) ? '#2563eb' : '#d1d5db',
                         borderRadius: '10px',
                         position: 'relative',
                         transition: 'background 0.2s'
@@ -1301,7 +1321,7 @@ export default function TemplateSettings() {
                           borderRadius: '50%',
                           position: 'absolute',
                           top: '2px',
-                          left: formData.column_settings?.optional?.[col.key] ? '18px' : '2px',
+                          left: (col.isMandatory || formData.column_settings?.optional?.[col.key]) ? '18px' : '2px',
                           transition: 'left 0.2s'
                         }} />
                       </div>
