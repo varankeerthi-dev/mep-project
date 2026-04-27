@@ -232,17 +232,17 @@ export default function LedgerModal({
         .font-display { font-family: 'Space Grotesk', system-ui, sans-serif; }
         .font-body { font-family: 'IBM Plex Sans', system-ui, sans-serif; }
         
-        .bg-cream-50 { background-color: oklch(0.97 0.01 85); }
-        .bg-cream-100 { background-color: oklch(0.94 0.02 85); }
-        .bg-navy-950 { background-color: oklch(0.18 0.03 260); }
-        .bg-navy-900 { background-color: oklch(0.25 0.04 260); }
-        .bg-navy-800 { background-color: oklch(0.32 0.05 260); }
-        .text-navy-950 { color: oklch(0.18 0.03 260); }
-        .text-navy-900 { color: oklch(0.25 0.04 260); }
-        .text-navy-600 { color: oklch(0.45 0.06 260); }
-        .text-navy-500 { color: oklch(0.55 0.06 260); }
-        .border-navy-200 { border-color: oklch(0.85 0.04 260); }
-        .border-navy-100 { border-color: oklch(0.91 0.03 260); }
+        .bg-cream-50 { background-color: #faf8f5; }
+        .bg-cream-100 { background-color: #f2eee9; }
+        .bg-navy-950 { background-color: #1a233a; }
+        .bg-navy-900 { background-color: #242e47; }
+        .bg-navy-800 { background-color: #2f3a55; }
+        .text-navy-950 { color: #1a233a; }
+        .text-navy-900 { color: #242e47; }
+        .text-navy-600 { color: #435171; }
+        .text-navy-500 { color: #556485; }
+        .border-navy-200 { border-color: #d1d9e7; }
+        .border-navy-100 { border-color: #e2e8f0; }
       `}</style>
 
       <DialogContent className="max-h-[90vh] max-w-6xl overflow-hidden rounded-2xl border border-navy-100 bg-white p-0 shadow-2xl">

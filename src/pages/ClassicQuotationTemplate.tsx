@@ -7,11 +7,14 @@ export const generateClassicQuotationTemplate = (data: any, organisation: any, t
   const colSettings = extSettings.column_settings?.optional || {};
   
   const showItemCode = colSettings.item_code === true;
+  const showClientPartNo = colSettings.client_part_no === true;
+  const showClientDescription = colSettings.client_description === true;
   const showHsn = colSettings.hsn_code !== false; // defaults to true for classic
   const showRate = colSettings.rate !== false;    // default true
   const showDiscount = colSettings.discount_percent === true;
   const showTax = colSettings.tax_percent !== false;
   const showAmount = colSettings.line_total !== false;
+  const showItem = colSettings.item !== false;
   
   const showBankDet = extSettings.show_bank_details !== false;
   const showTandC = extSettings.show_terms !== false;
@@ -242,10 +245,13 @@ export const generateClassicQuotationTemplate = (data: any, organisation: any, t
   
   const tableRows = (items || []).map((item: any, index: number) => {
     const row = [];
-    row.push(String(index + 1));
+    row.push(index + 1);
     if (showHsn) row.push(item.item?.hsn_code || '');
-    row.push(item.description || item.item?.display_name || item.item?.name || '');
-    if (showItemCode) row.push(item.item?.item_code || '');
+    const mapping = client?.id && item.item?.mappings?.find((m: any) => m.client_id === client.id);
+    if (showItem) row.push(mapping?.client_description || item.description || item.item?.display_name || item.item?.name || '');
+    if (showClientDescription) row.push(mapping?.client_description || '');
+    if (showItemCode) row.push(mapping?.client_part_no || item.item?.item_code || '');
+    if (showClientPartNo) row.push(mapping?.client_part_no || '');
     row.push(String(item.qty || ''));
     row.push(item.uom || '');
     if (showRate) row.push(formatNumber(item.rate));
@@ -289,13 +295,28 @@ export const generateClassicQuotationTemplate = (data: any, organisation: any, t
     colIndex++;
   }
 
-  activeHeaders.push('Item Description');
-  colStyles[colIndex] = { cellWidth: 'auto' };
-  colIndex++;
+  if (showItem) {
+    const itemLabel = extSettings.column_settings?.labels?.item || 'Item Description';
+    activeHeaders.push(itemLabel);
+    colStyles[colIndex] = { cellWidth: 'auto' };
+    colIndex++;
+  }
+
+  if (showClientDescription) {
+    activeHeaders.push('Client Description');
+    colStyles[colIndex] = { cellWidth: getDynamicW(colIndex, 'Client Description'), halign: 'left' };
+    colIndex++;
+  }
 
   if (showItemCode) {
     activeHeaders.push('Item Code');
     colStyles[colIndex] = { cellWidth: getDynamicW(colIndex, 'Item Code'), halign: 'center' };
+    colIndex++;
+  }
+
+  if (showClientPartNo) {
+    activeHeaders.push('Client Part No');
+    colStyles[colIndex] = { cellWidth: getDynamicW(colIndex, 'Client Part No'), halign: 'center' };
     colIndex++;
   }
 

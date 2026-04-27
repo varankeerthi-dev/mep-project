@@ -31,6 +31,8 @@ const getActiveColumns = (config: any) => {
   const allPossible = [
     { key: "sno", label: labels.sno || "S.No", order: 1, width: 1, align: "left" },
     { key: "item", label: labels.item || "Item Description", order: 2, width: 6, align: "left" },
+    { key: "client_part_no", label: labels.client_part_no || "Client Part No", order: 2.1, width: 2, align: "left" },
+    { key: "client_description", label: labels.client_description || "Client Description", order: 2.2, width: 4, align: "left" },
     { key: "qty", label: labels.qty || "Qty", order: 3, width: 1, align: "right" },
     { key: "rate", label: labels.rate || "Rate", order: 4, width: 2, align: "right", type: "currency" },
     { key: "amount", label: labels.amount || "Amount", order: 5, width: 2, align: "right", type: "currency" }
@@ -39,11 +41,19 @@ const getActiveColumns = (config: any) => {
   return allPossible.filter(c => optional[c.key] !== false);
 };
 
-const getCellValue = (item: any, key: string, index: number) => {
+const getCellValue = (item: any, key: string, index: number, quotation: any) => {
+  const clientId = quotation?.client_id || quotation?.client?.id;
+  const mapping = clientId && item.item?.mappings?.find((m: any) => m.client_id === clientId);
+
   switch (key) {
     case "sno": return index + 1;
     case "hsn": return item.item?.hsn_code || "-";
-    case "item": return item.description || item.item?.name || "-";
+    case "item": return mapping?.client_description || item.description || item.item?.name || "-";
+    case 'description':
+        return mapping?.client_description || item.description || '-';
+    case "item_code": return mapping?.client_part_no || item.item?.item_code || "-";
+    case "client_part_no": return mapping?.client_part_no || "-";
+    case "client_description": return mapping?.client_description || "-";
     case "qty": return item.qty;
     case "rate": return item.rate;
     case "amount": return item.line_total;
@@ -85,6 +95,15 @@ export default function DocumentPreview({
 
   return (
     <div className="min-h-[297mm] flex flex-col bg-white text-[11px] text-gray-800 p-6">
+      <style>{`
+        .bg-blue-700 { background-color: #1d4ed8 !important; }
+        .bg-gray-100 { background-color: #f3f4f6 !important; }
+        .bg-gray-50 { background-color: #f9fafb !important; }
+        .text-blue-700 { color: #1d4ed8 !important; }
+        .text-gray-500 { color: #6b7280 !important; }
+        .text-gray-600 { color: #4b5563 !important; }
+        .text-gray-800 { color: #1f2937 !important; }
+      `}</style>
 
       {/* ---------------- HEADER ---------------- */}
       <div className="flex justify-between items-start border-b pb-3">
@@ -176,7 +195,7 @@ export default function DocumentPreview({
               style={{ gridTemplateColumns: gridTemplate }}
             >
               {columns.map((col: any) => {
-                let value = getCellValue(item, col.key, i);
+                let value = getCellValue(item, col.key, i, data);
 
                 if (col.type === "currency") {
                   value = formatCurrency(value);

@@ -178,29 +178,46 @@ export const generateProfessionalTemplate = (data, organisation, templateSetting
   doc.text(`Ship to GSTIN: ${data.ship_to_gstin || gstin || '-'}`, (pageWidth / 2) + 2, currentY + 5);
 
   currentY += gstinHeight;
+  
+  const colSettings = templateSettings?.column_settings?.optional || {};
+  const labels = templateSettings?.column_settings?.labels || {};
 
   // --- 5. ITEMS TABLE ---
   const isInterState = state && organisation.state && state.trim().toLowerCase() !== organisation.state.trim().toLowerCase();
   
+  const tableHeaders = ['S.No'];
+  if (colSettings.hsn_code !== false) tableHeaders.push(labels.hsn_code || 'HSN/SAC');
+  if (colSettings.item !== false) tableHeaders.push(labels.item || 'Item Description');
+  if (colSettings.client_part_no === true) tableHeaders.push(labels.client_part_no || 'Client Part No');
+  if (colSettings.client_description === true) tableHeaders.push(labels.client_description || 'Client Description');
+  tableHeaders.push(labels.qty || 'Qty');
+  tableHeaders.push(labels.uom || 'Unit');
+  tableHeaders.push(labels.rate || 'Rate/Unit');
+  tableHeaders.push(labels.tax_percent || 'GST %');
+  tableHeaders.push(labels.line_total || 'Amount');
+
   autoTable(doc, {
     startY: currentY,
     margin: { left: margin, right: margin },
-    head: [['S.No', 'HSN/SAC', 'item', 'Qty', 'Unit', 'Rate/Unit', 'GST %', 'Amount']],
+    head: [tableHeaders],
     body: (items || []).map((item, index) => {
-      // Handle Section Header
       if (item.is_header) {
-        return [{ content: item.description, colSpan: 8, styles: { fontStyle: 'bold', fillColor: [245, 245, 245] } }];
+        return [{ content: item.description, colSpan: tableHeaders.length, styles: { fontStyle: 'bold', fillColor: [245, 245, 245] } }];
       }
-      return [
-        index + 1,
-        item.item?.hsn_code || '-',
-        item.description || item.item?.name || '-',
-        item.qty || 0,
-        item.uom || '-',
-        new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2 }).format(item.rate || 0),
-        `${item.tax_percent || 0}%`,
-        new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2 }).format(item.line_total || 0)
-      ];
+      
+      const mapping = client?.id && item.item?.mappings?.find((m: any) => m.client_id === client.id);
+      const row = [index + 1];
+      if (colSettings.hsn_code !== false) row.push(item.item?.hsn_code || '-');
+      if (colSettings.item !== false) row.push(mapping?.client_description || item.description || item.item?.name || '-');
+      if (colSettings.client_part_no === true) row.push(mapping?.client_part_no || '-');
+      if (colSettings.client_description === true) row.push(mapping?.client_description || '-');
+      row.push(item.qty || 0);
+      row.push(item.uom || '-');
+      row.push(new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2 }).format(item.rate || 0));
+      row.push(`${item.tax_percent || 0}%`);
+      row.push(new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2 }).format(item.line_total || 0));
+      
+      return row;
     }),
     theme: 'grid',
     headStyles: { 
@@ -221,13 +238,7 @@ export const generateProfessionalTemplate = (data, organisation, templateSetting
     },
     columnStyles: {
       0: { cellWidth: 10, halign: 'center' },
-      1: { cellWidth: 20, halign: 'center' },
-      2: { cellWidth: 'auto' },
-      3: { cellWidth: 15, halign: 'right' },
-      4: { cellWidth: 15, halign: 'center' },
-      5: { cellWidth: 25, halign: 'right' },
-      6: { cellWidth: 15, halign: 'center' },
-      7: { cellWidth: 25, halign: 'right' }
+      // Other column widths will be handled by autoTable unless specified
     }
   });
 

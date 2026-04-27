@@ -151,7 +151,10 @@ export const generateQuotationTally = (data, organisation, templateSettings = nu
       }
       return [
         index + 1,
-        item.description || '-',
+        (() => {
+          const mapping = client?.id && item.item?.mappings?.find((m: any) => m.client_id === client.id);
+          return mapping?.client_description || item.description || '-';
+        })(),
         item.item?.hsn_code || '-',
         `${item.qty} ${item.uom}`,
         new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2 }).format(item.base_rate_snapshot || item.rate),

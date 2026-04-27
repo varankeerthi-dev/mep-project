@@ -41,6 +41,8 @@ const getActiveColumns = (config: any) => {
     { key: "sno", label: labels.sno || "S.No.", width: "5%" },
     { key: "hsn_code", label: labels.hsn_code || "HSN/SAC", width: "10%" },
     { key: "item", label: labels.item || "Item Name", width: "25%" },
+    { key: "client_part_no", label: labels.client_part_no || "Client Part No", width: "10%" },
+    { key: "client_description", label: labels.client_description || "Client Description", width: "15%" },
     { key: "variant", label: labels.variant || "Variant", width: "10%" },
     { key: "description", label: labels.description || "Description", width: "20%" },
     { key: "make", label: labels.make || "Make", width: "10%" },
@@ -58,7 +60,7 @@ const getActiveColumns = (config: any) => {
   return allPossible.filter(c => optional[c.key] !== false);
 };
 
-const getCellValue = (item: any, key: string, index: number) => {
+const getCellValue = (item: any, key: string, index: number, quotation: any) => {
   const beforeDiscRate = Number(item.base_rate_snapshot || item.rate || 0);
   const netRate = Number(item.rate || 0);
   const qty = Number(item.qty || 0);
@@ -68,13 +70,19 @@ const getCellValue = (item: any, key: string, index: number) => {
   const taxPct = Number(item.tax_percent || 0);
   const taxAmount = (baseAmount * taxPct) / 100;
   const finalTotal = baseAmount + taxAmount;
+
+  const clientId = quotation?.client_id || quotation?.client?.id;
+  const mapping = clientId && item.item?.mappings?.find((m: any) => m.client_id === clientId);
   
   switch (key) {
     case "sno": return index + 1;
     case "hsn_code": return item.item?.hsn_code || "-";
-    case "item": return item.item?.name || "-";
+    case "item": return mapping?.client_description || item.item?.name || "-";
+    case "item_code": return mapping?.client_part_no || item.item?.item_code || "-";
+    case "client_part_no": return mapping?.client_part_no || "-";
+    case "client_description": return mapping?.client_description || "-";
     case "variant": return item.variant || "-";
-    case "description": return item.description || "-";
+    case "description": return mapping?.client_description || item.description || "-";
     case "make": return item.make || item.item?.make || "-";
     case "qty": return qty;
     case "uom": return item.uom || item.item?.uom || "Nos";
@@ -362,7 +370,7 @@ export default function VerticalTemplate({
         {(optional.bill_to !== false || optional.ship_to !== false) && (
           <div className="mt-3 grid grid-cols-2 gap-4">
             {optional.bill_to !== false && (
-              <div className="bg-slate-50/50 p-2 border-l-2 brd-slate-900">
+              <div className="bg-slate-50 p-2 border-l-2 brd-slate-900" style={{ backgroundColor: '#f8fafc' }}>
                 <div className="text-[10px] font-black uppercase txt-slate-900 mb-1 tracking-widest">Bill To</div>
                 <div className="font-extrabold txt-slate-900 text-[12px] leading-tight mb-1">
                   {data.client?.client_name || data.client?.name}
@@ -377,7 +385,7 @@ export default function VerticalTemplate({
               </div>
             )}
             {optional.ship_to !== false && (
-              <div className="bg-slate-50/50 p-2 border-l-2 brd-slate-300">
+              <div className="bg-slate-50 p-2 border-l-2 brd-slate-300" style={{ backgroundColor: '#f8fafc' }}>
                 <div className="text-[10px] font-black uppercase txt-slate-900 mb-1 tracking-widest">Ship To / Project</div>
                 <div className="font-extrabold txt-slate-900 text-[12px] leading-tight mb-1">
                   {data.shipping_company_name || data.client?.client_name || data.client?.name}
@@ -408,8 +416,11 @@ export default function VerticalTemplate({
               </tr>
             </thead>
             <tbody>
-              {processedItems.map((item, idx) => (
-                <React.Fragment key={idx}>
+              {processedItems.map((item, idx) => {
+                const clientId = data?.client_id || data?.client?.id;
+                const mapping = clientId && item.item?.mappings?.find((m: any) => m.client_id === clientId);
+                return (
+                  <React.Fragment key={idx}>
                   {item.type === 'header' ? (
                     <tr className="bg-slate-50">
                       <td colSpan={columns.length} className="font-black text-blue-900 uppercase tracking-tight py-1 text-[10px]">
@@ -424,13 +435,13 @@ export default function VerticalTemplate({
                             <span className="font-bold text-slate-400 text-[10px]">{item.sno_display}</span>
                           ) : col.key === 'item' ? (
                             <div>
-                              <div className="font-bold text-slate-900">{getCellValue(item, col.key, idx)}</div>
-                              {item.description && <div className="text-[9px] text-slate-500 mt-0.5 leading-none">{item.description}</div>}
+                              <div className="font-bold text-slate-900">{getCellValue(item, col.key, idx, data)}</div>
+                              {item.description && <div className="text-[9px] text-slate-500 mt-0.5 leading-none">{mapping?.client_description || item.description}</div>}
                             </div>
                           ) : (
                             <span className={col.align === 'right' ? 'font-bold' : ''}>
                               {(() => {
-                                const val = getCellValue(item, col.key, idx);
+                                const val = getCellValue(item, col.key, idx, data);
                                 const isCurrency = ["rate", "rate_after_discount", "base_amount", "tax_amount", "line_total"].includes(col.key);
                                 const isPercent = ["discount_percent", "tax_percent"].includes(col.key);
                                 if (isCurrency) return formatCurrency(val);
@@ -444,7 +455,7 @@ export default function VerticalTemplate({
                     </tr>
                   )}
                 </React.Fragment>
-              ))}
+              )})}
               {/* Fill remaining space to keep layout consistent */}
               {Array.from({ length: Math.max(0, 20 - processedItems.length) }).map((_, i) => (
                 <tr key={`empty-${i}`} className="h-6">
@@ -477,7 +488,7 @@ export default function VerticalTemplate({
                   <span>Bank Details</span>
                   <div className="h-px bg-slate-100 flex-grow"></div>
                 </div>
-                <div className="grid grid-cols-[80px_1fr] gap-x-2 text-[12px] border brd-slate-100 p-2 rounded bg-slate-50/30">
+                <div className="grid grid-cols-[80px_1fr] gap-x-2 text-[12px] border brd-slate-100 p-2 rounded" style={{ backgroundColor: '#fafbfc' }}>
                   <div className="txt-slate-500 font-bold uppercase text-[8px]">Bank</div><div className="font-bold text-slate-900">: {organisation.bank_details?.bank_name}</div>
                   <div className="txt-slate-500 font-bold uppercase text-[8px]">A/C No</div><div className="font-bold text-slate-900">: {organisation.bank_details?.account_no}</div>
                   <div className="txt-slate-500 font-bold uppercase text-[8px]">IFSC</div><div className="font-bold text-slate-900">: {organisation.bank_details?.ifsc_code}</div>

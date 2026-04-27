@@ -11,12 +11,14 @@ const ORIENTATIONS = ['Portrait', 'Landscape'];
 
 const OPTIONAL_COLUMNS = [
   { key: 'sno', label: 'S.No.', isMandatory: true },
-  { key: 'item', label: 'Item Name', isMandatory: true },
+  { key: 'item', label: 'Item Name' },
   { key: 'qty', label: 'Qty', isMandatory: true },
   { key: 'uom', label: 'Unit (UOM)' },
   { key: 'item_code', label: 'Item Code' },
   { key: 'variant', label: 'Variant' },
   { key: 'description', label: 'Description' },
+  { key: 'client_part_no', label: 'Client Part No' },
+  { key: 'client_description', label: 'Client Description' },
   { key: 'hsn_code', label: 'HSN Code' },
   { key: 'rate', label: 'Rate(before disc)' },
   { key: 'base_amount', label: 'Amount', isMandatory: true },
@@ -79,6 +81,8 @@ export default function TemplateSettings() {
         item_code: true,
         variant: false,
         description: true,
+        client_part_no: false,
+        client_description: false,
         hsn_code: false,
         rate: true,
         base_amount: true,
@@ -169,7 +173,7 @@ export default function TemplateSettings() {
       show_signature: true,
       column_settings: {
         mandatory: [],
-        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
+        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, client_part_no: false, client_description: false, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
         labels: { custom1: 'Custom 1', custom2: 'Custom 2', rate_after_discount: 'Rate/Unit' },
         print: { style: 'standard' }
       }
@@ -187,7 +191,7 @@ export default function TemplateSettings() {
       show_signature: true,
       column_settings: {
         mandatory: [],
-        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
+        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, client_part_no: false, client_description: false, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
         labels: { custom1: 'Custom 1', custom2: 'Custom 2', rate_after_discount: 'Rate/Unit' },
         print: { style: 'standard' }
       }
@@ -205,7 +209,7 @@ export default function TemplateSettings() {
       show_signature: true,
       column_settings: {
         mandatory: [],
-        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
+        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, client_part_no: false, client_description: false, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
         labels: { custom1: 'Custom 1', custom2: 'Custom 2', rate_after_discount: 'Rate/Unit' },
         print: { style: 'standard' }
       }
@@ -223,7 +227,7 @@ export default function TemplateSettings() {
       show_signature: true,
       column_settings: {
         mandatory: [],
-        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
+        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, client_part_no: false, client_description: false, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
         labels: { custom1: 'Custom 1', custom2: 'Custom 2', rate_after_discount: 'Rate/Unit' },
         print: { style: 'standard' }
       }
@@ -241,7 +245,7 @@ export default function TemplateSettings() {
       show_signature: true,
       column_settings: {
         mandatory: [],
-        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
+        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, client_part_no: false, client_description: false, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
         labels: { custom1: 'Custom 1', custom2: 'Custom 2', rate_after_discount: 'Rate/Unit' },
         print: { style: 'default' }
       }
@@ -277,7 +281,7 @@ export default function TemplateSettings() {
       show_signature: true,
       column_settings: {
         mandatory: [],
-        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
+        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, client_part_no: false, client_description: false, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
         labels: { custom1: 'Custom 1', custom2: 'Custom 2', rate_after_discount: 'Rate/Unit' },
         print: { style: 'saas' }
       }
@@ -295,7 +299,7 @@ export default function TemplateSettings() {
       show_signature: true,
       column_settings: {
         mandatory: [],
-        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
+        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, client_part_no: false, client_description: false, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
         labels: { custom1: 'Custom 1', custom2: 'Custom 2', rate_after_discount: 'Rate/Unit' },
         print: { style: 'saas' }
       }
@@ -313,7 +317,7 @@ export default function TemplateSettings() {
       show_signature: true,
       column_settings: {
         mandatory: [],
-        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
+        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, client_part_no: false, client_description: false, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
         labels: { custom1: 'Custom 1', custom2: 'Custom 2', rate_after_discount: 'Rate/Unit' },
         print: { style: 'saas' }
       }
@@ -331,7 +335,7 @@ export default function TemplateSettings() {
       show_signature: true,
       column_settings: {
         mandatory: [],
-        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
+        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, client_part_no: false, client_description: false, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
         labels: { custom1: 'Custom 1', custom2: 'Custom 2', rate_after_discount: 'Rate/Unit' },
         print: { style: 'saas' }
       }
@@ -367,7 +371,7 @@ export default function TemplateSettings() {
       show_signature: true,
       column_settings: {
         mandatory: [],
-        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
+        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, client_part_no: false, client_description: false, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
         labels: { custom1: 'Custom 1', custom2: 'Custom 2', rate_after_discount: 'Rate/Unit' },
         print: { style: 'default' }
       }
@@ -385,7 +389,7 @@ export default function TemplateSettings() {
       show_signature: true,
       column_settings: {
         mandatory: [],
-        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
+        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, client_part_no: false, client_description: false, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
         labels: { custom1: 'Custom 1', custom2: 'Custom 2', rate_after_discount: 'Rate/Unit' },
         print: { style: 'pro_grid' }
       }
@@ -403,7 +407,7 @@ export default function TemplateSettings() {
       show_signature: true,
       column_settings: {
         mandatory: [],
-        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
+        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, client_part_no: false, client_description: false, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
         labels: { custom1: 'Custom 1', custom2: 'Custom 2', rate_after_discount: 'Rate/Unit' },
         print: { style: 'grid_minimal', gridMinimal: { titleOverride: 'QUOTATION', columns: { hsn: true, make: true, unit: true, discPct: true, gst: true } } }
       }
@@ -421,7 +425,7 @@ export default function TemplateSettings() {
       show_signature: true,
       column_settings: {
         mandatory: [],
-        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
+        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, client_part_no: false, client_description: false, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
         labels: { custom1: 'Custom 1', custom2: 'Custom 2', rate_after_discount: 'Rate/Unit' },
         print: { style: 'grid_minimal', gridMinimal: { titleOverride: 'TAX INVOICE', columns: { hsn: true, make: true, unit: true, discPct: true, gst: true } } }
       }
@@ -439,7 +443,7 @@ export default function TemplateSettings() {
       show_signature: true,
       column_settings: {
         mandatory: [],
-        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
+        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, client_part_no: false, client_description: false, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
         labels: { custom1: 'Custom 1', custom2: 'Custom 2', rate_after_discount: 'Rate/Unit' },
         print: { style: 'pro_grid' }
       }
@@ -457,7 +461,7 @@ export default function TemplateSettings() {
       show_signature: true,
       column_settings: {
         mandatory: [],
-        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
+        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, client_part_no: false, client_description: false, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
         labels: { custom1: 'Custom 1', custom2: 'Custom 2', rate_after_discount: 'Rate/Unit' },
         print: { style: 'vertical' }
       }
@@ -716,9 +720,11 @@ export default function TemplateSettings() {
     if (optionalCols.sno) columnsHTML += '<th>#</th>';
     if (optionalCols.item_code) columnsHTML += '<th>Item Code</th>';
     if (optionalCols.hsn_code) columnsHTML += '<th>HSN/SAC</th>';
-    if (optionalCols.item) columnsHTML += '<th>Item Description</th>';
+    if (optionalCols.item) columnsHTML += `<th>${labels.item || 'Item Description'}</th>`;
     if (optionalCols.variant) columnsHTML += '<th>Variant</th>';
     if (optionalCols.description) columnsHTML += '<th>Description</th>';
+    if (optionalCols.client_part_no) columnsHTML += '<th>Client Part No</th>';
+    if (optionalCols.client_description) columnsHTML += '<th>Client Description</th>';
     if (optionalCols.qty) columnsHTML += '<th>Qty</th>';
     if (optionalCols.uom) columnsHTML += '<th>Unit</th>';
     if (optionalCols.rate) columnsHTML += '<th>Rate</th>';
@@ -747,6 +753,8 @@ export default function TemplateSettings() {
       if (optionalCols.item) rowHTML += `<td>${item.item}</td>`;
       if (optionalCols.variant) rowHTML += `<td>${item.variant}</td>`;
       if (optionalCols.description) rowHTML += `<td>${item.description}</td>`;
+      if (optionalCols.client_part_no) rowHTML += `<td>C-PART-01</td>`;
+      if (optionalCols.client_description) rowHTML += `<td>Customer Spec Item</td>`;
       if (optionalCols.qty) rowHTML += `<td style="text-align:right">${item.qty}</td>`;
       if (optionalCols.uom) rowHTML += `<td>${item.unit}</td>`;
       if (optionalCols.rate) rowHTML += `<td style="text-align:right">₹${item.rate.toFixed(2)}</td>`;
@@ -1327,7 +1335,7 @@ export default function TemplateSettings() {
                       </div>
                     </div>
                   </div>
-                  {(col.key === 'custom1' || col.key === 'custom2' || col.key === 'rate_after_discount') && (
+                  {(col.key === 'item' || col.key === 'custom1' || col.key === 'custom2' || col.key === 'rate_after_discount') && (
                     <input 
                       type="text"
                       className="form-input"

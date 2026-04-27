@@ -42,7 +42,14 @@ export default function QuotationView() {
             project:projects(id, project_name, project_code),
             items:quotation_items(
               *,
-              item:materials(id, item_code, display_name, name, hsn_code)
+              item:materials(
+                id, 
+                item_code, 
+                display_name, 
+                name, 
+                hsn_code,
+                mappings:material_client_mappings(*)
+              )
             )
           `)
           .eq('id', quotationId)
@@ -465,16 +472,21 @@ export default function QuotationView() {
           shipping_phone: quotation.shipping_phone || quotation.client?.phone || '',
           
           // Items
-          items: (quotation.items || []).map((item: any, idx: number) => ({
-            index: idx + 1,
-            hsn: item.item?.hsn_code || '',
-            description: item.description || item.item?.display_name || item.item?.name || '',
-            qty: String(item.qty || ''),
-            uom: item.uom || '',
-            rate: formatCurrency(item.rate || 0),
-            gst_percent: item.tax_percent ? `${item.tax_percent}%` : '18%',
-            amount: formatCurrency(item.line_total || 0)
-          })),
+          items: (quotation.items || []).map((item: any, idx: number) => {
+            const clientId = quotation.client_id || quotation.client?.id;
+            const mapping = clientId && item.item?.mappings?.find((m: any) => m.client_id === clientId);
+            return {
+              index: idx + 1,
+              hsn: item.item?.hsn_code || '',
+              item_code: mapping?.client_part_no || item.item?.item_code || '',
+              description: mapping?.client_description || item.description || item.item?.display_name || item.item?.name || '',
+              qty: String(item.qty || ''),
+              uom: item.uom || '',
+              rate: formatCurrency(item.rate || 0),
+              gst_percent: item.tax_percent ? `${item.tax_percent}%` : '18%',
+              amount: formatCurrency(item.line_total || 0)
+            };
+          }),
           
           // Totals
           subtotal: formatCurrency(quotation.subtotal || 0),
@@ -634,6 +646,7 @@ export default function QuotationView() {
       if (optionalCols.sno !== false) columnConfig.push({ header: '#', key: 'sno', width: 10 });
       if (optionalCols.hsn_code) columnConfig.push({ header: 'HSN/SAC', key: 'hsn_code', width: 20 });
       if (optionalCols.item !== false) columnConfig.push({ header: 'Item', key: 'item', width: 45 });
+      if (optionalCols.item_code) columnConfig.push({ header: 'Part No', key: 'item_code', width: 25 });
       if (optionalCols.make) columnConfig.push({ header: 'Make', key: 'make', width: 25 });
       if (optionalCols.variant) columnConfig.push({ header: 'Variant', key: 'variant', width: 25 });
       if (optionalCols.description) columnConfig.push({ header: 'Description', key: 'description', width: 40 });
@@ -714,11 +727,14 @@ export default function QuotationView() {
         const material = item.item || {};
         const row = {};
         if (optionalCols.sno !== false) row.sno = index + 1;
+        const clientId = quotation.client_id || quotation.client?.id;
+        const mapping = clientId && material?.mappings?.find((m: any) => m.client_id === clientId);
         if (optionalCols.hsn_code) row.hsn_code = material.hsn_code || '-';
-        if (optionalCols.item !== false) row.item = item.description || '-';
+        if (optionalCols.item !== false) row.item = mapping?.client_description || item.description || material.name || '-';
+        if (optionalCols.item_code) row.item_code = mapping?.client_part_no || material.item_code || '-';
         if (optionalCols.make) row.make = item.make || '-';
         if (optionalCols.variant) row.variant = item.variant?.variant_name || '-';
-        if (optionalCols.description) row.description = item.description || '-';
+        if (optionalCols.description) row.description = mapping?.client_description || item.description || '-';
         if (optionalCols.qty !== false) row.qty = item.qty;
         if (optionalCols.uom !== false) row.uom = item.uom;
         
@@ -1175,6 +1191,12 @@ export default function QuotationView() {
               <tr>
                 {templates.find(t => t.id === selectedTemplateId)?.column_settings?.optional?.sno !== false && <th>#</th>}
                 {quotation.items?.[0]?.item?.hsn_code && templates.find(t => t.id === selectedTemplateId)?.column_settings?.optional?.hsn_code !== false && <th>HSN/SAC</th>}
+                {templates.find(t => t.id === selectedTemplateId)?.column_settings?.optional?.client_part_no === true && (
+                  <th>{templates.find(t => t.id === selectedTemplateId)?.column_settings?.labels?.client_part_no || 'Client Part No'}</th>
+                )}
+                {templates.find(t => t.id === selectedTemplateId)?.column_settings?.optional?.client_description === true && (
+                  <th>{templates.find(t => t.id === selectedTemplateId)?.column_settings?.labels?.client_description || 'Client Description'}</th>
+                )}
                 {templates.find(t => t.id === selectedTemplateId)?.column_settings?.optional?.item !== false && <th>Description</th>}
                 {templates.find(t => t.id === selectedTemplateId)?.column_settings?.optional?.variant && <th>Variant</th>}
                 {templates.find(t => t.id === selectedTemplateId)?.column_settings?.optional?.qty !== false && <th style={{ textAlign: 'right' }}>Qty</th>}
@@ -1200,14 +1222,29 @@ export default function QuotationView() {
               {quotation.items?.map((item, index) => {
                 const template = templates.find(t => t.id === selectedTemplateId);
                 const optCols = template?.column_settings?.optional || {};
+                const clientId = quotation.client_id || quotation.client?.id;
+                const mapping = clientId && item.item?.mappings?.find((m: any) => m.client_id === clientId);
                 
                 return (
                   <tr key={item.id}>
                     {optCols.sno !== false && <td>{index + 1}</td>}
                     {item.item?.hsn_code && optCols.hsn_code !== false && <td>{item.item.hsn_code}</td>}
+                    {optCols.client_part_no === true && (
+                      <td style={{ textAlign: 'center', fontSize: '12px', color: '#64748b' }}>
+                        {mapping?.client_part_no || '-'}
+                      </td>
+                    )}
+                    {optCols.client_description === true && (
+                      <td style={{ fontSize: '12px', color: '#64748b' }}>
+                        {mapping?.client_description || '-'}
+                      </td>
+                    )}
                     {optCols.item !== false && (
                       <td>
-                        {item.description}
+                        <div>
+                          <div style={{ fontWeight: 'bold' }}>{mapping?.client_description || item.description || item.item?.name}</div>
+                          {item.description && (mapping?.client_description || item.item?.name) && <div style={{ fontSize: '11px', color: '#6b7280' }}>{item.description}</div>}
+                        </div>
                         {item.override_flag && (
                           <span style={{ marginLeft: '8px', background: '#fef3c7', padding: '2px 6px', borderRadius: '4px', fontSize: '11px' }}>Edited</span>
                         )}

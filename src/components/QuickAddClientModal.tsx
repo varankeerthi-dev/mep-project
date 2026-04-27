@@ -89,7 +89,7 @@ export function QuickAddClientModal({ isOpen, onClose, onSuccess }: QuickAddClie
         {/* Header Block */}
         <div className="px-8 pt-10 pb-6 flex items-start justify-between">
           <div className="flex gap-4">
-            <div className="w-12 h-12 bg-[oklch(0.97_0.02_260)] border border-indigo-100 rounded-2xl flex items-center justify-center text-indigo-600 shadow-inner">
+            <div className="w-12 h-12 bg-[#f0f4ff] border border-indigo-100 rounded-2xl flex items-center justify-center text-indigo-600 shadow-inner">
                <Building2 className="w-6 h-6" />
             </div>
             <div>

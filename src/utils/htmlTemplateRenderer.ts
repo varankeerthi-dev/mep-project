@@ -1,65 +1,59 @@
 import html2canvas from 'html2canvas';
-import { jsPDF } from 'jspdf';
-
-interface TemplateData {
-  [key: string]: any;
-}
+import jsPDF from 'jspdf';
+import { formatCurrency, formatDate } from './formatters';
 
 /**
- * Render HTML template with data substitution
- * Replaces {{key}} placeholders with actual data values
- * Supports array looping with {{#array}}...{{/array}} syntax
+ * Renders a component to an HTML string for template processing
+ * Note: This is a simplified version of what a real renderer might do
  */
-export function renderHtmlTemplate(template: string, data: TemplateData): string {
+export function renderTemplate(template: string, data: any): string {
   let rendered = template;
   
-  // Handle array looping first ({{#items}}...{{/items}})
-  rendered = rendered.replace(/\{\{#(\w+)\}\}([\s\S]*?)\{\{\/\1\}\}/g, (match, arrayName, content) => {
-    const array = data[arrayName];
-    if (!Array.isArray(array)) return '';
-    
-    return array.map((item, index) => {
-      let itemContent = content;
-      // Replace placeholders within the loop with item data
-      Object.keys(item).forEach(key => {
-        const placeholder = `{{${key}}}`;
-        const value = item[key];
-        let displayValue: string;
-        if (value === null || value === undefined) {
-          displayValue = '';
-        } else if (typeof value === 'object') {
-          displayValue = JSON.stringify(value);
-        } else {
-          displayValue = String(value);
-        }
-        itemContent = itemContent.split(placeholder).join(displayValue);
-      });
-      // Also add index
-      itemContent = itemContent.split('{{index}}').join(String(index + 1));
-      return itemContent;
-    }).join('');
-  });
-  
-  // Replace all {{key}} placeholders with data values
+  // Replace simple tokens
   Object.keys(data).forEach(key => {
-    if (Array.isArray(data[key])) return; // Skip arrays (handled above)
-    const placeholder = `{{${key}}}`;
     const value = data[key];
+    const token = `{{${key}}}`;
     
-    // Handle different value types
-    let displayValue: string;
-    if (value === null || value === undefined) {
-      displayValue = '';
-    } else if (typeof value === 'object') {
-      displayValue = JSON.stringify(value);
-    } else {
-      displayValue = String(value);
+    if (typeof value === 'string' || typeof value === 'number') {
+      rendered = rendered.split(token).join(String(value));
     }
-    
-    rendered = rendered.split(placeholder).join(displayValue);
   });
   
   return rendered;
+}
+
+/**
+ * Convert OKLCH/OKLAB colors to RGB for html2canvas compatibility
+ */
+function sanitizeColors(element: HTMLElement) {
+  const elements = element.querySelectorAll('*');
+  elements.forEach((el: any) => {
+    const style = window.getComputedStyle(el);
+    const properties = ['color', 'backgroundColor', 'borderColor', 'borderTopColor', 'borderRightColor', 'borderBottomColor', 'borderLeftColor', 'outlineColor', 'fill', 'stroke'];
+    
+    properties.forEach(prop => {
+      const value = style[prop as any];
+      if (value && (value.includes('oklch') || value.includes('oklab'))) {
+        // Create a temporary element to let the browser resolve the color to RGB
+        const temp = document.createElement('div');
+        temp.style.color = value;
+        document.body.appendChild(temp);
+        const resolved = window.getComputedStyle(temp).color;
+        document.body.removeChild(temp);
+        
+        if (resolved && !resolved.includes('oklch') && !resolved.includes('oklab')) {
+          el.style[prop as any] = resolved;
+        } else {
+          // Fallback to a safe color if it still won't resolve
+          if (prop.toLowerCase().includes('background')) {
+            el.style[prop as any] = 'transparent';
+          } else {
+            el.style[prop as any] = '#000000';
+          }
+        }
+      }
+    });
+  });
 }
 
 /**
@@ -70,6 +64,9 @@ export async function htmlToPdf(
   filename: string = 'document.pdf'
 ): Promise<void> {
   try {
+    // Sanitize modern CSS colors that html2canvas can't parse
+    sanitizeColors(element);
+    
     // Convert HTML to canvas with higher scale for better quality
     const canvas = await html2canvas(element, {
       scale: 2,
@@ -79,85 +76,39 @@ export async function htmlToPdf(
       backgroundColor: '#ffffff',
       scrollY: -window.scrollY,
       windowWidth: element.scrollWidth,
-      windowHeight: element.scrollHeight,
-      ignoreElements: (el) => {
-        // Ignore internal canvases or hidden elements that might be tainted
-        return el.tagName === 'CANVAS' || el.getAttribute('aria-hidden') === 'true';
-      }
+      windowHeight: element.scrollHeight
     });
-    
-    // Create PDF with PNG for better quality
+
     const imgData = canvas.toDataURL('image/png');
+    
+    // Calculate PDF dimensions (A4)
     const pdf = new jsPDF('p', 'mm', 'a4');
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = pdf.internal.pageSize.getHeight();
     
-    const imgWidth = 210; // A4 width in mm
-    const pageHeight = 297; // A4 height in mm
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    // Calculate image dimensions to fit PDF
+    const imgWidth = pdfWidth;
+    const imgHeight = (canvas.height * pdfWidth) / canvas.width;
     
+    // If content spans multiple pages
     let heightLeft = imgHeight;
     let position = 0;
     
     // Add first page
-    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-    heightLeft -= pageHeight;
+    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight, undefined, 'FAST');
+    heightLeft -= pdfHeight;
     
-    // Add additional pages if content is longer than one page
+    // Add subsequent pages if needed
     while (heightLeft > 0) {
       position = heightLeft - imgHeight;
       pdf.addPage();
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight, undefined, 'FAST');
+      heightLeft -= pdfHeight;
     }
     
-    // Save PDF
     pdf.save(filename);
   } catch (error) {
     console.error('Error converting HTML to PDF:', error);
     throw new Error('Failed to convert HTML to PDF');
-  }
-}
-
-/**
- * Render HTML template in a hidden div and convert to PDF
- */
-export async function renderTemplateToPdf(
-  template: string,
-  data: TemplateData,
-  filename: string = 'document.pdf'
-): Promise<void> {
-  // Create hidden div
-  const container = document.createElement('div');
-  container.style.position = 'fixed';
-  container.style.left = '-9999px';
-  container.style.top = '0';
-  container.style.width = '210mm'; // A4 width
-  container.style.padding = '20px';
-  container.style.background = 'white';
-  document.body.appendChild(container);
-  
-  try {
-    // Render template with data
-    container.innerHTML = renderHtmlTemplate(template, data);
-    
-    // Wait for images to load
-    const images = container.querySelectorAll('img');
-    const imagePromises = Array.from(images).map(img => {
-      return new Promise((resolve) => {
-        if (img.complete) {
-          resolve(true);
-        } else {
-          img.onload = () => resolve(true);
-          img.onerror = () => resolve(true);
-        }
-      });
-    });
-    
-    await Promise.all(imagePromises);
-    
-    // Convert to PDF
-    await htmlToPdf(container, filename);
-  } finally {
-    // Clean up
-    document.body.removeChild(container);
   }
 }

@@ -11,6 +11,7 @@ interface MaterialsPageData {
   units: any[];
   variants: any[];
   warehouses: any[];
+  clients: any[];
 }
 
 const isMissingRelationError = (error: any): boolean => {
@@ -30,10 +31,11 @@ export function useMaterialsPageData(orgId?: string | null) {
         unitsResult,
         variantsResult,
         warehousesResult,
+        clientsResult,
       ] = await Promise.all([
         timedSupabaseQuery(
           (() => {
-            let query = supabase.from('materials').select('*').order('name');
+            let query = supabase.from('materials').select('*, mappings:material_client_mappings(*)').order('name');
             if (orgId) {
               query = query.eq('organisation_id', orgId);
             }
@@ -121,6 +123,18 @@ export function useMaterialsPageData(orgId?: string | null) {
             throw error;
           }
         })(),
+        (async () => {
+          try {
+            let query = supabase.from('clients').select('*').order('client_name');
+            if (orgId) {
+              query = query.eq('organisation_id', orgId);
+            }
+            return await timedSupabaseQuery(query, 'Clients');
+          } catch (error) {
+            console.log('clients load error in materials page', error);
+            return [];
+          }
+        })(),
       ]);
 
       return {
@@ -130,6 +144,7 @@ export function useMaterialsPageData(orgId?: string | null) {
         units: unitsResult || [],
         variants: variantsResult || [],
         warehouses: warehousesResult || [],
+        clients: clientsResult || [],
       };
     },
     enabled: !!orgId,

@@ -136,7 +136,7 @@ export default function CreateQuotation() {
     refetchOnWindowFocus: false,
     refetchOnMount: true,
     queryFn: async () => {
-      const [pricing, settings, template, quickQuoteConfig] = await Promise.all([
+      const [pricing, settings, template, quickQuoteConfig, orgDetails] = await Promise.all([
         timedSupabaseQuery(
           supabase.from('item_variant_pricing').select('item_id, company_variant_id, sale_price, make'),
           'Quotation pricing',
@@ -698,7 +698,7 @@ const loadQuoteNoPreview = useCallback(async () => {
       data = await timedSupabaseQuery(
         supabase
           .from('quotation_header')
-          .select('*, items:quotation_items(*, item:materials(id, item_code, display_name, name, hsn_code, sale_price, unit))')
+          .select('*, items:quotation_items(*, item:materials(id, item_code, display_name, name, hsn_code, sale_price, unit, mappings:material_client_mappings(*)))')
           .eq('id', id)
           .single(),
         'Quotation details',
@@ -734,6 +734,7 @@ const loadQuoteNoPreview = useCallback(async () => {
       if (data.items) {
         setItems(data.items.map(item => ({
           ...item,
+          material: item.item,
           hsn_code: item.hsn_code || item.item?.hsn_code || null,
           id: Date.now() + Math.random(),
           base_rate_snapshot: parseFloat(item.base_rate_snapshot) || parseFloat(item.rate) || 0,
@@ -1373,6 +1374,20 @@ const loadQuoteNoPreview = useCallback(async () => {
         custom2: ''
       }
     ]);
+  };
+
+  const updateTemplateSettingsInDb = async (newSettings) => {
+    if (!newSettings?.id) return;
+    try {
+      const { error } = await supabase
+        .from('document_templates')
+        .update({ column_settings: newSettings.column_settings })
+        .eq('id', newSettings.id);
+      
+      if (error) throw error;
+    } catch (err) {
+      console.error('Error updating template settings:', err);
+    }
   };
 
   const addSectionHeader = () => {
@@ -2047,50 +2062,64 @@ const loadQuoteNoPreview = useCallback(async () => {
             <thead>
               <tr>
                 <th className="col-shrink">#</th>
-                <th className="col-hsn">HSN</th>
-                <th className="col-item" style={{ position: 'relative' }}>
-  ITEM
-  <div 
-    style={{ 
-      position: 'absolute',
-      top: '-8px',
-      right: '-8px',
-      zIndex: 10
-    }}
-  >
-    <button
-      type="button"
-      onClick={() => setShowItemCreateDrawer(true)}
-      className="btn btn-sm btn-primary"
-      style={{
-        padding: '2px 6px',
-        fontSize: '10px',
-        borderRadius: '4px',
-        background: '#10b981',
-        border: '1px solid #059669',
-        color: 'white',
-        fontWeight: '500',
-        boxShadow: '0 2px 4px rgba(16, 185, 129, 0.2)',
-        transform: 'scale(0.9)',
-        transition: 'all 0.2s ease-in-out',
-        cursor: 'pointer'
-      }}
-      onMouseEnter={(e) => {
-        e.target.style.transform = 'scale(1)';
-        e.target.style.boxShadow = '0 4px 8px rgba(16, 185, 129, 0.3)';
-      }}
-      onMouseLeave={(e) => {
-        e.target.style.transform = 'scale(0.9)';
-        e.target.style.boxShadow = '0 2px 4px rgba(16, 185, 129, 0.2)';
-      }}
-      title="Add New Material"
-    >
-      + Add Material
-    </button>
-  </div>
-</th>
-                <th className="col-make">MAKE</th>
-                <th className="col-variant">VARIANT</th>
+                {(templateSettings?.column_settings?.optional?.hsn_code !== false) && (
+                  <th className="col-hsn">{templateSettings?.column_settings?.labels?.hsn_code || 'HSN'}</th>
+                )}
+                {templateSettings?.column_settings?.optional?.item !== false && (
+                  <th className="col-item" style={{ position: 'relative' }}>
+                    {templateSettings?.column_settings?.labels?.item || 'ITEM'}
+                  <div 
+                    style={{ 
+                      position: 'absolute',
+                      top: '-8px',
+                      right: '-8px',
+                      zIndex: 10
+                    }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setShowItemCreateDrawer(true)}
+                      className="btn btn-sm btn-primary"
+                      style={{
+                        padding: '2px 6px',
+                        fontSize: '10px',
+                        borderRadius: '4px',
+                        background: '#10b981',
+                        border: '1px solid #059669',
+                        color: 'white',
+                        fontWeight: '500',
+                        boxShadow: '0 2px 4px rgba(16, 185, 129, 0.2)',
+                        transform: 'scale(0.9)',
+                        transition: 'all 0.2s ease-in-out',
+                        cursor: 'pointer'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.target.style.transform = 'scale(1)';
+                        e.target.style.boxShadow = '0 4px 8px rgba(16, 185, 129, 0.3)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.style.transform = 'scale(0.9)';
+                        e.target.style.boxShadow = '0 2px 4px rgba(16, 185, 129, 0.2)';
+                      }}
+                      title="Add New Material"
+                    >
+                      + Add Material
+                    </button>
+                  </div>
+                </th>
+                )}
+                {(templateSettings?.column_settings?.optional?.client_part_no === true) && (
+                  <th className="col-code">{templateSettings?.column_settings?.labels?.client_part_no || 'CLIENT PART NO'}</th>
+                )}
+                {(templateSettings?.column_settings?.optional?.client_description === true) && (
+                  <th className="col-item">{templateSettings?.column_settings?.labels?.client_description || 'CLIENT DESCRIPTION'}</th>
+                )}
+                {(templateSettings?.column_settings?.optional?.make !== false) && (
+                  <th className="col-make">{templateSettings?.column_settings?.labels?.make || 'MAKE'}</th>
+                )}
+                {(templateSettings?.column_settings?.optional?.variant !== false) && (
+                  <th className="col-variant">{templateSettings?.column_settings?.labels?.variant || 'VARIANT'}</th>
+                )}
                 <th className="col-qty">QTY</th>
                 <th className="col-unit">UNIT</th>
                 <th className="col-rate">RATE</th>
@@ -2169,16 +2198,19 @@ const loadQuoteNoPreview = useCallback(async () => {
                       >
                         {itemCountBefore + 1}
                       </td>
-                      <td className="col-shrink">
-                        <input
-                          type="text"
-                          className="cell-input text-center"
-                          value={item.hsn_code || item.material?.hsn_code || ''}
-                          readOnly
-                          style={{ background: '#f8fafc' }}
-                        />
-                      </td>
-                      <td className="col-item" style={{ position: 'relative' }}>
+                      {(templateSettings?.column_settings?.optional?.hsn_code !== false) && (
+                        <td className="col-shrink">
+                          <input
+                            type="text"
+                            className="cell-input text-center"
+                            value={item.hsn_code || item.material?.hsn_code || ''}
+                            readOnly
+                            style={{ background: '#f8fafc' }}
+                          />
+                        </td>
+                      )}
+                      {templateSettings?.column_settings?.optional?.item !== false && (
+                        <td className="col-item" style={{ position: 'relative' }}>
                         <select
                           className="cell-select"
                           value={item.item_id}
@@ -2233,8 +2265,8 @@ const loadQuoteNoPreview = useCallback(async () => {
                             }}
                             onClick={() => {
                               // Clear item but keep row structure
-                              setItems(prev => prev.map(item => 
-                                item.id === item.id ? { ...item, item_id: '', material: null, description: '', hsn_code: '' } : item
+                              setItems(prev => prev.map(p => 
+                                p.id === item.id ? { ...p, item_id: '', material: null, description: '', hsn_code: '' } : p
                               ));
                               
                               // Open item picker for replacement after a short delay
@@ -2249,59 +2281,86 @@ const loadQuoteNoPreview = useCallback(async () => {
                           </button>
                         )}
                       </td>
-                      <td className="col-shrink">
-                        <select
-                          className="cell-select"
-                          value={item.make || ''}
-                          onChange={(e) => {
-                            const nextMake = e.target.value;
-                            updateItem(item.id, 'make', nextMake);
-                            const mat = materials.find(m => m.id === item.item_id);
-                            if (mat) {
-                              const newRate = getRateForMaterialVariant(mat, item.variant_id || null, nextMake);
-                              const variantDiscount = item.variant_id ? (headerDiscounts[item.variant_id] || 0) : 0;
-                              const finalRate = calculateVariantDiscountedRate(newRate, variantDiscount);
-                              updateItem(item.id, 'base_rate_snapshot', newRate);
-                              updateItem(item.id, 'rate', finalRate);
+                      )}
+                      {(templateSettings?.column_settings?.optional?.client_part_no === true) && (
+                        <td className="col-shrink cell-static">
+                          <div style={{ fontSize: '10px', color: '#64748b', padding: '4px', textAlign: 'center' }}>
+                            {(() => {
+                              const clientId = formData.client_id || formData.client?.id;
+                              const mapping = clientId && item.material?.mappings?.find((m: any) => m.client_id === clientId);
+                              return mapping?.client_part_no || '-';
+                            })()}
+                          </div>
+                        </td>
+                      )}
+                      {(templateSettings?.column_settings?.optional?.client_description === true) && (
+                        <td className="col-item cell-static">
+                          <div style={{ fontSize: '10px', color: '#64748b', padding: '4px' }}>
+                            {(() => {
+                              const clientId = formData.client_id || formData.client?.id;
+                              const mapping = clientId && item.material?.mappings?.find((m: any) => m.client_id === clientId);
+                              return mapping?.client_description || '-';
+                            })()}
+                          </div>
+                        </td>
+                      )}
+                      {(templateSettings?.column_settings?.optional?.make !== false) && (
+                        <td className="col-shrink">
+                          <select
+                            className="cell-select"
+                            value={item.make || ''}
+                            onChange={(e) => {
+                              const nextMake = e.target.value;
+                              updateItem(item.id, 'make', nextMake);
+                              const mat = materials.find(m => m.id === item.item_id);
+                              if (mat) {
+                                const newRate = getRateForMaterialVariant(mat, item.variant_id || null, nextMake);
+                                const variantDiscount = item.variant_id ? (headerDiscounts[item.variant_id] || 0) : 0;
+                                const finalRate = calculateVariantDiscountedRate(newRate, variantDiscount);
+                                updateItem(item.id, 'base_rate_snapshot', newRate);
+                                updateItem(item.id, 'rate', finalRate);
+                              }
+                            }}
+                          >
+                            <option value="">No Make</option>
+                            {(itemMakes[item.item_id] || []).map(m => (
+                              <option key={m} value={m}>{m}</option>
+                            ))}
+                          </select>
+                        </td>
+                      )}
+                      {(templateSettings?.column_settings?.optional?.variant !== false) && (
+                        <td className="col-shrink">
+                          <select
+                            className="cell-select"
+                            value={item.variant_id || ''}
+                            onChange={(e) => {
+                              const nextVariant = e.target.value || null;
+                              updateItem(item.id, 'variant_id', nextVariant);
+                              const mat = materials.find(m => m.id === item.item_id);
+                              if (mat) {
+                                const newRate = getRateForMaterialVariant(mat, nextVariant, item.make || '');
+                                const variantDiscount = nextVariant ? (headerDiscounts[nextVariant] || 0) : 0;
+                                const finalRate = calculateVariantDiscountedRate(newRate, variantDiscount);
+                                updateItem(item.id, 'base_rate_snapshot', newRate);
+                                updateItem(item.id, 'rate', finalRate);
+                              }
+                            }}
+                          >
+                            <option value="">No Variant</option>
+                            {variants
+                              .filter(v => {
+                                if (!item.item_id) return true;
+                                const itemVariants = variantPricing[item.item_id];
+                                return itemVariants && itemVariants[v.id];
+                              })
+                              .map(v => (
+                                <option key={v.id} value={v.id}>{v.variant_name}</option>
+                              ))
                             }
-                          }}
-                        >
-                          <option value="">No Make</option>
-                          {(itemMakes[item.item_id] || []).map(m => (
-                            <option key={m} value={m}>{m}</option>
-                          ))}
-                        </select>
-                      </td>
-                      <td className="col-shrink">
-                        <select
-                          className="cell-select"
-                          value={item.variant_id || ''}
-                          onChange={(e) => {
-                            const nextVariant = e.target.value || null;
-                            updateItem(item.id, 'variant_id', nextVariant);
-                            const mat = materials.find(m => m.id === item.item_id);
-                            if (mat) {
-                              const newRate = getRateForMaterialVariant(mat, nextVariant, item.make || '');
-                              const variantDiscount = nextVariant ? (headerDiscounts[nextVariant] || 0) : 0;
-                              const finalRate = calculateVariantDiscountedRate(newRate, variantDiscount);
-                              updateItem(item.id, 'base_rate_snapshot', newRate);
-                              updateItem(item.id, 'rate', finalRate);
-                            }
-                          }}
-                        >
-                          <option value="">No Variant</option>
-                          {variants
-                            .filter(v => {
-                              if (!item.item_id) return true;
-                              const itemVariants = variantPricing[item.item_id];
-                              return itemVariants && itemVariants[v.id];
-                            })
-                            .map(v => (
-                              <option key={v.id} value={v.id}>{v.variant_name}</option>
-                            ))
-                          }
-                        </select>
-                      </td>
+                          </select>
+                        </td>
+                      )}
                       <td className="col-shrink">
                         <input type="number" className="cell-input text-right" value={item.qty} onChange={(e) => updateItem(item.id, 'qty', e.target.value)} min="0" />
                       </td>
@@ -2462,6 +2521,95 @@ const loadQuoteNoPreview = useCallback(async () => {
         </div>
       </div>
       
+      {showCustomLabelEditor && (
+        <div className="modal-overlay open" onClick={() => setShowCustomLabelEditor(false)}>
+          <div className="modal-content" style={{ maxWidth: '450px' }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title">Template Column Settings</h3>
+              <button className="btn-close" onClick={() => setShowCustomLabelEditor(false)}>×</button>
+            </div>
+            <div className="modal-body">
+              <p style={{ fontSize: '12px', color: '#6b7280', marginBottom: '16px' }}>
+                Toggle columns to show/hide on the printed document. You can also customize their display labels.
+              </p>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {[
+                  { key: 'item', label: 'Item Name' },
+                  { key: 'item_code', label: 'Internal Part No' },
+                  { key: 'client_part_no', label: 'Client Part No' },
+                  { key: 'hsn_code', label: 'HSN/SAC' },
+                  { key: 'make', label: 'Make/Brand' },
+                  { key: 'variant', label: 'Variant Details' },
+                  { key: 'description', label: 'Description' },
+                  { key: 'client_description', label: 'Client Description' },
+                  { key: 'custom1', label: 'Custom Column 1' },
+                  { key: 'custom2', label: 'Custom Column 2' }
+                ].map(col => {
+                  const isEnabled = templateSettings?.column_settings?.optional?.[col.key] !== false;
+                  const customLabel = templateSettings?.column_settings?.labels?.[col.key] || '';
+                  
+                  return (
+                    <div key={col.key} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '8px', border: '1px solid #f3f4f6', borderRadius: '8px' }}>
+                      <input 
+                        type="checkbox" 
+                        checked={isEnabled}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setTemplateSettings(prev => {
+                            const updated = {
+                              ...prev,
+                              column_settings: {
+                                ...prev.column_settings,
+                                optional: {
+                                  ...prev.column_settings?.optional,
+                                  [col.key]: checked
+                                }
+                              }
+                            };
+                            updateTemplateSettingsInDb(updated);
+                            return updated;
+                          });
+                        }}
+                      />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: '13px', fontWeight: 600 }}>{col.label}</div>
+                        <input 
+                          type="text"
+                          placeholder="Custom Label (optional)"
+                          className="form-input"
+                          style={{ marginTop: '4px', height: '28px', fontSize: '11px' }}
+                          value={customLabel}
+                          onChange={(e) => {
+                            const newLabel = e.target.value;
+                            setTemplateSettings(prev => {
+                              const updated = {
+                                ...prev,
+                                column_settings: {
+                                  ...prev.column_settings,
+                                  labels: {
+                                    ...prev.column_settings?.labels,
+                                    [col.key]: newLabel
+                                  }
+                                }
+                              };
+                              updateTemplateSettingsInDb(updated);
+                              return updated;
+                            });
+                          }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-primary" onClick={() => setShowCustomLabelEditor(false)}>Done</button>
+            </div>
+          </div>
+        </div>
+      )}
       {showItemPicker && (
         <div className="modal-overlay open" onClick={() => setShowItemPicker(false)}>
           <div className="modal-content" style={{ maxWidth: '800px' }} onClick={e => e.stopPropagation()}>

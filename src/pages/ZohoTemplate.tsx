@@ -59,7 +59,7 @@ const {
     eway_bill: 'E-Way Bill'
   };
 
-  const colSettings = templateSettings?.column_settings || {
+  const colSettings = templateSettings?.column_settings?.optional || {
     sno: true,
     item: true,
     hsn_code: false,
@@ -254,12 +254,14 @@ let currentY = margin;
    const tableHeaders = [];
    const columnDataKeys = [];
    
-   if (colSettings.sno) { tableHeaders.push('S.No'); columnDataKeys.push('sno'); }
-   if (colSettings.item) { tableHeaders.push('Item & Description'); columnDataKeys.push('item'); }
-   if (colSettings.hsn_code) { tableHeaders.push('HSN'); columnDataKeys.push('hsn'); }
-   if (colSettings.qty) { tableHeaders.push('Qty'); columnDataKeys.push('qty'); }
-   if (colSettings.rate) { tableHeaders.push(labels.rate_after_discount || 'Rate'); columnDataKeys.push('rate'); }
-   if (colSettings.line_total) { tableHeaders.push('Amount'); columnDataKeys.push('amount'); }
+   if (colSettings.sno !== false) { tableHeaders.push('S.No'); columnDataKeys.push('sno'); }
+   if (colSettings.item !== false) { tableHeaders.push(labels.item || 'Item & Description'); columnDataKeys.push('item'); }
+   if (colSettings.client_part_no === true) { tableHeaders.push(labels.client_part_no || 'Client Part No'); columnDataKeys.push('client_part_no'); }
+   if (colSettings.client_description === true) { tableHeaders.push(labels.client_description || 'Client Description'); columnDataKeys.push('client_description'); }
+   if (colSettings.hsn_code === true) { tableHeaders.push(labels.hsn_code || 'HSN'); columnDataKeys.push('hsn'); }
+   if (colSettings.qty !== false) { tableHeaders.push(labels.qty || 'Qty'); columnDataKeys.push('qty'); }
+   if (colSettings.rate !== false) { tableHeaders.push(labels.rate_after_discount || labels.rate || 'Rate'); columnDataKeys.push('rate'); }
+   if (colSettings.line_total !== false) { tableHeaders.push(labels.line_total || 'Amount'); columnDataKeys.push('amount'); }
 
    autoTable(doc, {
      startY: currentY,
@@ -271,12 +273,15 @@ let currentY = margin;
        }
        
        const row = [];
-       if (colSettings.sno) row.push(index + 1);
-       if (colSettings.item) row.push(`${item.description || item.item?.name || '-'}`);
-       if (colSettings.hsn_code) row.push(item.item?.hsn_code || '-');
-       if (colSettings.qty) row.push(`${item.qty}\n${item.uom}`);
-       if (colSettings.rate) row.push(new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2 }).format(item.rate || 0));
-       if (colSettings.line_total) row.push(new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2 }).format(item.line_total || 0));
+       if (colSettings.sno !== false) row.push(index + 1);
+       const mapping = client?.id && item.item?.mappings?.find((m: any) => m.client_id === client.id);
+       if (colSettings.item !== false) row.push(`${mapping?.client_description || item.description || item.item?.name || '-'}`);
+       if (colSettings.client_part_no === true) row.push(mapping?.client_part_no || '-');
+       if (colSettings.client_description === true) row.push(mapping?.client_description || '-');
+       if (colSettings.hsn_code === true) row.push(item.item?.hsn_code || '-');
+       if (colSettings.qty !== false) row.push(`${item.qty}\n${item.uom}`);
+       if (colSettings.rate !== false) row.push(new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2 }).format(item.rate || 0));
+       if (colSettings.line_total !== false) row.push(new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2 }).format(item.line_total || 0));
        return row;
      }),
      theme: 'grid',

@@ -86,9 +86,10 @@ const ITEM_TABLE_COLUMNS = [
   { key: 'uses_variant', label: 'Uses Variant', default: false },
   { key: 'stock', label: 'Stock', default: true },
   { key: 'status', label: 'Status', default: true },
+  { key: 'actions', label: 'Actions', default: true, locked: true },
 ];
 
-const MANDATORY_ITEM_COLUMNS = ['name', 'code', 'category', 'unit'];
+const MANDATORY_ITEM_COLUMNS = ['name', 'code', 'category', 'unit', 'actions'];
 
 const emptyItemTransactions = () => ({
   warehouseRows: [],
@@ -261,6 +262,7 @@ function ItemsTab() {
 
   const [variantPricing, setVariantPricing] = useState([]);
   const [warehouseStock, setWarehouseStock] = useState({});
+  const [clientMappings, setClientMappings] = useState([]);
   
   // Excel Edit Mode state
   const [excelEditMode, setExcelEditMode] = useState(false);
@@ -286,6 +288,7 @@ function ItemsTab() {
   const units = pageData?.units ?? [];
   const variants = pageData?.variants ?? [];
   const warehouses = pageData?.warehouses ?? [];
+  const clients = pageData?.clients ?? [];
   
   const categoryOptions = categories.length > 0 ? categories.map((c) => c.category_name) : MAIN_CATEGORIES;
   const materialsError = error instanceof Error ? error.message : '';
@@ -336,6 +339,17 @@ function ItemsTab() {
       return { ...old, materials: next };
     });
   }, [queryClient, orgId]);
+
+  const loadClientMappings = useCallback(async (itemId: string) => {
+    if (!itemId) return;
+    try {
+      const { data } = await supabase.from('material_client_mappings').select('*').eq('material_id', itemId);
+      setClientMappings(data || []);
+    } catch (error) {
+      console.log('client mappings load error', error);
+      setClientMappings([]);
+    }
+  }, []);
 
   const loadVariantPricing = useCallback(async (itemId: string) => {
     if (!itemId) return;
@@ -1046,6 +1060,24 @@ function ItemsTab() {
         }
       }
 
+      // Save Client Mappings
+      await supabase.from('material_client_mappings').delete().eq('material_id', itemId);
+      const mappingsToInsert = clientMappings
+        .filter(m => m.client_id)
+        .map(m => ({
+          material_id: itemId,
+          client_id: m.client_id,
+          client_part_no: m.client_part_no,
+          client_description: m.client_description,
+          organisation_id: organisation?.id,
+          updated_at: nowIso
+        }));
+      
+      if (mappingsToInsert.length > 0) {
+        const { error: mappingError } = await supabase.from('material_client_mappings').insert(mappingsToInsert);
+        if (mappingError) throw mappingError;
+      }
+
       const changeLog = isEditing ? buildItemChangeLog(originalMaterial, materialData) : ['Item created'];
       const auditEntry = {
         id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -1114,9 +1146,10 @@ function ItemsTab() {
       });
     }
     setWarehouseStock(defaultWStock);
+    setClientMappings([]);
   };
 
-  const editMaterial = async (material) => {
+  const editMaterial = useCallback(async (material) => {
     setEditingMaterial(material);
     
     // Check if un-varianted stock exists
@@ -1158,7 +1191,8 @@ function ItemsTab() {
     });
     setShowForm(true);
     loadVariantPricing(material.id);
-  };
+    loadClientMappings(material.id);
+  }, [warehouses, stock]);
 
   const handleUsesVariantChange = async (checked) => {
     if (editingMaterial && !checked && formData.uses_variant === true) {
@@ -1191,6 +1225,21 @@ function ItemsTab() {
 
   const handleVariantPricingRowChange = (id, field, value) => {
     setVariantPricing(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p));
+  };
+
+  const addClientMappingRow = () => {
+    setClientMappings(prev => [
+      ...prev,
+      { id: 'temp-' + Date.now(), client_id: '', client_part_no: '', client_description: '' }
+    ]);
+  };
+
+  const removeClientMappingRow = (id) => {
+    setClientMappings(prev => prev.filter(p => p.id !== id));
+  };
+
+  const handleClientMappingChange = (id, field, value) => {
+    setClientMappings(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p));
   };
 
   const deleteMaterial = async (id) => {
@@ -1431,8 +1480,28 @@ function ItemsTab() {
       }
     });
 
+    addColumn('actions', {
+      id: 'actions',
+      header: () => (
+        <span className="text-xs font-semibold text-zinc-500">Actions</span>
+      ),
+      cell: ({ row }: any) => {
+        const m = row.original;
+        return (
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); editMaterial(m); }}>
+              <Edit className="w-3.5 h-3.5 mr-1" /> Edit
+            </Button>
+            <Button size="sm" variant="ghost" className="text-red-600 hover:text-red-700" onClick={(e) => { e.stopPropagation(); openDeleteModal(m); }}>
+              <Trash2 className="w-3.5 h-3.5" />
+            </Button>
+          </div>
+        );
+      }
+    });
+
     return columns;
-  }, [visibleColumns, stockData]);
+  }, [visibleColumns, stockData, editMaterial, openDeleteModal]);
 
   const [visibleCount, setVisibleCount] = useState(200);
   const visibleMaterials = useMemo(() => filteredMaterials.slice(0, visibleCount), [filteredMaterials, visibleCount]);
@@ -2304,6 +2373,81 @@ function ItemsTab() {
                         );
                       });
                     })()}
+                  </div>
+                )}
+              </div>
+
+              <div className="item-form-section">
+                <div className="item-form-section-header">
+                  <div>
+                    <h4 className="item-form-section-title">Client Specific Mappings (Client Codes)</h4>
+                    <div className="item-form-section-hint">Map your item to client part numbers/descriptions</div>
+                  </div>
+                  <button type="button" className="btn btn-sm btn-secondary" onClick={addClientMappingRow}>+ Add Row</button>
+                </div>
+                {clientMappings.length > 0 && (
+                  <table className="table" style={{ fontSize: '12px' }}>
+                    <thead>
+                      <tr>
+                        <th style={{ width: '25%' }}>Client</th>
+                        <th style={{ width: '25%' }}>Client Part No</th>
+                        <th style={{ width: '40%' }}>Client Description</th>
+                        <th style={{ width: '10%' }}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {clientMappings.map((mapping) => (
+                        <tr key={mapping.id}>
+                          <td>
+                            <select
+                              className="form-select"
+                              value={mapping.client_id}
+                              onChange={(e) => handleClientMappingChange(mapping.id, 'client_id', e.target.value)}
+                              style={{ padding: '4px 8px', height: '32px' }}
+                            >
+                              <option value="">Select Client</option>
+                              {clients.map(c => (
+                                <option key={c.id} value={c.id}>{c.client_name}</option>
+                              ))}
+                            </select>
+                          </td>
+                          <td>
+                            <input
+                              type="text"
+                              className="form-input"
+                              value={mapping.client_part_no}
+                              onChange={(e) => handleClientMappingChange(mapping.id, 'client_part_no', e.target.value)}
+                              placeholder="e.g. PART-001"
+                              style={{ padding: '4px 8px', height: '32px' }}
+                            />
+                          </td>
+                          <td>
+                            <input
+                              type="text"
+                              className="form-input"
+                              value={mapping.client_description}
+                              onChange={(e) => handleClientMappingChange(mapping.id, 'client_description', e.target.value)}
+                              placeholder="e.g. Specialized Valve for XYZ"
+                              style={{ padding: '4px 8px', height: '32px' }}
+                            />
+                          </td>
+                          <td>
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-secondary"
+                              onClick={() => removeClientMappingRow(mapping.id)}
+                            >
+                              Remove
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+                {clientMappings.length === 0 && (
+                  <div style={{ padding: '12px', textAlign: 'center', background: '#f9fafb', borderRadius: '8px', border: '1px dashed #d1d5db', color: '#6b7280', fontSize: '12px' }}>
+                    No client mappings added. Click "+ Add Row" to associate this item with a client's part number.
                   </div>
                 )}
               </div>
