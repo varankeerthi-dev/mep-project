@@ -20,7 +20,8 @@ import {
   Calendar,
   Layers,
   FileCheck,
-  RefreshCcw
+  RefreshCcw,
+  X
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import {
@@ -44,6 +45,11 @@ export default function POList() {
   
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 15;
+
+  // Proforma creation modal state
+  const [showProformaModal, setShowProformaModal] = useState(false);
+  const [selectedPO, setSelectedPO] = useState<any>(null);
+  const [poLineItems, setPOLineItems] = useState<any[]>([]);
 
   useEffect(() => {
     loadPOs();
@@ -141,6 +147,52 @@ export default function POList() {
     } else {
       loadPOs();
     }
+  };
+
+  const handleCreateProforma = async (po: any) => {
+    setSelectedPO(po);
+    setShowProformaModal(true);
+    
+    // Load PO line items
+    try {
+      const { data, error } = await supabase
+        .from('po_line_items')
+        .select('*')
+        .eq('po_id', po.id)
+        .order('line_order', { ascending: true });
+      
+      if (error) throw error;
+      
+      setPOLineItems(data || []);
+    } catch (err: any) {
+      console.error('Error loading PO line items:', err);
+      alert('Error loading PO line items');
+    }
+  };
+
+  const updateLineItem = (index: number, field: string, value: any) => {
+    const updated = [...poLineItems];
+    updated[index] = { ...updated[index], [field]: value };
+    setPOLineItems(updated);
+  };
+
+  const handleCreateProformaFromPO = () => {
+    // Convert PO line items to proforma format
+    const proformaItems = poLineItems.map(item => ({
+      description: item.description,
+      hsn_code: null,
+      qty: item.quantity,
+      rate: item.rate_per_unit,
+      amount: item.amount || (item.quantity * item.rate_per_unit * (1 + (item.gst_percentage || 18) / 100)),
+      discount_percent: 0,
+      discount_amount: 0,
+      tax_percent: item.gst_percentage || 18
+    }));
+
+    // Navigate to proforma creation with items pre-filled
+    // We'll pass the items as query params (simplified approach)
+    navigate(`/proforma-invoices/create?clientId=${selectedPO.client_id}&poId=${selectedPO.id}`);
+    setShowProformaModal(false);
   };
 
   return (
@@ -300,6 +352,13 @@ export default function POList() {
                           <TableCell>
                             <div className="flex items-center justify-end gap-1">
                               <button
+                                className="flex h-7 w-7 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
+                                onClick={() => handleCreateProforma(po)}
+                                title="Create Proforma"
+                              >
+                                <FileCheck size={14} />
+                              </button>
+                              <button
                                 className="flex h-7 w-7 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
                                 onClick={() => navigate(`/client-po/create?id=${po.id}`)}
                                 title="Edit"
@@ -362,6 +421,231 @@ export default function POList() {
           )}
         </div>
       </div>
+
+      {/* Proforma Creation Modal */}
+      {showProformaModal && selectedPO && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            background: 'white',
+            borderRadius: '12px',
+            width: '90%',
+            maxWidth: '1200px',
+            maxHeight: '90vh',
+            display: 'flex',
+            flexDirection: 'column',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)'
+          }}>
+            {/* Modal Header */}
+            <div style={{
+              padding: '20px 24px',
+              borderBottom: '1px solid #e5e5e5',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between'
+            }}>
+              <div>
+                <h2 style={{ fontSize: '18px', fontWeight: 600, margin: 0, marginBottom: '4px' }}>
+                  Create Proforma from PO
+                </h2>
+                <p style={{ fontSize: '13px', color: '#6b7280', margin: 0 }}>
+                  PO: {selectedPO.po_number} | Total: ₹{formatCurrency(selectedPO.po_total_value)}
+                </p>
+              </div>
+              <button
+                onClick={() => setShowProformaModal(false)}
+                style={{
+                  padding: '8px',
+                  border: 'none',
+                  background: 'transparent',
+                  cursor: 'pointer',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div style={{ padding: '24px', overflowY: 'auto', flex: 1 }}>
+              {poLineItems.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px', color: '#9ca3af' }}>
+                  No line items found in this PO
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {/* Header Row */}
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: '3fr 1fr 1fr 1fr 1fr auto',
+                    gap: '8px',
+                    padding: '8px 12px',
+                    background: '#f9fafb',
+                    borderRadius: '6px',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    textTransform: 'uppercase',
+                    color: '#6b7280'
+                  }}>
+                    <div>Description</div>
+                    <div>Qty</div>
+                    <div>Unit</div>
+                    <div>Rate</div>
+                    <div>GST %</div>
+                    <div>Amount</div>
+                  </div>
+                  
+                  {/* Line Items */}
+                  {poLineItems.map((item, index) => (
+                    <div
+                      key={index}
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: '3fr 1fr 1fr 1fr 1fr auto',
+                        gap: '8px',
+                        padding: '8px 12px',
+                        background: 'white',
+                        border: '1px solid #e5e5e5',
+                        borderRadius: '6px',
+                        alignItems: 'center'
+                      }}
+                    >
+                      <input
+                        type="text"
+                        value={item.description}
+                        onChange={(e) => updateLineItem(index, 'description', e.target.value)}
+                        style={{
+                          padding: '6px 10px',
+                          border: '1px solid #d4d4d4',
+                          borderRadius: '4px',
+                          fontSize: '13px',
+                          width: '100%'
+                        }}
+                      />
+                      <input
+                        type="number"
+                        value={item.quantity}
+                        onChange={(e) => updateLineItem(index, 'quantity', parseFloat(e.target.value) || 0)}
+                        style={{
+                          padding: '6px 10px',
+                          border: '1px solid #d4d4d4',
+                          borderRadius: '4px',
+                          fontSize: '13px',
+                          width: '100%'
+                        }}
+                      />
+                      <input
+                        type="text"
+                        value={item.unit || ''}
+                        onChange={(e) => updateLineItem(index, 'unit', e.target.value)}
+                        placeholder="-"
+                        style={{
+                          padding: '6px 10px',
+                          border: '1px solid #d4d4d4',
+                          borderRadius: '4px',
+                          fontSize: '13px',
+                          width: '100%'
+                        }}
+                      />
+                      <input
+                        type="number"
+                        value={item.rate_per_unit}
+                        onChange={(e) => updateLineItem(index, 'rate_per_unit', parseFloat(e.target.value) || 0)}
+                        style={{
+                          padding: '6px 10px',
+                          border: '1px solid #d4d4d4',
+                          borderRadius: '4px',
+                          fontSize: '13px',
+                          width: '100%'
+                        }}
+                      />
+                      <input
+                        type="number"
+                        value={item.gst_percentage || 18}
+                        onChange={(e) => updateLineItem(index, 'gst_percentage', parseFloat(e.target.value) || 0)}
+                        style={{
+                          padding: '6px 10px',
+                          border: '1px solid #d4d4d4',
+                          borderRadius: '4px',
+                          fontSize: '13px',
+                          width: '100%'
+                        }}
+                      />
+                      <div style={{
+                        padding: '6px 10px',
+                        background: '#f0fdf4',
+                        border: '1px solid #bbf7d0',
+                        borderRadius: '4px',
+                        fontSize: '13px',
+                        fontWeight: 600,
+                        color: '#166534',
+                        textAlign: 'right',
+                        minWidth: '100px'
+                      }}>
+                        ₹{formatCurrency(item.amount || (item.quantity * item.rate_per_unit * (1 + (item.gst_percentage || 18) / 100)))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div style={{
+              padding: '20px 24px',
+              borderTop: '1px solid #e5e5e5',
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: '12px'
+            }}>
+              <button
+                onClick={() => setShowProformaModal(false)}
+                style={{
+                  padding: '10px 20px',
+                  border: '1px solid #d4d4d4',
+                  borderRadius: '8px',
+                  background: 'white',
+                  color: '#374151',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateProformaFromPO}
+                disabled={poLineItems.length === 0}
+                style={{
+                  padding: '10px 20px',
+                  border: 'none',
+                  borderRadius: '8px',
+                  background: '#059669',
+                  color: 'white',
+                  fontSize: '14px',
+                  fontWeight: 600,
+                  cursor: poLineItems.length > 0 ? 'pointer' : 'not-allowed',
+                  opacity: poLineItems.length > 0 ? 1 : 0.5,
+                  transition: 'all 0.15s'
+                }}
+              >
+                Create Proforma
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

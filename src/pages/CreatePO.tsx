@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Plus, Save, X, FileText, Upload, CheckCircle, Clock, XCircle } from 'lucide-react';
+import { Plus, Save, X, FileText, Upload, CheckCircle, Clock, XCircle, Trash2 } from 'lucide-react';
 import { useClients } from '../hooks/useClients';
 import { useProjects } from '../hooks/useProjects';
+import { useAuth } from '../contexts/AuthContext';
 
 type POFormData = {
   client_id: string
@@ -18,11 +19,34 @@ type POFormData = {
   remarks: string
 }
 
+type PaymentMilestone = {
+  id?: string
+  milestone_type: 'supply' | 'erection'
+  milestone_name: string
+  milestone_order: number
+  percentage: number
+  fixed_amount?: number
+  condition?: string
+  due_days?: number
+}
+
+type POLineItem = {
+  id?: string
+  description: string
+  quantity: number
+  unit: string
+  rate_per_unit: number
+  gst_percentage: number
+  item_code?: string
+  remarks?: string
+}
+
 export default function CreatePO() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const editId = searchParams.get('id');
   const preSelectedProjectId = searchParams.get('project_id');
+  const { organisation } = useAuth();
 
   // Use shared hooks — they handle org filtering, session, and caching
   const { data: clients = [] } = useClients();
@@ -46,15 +70,152 @@ export default function CreatePO() {
 
   const [attachment, setAttachment] = useState<File | null>(null);
   const [attachmentUrl, setAttachmentUrl] = useState('');
+  
+  // Payment milestones state
+  const [paymentMilestones, setPaymentMilestones] = useState<PaymentMilestone[]>([]);
+  
+  // PO line items state
+  const [lineItems, setLineItems] = useState<POLineItem[]>([]);
+
+  // projects filtered for current client (uses hook data)
+  const projects = allProjects.filter(p => !formData.client_id || p.client_id === formData.client_id);
+
+  const loadPaymentMilestones = async (poId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('po_payment_milestones')
+        .select('*')
+        .eq('po_id', poId)
+        .order('milestone_order', { ascending: true });
+      
+      if (error) throw error;
+      
+      if (data && data.length > 0) {
+        setPaymentMilestones(data.map((m: any) => ({
+          id: m.id,
+          milestone_type: m.milestone_type,
+          milestone_name: m.milestone_name,
+          milestone_order: m.milestone_order,
+          percentage: m.percentage,
+          fixed_amount: m.fixed_amount,
+          condition: m.condition,
+          due_days: m.due_days
+        })));
+      }
+    } catch (err: any) {
+      console.error('Error loading payment milestones:', err);
+    }
+  };
+
+  const loadProjectPaymentTerms = async (projectId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('project_payment_terms')
+        .select('*')
+        .eq('project_id', projectId)
+        .order('milestone_order', { ascending: true });
+      
+      if (error) throw error;
+      
+      if (data && data.length > 0) {
+        setPaymentMilestones(data.map((m: any) => ({
+          milestone_type: m.milestone_type,
+          milestone_name: m.milestone_name,
+          milestone_order: m.milestone_order,
+          percentage: m.percentage,
+          fixed_amount: m.fixed_amount,
+          condition: m.condition,
+          due_days: m.due_days
+        })));
+      }
+    } catch (err: any) {
+      console.error('Error loading project payment terms:', err);
+    }
+  };
+
+  const loadLineItems = async (poId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('po_line_items')
+        .select('*')
+        .eq('po_id', poId)
+        .order('line_order', { ascending: true });
+      
+      if (error) throw error;
+      
+      if (data && data.length > 0) {
+        setLineItems(data.map((m: any) => ({
+          id: m.id,
+          description: m.description,
+          quantity: m.quantity,
+          unit: m.unit || '',
+          rate_per_unit: m.rate_per_unit,
+          gst_percentage: m.gst_percentage || 18,
+          item_code: m.item_code,
+          remarks: m.remarks
+        })));
+      }
+    } catch (err: any) {
+      console.error('Error loading line items:', err);
+    }
+  };
+
+  const addLineItem = () => {
+    const newItem: POLineItem = {
+      description: '',
+      quantity: 1,
+      unit: '',
+      rate_per_unit: 0,
+      gst_percentage: 18
+    };
+    setLineItems([...lineItems, newItem]);
+  };
+
+  const removeLineItem = (index: number) => {
+    setLineItems(lineItems.filter((_, i) => i !== index));
+  };
+
+  const updateLineItem = (index: number, field: keyof POLineItem, value: any) => {
+    const updated = [...lineItems];
+    updated[index] = { ...updated[index], [field]: value };
+    setLineItems(updated);
+  };
+
+  const calculateLineTotal = (item: POLineItem) => {
+    const basic = (item.quantity || 0) * (item.rate_per_unit || 0);
+    const gst = basic * ((item.gst_percentage || 0) / 100);
+    return basic + gst;
+  };
+
+  const calculateBasicTotal = () => {
+    return lineItems.reduce((sum, item) => sum + ((item.quantity || 0) * (item.rate_per_unit || 0)), 0);
+  };
+
+  const calculateGSTTotal = () => {
+    return lineItems.reduce((sum, item) => {
+      const basic = (item.quantity || 0) * (item.rate_per_unit || 0);
+      return sum + (basic * ((item.gst_percentage || 0) / 100));
+    }, 0);
+  };
+
+  const calculateGrandTotal = () => {
+    return calculateBasicTotal() + calculateGSTTotal();
+  };
 
   useEffect(() => {
     if (editId) {
       loadPO(editId);
+      loadPaymentMilestones(editId);
+      loadLineItems(editId);
     }
   }, [editId]);
 
-  // projects filtered for current client (uses hook data)
-  const projects = allProjects.filter(p => !formData.client_id || p.client_id === formData.client_id);
+  // Load payment terms from project when project is selected
+  useEffect(() => {
+    if (formData.project_id && !editId) {
+      loadProjectPaymentTerms(formData.project_id);
+    }
+  }, [formData.project_id, editId]);
 
   const loadPO = async (id: string) => {
     setLoading(true);
@@ -106,6 +267,38 @@ export default function CreatePO() {
     }
   };
 
+  const addMilestone = (type: 'supply' | 'erection') => {
+    const newMilestone: PaymentMilestone = {
+      milestone_type: type,
+      milestone_name: '',
+      milestone_order: paymentMilestones.filter(m => m.milestone_type === type).length + 1,
+      percentage: 0,
+      condition: '',
+      due_days: undefined
+    };
+    setPaymentMilestones([...paymentMilestones, newMilestone]);
+  };
+
+  const removeMilestone = (index: number) => {
+    const updated = paymentMilestones.filter((_, i) => i !== index);
+    // Reorder milestones
+    const supplyMilestones = updated.filter(m => m.milestone_type === 'supply').map((m, i) => ({ ...m, milestone_order: i + 1 }));
+    const erectionMilestones = updated.filter(m => m.milestone_type === 'erection').map((m, i) => ({ ...m, milestone_order: i + 1 }));
+    setPaymentMilestones([...supplyMilestones, ...erectionMilestones]);
+  };
+
+  const updateMilestone = (index: number, field: keyof PaymentMilestone, value: any) => {
+    const updated = [...paymentMilestones];
+    updated[index] = { ...updated[index], [field]: value };
+    setPaymentMilestones(updated);
+  };
+
+  const calculateTotalPercentage = (type: 'supply' | 'erection') => {
+    return paymentMilestones
+      .filter(m => m.milestone_type === type)
+      .reduce((sum, m) => sum + (m.percentage || 0), 0);
+  };
+
   const uploadAttachment = async (poId: string) => {
     if (!attachment) return null;
     
@@ -146,7 +339,9 @@ export default function CreatePO() {
       alert('PO Date is required');
       return false;
     }
-    if (!formData.po_total_value || parseFloat(formData.po_total_value) <= 0) {
+    // Check total value - use line items total if present, otherwise form value
+    const totalValue = lineItems.length > 0 ? calculateGrandTotal() : parseFloat(formData.po_total_value);
+    if (!totalValue || totalValue <= 0) {
       alert('PO Total Value must be greater than 0');
       return false;
     }
@@ -163,13 +358,17 @@ export default function CreatePO() {
 
     setSaving(true);
     try {
+      // Calculate total from line items if present, otherwise use form value
+      const totalValue = lineItems.length > 0 ? calculateGrandTotal() : parseFloat(formData.po_total_value);
+
       const poData: any = {
+        organisation_id: organisation?.id,
         client_id: formData.client_id,
         project_id: formData.project_id || null,
         po_number: formData.po_number.trim(),
         po_date: formData.po_date,
         po_expiry_date: formData.po_expiry_date || null,
-        po_total_value: parseFloat(formData.po_total_value),
+        po_total_value: totalValue,
         status: 'Open',
         remarks: formData.remarks || null
       };
@@ -178,7 +377,9 @@ export default function CreatePO() {
       if (editId) {
         // Preserve existing utilized value, recalculate available
         poData.po_utilized_value = formData.po_utilized_value || 0;
-        poData.po_available_value = parseFloat(formData.po_total_value) - (formData.po_utilized_value || 0);
+        const totalForAvailable = lineItems.length > 0 ? calculateGrandTotal() : parseFloat(formData.po_total_value || '0');
+        const availableValue = totalForAvailable - (formData.po_utilized_value || 0);
+        poData.po_available_value = availableValue;
         
         await supabase.from('client_purchase_orders').update(poData).eq('id', editId);
         poId = editId;
@@ -222,6 +423,61 @@ export default function CreatePO() {
         }
       }
 
+      // Save payment milestones
+      if (paymentMilestones.length > 0) {
+        // Delete existing milestones for this PO (if editing)
+        if (editId) {
+          await supabase
+            .from('po_payment_milestones')
+            .delete()
+            .eq('po_id', poId);
+        }
+
+        // Insert new milestones
+        const milestonesToInsert = paymentMilestones.map(m => ({
+          po_id: poId,
+          milestone_type: m.milestone_type,
+          milestone_name: m.milestone_name,
+          milestone_order: m.milestone_order,
+          percentage: m.percentage,
+          fixed_amount: m.fixed_amount || null,
+          condition: m.condition || null,
+          due_days: m.due_days || null
+        }));
+
+        await supabase
+          .from('po_payment_milestones')
+          .insert(milestonesToInsert);
+      }
+
+      // Save line items
+      if (lineItems.length > 0) {
+        // Delete existing line items for this PO (if editing)
+        if (editId) {
+          await supabase
+            .from('po_line_items')
+            .delete()
+            .eq('po_id', poId);
+        }
+
+        // Insert new line items
+        const lineItemsToInsert = lineItems.map((item, index) => ({
+          po_id: poId,
+          description: item.description,
+          quantity: item.quantity,
+          unit: item.unit || null,
+          rate_per_unit: item.rate_per_unit,
+          gst_percentage: item.gst_percentage || 18,
+          item_code: item.item_code || null,
+          remarks: item.remarks || null,
+          line_order: index
+        }));
+
+        await supabase
+          .from('po_line_items')
+          .insert(lineItemsToInsert);
+      }
+
       alert(editId ? 'PO updated successfully!' : 'PO created successfully!');
       navigate('/client-po');
     } catch (err: any) {
@@ -238,15 +494,19 @@ export default function CreatePO() {
 
     setSaving(true);
     try {
+      // Calculate total from line items if present, otherwise use form value
+      const totalValue = lineItems.length > 0 ? calculateGrandTotal() : parseFloat(formData.po_total_value);
+
       const poData = {
+        organisation_id: organisation?.id,
         client_id: formData.client_id,
         project_id: formData.project_id || null,
         po_number: formData.po_number.trim(),
         po_date: formData.po_date,
         po_expiry_date: formData.po_expiry_date || null,
-        po_total_value: parseFloat(formData.po_total_value),
+        po_total_value: totalValue,
         po_utilized_value: 0,
-        po_available_value: parseFloat(formData.po_total_value),
+        po_available_value: totalValue,
         status: 'Open',
         remarks: formData.remarks || null
       };
@@ -319,7 +579,7 @@ export default function CreatePO() {
     );
   };
 
-  const availableValue = formData.po_total_value ? parseFloat(formData.po_total_value) : 0;
+  const availableValue = (lineItems.length > 0 ? calculateGrandTotal() : (formData.po_total_value ? parseFloat(formData.po_total_value) : 0)) - (formData.po_utilized_value || 0);
 
   if (loading) {
     return (
@@ -614,26 +874,40 @@ export default function CreatePO() {
               letterSpacing: '0.04em',
               color: '#737373'
             }}>
-              Total Value *
+              Total Value {lineItems.length > 0 ? '(Auto-calculated from line items)' : '*'}
             </label>
-            <input
-              type="number"
-              name="po_total_value"
-              value={formData.po_total_value}
-              onChange={handleInputChange}
-              placeholder="0.00"
-              min="0"
-              step="0.01"
-              style={{
-                width: '100%',
+            {lineItems.length > 0 ? (
+              <div style={{
                 padding: '8px 12px',
-                border: '1px solid #d4d4d4',
+                background: '#f0fdf4',
+                border: '1px solid #bbf7d0',
                 borderRadius: '6px',
                 fontSize: '14px',
-                color: '#171717',
-                background: '#fff'
-              }}
-            />
+                fontWeight: 600,
+                color: '#166534'
+              }}>
+                ₹{calculateGrandTotal().toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+              </div>
+            ) : (
+              <input
+                type="number"
+                name="po_total_value"
+                value={formData.po_total_value}
+                onChange={handleInputChange}
+                placeholder="0.00"
+                min="0"
+                step="0.01"
+                style={{
+                  width: '100%',
+                  padding: '8px 12px',
+                  border: '1px solid #d4d4d4',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  color: '#171717',
+                  background: '#fff'
+                }}
+              />
+            )}
           </div>
 
           {/* Available Value */}
@@ -737,6 +1011,624 @@ export default function CreatePO() {
               minHeight: '80px'
             }}
           />
+        </div>
+
+        {/* Line Items Section */}
+        <div style={{
+          marginTop: '32px',
+          padding: '24px',
+          background: '#fafafa',
+          border: '1px solid #e5e5e5',
+          borderRadius: '8px'
+        }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: '20px'
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              <FileText size={20} style={{ color: '#525252' }} />
+              <h2 style={{
+                fontSize: '16px',
+                fontWeight: 600,
+                color: '#171717',
+                margin: 0
+              }}>
+                Line Items
+              </h2>
+            </div>
+            <button
+              type="button"
+              onClick={addLineItem}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '8px 16px',
+                border: '1px solid #d4d4d4',
+                borderRadius: '6px',
+                background: '#fff',
+                color: '#525252',
+                fontSize: '12px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.15s'
+              }}
+            >
+              <Plus size={14} />
+              Add Line Item
+            </button>
+          </div>
+
+          {lineItems.length === 0 ? (
+            <div style={{
+              padding: '24px',
+              textAlign: 'center',
+              color: '#a3a3a3',
+              fontSize: '13px',
+              background: '#fff',
+              border: '1px dashed #d4d4d4',
+              borderRadius: '6px'
+            }}>
+              No line items added. Click "Add Line Item" to start.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {lineItems.map((item, index) => (
+                <div
+                  key={index}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '3fr 1fr 1fr 1fr 1fr 1fr auto',
+                    gap: '8px',
+                    padding: '8px 12px',
+                    background: '#fff',
+                    border: '1px solid #e5e5e5',
+                    borderRadius: '6px',
+                    alignItems: 'center'
+                  }}
+                >
+                  <input
+                    type="text"
+                    value={item.description}
+                    onChange={(e) => updateLineItem(index, 'description', e.target.value)}
+                    placeholder="Description"
+                    style={{
+                      padding: '6px 10px',
+                      border: '1px solid #d4d4d4',
+                      borderRadius: '4px',
+                      fontSize: '13px',
+                      width: '100%'
+                    }}
+                  />
+                  <input
+                    type="number"
+                    value={item.quantity}
+                    onChange={(e) => updateLineItem(index, 'quantity', parseFloat(e.target.value) || 0)}
+                    placeholder="Qty"
+                    min="0"
+                    step="0.01"
+                    style={{
+                      padding: '6px 10px',
+                      border: '1px solid #d4d4d4',
+                      borderRadius: '4px',
+                      fontSize: '13px',
+                      width: '100%'
+                    }}
+                  />
+                  <input
+                    type="text"
+                    value={item.unit}
+                    onChange={(e) => updateLineItem(index, 'unit', e.target.value)}
+                    placeholder="Unit"
+                    style={{
+                      padding: '6px 10px',
+                      border: '1px solid #d4d4d4',
+                      borderRadius: '4px',
+                      fontSize: '13px',
+                      width: '100%'
+                    }}
+                  />
+                  <input
+                    type="number"
+                    value={item.rate_per_unit}
+                    onChange={(e) => updateLineItem(index, 'rate_per_unit', parseFloat(e.target.value) || 0)}
+                    placeholder="Rate"
+                    min="0"
+                    step="0.01"
+                    style={{
+                      padding: '6px 10px',
+                      border: '1px solid #d4d4d4',
+                      borderRadius: '4px',
+                      fontSize: '13px',
+                      width: '100%'
+                    }}
+                  />
+                  <input
+                    type="number"
+                    value={item.gst_percentage}
+                    onChange={(e) => updateLineItem(index, 'gst_percentage', parseFloat(e.target.value) || 0)}
+                    placeholder="GST %"
+                    min="0"
+                    max="100"
+                    step="1"
+                    style={{
+                      padding: '6px 10px',
+                      border: '1px solid #d4d4d4',
+                      borderRadius: '4px',
+                      fontSize: '13px',
+                      width: '100%'
+                    }}
+                  />
+                  <div style={{
+                    padding: '6px 10px',
+                    background: '#f0fdf4',
+                    border: '1px solid #bbf7d0',
+                    borderRadius: '4px',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    color: '#166534',
+                    textAlign: 'right',
+                    minWidth: '100px'
+                  }}>
+                    ₹{calculateLineTotal(item).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeLineItem(index)}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: '6px',
+                      border: '1px solid #fecaca',
+                      borderRadius: '4px',
+                      background: '#fef2f2',
+                      color: '#dc2626',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s'
+                    }}
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {lineItems.length > 0 && (
+            <div style={{
+              marginTop: '16px',
+              paddingTop: '16px',
+              borderTop: '1px solid #e5e5e5',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px',
+              alignItems: 'flex-end'
+            }}>
+              <div style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: '12px', color: '#737373', marginBottom: '2px' }}>Basic Value</div>
+                  <div style={{ fontSize: '16px', fontWeight: 600, color: '#525252' }}>
+                    ₹{calculateBasicTotal().toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: '12px', color: '#737373', marginBottom: '2px' }}>GST Value</div>
+                  <div style={{ fontSize: '16px', fontWeight: 600, color: '#525252' }}>
+                    ₹{calculateGSTTotal().toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: '12px', color: '#737373', marginBottom: '2px' }}>Total Value</div>
+                  <div style={{ fontSize: '20px', fontWeight: 700, color: '#166534' }}>
+                    ₹{calculateGrandTotal().toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Payment Terms Section */}
+        <div style={{
+          marginTop: '32px',
+          padding: '24px',
+          background: '#fafafa',
+          border: '1px solid #e5e5e5',
+          borderRadius: '8px'
+        }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: '20px'
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              <FileText size={20} style={{ color: '#525252' }} />
+              <h2 style={{
+                fontSize: '16px',
+                fontWeight: 600,
+                color: '#171717',
+                margin: 0
+              }}>
+                Payment Terms
+              </h2>
+            </div>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={() => addMilestone('supply')}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '8px 16px',
+                  border: '1px solid #d4d4d4',
+                  borderRadius: '6px',
+                  background: '#fff',
+                  color: '#525252',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s'
+                }}
+              >
+                <Plus size={14} />
+                Supply Milestone
+              </button>
+              <button
+                type="button"
+                onClick={() => addMilestone('erection')}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '8px 16px',
+                  border: '1px solid #d4d4d4',
+                  borderRadius: '6px',
+                  background: '#fff',
+                  color: '#525252',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s'
+                }}
+              >
+                <Plus size={14} />
+                Erection Milestone
+              </button>
+            </div>
+          </div>
+
+          {/* Supply Milestones */}
+          <div style={{ marginBottom: '24px' }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: '12px',
+              paddingBottom: '8px',
+              borderBottom: '1px solid #e5e5e5'
+            }}>
+              <span style={{
+                fontSize: '13px',
+                fontWeight: 600,
+                color: '#525252',
+                textTransform: 'uppercase',
+                letterSpacing: '0.04em'
+              }}>
+                Supply Payments
+              </span>
+              <span style={{
+                fontSize: '12px',
+                color: calculateTotalPercentage('supply') === 100 ? '#166534' : '#ca8a04',
+                fontWeight: 600
+              }}>
+                Total: {calculateTotalPercentage('supply')}%
+              </span>
+            </div>
+
+            {paymentMilestones.filter(m => m.milestone_type === 'supply').length === 0 ? (
+              <div style={{
+                padding: '24px',
+                textAlign: 'center',
+                color: '#a3a3a3',
+                fontSize: '13px',
+                background: '#fff',
+                border: '1px dashed #d4d4d4',
+                borderRadius: '6px'
+              }}>
+                No supply payment milestones added
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {paymentMilestones.filter(m => m.milestone_type === 'supply').map((milestone, idx) => {
+                  const globalIndex = paymentMilestones.indexOf(milestone);
+                  return (
+                    <div
+                      key={globalIndex}
+                      style={{
+                        padding: '16px',
+                        background: '#fff',
+                        border: '1px solid #e5e5e5',
+                        borderRadius: '6px'
+                      }}
+                    >
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                        gap: '12px',
+                        marginBottom: '12px'
+                      }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <label style={{ fontSize: '11px', fontWeight: 600, color: '#737373' }}>Milestone Name</label>
+                          <input
+                            type="text"
+                            value={milestone.milestone_name}
+                            onChange={(e) => updateMilestone(globalIndex, 'milestone_name', e.target.value)}
+                            placeholder="e.g., Advance Payment"
+                            style={{
+                              padding: '8px 12px',
+                              border: '1px solid #d4d4d4',
+                              borderRadius: '6px',
+                              fontSize: '13px'
+                            }}
+                          />
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <label style={{ fontSize: '11px', fontWeight: 600, color: '#737373' }}>Percentage (%)</label>
+                          <input
+                            type="number"
+                            value={milestone.percentage}
+                            onChange={(e) => updateMilestone(globalIndex, 'percentage', parseFloat(e.target.value) || 0)}
+                            placeholder="0"
+                            min="0"
+                            max="100"
+                            step="0.01"
+                            style={{
+                              padding: '8px 12px',
+                              border: '1px solid #d4d4d4',
+                              borderRadius: '6px',
+                              fontSize: '13px'
+                            }}
+                          />
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <label style={{ fontSize: '11px', fontWeight: 600, color: '#737373' }}>Condition</label>
+                          <input
+                            type="text"
+                            value={milestone.condition || ''}
+                            onChange={(e) => updateMilestone(globalIndex, 'condition', e.target.value)}
+                            placeholder="e.g., Against Invoice within 5 days"
+                            style={{
+                              padding: '8px 12px',
+                              border: '1px solid #d4d4d4',
+                              borderRadius: '6px',
+                              fontSize: '13px'
+                            }}
+                          />
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <label style={{ fontSize: '11px', fontWeight: 600, color: '#737373' }}>Due Days</label>
+                          <input
+                            type="number"
+                            value={milestone.due_days || ''}
+                            onChange={(e) => updateMilestone(globalIndex, 'due_days', e.target.value ? parseInt(e.target.value) : undefined)}
+                            placeholder="Days from PO date"
+                            min="0"
+                            style={{
+                              padding: '8px 12px',
+                              border: '1px solid #d4d4d4',
+                              borderRadius: '6px',
+                              fontSize: '13px'
+                            }}
+                          />
+                        </div>
+                      </div>
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'flex-end',
+                        paddingTop: '8px',
+                        borderTop: '1px solid #f5f5f5'
+                      }}>
+                        <button
+                          type="button"
+                          onClick={() => removeMilestone(globalIndex)}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '6px 12px',
+                            border: '1px solid #fecaca',
+                            borderRadius: '4px',
+                            background: '#fef2f2',
+                            color: '#dc2626',
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            transition: 'all 0.15s'
+                          }}
+                        >
+                          <Trash2 size={12} />
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Erection Milestones */}
+          <div>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: '12px',
+              paddingBottom: '8px',
+              borderBottom: '1px solid #e5e5e5'
+            }}>
+              <span style={{
+                fontSize: '13px',
+                fontWeight: 600,
+                color: '#525252',
+                textTransform: 'uppercase',
+                letterSpacing: '0.04em'
+              }}>
+                Erection Payments
+              </span>
+              <span style={{
+                fontSize: '12px',
+                color: calculateTotalPercentage('erection') === 100 ? '#166534' : '#ca8a04',
+                fontWeight: 600
+              }}>
+                Total: {calculateTotalPercentage('erection')}%
+              </span>
+            </div>
+
+            {paymentMilestones.filter(m => m.milestone_type === 'erection').length === 0 ? (
+              <div style={{
+                padding: '24px',
+                textAlign: 'center',
+                color: '#a3a3a3',
+                fontSize: '13px',
+                background: '#fff',
+                border: '1px dashed #d4d4d4',
+                borderRadius: '6px'
+              }}>
+                No erection payment milestones added
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {paymentMilestones.filter(m => m.milestone_type === 'erection').map((milestone, idx) => {
+                  const globalIndex = paymentMilestones.indexOf(milestone);
+                  return (
+                    <div
+                      key={globalIndex}
+                      style={{
+                        padding: '16px',
+                        background: '#fff',
+                        border: '1px solid #e5e5e5',
+                        borderRadius: '6px'
+                      }}
+                    >
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                        gap: '12px',
+                        marginBottom: '12px'
+                      }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <label style={{ fontSize: '11px', fontWeight: 600, color: '#737373' }}>Milestone Name</label>
+                          <input
+                            type="text"
+                            value={milestone.milestone_name}
+                            onChange={(e) => updateMilestone(globalIndex, 'milestone_name', e.target.value)}
+                            placeholder="e.g., RA Bill 1"
+                            style={{
+                              padding: '8px 12px',
+                              border: '1px solid #d4d4d4',
+                              borderRadius: '6px',
+                              fontSize: '13px'
+                            }}
+                          />
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <label style={{ fontSize: '11px', fontWeight: 600, color: '#737373' }}>Percentage (%)</label>
+                          <input
+                            type="number"
+                            value={milestone.percentage}
+                            onChange={(e) => updateMilestone(globalIndex, 'percentage', parseFloat(e.target.value) || 0)}
+                            placeholder="0"
+                            min="0"
+                            max="100"
+                            step="0.01"
+                            style={{
+                              padding: '8px 12px',
+                              border: '1px solid #d4d4d4',
+                              borderRadius: '6px',
+                              fontSize: '13px'
+                            }}
+                          />
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <label style={{ fontSize: '11px', fontWeight: 600, color: '#737373' }}>Condition</label>
+                          <input
+                            type="text"
+                            value={milestone.condition || ''}
+                            onChange={(e) => updateMilestone(globalIndex, 'condition', e.target.value)}
+                            placeholder="e.g., Against RA Bill"
+                            style={{
+                              padding: '8px 12px',
+                              border: '1px solid #d4d4d4',
+                              borderRadius: '6px',
+                              fontSize: '13px'
+                            }}
+                          />
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <label style={{ fontSize: '11px', fontWeight: 600, color: '#737373' }}>Due Days</label>
+                          <input
+                            type="number"
+                            value={milestone.due_days || ''}
+                            onChange={(e) => updateMilestone(globalIndex, 'due_days', e.target.value ? parseInt(e.target.value) : undefined)}
+                            placeholder="Days from PO date"
+                            min="0"
+                            style={{
+                              padding: '8px 12px',
+                              border: '1px solid #d4d4d4',
+                              borderRadius: '6px',
+                              fontSize: '13px'
+                            }}
+                          />
+                        </div>
+                      </div>
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'flex-end',
+                        paddingTop: '8px',
+                        borderTop: '1px solid #f5f5f5'
+                      }}>
+                        <button
+                          type="button"
+                          onClick={() => removeMilestone(globalIndex)}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '6px 12px',
+                            border: '1px solid #fecaca',
+                            borderRadius: '4px',
+                            background: '#fef2f2',
+                            color: '#dc2626',
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            transition: 'all 0.15s'
+                          }}
+                        >
+                          <Trash2 size={12} />
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
       </form>
     </div>

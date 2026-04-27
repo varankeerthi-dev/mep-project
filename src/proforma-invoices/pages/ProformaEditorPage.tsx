@@ -286,8 +286,10 @@ export default function ProformaEditorPage() {
   const id = searchParams.get('id');
   const convertFrom = searchParams.get('convertFrom') as ConversionType | null;
   const sourceId = searchParams.get('sourceId');
+  const poId = searchParams.get('poId');
   const isNew = !id;
   const isConverting = Boolean(convertFrom && sourceId && !id);
+  const isConvertingFromPO = Boolean(poId && !id);
   const conversionInfoRef = useRef<{ type: ConversionType; sourceId: string } | null>(null);
 
   const [clientId, setClientId] = useState('');
@@ -347,6 +349,58 @@ export default function ProformaEditorPage() {
       }
     }
   }, [clientId, templates, templateId, clients]);
+
+  // Load PO line items when converting from PO
+  useEffect(() => {
+    const loadPOLineItems = async () => {
+      if (isConvertingFromPO && poId) {
+        try {
+          const { data: poData, error: poError } = await supabase
+            .from('client_purchase_orders')
+            .select('*, clients!inner(client_name)')
+            .eq('id', poId)
+            .single();
+          
+          if (poError) throw poError;
+          
+          // Set client ID
+          setClientId(poData.client_id);
+          
+          // Set PO reference
+          setPoNumber(poData.po_number);
+          setPoDate(poData.po_date);
+          
+          // Load PO line items
+          const { data: lineItems, error: lineItemsError } = await supabase
+            .from('po_line_items')
+            .select('*')
+            .eq('po_id', poId)
+            .order('line_order', { ascending: true });
+          
+          if (lineItemsError) throw lineItemsError;
+          
+          // Convert PO line items to proforma format
+          if (lineItems && lineItems.length > 0) {
+            const proformaItems = lineItems.map((item: any) => ({
+              description: item.description,
+              hsn_code: null,
+              qty: item.quantity,
+              rate: item.rate_per_unit,
+              amount: item.amount || (item.quantity * item.rate_per_unit * (1 + (item.gst_percentage || 18) / 100)),
+              discount_percent: 0,
+              discount_amount: 0,
+              tax_percent: item.gst_percentage || 18
+            }));
+            setItems(proformaItems);
+          }
+        } catch (err: any) {
+          console.error('Error loading PO line items:', err);
+        }
+      }
+    };
+    
+    loadPOLineItems();
+  }, [isConvertingFromPO, poId]);
 
   // Fetch series row for PI
   const fetchSeriesRowForPI = async () => {
