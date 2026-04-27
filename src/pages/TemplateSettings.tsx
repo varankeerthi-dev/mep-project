@@ -126,11 +126,12 @@ export default function TemplateSettings() {
       }
       
       // Merge database templates with built-in templates
-      const allTemplates = [...BUILT_IN_TEMPLATES, ...dbTemplates];
+      // We put dbTemplates FIRST so that unique filter keeps the DB version (which contains customizations like is_default: true)
+      const allTemplates = [...dbTemplates, ...BUILT_IN_TEMPLATES];
       
       // Remove duplicates (keep database version if it exists)
       const uniqueTemplates = allTemplates.filter((template, index, self) => 
-        index === self.findIndex(t => t.template_code === template.template_code)
+        index === self.findIndex(t => (t.template_code && template.template_code && t.template_code === template.template_code) || (t.id && template.id && t.id === template.id))
       );
       
       setTemplates(uniqueTemplates);
@@ -144,6 +145,78 @@ export default function TemplateSettings() {
   };
 
   const BUILT_IN_TEMPLATES = [
+    {
+      template_name: 'Standard Template (Quotation)',
+      template_code: 'STD_QTN',
+      document_type: 'Quotation',
+      is_default: false,
+      page_size: 'A4',
+      orientation: 'Portrait',
+      show_logo: true,
+      show_bank_details: true,
+      show_terms: true,
+      show_signature: true,
+      column_settings: {
+        mandatory: [],
+        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
+        labels: { custom1: 'Custom 1', custom2: 'Custom 2', rate_after_discount: 'Rate/Unit' },
+        print: { style: 'standard' }
+      }
+    },
+    {
+      template_name: 'Standard Template (Invoice)',
+      template_code: 'STD_INV',
+      document_type: 'Invoice',
+      is_default: false,
+      page_size: 'A4',
+      orientation: 'Portrait',
+      show_logo: true,
+      show_bank_details: true,
+      show_terms: true,
+      show_signature: true,
+      column_settings: {
+        mandatory: [],
+        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
+        labels: { custom1: 'Custom 1', custom2: 'Custom 2', rate_after_discount: 'Rate/Unit' },
+        print: { style: 'standard' }
+      }
+    },
+    {
+      template_name: 'Standard Template (Delivery Challan)',
+      template_code: 'STD_DC',
+      document_type: 'Delivery Challan',
+      is_default: false,
+      page_size: 'A4',
+      orientation: 'Portrait',
+      show_logo: true,
+      show_bank_details: true,
+      show_terms: true,
+      show_signature: true,
+      column_settings: {
+        mandatory: [],
+        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
+        labels: { custom1: 'Custom 1', custom2: 'Custom 2', rate_after_discount: 'Rate/Unit' },
+        print: { style: 'standard' }
+      }
+    },
+    {
+      template_name: 'Standard Template (Proforma Invoice)',
+      template_code: 'STD_PRO',
+      document_type: 'Proforma Invoice',
+      is_default: false,
+      page_size: 'A4',
+      orientation: 'Portrait',
+      show_logo: true,
+      show_bank_details: true,
+      show_terms: true,
+      show_signature: true,
+      column_settings: {
+        mandatory: [],
+        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
+        labels: { custom1: 'Custom 1', custom2: 'Custom 2', rate_after_discount: 'Rate/Unit' },
+        print: { style: 'standard' }
+      }
+    },
     {
       template_name: 'Zoho Template',
       template_code: 'QTN_ZOHO',
@@ -178,6 +251,78 @@ export default function TemplateSettings() {
         optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: false, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
         labels: { custom1: 'Custom 1', custom2: 'Custom 2', rate_after_discount: 'Rate/Unit' },
         print: { style: 'default' }
+      }
+    },
+    {
+      template_name: 'SAAS Template (Quotation)',
+      template_code: 'SAAS_QTN',
+      document_type: 'Quotation',
+      is_default: false,
+      page_size: 'A4',
+      orientation: 'Portrait',
+      show_logo: true,
+      show_bank_details: true,
+      show_terms: true,
+      show_signature: true,
+      column_settings: {
+        mandatory: [],
+        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
+        labels: { custom1: 'Custom 1', custom2: 'Custom 2', rate_after_discount: 'Rate/Unit' },
+        print: { style: 'saas' }
+      }
+    },
+    {
+      template_name: 'SAAS Template (Invoice)',
+      template_code: 'SAAS_INV',
+      document_type: 'Invoice',
+      is_default: false,
+      page_size: 'A4',
+      orientation: 'Portrait',
+      show_logo: true,
+      show_bank_details: true,
+      show_terms: true,
+      show_signature: true,
+      column_settings: {
+        mandatory: [],
+        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
+        labels: { custom1: 'Custom 1', custom2: 'Custom 2', rate_after_discount: 'Rate/Unit' },
+        print: { style: 'saas' }
+      }
+    },
+    {
+      template_name: 'SAAS Template (DC)',
+      template_code: 'SAAS_DC',
+      document_type: 'Delivery Challan',
+      is_default: false,
+      page_size: 'A4',
+      orientation: 'Portrait',
+      show_logo: true,
+      show_bank_details: true,
+      show_terms: true,
+      show_signature: true,
+      column_settings: {
+        mandatory: [],
+        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
+        labels: { custom1: 'Custom 1', custom2: 'Custom 2', rate_after_discount: 'Rate/Unit' },
+        print: { style: 'saas' }
+      }
+    },
+    {
+      template_name: 'SAAS Template (Proforma)',
+      template_code: 'SAAS_PRO',
+      document_type: 'Proforma Invoice',
+      is_default: false,
+      page_size: 'A4',
+      orientation: 'Portrait',
+      show_logo: true,
+      show_bank_details: true,
+      show_terms: true,
+      show_signature: true,
+      column_settings: {
+        mandatory: [],
+        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
+        labels: { custom1: 'Custom 1', custom2: 'Custom 2', rate_after_discount: 'Rate/Unit' },
+        print: { style: 'saas' }
       }
     },
     {
@@ -286,6 +431,24 @@ export default function TemplateSettings() {
         optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
         labels: { custom1: 'Custom 1', custom2: 'Custom 2', rate_after_discount: 'Rate/Unit' },
         print: { style: 'pro_grid' }
+      }
+    },
+    {
+      template_name: 'Vertical Template (Quotation)',
+      template_code: 'QTN_VERTICAL',
+      document_type: 'Quotation',
+      is_default: false,
+      page_size: 'A4',
+      orientation: 'Portrait',
+      show_logo: true,
+      show_bank_details: true,
+      show_terms: true,
+      show_signature: true,
+      column_settings: {
+        mandatory: [],
+        optional: { sno: true, item: true, qty: true, uom: true, item_code: true, variant: false, description: true, hsn_code: true, rate: true, discount_percent: true, discount_amount: false, rate_after_discount: true, tax_percent: true, tax_amount: false, line_total: true, category: false, make: true, custom1: false, custom2: false, subtotal: true, total_tax: true, round_off: true, grand_total: true, po_no: false, eway_bill: false },
+        labels: { custom1: 'Custom 1', custom2: 'Custom 2', rate_after_discount: 'Rate/Unit' },
+        print: { style: 'vertical' }
       }
     }
   ];
@@ -736,12 +899,12 @@ export default function TemplateSettings() {
     }
   };
 
-  const handleDelete = async (template: any) => {
+  const handleDelete = async (templateId: string) => {
     if (!confirm('Are you sure you want to delete this template?')) return;
 
     
     try {
-      await supabase.from('document_templates').delete().eq('id', template.id).eq('organisation_id', organisation.id);
+      await supabase.from('document_templates').delete().eq('id', templateId).eq('organisation_id', organisation.id);
       loadTemplates();
     } catch (err: any) {
       console.error('Error deleting template:', err);
@@ -1056,6 +1219,8 @@ export default function TemplateSettings() {
                 >
                   <option value="default">Default</option>
                   <option value="grid_minimal">Grid Minimal (Manrope)</option>
+                  <option value="saas">SAAS Style (Blue Header)</option>
+                  <option value="vertical">Vertical High Fidelity (Premium)</option>
                 </select>
               </div>
 
@@ -1228,6 +1393,8 @@ export default function TemplateSettings() {
           { value: 'all', label: 'All' },
           { value: 'default', label: 'Default' },
           { value: 'grid_minimal', label: 'Grid Minimal' },
+          { value: 'saas', label: 'SAAS Style' },
+          { value: 'vertical', label: 'Vertical' },
         ].map(filter => (
           <button
             key={filter.value}
@@ -1302,6 +1469,16 @@ export default function TemplateSettings() {
                             {template.column_settings?.print?.style === 'pro_grid' && (
                               <span style={{ background: '#ea580c', color: '#fff', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 500 }}>
                                 PRO GRID
+                              </span>
+                            )}
+                            {template.column_settings?.print?.style === 'saas' && (
+                              <span style={{ background: '#1d4ed8', color: '#fff', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 500 }}>
+                                SAAS
+                              </span>
+                            )}
+                            {template.column_settings?.print?.style === 'vertical' && (
+                              <span style={{ background: '#1e3a8a', color: '#fff', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 500 }}>
+                                VERTICAL
                               </span>
                             )}
                           </div>

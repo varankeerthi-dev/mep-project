@@ -15,6 +15,7 @@ export interface ProjectMaterialList {
   unit: string;
   rate: number;
   remarks: string | null;
+  is_boq: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -122,6 +123,51 @@ export async function deleteFromProjectMaterialList(id: string) {
   if (error) throw error;
 }
 
+// Check if material exists in BOQ for a project
+export async function checkMaterialInBOQ(projectId: string, itemId: string, variantId: string | null = null) {
+  let query = supabase
+    .from('project_material_list')
+    .select('id')
+    .eq('project_id', projectId)
+    .eq('item_id', itemId)
+    .eq('is_boq', true);
+
+  if (variantId) {
+    query = query.eq('variant_id', variantId);
+  } else {
+    query = query.is('variant_id', null);
+  }
+
+  const { data, error } = await query.maybeSingle();
+  if (error) throw error;
+  return data !== null;
+}
+
+// Add material as non-BOQ item
+export async function addNonBOQMaterial(material: {
+  project_id: string;
+  organisation_id: string;
+  item_id: string;
+  variant_id?: string;
+  unit: string;
+  rate?: number;
+  remarks?: string;
+}) {
+  const { data, error } = await supabase
+    .from('project_material_list')
+    .insert({
+      ...material,
+      planned_qty: 0,
+      is_boq: false,
+      rate: material.rate || null  // Allow null rate for non-BOQ items
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
 // Daily Material Usage API
 
 export async function getDailyUsageByDate(projectId: string, date: string) {
@@ -132,8 +178,6 @@ export async function getDailyUsageByDate(projectId: string, date: string) {
       materials (
         id,
         name,
-        display_name,
-        item_code,
         unit
       ),
       company_variants (
@@ -157,8 +201,6 @@ export async function getDailyUsageByProject(projectId: string, startDate?: stri
       materials (
         id,
         name,
-        display_name,
-        item_code,
         unit
       ),
       company_variants (
@@ -192,19 +234,22 @@ export async function logDailyUsage(usage: {
   activity?: string;
   remarks?: string;
 }) {
-  const { data: { user } } = await supabase.auth.getUser();
-  
-  const { data, error } = await supabase
-    .from('daily_material_usage')
-    .insert({
-      ...usage,
-      logged_by: user?.id
-    })
-    .select()
-    .single();
+  console.log('logDailyUsage called with:', usage);
+  const { error, data } = await supabase.rpc('log_daily_usage', {
+    p_project_id: usage.project_id,
+    p_organisation_id: usage.organisation_id,
+    p_usage_date: usage.usage_date,
+    p_item_id: usage.item_id,
+    p_variant_id: usage.variant_id || null,
+    p_quantity_used: usage.quantity_used,
+    p_unit: usage.unit,
+    p_activity: usage.activity || null,
+    p_remarks: usage.remarks || null
+  });
 
+  console.log('logDailyUsage response:', { error, data });
   if (error) throw error;
-  return data;
+  return { success: true };
 }
 
 export async function updateDailyUsage(
@@ -241,8 +286,6 @@ export async function getMaterialConsumptionSummary(projectId: string) {
       materials (
         id,
         name,
-        display_name,
-        item_code,
         unit
       ),
       company_variants (

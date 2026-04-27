@@ -140,7 +140,12 @@ const menuData: MenuSection[] = [
           { id: 'boq-create', label: 'Create BOQ', path: '/boq/create' }
         ]
       },
-      { id: 'issue', label: 'Issue', path: '/issue' }
+      { id: 'issue', label: 'Issues', 
+        submenu: [
+          { id: 'issue-dashboard', label: 'Dashboard', path: '/issue' },
+          { id: 'issue-list', label: 'All Issues', path: '/issues' }
+        ]
+      }
     ]
   },
   {

@@ -279,26 +279,75 @@ export function SpreadsheetMeasurementSheet({
   }, [isEditing, activeCell]);
   
   return (
-    <div 
-      className="fixed inset-0 bg-gray-100 overflow-auto"
-      style={{ fontFamily: 'Courier New, monospace' }}
-      onKeyDown={handleKeyDown}
-      tabIndex={0}
+    <div
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: 'rgba(0, 0, 0, 0.5)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 9999,
+        fontFamily: 'Inter, sans-serif'
+      }}
+      onClick={onClose}
     >
+      <div
+        style={{
+          width: '90vw',
+          maxWidth: '1400px',
+          height: '85vh',
+          background: '#f8fafc',
+          borderRadius: '12px',
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+        }}
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={handleKeyDown}
+        tabIndex={0}
+      >
       {/* Toolbar */}
-      <div className="sticky top-0 bg-white border-b-2 border-black px-4 py-2 flex justify-between items-center z-50">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <FileSpreadsheet size={20} />
-            <span className="font-bold">{workOrderNo} - {sheetNo}</span>
+      <div style={{
+        position: 'sticky',
+        top: 0,
+        background: '#fff',
+        borderBottom: '2px solid #0f172a',
+        padding: '12px 16px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        zIndex: 50,
+        boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <FileSpreadsheet size={20} style={{ color: '#0f172a' }} />
+            <span style={{ fontWeight: '700', color: '#0f172a' }}>{workOrderNo} - {sheetNo}</span>
           </div>
-          <div className="text-sm text-gray-600">|</div>
-          <div className="text-sm">Excel Mode (Tab: Move, Enter: Down, F2: Edit)</div>
+          <div style={{ fontSize: '13px', color: '#94a3b8' }}>|</div>
+          <div style={{ fontSize: '13px', color: '#64748b' }}>Excel Mode (Tab: Move, Enter: Down, F2: Edit)</div>
         </div>
-        <div className="flex gap-2">
+        <div style={{ display: 'flex', gap: '8px' }}>
           <button
             onClick={handleExportPDF}
-            className="px-3 py-1 border border-black hover:bg-gray-100 flex items-center gap-1 text-sm"
+            style={{
+              padding: '8px 12px',
+              borderRadius: '8px',
+              background: '#fff',
+              color: '#0f172a',
+              border: '1px solid #e2e8f0',
+              cursor: 'pointer',
+              fontSize: '13px',
+              fontWeight: '500',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
           >
             <Download size={14} />
             Export PDF
@@ -306,14 +355,36 @@ export function SpreadsheetMeasurementSheet({
           <button
             onClick={handleSave}
             disabled={isSubmitting}
-            className="px-3 py-1 border border-indigo-600 bg-indigo-600 text-white hover:bg-indigo-700 flex items-center gap-1 text-sm disabled:opacity-50"
+            style={{
+              padding: '8px 12px',
+              borderRadius: '8px',
+              background: '#0f172a',
+              color: '#fff',
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: '13px',
+              fontWeight: '500',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              opacity: isSubmitting ? 0.5 : 1
+            }}
           >
             <Save size={14} />
             {isSubmitting ? 'Saving...' : 'Save'}
           </button>
           <button
             onClick={onClose}
-            className="px-3 py-1 border border-black hover:bg-gray-100 text-sm"
+            style={{
+              padding: '8px 12px',
+              borderRadius: '8px',
+              background: '#fff',
+              color: '#0f172a',
+              border: '1px solid #e2e8f0',
+              cursor: 'pointer',
+              fontSize: '13px',
+              fontWeight: '500'
+            }}
           >
             <X size={14} />
           </button>
@@ -321,105 +392,187 @@ export function SpreadsheetMeasurementSheet({
       </div>
       
       {/* Header Info */}
-      <div className="bg-white border-b border-black p-4">
-        <div className="grid grid-cols-3 gap-4 mb-4">
+      <div style={{
+        background: '#fff',
+        borderBottom: '1px solid #e2e8f0',
+        padding: '16px'
+      }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '16px' }}>
           <div>
-            <label className="text-xs font-bold uppercase">Measurement Date</label>
+            <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#64748b', marginBottom: '6px' }}>
+              Measurement Date
+            </label>
             <input
               type="date"
               value={measurementDate}
               onChange={(e) => setMeasurementDate(e.target.value)}
-              className="w-full border border-gray-400 p-1 text-sm"
+              style={{
+                width: '100%',
+                borderRadius: '8px',
+                border: '1px solid #e2e8f0',
+                padding: '8px 12px',
+                fontSize: '14px',
+                outline: 'none'
+              }}
             />
           </div>
           <div>
-            <label className="text-xs font-bold uppercase">Measured By *</label>
+            <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#64748b', marginBottom: '6px' }}>
+              Measured By *
+            </label>
             <input
               type="text"
               value={measuredBy}
               onChange={(e) => setMeasuredBy(e.target.value)}
               placeholder="Engineer name"
-              className="w-full border border-gray-400 p-1 text-sm"
+              style={{
+                width: '100%',
+                borderRadius: '8px',
+                border: '1px solid #e2e8f0',
+                padding: '8px 12px',
+                fontSize: '14px',
+                outline: 'none'
+              }}
             />
           </div>
           <div>
-            <label className="text-xs font-bold uppercase">Description</label>
+            <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#64748b', marginBottom: '6px' }}>
+              Description
+            </label>
             <input
               type="text"
               value={sheetDescription}
               onChange={(e) => setSheetDescription(e.target.value)}
               placeholder="Phase/Location description"
-              className="w-full border border-gray-400 p-1 text-sm"
+              style={{
+                width: '100%',
+                borderRadius: '8px',
+                border: '1px solid #e2e8f0',
+                padding: '8px 12px',
+                fontSize: '14px',
+                outline: 'none'
+              }}
             />
           </div>
         </div>
       </div>
       
       {/* Formula Bar */}
-      <div className="bg-gray-50 border-b border-black px-4 py-2 flex items-center gap-2">
-        <span className="text-sm font-bold w-20">Cell {String.fromCharCode(65 + activeCell.col)}{activeCell.row + 1}:</span>
+      <div style={{
+        background: '#f8fafc',
+        borderBottom: '1px solid #e2e8f0',
+        padding: '8px 16px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px'
+      }}>
+        <span style={{ fontSize: '13px', fontWeight: '600', width: '80px', color: '#64748b' }}>
+          Cell {String.fromCharCode(65 + activeCell.col)}{activeCell.row + 1}:
+        </span>
         {isEditing ? (
           <input
             ref={inputRef}
             type="text"
             value={editValue}
             onChange={(e) => setEditValue(e.target.value)}
-            className="flex-1 border border-blue-500 p-1 text-sm bg-white"
+            style={{
+              flex: 1,
+              borderRadius: '6px',
+              border: '1px solid #3b82f6',
+              padding: '6px 10px',
+              fontSize: '14px',
+              background: '#fff',
+              outline: 'none'
+            }}
           />
         ) : (
-          <div className="flex-1 border border-gray-300 p-1 text-sm bg-white min-h-[28px]">
+          <div style={{
+            flex: 1,
+            borderRadius: '6px',
+            border: '1px solid #e2e8f0',
+            padding: '6px 10px',
+            fontSize: '14px',
+            background: '#fff',
+            minHeight: '28px'
+          }}>
             {getCellValue(activeCell.row, activeCell.col)}
           </div>
         )}
       </div>
       
-      {/* Spreadsheet Grid */}
-      <div className="bg-white p-4 overflow-auto">
-        <table className="border-collapse">
+      {/* Spreadsheet Content */}
+      <div style={{
+        padding: '16px',
+        overflow: 'auto',
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column'
+      }}>
+        <table style={{ borderCollapse: 'collapse' }}>
           <thead>
              <tr>
-               <th className="w-10 border border-gray-400 bg-gray-100 p-1"></th>
+               <th style={{ width: '40px', border: '1px solid #e2e8f0', background: '#f8fafc', padding: '8px' }}></th>
                {columns.filter(col => col.key !== 'sno').map((col, i) => (
                  <th 
                    key={col.key}
-                   className="border border-gray-400 bg-gray-100 p-1 text-xs font-bold text-center"
-                   style={{ width: col.width, minWidth: col.width }}
+                   style={{
+                     border: '1px solid #e2e8f0',
+                     background: '#f8fafc',
+                     padding: '8px',
+                     fontSize: '11px',
+                     fontWeight: '600',
+                     textAlign: 'center',
+                     width: col.width,
+                     minWidth: col.width
+                   }}
                  >
                    {String.fromCharCode(65 + i)}
                  </th>
                ))}
-               <th className="w-10 border border-gray-400 bg-gray-100 p-1"></th>
+               <th style={{ width: '40px', border: '1px solid #e2e8f0', background: '#f8fafc', padding: '8px' }}></th>
              </tr>
              <tr>
-               <th className="border border-gray-400 bg-gray-200 p-1 text-xs">#</th>
+               <th style={{ border: '1px solid #e2e8f0', background: '#f1f5f9', padding: '8px', fontSize: '11px' }}>#</th>
                {columns.filter(col => col.key !== 'sno').map(col => (
                  <th 
                    key={col.key}
-                   className="border border-gray-400 bg-gray-200 p-1 text-xs"
-                   style={{ width: col.width, minWidth: col.width }}
+                   style={{
+                     border: '1px solid #e2e8f0',
+                     background: '#f1f5f9',
+                     padding: '8px',
+                     fontSize: '11px',
+                     width: col.width,
+                     minWidth: col.width
+                   }}
                  >
                    {col.label}
                  </th>
                ))}
-               <th className="border border-gray-400 bg-gray-200 p-1 text-xs">Del</th>
+               <th style={{ border: '1px solid #e2e8f0', background: '#f1f5f9', padding: '8px', fontSize: '11px' }}>Del</th>
              </tr>
           </thead>
           <tbody>
             {rows.map((row, rowIndex) => (
               <tr key={row.id}>
-                <td className="border border-gray-400 bg-gray-100 p-1 text-center text-xs font-bold">
+                <td style={{ border: '1px solid #e2e8f0', background: '#f8fafc', padding: '8px', textAlign: 'center', fontSize: '11px', fontWeight: '600' }}>
                   {rowIndex + 1}
                 </td>
                 {columns.filter(col => col.key !== 'sno').map((col, colIndex) => {
-                  const isActive = activeCell.row === rowIndex && activeCell.col === colIndex + 1; // +1 because S.No is col 0
+                  const isActive = activeCell.row === rowIndex && activeCell.col === colIndex + 1;
                   const isCalculated = col.type === 'calculated';
                   const value = getCellValue(rowIndex, colIndex + 1);
                   
                   return (
                     <td
                       key={col.key}
-                      className={`border border-gray-400 p-0 ${isActive ? 'bg-blue-100' : ''} ${isCalculated ? 'bg-gray-50' : ''}`}
-                      style={{ width: col.width, minWidth: col.width, height: '28px' }}
+                      style={{
+                        border: '1px solid #e2e8f0',
+                        padding: 0,
+                        background: isActive ? '#dbeafe' : isCalculated ? '#f8fafc' : 'transparent',
+                        width: col.width,
+                        minWidth: col.width,
+                        height: '28px'
+                      }}
                       onClick={() => handleCellClick(rowIndex, colIndex + 1)}
                     >
                       {isActive && isEditing && !isCalculated ? (
@@ -428,14 +581,28 @@ export function SpreadsheetMeasurementSheet({
                           type={col.type === 'number' ? 'number' : 'text'}
                           value={editValue}
                           onChange={(e) => setEditValue(e.target.value)}
-                          className="w-full h-full border-2 border-blue-500 p-1 text-sm outline-none"
+                          style={{
+                            width: '100%',
+                            height: '100%',
+                            border: '2px solid #3b82f6',
+                            padding: '4px 8px',
+                            fontSize: '13px',
+                            outline: 'none'
+                          }}
                           step={col.type === 'number' ? '0.01' : undefined}
                         />
                       ) : (
                         <div 
-                          className={`w-full h-full p-1 text-sm overflow-hidden ${
-                            col.type === 'number' || col.type === 'calculated' ? 'text-right' : 'text-left'
-                          } ${col.key === 'difference' && row.difference > 0 ? 'text-red-600 font-bold' : ''} ${col.key === 'difference' && row.difference < 0 ? 'text-green-600' : ''}`}
+                          style={{
+                            width: '100%',
+                            height: '100%',
+                            padding: '4px 8px',
+                            fontSize: '13px',
+                            overflow: 'hidden',
+                            textAlign: col.type === 'number' || col.type === 'calculated' ? 'right' : 'left',
+                            color: col.key === 'difference' && row.difference > 0 ? '#dc2626' : col.key === 'difference' && row.difference < 0 ? '#16a34a' : '#0f172a',
+                            fontWeight: col.key === 'difference' && row.difference !== 0 ? '600' : 'normal'
+                          }}
                         >
                           {value}
                         </div>
@@ -443,11 +610,18 @@ export function SpreadsheetMeasurementSheet({
                     </td>
                   );
                 })}
-                <td className="border border-gray-400 p-1 text-center">
+                <td style={{ border: '1px solid #e2e8f0', padding: '8px', textAlign: 'center' }}>
                   <button
                     onClick={() => deleteRow(rowIndex)}
                     disabled={rows.length <= 1}
-                    className="text-red-600 hover:text-red-800 disabled:text-gray-300"
+                    style={{
+                      color: '#dc2626',
+                      cursor: rows.length <= 1 ? 'not-allowed' : 'pointer',
+                      opacity: rows.length <= 1 ? 0.3 : 1,
+                      background: 'none',
+                      border: 'none',
+                      padding: 0
+                    }}
                   >
                     <Trash2 size={14} />
                   </button>
@@ -455,18 +629,18 @@ export function SpreadsheetMeasurementSheet({
               </tr>
             ))}
             {/* TOTALS ROW */}
-            <tr className="bg-yellow-50 font-bold border-t-2 border-black">
-              <td className="border border-gray-400 p-1 text-center text-xs font-bold bg-gray-200">
+            <tr style={{ background: '#fef9c3', fontWeight: '600', borderTop: '2px solid #0f172a' }}>
+              <td style={{ border: '1px solid #e2e8f0', padding: '8px', textAlign: 'center', fontSize: '11px', fontWeight: '600', background: '#f1f5f9' }}>
                 TOTAL
               </td>
-              <td className="border border-gray-400 p-1 text-center" colSpan={4}></td>
-              <td className="border border-gray-400 p-1 text-right">
+              <td style={{ border: '1px solid #e2e8f0', padding: '8px', textAlign: 'center' }} colSpan={4}></td>
+              <td style={{ border: '1px solid #e2e8f0', padding: '8px', textAlign: 'right' }}>
                 {formatCurrency(totals.actualValue)}
               </td>
-              <td className={`border border-gray-400 p-1 text-right ${totals.difference > 0 ? 'text-red-600' : totals.difference < 0 ? 'text-green-600' : ''}`}>
+              <td style={{ border: '1px solid #e2e8f0', padding: '8px', textAlign: 'right', color: totals.difference > 0 ? '#dc2626' : totals.difference < 0 ? '#16a34a' : '#0f172a' }}>
                 {totals.difference > 0 ? '+' : ''}{formatCurrency(totals.difference)}
               </td>
-              <td className="border border-gray-400 p-1 text-center"></td>
+              <td style={{ border: '1px solid #e2e8f0', padding: '8px', textAlign: 'center' }}></td>
             </tr>
           </tbody>
         </table>
@@ -474,7 +648,20 @@ export function SpreadsheetMeasurementSheet({
         {/* Add Row Button */}
         <button
           onClick={addRow}
-          className="mt-2 px-3 py-1 border border-black hover:bg-gray-100 flex items-center gap-1 text-sm"
+          style={{
+            marginTop: '8px',
+            padding: '8px 12px',
+            borderRadius: '8px',
+            background: '#fff',
+            color: '#0f172a',
+            border: '1px solid #e2e8f0',
+            cursor: 'pointer',
+            fontSize: '13px',
+            fontWeight: '500',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px'
+          }}
         >
           <Plus size={14} />
           Add Row
@@ -482,27 +669,56 @@ export function SpreadsheetMeasurementSheet({
       </div>
       
       {/* Summary Panel */}
-      <div className="bg-gray-100 border-t-2 border-black p-4">
-        <div className="flex items-center gap-4 mb-4">
-          <Calculator size={20} />
-          <span className="font-bold">SUMMARY</span>
+      <div style={{
+        background: '#f8fafc',
+        borderTop: '2px solid #0f172a',
+        padding: '16px'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+          <Calculator size={20} style={{ color: '#0f172a' }} />
+          <span style={{ fontWeight: '700', color: '#0f172a' }}>SUMMARY</span>
         </div>
-        <div className="grid grid-cols-3 gap-4">
-          <div className="bg-white border border-black p-3">
-            <div className="text-xs uppercase text-gray-600">Contract Value</div>
-            <div className="text-xl font-bold">{formatCurrency(totals.contractValue)}</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+          <div style={{
+            borderRadius: '8px',
+            border: '1px solid #e2e8f0',
+            background: '#fff',
+            padding: '12px'
+          }}>
+            <div style={{ fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#64748b' }}>
+              Contract Value
+            </div>
+            <div style={{ fontSize: '20px', fontWeight: '700', color: '#0f172a' }}>
+              {formatCurrency(totals.contractValue)}
+            </div>
           </div>
-          <div className="bg-white border border-black p-3">
-            <div className="text-xs uppercase text-gray-600">Actual Value</div>
-            <div className="text-xl font-bold">{formatCurrency(totals.actualValue)}</div>
+          <div style={{
+            borderRadius: '8px',
+            border: '1px solid #e2e8f0',
+            background: '#fff',
+            padding: '12px'
+          }}>
+            <div style={{ fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#64748b' }}>
+              Actual Value
+            </div>
+            <div style={{ fontSize: '20px', fontWeight: '700', color: '#0f172a' }}>
+              {formatCurrency(totals.actualValue)}
+            </div>
           </div>
-          <div className={`border p-3 ${totals.difference > 0 ? 'bg-red-50 border-red-500' : totals.difference < 0 ? 'bg-green-50 border-green-500' : 'bg-white border-black'}`}>
-            <div className="text-xs uppercase text-gray-600">Difference</div>
-            <div className={`text-xl font-bold ${totals.difference > 0 ? 'text-red-600' : totals.difference < 0 ? 'text-green-600' : ''}`}>
+          <div style={{
+            borderRadius: '8px',
+            border: totals.difference > 0 ? '1px solid #fca5a5' : totals.difference < 0 ? '1px solid #86efac' : '1px solid #e2e8f0',
+            background: totals.difference > 0 ? '#fef2f2' : totals.difference < 0 ? '#f0fdf4' : '#fff',
+            padding: '12px'
+          }}>
+            <div style={{ fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#64748b' }}>
+              Difference
+            </div>
+            <div style={{ fontSize: '20px', fontWeight: '700', color: totals.difference > 0 ? '#dc2626' : totals.difference < 0 ? '#16a34a' : '#0f172a' }}>
               {totals.difference > 0 ? '+' : ''}{formatCurrency(totals.difference)}
             </div>
             {totals.difference > 0 && (
-              <div className="text-xs text-red-600 mt-1">
+              <div style={{ fontSize: '11px', color: '#dc2626', marginTop: '4px' }}>
                 Amendment will be created on approval
               </div>
             )}
@@ -511,15 +727,30 @@ export function SpreadsheetMeasurementSheet({
       </div>
       
       {/* Notes */}
-      <div className="bg-white border-t border-black p-4">
-        <label className="text-xs font-bold uppercase block mb-1">Notes</label>
+      <div style={{
+        background: '#fff',
+        borderTop: '1px solid #e2e8f0',
+        padding: '16px'
+      }}>
+        <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#64748b', marginBottom: '6px' }}>
+          Notes
+        </label>
         <textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           rows={3}
           placeholder="Additional observations, site conditions, etc."
-          className="w-full border border-gray-400 p-2 text-sm"
+          style={{
+            width: '100%',
+            borderRadius: '8px',
+            border: '1px solid #e2e8f0',
+            padding: '8px 12px',
+            fontSize: '14px',
+            outline: 'none',
+            resize: 'vertical'
+          }}
         />
+      </div>
       </div>
     </div>
   );

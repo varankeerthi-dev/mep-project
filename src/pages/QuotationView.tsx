@@ -13,6 +13,11 @@ import { generateClassicQuotationTemplate } from './ClassicQuotationTemplate';
 import { generateProGridQuotationPdf } from '../pdf/proGridQuotationPdf';
 import { generateGridMinimalQuotationPdfBlob } from '../pdf/grid-minimal/quotation';
 import { timedSupabaseQuery } from '../utils/queryTimeout';
+import SaaSTemplate from '../templates/SaaSTemplate';
+import VerticalTemplate from '../templates/VerticalTemplate';
+import { htmlToPdf } from '../utils/htmlTemplateRenderer';
+import { createRoot } from 'react-dom/client';
+import { flushSync } from 'react-dom';
 
 export default function QuotationView() {
   const navigate = useNavigate();
@@ -292,6 +297,92 @@ export default function QuotationView() {
       });
       return;
     }
+
+    if (template?.column_settings?.print?.style === 'saas') {
+      const container = document.createElement('div');
+      container.style.width = '210mm';
+      container.style.position = 'fixed';
+      container.style.left = '-9999px';
+      container.style.top = '0';
+      document.body.appendChild(container);
+
+      const root = createRoot(container);
+      flushSync(() => {
+        root.render(
+          <SaaSTemplate 
+            data={quotation} 
+            organisation={organisation} 
+            templateConfig={template.column_settings} 
+          />
+        );
+      });
+
+      const printWindow = window.open('', '_blank');
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>Quotation Preview - ${quotation.quotation_no}</title>
+            <script src="https://cdn.tailwindcss.com"></script>
+            <style>
+              body { background-color: #f3f4f6; margin: 0; padding: 20px; display: flex; justify-content: center; }
+              #preview-container { width: 210mm; background: white; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1); }
+            </style>
+          </head>
+          <body>
+            <div id="preview-container">
+              ${container.innerHTML}
+            </div>
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+      
+      document.body.removeChild(container);
+      return;
+    }
+
+    if (template?.column_settings?.print?.style === 'vertical' || template?.template_code === 'QTN_VERTICAL') {
+      const container = document.createElement('div');
+      container.style.width = '210mm';
+      container.style.position = 'fixed';
+      container.style.left = '-9999px';
+      container.style.top = '0';
+      document.body.appendChild(container);
+
+      const root = createRoot(container);
+      flushSync(() => {
+        root.render(
+          <VerticalTemplate 
+            data={quotation} 
+            organisation={organisation} 
+            templateConfig={template.column_settings} 
+          />
+        );
+      });
+
+      const printWindow = window.open('', '_blank');
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>Quotation Preview - ${quotation.quotation_no}</title>
+            <script src="https://cdn.tailwindcss.com"></script>
+            <style>
+              body { background-color: #f3f4f6; margin: 0; padding: 20px; display: flex; justify-content: center; }
+              #preview-container { width: 210mm; background: white; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1); }
+            </style>
+          </head>
+          <body>
+            <div id="preview-container">
+              ${container.innerHTML}
+            </div>
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+      
+      document.body.removeChild(container);
+      return;
+    }
     /*
     if (template.template_code === 'QTN_TALLY') {
       const doc = generateQuotationTally(quotation, organisation, template);
@@ -328,7 +419,7 @@ export default function QuotationView() {
     printWindow.document.close();
   };
 
-  const downloadPDF = (template) => {
+  const downloadPDF = async (template) => {
     try {
       if (!quotation) throw new Error('Quotation data is missing');
 
@@ -417,53 +508,64 @@ export default function QuotationView() {
         renderTemplateToPdf(template.template_content || '', htmlData, `${safeFileName}.pdf`);
         return;
       }
+      
+      // Special handling for SaaS Style
+      if (template?.column_settings?.print?.style === 'saas') {
+        const container = document.createElement('div');
+        container.id = 'pdf-capture-container';
+        container.style.position = 'absolute';
+        container.style.left = '-10000px';
+        container.style.top = '0';
+        container.style.width = '210mm';
+        container.style.background = 'white';
+        container.style.padding = '0'; 
+        document.body.appendChild(container);
 
-      /*
-      if (template?.column_settings?.print?.style === 'grid_minimal') {
-        const safeFileName = String(quotation.quotation_no || 'quotation')
-          .replace(/[<>:\"/\\\\|?*\\x00-\\x1F]/g, '_')
-          .replace(/\\s+/g, '_');
+        const root = createRoot(container);
+        try {
+          flushSync(() => {
+            root.render(<SaaSTemplate data={quotation} organisation={organisation} templateConfig={template.column_settings} />);
+          });
 
-        generateGridMinimalQuotationPdfBlob(quotation, organisation, template).then((blob) => {
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = url;
-          link.download = `${safeFileName}.pdf`;
-          document.body.appendChild(link);
-          link.click();
-          link.remove();
-          setTimeout(() => URL.revokeObjectURL(url), 1000);
-        }).catch((err) => {
-          console.error('Unable to generate grid minimal quotation PDF:', err);
-          alert('Unable to generate PDF. Please check template settings.');
-        });
-        return;
-      }
-      */
-
-      /*
-      // Special handling for Tally Template
-      if (template.template_code === 'QTN_TALLY') {
-        const tallyDoc = generateQuotationTally(quotation, organisation, template);
-        const safeFileName = String(quotation.quotation_no || 'quotation')
-          .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
-          .replace(/\s+/g, '_');
-        tallyDoc.save(`${safeFileName}.pdf`);
+          // Wait longer for fonts and the custom min-h-[297mm] layout to settle
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          await htmlToPdf(container, `${safeFileName}.pdf`);
+        } finally {
+          root.unmount();
+          document.body.removeChild(container);
+        }
         return;
       }
 
-      // Special handling for Professional Template
-      if (template.template_code === 'QTN_PROFESSIONAL') {
-        const profDoc = generateProfessionalTemplate(quotation, organisation, template);
-        const safeFileName = String(quotation.quotation_no || 'quotation')
-          .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
-          .replace(/\s+/g, '_');
-        profDoc.save(`${safeFileName}.pdf`);
+      // Special handling for Vertical Style
+      if (template?.column_settings?.print?.style === 'vertical' || template?.template_code === 'QTN_VERTICAL') {
+        const container = document.createElement('div');
+        container.id = 'pdf-capture-container';
+        container.style.position = 'absolute';
+        container.style.left = '-10000px';
+        container.style.top = '0';
+        container.style.width = '210mm';
+        container.style.background = 'white';
+        container.style.padding = '0'; 
+        document.body.appendChild(container);
+
+        const root = createRoot(container);
+        try {
+          flushSync(() => {
+            root.render(<VerticalTemplate data={quotation} organisation={organisation} templateConfig={template.column_settings} />);
+          });
+
+          // Wait longer for fonts and the custom min-h-[297mm] layout to settle
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          await htmlToPdf(container, `${safeFileName}.pdf`);
+        } finally {
+          root.unmount();
+          document.body.removeChild(container);
+        }
         return;
       }
-      */
 
-      // Special handling for Zoho Template
+    // Special handling for Zoho Template
       if (template.template_code === 'QTN_ZOHO') {
         const zohoDoc = generateZohoTemplate(quotation, organisation, template);
         const safeFileName = String(quotation.quotation_no || 'quotation')

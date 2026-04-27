@@ -23,6 +23,11 @@ CREATE INDEX IF NOT EXISTS idx_material_consumption_summary_project ON material_
 CREATE INDEX IF NOT EXISTS idx_material_consumption_summary_organisation ON material_consumption_summary(organisation_id);
 CREATE INDEX IF NOT EXISTS idx_material_consumption_summary_item ON material_consumption_summary(item_id);
 
+-- Add unique constraint for ON CONFLICT support
+ALTER TABLE material_consumption_summary 
+ADD CONSTRAINT material_consumption_summary_unique_item 
+UNIQUE (project_id, item_id, variant_id);
+
 -- Enable RLS
 ALTER TABLE material_consumption_summary ENABLE ROW LEVEL SECURITY;
 

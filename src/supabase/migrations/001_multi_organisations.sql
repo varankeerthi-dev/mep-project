@@ -47,7 +47,25 @@ CREATE INDEX IF NOT EXISTS idx_user_organisations_user_id ON user_organisations(
 CREATE INDEX IF NOT EXISTS idx_user_organisations_org_id ON user_organisations(organisation_id);
 CREATE INDEX IF NOT EXISTS idx_user_organisations_status ON user_organisations(status);
 
+-- Security definer function to check if user is admin (bypasses RLS)
+CREATE OR REPLACE FUNCTION is_org_admin(user_id UUID, organisation_id UUID)
+RETURNS BOOLEAN AS $$
+    SELECT EXISTS (
+        SELECT 1 FROM user_organisations 
+        WHERE user_organisations.user_id = is_org_admin.user_id
+        AND user_organisations.organisation_id = is_org_admin.organisation_id
+        AND user_organisations.role = 'admin'
+        AND user_organisations.status = 'active'
+    );
+$$ LANGUAGE SQL SECURITY DEFINER;
+
 -- Row Level Security (RLS) Policies
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Users can view own invitations" ON invitations;
+DROP POLICY IF EXISTS "Users can view own organisations" ON user_organisations;
+DROP POLICY IF EXISTS "Admins can manage invitations" ON invitations;
+DROP POLICY IF EXISTS "Admins can manage memberships" ON user_organisations;
+
 -- Users can only see their own invitations
 CREATE POLICY "Users can view own invitations" ON invitations
     FOR SELECT USING (auth.uid() = invited_by_user_id);
@@ -59,23 +77,11 @@ CREATE POLICY "Users can view own organisations" ON user_organisations
 -- Organization admins can manage invitations
 CREATE POLICY "Admins can manage invitations" ON invitations
     FOR ALL USING (
-        EXISTS (
-            SELECT 1 FROM user_organisations uo 
-            WHERE uo.organisation_id = invitations.organisation_id 
-            AND uo.user_id = auth.uid() 
-            AND uo.role = 'admin'
-            AND uo.status = 'active'
-        )
+        is_org_admin(auth.uid(), invitations.organisation_id)
     );
 
 -- Organization admins can manage memberships
 CREATE POLICY "Admins can manage memberships" ON user_organisations
     FOR ALL USING (
-        EXISTS (
-            SELECT 1 FROM user_organisations uo 
-            WHERE uo.organisation_id = user_organisations.organisation_id 
-            AND uo.user_id = auth.uid() 
-            AND uo.role = 'admin'
-            AND uo.status = 'active'
-        )
+        is_org_admin(auth.uid(), user_organisations.organisation_id)
     );

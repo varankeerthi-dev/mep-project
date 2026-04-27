@@ -62,7 +62,7 @@ export default function TransactionNumberSeries() {
       key: 'prevent_duplicate_numbers', 
       value: String(newValue),
       organisation_id: organisation?.id 
-    }, { onConflict: 'key' });
+    }, { onConflict: 'key, organisation_id' });
   };
 
   const filteredSeries = series.filter((s: any) => 

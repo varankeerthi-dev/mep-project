@@ -6,6 +6,7 @@ import { Button } from '../components/ui/button';
 import { Card } from '../components/ui/Card';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/table';
 import { Package, CheckCircle, AlertTriangle, Truck, FileText, Camera } from 'lucide-react';
+import { checkMaterialInBOQ, addNonBOQMaterial } from '../material-usage/api';
 
 interface MaterialIntent {
   id: string;
@@ -140,10 +141,30 @@ export default function ReceiveMaterial({ projectId, organisationId }: ProjectPr
         })
         .eq('id', selectedIntent.id);
       if (updateError) throw updateError;
+
+      // Check if material exists in BOQ, if not add as non-BOQ
+      const isInBOQ = await checkMaterialInBOQ(projectId, selectedIntent.item_id, selectedIntent.variant_id);
+      if (!isInBOQ && organisationId) {
+        try {
+          await addNonBOQMaterial({
+            project_id: projectId,
+            organisation_id: organisationId,
+            item_id: selectedIntent.item_id,
+            variant_id: selectedIntent.variant_id || undefined,
+            unit: selectedIntent.uom,
+            rate: data.purchase_price ? parseFloat(data.purchase_price) : undefined,  // Optional rate
+            remarks: `Added from indent receipt - ${data.dc_number || 'N/A'}`
+          });
+        } catch (error) {
+          console.error('Failed to add non-BOQ material:', error);
+          // Don't throw error, just log it - the main receive operation succeeded
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['materialIntents', projectId] });
       queryClient.invalidateQueries({ queryKey: ['materialLogs', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['projectMaterialList', projectId] });
       setShowReceiveModal(false);
       setSelectedIntent(null);
       setDcImage(null);

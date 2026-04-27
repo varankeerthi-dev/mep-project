@@ -44,8 +44,8 @@ export function MeasurementSheetList({
 
   if (isLoading) {
     return (
-      <div className="text-center py-8" style={{ fontFamily: 'Courier New, monospace' }}>
-        <Clock size={24} className="animate-spin mx-auto mb-2" />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '32px', fontFamily: 'Inter, sans-serif' }}>
+        <Clock size={24} style={{ animation: 'spin 1s linear infinite', marginRight: '8px' }} />
         Loading measurement sheets...
       </div>
     );
@@ -53,103 +53,183 @@ export function MeasurementSheetList({
 
   if (error) {
     return (
-      <div className="text-red-600 py-4" style={{ fontFamily: 'Courier New, monospace' }}>
+      <div style={{ padding: '16px', color: '#dc2626', fontFamily: 'Inter, sans-serif' }}>
         Error: {error.message}
       </div>
     );
   }
 
   return (
-    <div style={{ fontFamily: 'Courier New, monospace' }}>
+    <div style={{ fontFamily: 'Inter, sans-serif' }}>
       {/* Summary Card */}
-      <div className="border border-black p-4 mb-4 bg-gray-50">
-        <div className="grid grid-cols-3 gap-4">
-          <div className="text-center">
-            <div className="text-xs uppercase tracking-wider mb-1">Contract Value</div>
-            <div className="text-xl font-bold">{formatCurrency(currentContractValue)}</div>
+      <div style={{
+        borderRadius: '8px',
+        border: '1px solid #e2e8f0',
+        background: '#f8fafc',
+        padding: '16px',
+        marginBottom: '16px',
+        boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)'
+      }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#64748b', marginBottom: '4px' }}>
+              Contract Value
+            </div>
+            <div style={{ fontSize: '20px', fontWeight: '700', color: '#0f172a' }}>
+              {formatCurrency(currentContractValue)}
+            </div>
           </div>
-          <div className="text-center">
-            <div className="text-xs uppercase tracking-wider mb-1">Total Measured</div>
-            <div className="text-xl font-bold">{formatCurrency(totalMeasuredValue)}</div>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#64748b', marginBottom: '4px' }}>
+              Total Measured
+            </div>
+            <div style={{ fontSize: '20px', fontWeight: '700', color: '#0f172a' }}>
+              {formatCurrency(totalMeasuredValue)}
+            </div>
           </div>
-          <div className="text-center">
-            <div className="text-xs uppercase tracking-wider mb-1">Difference</div>
-            <div className={`text-xl font-bold ${totalMeasuredValue > currentContractValue ? 'text-red-600' : ''}`}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#64748b', marginBottom: '4px' }}>
+              Difference
+            </div>
+            <div style={{ fontSize: '20px', fontWeight: '700', color: totalMeasuredValue > currentContractValue ? '#dc2626' : '#0f172a' }}>
               {totalMeasuredValue > currentContractValue ? '+' : ''}{formatCurrency(totalMeasuredValue - currentContractValue)}
             </div>
           </div>
         </div>
         
         {totalMeasuredValue > currentContractValue && (
-          <div className="mt-3 p-2 border border-red-500 bg-red-50 text-sm text-red-700 flex items-center gap-2">
+          <div style={{
+            marginTop: '12px',
+            padding: '8px 12px',
+            borderRadius: '6px',
+            border: '1px solid #fca5a5',
+            background: '#fef2f2',
+            color: '#dc2626',
+            fontSize: '13px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
             <AlertTriangle size={16} />
             Total measurements exceed contract. Amendments created.
           </div>
         )}
       </div>
 
-      {/* Create Button */}
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="font-bold">MEASUREMENT SHEETS ({sheets?.length || 0})</h3>
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+        <h3 style={{ fontSize: '14px', fontWeight: '700', color: '#0f172a', margin: 0 }}>
+          MEASUREMENT SHEETS ({sheets?.length || 0})
+        </h3>
         <button
           onClick={onCreateNew}
-          className="px-4 py-2 border border-indigo-600 bg-indigo-600 text-white hover:bg-indigo-700 text-sm"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            borderRadius: '8px',
+            background: '#0f172a',
+            padding: '8px 16px',
+            fontSize: '13px',
+            fontWeight: '600',
+            color: '#fff',
+            border: 'none',
+            cursor: 'pointer',
+            transition: 'background 0.2s'
+          }}
+          onMouseOver={(e) => e.currentTarget.style.background = '#1e293b'}
+          onMouseOut={(e) => e.currentTarget.style.background = '#0f172a'}
         >
-          + Create Measurement Sheet
+          <span style={{ fontSize: '14px' }}>+</span> Create Measurement Sheet
         </button>
       </div>
 
       {/* Sheets Table */}
       {sheets && sheets.length > 0 ? (
-        <div className="overflow-x-auto">
-          <table className="w-full border border-black text-sm">
+        <div style={{
+          borderRadius: '8px',
+          border: '1px solid #e2e8f0',
+          background: '#fff',
+          boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)',
+          overflow: 'hidden'
+        }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
-              <tr className="bg-gray-100">
-                <th className="border border-black p-2 text-left">Sheet No</th>
-                <th className="border border-black p-2 text-left">Date</th>
-                <th className="border border-black p-2 text-left">Description</th>
-                <th className="border border-black p-2 text-right">Contract</th>
-                <th className="border border-black p-2 text-right">Actual</th>
-                <th className="border border-black p-2 text-right">Diff</th>
-                <th className="border border-black p-2 text-center">Status</th>
-                <th className="border border-black p-2 text-center">Action</th>
+              <tr style={{ borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
+                {['Sheet No', 'Date', 'Description', 'Contract', 'Actual', 'Diff', 'Status', 'Action'].map((header) => (
+                  <th key={header} style={{
+                    padding: '12px 16px',
+                    textAlign: 'left',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                    color: '#64748b'
+                  }}>
+                    {header}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
               {sheets.map((sheet) => (
-                <tr key={sheet.id} className={sheet.status === 'Approved' ? 'bg-gray-50' : ''}>
-                  <td className="border border-black p-2 font-bold">{sheet.sheet_no}</td>
-                  <td className="border border-black p-2">{sheet.measurement_date}</td>
-                  <td className="border border-black p-2">{sheet.description || '-'}</td>
-                  <td className="border border-black p-2 text-right">{formatCurrency(sheet.contract_value)}</td>
-                  <td className="border border-black p-2 text-right font-bold">{formatCurrency(sheet.actual_value)}</td>
-                  <td className={`border border-black p-2 text-right ${sheet.difference > 0 ? 'text-red-600' : sheet.difference < 0 ? 'text-green-600' : ''}`}>
+                <tr key={sheet.id} style={{ borderBottom: '1px solid #f1f5f9', background: sheet.status === 'Approved' ? '#f8fafc' : 'transparent' }}>
+                  <td style={{ padding: '16px', fontSize: '14px', color: '#0f172a', fontWeight: '600' }}>
+                    {sheet.sheet_no}
+                  </td>
+                  <td style={{ padding: '16px', fontSize: '14px', color: '#64748b' }}>
+                    {sheet.measurement_date}
+                  </td>
+                  <td style={{ padding: '16px', fontSize: '14px', color: '#334155' }}>
+                    {sheet.description || '-'}
+                  </td>
+                  <td style={{ padding: '16px', fontSize: '14px', color: '#64748b', textAlign: 'right' }}>
+                    {formatCurrency(sheet.contract_value)}
+                  </td>
+                  <td style={{ padding: '16px', fontSize: '14px', color: '#0f172a', fontWeight: '600', textAlign: 'right' }}>
+                    {formatCurrency(sheet.actual_value)}
+                  </td>
+                  <td style={{ padding: '16px', fontSize: '14px', color: sheet.difference > 0 ? '#dc2626' : sheet.difference < 0 ? '#16a34a' : '#64748b', fontWeight: '500', textAlign: 'right' }}>
                     {sheet.difference > 0 ? '+' : ''}{formatCurrency(sheet.difference)}
                   </td>
-                  <td className="border border-black p-2 text-center">
-                    <span className={`text-xs px-2 py-0.5 border ${
-                      sheet.status === 'Approved' 
-                        ? 'border-green-500 text-green-600' 
-                        : sheet.status === 'Draft'
-                        ? 'border-gray-500 text-gray-600'
-                        : 'border-red-500 text-red-600'
-                    }`}>
+                  <td style={{ padding: '16px' }}>
+                    <span style={{
+                      padding: '4px 8px',
+                      borderRadius: '4px',
+                      fontSize: '11px',
+                      fontWeight: '600',
+                      textTransform: 'uppercase',
+                      background: sheet.status === 'Approved' ? '#dcfce7' : sheet.status === 'Draft' ? '#f1f5f9' : '#fee2e2',
+                      color: sheet.status === 'Approved' ? '#166534' : sheet.status === 'Draft' ? '#475569' : '#991b1b'
+                    }}>
                       {sheet.status}
                     </span>
                   </td>
-                  <td className="border border-black p-2 text-center">
+                  <td style={{ padding: '16px' }}>
                     {sheet.status === 'Draft' && (
                       <button
                         onClick={() => handleApprove(sheet.id)}
                         disabled={approvingId === sheet.id}
-                        className="px-2 py-1 border border-green-500 text-green-600 hover:bg-green-50 text-xs flex items-center gap-1 disabled:opacity-50"
+                        style={{
+                          padding: '6px 12px',
+                          fontSize: '12px',
+                          borderRadius: '6px',
+                          background: '#dcfce7',
+                          color: '#166534',
+                          border: 'none',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          opacity: approvingId === sheet.id ? 0.5 : 1
+                        }}
                       >
                         <CheckCircle size={12} />
                         {approvingId === sheet.id ? '...' : 'Approve'}
                       </button>
                     )}
                     {sheet.amendment_created && (
-                      <div className="text-xs text-blue-600 mt-1">
+                      <div style={{ fontSize: '11px', color: '#2563eb', marginTop: '4px' }}>
                         AMD Created
                       </div>
                     )}
@@ -160,12 +240,27 @@ export function MeasurementSheetList({
           </table>
         </div>
       ) : (
-        <div className="text-center py-8 border border-black border-dashed text-gray-500">
-          <FileText size={32} className="mx-auto mb-2 text-gray-300" />
-          <p>No measurement sheets created yet.</p>
+        <div style={{
+          padding: '64px 24px',
+          textAlign: 'center',
+          border: '1px dashed #e2e8f0',
+          borderRadius: '8px',
+          color: '#94a3b8'
+        }}>
+          <FileText size={32} style={{ margin: '0 auto 16px', color: '#cbd5e1' }} />
+          <p style={{ fontSize: '14px', marginBottom: '16px' }}>No measurement sheets created yet.</p>
           <button
             onClick={onCreateNew}
-            className="mt-2 px-4 py-2 border border-black hover:bg-gray-100 text-sm"
+            style={{
+              padding: '8px 16px',
+              borderRadius: '8px',
+              background: '#fff',
+              color: '#0f172a',
+              border: '1px solid #e2e8f0',
+              cursor: 'pointer',
+              fontSize: '13px',
+              fontWeight: '500'
+            }}
           >
             Create First Measurement Sheet
           </button>

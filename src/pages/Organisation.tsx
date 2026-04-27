@@ -41,7 +41,7 @@ function generateFyOptions(format: string, startMonth: number): string[] {
   return options;
 }
 
-function DocumentNumberingSettings() {
+function DocumentNumberingSettings({ organisationId }: { organisationId?: string }) {
   const [settings, setSettings] = useState({
     dc_prefix: 'DC',
     dc_suffix: '',
@@ -61,9 +61,10 @@ function DocumentNumberingSettings() {
   }, []);
 
   const loadSettings = async () => {
+    if (!organisationId) return;
     setLoading(true);
     try {
-      const { data } = await supabase.from('settings').select('key, value');
+      const { data } = await supabase.from('settings').select('key, value').eq('organisation_id', organisationId);
       if (data) {
         const settingsMap = {};
         data.forEach(s => { settingsMap[s.key] = s.value; });
@@ -103,7 +104,10 @@ function DocumentNumberingSettings() {
       ];
 
       for (const setting of settingsToSave) {
-        await supabase.from('settings').upsert({ key: setting.key, value: setting.value }, { onConflict: 'key' });
+        await supabase.from('settings').upsert(
+          { key: setting.key, value: setting.value, organisation_id: organisationId }, 
+          { onConflict: 'key, organisation_id' }
+        );
       }
       
       alert('Document numbering settings saved!');
@@ -671,7 +675,7 @@ export function OrganisationSettings({ organisation, userId }) {
         <h3 className="card-title">Document Numbering</h3>
         <p style={{ color: '#666', marginBottom: '16px' }}>Configure how document numbers are generated automatically.</p>
         
-        <DocumentNumberingSettings />
+        <DocumentNumberingSettings organisationId={organisation?.id} />
       </div>
 
       {/* Financial Year Settings */}

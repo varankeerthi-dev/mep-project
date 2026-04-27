@@ -108,9 +108,11 @@ const SubcontractorDashboard = lazyAny(() => Subcontractors.then(m => ({ default
 const CreateSubcontractor = lazyAny(() => Subcontractors.then(m => ({ default: m.CreateSubcontractor })));
 const SubcontractorView = lazyAny(() => Subcontractors.then(m => ({ default: m.SubcontractorView })));
 const SubcontractorEdit = lazyAny(() => Subcontractors.then(m => ({ default: m.SubcontractorEdit })));
-const SubcontractorAttendance = lazyAny(() => Subcontractors.then(m => ({ default: m.SubcontractorAttendance })));
+const ManpowerAttendance = lazyAny(() => import('./pages/ManpowerAttendance').then(m => ({ default: m.ManpowerAttendance })));
+const ManpowerAttendanceList = lazyAny(() => import('./pages/ManpowerAttendanceList').then(m => ({ default: m.ManpowerAttendanceList })));
 const SubcontractorWorkOrders = lazyAny(() => import('./pages/SubcontractorWorkOrderProfessional').then(m => ({ default: m.WorkOrderList })));
 const WorkOrderDetailView = lazyAny(() => import('./pages/WorkOrderDetailView').then(m => ({ default: m.WorkOrderDetailView })));
+const MeasurementSheetWrapper = lazyAny(() => import('./pages/MeasurementSheetWrapper').then(m => ({ default: m.MeasurementSheetWrapper })));
 const SubcontractorDailyLogs = lazyAny(() => Subcontractors.then(m => ({ default: m.SubcontractorDailyLogs })));
 const SubcontractorPayments = lazyAny(() => Subcontractors.then(m => ({ default: m.SubcontractorPayments })));
 const SubcontractorInvoices = lazyAny(() => Subcontractors.then(m => ({ default: m.SubcontractorInvoices })));
@@ -128,6 +130,10 @@ const PurchaseModule = lazyAny(() => import('./modules/Purchase/PurchaseModule')
 const BOQ = lazyAny(() => import('./pages/BOQ'));
 const BOQList = lazyAny(() => import('./pages/BOQList'));
 const IssueList = lazyAny(() => ProjectManagementInternal.then(m => ({ default: m.IssueList })));
+const IssueAllList = lazyAny(() => ProjectManagementInternal.then(m => ({ default: m.IssueAllList })));
+const IssueListPage = lazyAny(() => import('./issues/pages/IssueListPage'));
+const IssueDetailPage = lazyAny(() => import('./issues/pages/IssueDetailPage'));
+const IssueCreateModal = lazyAny(() => import('./issues/pages/IssueCreateModal'));
 const ClientComm = lazyAny(() => ProjectManagementInternal.then(m => ({ default: m.ClientComm })));
 const Documents = lazyAny(() => ProjectManagementInternal.then(m => ({ default: m.Documents })));
 const DCEdit = lazyAny(() => import('./pages/DCEdit'));
@@ -219,9 +225,10 @@ export default function App() {
       case '/subcontractors/new': return <CreateSubcontractor onSuccess={() => navigate('/subcontractors')} onCancel={() => navigate('/subcontractors')} />;
       case '/subcontractors/view': return <SubcontractorView onNavigate={navigate} />;
       case '/subcontractors/edit': return <SubcontractorEdit onNavigate={navigate} />;
-      case '/subcontractors/workorders': return <SubcontractorWorkOrders />;
-      case '/subcontractors/attendance': return <SubcontractorAttendance />;
-      case '/subcontractors/dailylogs': return <SubcontractorDailyLogs />;
+      case '/subcontractors/workorders': return <SubcontractorWorkOrders onNavigate={navigate} />;
+      case '/subcontractors/attendance': return <ManpowerAttendance onNavigate={navigate} />;
+      case '/subcontractors/attendance/list': return <ManpowerAttendanceList onNavigate={navigate} />;
+      case '/subcontractors/dailylogs': return <ManpowerAttendance onNavigate={navigate} />;
       case '/subcontractors/payments': return <SubcontractorPayments />;
       case '/subcontractors/invoices': return <SubcontractorInvoices />;
       case '/subcontractors/documents': return <SubcontractorDocuments />;
@@ -246,6 +253,8 @@ export default function App() {
       case '/boq/create': return <BOQ onSuccess={() => navigate('/boq')} onCancel={() => navigate('/boq')} />;
       case '/documents': return <Documents />;
       case '/issue': return <IssueList />;
+      case '/issues': return <IssueListPage />;
+      case '/issue/new': return <IssueCreateModal isOpen={true} onClose={() => navigate('/issues')} />;
       case '/purchase':
       case '/purchase/vendors':
       case '/purchase/orders':
@@ -280,6 +289,12 @@ export default function App() {
       case '/settings/organisation': return <OrganisationSettings organisation={organisation} userId={user?.id} />;
       case '/settings/access-control': return <AccessControlPage />;
       default:
+        if (pathKey.startsWith('/issue/')) {
+          // Match /issue/<id> but not /issue/new
+          if (!pathKey.includes('/issue/new') && !pathKey.endsWith('/issue')) {
+            return <IssueDetailPage />;
+          }
+        }
         if (pathKey.startsWith('/dc/edit/')) {
           const dcId = pathKey.split('/dc/edit/')[1];
           return <DCEdit dcId={dcId} onCancel={() => navigate('/dc/list')} />;
@@ -292,8 +307,14 @@ export default function App() {
           return <PODetails />;
         }
         if (pathKey.startsWith('/subcontractors/workorders/')) {
-          const id = pathKey.split('/subcontractors/workorders/')[1];
-          return <WorkOrderDetailView />;
+          const parts = pathKey.split('/subcontractors/workorders/')[1].split('/');
+          const id = parts[0];
+          const action = parts[1];
+
+          if (action === 'create-measurement') {
+            return <MeasurementSheetWrapper workOrderId={id} onBack={() => navigate(`/subcontractors/workorders/${id}`)} onSuccess={() => navigate(`/subcontractors/workorders/${id}`)} />;
+          }
+          return <WorkOrderDetailView workOrderId={id} onNavigate={navigate} />;
         }
         return <Dashboard onNavigate={navigate} />;
     }

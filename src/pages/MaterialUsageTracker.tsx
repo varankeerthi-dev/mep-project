@@ -30,6 +30,7 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
 
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [showForm, setShowForm] = useState(true);
   const [formData, setFormData] = useState({
     item_id: '',
     variant_id: '',
@@ -51,6 +52,9 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
     enabled: !!projectId && !!selectedDate
   });
 
+  // Debug logging
+  console.log('Daily Usage Debug:', { dailyUsage, isLoading, selectedDate, projectId });
+
   const logMutation = useMutation({
     mutationFn: (data: any) => logDailyUsage({
       ...data,
@@ -61,6 +65,7 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['dailyUsage', projectId, selectedDate] });
       setFormData({ item_id: '', variant_id: '', quantity_used: '', unit: '', activity: '', remarks: '' });
+      setShowForm(false);
     }
   });
 
@@ -169,6 +174,17 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
         </div>
       </div>
 
+      {!showForm && (
+        <div className="mb-6">
+          <button
+            onClick={() => setShowForm(true)}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            + Log New Usage
+          </button>
+        </div>
+      )}
+
       {materialList.length === 0 ? (
         <div className="text-center py-12 bg-yellow-50 rounded-lg border-2 border-dashed border-yellow-200">
           <p className="text-yellow-700">
@@ -177,9 +193,10 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
         </div>
       ) : (
         <>
-          <div className="bg-gray-50 p-4 rounded-lg mb-6 border">
-            <h3 className="font-medium mb-4">Log New Usage</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {showForm && (
+            <div className="bg-gray-50 p-4 rounded-lg mb-6 border">
+              <h3 className="font-medium mb-4">Log New Usage</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-1">Material *</label>
                 <select
@@ -256,6 +273,7 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
               </div>
             </div>
           </div>
+          )}
 
           {dailyUsage.length === 0 ? (
             <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed">

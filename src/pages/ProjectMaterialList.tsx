@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -10,7 +10,7 @@ import {
 } from '../material-usage/api';
 import { useMaterials } from '../hooks/useMaterials';
 import { useVariants } from '../hooks/useVariants';
-import { Plus, Trash2, Edit, Save, X } from 'lucide-react';
+import { Plus, Trash2, Edit, Save, X, ChevronDown, ChevronRight, MoreVertical, Eye } from 'lucide-react';
 
 interface ProjectProps {
   projectId: string;
@@ -29,6 +29,8 @@ export default function ProjectMaterialList({ projectId, organisationId }: Proje
   
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [dropdownOpen, setDropdownOpen] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     item_id: '',
     variant_id: '',
@@ -132,6 +134,27 @@ export default function ProjectMaterialList({ projectId, organisationId }: Proje
     const variant = variants?.find(v => v.id === variantId);
     return variant?.variant_name || '';
   };
+
+  const toggleRow = (id: string) => {
+    const newExpanded = new Set(expandedRows);
+    if (newExpanded.has(id)) {
+      newExpanded.delete(id);
+    } else {
+      newExpanded.add(id);
+    }
+    setExpandedRows(newExpanded);
+  };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      if (dropdownOpen) {
+        setDropdownOpen(null);
+      }
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [dropdownOpen]);
 
   if (isLoading) {
     return <div className="p-6 text-center">Loading material list...</div>;
@@ -256,124 +279,338 @@ export default function ProjectMaterialList({ projectId, organisationId }: Proje
           <p className="text-gray-500">No materials added yet. Click "Add Material" to start tracking.</p>
         </div>
       ) : (
-        <div className="bg-white border rounded-lg overflow-hidden">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b">
-              <tr>
-                <th className="px-4 py-3 text-left text-sm font-medium">Material</th>
-                <th className="px-4 py-3 text-left text-sm font-medium">Variant</th>
-                <th className="px-4 py-3 text-right text-sm font-medium">Planned Qty</th>
-                <th className="px-4 py-3 text-left text-sm font-medium">Unit</th>
-                <th className="px-4 py-3 text-right text-sm font-medium">Rate</th>
-                <th className="px-4 py-3 text-right text-sm font-medium">Planned Cost</th>
-                <th className="px-4 py-3 text-left text-sm font-medium">Remarks</th>
-                <th className="px-4 py-3 text-center text-sm font-medium">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {materialList.map((item: any) => (
-                <tr key={item.id} className="border-b hover:bg-gray-50">
+        <div style={{ background: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', overflow: 'hidden' }}>
+          {/* BOQ Section */}
+          {materialList.filter((item: any) => item.is_boq !== false).length > 0 && (
+            <>
+              <div style={{ padding: '12px 16px', background: '#dbeafe', borderBottom: '1px solid #e5e7eb', fontSize: '14px', fontWeight: 600, color: '#1e40af' }}>
+                BOQ Materials
+              </div>
+              {/* Table Header */}
+              <div style={{ display: 'grid', gridTemplateColumns: '40px 1fr 100px 80px 80px 100px 100px 120px 80px', gap: '16px', padding: '12px 16px', background: '#f9fafb', borderBottom: '1px solid #e5e7eb', fontSize: '13px', fontWeight: 600, color: '#374151' }}>
+                <div></div>
+                <div>Material</div>
+                <div>Variant</div>
+                <div style={{ textAlign: 'right' }}>Planned Qty</div>
+                <div>Unit</div>
+                <div style={{ textAlign: 'right' }}>Rate</div>
+                <div style={{ textAlign: 'right' }}>Planned Cost</div>
+                <div>Remarks</div>
+                <div style={{ textAlign: 'center' }}>Actions</div>
+              </div>
+
+              {/* BOQ Items */}
+              {materialList.filter((item: any) => item.is_boq !== false).map((item: any) => (
+                <div key={item.id}>
+                  {/* Main Row */}
                   {editingId === item.id ? (
-                    <>
-                      <td className="px-4 py-3">
+                    <div style={{ display: 'grid', gridTemplateColumns: '40px 1fr 100px 80px 80px 100px 100px 120px 80px', gap: '16px', padding: '12px 16px', borderBottom: '1px solid #f3f4f6', alignItems: 'center', fontSize: '14px' }}>
+                      <div></div>
+                      <div>
                         <select
                           value={formData.item_id}
                           onChange={(e) => setFormData({ ...formData, item_id: e.target.value })}
-                          className="w-full px-2 py-1 border rounded"
+                          style={{ width: '100%', padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: '4px', fontSize: '13px' }}
                           disabled
                         >
                           <option value={item.item_id}>{getMaterialName(item.item_id)}</option>
                         </select>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="text-sm">{getVariantName(item.variant_id)}</span>
-                      </td>
-                      <td className="px-4 py-3">
+                      </div>
+                      <div style={{ color: '#6b7280', fontSize: '13px' }}>{getVariantName(item.variant_id)}</div>
+                      <div>
                         <input
                           type="number"
                           step="0.01"
                           value={formData.planned_qty}
                           onChange={(e) => setFormData({ ...formData, planned_qty: e.target.value })}
-                          className="w-24 px-2 py-1 border rounded text-right"
+                          style={{ width: '100%', padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: '4px', fontSize: '13px', textAlign: 'right' }}
                         />
-                      </td>
-                      <td className="px-4 py-3">
+                      </div>
+                      <div>
                         <input
                           type="text"
                           value={formData.unit}
                           onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                          className="w-20 px-2 py-1 border rounded"
+                          style={{ width: '100%', padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: '4px', fontSize: '13px' }}
                         />
-                      </td>
-                      <td className="px-4 py-3">
+                      </div>
+                      <div>
                         <input
                           type="number"
                           step="0.01"
                           value={formData.rate}
                           onChange={(e) => setFormData({ ...formData, rate: e.target.value })}
-                          className="w-24 px-2 py-1 border rounded text-right"
+                          style={{ width: '100%', padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: '4px', fontSize: '13px', textAlign: 'right' }}
                         />
-                      </td>
-                      <td className="px-4 py-3 text-right text-sm">
+                      </div>
+                      <div style={{ textAlign: 'right', fontSize: '13px', fontWeight: 500 }}>
                         {((parseFloat(formData.planned_qty) || 0) * (parseFloat(formData.rate) || 0)).toFixed(2)}
-                      </td>
-                      <td className="px-4 py-3">
+                      </div>
+                      <div>
                         <input
                           type="text"
                           value={formData.remarks}
                           onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
-                          className="w-full px-2 py-1 border rounded"
+                          style={{ width: '100%', padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: '4px', fontSize: '13px' }}
                         />
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <div className="flex justify-center gap-2">
-                          <button
-                            onClick={() => handleUpdate(item.id)}
-                            disabled={updateMutation.isPending}
-                            className="p-1 text-green-600 hover:bg-green-50 rounded"
-                          >
-                            <Save size={16} />
-                          </button>
-                          <button
-                            onClick={() => setEditingId(null)}
-                            className="p-1 text-gray-600 hover:bg-gray-100 rounded"
-                          >
-                            <X size={16} />
-                          </button>
-                        </div>
-                      </td>
-                    </>
+                      </div>
+                      <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
+                        <button
+                          onClick={() => handleUpdate(item.id)}
+                          disabled={updateMutation.isPending}
+                          style={{ padding: '6px', border: '1px solid #e5e7eb', borderRadius: '4px', background: 'white', cursor: 'pointer' }}
+                        >
+                          <Save size={16} color="#22c55e" />
+                        </button>
+                        <button
+                          onClick={() => setEditingId(null)}
+                          style={{ padding: '6px', border: '1px solid #e5e7eb', borderRadius: '4px', background: 'white', cursor: 'pointer' }}
+                        >
+                          <X size={16} color="#6b7280" />
+                        </button>
+                      </div>
+                    </div>
                   ) : (
-                    <>
-                      <td className="px-4 py-3 font-medium">{getMaterialName(item.item_id)}</td>
-                      <td className="px-4 py-3 text-sm">{getVariantName(item.variant_id)}</td>
-                      <td className="px-4 py-3 text-right">{item.planned_qty}</td>
-                      <td className="px-4 py-3">{item.unit}</td>
-                      <td className="px-4 py-3 text-right">{item.rate?.toFixed(2) || '0.00'}</td>
-                      <td className="px-4 py-3 text-right font-medium">{((item.planned_qty || 0) * (item.rate || 0)).toFixed(2)}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{item.remarks || '-'}</td>
-                      <td className="px-4 py-3 text-center">
-                        <div className="flex justify-center gap-2">
-                          <button
-                            onClick={() => handleEdit(item)}
-                            className="p-1 text-blue-600 hover:bg-blue-50 rounded"
-                          >
-                            <Edit size={16} />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(item.id)}
-                            className="p-1 text-red-600 hover:bg-red-50 rounded"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </td>
-                    </>
+                    <div 
+                      style={{ 
+                        display: 'grid', 
+                        gridTemplateColumns: '40px 1fr 100px 80px 80px 100px 100px 120px 80px', 
+                        gap: '16px', 
+                        padding: '12px 16px', 
+                        borderBottom: '1px solid #f3f4f6',
+                        alignItems: 'center',
+                        fontSize: '14px',
+                        cursor: 'pointer',
+                      }}
+                      onClick={() => toggleRow(item.id)}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'center' }}>
+                        {expandedRows.has(item.id) ? <ChevronDown size={18} color="#6b7280" /> : <ChevronRight size={18} color="#6b7280" />}
+                      </div>
+                      <div style={{ fontWeight: 500 }}>{getMaterialName(item.item_id)}</div>
+                      <div style={{ color: '#6b7280', fontSize: '13px' }}>{getVariantName(item.variant_id)}</div>
+                      <div style={{ textAlign: 'right' }}>{item.planned_qty}</div>
+                      <div>{item.unit}</div>
+                      <div style={{ textAlign: 'right' }}>{item.rate ? item.rate.toFixed(2) : '-'}</div>
+                      <div style={{ textAlign: 'right', fontWeight: 500 }}>{item.rate ? ((item.planned_qty || 0) * item.rate).toFixed(2) : '-'}</div>
+                      <div style={{ fontSize: '13px', color: '#6b7280', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {item.remarks || '-'}
+                      </div>
+                      <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); handleEdit(item); }}
+                          style={{ padding: '6px', border: '1px solid #e5e7eb', borderRadius: '4px', background: 'white', cursor: 'pointer' }}
+                          title="Edit"
+                        >
+                          <Edit size={16} color="#6b7280" />
+                        </button>
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }}
+                          style={{ padding: '6px', border: '1px solid #e5e7eb', borderRadius: '4px', background: 'white', cursor: 'pointer' }}
+                          title="Delete"
+                        >
+                          <Trash2 size={16} color="#6b7280" />
+                        </button>
+                      </div>
+                    </div>
                   )}
-                </tr>
+
+                  {/* Expanded Row - Material Details */}
+                  {expandedRows.has(item.id) && editingId !== item.id && (
+                    <div style={{ padding: '16px', background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
+                      <div style={{ marginBottom: '12px', fontSize: '13px', fontWeight: 600, color: '#374151' }}>
+                        Material Details
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', fontSize: '13px' }}>
+                        <div>
+                          <div style={{ color: '#6b7280', marginBottom: '4px' }}>Material ID</div>
+                          <div style={{ fontFamily: 'monospace', fontSize: '12px' }}>{item.item_id}</div>
+                        </div>
+                        <div>
+                          <div style={{ color: '#6b7280', marginBottom: '4px' }}>Variant ID</div>
+                          <div style={{ fontFamily: 'monospace', fontSize: '12px' }}>{item.variant_id || '-'}</div>
+                        </div>
+                        <div>
+                          <div style={{ color: '#6b7280', marginBottom: '4px' }}>Created At</div>
+                          <div>{new Date(item.created_at).toLocaleDateString()}</div>
+                        </div>
+                        <div>
+                          <div style={{ color: '#6b7280', marginBottom: '4px' }}>Updated At</div>
+                          <div>{new Date(item.updated_at).toLocaleDateString()}</div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               ))}
-            </tbody>
-          </table>
+            </>
+          )}
+
+          {/* Non-BOQ Section */}
+          {materialList.filter((item: any) => item.is_boq === false).length > 0 && (
+            <>
+              <div style={{ padding: '12px 16px', background: '#fef3c7', borderBottom: '1px solid #e5e7eb', fontSize: '14px', fontWeight: 600, color: '#92400e' }}>
+                Non-BOQ Materials
+              </div>
+              {/* Table Header */}
+              <div style={{ display: 'grid', gridTemplateColumns: '40px 1fr 100px 80px 80px 100px 100px 120px 80px', gap: '16px', padding: '12px 16px', background: '#f9fafb', borderBottom: '1px solid #e5e7eb', fontSize: '13px', fontWeight: 600, color: '#374151' }}>
+                <div></div>
+                <div>Material</div>
+                <div>Variant</div>
+                <div style={{ textAlign: 'right' }}>Planned Qty</div>
+                <div>Unit</div>
+                <div style={{ textAlign: 'right' }}>Rate</div>
+                <div style={{ textAlign: 'right' }}>Planned Cost</div>
+                <div>Remarks</div>
+                <div style={{ textAlign: 'center' }}>Actions</div>
+              </div>
+
+              {/* Non-BOQ Items */}
+              {materialList.filter((item: any) => item.is_boq === false).map((item: any) => (
+                <div key={item.id}>
+                  {/* Main Row */}
+                  {editingId === item.id ? (
+                    <div style={{ display: 'grid', gridTemplateColumns: '40px 1fr 100px 80px 80px 100px 100px 120px 80px', gap: '16px', padding: '12px 16px', borderBottom: '1px solid #f3f4f6', alignItems: 'center', fontSize: '14px' }}>
+                      <div></div>
+                      <div>
+                        <select
+                          value={formData.item_id}
+                          onChange={(e) => setFormData({ ...formData, item_id: e.target.value })}
+                          style={{ width: '100%', padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: '4px', fontSize: '13px' }}
+                          disabled
+                        >
+                          <option value={item.item_id}>{getMaterialName(item.item_id)}</option>
+                        </select>
+                      </div>
+                      <div style={{ color: '#6b7280', fontSize: '13px' }}>{getVariantName(item.variant_id)}</div>
+                      <div>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={formData.planned_qty}
+                          onChange={(e) => setFormData({ ...formData, planned_qty: e.target.value })}
+                          style={{ width: '100%', padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: '4px', fontSize: '13px', textAlign: 'right' }}
+                        />
+                      </div>
+                      <div>
+                        <input
+                          type="text"
+                          value={formData.unit}
+                          onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+                          style={{ width: '100%', padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: '4px', fontSize: '13px' }}
+                        />
+                      </div>
+                      <div>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={formData.rate}
+                          onChange={(e) => setFormData({ ...formData, rate: e.target.value })}
+                          style={{ width: '100%', padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: '4px', fontSize: '13px', textAlign: 'right' }}
+                        />
+                      </div>
+                      <div style={{ textAlign: 'right', fontSize: '13px', fontWeight: 500 }}>
+                        {((parseFloat(formData.planned_qty) || 0) * (parseFloat(formData.rate) || 0)).toFixed(2)}
+                      </div>
+                      <div>
+                        <input
+                          type="text"
+                          value={formData.remarks}
+                          onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
+                          style={{ width: '100%', padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: '4px', fontSize: '13px' }}
+                        />
+                      </div>
+                      <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
+                        <button
+                          onClick={() => handleUpdate(item.id)}
+                          disabled={updateMutation.isPending}
+                          style={{ padding: '6px', border: '1px solid #e5e7eb', borderRadius: '4px', background: 'white', cursor: 'pointer' }}
+                        >
+                          <Save size={16} color="#22c55e" />
+                        </button>
+                        <button
+                          onClick={() => setEditingId(null)}
+                          style={{ padding: '6px', border: '1px solid #e5e7eb', borderRadius: '4px', background: 'white', cursor: 'pointer' }}
+                        >
+                          <X size={16} color="#6b7280" />
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div 
+                      style={{ 
+                        display: 'grid', 
+                        gridTemplateColumns: '40px 1fr 100px 80px 80px 100px 100px 120px 80px', 
+                        gap: '16px', 
+                        padding: '12px 16px', 
+                        borderBottom: '1px solid #f3f4f6',
+                        alignItems: 'center',
+                        fontSize: '14px',
+                        cursor: 'pointer',
+                      }}
+                      onClick={() => toggleRow(item.id)}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'center' }}>
+                        {expandedRows.has(item.id) ? <ChevronDown size={18} color="#6b7280" /> : <ChevronRight size={18} color="#6b7280" />}
+                      </div>
+                      <div style={{ fontWeight: 500 }}>{getMaterialName(item.item_id)}</div>
+                      <div style={{ color: '#6b7280', fontSize: '13px' }}>{getVariantName(item.variant_id)}</div>
+                      <div style={{ textAlign: 'right' }}>{item.planned_qty}</div>
+                      <div>{item.unit}</div>
+                      <div style={{ textAlign: 'right' }}>{item.rate ? item.rate.toFixed(2) : '-'}</div>
+                      <div style={{ textAlign: 'right', fontWeight: 500 }}>{item.rate ? ((item.planned_qty || 0) * item.rate).toFixed(2) : '-'}</div>
+                      <div style={{ fontSize: '13px', color: '#6b7280', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {item.remarks || '-'}
+                      </div>
+                      <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); handleEdit(item); }}
+                          style={{ padding: '6px', border: '1px solid #e5e7eb', borderRadius: '4px', background: 'white', cursor: 'pointer' }}
+                          title="Edit"
+                        >
+                          <Edit size={16} color="#6b7280" />
+                        </button>
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }}
+                          style={{ padding: '6px', border: '1px solid #e5e7eb', borderRadius: '4px', background: 'white', cursor: 'pointer' }}
+                          title="Delete"
+                        >
+                          <Trash2 size={16} color="#6b7280" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Expanded Row - Material Details */}
+                  {expandedRows.has(item.id) && editingId !== item.id && (
+                    <div style={{ padding: '16px', background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
+                      <div style={{ marginBottom: '12px', fontSize: '13px', fontWeight: 600, color: '#374151' }}>
+                        Material Details
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', fontSize: '13px' }}>
+                        <div>
+                          <div style={{ color: '#6b7280', marginBottom: '4px' }}>Material ID</div>
+                          <div style={{ fontFamily: 'monospace', fontSize: '12px' }}>{item.item_id}</div>
+                        </div>
+                        <div>
+                          <div style={{ color: '#6b7280', marginBottom: '4px' }}>Variant ID</div>
+                          <div style={{ fontFamily: 'monospace', fontSize: '12px' }}>{item.variant_id || '-'}</div>
+                        </div>
+                        <div>
+                          <div style={{ color: '#6b7280', marginBottom: '4px' }}>Created At</div>
+                          <div>{new Date(item.created_at).toLocaleDateString()}</div>
+                        </div>
+                        <div>
+                          <div style={{ color: '#6b7280', marginBottom: '4px' }}>Updated At</div>
+                          <div>{new Date(item.updated_at).toLocaleDateString()}</div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </>
+          )}
         </div>
       )}
     </div>

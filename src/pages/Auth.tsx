@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import type { FormEvent } from 'react'
 import type { User } from '@supabase/supabase-js'
 import { signInWithEmail, signUp, signInWithGoogle, sendVerificationEmail, resetPassword, getCurrentUser, onAuthStateChange } from '../supabase'
+import { sendOnboardingSuccessEmail } from '../utils/emailService'
 
 type LoginProps = {
   onLogin: (user: User | null) => void
@@ -363,6 +364,13 @@ export function Signup({ onSignup }: SignupProps) {
       setError(err.message)
       setLoading(false)
     } else {
+      // Send onboarding success email
+      await sendOnboardingSuccessEmail({
+        to: email,
+        fullName: fullName,
+        organisationName: 'your organization'
+      })
+      
       setSuccess(true)
       setLoading(false)
     }
@@ -464,11 +472,11 @@ export function AuthCallback({ onAuth }: AuthCallbackProps) {
 
   useEffect(() => {
     const handleCallback = async () => {
-      const { user, error: err } = await getCurrentUser()
-      if (err) {
-        setError(err.message)
-      } else if (user) {
-        onAuth(user)
+      const userResponse = await getCurrentUser()
+      if (userResponse.error) {
+        setError(userResponse.error.message)
+      } else if (userResponse.data?.user) {
+        onAuth(userResponse.data.user)
       }
       setLoading(false)
     }
@@ -509,6 +517,18 @@ export function SelectOrganisation({ organisations, onSelect, onCreateNew }: Sel
   const [orgName, setOrgName] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [userEmail, setUserEmail] = useState('')
+
+  useEffect(() => {
+    // Get current user email for sending welcome email
+    const getUserEmail = async () => {
+      const userResponse = await getCurrentUser()
+      if (userResponse.data?.user?.email) {
+        setUserEmail(userResponse.data.user.email)
+      }
+    }
+    getUserEmail()
+  }, [])
 
   const handleCreate = async () => {
     if (!orgName.trim()) {
@@ -519,6 +539,15 @@ export function SelectOrganisation({ organisations, onSelect, onCreateNew }: Sel
     setError('')
     try {
       await onCreateNew(orgName)
+      
+      // Send onboarding success email after organization creation
+      if (userEmail) {
+        await sendOnboardingSuccessEmail({
+          to: userEmail,
+          fullName: 'User',
+          organisationName: orgName
+        })
+      }
     } catch (err: any) {
       setError(err?.message || 'Failed to create organisation')
     }
