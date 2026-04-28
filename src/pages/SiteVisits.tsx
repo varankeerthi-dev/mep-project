@@ -551,10 +551,12 @@ export function SiteVisits() {
       return;
     }
 
+    // Filter out empty string values for date fields to avoid PostgreSQL errors
     const visitData = {
       ...formData,
       organisation_id: organisation.id,
       created_by: user?.id,
+      follow_up_date: formData.follow_up_date || null,
     };
 
     if (selectedVisit) {

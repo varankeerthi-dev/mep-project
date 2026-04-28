@@ -519,7 +519,7 @@ export default function App() {
   if (loading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
-        <div className="loading-spinner">Loading...</div>
+        <div className="loading-spinner"></div>
       </div>
     );
   }
