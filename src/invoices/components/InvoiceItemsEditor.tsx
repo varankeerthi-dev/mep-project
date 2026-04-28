@@ -481,9 +481,13 @@ export function InvoiceItemsEditor({
                         type="text"
                         value={getSelectedMaterialName(index)}
                         onChange={(e) => handleSearchChange(index, e.target.value)}
-                        onFocus={() => setOpenDropdowns({ ...openDropdowns, [index]: true })}
+                        onFocus={(e) => {
+                          setOpenDropdowns({ ...openDropdowns, [index]: true });
+                          e.currentTarget.style.borderColor = '#d4d4d4';
+                        }}
                         onClick={() => handleInputClick(index)}
                         onKeyDown={(e) => handleKeyDown(index, e)}
+                        onBlur={(e) => e.currentTarget.style.borderColor = 'transparent'}
                         placeholder=""
                         style={{
                           width: '100%',
@@ -493,8 +497,6 @@ export function InvoiceItemsEditor({
                           fontSize: '11px',
                           background: 'transparent',
                         }}
-                        onFocus={(e) => e.currentTarget.style.borderColor = '#d4d4d4'}
-                        onBlur={(e) => e.currentTarget.style.borderColor = 'transparent'}
                       />
                       {openDropdowns[index] && (
                         <div

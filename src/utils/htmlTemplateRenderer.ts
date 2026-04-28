@@ -112,3 +112,39 @@ export async function htmlToPdf(
     throw new Error('Failed to convert HTML to PDF');
   }
 }
+
+/**
+ * Render HTML template string to PDF
+ * Creates a temporary DOM element, renders the template, and converts to PDF
+ */
+export async function renderTemplateToPdf(
+  htmlTemplate: string,
+  data: any,
+  filename: string = 'document.pdf'
+): Promise<void> {
+  try {
+    // Render the template with data
+    const renderedHtml = renderTemplate(htmlTemplate, data);
+    
+    // Create a temporary container
+    const container = document.createElement('div');
+    container.style.position = 'absolute';
+    container.style.left = '-9999px';
+    container.style.top = '0';
+    container.style.width = '210mm'; // A4 width
+    container.style.padding = '20px';
+    container.style.background = '#ffffff';
+    container.innerHTML = renderedHtml;
+    
+    document.body.appendChild(container);
+    
+    // Convert to PDF
+    await htmlToPdf(container, filename);
+    
+    // Clean up
+    document.body.removeChild(container);
+  } catch (error) {
+    console.error('Error rendering template to PDF:', error);
+    throw new Error('Failed to render template to PDF');
+  }
+}
