@@ -18,9 +18,14 @@ import {
   Download as DownloadIcon,
   Eye as EyeIcon,
   MoreHorizontal as MoreHorizontalIcon,
+  ChevronDown as ChevronDownIcon,
 } from 'lucide-react';
 
 const QUOTATION_STATUSES = ['All', 'Draft', 'Sent', 'Under Negotiation', 'Approved', 'Rejected', 'Converted', 'Cancelled', 'Expired'];
+
+const SUB_TABS = ['All Quotes', 'Drafts'];
+
+const STATUS_FILTER_OPTIONS = ['All', 'Sent', 'Under Negotiation', 'Approved', 'Rejected', 'Converted', 'Cancelled', 'Expired'];
 
 const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
   Draft:              { bg: '#f3f4f6', color: '#6b7280' },
@@ -44,8 +49,11 @@ export default function QuotationList() {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
+  const [subTab, setSubTab] = useState('All Quotes');
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!openMenuId) return;
@@ -64,6 +72,33 @@ export default function QuotationList() {
       document.removeEventListener('keydown', handleEscape);
     };
   }, [openMenuId]);
+
+  useEffect(() => {
+    if (!showStatusDropdown) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowStatusDropdown(false);
+      }
+    };
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setShowStatusDropdown(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [showStatusDropdown]);
+
+  // Reset status filter when switching sub-tabs
+  useEffect(() => {
+    if (subTab === 'Drafts') {
+      setStatusFilter('Draft');
+    } else {
+      setStatusFilter('All');
+    }
+  }, [subTab]);
 
   const downloadQuotationPDF = async (quotationId: string) => {
     setOpenMenuId(null);
@@ -231,11 +266,14 @@ export default function QuotationList() {
       }
       */
 
+      // Zoho template function not available
+      /*
       if (template.template_code === 'QTN_ZOHO') {
         const doc = generateZohoTemplate(quotation, org, template);
         doc.save(`${safeFileName}.pdf`);
         return;
       }
+      */
       if (template.template_code === 'QTN_CLASSIC') {
         const doc = generateClassicQuotationTemplate(quotation, org, template);
         doc.save(`${safeFileName}.pdf`);
@@ -333,47 +371,80 @@ export default function QuotationList() {
         </div>
       </div>
 
-      {/* Status Filters */}
+      {/* Sub-tabs */}
       <div className="flex items-center gap-2 px-6 py-3 border-b border-zinc-100 bg-zinc-50/50">
-        {QUOTATION_STATUSES.slice(0, 8).map((status) => (
+        {SUB_TABS.map((tab) => (
           <button
-            key={status}
-            onClick={() => setStatusFilter(status)}
-            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-              statusFilter === status
+            key={tab}
+            onClick={() => setSubTab(tab)}
+            className={`px-4 py-2 h-[20px] text-sm font-medium transition-colors ${
+              subTab === tab
                 ? 'bg-indigo-600 text-white'
                 : 'text-zinc-600 hover:bg-zinc-100'
             }`}
           >
-            {status}
+            {tab}
           </button>
         ))}
+        
+        {/* Status Dropdown - Only show in All Quotes tab */}
+        {subTab === 'All Quotes' && (
+          <div className="relative" ref={dropdownRef}>
+            <button
+              onClick={() => setShowStatusDropdown(!showStatusDropdown)}
+              className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100 rounded-md transition-colors"
+            >
+              {statusFilter === 'All' ? 'All Statuses' : statusFilter}
+              <ChevronDownIcon className="w-4 h-4" />
+            </button>
+            {showStatusDropdown && (
+              <div className="absolute left-0 top-full mt-1 z-50 min-w-[160px] bg-white border border-zinc-200 rounded-lg shadow-lg py-1">
+                {STATUS_FILTER_OPTIONS.map((status) => (
+                  <button
+                    key={status}
+                    onClick={() => {
+                      setStatusFilter(status);
+                      setShowStatusDropdown(false);
+                    }}
+                    className={`block w-full text-left px-3 py-2 text-sm transition-colors ${
+                      statusFilter === status
+                        ? 'bg-indigo-50 text-indigo-700'
+                        : 'text-zinc-700 hover:bg-zinc-50'
+                    }`}
+                  >
+                    {status === 'All' ? 'All Statuses' : status}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Table */}
       <div className="flex-1 overflow-auto">
-        <table className="w-full caption-bottom text-sm">
-          <thead className="border-b border-zinc-200 bg-zinc-50/80">
-            <tr className="border-b border-zinc-200">
-              <th className="h-10 px-3 text-left align-middle text-[14px] font-medium text-zinc-500">
+        <table className="w-full caption-bottom text-sm border-collapse">
+          <thead className="sticky top-0 z-10">
+            <tr className="border-b border-zinc-200 bg-zinc-50/90 backdrop-blur-sm">
+              <th className="h-12 px-4 text-left align-middle text-[13px] font-semibold text-zinc-600 tracking-tight w-[140px]">
                 Quote No
               </th>
-              <th className="h-10 px-3 text-left align-middle text-[14px] font-medium text-zinc-500">
+              <th className="h-12 px-4 text-left align-middle text-[13px] font-semibold text-zinc-600 tracking-tight w-[200px]">
                 Client
               </th>
-              <th className="h-10 px-3 text-left align-middle text-[14px] font-medium text-zinc-500">
+              <th className="h-12 px-4 text-left align-middle text-[13px] font-semibold text-zinc-600 tracking-tight w-[110px]">
                 Date
               </th>
-              <th className="h-10 px-3 text-left align-middle text-[14px] font-medium text-zinc-500">
+              <th className="h-12 px-4 text-left align-middle text-[13px] font-semibold text-zinc-600 tracking-tight w-[110px]">
                 Valid Till
               </th>
-              <th className="h-10 px-3 text-right align-middle text-[14px] font-medium text-zinc-500">
+              <th className="h-12 px-4 text-right align-middle text-[13px] font-semibold text-zinc-600 tracking-tight w-[140px]">
                 Amount
               </th>
-              <th className="h-10 px-3 text-left align-middle text-[14px] font-medium text-zinc-500">
+              <th className="h-12 px-6 text-left align-middle text-[13px] font-semibold text-zinc-600 tracking-tight w-[140px]">
                 Status
               </th>
-              <th className="h-10 px-3 text-right align-middle text-[14px] font-medium text-zinc-500 min-w-[120px]">
+              <th className="h-12 px-4 text-right align-middle text-[13px] font-semibold text-zinc-600 tracking-tight w-[80px]">
                 Action
               </th>
             </tr>
@@ -381,13 +452,13 @@ export default function QuotationList() {
           <tbody className="[&_tr:last-child]:border-0">
             {loading ? (
               <tr>
-                <td colSpan={7} className="px-3 py-8 text-center text-sm text-zinc-500">
+                <td colSpan={7} className="px-4 py-12 text-center text-sm text-zinc-500">
                   Loading quotations...
                 </td>
               </tr>
             ) : filteredQuotations.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-3 py-8 text-center text-sm text-zinc-500">
+                <td colSpan={7} className="px-4 py-12 text-center text-sm text-zinc-500">
                   No quotations found
                 </td>
               </tr>
@@ -395,27 +466,27 @@ export default function QuotationList() {
               filteredQuotations.map((q: any) => (
                 <tr
                   key={q.id}
-                  className="border-b border-zinc-100 hover:bg-zinc-50/80 cursor-pointer transition-colors"
+                  className="border-b border-zinc-100 hover:bg-zinc-50/60 cursor-pointer transition-colors"
                   onClick={() => navigate(`/quotation/view?id=${q.id}`)}
                 >
-                  <td className="px-3 py-3 align-middle text-sm font-medium text-zinc-900 whitespace-nowrap">
+                  <td className="px-4 py-3 align-middle text-sm font-medium text-zinc-900 whitespace-nowrap">
                     {q.quotation_no}
                   </td>
-                  <td className="px-3 py-3 align-middle text-sm text-zinc-600 whitespace-nowrap">
+                  <td className="px-4 py-3 align-middle text-sm text-zinc-700 whitespace-nowrap">
                     {q.client?.client_name || '-'}
                   </td>
-                  <td className="px-3 py-3 align-middle text-sm text-zinc-500 whitespace-nowrap">
+                  <td className="px-4 py-3 align-middle text-sm text-zinc-600 whitespace-nowrap">
                     {formatDate(q.date)}
                   </td>
-                  <td className="px-3 py-3 align-middle text-sm text-zinc-500 whitespace-nowrap">
+                  <td className="px-4 py-3 align-middle text-sm text-zinc-600 whitespace-nowrap">
                     {q.valid_till ? formatDate(q.valid_till) : '-'}
                   </td>
-                  <td className="px-3 py-3 align-middle text-sm font-medium text-zinc-900 text-right whitespace-nowrap">
+                  <td className="px-4 py-3 align-middle text-sm font-semibold text-zinc-900 text-right whitespace-nowrap tabular-nums">
                     {formatCurrency(q.grand_total)}
                   </td>
-                  <td className="px-3 py-3 align-middle whitespace-nowrap">
+                  <td className="px-6 py-3 align-middle whitespace-nowrap">
                     <span
-                      className="inline-flex px-2 py-0.5 text-xs font-medium rounded"
+                      className="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-md"
                       style={{
                         backgroundColor: getStatusColor(q.status).bg,
                         color: getStatusColor(q.status).color,
@@ -424,19 +495,19 @@ export default function QuotationList() {
                       {q.status}
                     </span>
                   </td>
-                  <td className="px-3 py-3 align-middle text-right">
+                  <td className="px-4 py-3 align-middle text-right">
                     <div className="relative inline-block" ref={openMenuId === q.id ? menuRef : null}>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           setOpenMenuId(openMenuId === q.id ? null : q.id);
                         }}
-                        className="inline-flex items-center justify-center w-8 h-8 rounded hover:bg-zinc-100 transition-colors"
+                        className="inline-flex items-center justify-center w-8 h-8 rounded-lg hover:bg-zinc-100 transition-colors"
                       >
                         <MoreHorizontalIcon className="w-4 h-4 text-zinc-500" />
                       </button>
                       {openMenuId === q.id && (
-                        <div className="absolute right-0 top-full mt-1 z-50 min-w-[160px] bg-white border border-zinc-200 rounded-lg shadow-lg py-1">
+                        <div className="absolute right-0 top-full mt-1 z-50 min-w-[160px] bg-white border border-zinc-200 rounded-xl shadow-lg py-1">
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
