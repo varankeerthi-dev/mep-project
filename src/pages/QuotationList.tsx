@@ -50,6 +50,8 @@ export default function QuotationList() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [subTab, setSubTab] = useState('All Quotes');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(20);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -98,7 +100,13 @@ export default function QuotationList() {
     } else {
       setStatusFilter('All');
     }
+    setCurrentPage(1); // Reset to first page when switching tabs
   }, [subTab]);
+
+  // Reset to first page when search or status filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter]);
 
   const downloadQuotationPDF = async (quotationId: string) => {
     setOpenMenuId(null);
@@ -340,6 +348,25 @@ export default function QuotationList() {
     );
   }, [quotations, searchTerm]);
 
+  // Pagination calculations
+  const paginationData = useMemo(() => {
+    const totalItems = filteredQuotations.length;
+    const totalPages = Math.ceil(totalItems / itemsPerPage);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const currentItems = filteredQuotations.slice(startIndex, endIndex);
+    
+    return {
+      totalItems,
+      totalPages,
+      startIndex,
+      endIndex,
+      currentItems,
+      hasNextPage: currentPage < totalPages,
+      hasPrevPage: currentPage > 1
+    };
+  }, [filteredQuotations, currentPage, itemsPerPage]);
+
   return (
     <div className="flex flex-col h-full bg-white">
       {/* Header */}
@@ -347,7 +374,7 @@ export default function QuotationList() {
         <div className="flex items-center gap-3">
           <h1 className="text-base font-semibold text-zinc-900">Quotations</h1>
           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-zinc-100 text-zinc-600">
-            {filteredQuotations.length}
+            {paginationData.totalItems}
           </span>
         </div>
         <div className="flex items-center gap-3">
@@ -441,7 +468,7 @@ export default function QuotationList() {
               <th className="h-12 px-4 text-right align-middle text-[13px] font-semibold text-zinc-600 tracking-tight w-[140px]">
                 Amount
               </th>
-              <th className="h-12 px-6 text-left align-middle text-[13px] font-semibold text-zinc-600 tracking-tight w-[140px]">
+              <th className="h-12 px-8 text-left align-middle text-[13px] font-semibold text-zinc-600 tracking-tight w-[160px]">
                 Status
               </th>
               <th className="h-12 px-4 text-right align-middle text-[13px] font-semibold text-zinc-600 tracking-tight w-[80px]">
@@ -456,14 +483,14 @@ export default function QuotationList() {
                   Loading quotations...
                 </td>
               </tr>
-            ) : filteredQuotations.length === 0 ? (
+            ) : paginationData.currentItems.length === 0 ? (
               <tr>
                 <td colSpan={7} className="px-4 py-12 text-center text-sm text-zinc-500">
                   No quotations found
                 </td>
               </tr>
             ) : (
-              filteredQuotations.map((q: any) => (
+              paginationData.currentItems.map((q: any) => (
                 <tr
                   key={q.id}
                   className="border-b border-zinc-100 hover:bg-zinc-50/60 cursor-pointer transition-colors"
@@ -484,7 +511,7 @@ export default function QuotationList() {
                   <td className="px-4 py-3 align-middle text-sm font-semibold text-zinc-900 text-right whitespace-nowrap tabular-nums">
                     {formatCurrency(q.grand_total)}
                   </td>
-                  <td className="px-6 py-3 align-middle whitespace-nowrap">
+                  <td className="px-8 py-3 align-middle whitespace-nowrap">
                     <span
                       className="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-md"
                       style={{
@@ -573,6 +600,72 @@ export default function QuotationList() {
           </tbody>
         </table>
       </div>
+      
+      {/* Pagination Controls */}
+      {paginationData.totalPages > 1 && (
+        <div className="flex items-center justify-between px-6 py-4 border-t border-zinc-100">
+          <div className="text-sm text-zinc-600">
+            Showing {paginationData.startIndex + 1} to {Math.min(paginationData.endIndex, paginationData.totalItems)} of {paginationData.totalItems} quotes
+          </div>
+          <div className="flex items-center gap-1">
+            {/* Previous Button */}
+            <button
+              onClick={() => setCurrentPage(currentPage - 1)}
+              disabled={!paginationData.hasPrevPage}
+              className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                paginationData.hasPrevPage
+                  ? 'text-zinc-700 hover:bg-zinc-100'
+                  : 'text-zinc-300 cursor-not-allowed'
+              }`}
+            >
+              Previous
+            </button>
+            
+            {/* Page Numbers */}
+            <div className="flex items-center gap-1">
+              {Array.from({ length: Math.min(5, paginationData.totalPages) }, (_, i) => {
+                let pageNum;
+                if (paginationData.totalPages <= 5) {
+                  pageNum = i + 1;
+                } else if (currentPage <= 3) {
+                  pageNum = i + 1;
+                } else if (currentPage >= paginationData.totalPages - 2) {
+                  pageNum = paginationData.totalPages - 4 + i;
+                } else {
+                  pageNum = currentPage - 2 + i;
+                }
+                
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => setCurrentPage(pageNum)}
+                    className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                      currentPage === pageNum
+                        ? 'bg-indigo-600 text-white'
+                        : 'text-zinc-700 hover:bg-zinc-100'
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+            </div>
+            
+            {/* Next Button */}
+            <button
+              onClick={() => setCurrentPage(currentPage + 1)}
+              disabled={!paginationData.hasNextPage}
+              className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                paginationData.hasNextPage
+                  ? 'text-zinc-700 hover:bg-zinc-100'
+                  : 'text-zinc-300 cursor-not-allowed'
+              }`}
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
