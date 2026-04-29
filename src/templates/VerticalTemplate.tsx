@@ -167,7 +167,9 @@ export default function VerticalTemplate({
     { label: "Reference", value: data.reference, key: 'reference' },
     { label: "E-Way Bill", value: data.eway_bill, key: 'eway_bill' },
     { label: "Vendor No.", value: data.client?.vendor_no, key: 'vendor_no' }
-  ].filter(f => optional[f.key] !== false);
+  ]
+  .filter(f => optional[f.key] !== false)
+  .filter(f => f.value && f.value !== "-" && f.value !== "" && f.value !== formatDate(null));
 
   return (
     <div className="vertical-template-container">
@@ -229,7 +231,7 @@ export default function VerticalTemplate({
 
         .a4-page {
           height: 297mm;
-          padding: 10mm;
+          padding: 2mm 5mm;
           display: flex;
           flex-direction: column;
           position: relative;
@@ -314,21 +316,21 @@ export default function VerticalTemplate({
               </div>
               <div className="grid grid-cols-1 gap-1 txt-slate-600 text-[10px]">
                 <div className="flex items-center gap-1.5">
-                  <MapPin size={10} className="txt-slate-400" />
+                  <MapPin size={10} className="txt-slate-400 flex-shrink-0" />
                   <span className="max-w-[450px]">{organisation.address}</span>
                 </div>
                 <div className="flex gap-4">
                   <div className="flex items-center gap-1.5">
-                    <Phone size={10} className="txt-slate-400" />
+                    <Phone size={10} className="txt-slate-400 flex-shrink-0" />
                     <span className="font-bold">{organisation.phone}</span>
                   </div>
                   <div className="flex items-center gap-1.5 font-bold txt-slate-800 uppercase">
-                    <span className="txt-slate-400">GSTIN:</span>
+                    <span className="txt-slate-400 flex-shrink-0">GSTIN:</span>
                     <span>{organisation.gstin}</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <Mail size={10} className="txt-slate-400" />
+                  <Mail size={10} className="txt-slate-400 flex-shrink-0" />
                   <span className="font-bold">{organisation.email}</span>
                 </div>
               </div>
@@ -343,7 +345,8 @@ export default function VerticalTemplate({
         </div>
 
         {/* Info Bar - Clean Layout */}
-        <div className="mt-4 grid grid-cols-3 divide-x divide-slate-200 border-y border-slate-200 py-1 text-[11px]">
+        {infoFields.length > 0 && (
+          <div className="mt-0 grid grid-cols-3 divide-x divide-slate-200 border-y border-slate-200 py-1 text-[11px] font-bold">
           <div className="p-2 grid grid-cols-[90px_1fr] gap-x-2">
             <div className="txt-slate-500 font-bold uppercase text-[9px]">{docType} No</div><div className="font-bold doc-no-font">: {docNo}</div>
             <div className="txt-slate-500 font-bold uppercase text-[9px]">{docType} Date</div><div className="font-bold">: {formatDate(data.date)}</div>
@@ -365,10 +368,11 @@ export default function VerticalTemplate({
             ))}
           </div>
         </div>
+        )}
 
         {/* Billing & Shipping */}
         {(optional.bill_to !== false || optional.ship_to !== false) && (
-          <div className="mt-3 grid grid-cols-2 gap-4">
+          <div className="mt-1 grid grid-cols-2 gap-4">
             {optional.bill_to !== false && (
               <div className="bg-slate-50 p-2 border-l-2 brd-slate-900" style={{ backgroundColor: '#f8fafc' }}>
                 <div className="text-[10px] font-black uppercase txt-slate-900 mb-1 tracking-widest">Bill To</div>
