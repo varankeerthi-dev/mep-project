@@ -171,6 +171,39 @@ export default function VerticalTemplate({
   .filter(f => optional[f.key] !== false)
   .filter(f => f.value && f.value !== "-" && f.value !== "" && f.value !== formatDate(null));
 
+  // Calculate taxes by rate for mixed tax scenarios
+  const calculateTaxesByRate = () => {
+    const taxGroups: { [key: string]: { baseAmount: number; taxAmount: number; sgst: number; cgst: number } } = {};
+    
+    data.items?.forEach((item: any) => {
+      if (item.is_header) return;
+      
+      const qty = Number(item.qty || 0);
+      const netRate = Number(item.rate || 0);
+      const baseAmount = qty * netRate;
+      const taxPct = Number(item.tax_percent || 0);
+      
+      if (taxPct > 0) {
+        if (!taxGroups[taxPct]) {
+          taxGroups[taxPct] = { baseAmount: 0, taxAmount: 0, sgst: 0, cgst: 0 };
+        }
+        
+        const taxAmount = (baseAmount * taxPct) / 100;
+        const sgst = taxAmount / 2;
+        const cgst = taxAmount / 2;
+        
+        taxGroups[taxPct].baseAmount += baseAmount;
+        taxGroups[taxPct].taxAmount += taxAmount;
+        taxGroups[taxPct].sgst += sgst;
+        taxGroups[taxPct].cgst += cgst;
+      }
+    });
+    
+    return taxGroups;
+  };
+
+  const taxGroups = calculateTaxesByRate();
+
   return (
     <div className="vertical-template-container">
       <style>{`
@@ -252,12 +285,17 @@ export default function VerticalTemplate({
         .grid-table th {
           background: #f1f5f9;
           border: 1px solid #94a3b8;
-          padding: 4px 6px;
+          padding: 6px 6px;
           text-transform: uppercase;
           font-weight: 700;
           font-size: 9px;
           color: #334155;
           font-family: 'Roboto', sans-serif;
+          vertical-align: middle;
+          height: 28px;
+          line-height: 1.2;
+          display: table-cell;
+          text-align: left;
         }
 
         .grid-table td {
@@ -278,7 +316,7 @@ export default function VerticalTemplate({
         .footer-fixed {
           margin-top: auto;
           border-top: 1.5px solid #94a3b8;
-          padding-top: 8px;
+          padding-top: 2px;
         }
 
         .amount-words {
@@ -315,11 +353,11 @@ export default function VerticalTemplate({
                 {organisation.subtitle || organisation.description || "Engineering & Manufacturing Solutions"}
               </div>
               <div className="grid grid-cols-1 gap-1 txt-slate-600 text-[10px]">
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5" style={{ minHeight: '16px' }}>
                   <MapPin size={10} className="txt-slate-400 flex-shrink-0" />
                   <span className="max-w-[450px]">{organisation.address}</span>
                 </div>
-                <div className="flex gap-4">
+                <div className="flex gap-4" style={{ minHeight: '16px' }}>
                   <div className="flex items-center gap-1.5">
                     <Phone size={10} className="txt-slate-400 flex-shrink-0" />
                     <span className="font-bold">{organisation.phone}</span>
@@ -329,7 +367,7 @@ export default function VerticalTemplate({
                     <span>{organisation.gstin}</span>
                   </div>
                 </div>
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5" style={{ minHeight: '16px' }}>
                   <Mail size={10} className="txt-slate-400 flex-shrink-0" />
                   <span className="font-bold">{organisation.email}</span>
                 </div>
@@ -461,7 +499,7 @@ export default function VerticalTemplate({
                 </React.Fragment>
               )})}
               {/* Fill remaining space to keep layout consistent */}
-              {Array.from({ length: Math.max(0, 20 - processedItems.length) }).map((_, i) => (
+              {Array.from({ length: Math.max(0, 30 - processedItems.length) }).map((_, i) => (
                 <tr key={`empty-${i}`} className="h-6">
                   {columns.map((col: any) => (
                     <td key={col.key}>&nbsp;</td>
@@ -476,8 +514,8 @@ export default function VerticalTemplate({
         <div className="footer-fixed mt-auto">
           <div className="flex justify-between items-start gap-8">
             {/* Left Column: Amount in Words and Bank Details */}
-            <div className="flex-grow flex flex-col justify-between self-stretch py-1">
-              <div className="brd-slate-200 border-t border-b py-2 mb-3">
+            <div className="flex-grow flex flex-col justify-between self-stretch py-0">
+              <div className="brd-slate-200 border-t border-b py-1 mb-2">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="text-[8px] font-black uppercase txt-slate-400 tracking-widest">Amount in Words</span>
                   <div className="h-px bg-slate-100 flex-grow"></div>
@@ -518,14 +556,31 @@ export default function VerticalTemplate({
                 )}
                 {optional.total_tax !== false && (
                   <>
-                    <div className="flex justify-between txt-slate-500 text-[10px] border-t brd-slate-100 mt-1 pt-1">
-                      <span className="font-bold uppercase">SGST</span>
-                      <span className="font-bold">{formatCurrency(data.total_tax / 2)}</span>
-                    </div>
-                    <div className="flex justify-between txt-slate-500 text-[10px]">
-                      <span className="font-bold uppercase">CGST</span>
-                      <span className="font-bold">{formatCurrency(data.total_tax / 2)}</span>
-                    </div>
+                    {Object.keys(taxGroups).length > 0 ? (
+                      Object.entries(taxGroups).map(([rate, taxes]) => (
+                        <React.Fragment key={rate}>
+                          <div className="flex justify-between txt-slate-500 text-[10px] border-t brd-slate-100 mt-1 pt-1">
+                            <span className="font-bold uppercase">SGST {Number(rate) / 2}%</span>
+                            <span className="font-bold">{formatCurrency(taxes.sgst)}</span>
+                          </div>
+                          <div className="flex justify-between txt-slate-500 text-[10px]">
+                            <span className="font-bold uppercase">CGST {Number(rate) / 2}%</span>
+                            <span className="font-bold">{formatCurrency(taxes.cgst)}</span>
+                          </div>
+                        </React.Fragment>
+                      ))
+                    ) : (
+                      <>
+                        <div className="flex justify-between txt-slate-500 text-[10px] border-t brd-slate-100 mt-1 pt-1">
+                          <span className="font-bold uppercase">SGST</span>
+                          <span className="font-bold">{formatCurrency(data.total_tax / 2)}</span>
+                        </div>
+                        <div className="flex justify-between txt-slate-500 text-[10px]">
+                          <span className="font-bold uppercase">CGST</span>
+                          <span className="font-bold">{formatCurrency(data.total_tax / 2)}</span>
+                        </div>
+                      </>
+                    )}
                   </>
                 )}
                 {optional.round_off !== false && (
@@ -542,12 +597,12 @@ export default function VerticalTemplate({
             </div>
           </div>
 
-          <div className="mt-6 flex justify-between items-end">
+          <div className="mt-1 flex justify-between items-end">
             <div className="text-[9px] txt-slate-400 font-bold uppercase italic">
               * This is a computer generated document.
             </div>
             <div className="text-right">
-              <div className="font-black uppercase text-[11px] txt-slate-900 mb-1">
+              <div className="font-black uppercase text-[11px] txt-slate-900 mb-0">
                 FOR {organisation.name}
               </div>
               <div className="h-16 flex items-center justify-end mb-1">

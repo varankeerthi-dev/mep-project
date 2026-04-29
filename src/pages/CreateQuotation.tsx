@@ -1420,6 +1420,9 @@ const loadQuoteNoPreview = useCallback(async () => {
     let totalItemDiscount = 0;
     let totalTax = 0;
 
+    // Calculate taxes by rate for mixed tax scenarios
+    const taxGroups: { [key: string]: { baseAmount: number; taxAmount: number; sgst: number; cgst: number } } = {};
+
     items.forEach(item => {
       if (item.is_header) return;
       const qty = parseFloat(item.qty) || 0;
@@ -1437,6 +1440,21 @@ const loadQuoteNoPreview = useCallback(async () => {
       subtotal += net;
       totalItemDiscount += discountAmount;
       totalTax += taxAmount;
+
+      // Group taxes by rate
+      if (taxPercent > 0) {
+        if (!taxGroups[taxPercent]) {
+          taxGroups[taxPercent] = { baseAmount: 0, taxAmount: 0, sgst: 0, cgst: 0 };
+        }
+        
+        const sgst = taxAmount / 2;
+        const cgst = taxAmount / 2;
+        
+        taxGroups[taxPercent].baseAmount += taxable;
+        taxGroups[taxPercent].taxAmount += taxAmount;
+        taxGroups[taxPercent].sgst += sgst;
+        taxGroups[taxPercent].cgst += cgst;
+      }
 
       item.line_total = lineTotal;
       item.tax_amount = taxAmount;
@@ -1469,6 +1487,7 @@ const loadQuoteNoPreview = useCallback(async () => {
       isInterState,
       totalTax,
       grandTotal,
+      taxGroups,
       amountInWords: numberToWords(grandTotal)
     };
   }, [items, formData.extra_discount_percent, formData.extra_discount_amount, formData.round_off, formData.state, companyState]);
@@ -2479,14 +2498,31 @@ const loadQuoteNoPreview = useCallback(async () => {
               </div>
             ) : (
               <>
-                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6b7280' }}>
-                  <span>CGST</span>
-                  <span>{formatCurrency(calculations.cgst)}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6b7280' }}>
-                  <span>SGST</span>
-                  <span>{formatCurrency(calculations.sgst)}</span>
-                </div>
+                {Object.keys(calculations.taxGroups || {}).length > 0 ? (
+                  Object.entries(calculations.taxGroups).map(([rate, taxes]) => (
+                    <React.Fragment key={rate}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6b7280' }}>
+                        <span>CGST {Number(rate) / 2}%</span>
+                        <span>{formatCurrency(taxes.cgst)}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6b7280' }}>
+                        <span>SGST {Number(rate) / 2}%</span>
+                        <span>{formatCurrency(taxes.sgst)}</span>
+                      </div>
+                    </React.Fragment>
+                  ))
+                ) : (
+                  <>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6b7280' }}>
+                      <span>CGST</span>
+                      <span>{formatCurrency(calculations.cgst)}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6b7280' }}>
+                      <span>SGST</span>
+                      <span>{formatCurrency(calculations.sgst)}</span>
+                    </div>
+                  </>
+                )}
               </>
             )}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
