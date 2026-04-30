@@ -18,13 +18,17 @@ import VerticalTemplate from '../templates/VerticalTemplate';
 import { htmlToPdf } from '../utils/htmlTemplateRenderer';
 import { createRoot } from 'react-dom/client';
 import { flushSync } from 'react-dom';
+import { Printer, Edit, Copy, MoreHorizontal, Trash2, XCircle, ArrowLeft, ChevronDown, Mail, Download, Eye, FileText, Plus } from 'lucide-react';
+import { useVariants } from '../hooks/useVariants';
+
+
 
 export default function QuotationView() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const quotationId = searchParams.get('id');
   const { organisation } = useAuth();
-  
+
   const [showConvertMenu, setShowConvertMenu] = useState(false);
   const [showPrintMenu, setShowPrintMenu] = useState(false);
   const [showTemplateMenu, setShowTemplateMenu] = useState(false);
@@ -82,11 +86,31 @@ export default function QuotationView() {
   const templates = templatesQuery.data || [];
   const loading = quotationQuery.isPending && !quotationQuery.data;
 
+  const quotationsQuery = useQuery({
+    queryKey: ['quotations', organisation?.id],
+    queryFn: async () => {
+      const data = await timedSupabaseQuery(
+        supabase
+          .from('quotation_header')
+          .select(`*, client:clients(id, client_name, gstin, state), project:projects(id, project_name)`)
+          .eq('organisation_id', organisation?.id)
+          .order('created_at', { ascending: false }),
+        'Quotation list sidebar'
+      );
+      return data || [];
+    },
+    enabled: !!organisation?.id
+  });
+
+  const quotations = quotationsQuery.data || [];
+  const { data: allVariants = [] } = useVariants();
+
   useEffect(() => {
     if (quotation?.template_id) {
       setSelectedTemplateId(quotation.template_id);
     }
   }, [quotation?.template_id]);
+
 
   useEffect(() => {
     if (templatesQuery.isError) {
@@ -105,7 +129,7 @@ export default function QuotationView() {
         .select('quotation_no')
         .order('created_at', { ascending: false })
         .limit(1);
-      
+
       let quotationNo = 'QT-0001';
       if (existing && existing.length > 0) {
         const lastNum = parseInt(existing[0].quotation_no.replace(/[^0-9]/g, ''));
@@ -142,7 +166,7 @@ export default function QuotationView() {
         .insert(newQuotation)
         .select()
         .single();
-      
+
       if (error) throw error;
 
       if (quotation.items && quotation.items.length > 0) {
@@ -190,13 +214,13 @@ export default function QuotationView() {
 
   const handleCancel = async () => {
     if (!confirm('Are you sure you want to cancel this quotation?')) return;
-    
+
     try {
       await supabase
         .from('quotation_header')
         .update({ status: 'Cancelled' })
         .eq('id', quotationId);
-      
+
       quotationQuery.refetch();
     } catch (err) {
       console.error('Error cancelling quotation:', err);
@@ -210,13 +234,13 @@ export default function QuotationView() {
       return;
     }
     if (!confirm('Are you sure you want to delete this quotation? This cannot be undone.')) return;
-    
+
     try {
       await supabase
         .from('quotation_header')
         .delete()
         .eq('id', quotationId);
-      
+
       navigate('/quotation');
     } catch (err) {
       console.error('Error deleting quotation:', err);
@@ -230,7 +254,7 @@ export default function QuotationView() {
         .from('quotation_header')
         .update({ template_id: templateId })
         .eq('id', quotationId);
-      
+
       setSelectedTemplateId(templateId);
       setShowTemplateMenu(false);
       quotationQuery.refetch();
@@ -316,10 +340,10 @@ export default function QuotationView() {
       const root = createRoot(container);
       flushSync(() => {
         root.render(
-          <SaaSTemplate 
-            data={quotation} 
-            organisation={organisation} 
-            templateConfig={template.column_settings} 
+          <SaaSTemplate
+            data={quotation}
+            organisation={organisation}
+            templateConfig={template.column_settings}
           />
         );
       });
@@ -343,7 +367,7 @@ export default function QuotationView() {
         </html>
       `);
       printWindow.document.close();
-      
+
       document.body.removeChild(container);
       return;
     }
@@ -359,10 +383,10 @@ export default function QuotationView() {
       const root = createRoot(container);
       flushSync(() => {
         root.render(
-          <VerticalTemplate 
-            data={quotation} 
-            organisation={organisation} 
-            templateConfig={template.column_settings} 
+          <VerticalTemplate
+            data={quotation}
+            organisation={organisation}
+            templateConfig={template.column_settings}
           />
         );
       });
@@ -386,7 +410,7 @@ export default function QuotationView() {
         </html>
       `);
       printWindow.document.close();
-      
+
       document.body.removeChild(container);
       return;
     }
@@ -444,7 +468,7 @@ export default function QuotationView() {
           valid_till: quotation.valid_till || '',
           remarks: quotation.remarks || '',
           payment_terms: quotation.payment_terms || '',
-          
+
           // Organisation details
           organisation_name: organisation.name || '',
           organisation_address: organisation.address || '',
@@ -454,7 +478,7 @@ export default function QuotationView() {
           organisation_cin: organisation.cin || '',
           organisation_pan: organisation.pan || '',
           organisation_ie_code: organisation.ie_code || '',
-          
+
           // Client details
           client_name: quotation.client?.client_name || quotation.client?.name || '',
           client_contact_person: quotation.contact_person || '',
@@ -463,14 +487,14 @@ export default function QuotationView() {
           client_pincode: quotation.client?.pincode || '',
           client_gstin: quotation.client?.gstin || quotation.gstin || '',
           client_phone: quotation.client?.phone || '',
-          
+
           // Shipping details
           shipping_company_name: quotation.shipping_company_name || quotation.client?.client_name || '',
           shipping_address: quotation.shipping_address || quotation.billing_address || '',
           shipping_city: quotation.shipping_city || quotation.client?.city || '',
           shipping_pincode: quotation.shipping_pincode || quotation.client?.pincode || '',
           shipping_phone: quotation.shipping_phone || quotation.client?.phone || '',
-          
+
           // Items
           items: (quotation.items || []).map((item: any, idx: number) => {
             const clientId = quotation.client_id || quotation.client?.id;
@@ -487,7 +511,7 @@ export default function QuotationView() {
               amount: formatCurrency(item.line_total || 0)
             };
           }),
-          
+
           // Totals
           subtotal: formatCurrency(quotation.subtotal || 0),
           cgst_amount: formatCurrency(quotation.cgst_amount || 0),
@@ -495,7 +519,7 @@ export default function QuotationView() {
           round_off: quotation.round_off ? formatCurrency(quotation.round_off) : '0.00',
           grand_total: formatCurrency(quotation.grand_total || 0),
           amount_in_words: quotation.amount_in_words || '',
-          
+
           // Bank details
           bank_name: organisation.bank_name || '',
           bank_branch: organisation.bank_branch || '',
@@ -505,22 +529,22 @@ export default function QuotationView() {
           bank_micr: organisation.bank_micr || '',
           bank_swift: organisation.bank_swift || '',
           bank_upi: organisation.bank_upi || '',
-          
+
           // Signatory
           signatory_designation: organisation.signatory_designation || 'Director / Manager',
-          
+
           // Terms & conditions
           terms_conditions: quotation.terms_conditions || organisation.terms_conditions || ''
         };
-        
+
         const safeFileName = String(quotation.quotation_no || 'quotation')
           .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
           .replace(/\s+/g, '_');
-        
+
         renderTemplateToPdf(template.template_content || '', htmlData, `${safeFileName}.pdf`);
         return;
       }
-      
+
       // Special handling for SaaS Style
       if (template?.column_settings?.print?.style === 'saas') {
         const container = document.createElement('div');
@@ -532,13 +556,13 @@ export default function QuotationView() {
         container.style.background = 'white';
         container.style.zIndex = '-9999';
         container.style.pointerEvents = 'none';
-        
+
         // Inject fonts for capture
         const fontLink = document.createElement('link');
         fontLink.rel = 'stylesheet';
         fontLink.href = 'https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap';
         document.head.appendChild(fontLink);
-        
+
         document.body.appendChild(container);
 
         const root = createRoot(container);
@@ -599,7 +623,7 @@ export default function QuotationView() {
         return;
       }
 
-    // Special handling for Zoho Template
+      // Special handling for Zoho Template
       if (template.template_code === 'QTN_ZOHO') {
         const zohoDoc = generateZohoTemplate(quotation, organisation, template);
         const safeFileName = String(quotation.quotation_no || 'quotation')
@@ -652,29 +676,29 @@ export default function QuotationView() {
       if (optionalCols.description) columnConfig.push({ header: 'Description', key: 'description', width: 40 });
       if (optionalCols.qty !== false) columnConfig.push({ header: 'Qty', key: 'qty', width: 12, align: 'right' });
       if (optionalCols.uom !== false) columnConfig.push({ header: 'Unit', key: 'uom', width: 15 });
-      
+
       // Rate (Before Discount)
       if (optionalCols.rate) {
         columnConfig.push({ header: 'Rate', key: 'base_rate', width: 22, align: 'right' });
       }
-      
+
       // Discount %
       if (optionalCols.discount_percent) {
         columnConfig.push({ header: 'Disc %', key: 'discount_percent', width: 15, align: 'right' });
       }
-      
+
       // Rate/Unit (After Discount)
       if (optionalCols.rate_after_discount) {
-        columnConfig.push({ 
-          header: labels.rate_after_discount || 'Rate/Unit', 
-          key: 'rate_after_discount', 
-          width: 22, 
-          align: 'right' 
+        columnConfig.push({
+          header: labels.rate_after_discount || 'Rate/Unit',
+          key: 'rate_after_discount',
+          width: 22,
+          align: 'right'
         });
       }
 
       if (optionalCols.tax_percent) columnConfig.push({ header: 'Tax %', key: 'tax_percent', width: 15, align: 'right' });
-      
+
       // Custom columns
       if (optionalCols.custom1) {
         columnConfig.push({ header: labels.custom1 || 'Custom 1', key: 'custom1', width: 22 });
@@ -682,7 +706,7 @@ export default function QuotationView() {
       if (optionalCols.custom2) {
         columnConfig.push({ header: labels.custom2 || 'Custom 2', key: 'custom2', width: 22 });
       }
-      
+
       columnConfig.push({ header: 'Amount', key: 'line_total', width: 28, align: 'right' });
 
       let startY = 40;
@@ -737,15 +761,15 @@ export default function QuotationView() {
         if (optionalCols.description) row.description = mapping?.client_description || item.description || '-';
         if (optionalCols.qty !== false) row.qty = item.qty;
         if (optionalCols.uom !== false) row.uom = item.uom;
-        
+
         if (optionalCols.rate) row.base_rate = formatCurrencyNoSymbol(item.base_rate_snapshot || item.rate);
         if (optionalCols.discount_percent) row.discount_percent = `${item.discount_percent}%`;
         if (optionalCols.rate_after_discount) row.rate_after_discount = formatCurrencyNoSymbol(item.rate);
         if (optionalCols.tax_percent) row.tax_percent = `${item.tax_percent}%`;
-        
+
         if (optionalCols.custom1) row.custom1 = item.custom1 || '-';
         if (optionalCols.custom2) row.custom2 = item.custom2 || '-';
-        
+
         row.line_total = formatCurrencyNoSymbol(item.line_total);
         return row;
       });
@@ -778,8 +802,8 @@ export default function QuotationView() {
       doc.text('Extra Discount:', summaryX, finalY + 12);
       doc.text(`-${formatCurrency(quotation.extra_discount_amount)}`, summaryX + 35, finalY + 12, { align: 'right' });
 
-      const isInterState = quotation.state && organisation?.state && 
-                          quotation.state.trim().toLowerCase() !== organisation.state.trim().toLowerCase();
+      const isInterState = quotation.state && organisation?.state &&
+        quotation.state.trim().toLowerCase() !== organisation.state.trim().toLowerCase();
       if (isInterState) {
         doc.text('IGST:', summaryX, finalY + 18);
         doc.text(formatCurrency(quotation.total_tax), summaryX + 35, finalY + 18, { align: 'right' });
@@ -824,7 +848,7 @@ export default function QuotationView() {
       if (template.show_signature !== false) {
         const signStart = finalY + (isInterState ? 58 : 64);
         doc.text(`For, ${organisation?.name || 'Company Name'}`, 140, signStart);
-        
+
         // Find selected signature
         const selectedSignatory = (organisation?.signatures || []).find(s => s.id == quotation.authorized_signatory_id);
         if (selectedSignatory?.url) {
@@ -835,7 +859,7 @@ export default function QuotationView() {
             console.warn('Sign image error:', e);
           }
         }
-        
+
         doc.text(selectedSignatory?.name || 'Authorized Signature', 140, signStart + 20);
       }
 
@@ -944,14 +968,6 @@ export default function QuotationView() {
     `;
   };
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(amount || 0);
-  };
-
-  const formatCurrencyNoSymbol = (amount) => {
-    return new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount || 0);
-  };
-
   const getStatusBadge = (status) => {
     const colors = {
       'Draft': { bg: '#f3f4f6', color: '#6b7280' },
@@ -1013,322 +1029,347 @@ export default function QuotationView() {
     return <div style={{ padding: '40px', textAlign: 'center' }}>Quotation not found</div>;
   }
 
-  return (
-    <div>
-      <div className="page-header">
-        <h1 className="page-title">Quotation Details</h1>
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          {getStatusBadge(quotation.status)}
-        </div>
-      </div>
 
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
-        {isEditable && (
-          <button className="btn btn-primary" onClick={handleEdit}>
-            Edit
+  return (
+    <div className="flex h-[calc(100vh-48px)] bg-white overflow-hidden">
+      {/* Sidebar List (30%) */}
+      <div className="w-[30%] border-r border-gray-200 flex flex-col bg-white">
+        <div className="p-4 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
+          <h2 className="text-sm font-bold text-gray-700">All Quotes</h2>
+          <button 
+            onClick={() => navigate('/quotation/create')}
+            className="p-1.5 bg-sky-500 text-white rounded hover:bg-sky-600 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
           </button>
-        )}
-        <button className="btn btn-secondary" onClick={handleDuplicate}>
-          Duplicate
-        </button>
-        
-        <div style={{ position: 'relative' }}>
-          <button className="btn btn-secondary" onClick={() => { setShowConvertMenu(!showConvertMenu); setShowPrintMenu(false); setShowTemplateMenu(false); }}>
-            Convert ▼
-          </button>
-          {showConvertMenu && (
-            <div style={{
-              position: 'absolute',
-              top: '100%',
-              left: 0,
-              background: '#fff',
-              border: '1px solid #e5e7eb',
-              borderRadius: '6px',
-              boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-              zIndex: 100,
-              minWidth: '180px',
-              marginTop: '4px'
-            }}>
-              <button 
-                style={{ display: 'block', width: '100%', padding: '10px 16px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer' }}
-                onClick={() => handleConvert('sales-order')}
-              >
-                Convert to Sales Order
-              </button>
-              <button 
-                style={{ display: 'block', width: '100%', padding: '10px 16px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer' }}
-                onClick={() => handleConvert('proforma-invoice')}
-              >
-                Convert to Proforma Invoice
-              </button>
-              <button 
-                style={{ display: 'block', width: '100%', padding: '10px 16px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer' }}
-                onClick={() => handleConvert('delivery-challan')}
-              >
-                Convert to Delivery Challan
-              </button>
+        </div>
+        <div className="flex-1 overflow-y-auto">
+          {quotationsQuery.isPending ? (
+            <div className="p-8 text-center text-gray-400 text-sm italic">Loading quotes...</div>
+          ) : quotations.length === 0 ? (
+            <div className="p-8 text-center text-gray-400 text-sm italic">No quotations found</div>
+          ) : (
+            <div className="divide-y divide-gray-100">
+              {quotations.map((q) => (
+                <div 
+                  key={q.id}
+                  onClick={() => navigate(`/ quotation / view ? id = ${ q.id } `)}
+                  className={`p - 4 cursor - pointer transition - colors hover: bg - sky - 50 / 30 ${ quotationId === q.id ? 'bg-sky-50 border-l-4 border-sky-500' : 'bg-white' } `}
+                >
+                  <div className="flex justify-between items-start mb-1">
+                    <span className="text-[13px] font-bold text-gray-900 truncate pr-2">
+                      {q.client?.client_name || 'Walk-in Client'}
+                    </span>
+                    <span className="text-[12px] font-bold text-gray-900">
+                      {formatCurrency(q.grand_total)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <div className="text-[11px] text-gray-500 font-mono">
+                      {q.quotation_no} <span className="mx-1 text-gray-300">•</span> {formatDate(q.date)}
+                    </div>
+                    <span 
+                      className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded"
+                      style={{ 
+                        backgroundColor: q.status === 'Approved' ? '#d1fae5' : q.status === 'Draft' ? '#f3f4f6' : '#fff7ed',
+                        color: q.status === 'Approved' ? '#047857' : q.status === 'Draft' ? '#6b7280' : '#c2410c'
+                      }}
+                    >
+                      {q.status}
+                    </span>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
+      </div>
 
-        <div style={{ position: 'relative' }}>
-          <button className="btn btn-secondary" onClick={() => { setShowPrintMenu(!showPrintMenu); setShowConvertMenu(false); setShowTemplateMenu(false); }}>
-            Print ({getSelectedTemplateName()}) ▼
-          </button>
-          {showPrintMenu && (
-            <div style={{
-              position: 'absolute',
-              top: '100%',
-              left: 0,
-              background: '#fff',
-              border: '1px solid #e5e7eb',
-              borderRadius: '6px',
-              boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-              zIndex: 100,
-              minWidth: '180px',
-              marginTop: '4px'
-            }}>
-              <button 
-                style={{ display: 'block', width: '100%', padding: '10px 16px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer' }}
-                onClick={() => handlePrintAction('preview')}
+      {/* Main Content (70%) */}
+      <div className="flex-1 bg-gray-50 overflow-y-auto">
+        <div className="max-w-5xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center gap-4">
+              <h1 className="text-2xl font-bold text-gray-900">{quotation.quotation_no}</h1>
+              <span 
+                className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border"
+                style={{ 
+                  backgroundColor: quotation.status === 'Approved' ? '#d1fae5' : '#f3f4f6',
+                  color: quotation.status === 'Approved' ? '#047857' : '#6b7280',
+                  borderColor: quotation.status === 'Approved' ? '#10b981' : '#e5e7eb'
+                }}
               >
-                Preview
-              </button>
+                {quotation.status}
+              </span>
+            </div>
+            <div className="flex items-center gap-3">
               <button 
-                style={{ display: 'block', width: '100%', padding: '10px 16px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer' }}
+                className="inline-flex items-center gap-2 px-3 h-[30px] bg-sky-50 border border-sky-200 text-sky-600 rounded-none hover:bg-sky-100 transition-colors text-[13px] font-bold"
                 onClick={() => handlePrintAction('download')}
               >
-                Download PDF
+                <Printer className="w-[16px] h-[16px]" />
+                Print
               </button>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 mb-6">
+            {isEditable && (
+              <button className="inline-flex items-center gap-1 px-3 h-[30px] bg-white border border-sky-200 text-sky-600 rounded-none hover:bg-sky-50 transition-colors text-[13px] font-bold" onClick={handleEdit}>
+                <Edit className="w-[16px] h-[16px]" />
+                Edit
+              </button>
+            )}
+            <button className="inline-flex items-center gap-1 px-3 h-[30px] bg-white border border-sky-200 text-sky-600 rounded-none hover:bg-sky-50 transition-colors text-[13px] font-bold" onClick={handleDuplicate}>
+              <Copy className="w-[16px] h-[16px]" />
+              Duplicate
+            </button>
+
+            <div className="relative">
               <button 
-                style={{ display: 'block', width: '100%', padding: '10px 16px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer' }}
-                onClick={() => handlePrintAction('email')}
+                className="inline-flex items-center gap-1 px-3 h-[30px] bg-white border border-sky-200 text-sky-600 rounded-none hover:bg-sky-50 transition-colors text-[13px] font-bold" 
+                onClick={() => { setShowConvertMenu(!showConvertMenu); setShowPrintMenu(false); setShowTemplateMenu(false); }}
               >
-                Email
+                <FileText className="w-[16px] h-[16px]" />
+                Convert
+                <ChevronDown className={`w - [14px] h - [14px] transition - transform ${ showConvertMenu ? 'rotate-180' : '' } `} />
               </button>
-              <div style={{ borderTop: '1px solid #e5e7eb', margin: '4px 0' }}></div>
+
+              {showConvertMenu && (
+                <div className="absolute left-0 top-full mt-1 z-50 min-w-[200px] bg-white border border-gray-200 shadow-xl p-1">
+                  <button onClick={() => handleConvert('proforma-invoice')} className="block w-full text-left px-3 py-2 text-xs font-bold text-gray-700 hover:bg-sky-50">Proforma Invoice</button>
+                  <button onClick={() => handleConvert('invoice')} className="block w-full text-left px-3 py-2 text-xs font-bold text-gray-700 hover:bg-sky-50">Tax Invoice</button>
+                </div>
+              )}
+            </div>
+
+            <div className="relative">
               <button 
-                style={{ display: 'block', width: '100%', padding: '10px 16px', border: 'none', background: 'none', textAlign: 'left', cursor: 'pointer', fontWeight: 600 }}
-                onClick={() => { setShowTemplateMenu(!showTemplateMenu); }}
+                className="inline-flex items-center gap-1 px-3 h-[30px] bg-white border border-sky-200 text-sky-600 rounded-none hover:bg-sky-50 transition-colors text-[13px] font-bold" 
+                onClick={() => { setShowPrintMenu(!showPrintMenu); setShowConvertMenu(false); setShowTemplateMenu(false); }}
               >
-                Select Template ▶
+                <Printer className="w-[16px] h-[16px]" />
+                Print ({getSelectedTemplateName()})
+                <ChevronDown className={`w - [14px] h - [14px] transition - transform ${ showPrintMenu ? 'rotate-180' : '' } `} />
               </button>
-              {showTemplateMenu && (
-                <div style={{ paddingLeft: '12px' }}>
+
+              {showPrintMenu && (
+                <div className="absolute left-0 top-full mt-1 z-50 min-w-[200px] bg-white border border-gray-200 shadow-xl p-1">
                   {templates.map(t => (
-                    <button
-                      key={t.id}
-                      style={{ 
-                        display: 'block', 
-                        width: '100%', 
-                        padding: '8px 16px', 
-                        border: 'none', 
-                        background: selectedTemplateId === t.id ? '#dbeafe' : 'none', 
-                        textAlign: 'left', 
-                        cursor: 'pointer',
-                        fontSize: '13px'
-                      }}
-                      onClick={() => handleSelectTemplate(t.id)}
+                    <button 
+                      key={t.id} 
+                      onClick={() => handlePrintAction('download', t.id)} 
+                      className="block w-full text-left px-3 py-2 text-xs font-bold text-gray-700 hover:bg-sky-50"
                     >
-                      {t.template_name} {t.is_default && '(Default)'}
+                      {t.template_name}
                     </button>
                   ))}
                 </div>
               )}
             </div>
-          )}
-        </div>
 
-        {isCancellable && (
-          <button className="btn btn-secondary" style={{ color: '#dc2626' }} onClick={handleCancel}>
-            Cancel
-          </button>
-        )}
-        
-        {isDeletable && (
-          <button className="btn btn-secondary" style={{ color: '#dc2626' }} onClick={handleDelete}>
-            Delete
-          </button>
-        )}
-      </div>
-
-      <div className="card" style={{ marginBottom: '16px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
-          <div>
-            <h4 style={{ margin: '0 0 12px 0', color: '#374151' }}>Quotation Information</h4>
-            <div style={{ display: 'grid', gap: '8px' }}>
-              <div><strong>Quotation No:</strong> {quotation.quotation_no}</div>
-              <div><strong>Date:</strong> {formatDate(quotation.date)}</div>
-              <div><strong>Valid Till:</strong> {formatDate(quotation.valid_till)}</div>
-              <div><strong>Payment Terms:</strong> {quotation.payment_terms || '-'}</div>
-              <div><strong>Contact No:</strong> {quotation.contact_no || '-'}</div>
-              <div><strong>Remarks:</strong> {quotation.remarks || quotation.reference || '-'}</div>
-            </div>
-          </div>
-          <div>
-            <h4 style={{ margin: '0 0 12px 0', color: '#374151' }}>Client Information</h4>
-            <div style={{ display: 'grid', gap: '8px' }}>
-              <div><strong>Client:</strong> {quotation.client?.client_name || '-'}</div>
-              <div><strong>GSTIN:</strong> {quotation.gstin || '-'}</div>
-              <div><strong>State:</strong> {quotation.state || '-'}</div>
-              <div><strong>Project:</strong> {quotation.project?.project_name || quotation.project?.project_code || '-'}</div>
-            </div>
-          </div>
-        </div>
-        {quotation.billing_address && (
-          <div style={{ marginTop: '16px' }}>
-            <strong>Billing Address:</strong>
-            <div style={{ marginTop: '4px', color: '#6b7280' }}>{quotation.billing_address}</div>
-          </div>
-        )}
-      </div>
-
-      <div className="card" style={{ marginBottom: '16px' }}>
-        <h4 style={{ margin: '0 0 12px 0', color: '#374151' }}>Items</h4>
-        <div style={{ overflowX: 'auto' }}>
-          <table className="table">
-            <thead>
-              <tr>
-                {templates.find(t => t.id === selectedTemplateId)?.column_settings?.optional?.sno !== false && <th>#</th>}
-                {quotation.items?.[0]?.item?.hsn_code && templates.find(t => t.id === selectedTemplateId)?.column_settings?.optional?.hsn_code !== false && <th>HSN/SAC</th>}
-                {templates.find(t => t.id === selectedTemplateId)?.column_settings?.optional?.client_part_no === true && (
-                  <th>{templates.find(t => t.id === selectedTemplateId)?.column_settings?.labels?.client_part_no || 'Client Part No'}</th>
-                )}
-                {templates.find(t => t.id === selectedTemplateId)?.column_settings?.optional?.client_description === true && (
-                  <th>{templates.find(t => t.id === selectedTemplateId)?.column_settings?.labels?.client_description || 'Client Description'}</th>
-                )}
-                {templates.find(t => t.id === selectedTemplateId)?.column_settings?.optional?.item !== false && <th>Description</th>}
-                {templates.find(t => t.id === selectedTemplateId)?.column_settings?.optional?.variant && <th>Variant</th>}
-                {templates.find(t => t.id === selectedTemplateId)?.column_settings?.optional?.qty !== false && <th style={{ textAlign: 'right' }}>Qty</th>}
-                {templates.find(t => t.id === selectedTemplateId)?.column_settings?.optional?.uom !== false && <th>Unit</th>}
-                {templates.find(t => t.id === selectedTemplateId)?.column_settings?.optional?.rate !== false && <th style={{ textAlign: 'right' }}>Rate</th>}
-                {templates.find(t => t.id === selectedTemplateId)?.column_settings?.optional?.discount_percent !== false && <th style={{ textAlign: 'right' }}>Disc %</th>}
-                {templates.find(t => t.id === selectedTemplateId)?.column_settings?.optional?.rate_after_discount && (
-                  <th style={{ textAlign: 'right' }}>
-                    {templates.find(t => t.id === selectedTemplateId)?.column_settings?.labels?.rate_after_discount || 'Rate/Unit'}
-                  </th>
-                )}
-                {templates.find(t => t.id === selectedTemplateId)?.column_settings?.optional?.tax_percent !== false && <th style={{ textAlign: 'right' }}>Tax %</th>}
-                {templates.find(t => t.id === selectedTemplateId)?.column_settings?.optional?.custom1 && (
-                  <th>{templates.find(t => t.id === selectedTemplateId)?.column_settings?.labels?.custom1 || 'Custom 1'}</th>
-                )}
-                {templates.find(t => t.id === selectedTemplateId)?.column_settings?.optional?.custom2 && (
-                  <th>{templates.find(t => t.id === selectedTemplateId)?.column_settings?.labels?.custom2 || 'Custom 2'}</th>
-                )}
-                <th style={{ textAlign: 'right' }}>Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {quotation.items?.map((item, index) => {
-                const template = templates.find(t => t.id === selectedTemplateId);
-                const optCols = template?.column_settings?.optional || {};
-                const clientId = quotation.client_id || quotation.client?.id;
-                const mapping = clientId && item.item?.mappings?.find((m: any) => m.client_id === clientId);
-                
-                return (
-                  <tr key={item.id}>
-                    {optCols.sno !== false && <td>{index + 1}</td>}
-                    {item.item?.hsn_code && optCols.hsn_code !== false && <td>{item.item.hsn_code}</td>}
-                    {optCols.client_part_no === true && (
-                      <td style={{ textAlign: 'center', fontSize: '12px', color: '#64748b' }}>
-                        {mapping?.client_part_no || '-'}
-                      </td>
-                    )}
-                    {optCols.client_description === true && (
-                      <td style={{ fontSize: '12px', color: '#64748b' }}>
-                        {mapping?.client_description || '-'}
-                      </td>
-                    )}
-                    {optCols.item !== false && (
-                      <td>
-                        <div>
-                          <div style={{ fontWeight: 'bold' }}>{mapping?.client_description || item.description || item.item?.name}</div>
-                          {item.description && (mapping?.client_description || item.item?.name) && <div style={{ fontSize: '11px', color: '#6b7280' }}>{item.description}</div>}
-                        </div>
-                        {item.override_flag && (
-                          <span style={{ marginLeft: '8px', background: '#fef3c7', padding: '2px 6px', borderRadius: '4px', fontSize: '11px' }}>Edited</span>
-                        )}
-                      </td>
-                    )}
-                    {optCols.variant && <td>{item.variant?.variant_name || '-'}</td>}
-                    {optCols.qty !== false && <td style={{ textAlign: 'right' }}>{item.qty}</td>}
-                    {optCols.uom !== false && <td>{item.uom}</td>}
-                    {optCols.rate !== false && <td style={{ textAlign: 'right' }}>{formatCurrency(item.base_rate_snapshot || item.rate)}</td>}
-                    {optCols.discount_percent !== false && <td style={{ textAlign: 'right' }}>{item.discount_percent}%</td>}
-                    {optCols.rate_after_discount && <td style={{ textAlign: 'right' }}>{formatCurrency(item.rate)}</td>}
-                    {optCols.tax_percent !== false && <td style={{ textAlign: 'right' }}>{item.tax_percent}%</td>}
-                    {optCols.custom1 && <td>{item.custom1 || '-'}</td>}
-                    {optCols.custom2 && <td>{item.custom2 || '-'}</td>}
-                    <td style={{ textAlign: 'right', fontWeight: 600 }}>{formatCurrency(item.line_total)}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 350px', gap: '16px' }}>
-        <div></div>
-        <div className="card">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {templates.find(t => t.id === selectedTemplateId)?.column_settings?.optional?.subtotal !== false && (
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>Subtotal</span>
-                <span>{formatCurrency(quotation.subtotal)}</span>
-              </div>
+            {isCancellable && (
+              <button className="inline-flex items-center gap-1 px-3 h-[30px] bg-white border border-red-200 text-red-600 rounded-none hover:bg-red-50 transition-colors text-[13px] font-bold" onClick={handleCancel}>
+                <XCircle className="w-[16px] h-[16px]" />
+                Cancel
+              </button>
             )}
-            <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6b7280' }}>
-              <span>Total Item Discount</span>
-              <span>- {formatCurrency(quotation.total_item_discount)}</span>
+            
+            {isDeletable && (
+              <button className="inline-flex items-center gap-1 px-3 h-[30px] bg-white border border-red-200 text-red-600 rounded-none hover:bg-red-50 transition-colors text-[13px] font-bold" onClick={handleDelete}>
+                <Trash2 className="w-[16px] h-[16px]" />
+                Delete
+              </button>
+            )}
+          </div>
+
+          <div className="space-y-6 bg-white p-12 border border-gray-200 shadow-2xl min-h-[1120px] mb-12">
+            <div className="grid grid-cols-2 gap-12 border-b border-gray-100 pb-12">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 mb-6">General Information</h3>
+                <dl className="space-y-4">
+                  <div className="flex justify-between border-b border-gray-50 pb-2">
+                    <dt className="text-[13px] text-gray-500">Date</dt>
+                    <dd className="text-[13px] font-bold text-gray-900">{formatDate(quotation.date)}</dd>
+                  </div>
+                  <div className="flex justify-between border-b border-gray-50 pb-2">
+                    <dt className="text-[13px] text-gray-500">Valid Till</dt>
+                    <dd className="text-[13px] font-bold text-gray-900">{formatDate(quotation.valid_till)}</dd>
+                  </div>
+                  <div className="flex justify-between border-b border-gray-50 pb-2">
+                    <dt className="text-[13px] text-gray-500">Payment Terms</dt>
+                    <dd className="text-[13px] font-bold text-gray-900">{quotation.payment_terms || '-'}</dd>
+                  </div>
+                  <div className="flex justify-between border-b border-gray-50 pb-2">
+                    <dt className="text-[13px] text-gray-500">Contact No</dt>
+                    <dd className="text-[13px] font-bold text-gray-900">{quotation.contact_no || '-'}</dd>
+                  </div>
+                  <div className="flex justify-between">
+                    <dt className="text-[13px] text-gray-500">Remarks</dt>
+                    <dd className="text-[13px] font-bold text-gray-900 text-right">{quotation.remarks || quotation.reference || '-'}</dd>
+                  </div>
+                </dl>
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 mb-6">Client & Project</h3>
+                <div className="space-y-4">
+                  <div>
+                    <dt className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Client</dt>
+                    <dd className="text-[15px] font-bold text-gray-900">{quotation.client?.client_name || quotation.client?.name}</dd>
+                  </div>
+                  {quotation.project && (
+                    <div>
+                      <dt className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Project</dt>
+                      <dd className="text-[13px] font-medium text-gray-700">{quotation.project.project_name}</dd>
+                    </div>
+                  )}
+                  {quotation.billing_address && (
+                    <div>
+                      <dt className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Billing Address</dt>
+                      <dd className="text-[13px] text-gray-500 leading-relaxed whitespace-pre-line">{quotation.billing_address}</dd>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6b7280' }}>
-              <span>Extra Discount ({quotation.extra_discount_percent}%)</span>
-              <span>- {formatCurrency(quotation.extra_discount_amount)}</span>
+
+            <div>
+              <h3 className="text-lg font-bold text-gray-900 mb-6">Line Items</h3>
+              <div className="overflow-x-auto -mx-12">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      {templates.find(t => t.id === selectedTemplateId)?.column_settings?.optional?.sno !== false && (
+                        <th className="px-6 py-4 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider">#</th>
+                      )}
+                      {quotation.items?.some(i => i.item?.hsn_code) && (
+                        <th className="px-6 py-4 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider">HSN/SAC</th>
+                      )}
+                      {quotation.items?.some(i => i.item?.item_code) && (
+                        <th className="px-6 py-4 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider">Part No</th>
+                      )}
+                      {quotation.items?.some(i => i.make) && (
+                        <th className="px-6 py-4 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider">Make</th>
+                      )}
+                      <th className="px-6 py-4 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider">Description</th>
+                      {quotation.items?.some(i => i.variant_id) && (
+                        <th className="px-6 py-4 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider">Variant</th>
+                      )}
+                      <th className="px-6 pr-12 py-4 text-right text-[11px] font-bold text-gray-400 uppercase tracking-wider min-w-[80px]">Qty</th>
+                      <th className="px-6 pl-12 py-4 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider min-w-[60px]">Unit</th>
+                      <th className="px-6 py-4 text-right text-[11px] font-bold text-gray-400 uppercase tracking-wider">Rate</th>
+
+                      {quotation.items?.some(i => i.discount_percent > 0) && (
+                        <th className="px-6 py-4 text-right text-[11px] font-bold text-gray-400 uppercase tracking-wider">Disc %</th>
+                      )}
+                      {quotation.items?.some(i => i.tax_percent > 0) && (
+                        <th className="px-6 py-4 text-right text-[11px] font-bold text-gray-400 uppercase tracking-wider">Tax %</th>
+                      )}
+                      {quotation.items?.some(i => i.custom1) && (
+                        <th className="px-6 py-4 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider">{templates.find(t => t.id === selectedTemplateId)?.column_settings?.labels?.custom1 || 'Custom 1'}</th>
+                      )}
+                      {quotation.items?.some(i => i.custom2) && (
+                        <th className="px-6 py-4 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider">{templates.find(t => t.id === selectedTemplateId)?.column_settings?.labels?.custom2 || 'Custom 2'}</th>
+                      )}
+                      <th className="px-6 py-4 text-right text-[11px] font-bold text-gray-400 uppercase tracking-wider">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-100">
+                    {quotation.items?.map((item, index) => {
+                      const template = templates.find(t => t.id === selectedTemplateId);
+                      const optCols = template?.column_settings?.optional || {};
+                      
+                      const hasHSN = quotation.items?.some(i => i.item?.hsn_code);
+                      const hasItemCode = quotation.items?.some(i => i.item?.item_code);
+                      const hasMake = quotation.items?.some(i => i.make);
+                      const hasVariant = quotation.items?.some(i => i.variant_id);
+                      const hasDiscount = quotation.items?.some(i => i.discount_percent > 0);
+                      const hasTax = quotation.items?.some(i => i.tax_percent > 0);
+                      const hasCustom1 = quotation.items?.some(i => i.custom1);
+                      const hasCustom2 = quotation.items?.some(i => i.custom2);
+
+                      return (
+                        <tr key={item.id} className="hover:bg-gray-50/50 transition-colors align-top">
+                          {optCols.sno !== false && <td className="px-6 py-8 whitespace-nowrap text-[13px] text-gray-400 font-medium">{String(index + 1).padStart(2, '0')}</td>}
+                          {hasHSN && <td className="px-6 py-8 whitespace-nowrap text-[12px] text-gray-500 font-mono">{item.item?.hsn_code || '-'}</td>}
+                          {hasItemCode && <td className="px-6 py-8 whitespace-nowrap text-[12px] text-gray-500">{item.item?.item_code || '-'}</td>}
+                          {hasMake && <td className="px-6 py-8 whitespace-nowrap text-[12px] text-gray-400 italic">{item.make || '-'}</td>}
+                          <td className="px-6 py-8">
+                            <div className="text-[14px] font-semibold text-gray-900 leading-relaxed mb-1">{item.description || item.item?.name}</div>
+                            {item.override_flag && (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-50 text-amber-600 border border-amber-100">Modified</span>
+                            )}
+                          </td>
+                          {hasVariant && (
+                            <td className="px-6 py-8 whitespace-nowrap text-[13px] text-gray-500">
+                              {allVariants.find(v => v.id === item.variant_id)?.variant_name || '-'}
+                            </td>
+                          )}
+                          <td className="px-6 pr-12 py-8 whitespace-nowrap text-[14px] text-gray-900 text-right font-bold min-w-[80px]">{item.qty}</td>
+                          <td className="px-6 pl-12 py-8 whitespace-nowrap text-[13px] text-gray-400 min-w-[60px]">{item.uom}</td>
+                          <td className="px-6 py-8 whitespace-nowrap text-[14px] text-gray-900 text-right">{formatCurrency(item.rate)}</td>
+
+                          {hasDiscount && <td className="px-6 py-8 whitespace-nowrap text-[13px] text-red-500 text-right font-medium">{item.discount_percent}%</td>}
+                          {hasTax && <td className="px-6 py-8 whitespace-nowrap text-[13px] text-gray-500 text-right">{item.tax_percent}%</td>}
+                          {hasCustom1 && <td className="px-6 py-8 whitespace-nowrap text-[13px] text-gray-500">{item.custom1 || '-'}</td>}
+                          {hasCustom2 && <td className="px-6 py-8 whitespace-nowrap text-[13px] text-gray-500">{item.custom2 || '-'}</td>}
+                          <td className="px-6 py-8 whitespace-nowrap text-[14px] font-extrabold text-gray-900 text-right bg-gray-50/30">{formatCurrency(item.line_total)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
-            {templates.find(t => t.id === selectedTemplateId)?.column_settings?.optional?.total_tax !== false && (
-              <>
-                {quotation.state !== (organisation?.state || 'Maharashtra') ? (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6b7280' }}>
+
+            <div className="flex justify-end pt-12 border-t border-gray-100">
+              <div className="w-full max-w-sm space-y-4">
+                <div className="flex justify-between text-[13px] text-gray-500">
+                  <span>Subtotal</span>
+                  <span className="font-bold text-gray-900">{formatCurrency(quotation.subtotal)}</span>
+                </div>
+                <div className="flex justify-between text-[13px] text-gray-500">
+                  <span>Total Item Discount</span>
+                  <span className="text-red-500 font-bold">- {formatCurrency(quotation.total_item_discount)}</span>
+                </div>
+                <div className="flex justify-between text-[13px] text-gray-500">
+                  <span>Extra Discount ({quotation.extra_discount_percent}%)</span>
+                  <span className="text-red-500 font-bold">- {formatCurrency(quotation.extra_discount_amount)}</span>
+                </div>
+                
+                {quotation.state && (organisation?.state || 'Maharashtra') && 
+                quotation.state.trim().toLowerCase() !== (organisation?.state || 'Maharashtra').trim().toLowerCase() ? (
+                  <div className="flex justify-between text-[13px] text-gray-500">
                     <span>IGST</span>
-                    <span>{formatCurrency(quotation.total_tax)}</span>
+                    <span className="font-bold text-gray-900">{formatCurrency(quotation.total_tax)}</span>
                   </div>
                 ) : (
                   <>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6b7280' }}>
+                    <div className="flex justify-between text-[13px] text-gray-500">
                       <span>CGST</span>
-                      <span>{formatCurrency(quotation.total_tax / 2)}</span>
+                      <span className="font-bold text-gray-900">{formatCurrency(quotation.total_tax / 2)}</span>
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', color: '#6b7280' }}>
+                    <div className="flex justify-between text-[13px] text-gray-500">
                       <span>SGST</span>
-                      <span>{formatCurrency(quotation.total_tax / 2)}</span>
+                      <span className="font-bold text-gray-900">{formatCurrency(quotation.total_tax / 2)}</span>
                     </div>
                   </>
                 )}
-              </>
-            )}
-            {templates.find(t => t.id === selectedTemplateId)?.column_settings?.optional?.round_off !== false && (
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>Round Off</span>
-                <span>{formatCurrency(quotation.round_off)}</span>
+
+                <div className="flex justify-between text-[13px] text-gray-500">
+                  <span>Round Off</span>
+                  <span className="font-bold text-gray-900">{formatCurrency(quotation.round_off)}</span>
+                </div>
+
+                <div className="pt-4 border-t-2 border-gray-900 flex justify-between items-center">
+                  <span className="text-[15px] font-bold text-gray-900 uppercase">Grand Total</span>
+                  <span className="text-2xl font-black text-gray-900">{formatCurrency(quotation.grand_total)}</span>
+                </div>
               </div>
-            )}
-            {templates.find(t => t.id === selectedTemplateId)?.column_settings?.optional?.grand_total !== false && (
-              <div style={{ borderTop: '2px solid #e5e7eb', paddingTop: '8px', display: 'flex', justifyContent: 'space-between', fontSize: '18px', fontWeight: 700 }}>
-                <span>Grand Total</span>
-                <span>{formatCurrency(quotation.grand_total)}</span>
-              </div>
-            )}
+            </div>
           </div>
         </div>
-      </div>
-
-      <div style={{ marginTop: '16px' }}>
-        <button className="btn btn-secondary" onClick={() => navigate('/quotation')}>
-          Back to List
-        </button>
       </div>
     </div>
   );
 }
-

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { supabase } from '../supabase';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -119,6 +119,8 @@ export default function CreateQuotation() {
     extra_discount_percent: 0,
     extra_discount_amount: 0,
     round_off: 0,
+    remarks: '',
+    round_off_enabled: true,
     status: 'Draft',
     negotiation_mode: false,
     authorized_signatory_id: ''
@@ -726,6 +728,9 @@ const loadQuoteNoPreview = useCallback(async () => {
         extra_discount_percent: data.extra_discount_percent || 0,
         extra_discount_amount: data.extra_discount_amount || 0,
         round_off: data.round_off || 0,
+        round_off_enabled: true, // Default to true as it's not in DB
+        remarks: data.remarks || '',
+        reference: data.reference || '',
         status: isDuplicate ? 'Draft' : (data.status || 'Draft'),
         negotiation_mode: isDuplicate ? false : (data.negotiation_mode || false),
         authorized_signatory_id: data.authorized_signatory_id || ''
@@ -1475,7 +1480,16 @@ const loadQuoteNoPreview = useCallback(async () => {
     const igst = isInterState ? totalTax : 0;
 
     const subtotalAfterDiscounts = afterItemDiscount - extraDiscountAmount - extraDiscountManual;
-    const grandTotal = subtotalAfterDiscounts + totalTax + (parseFloat(formData.round_off) || 0);
+    const baseTotal = subtotalAfterDiscounts + totalTax;
+    
+    let roundOffValue = 0;
+    if (formData.round_off_enabled) {
+      roundOffValue = Math.round(baseTotal) - baseTotal;
+    } else {
+      roundOffValue = parseFloat(formData.round_off) || 0;
+    }
+
+    const grandTotal = baseTotal + roundOffValue;
 
     return {
       subtotal,
@@ -1486,11 +1500,12 @@ const loadQuoteNoPreview = useCallback(async () => {
       igst,
       isInterState,
       totalTax,
+      roundOff: roundOffValue,
       grandTotal,
       taxGroups,
       amountInWords: numberToWords(grandTotal)
     };
-  }, [items, formData.extra_discount_percent, formData.extra_discount_amount, formData.round_off, formData.state, companyState]);
+  }, [items, formData.extra_discount_percent, formData.extra_discount_amount, formData.round_off, formData.round_off_enabled, formData.state, companyState]);
 
   const handleSave = async (saveAndNew = false) => {
     if (saving) return;
@@ -1534,15 +1549,15 @@ const loadQuoteNoPreview = useCallback(async () => {
         valid_till: formData.valid_till || null,
         payment_terms: formData.payment_terms,
         variant_id: formData.variant_id || null,
-        remarks: formData.reference || null,
-        reference: formData.reference,
+        remarks: formData.remarks || null,
+        reference: formData.reference || null,
         prepared_by: formData.prepared_by || null,
         subtotal: calculations.subtotal,
         total_item_discount: calculations.totalItemDiscount,
         extra_discount_percent: parseFloat(formData.extra_discount_percent) || 0,
         extra_discount_amount: parseFloat(formData.extra_discount_amount) || 0,
         total_tax: calculations.totalTax,
-        round_off: parseFloat(formData.round_off) || 0,
+        round_off: calculations.roundOff,
         grand_total: calculations.grandTotal,
         status: saveAndNew ? 'Draft' : (formData.status || 'Draft'),
         negotiation_mode: formData.negotiation_mode,
@@ -1792,30 +1807,45 @@ const loadQuoteNoPreview = useCallback(async () => {
 
   return (
     <div>
-      <div className="page-header">
-        <h1 className="page-title">{editId ? 'Edit Quotation' : duplicateId ? 'Duplicate Quotation' : 'Create Quotation'}</h1>
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-            <input
-              type="checkbox"
-              checked={formData.negotiation_mode}
-              onChange={(e) => setFormData({ ...formData, negotiation_mode: e.target.checked, status: e.target.checked ? 'Under Negotiation' : formData.status })}
-            />
-            <span style={{ fontWeight: 500 }}>Negotiation Mode</span>
-          </label>
-          <div style={{ display: 'flex', gap: '6px', marginLeft: '16px', paddingLeft: '16px', borderLeft: '1px solid #e5e7eb' }}>
+      <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-100">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
+            {editId ? 'Edit Quotation' : duplicateId ? 'Duplicate Quotation' : 'Create New Quotation'}
+          </h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Configure details, add items, and manage discounts for your proposal.
+          </p>
+        </div>
+        
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 pr-4 border-r border-gray-200">
+            <label className="relative inline-flex items-center cursor-pointer group">
+              <input
+                type="checkbox"
+                className="sr-only peer"
+                checked={formData.negotiation_mode}
+                onChange={(e) => setFormData({ 
+                  ...formData, 
+                  negotiation_mode: e.target.checked, 
+                  status: e.target.checked ? 'Under Negotiation' : formData.status 
+                })}
+              />
+              <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-sky-600"></div>
+              <span className="ms-3 text-sm font-medium text-gray-700 group-hover:text-sky-700 transition-colors">Negotiation Mode</span>
+            </label>
+          </div>
+
+          <div className="flex items-center gap-2">
             <button
               type="button"
-              className="btn btn-secondary"
-              style={{ padding: '6px 14px', fontSize: '12px', fontWeight: 600 }}
+              className="px-4 py-2 text-sm font-semibold text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-all shadow-sm"
               onClick={() => navigate('/quotation')}
             >
               Cancel
             </button>
             <button
               type="button"
-              className="btn btn-primary"
-              style={{ padding: '6px 14px', fontSize: '12px', fontWeight: 600 }}
+              className="px-4 py-2 text-sm font-semibold text-sky-700 bg-sky-50 border border-sky-200 rounded-lg hover:bg-sky-100 transition-all shadow-sm"
               onClick={() => handleSave(true)}
               disabled={saving}
             >
@@ -1823,99 +1853,204 @@ const loadQuoteNoPreview = useCallback(async () => {
             </button>
             <button
               type="button"
-              className="btn btn-primary"
-              style={{ padding: '6px 14px', fontSize: '12px', fontWeight: 600 }}
+              className="px-6 py-2 text-sm font-bold text-white bg-sky-600 border border-sky-700 rounded-lg hover:bg-sky-700 transition-all shadow-md active:scale-95 disabled:opacity-50"
               onClick={() => handleSave(false)}
               disabled={saving}
             >
-              {saving ? 'Saving...' : editId ? 'Update' : 'Save'}
+              {saving ? 'Saving...' : editId ? 'Update Quotation' : 'Confirm & Save'}
             </button>
           </div>
         </div>
       </div>
 
-      <div style={{ background: '#f8f9fa', padding: '8px', borderRadius: '4px', marginBottom: '4px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr 1fr', gap: '6px 12px' }}>
-          {renderHeaderField('Quote No:', (
-            <input type="text" className="form-input" style={{ ...compactFieldStyle, background: '#f3f4f6' }} value={formData.quotation_no || quoteNoPreview || 'Auto'} readOnly />
-          ))}
-          {renderHeaderField('Date:', (
-            <input type="date" className="form-input" style={compactFieldStyle} value={formData.date} onChange={(e) => setFormData({ ...formData, date: e.target.value })} />
-          ))}
-          {renderHeaderField('Client *:', (
-            <select className="form-select" style={compactFieldStyle} value={formData.client_id} onChange={(e) => handleClientChange(e.target.value)}>
-              <option value="">Select</option>
-              {clients.map((c) => (<option key={c.id} value={c.id}>{c.client_name}</option>))}
-            </select>
-          ))}
-          {renderHeaderField('Project:', (
-            <select className="form-select" style={compactFieldStyle} value={formData.project_id} onChange={(e) => setFormData({ ...formData, project_id: e.target.value })}>
-              <option value="">Select</option>
-              {projects.filter((p) => !formData.client_id || p.client_id === formData.client_id).map((p) => (<option key={p.id} value={p.id}>{p.project_name || p.project_code}</option>))}
-            </select>
-          ))}
-          {renderHeaderField('Variant:', (
-            <select className="form-select" style={compactFieldStyle} value={formData.variant_id || ''} onChange={(e) => setFormData({ ...formData, variant_id: e.target.value })}>
-              <option value="">Select</option>
-              {variants.map((v) => (<option key={v.id} value={v.id}>{v.variant_name}</option>))}
-            </select>
-          ))}
-          {renderHeaderField('Valid Till:', (
-            <input type="date" className="form-input" style={compactFieldStyle} value={formData.valid_till} onChange={(e) => setFormData({ ...formData, valid_till: e.target.value })} />
-          ))}
-          {renderHeaderField('Payment:', (
-            <input type="text" className="form-input" style={compactFieldStyle} value={formData.payment_terms} onChange={(e) => setFormData({ ...formData, payment_terms: e.target.value })} />
-          ))}
-          {renderHeaderField('Contact:', (
-            <select className="form-select" style={compactFieldStyle} value={formData.client_contact || ''} onChange={(e) => setFormData({ ...formData, client_contact: e.target.value })} disabled={!formData.client_id}>
-              <option value="">{formData.client_id ? 'Select' : 'Select Client First'}</option>
-              {clientContactOptions.map((opt) => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}
-            </select>
-          ))}
-          {renderHeaderField('Address:', (
-            <input type="text" className="form-input" style={{ ...compactFieldStyle, minHeight: '50px', height: '50px' }} value={formData.billing_address || ''} onChange={(e) => setFormData({ ...formData, billing_address: e.target.value })} placeholder="Billing Address" />
-          ))}
-          {renderHeaderField('GSTIN:', (
-            <input type="text" className="form-input" style={compactFieldStyle} value={formData.gstin || ''} onChange={(e) => setFormData({ ...formData, gstin: e.target.value })} placeholder="GSTIN" />
-          ))}
-          {renderHeaderField('Remarks:', (
-            <input type="text" className="form-input" style={compactFieldStyle} value={formData.reference} onChange={(e) => setFormData({ ...formData, reference: e.target.value })} placeholder="Remarks" />
-          ))}
-          {renderHeaderField('Prepared By:', (
-            <input type="text" className="form-input" style={compactFieldStyle} value={formData.prepared_by} onChange={(e) => setFormData({ ...formData, prepared_by: e.target.value })} placeholder="Prepared By" />
-          ))}
-          {renderHeaderField('Signatory:', (
-            <select 
-              className="form-select" 
-              style={compactFieldStyle} 
-              value={formData.authorized_signatory_id || ''} 
-              onChange={(e) => setFormData({ ...formData, authorized_signatory_id: e.target.value })}
-            >
-              <option value="">Select Signatory</option>
-              {organisation?.signatures?.map((sig: any) => (
-                <option key={sig.id} value={sig.id}>{sig.name}</option>
-              ))}
-              {/* Fallback if useAuth org is stale but initQuery org has data */}
-              {(!organisation?.signatures || organisation.signatures.length === 0) && 
-                initQuery.data?.orgFullDetails?.signatures?.map((sig: any) => (
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-white p-6 rounded-xl border border-gray-200 shadow-sm mb-6">
+        {/* Section 1: Core Details */}
+        <div className="space-y-4">
+          <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Core Identification</h3>
+          
+          <div className="space-y-3">
+            <div>
+              <label className="block text-[11px] font-semibold text-gray-500 uppercase mb-1">Quotation Number</label>
+              <input 
+                type="text" 
+                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-mono text-gray-600 outline-none" 
+                value={formData.quotation_no || quoteNoPreview || 'Auto-generating...'} 
+                readOnly 
+              />
+            </div>
+            
+            <div>
+              <label className="block text-[11px] font-semibold text-gray-500 uppercase mb-1">Document Date</label>
+              <input 
+                type="date" 
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all" 
+                value={formData.date} 
+                onChange={(e) => setFormData({ ...formData, date: e.target.value })} 
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-semibold text-gray-500 uppercase mb-1">Client Name <span className="text-red-500">*</span></label>
+              <select 
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all" 
+                value={formData.client_id} 
+                onChange={(e) => handleClientChange(e.target.value)}
+              >
+                <option value="">Search or Select Client</option>
+                {clients.map((c) => (<option key={c.id} value={c.id}>{c.client_name}</option>))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-semibold text-gray-500 uppercase mb-1">Linked Project</label>
+              <select 
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all" 
+                value={formData.project_id} 
+                onChange={(e) => setFormData({ ...formData, project_id: e.target.value })}
+              >
+                <option value="">Select Project (Optional)</option>
+                {projects.filter((p) => !formData.client_id || p.client_id === formData.client_id).map((p) => (
+                  <option key={p.id} value={p.id}>{p.project_name || p.project_code}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Section 2: Commercial Terms */}
+        <div className="space-y-4">
+          <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Commercial Terms</h3>
+          
+          <div className="space-y-3">
+            <div>
+              <label className="block text-[11px] font-semibold text-gray-500 uppercase mb-1">Default Variant</label>
+              <select 
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all" 
+                value={formData.variant_id || ''} 
+                onChange={(e) => setFormData({ ...formData, variant_id: e.target.value })}
+              >
+                <option value="">No Default Variant</option>
+                {variants.map((v) => (<option key={v.id} value={v.id}>{v.variant_name}</option>))}
+              </select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] font-semibold text-gray-500 uppercase mb-1">Validity Date</label>
+                <input 
+                  type="date" 
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all" 
+                  value={formData.valid_till} 
+                  onChange={(e) => setFormData({ ...formData, valid_till: e.target.value })} 
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-semibold text-gray-500 uppercase mb-1">Payment Terms</label>
+                <input 
+                  type="text" 
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all" 
+                  value={formData.payment_terms} 
+                  onChange={(e) => setFormData({ ...formData, payment_terms: e.target.value })} 
+                  placeholder="e.g. 30 Days"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-semibold text-gray-500 uppercase mb-1">Primary Contact</label>
+              <select 
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all" 
+                value={formData.client_contact || ''} 
+                onChange={(e) => setFormData({ ...formData, client_contact: e.target.value })} 
+                disabled={!formData.client_id}
+              >
+                <option value="">{formData.client_id ? 'Select Contact' : 'Select Client First'}</option>
+                {clientContactOptions.map((opt) => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-semibold text-gray-500 uppercase mb-1">Signatory</label>
+              <select 
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all" 
+                value={formData.authorized_signatory_id || ''} 
+                onChange={(e) => setFormData({ ...formData, authorized_signatory_id: e.target.value })}
+              >
+                <option value="">Select Authorized Signatory</option>
+                {organisation?.signatures?.map((sig: any) => (
                   <option key={sig.id} value={sig.id}>{sig.name}</option>
-                ))
-              }
-            </select>
-          ))}
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Section 3: Billing & Remarks */}
+        <div className="space-y-4">
+          <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Billing & Logistics</h3>
+          
+          <div className="space-y-3">
+            <div>
+              <label className="block text-[11px] font-semibold text-gray-500 uppercase mb-1">Billing Address</label>
+              <textarea 
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all min-h-[82px]" 
+                value={formData.billing_address || ''} 
+                onChange={(e) => setFormData({ ...formData, billing_address: e.target.value })} 
+                placeholder="Client Billing Address"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] font-semibold text-gray-500 uppercase mb-1">GSTIN</label>
+                <input 
+                  type="text" 
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all" 
+                  value={formData.gstin || ''} 
+                  onChange={(e) => setFormData({ ...formData, gstin: e.target.value })} 
+                  placeholder="GST Number"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-semibold text-gray-500 uppercase mb-1">Prepared By</label>
+                <input 
+                  type="text" 
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all" 
+                  value={formData.prepared_by} 
+                  onChange={(e) => setFormData({ ...formData, prepared_by: e.target.value })} 
+                  placeholder="Your Name"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-semibold text-gray-500 uppercase mb-1">Remarks / Reference</label>
+              <input 
+                type="text" 
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all" 
+                value={formData.reference} 
+                onChange={(e) => setFormData({ ...formData, reference: e.target.value })} 
+                placeholder="Internal Remarks"
+              />
+            </div>
+          </div>
         </div>
       </div>
 
       {variants.length > 0 && (
-        <div className="card" style={{ marginBottom: '8px', padding: '6px', background: '#fef9e7', border: '1px solid #fcd34d' }} data-html2canvas-ignore>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '11px', fontWeight: 600, color: '#92400e' }}>Discount Control</span>
-              <span style={{ fontSize: '10px', color: '#a16207' }}>(Set default % per variant)</span>
+        <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 mb-6 shadow-sm" data-html2canvas-ignore>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center text-amber-600">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              </div>
+              <div>
+                <span className="block text-sm font-bold text-amber-900 leading-none">Global Discount Control</span>
+                <span className="text-[11px] text-amber-700 font-medium">Set default discount percentages per variant</span>
+              </div>
             </div>
             <button
-              className="btn btn-sm"
-              style={{ fontSize: '10px', padding: '2px 6px', background: '#fef3c7', border: '1px solid #fcd34d', color: '#92400e' }}
+              className="px-3 py-1.5 text-xs font-bold text-amber-800 bg-amber-100 border border-amber-200 rounded-lg hover:bg-amber-200 transition-colors shadow-sm"
               onClick={() => setActiveTab(activeTab === 'items' ? 'approval' : 'items')}
             >
               {activeTab === 'items' ? 'View Approval History' : 'Back to Items'}
@@ -1923,7 +2058,7 @@ const loadQuoteNoPreview = useCallback(async () => {
           </div>
           
           {activeTab === 'items' && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+          <div className="flex flex-wrap gap-4">
             {variants.map(variant => {
               const discountValue = headerDiscounts[variant.id] || 0;
               const settings = discountSettings[variant.id];
@@ -1933,65 +2068,47 @@ const loadQuoteNoPreview = useCallback(async () => {
               return (
               <div 
                 key={variant.id} 
-                style={{ 
-                  flex: '0 0 auto',
-                  padding: '4px 6px',
-                  background: '#fff',
-                  borderRadius: '4px',
-                  border: isAboveMax ? '1px solid #dc2626' : '1px solid #fcd34d',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px'
-                }}
+                className={`flex items-center gap-3 bg-white p-2 pl-3 pr-2 rounded-xl border transition-all shadow-sm ${isAboveMax ? 'border-red-300 ring-2 ring-red-50' : 'border-amber-200 hover:border-amber-300'}`}
               >
-                <span style={{ fontSize: '10px', fontWeight: 600, color: '#92400e' }}>
-                  {variant.variant_name}:
-                </span>
-                {approvalDisplay !== 'none' && (
-                  <span style={{
-                    fontSize: '8px',
-                    padding: '1px 4px',
-                    borderRadius: '8px',
-                    fontWeight: 600,
-                    background: approvalDisplay === 'approved' ? '#dcfce7' : approvalDisplay === 'pending' ? '#fef3c7' : '#fee2e2',
-                    color: approvalDisplay === 'approved' ? '#166534' : approvalDisplay === 'pending' ? '#92400e' : '#dc2626'
-                  }}>
-                    {approvalDisplay === 'approved' ? 'A' : approvalDisplay === 'pending' ? 'P' : 'R'}
-                  </span>
-                )}
-                {isAboveMax && (
-                  <span style={{ fontSize: '8px', color: '#dc2626', fontWeight: 600 }}>!</span>
-                )}
-                <input
-                  type="number"
-                  className="form-input"
-                  style={{ 
-                    width: '50px', 
-                    textAlign: 'right',
-                    minHeight: '22px',
-                    fontSize: '10px',
-                    padding: '2px 4px',
-                    background: isAboveMax ? '#fef2f2' : '#fff'
-                  }}
-                  value={headerDiscounts[variant.id] || 0}
-                  onChange={(e) => {
-                    const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0));
-                    setHeaderDiscounts(prev => ({ ...prev, [variant.id]: val }));
-                  }}
-                  onBlur={(e) => {
-                    const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0));
-                    handleHeaderDiscountChange(variant.id, val);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.target.blur();
-                    }
-                  }}
-                  min="0"
-                  max="100"
-                  step="0.01"
-                />
-                <span style={{ fontSize: '10px', color: '#92400e' }}>%</span>
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-bold text-gray-400 uppercase leading-none mb-1">{variant.variant_name}</span>
+                  <div className="flex items-center gap-2">
+                    {approvalDisplay !== 'none' && (
+                      <span className={`text-[9px] px-1.5 py-0.5 rounded-md font-bold uppercase tracking-tighter ${
+                        approvalDisplay === 'approved' ? 'bg-emerald-100 text-emerald-700' : 
+                        approvalDisplay === 'pending' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'
+                      }`}>
+                        {approvalDisplay === 'approved' ? 'Approved' : approvalDisplay === 'pending' ? 'Pending' : 'Rejected'}
+                      </span>
+                    )}
+                    {isAboveMax && (
+                      <span className="flex items-center justify-center w-4 h-4 bg-red-500 text-white rounded-full text-[10px] font-bold animate-pulse">!</span>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="flex items-center bg-gray-50 border border-gray-200 rounded-lg overflow-hidden group focus-within:ring-2 focus-within:ring-amber-500 transition-all">
+                  <input
+                    type="number"
+                    className="w-16 px-2 py-1 text-right text-sm font-bold text-gray-700 bg-transparent outline-none"
+                    value={headerDiscounts[variant.id] || 0}
+                    onChange={(e) => {
+                      const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0));
+                      setHeaderDiscounts(prev => ({ ...prev, [variant.id]: val }));
+                    }}
+                    onBlur={(e) => {
+                      const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0));
+                      handleHeaderDiscountChange(variant.id, val);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') e.target.blur();
+                    }}
+                    min="0"
+                    max="100"
+                    step="0.01"
+                  />
+                  <span className="px-2 text-xs font-bold text-gray-400 bg-gray-100 border-l border-gray-200">%</span>
+                </div>
               </div>
               );
             })}
@@ -1999,32 +2116,32 @@ const loadQuoteNoPreview = useCallback(async () => {
           )}
           
           {activeTab === 'approval' && (
-            <div style={{ marginTop: '12px' }}>
+            <div className="bg-white rounded-xl border border-amber-200 overflow-hidden">
               {approvalHistory.length === 0 ? (
-                <div style={{ padding: '20px', textAlign: 'center', color: '#6b7280' }}>
-                  No approval history yet. Discounts above the limit will require approval.
+                <div className="py-12 text-center text-gray-500 italic text-sm">
+                  No approval history found for this document.
                 </div>
               ) : (
-                <table className="table" style={{ fontSize: '12px' }}>
-                  <thead>
+                <table className="w-full text-xs text-left">
+                  <thead className="bg-gray-50 border-b border-gray-100">
                     <tr>
-                      <th style={{ padding: '8px' }}>Variant</th>
-                      <th style={{ padding: '8px' }}>Event</th>
-                      <th style={{ padding: '8px' }}>By</th>
-                      <th style={{ padding: '8px' }}>Date</th>
-                      <th style={{ padding: '8px' }}>Remark</th>
+                      <th className="px-4 py-3 font-bold text-gray-600">Variant</th>
+                      <th className="px-4 py-3 font-bold text-gray-600">Event</th>
+                      <th className="px-4 py-3 font-bold text-gray-600">By</th>
+                      <th className="px-4 py-3 font-bold text-gray-600">Date</th>
+                      <th className="px-4 py-3 font-bold text-gray-600">Remark</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="divide-y divide-gray-50">
                     {approvalHistory.map((log) => {
                       const variant = variants.find(v => v.id === log.variant_id);
                       return (
-                        <tr key={log.id}>
-                          <td style={{ padding: '8px' }}>{variant?.variant_name || '-'}</td>
-                          <td style={{ padding: '8px' }}>{log.event_type}</td>
-                          <td style={{ padding: '8px' }}>{log.performed_by_email || '-'}</td>
-                          <td style={{ padding: '8px' }}>{log.timestamp ? new Date(log.timestamp).toLocaleString() : '-'}</td>
-                          <td style={{ padding: '8px' }}>{log.remark || '-'}</td>
+                        <tr key={log.id} className="hover:bg-gray-50 transition-colors">
+                          <td className="px-4 py-3 font-semibold text-gray-900">{variant?.variant_name || '-'}</td>
+                          <td className="px-4 py-3 capitalize">{log.event_type}</td>
+                          <td className="px-4 py-3 text-gray-500">{log.performed_by_email || '-'}</td>
+                          <td className="px-4 py-3 text-gray-500">{log.timestamp ? new Date(log.timestamp).toLocaleString() : '-'}</td>
+                          <td className="px-4 py-3 text-gray-700 italic">{log.remark || '-'}</td>
                         </tr>
                       );
                     })}
@@ -2036,43 +2153,33 @@ const loadQuoteNoPreview = useCallback(async () => {
         </div>
       )}
 
-      <div className="card" style={{ marginBottom: '16px', padding: '24px', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }} ref={itemsTableRef}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-          <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: '#1f2937' }}>Items</h3>
-          <div style={{ display: 'flex', gap: '12px' }}>
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden mb-6" ref={itemsTableRef}>
+        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 bg-gray-50/50">
+          <div className="flex items-center gap-2">
+            <div className="w-1.5 h-6 bg-sky-600 rounded-full"></div>
+            <h3 className="text-lg font-bold text-gray-900">Line Items</h3>
+            <span className="ml-2 text-xs font-semibold px-2 py-1 bg-gray-100 text-gray-500 rounded-full">
+              {items.length} {items.length === 1 ? 'Item' : 'Items'} Total
+            </span>
+          </div>
+          
+          <div className="flex items-center gap-2">
             <button 
               type="button"
               onClick={() => setShowItemCreateDrawer(true)}
-              className="btn btn-sm btn-primary"
-              style={{
-                padding: '4px 8px',
-                fontSize: '11px',
-                borderRadius: '6px',
-                background: '#10b981',
-                border: '1px solid #059669',
-                color: 'white',
-                fontWeight: '500',
-                boxShadow: '0 2px 4px rgba(16, 185, 129, 0.2)',
-                transform: 'scale(1)',
-                transition: 'all 0.2s ease-in-out',
-                cursor: 'pointer'
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.transform = 'scale(1.05)';
-                e.target.style.boxShadow = '0 4px 8px rgba(16, 185, 129, 0.3)';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.transform = 'scale(1)';
-                e.target.style.boxShadow = '0 2px 4px rgba(16, 185, 129, 0.2)';
-              }}
-              title="Add New Material"
+              className="px-3 py-1.5 text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg hover:bg-emerald-100 transition-all flex items-center gap-1.5"
             >
-              + Add Material
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" /></svg>
+              Add Material
             </button>
-            <button className="btn btn-secondary" onClick={addEmptyItemRow} style={{ borderRadius: '8px', fontWeight: 500 }}>+ Add Row</button>
-            <button className="btn btn-secondary" onClick={addSectionHeader} style={{ borderRadius: '8px', fontWeight: 500, background: '#f8fafc', color: '#1e293b', border: '1px solid #e2e8f0' }}>+ Add Section Header</button>
-            <button className="btn btn-primary" onClick={() => setShowItemPicker(true)} style={{ borderRadius: '8px', fontWeight: 500 }}>+ Add Multiple Items</button>
-            <button className="btn btn-secondary" onClick={() => setShowCustomLabelEditor(true)} style={{ borderRadius: '8px', fontWeight: 500 }}>⚙ Custom Columns</button>
+            <div className="w-px h-6 bg-gray-200 mx-2"></div>
+            <button className="px-3 py-1.5 text-[11px] font-bold text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-all shadow-sm" onClick={addEmptyItemRow}>+ Add Row</button>
+            <button className="px-3 py-1.5 text-[11px] font-bold text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-all shadow-sm" onClick={addSectionHeader}>+ Add Header</button>
+            <button className="px-4 py-1.5 text-[11px] font-bold text-white bg-sky-600 border border-sky-700 rounded-lg hover:bg-sky-700 transition-all shadow-sm flex items-center gap-1.5" onClick={() => setShowItemPicker(true)}>
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+              Add Multiple Items
+            </button>
+            <button className="px-3 py-1.5 text-[11px] font-bold text-gray-600 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-all ml-2" onClick={() => setShowCustomLabelEditor(true)}>⚙ Columns</button>
           </div>
         </div>
 
@@ -2087,45 +2194,7 @@ const loadQuoteNoPreview = useCallback(async () => {
                 {templateSettings?.column_settings?.optional?.item !== false && (
                   <th className="col-item" style={{ position: 'relative' }}>
                     {templateSettings?.column_settings?.labels?.item || 'ITEM'}
-                  <div 
-                    style={{ 
-                      position: 'absolute',
-                      top: '-8px',
-                      right: '-8px',
-                      zIndex: 10
-                    }}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => setShowItemCreateDrawer(true)}
-                      className="btn btn-sm btn-primary"
-                      style={{
-                        padding: '2px 6px',
-                        fontSize: '10px',
-                        borderRadius: '4px',
-                        background: '#10b981',
-                        border: '1px solid #059669',
-                        color: 'white',
-                        fontWeight: '500',
-                        boxShadow: '0 2px 4px rgba(16, 185, 129, 0.2)',
-                        transform: 'scale(0.9)',
-                        transition: 'all 0.2s ease-in-out',
-                        cursor: 'pointer'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.target.style.transform = 'scale(1)';
-                        e.target.style.boxShadow = '0 4px 8px rgba(16, 185, 129, 0.3)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.target.style.transform = 'scale(0.9)';
-                        e.target.style.boxShadow = '0 2px 4px rgba(16, 185, 129, 0.2)';
-                      }}
-                      title="Add New Material"
-                    >
-                      + Add Material
-                    </button>
-                  </div>
-                </th>
+                  </th>
                 )}
                 {(templateSettings?.column_settings?.optional?.client_part_no === true) && (
                   <th className="col-code">{templateSettings?.column_settings?.labels?.client_part_no || 'CLIENT PART NO'}</th>
@@ -2334,8 +2403,8 @@ const loadQuoteNoPreview = useCallback(async () => {
                               const mat = materials.find(m => m.id === item.item_id);
                               if (mat) {
                                 const newRate = getRateForMaterialVariant(mat, item.variant_id || null, nextMake);
-                                const variantDiscount = item.variant_id ? (headerDiscounts[item.variant_id] || 0) : 0;
-                                const finalRate = calculateVariantDiscountedRate(newRate, variantDiscount);
+                                const variant_discount = item.variant_id ? (headerDiscounts[item.variant_id] || 0) : 0;
+                                const finalRate = calculateVariantDiscountedRate(newRate, variant_discount);
                                 updateItem(item.id, 'base_rate_snapshot', newRate);
                                 updateItem(item.id, 'rate', finalRate);
                               }
@@ -2359,8 +2428,8 @@ const loadQuoteNoPreview = useCallback(async () => {
                               const mat = materials.find(m => m.id === item.item_id);
                               if (mat) {
                                 const newRate = getRateForMaterialVariant(mat, nextVariant, item.make || '');
-                                const variantDiscount = nextVariant ? (headerDiscounts[nextVariant] || 0) : 0;
-                                const finalRate = calculateVariantDiscountedRate(newRate, variantDiscount);
+                                const variant_discount = nextVariant ? (headerDiscounts[nextVariant] || 0) : 0;
+                                const finalRate = calculateVariantDiscountedRate(newRate, variant_discount);
                                 updateItem(item.id, 'base_rate_snapshot', newRate);
                                 updateItem(item.id, 'rate', finalRate);
                               }
@@ -2468,7 +2537,18 @@ const loadQuoteNoPreview = useCallback(async () => {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '16px' }}>
-        <div></div>
+        <div>
+          <div className="card" style={{ padding: '12px', height: '100%' }}>
+            <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#374151', marginBottom: '8px' }}>Notes & Remarks:</label>
+            <textarea 
+              className="form-input" 
+              style={{ width: '100%', height: 'calc(100% - 24px)', minHeight: '120px', fontSize: '11px', resize: 'none' }}
+              placeholder="Enter internal notes or additional instructions..."
+              value={formData.remarks || ''}
+              onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
+            />
+          </div>
+        </div>
         <div className="card" style={{ padding: '12px' }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '11px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -2526,8 +2606,33 @@ const loadQuoteNoPreview = useCallback(async () => {
               </>
             )}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span>Round Off</span>
-              <input type="number" className="form-input" style={{ width: '100px', textAlign: 'right', height: '24px', padding: '2px 4px', fontSize: '11px' }} value={formData.round_off} onChange={(e) => setFormData({ ...formData, round_off: e.target.value })} step="0.01" />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <input 
+                  type="checkbox" 
+                  id="roundOffToggle"
+                  style={{ width: '12px', height: '12px', cursor: 'pointer' }}
+                  checked={formData.round_off_enabled} 
+                  onChange={(e) => setFormData({ ...formData, round_off_enabled: e.target.checked })} 
+                />
+                <label htmlFor="roundOffToggle" style={{ fontSize: '11px', cursor: 'pointer', userSelect: 'none' }}>Round Off</label>
+              </div>
+              <input 
+                type="number" 
+                className="form-input" 
+                style={{ 
+                  width: '100px', 
+                  textAlign: 'right', 
+                  height: '24px', 
+                  padding: '2px 4px', 
+                  fontSize: '11px',
+                  backgroundColor: formData.round_off_enabled ? '#f8fafc' : 'white',
+                  color: formData.round_off_enabled ? '#64748b' : '#1e293b'
+                }} 
+                value={calculations.roundOff.toFixed(2)} 
+                readOnly={formData.round_off_enabled}
+                onChange={(e) => !formData.round_off_enabled && setFormData({ ...formData, round_off: e.target.value })} 
+                step="0.01" 
+              />
             </div>
             <div style={{ borderTop: '1px solid #e5e7eb', paddingTop: '8px', marginTop: '4px', display: 'flex', justifyContent: 'space-between', fontSize: '15px', fontWeight: 700 }}>
               <span>Grand Total</span>
@@ -2540,20 +2645,54 @@ const loadQuoteNoPreview = useCallback(async () => {
         </div>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginTop: '8px', marginBottom: '12px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-          <span style={{ fontWeight: 600, fontSize: '11px', color: '#374151' }}>Authorized Signatory:</span>
-          <select 
-            className="form-select" 
-            style={{ minHeight: '28px', padding: '2px 8px', fontSize: '11px', width: '200px' }}
-            value={formData.authorized_signatory_id || ''} 
-            onChange={(e) => setFormData({ ...formData, authorized_signatory_id: e.target.value })}
+
+
+      <div className="flex flex-col md:flex-row items-center justify-between gap-6 py-8 border-t border-gray-100 mb-20">
+        <div className="flex items-center gap-4 bg-white border border-gray-200 rounded-2xl px-6 py-4 shadow-sm w-full md:w-auto">
+          <div className="w-10 h-10 bg-sky-50 rounded-full flex items-center justify-center text-sky-600">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none mb-1">Authorized Signatory</span>
+            <select 
+              className="bg-transparent border-none p-0 text-sm font-bold text-gray-800 focus:ring-0 cursor-pointer min-w-[200px]"
+              value={formData.authorized_signatory_id || ''} 
+              onChange={(e) => setFormData({ ...formData, authorized_signatory_id: e.target.value })}
+            >
+              <option value="">Select Signatory...</option>
+              {(organisation?.signatures || []).map((sig) => (
+                <option key={sig.id} value={sig.id}>{sig.name}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-3">
+          <button 
+            className="px-6 py-3 text-sm font-bold text-gray-500 hover:text-gray-700 transition-colors"
+            onClick={() => navigate('/quotations')}
           >
-            <option value="">Select Signatory</option>
-            {(organisation?.signatures || []).map((sig) => (
-              <option key={sig.id} value={sig.id}>{sig.name}</option>
-            ))}
-          </select>
+            Cancel
+          </button>
+          <button 
+            className={`px-8 py-3 rounded-xl text-sm font-bold text-white shadow-lg transition-all transform hover:scale-105 active:scale-95 flex items-center gap-2 ${
+              saving ? 'bg-gray-400 cursor-not-allowed' : 'bg-sky-600 hover:bg-sky-700 shadow-sky-200'
+            }`}
+            onClick={handleSave}
+            disabled={saving}
+          >
+            {saving ? (
+              <>
+                <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                Saving...
+              </>
+            ) : (
+              <>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" /></svg>
+                Create Quotation
+              </>
+            )}
+          </button>
         </div>
       </div>
       
