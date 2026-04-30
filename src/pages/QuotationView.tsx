@@ -1105,10 +1105,10 @@ export default function QuotationView() {
             </div>
             <div className="flex items-center gap-3">
               <button 
-                className="inline-flex items-center gap-2 px-3 h-[30px] bg-sky-50 border border-sky-200 text-sky-600 rounded-none hover:bg-sky-100 transition-colors text-[13px] font-bold"
+                className="inline-flex items-center gap-2 px-10 h-[25px] min-w-[100px] bg-gradient-to-b from-[#001f3f] to-[#003366] text-white rounded-none hover:opacity-90 transition-all text-[11px] font-bold shadow-none border-none"
                 onClick={() => handlePrintAction('download')}
               >
-                <Printer className="w-[16px] h-[16px]" />
+                <Printer className="w-[14px] h-[14px]" />
                 Print
               </button>
             </div>
@@ -1116,22 +1116,22 @@ export default function QuotationView() {
 
           <div className="flex flex-wrap items-center gap-2 mb-6">
             {isEditable && (
-              <button className="inline-flex items-center gap-1 px-3 h-[30px] bg-white border border-sky-200 text-sky-600 rounded-none hover:bg-sky-50 transition-colors text-[13px] font-bold" onClick={handleEdit}>
-                <Edit className="w-[16px] h-[16px]" />
+              <button className="inline-flex items-center gap-2 px-10 h-[25px] min-w-[100px] bg-gradient-to-b from-[#001f3f] to-[#003366] text-white rounded-none hover:opacity-90 transition-all text-[11px] font-bold shadow-none border-none" onClick={handleEdit}>
+                <Edit className="w-[14px] h-[14px]" />
                 Edit
               </button>
             )}
-            <button className="inline-flex items-center gap-1 px-3 h-[30px] bg-white border border-sky-200 text-sky-600 rounded-none hover:bg-sky-50 transition-colors text-[13px] font-bold" onClick={handleDuplicate}>
-              <Copy className="w-[16px] h-[16px]" />
+            <button className="inline-flex items-center gap-2 px-10 h-[25px] min-w-[100px] bg-gradient-to-b from-[#001f3f] to-[#003366] text-white rounded-none hover:opacity-90 transition-all text-[11px] font-bold shadow-none border-none" onClick={handleDuplicate}>
+              <Copy className="w-[14px] h-[14px]" />
               Duplicate
             </button>
 
             <div className="relative">
               <button 
-                className="inline-flex items-center gap-1 px-3 h-[30px] bg-white border border-sky-200 text-sky-600 rounded-none hover:bg-sky-50 transition-colors text-[13px] font-bold" 
+                className="inline-flex items-center gap-2 px-10 h-[25px] min-w-[100px] bg-gradient-to-b from-[#001f3f] to-[#003366] text-white rounded-none hover:opacity-90 transition-all text-[11px] font-bold shadow-none border-none" 
                 onClick={() => { setShowConvertMenu(!showConvertMenu); setShowPrintMenu(false); setShowTemplateMenu(false); }}
               >
-                <FileText className="w-[16px] h-[16px]" />
+                <FileText className="w-[14px] h-[14px]" />
                 Convert
                 <ChevronDown className={`w-[14px] h-[14px] transition-transform ${showConvertMenu ? 'rotate-180' : ''}`} />
               </button>
@@ -1146,7 +1146,7 @@ export default function QuotationView() {
 
             <div className="relative">
               <button 
-                className="inline-flex items-center gap-1 px-3 h-[30px] bg-white border border-sky-200 text-sky-600 rounded-none hover:bg-sky-50 transition-colors text-[13px] font-bold" 
+                className="inline-flex items-center gap-2 px-10 h-[25px] min-w-[100px] bg-gradient-to-b from-[#001f3f] to-[#003366] text-white rounded-none hover:opacity-90 transition-all text-[11px] font-bold shadow-none border-none" 
                 onClick={() => { 
                   setShowPrintMenu(!showPrintMenu); 
                   setShowConvertMenu(false); 
@@ -1154,7 +1154,7 @@ export default function QuotationView() {
                   setPrintMenuView('main');
                 }}
               >
-                <Printer className="w-[16px] h-[16px]" />
+                <Printer className="w-[14px] h-[14px]" />
                 Print ({getSelectedTemplateName()})
                 <ChevronDown className={`w-[14px] h-[14px] transition-transform ${showPrintMenu ? 'rotate-180' : ''}`} />
               </button>
@@ -1222,25 +1222,25 @@ export default function QuotationView() {
             </div>
 
             {isCancellable && (
-              <button className="inline-flex items-center gap-1 px-3 h-[30px] bg-white border border-red-200 text-red-600 rounded-none hover:bg-red-50 transition-colors text-[13px] font-bold" onClick={handleCancel}>
-                <XCircle className="w-[16px] h-[16px]" />
+              <button className="inline-flex items-center gap-2 px-10 h-[25px] min-w-[100px] bg-gradient-to-b from-[#001f3f] to-[#003366] text-white rounded-none hover:opacity-90 transition-all text-[11px] font-bold shadow-none border-none" onClick={handleCancel}>
+                <XCircle className="w-[14px] h-[14px]" />
                 Cancel
               </button>
             )}
             
             {isDeletable && (
-              <button className="inline-flex items-center gap-1 px-3 h-[30px] bg-white border border-red-200 text-red-600 rounded-none hover:bg-red-50 transition-colors text-[13px] font-bold" onClick={handleDelete}>
-                <Trash2 className="w-[16px] h-[16px]" />
+              <button className="inline-flex items-center gap-2 px-10 h-[25px] min-w-[100px] bg-gradient-to-b from-[#001f3f] to-[#003366] text-white rounded-none hover:opacity-90 transition-all text-[11px] font-bold shadow-none border-none" onClick={handleDelete}>
+                <Trash2 className="w-[14px] h-[14px]" />
                 Delete
               </button>
             )}
           </div>
 
-          <div className="space-y-6 bg-white p-12 border border-gray-200 shadow-2xl min-h-[1120px] mb-12">
-            <div className="grid grid-cols-2 gap-12 border-b border-gray-100 pb-12">
+          <div className="space-y-6 bg-white p-12 border border-gray-200 shadow-2xl min-h-[1120px] mb-12 rounded-none">
+            <div className="grid grid-cols-2 gap-[72px] border-b border-gray-100 pb-12">
               <div>
                 <h3 className="text-lg font-bold text-gray-900 mb-6">General Information</h3>
-                <dl className="space-y-4">
+                <dl className="space-y-8">
                   <div className="flex justify-between border-b border-gray-50 pb-2">
                     <dt className="text-[13px] text-gray-500">Date</dt>
                     <dd className="text-[13px] font-bold text-gray-900">{formatDate(quotation.date)}</dd>

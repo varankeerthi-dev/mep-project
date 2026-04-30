@@ -17,6 +17,7 @@ import type { QuickQuoteConfig } from '../quotation/quick-quote/types';
 import { useConvertDocument, useConversionStatus, getSourceTableName } from '../conversions/hooks';
 import type { ConversionType } from '../conversions/types';
 import ItemCreateDrawer from '../components/ItemCreateDrawer';
+import { FileText, Plus, Mail } from 'lucide-react';
 
 const INDIAN_STATES = [
   'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
@@ -1806,11 +1807,14 @@ const loadQuoteNoPreview = useCallback(async () => {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-100">
+      <div className="flex items-center justify-between mb-10 pb-2">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
+          <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
             {editId ? 'Edit Quotation' : duplicateId ? 'Duplicate Quotation' : 'Create New Quotation'}
           </h1>
+          <p className="text-sm text-gray-500 mt-2">
+            Add details, items, and discounts to create your proposal.
+          </p>
         </div>
         
         <div className="flex items-center gap-4">
@@ -1834,14 +1838,16 @@ const loadQuoteNoPreview = useCallback(async () => {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              className="px-4 py-2 text-sm font-semibold text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-all shadow-sm"
+              className="h-[25px] px-10 min-w-[100px] rounded flex items-center justify-center text-[11px] font-bold text-white bg-gradient-to-b from-[#001f3f] to-[#003366] shadow-none border-none hover:opacity-90 transition-all"
               onClick={() => navigate('/quotation')}
             >
               Cancel
             </button>
             <button
               type="button"
-              className="px-4 py-2 text-sm font-semibold text-sky-700 bg-sky-50 border border-sky-200 rounded-lg hover:bg-sky-100 transition-all shadow-sm"
+              className={`h-[25px] px-10 min-w-[100px] rounded flex items-center justify-center text-[11px] font-bold text-white bg-gradient-to-b from-[#001f3f] to-[#003366] shadow-none border-none hover:opacity-90 transition-all ${
+                saving ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
               onClick={() => handleSave(true)}
               disabled={saving}
             >
@@ -1849,7 +1855,9 @@ const loadQuoteNoPreview = useCallback(async () => {
             </button>
             <button
               type="button"
-              className="px-6 py-2 text-sm font-bold text-white bg-sky-600 border border-sky-700 rounded-lg hover:bg-sky-700 transition-all shadow-md active:scale-95 disabled:opacity-50"
+              className={`h-[25px] px-10 min-w-[100px] rounded flex items-center justify-center text-[11px] font-bold text-white bg-gradient-to-b from-[#001f3f] to-[#003366] shadow-none border-none hover:opacity-90 transition-all ${
+                saving ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
               onClick={() => handleSave(false)}
               disabled={saving}
             >
@@ -1858,37 +1866,42 @@ const loadQuoteNoPreview = useCallback(async () => {
           </div>
         </div>
       </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-white p-6 rounded-xl border border-gray-200 shadow-sm mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10">
         {/* Section 1: Core Details */}
-        <div className="space-y-4">
-          <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Core Identification</h3>
-          
-          <div className="space-y-3">
-            <div>
-              <label className="block text-[11px] font-bold text-gray-700 mb-1">Quote #</label>
-              <input 
-                type="text" 
-                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-mono text-gray-600 outline-none" 
-                value={formData.quotation_no || quoteNoPreview || 'Auto-generating...'} 
-                readOnly 
-              />
+        <div className="bg-white p-8 rounded-none shadow-sm border border-gray-200 space-y-6">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 bg-sky-50 rounded-lg">
+              <FileText className="w-5 h-5 text-sky-600" />
             </div>
-            
-            <div>
-              <label className="block text-[11px] font-bold text-gray-700 mb-1">Date</label>
-              <input 
-                type="date" 
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all" 
-                value={formData.date} 
-                onChange={(e) => setFormData({ ...formData, date: e.target.value })} 
-              />
+            <h3 className="text-base font-bold text-gray-900">Quote Details</h3>
+          </div>
+          
+          <div className="space-y-[72px]">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1.5">Quote #</label>
+                <input 
+                  type="text" 
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-sm font-mono text-gray-600 outline-none" 
+                  value={formData.quotation_no || quoteNoPreview || 'Auto-generating...'} 
+                  readOnly 
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1.5">Date</label>
+                <input 
+                  type="date" 
+                  className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all" 
+                  value={formData.date} 
+                  onChange={(e) => setFormData({ ...formData, date: e.target.value })} 
+                />
+              </div>
             </div>
 
             <div>
-              <label className="block text-[11px] font-bold text-gray-700 mb-1">Client <span className="text-red-500">*</span></label>
+              <label className="block text-[11px] font-bold text-gray-700 mb-1.5">Client <span className="text-red-500">*</span></label>
               <select 
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all" 
+                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all appearance-none cursor-pointer" 
                 value={formData.client_id} 
                 onChange={(e) => handleClientChange(e.target.value)}
               >
@@ -1898,9 +1911,9 @@ const loadQuoteNoPreview = useCallback(async () => {
             </div>
 
             <div>
-              <label className="block text-[11px] font-bold text-gray-700 mb-1">Project</label>
+              <label className="block text-[11px] font-bold text-gray-700 mb-1.5">Project</label>
               <select 
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all" 
+                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all appearance-none cursor-pointer" 
                 value={formData.project_id} 
                 onChange={(e) => setFormData({ ...formData, project_id: e.target.value })}
               >
@@ -1914,37 +1927,43 @@ const loadQuoteNoPreview = useCallback(async () => {
         </div>
 
         {/* Section 2: Commercial Terms */}
-        <div className="space-y-4">
-          <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Commercial Terms</h3>
-          
-          <div className="space-y-3">
-            <div>
-              <label className="block text-[11px] font-bold text-gray-700 mb-1">Variant</label>
-              <select 
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all" 
-                value={formData.variant_id || ''} 
-                onChange={(e) => setFormData({ ...formData, variant_id: e.target.value })}
-              >
-                <option value="">No Default Variant</option>
-                {variants.map((v) => (<option key={v.id} value={v.id}>{v.variant_name}</option>))}
-              </select>
+        <div className="bg-white p-8 rounded-none shadow-sm border border-gray-200 space-y-6">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 bg-sky-50 rounded-lg">
+              <Plus className="w-5 h-5 text-sky-600" />
             </div>
-
-            <div className="grid grid-cols-2 gap-3">
+            <h3 className="text-base font-bold text-gray-900">Terms</h3>
+          </div>
+          
+          <div className="space-y-8">
+            <div className="grid grid-cols-3 gap-4">
               <div>
-                <label className="block text-[11px] font-bold text-gray-700 mb-1">Valid Till</label>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1.5">Variant</label>
+                <select 
+                  className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all appearance-none cursor-pointer" 
+                  value={formData.variant_id || ''} 
+                  onChange={(e) => setFormData({ ...formData, variant_id: e.target.value })}
+                >
+                  <option value="">None</option>
+                  {variants.map((v) => (<option key={v.id} value={v.id}>{v.variant_name}</option>))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1.5">Valid Till</label>
                 <input 
                   type="date" 
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all" 
+                  className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all" 
                   value={formData.valid_till} 
                   onChange={(e) => setFormData({ ...formData, valid_till: e.target.value })} 
                 />
               </div>
+              
               <div>
-                <label className="block text-[11px] font-bold text-gray-700 mb-1">Payment</label>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1.5">Payment</label>
                 <input 
                   type="text" 
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all" 
+                  className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all" 
                   value={formData.payment_terms} 
                   onChange={(e) => setFormData({ ...formData, payment_terms: e.target.value })} 
                   placeholder="e.g. 30 Days"
@@ -1953,9 +1972,9 @@ const loadQuoteNoPreview = useCallback(async () => {
             </div>
 
             <div>
-              <label className="block text-[11px] font-bold text-gray-700 mb-1">Contact</label>
+              <label className="block text-[11px] font-bold text-gray-700 mb-1.5">Contact</label>
               <select 
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all" 
+                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all appearance-none cursor-pointer" 
                 value={formData.client_contact || ''} 
                 onChange={(e) => setFormData({ ...formData, client_contact: e.target.value })} 
                 disabled={!formData.client_id}
@@ -1964,54 +1983,45 @@ const loadQuoteNoPreview = useCallback(async () => {
                 {clientContactOptions.map((opt) => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}
               </select>
             </div>
-
-            <div>
-              <label className="block text-[11px] font-bold text-gray-700 mb-1">Signatory</label>
-              <select 
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all" 
-                value={formData.authorized_signatory_id || ''} 
-                onChange={(e) => setFormData({ ...formData, authorized_signatory_id: e.target.value })}
-              >
-                <option value="">Select Authorized Signatory</option>
-                {organisation?.signatures?.map((sig: any) => (
-                  <option key={sig.id} value={sig.id}>{sig.name}</option>
-                ))}
-              </select>
-            </div>
           </div>
         </div>
 
         {/* Section 3: Billing & Remarks */}
-        <div className="space-y-4">
-          <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Billing & Logistics</h3>
+        <div className="bg-white p-8 rounded-none shadow-sm border border-gray-200 space-y-6">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 bg-sky-50 rounded-lg">
+              <Mail className="w-5 h-5 text-sky-600" />
+            </div>
+            <h3 className="text-base font-bold text-gray-900">Billing</h3>
+          </div>
           
-          <div className="space-y-3">
+          <div className="space-y-8">
             <div>
-              <label className="block text-[11px] font-bold text-gray-700 mb-1">Address</label>
+              <label className="block text-[11px] font-bold text-gray-700 mb-1.5">Address</label>
               <textarea 
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all min-h-[82px]" 
+                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all min-h-[90px] resize-none" 
                 value={formData.billing_address || ''} 
                 onChange={(e) => setFormData({ ...formData, billing_address: e.target.value })} 
                 placeholder="Client Billing Address"
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-[11px] font-semibold text-gray-500 uppercase mb-1">GSTIN</label>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1.5">GSTIN</label>
                 <input 
                   type="text" 
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all" 
+                  className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all" 
                   value={formData.gstin || ''} 
                   onChange={(e) => setFormData({ ...formData, gstin: e.target.value })} 
                   placeholder="GST Number"
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-gray-500 uppercase mb-1">Prepared By</label>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1.5">Prepared By</label>
                 <input 
                   type="text" 
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all" 
+                  className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all" 
                   value={formData.prepared_by} 
                   onChange={(e) => setFormData({ ...formData, prepared_by: e.target.value })} 
                   placeholder="Your Name"
@@ -2020,10 +2030,10 @@ const loadQuoteNoPreview = useCallback(async () => {
             </div>
 
             <div>
-              <label className="block text-[11px] font-bold text-gray-700 mb-1">Notes</label>
+              <label className="block text-[11px] font-bold text-gray-700 mb-1.5">Notes</label>
               <input 
                 type="text" 
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all" 
+                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all" 
                 value={formData.reference} 
                 onChange={(e) => setFormData({ ...formData, reference: e.target.value })} 
                 placeholder="Internal Remarks"
@@ -2032,6 +2042,7 @@ const loadQuoteNoPreview = useCallback(async () => {
           </div>
         </div>
       </div>
+
 
       {variants.length > 0 && (
         <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 mb-6 shadow-sm" data-html2canvas-ignore>
@@ -2149,7 +2160,7 @@ const loadQuoteNoPreview = useCallback(async () => {
         </div>
       )}
 
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden mb-6" ref={itemsTableRef}>
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden mb-6" ref={itemsTableRef}>
         <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 bg-gray-50/50">
           <div className="flex items-center gap-2">
             <div className="w-1.5 h-6 bg-sky-600 rounded-full"></div>
@@ -2663,31 +2674,29 @@ const loadQuoteNoPreview = useCallback(async () => {
           </div>
         </div>
         
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <button 
-            className="px-6 py-3 text-sm font-bold text-gray-500 hover:text-gray-700 transition-colors"
+            className="h-[25px] px-10 min-w-[100px] rounded flex items-center justify-center text-[11px] font-bold text-white bg-gradient-to-b from-[#001f3f] to-[#003366] shadow-none border-none hover:opacity-90 transition-all"
             onClick={() => navigate('/quotations')}
           >
             Cancel
           </button>
           <button 
-            className={`px-8 py-3 rounded-xl text-sm font-bold text-white shadow-lg transition-all transform hover:scale-105 active:scale-95 flex items-center gap-2 ${
-              saving ? 'bg-gray-400 cursor-not-allowed' : 'bg-sky-600 hover:bg-sky-700 shadow-sky-200'
+            className={`h-[25px] px-10 min-w-[100px] rounded flex items-center justify-center text-[11px] font-bold text-white bg-gradient-to-b from-[#001f3f] to-[#003366] shadow-none border-none hover:opacity-90 transition-all ${
+              saving ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
+            onClick={() => handleSave(true)}
+          >
+            Save as Draft
+          </button>
+          <button 
+            className={`h-[25px] px-10 min-w-[100px] rounded flex items-center justify-center text-[11px] font-bold text-white bg-gradient-to-b from-[#001f3f] to-[#003366] shadow-none border-none hover:opacity-90 transition-all ${
+              saving ? 'opacity-50 cursor-not-allowed' : ''
             }`}
             onClick={handleSave}
             disabled={saving}
           >
-            {saving ? (
-              <>
-                <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                Saving...
-              </>
-            ) : (
-              <>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" /></svg>
-                Create Quotation
-              </>
-            )}
+            {saving ? 'Saving...' : editId ? 'Update Quotation' : 'Confirm & Save'}
           </button>
         </div>
       </div>
