@@ -90,6 +90,20 @@ export default function CreateQuotation() {
   const [templateSettings, setTemplateSettings] = useState(null);
   const [showItemPicker, setShowItemPicker] = useState(false);
   const [showCustomLabelEditor, setShowCustomLabelEditor] = useState(false);
+  const [clientSearch, setClientSearch] = useState('');
+  const [isClientDropdownOpen, setIsClientDropdownOpen] = useState(false);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.client-dropdown-container')) {
+        setIsClientDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const [itemSearch, setItemSearch] = useState('');
   const [pickerItems, setPickerItems] = useState([]);
   const [quickQuoteConfig, setQuickQuoteConfig] = useState<QuickQuoteConfig | null>(null);
@@ -1882,7 +1896,7 @@ const loadQuoteNoPreview = useCallback(async () => {
                 <label className="block text-[11px] font-bold text-gray-700 mb-1.5">Quote #</label>
                 <input 
                   type="text" 
-                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl text-sm font-mono text-gray-600 outline-none" 
+                  className="w-full h-[30px] px-4 bg-gray-50 border border-gray-100 rounded-none text-sm font-mono text-gray-600 outline-none" 
                   value={formData.quotation_no || quoteNoPreview || 'Auto-generating...'} 
                   readOnly 
                 />
@@ -1891,29 +1905,58 @@ const loadQuoteNoPreview = useCallback(async () => {
                 <label className="block text-[11px] font-bold text-gray-700 mb-1.5">Date</label>
                 <input 
                   type="date" 
-                  className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all" 
+                  className="w-full h-[30px] px-4 bg-white border border-gray-200 rounded-none text-sm focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all" 
                   value={formData.date} 
                   onChange={(e) => setFormData({ ...formData, date: e.target.value })} 
                 />
               </div>
             </div>
 
-            <div>
+            <div className="relative client-dropdown-container">
               <label className="block text-[11px] font-bold text-gray-700 mb-1.5">Client <span className="text-red-500">*</span></label>
-              <select 
-                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all appearance-none cursor-pointer" 
-                value={formData.client_id} 
-                onChange={(e) => handleClientChange(e.target.value)}
-              >
-                <option value="">Search or Select Client</option>
-                {clients.map((c) => (<option key={c.id} value={c.id}>{c.client_name}</option>))}
-              </select>
+              <div className="relative">
+                <input 
+                  type="text"
+                  className="w-full h-[30px] px-4 bg-white border border-gray-200 rounded-none text-sm focus:ring-1 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all cursor-pointer"
+                  placeholder="Search or Select Client..."
+                  value={clientSearch || (formData.client_id ? clients.find(c => c.id === formData.client_id)?.client_name : '')}
+                  onChange={(e) => {
+                    setClientSearch(e.target.value);
+                    setIsClientDropdownOpen(true);
+                  }}
+                  onFocus={() => setIsClientDropdownOpen(true)}
+                />
+                {isClientDropdownOpen && (
+                  <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 shadow-xl max-h-[300px] overflow-y-auto rounded-none">
+                    {clients
+                      .filter(c => !clientSearch || c.client_name.toLowerCase().includes(clientSearch.toLowerCase()))
+                      .map(c => (
+                        <div 
+                          key={c.id}
+                          className="px-4 py-2 hover:bg-sky-50 cursor-pointer text-sm font-medium border-b border-gray-50 last:border-0"
+                          onClick={() => {
+                            handleClientChange(c.id);
+                            setClientSearch(c.client_name);
+                            setIsClientDropdownOpen(false);
+                          }}
+                        >
+                          {c.client_name}
+                        </div>
+                      ))}
+                    {clients.filter(c => !clientSearch || c.client_name.toLowerCase().includes(clientSearch.toLowerCase())).length === 0 && (
+                      <div className="px-4 py-3 text-sm text-gray-500 italic text-center bg-gray-50">
+                        No clients found matching "{clientSearch}"
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
 
             <div>
               <label className="block text-[11px] font-bold text-gray-700 mb-1.5">Project</label>
               <select 
-                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all appearance-none cursor-pointer" 
+                className="w-full h-[30px] px-4 bg-white border border-gray-200 rounded-none text-sm focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all appearance-none cursor-pointer" 
                 value={formData.project_id} 
                 onChange={(e) => setFormData({ ...formData, project_id: e.target.value })}
               >
@@ -1940,7 +1983,7 @@ const loadQuoteNoPreview = useCallback(async () => {
               <div>
                 <label className="block text-[11px] font-bold text-gray-700 mb-1.5">Variant</label>
                 <select 
-                  className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all appearance-none cursor-pointer" 
+                  className="w-full h-[30px] px-4 bg-white border border-gray-200 rounded-none text-sm focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all appearance-none cursor-pointer" 
                   value={formData.variant_id || ''} 
                   onChange={(e) => setFormData({ ...formData, variant_id: e.target.value })}
                 >
@@ -1953,7 +1996,7 @@ const loadQuoteNoPreview = useCallback(async () => {
                 <label className="block text-[11px] font-bold text-gray-700 mb-1.5">Valid Till</label>
                 <input 
                   type="date" 
-                  className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all" 
+                  className="w-full h-[30px] px-4 bg-white border border-gray-200 rounded-none text-sm focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all" 
                   value={formData.valid_till} 
                   onChange={(e) => setFormData({ ...formData, valid_till: e.target.value })} 
                 />
@@ -1963,7 +2006,7 @@ const loadQuoteNoPreview = useCallback(async () => {
                 <label className="block text-[11px] font-bold text-gray-700 mb-1.5">Payment</label>
                 <input 
                   type="text" 
-                  className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all" 
+                  className="w-full h-[30px] px-4 bg-white border border-gray-200 rounded-none text-sm focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all" 
                   value={formData.payment_terms} 
                   onChange={(e) => setFormData({ ...formData, payment_terms: e.target.value })} 
                   placeholder="e.g. 30 Days"
@@ -1974,7 +2017,7 @@ const loadQuoteNoPreview = useCallback(async () => {
             <div>
               <label className="block text-[11px] font-bold text-gray-700 mb-1.5">Contact</label>
               <select 
-                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all appearance-none cursor-pointer" 
+                className="w-full h-[30px] px-4 bg-white border border-gray-200 rounded-none text-sm focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all appearance-none cursor-pointer" 
                 value={formData.client_contact || ''} 
                 onChange={(e) => setFormData({ ...formData, client_contact: e.target.value })} 
                 disabled={!formData.client_id}
@@ -1999,7 +2042,7 @@ const loadQuoteNoPreview = useCallback(async () => {
             <div>
               <label className="block text-[11px] font-bold text-gray-700 mb-1.5">Address</label>
               <textarea 
-                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all min-h-[90px] resize-none" 
+                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-none text-sm focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all min-h-[90px] resize-none" 
                 value={formData.billing_address || ''} 
                 onChange={(e) => setFormData({ ...formData, billing_address: e.target.value })} 
                 placeholder="Client Billing Address"
@@ -2011,7 +2054,7 @@ const loadQuoteNoPreview = useCallback(async () => {
                 <label className="block text-[11px] font-bold text-gray-700 mb-1.5">GSTIN</label>
                 <input 
                   type="text" 
-                  className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all" 
+                  className="w-full h-[30px] px-4 bg-white border border-gray-200 rounded-none text-sm focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all" 
                   value={formData.gstin || ''} 
                   onChange={(e) => setFormData({ ...formData, gstin: e.target.value })} 
                   placeholder="GST Number"
@@ -2021,7 +2064,7 @@ const loadQuoteNoPreview = useCallback(async () => {
                 <label className="block text-[11px] font-bold text-gray-700 mb-1.5">Prepared By</label>
                 <input 
                   type="text" 
-                  className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all" 
+                  className="w-full h-[30px] px-4 bg-white border border-gray-200 rounded-none text-sm focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all" 
                   value={formData.prepared_by} 
                   onChange={(e) => setFormData({ ...formData, prepared_by: e.target.value })} 
                   placeholder="Your Name"
@@ -2033,7 +2076,7 @@ const loadQuoteNoPreview = useCallback(async () => {
               <label className="block text-[11px] font-bold text-gray-700 mb-1.5">Notes</label>
               <input 
                 type="text" 
-                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all" 
+                className="w-full h-[30px] px-4 bg-white border border-gray-200 rounded-none text-sm focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all" 
                 value={formData.reference} 
                 onChange={(e) => setFormData({ ...formData, reference: e.target.value })} 
                 placeholder="Internal Remarks"
@@ -2045,19 +2088,18 @@ const loadQuoteNoPreview = useCallback(async () => {
 
 
       {variants.length > 0 && (
-        <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 mb-6 shadow-sm" data-html2canvas-ignore>
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center text-amber-600">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+        <div className="bg-amber-50 border border-amber-200 rounded-none p-8 mb-10 shadow-sm" data-html2canvas-ignore>
+          <div className="flex items-center justify-between mb-8 pb-4 border-b border-amber-100">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center text-amber-600">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
               </div>
               <div>
-                <span className="block text-sm font-bold text-amber-900 leading-none">Global Discount Control</span>
-                <span className="text-[11px] text-amber-700 font-medium">Set default discount percentages per variant</span>
+                <span className="block text-lg font-bold text-amber-900 leading-none">DISCOUNT</span>
               </div>
             </div>
             <button
-              className="px-3 py-1.5 text-xs font-bold text-amber-800 bg-amber-100 border border-amber-200 rounded-lg hover:bg-amber-200 transition-colors shadow-sm"
+              className="h-[25px] px-6 min-w-[100px] rounded flex items-center justify-center text-[11px] font-bold text-white bg-gradient-to-b from-[#001f3f] to-[#003366] shadow-none border-none hover:opacity-90 transition-all"
               onClick={() => setActiveTab(activeTab === 'items' ? 'approval' : 'items')}
             >
               {activeTab === 'items' ? 'View Approval History' : 'Back to Items'}
@@ -2065,7 +2107,7 @@ const loadQuoteNoPreview = useCallback(async () => {
           </div>
           
           {activeTab === 'items' && (
-          <div className="flex flex-wrap gap-4">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-4">
             {variants.map(variant => {
               const discountValue = headerDiscounts[variant.id] || 0;
               const settings = discountSettings[variant.id];
@@ -2075,46 +2117,50 @@ const loadQuoteNoPreview = useCallback(async () => {
               return (
               <div 
                 key={variant.id} 
-                className={`flex items-center gap-3 bg-white p-2 pl-3 pr-2 rounded-xl border transition-all shadow-sm ${isAboveMax ? 'border-red-300 ring-2 ring-red-50' : 'border-amber-200 hover:border-amber-300'}`}
+                className={`flex items-center justify-between p-3 rounded-none border transition-all ${isAboveMax ? 'border-red-300 bg-red-50/50' : 'border-amber-200 bg-white hover:border-amber-400'}`}
               >
-                <div className="flex flex-col">
-                  <span className="text-[10px] font-bold text-gray-400 uppercase leading-none mb-1">{variant.variant_name}</span>
-                  <div className="flex items-center gap-2">
-                    {approvalDisplay !== 'none' && (
-                      <span className={`text-[9px] px-1.5 py-0.5 rounded-md font-bold uppercase tracking-tighter ${
-                        approvalDisplay === 'approved' ? 'bg-emerald-100 text-emerald-700' : 
-                        approvalDisplay === 'pending' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'
-                      }`}>
-                        {approvalDisplay === 'approved' ? 'Approved' : approvalDisplay === 'pending' ? 'Pending' : 'Rejected'}
-                      </span>
-                    )}
-                    {isAboveMax && (
-                      <span className="flex items-center justify-center w-4 h-4 bg-red-500 text-white rounded-full text-[10px] font-bold animate-pulse">!</span>
-                    )}
-                  </div>
+                <div className="flex flex-col gap-1 min-w-0 flex-1">
+                  <span className="text-[11px] font-bold text-amber-900 uppercase tracking-wider truncate" title={variant.variant_name}>
+                    {variant.variant_name}
+                  </span>
+                  {approvalDisplay !== 'none' && (
+                    <span className={`inline-block w-fit text-[8px] px-1.5 py-0.5 rounded-none font-bold uppercase tracking-tighter ${
+                      approvalDisplay === 'approved' ? 'bg-emerald-500 text-white' : 
+                      approvalDisplay === 'pending' ? 'bg-amber-500 text-white' : 'bg-red-500 text-white'
+                    }`}>
+                      {approvalDisplay === 'approved' ? 'Approved' : approvalDisplay === 'pending' ? 'Pending' : 'Rejected'}
+                    </span>
+                  )}
                 </div>
                 
-                <div className="flex items-center bg-gray-50 border border-gray-200 rounded-lg overflow-hidden group focus-within:ring-2 focus-within:ring-amber-500 transition-all">
-                  <input
-                    type="number"
-                    className="w-16 px-2 py-1 text-right text-sm font-bold text-gray-700 bg-transparent outline-none"
-                    value={headerDiscounts[variant.id] || 0}
-                    onChange={(e) => {
-                      const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0));
-                      setHeaderDiscounts(prev => ({ ...prev, [variant.id]: val }));
-                    }}
-                    onBlur={(e) => {
-                      const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0));
-                      handleHeaderDiscountChange(variant.id, val);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') e.target.blur();
-                    }}
-                    min="0"
-                    max="100"
-                    step="0.01"
-                  />
-                  <span className="px-2 text-xs font-bold text-gray-400 bg-gray-100 border-l border-gray-200">%</span>
+                <div className="flex flex-col items-end gap-1">
+                  <div className="flex items-center bg-white border border-amber-200 rounded-none overflow-hidden focus-within:border-amber-500 transition-all w-[100px]">
+                    <input
+                      type="number"
+                      className="w-full px-2 py-1.5 text-right text-sm font-bold text-amber-900 bg-transparent outline-none"
+                      value={headerDiscounts[variant.id] || 0}
+                      onChange={(e) => {
+                        const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0));
+                        setHeaderDiscounts(prev => ({ ...prev, [variant.id]: val }));
+                      }}
+                      onBlur={(e) => {
+                        const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0));
+                        handleHeaderDiscountChange(variant.id, val);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') e.target.blur();
+                      }}
+                      min="0"
+                      max="100"
+                      step="0.01"
+                    />
+                    <div className="bg-amber-50 px-2 py-1.5 text-[10px] font-bold text-amber-600 border-l border-amber-100">
+                      %
+                    </div>
+                  </div>
+                  {isAboveMax && (
+                    <span className="text-[8px] font-bold text-red-600 uppercase tracking-tighter">Over Limit</span>
+                  )}
                 </div>
               </div>
               );
@@ -2655,7 +2701,7 @@ const loadQuoteNoPreview = useCallback(async () => {
 
 
       <div className="flex flex-col md:flex-row items-center justify-between gap-6 py-8 border-t border-gray-100 mb-20">
-        <div className="flex items-center gap-4 bg-white border border-gray-200 rounded-2xl px-6 py-4 shadow-sm w-full md:w-auto">
+        <div className="flex items-center gap-4 bg-white border border-gray-200 rounded-none px-6 py-4 shadow-sm w-full md:w-auto">
           <div className="w-10 h-10 bg-sky-50 rounded-full flex items-center justify-center text-sky-600">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
           </div>
