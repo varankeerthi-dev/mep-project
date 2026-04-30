@@ -723,7 +723,6 @@ const loadQuoteNoPreview = useCallback(async () => {
         payment_terms: data.payment_terms || DEFAULT_PAYMENT_TERMS,
         client_contact: '',
         variant_id: data.variant_id || '',
-        reference: data.remarks || data.reference || '',
         prepared_by: data.prepared_by || '',
         extra_discount_percent: data.extra_discount_percent || 0,
         extra_discount_amount: data.extra_discount_amount || 0,
@@ -1812,9 +1811,6 @@ const loadQuoteNoPreview = useCallback(async () => {
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
             {editId ? 'Edit Quotation' : duplicateId ? 'Duplicate Quotation' : 'Create New Quotation'}
           </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Configure details, add items, and manage discounts for your proposal.
-          </p>
         </div>
         
         <div className="flex items-center gap-4">
@@ -1870,7 +1866,7 @@ const loadQuoteNoPreview = useCallback(async () => {
           
           <div className="space-y-3">
             <div>
-              <label className="block text-[11px] font-semibold text-gray-500 uppercase mb-1">Quotation Number</label>
+              <label className="block text-[11px] font-bold text-gray-700 mb-1">Quote #</label>
               <input 
                 type="text" 
                 className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-mono text-gray-600 outline-none" 
@@ -1880,7 +1876,7 @@ const loadQuoteNoPreview = useCallback(async () => {
             </div>
             
             <div>
-              <label className="block text-[11px] font-semibold text-gray-500 uppercase mb-1">Document Date</label>
+              <label className="block text-[11px] font-bold text-gray-700 mb-1">Date</label>
               <input 
                 type="date" 
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all" 
@@ -1890,7 +1886,7 @@ const loadQuoteNoPreview = useCallback(async () => {
             </div>
 
             <div>
-              <label className="block text-[11px] font-semibold text-gray-500 uppercase mb-1">Client Name <span className="text-red-500">*</span></label>
+              <label className="block text-[11px] font-bold text-gray-700 mb-1">Client <span className="text-red-500">*</span></label>
               <select 
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all" 
                 value={formData.client_id} 
@@ -1902,7 +1898,7 @@ const loadQuoteNoPreview = useCallback(async () => {
             </div>
 
             <div>
-              <label className="block text-[11px] font-semibold text-gray-500 uppercase mb-1">Linked Project</label>
+              <label className="block text-[11px] font-bold text-gray-700 mb-1">Project</label>
               <select 
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all" 
                 value={formData.project_id} 
@@ -1923,7 +1919,7 @@ const loadQuoteNoPreview = useCallback(async () => {
           
           <div className="space-y-3">
             <div>
-              <label className="block text-[11px] font-semibold text-gray-500 uppercase mb-1">Default Variant</label>
+              <label className="block text-[11px] font-bold text-gray-700 mb-1">Variant</label>
               <select 
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all" 
                 value={formData.variant_id || ''} 
@@ -1936,7 +1932,7 @@ const loadQuoteNoPreview = useCallback(async () => {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-[11px] font-semibold text-gray-500 uppercase mb-1">Validity Date</label>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">Valid Till</label>
                 <input 
                   type="date" 
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all" 
@@ -1945,7 +1941,7 @@ const loadQuoteNoPreview = useCallback(async () => {
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-gray-500 uppercase mb-1">Payment Terms</label>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">Payment</label>
                 <input 
                   type="text" 
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all" 
@@ -1957,7 +1953,7 @@ const loadQuoteNoPreview = useCallback(async () => {
             </div>
 
             <div>
-              <label className="block text-[11px] font-semibold text-gray-500 uppercase mb-1">Primary Contact</label>
+              <label className="block text-[11px] font-bold text-gray-700 mb-1">Contact</label>
               <select 
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all" 
                 value={formData.client_contact || ''} 
@@ -1970,7 +1966,7 @@ const loadQuoteNoPreview = useCallback(async () => {
             </div>
 
             <div>
-              <label className="block text-[11px] font-semibold text-gray-500 uppercase mb-1">Signatory</label>
+              <label className="block text-[11px] font-bold text-gray-700 mb-1">Signatory</label>
               <select 
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all" 
                 value={formData.authorized_signatory_id || ''} 
@@ -1991,7 +1987,7 @@ const loadQuoteNoPreview = useCallback(async () => {
           
           <div className="space-y-3">
             <div>
-              <label className="block text-[11px] font-semibold text-gray-500 uppercase mb-1">Billing Address</label>
+              <label className="block text-[11px] font-bold text-gray-700 mb-1">Address</label>
               <textarea 
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all min-h-[82px]" 
                 value={formData.billing_address || ''} 
@@ -2024,7 +2020,7 @@ const loadQuoteNoPreview = useCallback(async () => {
             </div>
 
             <div>
-              <label className="block text-[11px] font-semibold text-gray-500 uppercase mb-1">Remarks / Reference</label>
+              <label className="block text-[11px] font-bold text-gray-700 mb-1">Notes</label>
               <input 
                 type="text" 
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all" 

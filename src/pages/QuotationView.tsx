@@ -18,7 +18,7 @@ import VerticalTemplate from '../templates/VerticalTemplate';
 import { htmlToPdf } from '../utils/htmlTemplateRenderer';
 import { createRoot } from 'react-dom/client';
 import { flushSync } from 'react-dom';
-import { Printer, Edit, Copy, MoreHorizontal, Trash2, XCircle, ArrowLeft, ChevronDown, Mail, Download, Eye, FileText, Plus } from 'lucide-react';
+import { Printer, Edit, Copy, MoreHorizontal, Trash2, XCircle, ArrowLeft, ChevronDown, ChevronRight, ChevronLeft, Mail, Download, Eye, FileText, Plus } from 'lucide-react';
 import { useVariants } from '../hooks/useVariants';
 
 
@@ -33,6 +33,7 @@ export default function QuotationView() {
   const [showPrintMenu, setShowPrintMenu] = useState(false);
   const [showTemplateMenu, setShowTemplateMenu] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState(null);
+  const [printMenuView, setPrintMenuView] = useState('main'); // 'main' or 'templates'
 
   const quotationQuery = useQuery({
     queryKey: ['quotation', quotationId],
@@ -1031,10 +1032,10 @@ export default function QuotationView() {
 
 
   return (
-    <div className="flex h-[calc(100vh-48px)] bg-white overflow-hidden">
+    <div className="flex h-[calc(100vh-48px)] bg-zinc-100 overflow-hidden gap-[20px]">
       {/* Sidebar List (30%) */}
-      <div className="w-[30%] border-r border-gray-200 flex flex-col bg-white">
-        <div className="p-4 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
+      <div className="w-[30%] flex flex-col bg-white shadow-sm">
+        <div className="py-5 px-6 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
           <h2 className="text-sm font-bold text-gray-700">All Quotes</h2>
           <button 
             onClick={() => navigate('/quotation/create')}
@@ -1053,8 +1054,8 @@ export default function QuotationView() {
               {quotations.map((q) => (
                 <div 
                   key={q.id}
-                  onClick={() => navigate(`/ quotation / view ? id = ${ q.id } `)}
-                  className={`p - 4 cursor - pointer transition - colors hover: bg - sky - 50 / 30 ${ quotationId === q.id ? 'bg-sky-50 border-l-4 border-sky-500' : 'bg-white' } `}
+                  onClick={() => navigate(`/quotation/view?id=${q.id}`)}
+                  className={`py-5 px-6 cursor-pointer transition-colors hover:bg-sky-50/30 ${quotationId === q.id ? 'bg-sky-50 border-l-4 border-sky-500' : 'bg-white'}`}
                 >
                   <div className="flex justify-between items-start mb-1">
                     <span className="text-[13px] font-bold text-gray-900 truncate pr-2">
@@ -1087,7 +1088,7 @@ export default function QuotationView() {
 
       {/* Main Content (70%) */}
       <div className="flex-1 bg-gray-50 overflow-y-auto">
-        <div className="max-w-5xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-5xl mx-auto py-12 px-8 sm:px-12 lg:px-16">
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-4">
               <h1 className="text-2xl font-bold text-gray-900">{quotation.quotation_no}</h1>
@@ -1132,7 +1133,7 @@ export default function QuotationView() {
               >
                 <FileText className="w-[16px] h-[16px]" />
                 Convert
-                <ChevronDown className={`w - [14px] h - [14px] transition - transform ${ showConvertMenu ? 'rotate-180' : '' } `} />
+                <ChevronDown className={`w-[14px] h-[14px] transition-transform ${showConvertMenu ? 'rotate-180' : ''}`} />
               </button>
 
               {showConvertMenu && (
@@ -1146,24 +1147,76 @@ export default function QuotationView() {
             <div className="relative">
               <button 
                 className="inline-flex items-center gap-1 px-3 h-[30px] bg-white border border-sky-200 text-sky-600 rounded-none hover:bg-sky-50 transition-colors text-[13px] font-bold" 
-                onClick={() => { setShowPrintMenu(!showPrintMenu); setShowConvertMenu(false); setShowTemplateMenu(false); }}
+                onClick={() => { 
+                  setShowPrintMenu(!showPrintMenu); 
+                  setShowConvertMenu(false); 
+                  setShowTemplateMenu(false);
+                  setPrintMenuView('main');
+                }}
               >
                 <Printer className="w-[16px] h-[16px]" />
                 Print ({getSelectedTemplateName()})
-                <ChevronDown className={`w - [14px] h - [14px] transition - transform ${ showPrintMenu ? 'rotate-180' : '' } `} />
+                <ChevronDown className={`w-[14px] h-[14px] transition-transform ${showPrintMenu ? 'rotate-180' : ''}`} />
               </button>
 
               {showPrintMenu && (
-                <div className="absolute left-0 top-full mt-1 z-50 min-w-[200px] bg-white border border-gray-200 shadow-xl p-1">
-                  {templates.map(t => (
-                    <button 
-                      key={t.id} 
-                      onClick={() => handlePrintAction('download', t.id)} 
-                      className="block w-full text-left px-3 py-2 text-xs font-bold text-gray-700 hover:bg-sky-50"
-                    >
-                      {t.template_name}
-                    </button>
-                  ))}
+                <div className="absolute left-0 top-full mt-1 z-50 min-w-[240px] bg-white border border-gray-200 shadow-xl p-1 rounded-sm">
+                  {printMenuView === 'main' ? (
+                    <>
+                      <button 
+                        onClick={() => handlePrintAction('preview')}
+                        className="flex items-center gap-3 w-full text-left px-3 py-2.5 text-xs font-bold text-gray-700 hover:bg-sky-50 transition-colors"
+                      >
+                        <Eye className="w-4 h-4 text-sky-500" />
+                        Preview in New Tab
+                      </button>
+                      <button 
+                        onClick={() => handlePrintAction('download')}
+                        className="flex items-center gap-3 w-full text-left px-3 py-2.5 text-xs font-bold text-gray-700 hover:bg-sky-50 transition-colors"
+                      >
+                        <Download className="w-4 h-4 text-sky-500" />
+                        Download PDF
+                      </button>
+                      <div className="h-px bg-gray-100 my-1" />
+                      <button 
+                        onClick={() => setPrintMenuView('templates')}
+                        className="flex items-center justify-between w-full text-left px-3 py-2.5 text-xs font-bold text-gray-700 hover:bg-sky-50 transition-colors group"
+                      >
+                        <div className="flex items-center gap-3">
+                          <FileText className="w-4 h-4 text-sky-500" />
+                          Choose Template
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-sky-500 transition-colors" />
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-2 p-2 mb-1 border-b border-gray-100">
+                        <button 
+                          onClick={() => setPrintMenuView('main')}
+                          className="p-1 hover:bg-gray-100 rounded transition-colors"
+                        >
+                          <ChevronLeft className="w-4 h-4 text-gray-500" />
+                        </button>
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Select Template</span>
+                      </div>
+                      <div className="max-h-[300px] overflow-y-auto">
+                        {templates.map(t => (
+                          <button 
+                            key={t.id} 
+                            onClick={() => {
+                              handleSelectTemplate(t.id);
+                              setPrintMenuView('main');
+                            }} 
+                            className={`block w-full text-left px-3 py-2 text-xs font-bold transition-colors ${selectedTemplateId === t.id ? 'bg-sky-50 text-sky-600' : 'text-gray-700 hover:bg-sky-50/50'}`}
+                          >
+                            {t.template_name}
+                            {t.is_default && <span className="ml-2 text-[10px] text-gray-400 font-normal italic">(Default)</span>}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
             </div>
