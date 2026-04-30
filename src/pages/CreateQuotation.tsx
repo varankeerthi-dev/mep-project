@@ -202,8 +202,14 @@ export default function CreateQuotation() {
   // Conversion query
   const conversionQuery = useConvertDocument(convertFrom!, sourceId!);
 
+  const initializedRef = useRef<string | null>(null);
+
   useEffect(() => {
     if (!initQuery.data) return;
+    
+    // Only initialize if we haven't already for this specific editId/duplicateId combination
+    const currentId = `${editId || ''}-${duplicateId || ''}`;
+    if (initializedRef.current === currentId) return;
 
     const { pricing, settings, template, quickQuoteConfig, orgFullDetails } = initQuery.data;
 
@@ -302,7 +308,35 @@ export default function CreateQuotation() {
       loadQuotation(duplicateId, true);
     } else {
       loadQuoteNoPreview();
+      // Always start with one empty row for new quotations
+      setItems([{
+        id: Date.now() + Math.random(),
+        item_id: '',
+        variant_id: null,
+        material: null,
+        hsn_code: '',
+        description: '',
+        qty: 1,
+        uom: 'Nos',
+        rate: 0,
+        discount_percent: 0,
+        discount_amount: 0,
+        tax_percent: 0,
+        tax_amount: 0,
+        line_total: 0,
+        override_flag: false,
+        original_discount_percent: 0,
+        base_rate_snapshot: 0,
+        applied_discount_percent: 0,
+        is_override: false,
+        final_rate_snapshot: 0,
+        display_order: 0,
+        is_header: false,
+        custom1: '',
+        custom2: ''
+      }]);
     }
+    initializedRef.current = currentId;
   }, [initQuery.data, editId, duplicateId]);
 
   // Load conversion data when converting from DC
@@ -336,7 +370,7 @@ export default function CreateQuotation() {
         description: item.description,
         qty: item.qty,
         rate: item.rate,
-        tax_percent: item.tax_percent || 18,
+        tax_percent: item.tax_percent || 0,
         uom: item.uom || 'nos',
         discount_percent: 0,
         line_total: item.qty * item.rate,
@@ -974,7 +1008,7 @@ const loadQuoteNoPreview = useCallback(async () => {
         qty: 1,
         rate: getRateForMaterialVariant(material, null),
         uom: material.unit || 'Nos',
-        tax_percent: material.gst_rate || 18,
+        tax_percent: material.gst_rate || 0,
         discount_percent: 0,
         description: material.display_name || material.name
       }]);
@@ -1009,7 +1043,7 @@ const loadQuoteNoPreview = useCallback(async () => {
       qty: 1,
       rate: getRateForMaterialVariant(newItem, null),
       uom: newItem.unit || 'Nos',
-      tax_percent: newItem.gst_rate || 18,
+      tax_percent: newItem.gst_rate || 0,
       discount_percent: 0,
       description: newItem.display_name || newItem.name,
       hsn_code: newItem.hsn_code || '',
@@ -1685,9 +1719,11 @@ const loadQuoteNoPreview = useCallback(async () => {
         }
       }
 
-      const itemsToInsert = items.map(item => ({
-        quotation_id: quotationId,
-        item_id: item.item_id,
+      const itemsToInsert = items
+        .filter(item => (item.is_header && item.description?.trim()) || (!item.is_header && item.item_id))
+        .map(item => ({
+          quotation_id: quotationId,
+          item_id: item.item_id || null,
         variant_id: item.variant_id || null,
         make: item.make || null,
         description: item.description,
@@ -2206,12 +2242,12 @@ const loadQuoteNoPreview = useCallback(async () => {
         </div>
       )}
 
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden mb-6" ref={itemsTableRef}>
+      <div className="bg-white rounded-none border border-gray-200 shadow-sm overflow-hidden mb-6" ref={itemsTableRef}>
         <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 bg-gray-50/50">
           <div className="flex items-center gap-2">
-            <div className="w-1.5 h-6 bg-sky-600 rounded-full"></div>
+            <div className="w-1.5 h-6 bg-sky-600 rounded-none"></div>
             <h3 className="text-lg font-bold text-gray-900">Line Items</h3>
-            <span className="ml-2 text-xs font-semibold px-2 py-1 bg-gray-100 text-gray-500 rounded-full">
+            <span className="ml-2 text-xs font-semibold px-2 py-0.5 bg-gray-100 text-gray-500 rounded-none">
               {items.length} {items.length === 1 ? 'Item' : 'Items'} Total
             </span>
           </div>
@@ -2220,19 +2256,19 @@ const loadQuoteNoPreview = useCallback(async () => {
             <button 
               type="button"
               onClick={() => setShowItemCreateDrawer(true)}
-              className="px-3 py-1.5 text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg hover:bg-emerald-100 transition-all flex items-center gap-1.5"
+              className="h-[25px] min-w-[100px] px-4 text-[11px] font-bold text-white bg-gradient-to-r from-[#001f3f] to-[#003366] border-none rounded-none hover:opacity-90 transition-all flex items-center justify-center gap-1.5"
             >
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" /></svg>
               Add Material
             </button>
             <div className="w-px h-6 bg-gray-200 mx-2"></div>
-            <button className="px-3 py-1.5 text-[11px] font-bold text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-all shadow-sm" onClick={addEmptyItemRow}>+ Add Row</button>
-            <button className="px-3 py-1.5 text-[11px] font-bold text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-all shadow-sm" onClick={addSectionHeader}>+ Add Header</button>
-            <button className="px-4 py-1.5 text-[11px] font-bold text-white bg-sky-600 border border-sky-700 rounded-lg hover:bg-sky-700 transition-all shadow-sm flex items-center gap-1.5" onClick={() => setShowItemPicker(true)}>
+            <button className="h-[25px] min-w-[100px] px-4 text-[11px] font-bold text-white bg-gradient-to-r from-[#001f3f] to-[#003366] border-none rounded-none hover:opacity-90 transition-all shadow-sm" onClick={addEmptyItemRow}>+ Add Row</button>
+            <button className="h-[25px] min-w-[100px] px-4 text-[11px] font-bold text-white bg-gradient-to-r from-[#001f3f] to-[#003366] border-none rounded-none hover:opacity-90 transition-all shadow-sm" onClick={addSectionHeader}>+ Add Header</button>
+            <button className="h-[25px] min-w-[120px] px-4 text-[11px] font-bold text-white bg-gradient-to-r from-[#001f3f] to-[#003366] border-none rounded-none hover:opacity-90 transition-all shadow-sm flex items-center justify-center gap-1.5" onClick={() => setShowItemPicker(true)}>
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
               Add Multiple Items
             </button>
-            <button className="px-3 py-1.5 text-[11px] font-bold text-gray-600 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-all ml-2" onClick={() => setShowCustomLabelEditor(true)}>⚙ Columns</button>
+            <button className="h-[25px] min-w-[100px] px-4 text-[11px] font-bold text-white bg-gradient-to-r from-[#001f3f] to-[#003366] border-none rounded-none hover:opacity-90 transition-all ml-2" onClick={() => setShowCustomLabelEditor(true)}>⚙ Columns</button>
           </div>
         </div>
 
@@ -2325,6 +2361,11 @@ const loadQuoteNoPreview = useCallback(async () => {
                       key={item.id} 
                       onDragOver={handleDragOver}
                       onDrop={(e) => handleDropOnRow(e, item.id)}
+                      onFocus={() => {
+                        if (index === items.length - 1) {
+                          addEmptyItemRow();
+                        }
+                      }}
                       className={draggingItemId === item.id ? 'row-dragging' : item.is_override ? 'override-indicator' : ''}
                       onMouseEnter={() => setHoveredItemId(item.id)}
                       onMouseLeave={() => setHoveredItemId(null)}
@@ -2362,7 +2403,7 @@ const loadQuoteNoPreview = useCallback(async () => {
                               updateItem(item.id, 'material', mat);
                               updateItem(item.id, 'hsn_code', mat.hsn_code || '');
                               updateItem(item.id, 'description', mat.display_name || mat.name);
-                              updateItem(item.id, 'tax_percent', mat.gst_rate || 18);
+                              updateItem(item.id, 'tax_percent', mat.gst_rate || 0);
                               const firstMake = itemMakes[mat.id]?.[0] || '';
                               updateItem(item.id, 'make', firstMake);
                               const newRate = getRateForMaterialVariant(mat, item.variant_id || null, firstMake);
