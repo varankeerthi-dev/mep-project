@@ -38,29 +38,73 @@ export default function QuotationView() {
   const quotationQuery = useQuery({
     queryKey: ['quotation', quotationId],
     queryFn: async () => {
-      const data = await timedSupabaseQuery(
+      // Load quotation header with client and project data
+      const headerResult = await timedSupabaseQuery(
         supabase
           .from('quotation_header')
           .select(`
             *,
             client:clients(*),
-            project:projects(id, project_name, project_code),
-            items:quotation_items(
-              *,
-              item:materials(
-                id, 
-                item_code, 
-                display_name, 
-                name, 
-                hsn_code,
-                mappings:material_client_mappings(*)
-              )
-            )
+            project:projects(id, project_name, project_code)
           `)
           .eq('id', quotationId)
+          .eq('organisation_id', organisation?.id || '00000000-0000-0000-0000-000000000000')
           .single(),
-        'Quotation view',
+        'Quotation header',
       );
+      
+      // Load items separately to avoid join issues
+      let items = [];
+      if (headerResult) {
+        console.log('QuotationView: Header loaded, now loading items for quotation_id:', quotationId);
+        console.log('QuotationView: Organisation ID:', organisation?.id);
+        
+        // Test without organisation_id filter first
+        let itemsResult = await timedSupabaseQuery(
+          supabase
+            .from('quotation_items')
+            .select('*')
+            .eq('quotation_id', quotationId)
+            .order('display_order', { ascending: true }),
+          'Quotation items (no org filter)',
+        );
+        
+        console.log('QuotationView: Items without org filter:', itemsResult);
+        console.log('QuotationView: Items count without org filter:', itemsResult?.length || 0);
+        
+        // If no items found, try with organisation_id filter
+        if (!itemsResult || itemsResult.length === 0) {
+          itemsResult = await timedSupabaseQuery(
+            supabase
+              .from('quotation_items')
+              .select('*')
+              .eq('quotation_id', quotationId)
+              .eq('organisation_id', organisation?.id || '00000000-0000-0000-0000-000000000000')
+              .order('display_order', { ascending: true }),
+            'Quotation items (with org filter)',
+          );
+          console.log('QuotationView: Items with org filter:', itemsResult);
+          console.log('QuotationView: Items count with org filter:', itemsResult?.length || 0);
+        }
+        console.log('QuotationView: Items query result:', itemsResult);
+        console.log('QuotationView: Items count:', itemsResult?.length || 0);
+        
+        // Additional debugging: check if any items exist for this quotation_id at all
+        const allItemsResult = await timedSupabaseQuery(
+          supabase
+            .from('quotation_items')
+            .select('quotation_id, organisation_id, description, qty, rate')
+            .eq('quotation_id', quotationId),
+          'All items for quotation',
+        );
+        console.log('QuotationView: ALL items for this quotation:', allItemsResult);
+        
+        items = itemsResult || [];
+      } else {
+        console.log('QuotationView: No header result found for quotation_id:', quotationId);
+      }
+      
+      const data = { ...headerResult, items };
       return data;
     },
     enabled: !!quotationId
@@ -1288,14 +1332,20 @@ export default function QuotationView() {
 
             <div>
               <h3 className="text-lg font-bold text-gray-900 mb-6">Line Items</h3>
-              <div className="overflow-x-auto -mx-12">
-                <table className="min-w-full divide-y divide-gray-200">
+              {!quotation.items || quotation.items.length === 0 ? (
+                <div className="text-center py-12 text-gray-500">
+                  <div className="text-lg font-medium mb-2">No line items found</div>
+                  <div className="text-sm">This quotation may not have any items saved yet.</div>
+                </div>
+              ) : (
+                <div className="overflow-x-auto -mx-12">
+                  <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
                       {templates.find(t => t.id === selectedTemplateId)?.column_settings?.optional?.sno !== false && (
                         <th className="px-6 py-4 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider">#</th>
                       )}
-                      {quotation.items?.some(i => i.item?.hsn_code) && (
+                      {quotation.items?.some(i => i.sac_code || i.hsn_code || i.item?.hsn_code) && (
                         <th className="px-6 py-4 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider">HSN/SAC</th>
                       )}
                       {quotation.items?.some(i => i.item?.item_code) && (
@@ -1332,7 +1382,7 @@ export default function QuotationView() {
                       const template = templates.find(t => t.id === selectedTemplateId);
                       const optCols = template?.column_settings?.optional || {};
                       
-                      const hasHSN = quotation.items?.some(i => i.item?.hsn_code);
+                      const hasHSN = quotation.items?.some(i => i.sac_code || i.hsn_code || i.item?.hsn_code);
                       const hasItemCode = quotation.items?.some(i => i.item?.item_code);
                       const hasMake = quotation.items?.some(i => i.make);
                       const hasVariant = quotation.items?.some(i => i.variant_id);
@@ -1344,11 +1394,11 @@ export default function QuotationView() {
                       return (
                         <tr key={item.id} className="hover:bg-gray-50/50 transition-colors align-top">
                           {optCols.sno !== false && <td className="px-6 py-8 whitespace-nowrap text-[13px] text-gray-400 font-medium">{String(index + 1).padStart(2, '0')}</td>}
-                          {hasHSN && <td className="px-6 py-8 whitespace-nowrap text-[12px] text-gray-500 font-mono">{item.item?.hsn_code || '-'}</td>}
+                          {hasHSN && <td className="px-6 py-8 whitespace-nowrap text-[12px] text-gray-500 font-mono">{item.sac_code || item.hsn_code || item.item?.hsn_code || '-'}</td>}
                           {hasItemCode && <td className="px-6 py-8 whitespace-nowrap text-[12px] text-gray-500">{item.item?.item_code || '-'}</td>}
                           {hasMake && <td className="px-6 py-8 whitespace-nowrap text-[12px] text-gray-400 italic">{item.make || '-'}</td>}
                           <td className="px-6 py-8">
-                            <div className="text-[14px] font-semibold text-gray-900 leading-relaxed mb-1">{item.description || item.item?.name}</div>
+                            <div className="text-[14px] font-semibold text-gray-900 leading-relaxed mb-1">{item.description || item.item?.display_name || item.item?.name}</div>
                             {item.override_flag && (
                               <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-50 text-amber-600 border border-amber-100">Modified</span>
                             )}
@@ -1373,6 +1423,7 @@ export default function QuotationView() {
                   </tbody>
                 </table>
               </div>
+              )}
             </div>
 
             <div className="flex justify-end pt-12 border-t border-gray-100">

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { supabase } from '../supabase';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -18,6 +18,9 @@ import { useConvertDocument, useConversionStatus, getSourceTableName } from '../
 import type { ConversionType } from '../conversions/types';
 import ItemCreateDrawer from '../components/ItemCreateDrawer';
 import { FileText, Plus, Mail } from 'lucide-react';
+import { autoCreateOrUpdateErection } from '../utils/erectionUtils';
+import { lookupServiceRate } from '../hooks/useErectionCharges';
+import { ErectionSection } from '../components/ErectionSection';
 
 const INDIAN_STATES = [
   'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
@@ -85,6 +88,7 @@ export default function CreateQuotation() {
   const [approvalStatus, setApprovalStatus] = useState({});
   const [approvalHistory, setApprovalHistory] = useState([]);
   const [activeTab, setActiveTab] = useState('items');
+  const [activeSection, setActiveSection] = useState('materials');
   const [showApprovalModal, setShowApprovalModal] = useState(false);
   
   const [templateSettings, setTemplateSettings] = useState(null);
@@ -118,6 +122,7 @@ export default function CreateQuotation() {
   const [showItemCreateDrawer, setShowItemCreateDrawer] = useState(false);
 
   const [formData, setFormData] = useState({
+    id: '',
     quotation_no: '',
     client_id: '',
     project_id: '',
@@ -138,7 +143,8 @@ export default function CreateQuotation() {
     round_off_enabled: true,
     status: 'Draft',
     negotiation_mode: false,
-    authorized_signatory_id: ''
+    authorized_signatory_id: '',
+    include_erection_charges: true
   });
 
   const [items, setItems] = useState([]);
@@ -146,6 +152,126 @@ export default function CreateQuotation() {
   const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth <= 768 : false);
   const [isDirty, setIsDirty] = useState(false);
   const [hoveredItemId, setHoveredItemId] = useState(null);
+
+  // Calculate erection charges immediately (without saving to DB)
+  const calculateErectionCharges = async () => {
+    if (!formData.include_erection_charges) {
+      // Remove all erection items from local state
+      setItems(prevItems => prevItems.filter(item => item.section !== 'erection'));
+      return;
+    }
+    
+    const materialItems = items.filter(item => !item.is_header && item.section !== 'erection');
+    const newErectionItems = [];
+    
+    for (const item of materialItems) {
+      const itemName = item.description || item.item_id || '';
+      if (!itemName) continue;
+      
+      // Import lookupServiceRate here to avoid scope issues
+      const { lookupServiceRate } = await import('../hooks/useErectionCharges');
+      const serviceRate = await lookupServiceRate(itemName);
+      if (!serviceRate) continue;
+      
+      // Check if erection item already exists for this material
+      const existingErection = items.find(e => 
+        e.section === 'erection' && 
+        e.linked_material_id === item.id
+      );
+      
+      if (existingErection) {
+        // Evaluate rate taking manual edits or base rate into account
+        const baseRate = existingErection.rate_manually_edited 
+          ? parseFloat(existingErection.base_rate_snapshot || existingErection.rate || 0) 
+          : serviceRate.default_erection_rate;
+        
+        // Preserve any previously applied discount for this row
+        const discountToApply = existingErection.discount_percent || headerDiscounts['erection'] || 0;
+        const finalRate = baseRate - (baseRate * discountToApply / 100);
+
+        // Update existing erection
+        const updatedErection = {
+          ...existingErection,
+          description: `${itemName} - Erection`,
+          qty: item.qty,
+          uom: item.uom,
+          rate: finalRate,
+          base_rate_snapshot: baseRate,
+          discount_percent: discountToApply,
+          applied_discount_percent: discountToApply,
+          tax_percent: item.tax_percent || 0,
+          line_total: (item.qty || 0) * finalRate,
+          sac_code: serviceRate.sac_code || null
+        };
+        newErectionItems.push(updatedErection);
+      } else {
+        // Create new erection item
+        const baseRate = serviceRate.default_erection_rate;
+        const discountToApply = headerDiscounts['erection'] || 0;
+        const finalRate = baseRate - (baseRate * discountToApply / 100);
+
+        const newErection = {
+          id: Date.now() + Math.random(), // Temporary ID
+          section: 'erection',
+          description: `${itemName} - Erection`,
+          qty: item.qty,
+          uom: item.uom,
+          rate: finalRate,
+          tax_percent: item.tax_percent || 0,
+          line_total: (item.qty || 0) * finalRate,
+          linked_material_id: item.id,
+          is_auto_quantity: true,
+          rate_manually_edited: false,
+          sac_code: serviceRate.sac_code || null,
+          is_header: false,
+          hsn_code: null,
+          item_id: null,
+          variant_id: null,
+          make: null,
+          original_discount_percent: 0,
+          discount_percent: discountToApply,
+          discount_amount: 0,
+          tax_amount: 0,
+          override_flag: false,
+          base_rate_snapshot: baseRate,
+          applied_discount_percent: discountToApply,
+          is_override: false,
+          final_rate_snapshot: finalRate,
+          display_order: 0,
+          custom1: '',
+          custom2: ''
+        };
+        newErectionItems.push(newErection);
+      }
+    }
+    
+    // Update items state: remove old erection items and add new ones
+    setItems(prevItems => {
+      const nonErectionItems = prevItems.filter(item => item.section !== 'erection');
+      return [...nonErectionItems, ...newErectionItems];
+    });
+  };
+
+  // Effect to calculate erection charges when checkbox is toggled
+  useEffect(() => {
+    if (formData.include_erection_charges) {
+      calculateErectionCharges();
+    } else {
+      // Remove erection items if unchecked
+      setItems(prevItems => prevItems.filter(item => item.section !== 'erection'));
+    }
+  }, [formData.include_erection_charges]); // Only depend on checkbox state
+
+  // Also recalculate when materials change (qty, description, etc.)
+  useEffect(() => {
+    if (formData.include_erection_charges && items.length > 0) {
+      // Debounce to avoid excessive recalculations
+      const timer = setTimeout(() => {
+        calculateErectionCharges();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [items.filter(item => !item.is_header && item.section !== 'erection').map(item => `${item.id}-${item.qty}-${item.description}`).join(',')]);
 
   const initQuery = useQuery({
     queryKey: ['quotationInit', organisation?.id],
@@ -501,7 +627,7 @@ const loadQuoteNoPreview = useCallback(async () => {
         discounts.forEach(d => {
           discountMap[d.variant_id] = parseFloat(d.header_discount_percent) || 0;
         });
-        setHeaderDiscounts(discountMap);
+        setHeaderDiscounts(prev => ({ ...prev, ...discountMap }));
       }
     } catch (err) {
       console.warn('Unable to load variant discounts:', err);
@@ -509,27 +635,27 @@ const loadQuoteNoPreview = useCallback(async () => {
   };
 
   const handleHeaderDiscountChange = useCallback((variantId, newValue) => {
-    const oldValue = headerDiscounts[variantId] || 0;
     const numValue = parseFloat(newValue) || 0;
     
-    if (numValue === oldValue) return;
-    
     const affectedItems = items.filter(item => 
-      item.variant_id === variantId && !item.is_override
+      (variantId === 'erection' ? item.section === 'erection' : item.variant_id === variantId) && !item.is_override
     );
     const overriddenItems = items.filter(item => 
-      item.variant_id === variantId && item.is_override
+      (variantId === 'erection' ? item.section === 'erection' : item.variant_id === variantId) && item.is_override
     );
+
+    const needsUpdate = affectedItems.some(item => parseFloat(item.discount_percent || 0) !== numValue);
+    if (!needsUpdate) return;
     
     const variant = variants.find(v => v.id === variantId);
-    const variantName = variant?.variant_name || 'Unknown Variant';
+    const variantName = variantId === 'erection' ? 'Erection Charges' : (variant?.variant_name || 'Unknown Variant');
     
     if (affectedItems.length > 0 || overriddenItems.length > 0) {
       setDiscountPopup({
         show: true,
         variantId,
         variantName,
-        oldValue,
+        oldValue: affectedItems.length > 0 ? (affectedItems[0].discount_percent || 0) : 0,
         newValue: numValue,
         affectedRows: affectedItems.length,
         overriddenRows: overriddenItems.length
@@ -537,7 +663,7 @@ const loadQuoteNoPreview = useCallback(async () => {
     } else {
       setHeaderDiscounts(prev => ({ ...prev, [variantId]: numValue }));
     }
-  }, [headerDiscounts, items, variants]);
+  }, [items, variants]);
 
   const requestApproval = async (variantId, discountValue) => {
     if (!editId) {
@@ -551,7 +677,7 @@ const loadQuoteNoPreview = useCallback(async () => {
     }
     
     const variant = variants.find(v => v.id === variantId);
-    const variantName = variant?.variant_name || 'Unknown Variant';
+    const variantName = variantId === 'erection' ? 'Erection Charges' : (variant?.variant_name || 'Unknown Variant');
     const roles = APPROVAL_ROLES;
     
     try {
@@ -631,7 +757,8 @@ const loadQuoteNoPreview = useCallback(async () => {
     
     setItems(prevItems => 
       prevItems.map(item => {
-        if (item.variant_id === variantId && !item.is_override) {
+        const isMatch = variantId === 'erection' ? item.section === 'erection' : item.variant_id === variantId;
+        if (isMatch && !item.is_override) {
           const appliedDiscount = newValue;
           const baseRate = parseFloat(item.base_rate_snapshot) || parseFloat(item.rate) || 0;
           const finalRate = baseRate - (baseRate * appliedDiscount / 100);
@@ -649,7 +776,7 @@ const loadQuoteNoPreview = useCallback(async () => {
     );
     
     if (settings && newValue > settings.max) {
-      const hasVariantItems = items.some(item => item.variant_id === variantId);
+      const hasVariantItems = items.some(item => variantId === 'erection' ? item.section === 'erection' : item.variant_id === variantId);
       if (hasVariantItems && editId) {
         await requestApproval(variantId, newValue);
       }
@@ -749,8 +876,24 @@ const loadQuoteNoPreview = useCallback(async () => {
       data = await timedSupabaseQuery(
         supabase
           .from('quotation_header')
-          .select('*, items:quotation_items(*, item:materials(id, item_code, display_name, name, hsn_code, sale_price, unit, mappings:material_client_mappings(*)))')
+          .select(`
+            *,
+            items:quotation_items(
+              *,
+              item:materials(
+                id, 
+                item_code, 
+                display_name, 
+                name, 
+                hsn_code, 
+                sale_price, 
+                unit, 
+                mappings:material_client_mappings(*)
+              )
+            )
+          `)
           .eq('id', id)
+          .eq('organisation_id', organisation?.id || '00000000-0000-0000-0000-000000000000')
           .single(),
         'Quotation details',
       );
@@ -760,7 +903,13 @@ const loadQuoteNoPreview = useCallback(async () => {
     }
 
     if (data) {
+      // Debug: Log the loaded data to verify items are being fetched
+      console.log('Loaded quotation data:', data);
+      console.log('Loaded items:', data.items);
+      console.log('Number of items:', data.items?.length || 0);
+      
       setFormData({
+        id: isDuplicate ? '' : (data.id || ''),
         quotation_no: isDuplicate ? '' : (data.quotation_no || ''),
         client_id: data.client_id || '',
         project_id: data.project_id || '',
@@ -781,30 +930,65 @@ const loadQuoteNoPreview = useCallback(async () => {
         reference: data.reference || '',
         status: isDuplicate ? 'Draft' : (data.status || 'Draft'),
         negotiation_mode: isDuplicate ? false : (data.negotiation_mode || false),
-        authorized_signatory_id: data.authorized_signatory_id || ''
+        authorized_signatory_id: data.authorized_signatory_id || '',
+        include_erection_charges: data.include_erection_charges !== undefined ? data.include_erection_charges : true
       });
 
       if (data.items) {
-        setItems(data.items.map(item => ({
-          ...item,
-          material: item.item,
-          hsn_code: item.hsn_code || item.item?.hsn_code || null,
-          id: Date.now() + Math.random(),
-          base_rate_snapshot: parseFloat(item.base_rate_snapshot) || parseFloat(item.rate) || 0,
-          applied_discount_percent: parseFloat(item.applied_discount_percent) || 0,
-          is_override: item.is_override || false,
-          final_rate_snapshot: parseFloat(item.final_rate_snapshot) || parseFloat(item.rate) || 0,
-          display_order: item.display_order || 0,
-          custom1: item.custom1 || '',
-          custom2: item.custom2 || ''
-        })));
+        console.log('Processing items for mapping:', data.items);
+        const mappedItems = data.items.map(item => {
+          // Better erection detection - check for sac_code or explicit section
+          const isErection = item.sac_code !== null || item.item_id === null || (item.description && item.description.includes(' - Erection'));
+          let linked_material_id = null;
+          if (isErection && item.description && item.description.includes(' - Erection')) {
+            const baseName = item.description.replace(' - Erection', '');
+            const parent = data.items.find(p => (p.description || p.item_id) === baseName && p.id !== item.id);
+            if (parent) linked_material_id = parent.id;
+          }
+          
+          return {
+            ...item,
+            id: item.id || (Date.now() + Math.random()),
+            section: isErection ? 'erection' : 'materials',
+            linked_material_id,
+            material: item.item || null, // Will be null since we removed the join
+            hsn_code: item.hsn_code || item.item?.hsn_code || null,
+            sac_code: item.sac_code || null,
+            base_rate_snapshot: parseFloat(item.base_rate_snapshot) || parseFloat(item.rate) || 0,
+            applied_discount_percent: parseFloat(item.applied_discount_percent) || 0,
+            is_override: item.is_override || false,
+            final_rate_snapshot: parseFloat(item.final_rate_snapshot) || parseFloat(item.rate) || 0,
+            display_order: item.display_order || 0,
+            custom1: item.custom1 || '',
+            custom2: item.custom2 || '',
+            // Ensure numeric fields are properly parsed
+            qty: parseFloat(item.qty) || 0,
+            rate: parseFloat(item.rate) || 0,
+            discount_percent: parseFloat(item.discount_percent) || 0,
+            tax_percent: parseFloat(item.tax_percent) || 0,
+            line_total: parseFloat(item.line_total) || 0
+          };
+        });
+        
+        console.log('Mapped items:', mappedItems);
+        console.log('Setting items with count:', mappedItems.length);
+        setItems(mappedItems);
+
+        const erectionItems = mappedItems.filter(item => item.section === 'erection');
+        if (erectionItems.length > 0) {
+          const erectionDiscount = parseFloat(erectionItems[0].discount_percent) || 0;
+          setHeaderDiscounts(prev => ({ ...prev, erection: erectionDiscount }));
+        }
       }
-      
-      await loadVariantDiscounts(id);
       
       const portfolio = await loadClientDiscountPortfolio(data.client_id);
       if (portfolio.settings && Object.keys(portfolio.settings).length > 0) {
         setDiscountSettings(prev => ({ ...prev, ...portfolio.settings }));
+      }
+      
+      // Load variant discounts for saved quotations
+      if (!isDuplicate) {
+        await loadVariantDiscounts(id);
       }
       
       if (isDuplicate) {
@@ -1361,37 +1545,65 @@ const loadQuoteNoPreview = useCallback(async () => {
           }
         }
 
-        return { ...item, ...updates };
+        const updatedItem = { ...item, ...updates };
+
+        // Trigger erection charge creation/update for material changes
+        if (field === 'qty' || field === 'uom' || field === 'description' || field === 'item_id') {
+          // Only trigger if this is a material item (not erection)
+          if (item.section !== 'erection') {
+            autoCreateOrUpdateErection({
+              ...updatedItem,
+              section: 'materials',
+              quotation_id: formData.id
+            }).catch(err => {
+              console.log('Erection auto-creation warning:', err.message);
+            });
+          }
+        }
+
+        return updatedItem;
       })
     );
   };
 
   const removeItem = useCallback((id) => {
-    setItems(prev => {
-      const filtered = prev.filter(item => item.id !== id);
-      // Renumber remaining items
-      return filtered.map((item, index) => ({
-        ...item,
-        display_order: index + 1
-      }));
-    });
-    setIsDirty(true);
+    // Check if this item has linked erection charges
+    const linkedErection = items.find(item => item.linked_material_id === id);
     
-    // If the deleted item was selected, clear it and open item picker for replacement
-    const deletedItem = items.find(item => item.id === id);
-    if (deletedItem) {
-      // Clear the deleted item's row but keep the row structure
-      setItems(prev => prev.map(item => 
-        item.id === id ? { ...item, item_id: '', material: null, description: '', hsn_code: '' } : item
-      ));
+    if (linkedErection) {
+      const erectionTotal = ((linkedErection.qty || 0) * (linkedErection.rate || 0)).toFixed(2);
+      const confirmed = confirm(
+        `This material has linked erection charges (₹${erectionTotal}).\n\n` +
+        `Choose an option:\n` +
+        `OK - Delete both material and erection charge\n` +
+        `Cancel - Keep both`
+      );
       
-      // Open item picker for user to select replacement
-      setTimeout(() => {
-        setItemSearch('');
-        setShowItemPicker(true);
-      }, 100);
+      if (!confirmed) {
+        return; // User cancelled
+      }
+      
+      // Delete both material and erection
+      setItems(prev => {
+        const filtered = prev.filter(item => item.id !== id && item.id !== linkedErection.id);
+        return filtered.map((item, index) => ({
+          ...item,
+          display_order: index + 1
+        }));
+      });
+    } else {
+      // No linked erection, delete normally
+      setItems(prev => {
+        const filtered = prev.filter(item => item.id !== id);
+        return filtered.map((item, index) => ({
+          ...item,
+          display_order: index + 1
+        }));
+      });
     }
-  }, []);
+    
+    setIsDirty(true);
+  }, [items]);
 
   const addEmptyItemRow = () => {
     const rowId = Date.now() + Math.random();
@@ -1629,6 +1841,7 @@ const loadQuoteNoPreview = useCallback(async () => {
           throw new Error('Quotation header not found for update or permission denied.');
         }
         quotationId = updatedHeader[0].id;
+        setFormData(prev => ({ ...prev, id: quotationId }));
       } else {
         let defaultSeries = null;
         try {
@@ -1708,6 +1921,7 @@ const loadQuoteNoPreview = useCallback(async () => {
           throw new Error('Failed to create quotation header. No data returned.');
         }
         quotationId = data[0].id;
+        setFormData(prev => ({ ...prev, id: quotationId }));
 
         // Update series after successful insert (fire and forget - don't await)
         if (defaultSeries) {
@@ -1720,7 +1934,7 @@ const loadQuoteNoPreview = useCallback(async () => {
       }
 
       const itemsToInsert = items
-        .filter(item => (item.is_header && item.description?.trim()) || (!item.is_header && item.item_id))
+        .filter(item => (item.is_header && item.description?.trim()) || (!item.is_header && (item.item_id || item.section === 'erection')))
         .map(item => ({
           quotation_id: quotationId,
           item_id: item.item_id || null,
@@ -1744,15 +1958,21 @@ const loadQuoteNoPreview = useCallback(async () => {
         display_order: item.display_order || 0,
         custom1: item.custom1 || '',
         custom2: item.custom2 || '',
+        hsn_code: item.hsn_code || null,
+        sac_code: item.sac_code || null,
         organisation_id: organisation?.id || '00000000-0000-0000-0000-000000000000'
       }));
 
-      const variantDiscountRecords = Object.entries(headerDiscounts).map(([variantId, discount]) => ({
-        quotation_revision_id: quotationId,
-        variant_id: variantId,
-        header_discount_percent: parseFloat(discount) || 0,
-        organisation_id: organisation?.id || '00000000-0000-0000-0000-000000000000'
-      }));
+      const variantDiscountRecords = Object.entries(headerDiscounts)
+        .filter(([variantId]) => variantId !== 'erection')
+        .map(([variantId, discount]) => ({
+          quotation_revision_id: quotationId,
+          variant_id: variantId,
+          header_discount_percent: parseFloat(discount) || 0,
+          organisation_id: organisation?.id || '00000000-0000-0000-0000-000000000000'
+        }));
+
+
 
       // OPTIMIZED: Delete and insert in single batch - run all operations in parallel
       await Promise.all([
@@ -1786,6 +2006,7 @@ const loadQuoteNoPreview = useCallback(async () => {
         );
       }
       await Promise.all(insertPromises);
+
 
       // Update source document status if this was a conversion
       if (conversionInfoRef.current && quotationId && !editId) {
@@ -1916,331 +2137,420 @@ const loadQuoteNoPreview = useCallback(async () => {
           </div>
         </div>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10">
-        {/* Section 1: Core Details */}
-        <div className="bg-white p-8 rounded-none shadow-sm border border-gray-200 space-y-6">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-sky-50 rounded-lg">
-              <FileText className="w-5 h-5 text-sky-600" />
+      <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
+          {/* Header with Navigation */}
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => navigate('/quotations')}
+                className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                <span className="font-medium">Back</span>
+              </button>
+              <h1 className="text-lg font-semibold text-gray-900">
+                {editId ? 'Edit Quotation' : 'Create Quotation'}
+              </h1>
             </div>
-            <h3 className="text-base font-bold text-gray-900">Quote Details</h3>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => navigate('/quotations')}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSave(false)}
+                disabled={saving}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50"
+              >
+                {saving ? 'Saving...' : 'Save'}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSave(true)}
+                disabled={saving}
+                className="px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md hover:bg-green-700 transition-colors disabled:opacity-50"
+              >
+                {saving ? 'Saving...' : 'Save as Draft'}
+              </button>
+            </div>
           </div>
-          
-          <div className="space-y-[72px]">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-[11px] font-bold text-gray-700 mb-1.5">Quote #</label>
-                <input 
-                  type="text" 
-                  className="w-full h-[30px] px-4 bg-gray-50 border border-gray-100 rounded-none text-sm font-mono text-gray-600 outline-none" 
-                  value={formData.quotation_no || quoteNoPreview || 'Auto-generating...'} 
-                  readOnly 
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] font-bold text-gray-700 mb-1.5">Date</label>
-                <input 
-                  type="date" 
-                  className="w-full h-[30px] px-4 bg-white border border-gray-200 rounded-none text-sm focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all" 
-                  value={formData.date} 
-                  onChange={(e) => setFormData({ ...formData, date: e.target.value })} 
-                />
-              </div>
-            </div>
+        </div>
 
-            <div className="relative client-dropdown-container">
-              <label className="block text-[11px] font-bold text-gray-700 mb-1.5">Client <span className="text-red-500">*</span></label>
-              <div className="relative">
-                <input 
-                  type="text"
-                  className="w-full h-[30px] px-4 bg-white border border-gray-200 rounded-none text-sm focus:ring-1 focus:ring-sky-500 focus:border-sky-500 outline-none transition-all cursor-pointer"
-                  placeholder="Search or Select Client..."
-                  value={clientSearch || (formData.client_id ? clients.find(c => c.id === formData.client_id)?.client_name : '')}
-                  onChange={(e) => {
-                    setClientSearch(e.target.value);
-                    setIsClientDropdownOpen(true);
-                  }}
-                  onFocus={() => setIsClientDropdownOpen(true)}
-                />
-                {isClientDropdownOpen && (
-                  <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 shadow-xl max-h-[300px] overflow-y-auto rounded-none">
-                    {clients
-                      .filter(c => !clientSearch || c.client_name.toLowerCase().includes(clientSearch.toLowerCase()))
-                      .map(c => (
-                        <div 
-                          key={c.id}
-                          className="px-4 py-2 hover:bg-sky-50 cursor-pointer text-sm font-medium border-b border-gray-50 last:border-0"
-                          onClick={() => {
-                            handleClientChange(c.id);
-                            setClientSearch(c.client_name);
-                            setIsClientDropdownOpen(false);
-                          }}
-                        >
-                          {c.client_name}
-                        </div>
+        {/* Document Details Grid */}
+        <div className="bg-white border border-gray-200 mb-6 shadow-sm">
+          <div className="px-4 py-3 border-b border-gray-200 flex items-center gap-2">
+              <div className="w-1 h-4 bg-blue-600 rounded-sm"></div>
+              <h2 className="text-xs font-bold text-gray-700 tracking-wider uppercase">Quotation Details</h2>
+            </div>
+            
+            <div className="grid grid-cols-[1fr_1.5fr_1.2fr] gap-6 p-5">
+              
+              {/* Column 1: DOCUMENT */}
+              <div className="space-y-4">
+                <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">Document</h3>
+                
+                <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+                  <div className="flex flex-col">
+                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Quotation No <span className="text-red-500">*</span></label>
+                    <div className="w-full px-2 py-1.5 border border-blue-200 bg-blue-50 text-blue-700 text-xs font-medium focus:outline-none transition-colors min-h-[30px] flex items-center">
+                      {formData.quotation_no || quoteNoPreview || 'Auto-generating...'}
+                    </div>
+                  </div>
+                  <div className="flex flex-col">
+                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Prepared By</label>
+                    <input 
+                      type="text" 
+                      className="w-full px-2 py-1.5 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[30px]" 
+                      value={formData.prepared_by || ''} 
+                      onChange={(e) => setFormData({ ...formData, prepared_by: e.target.value })} 
+                      placeholder="Sales executive..."
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+                  <div className="flex flex-col">
+                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Quotation Date <span className="text-red-500">*</span></label>
+                    <input 
+                      type="date" 
+                      className="w-full px-2 py-1.5 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[30px]" 
+                      value={formData.date} 
+                      onChange={(e) => setFormData({ ...formData, date: e.target.value })} 
+                    />
+                  </div>
+                  <div className="flex flex-col">
+                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Valid Till</label>
+                    <input 
+                      type="date" 
+                      className="w-full px-2 py-1.5 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[30px]" 
+                      value={formData.valid_till} 
+                      onChange={(e) => setFormData({ ...formData, valid_till: e.target.value })} 
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+                  <div className="flex flex-col">
+                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Variant</label>
+                    <select 
+                      className="w-full px-2 py-1.5 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[30px]" 
+                      value={formData.variant_id} 
+                      onChange={(e) => setFormData({ ...formData, variant_id: e.target.value })}
+                    >
+                      <option value="">Standard</option>
+                      {variants.map(v => (
+                        <option key={v.id} value={v.id}>{v.variant_name}</option>
                       ))}
-                    {clients.filter(c => !clientSearch || c.client_name.toLowerCase().includes(clientSearch.toLowerCase())).length === 0 && (
-                      <div className="px-4 py-3 text-sm text-gray-500 italic text-center bg-gray-50">
-                        No clients found matching "{clientSearch}"
+                    </select>
+                  </div>
+                  <div className="flex flex-col">
+                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Reference</label>
+                    <input 
+                      type="text" 
+                      className="w-full px-2 py-1.5 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[30px]" 
+                      value={formData.reference || ''} 
+                      onChange={(e) => setFormData({ ...formData, reference: e.target.value })} 
+                      placeholder="Client RFQ No..."
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-col">
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Payment Terms</label>
+                  <input 
+                    type="text" 
+                    className="w-full px-2 py-1.5 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[30px]" 
+                    value={formData.payment_terms} 
+                    onChange={(e) => setFormData({ ...formData, payment_terms: e.target.value })} 
+                    placeholder="Net 30 Days"
+                  />
+                </div>
+              </div>
+
+              {/* Column 2: CLIENT */}
+              <div className="space-y-4">
+                <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">Client</h3>
+                
+                <div className="flex flex-col client-dropdown-container">
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Client <span className="text-red-500">*</span></label>
+                  <div className="relative">
+                    <div className="relative">
+                      <input 
+                        type="text"
+                        className="w-full px-2 py-1.5 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none cursor-pointer transition-colors min-h-[30px]"
+                        placeholder="Search or select..."
+                        value={clientSearch || (formData.client_id ? clients.find(c => c.id === formData.client_id)?.client_name : '')}
+                        onChange={(e) => {
+                          setClientSearch(e.target.value);
+                          setIsClientDropdownOpen(true);
+                        }}
+                        onFocus={() => setIsClientDropdownOpen(true)}
+                      />
+                      <div className="absolute right-2 top-2 pointer-events-none">
+                        <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                      </div>
+                    </div>
+                    {isClientDropdownOpen && (
+                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 shadow-lg max-h-[300px] overflow-y-auto rounded-none">
+                        {clients
+                          .filter(c => !clientSearch || c.client_name.toLowerCase().includes(clientSearch.toLowerCase()))
+                          .map(c => (
+                            <div 
+                              key={c.id}
+                              className="px-3 py-2 hover:bg-blue-50 cursor-pointer text-xs border-b border-gray-100 last:border-0"
+                              onClick={() => {
+                                handleClientChange(c.id);
+                                setClientSearch(c.client_name);
+                                setIsClientDropdownOpen(false);
+                              }}
+                            >
+                              {c.client_name}
+                            </div>
+                          ))}
+                        {clients.filter(c => !clientSearch || c.client_name.toLowerCase().includes(clientSearch.toLowerCase())).length === 0 && (
+                          <div className="px-3 py-2 text-xs text-gray-500 italic text-center bg-gray-50">
+                            No clients found matching "{clientSearch}"
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
-                )}
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-bold text-gray-700 mb-1.5">Project</label>
-              <select 
-                className="w-full h-[30px] px-4 bg-white border border-gray-200 rounded-none text-sm focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all appearance-none cursor-pointer" 
-                value={formData.project_id} 
-                onChange={(e) => setFormData({ ...formData, project_id: e.target.value })}
-              >
-                <option value="">Select Project (Optional)</option>
-                {projects.filter((p) => !formData.client_id || p.client_id === formData.client_id).map((p) => (
-                  <option key={p.id} value={p.id}>{p.project_name || p.project_code}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </div>
-
-        {/* Section 2: Commercial Terms */}
-        <div className="bg-white p-8 rounded-none shadow-sm border border-gray-200 space-y-6">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-sky-50 rounded-lg">
-              <Plus className="w-5 h-5 text-sky-600" />
-            </div>
-            <h3 className="text-base font-bold text-gray-900">Terms</h3>
-          </div>
-          
-          <div className="space-y-8">
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <label className="block text-[11px] font-bold text-gray-700 mb-1.5">Variant</label>
-                <select 
-                  className="w-full h-[30px] px-4 bg-white border border-gray-200 rounded-none text-sm focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all appearance-none cursor-pointer" 
-                  value={formData.variant_id || ''} 
-                  onChange={(e) => setFormData({ ...formData, variant_id: e.target.value })}
-                >
-                  <option value="">None</option>
-                  {variants.map((v) => (<option key={v.id} value={v.id}>{v.variant_name}</option>))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-bold text-gray-700 mb-1.5">Valid Till</label>
-                <input 
-                  type="date" 
-                  className="w-full h-[30px] px-4 bg-white border border-gray-200 rounded-none text-sm focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all" 
-                  value={formData.valid_till} 
-                  onChange={(e) => setFormData({ ...formData, valid_till: e.target.value })} 
-                />
-              </div>
-              
-              <div>
-                <label className="block text-[11px] font-bold text-gray-700 mb-1.5">Payment</label>
-                <input 
-                  type="text" 
-                  className="w-full h-[30px] px-4 bg-white border border-gray-200 rounded-none text-sm focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all" 
-                  value={formData.payment_terms} 
-                  onChange={(e) => setFormData({ ...formData, payment_terms: e.target.value })} 
-                  placeholder="e.g. 30 Days"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-bold text-gray-700 mb-1.5">Contact</label>
-              <select 
-                className="w-full h-[30px] px-4 bg-white border border-gray-200 rounded-none text-sm focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all appearance-none cursor-pointer" 
-                value={formData.client_contact || ''} 
-                onChange={(e) => setFormData({ ...formData, client_contact: e.target.value })} 
-                disabled={!formData.client_id}
-              >
-                <option value="">{formData.client_id ? 'Select Contact' : 'Select Client First'}</option>
-                {clientContactOptions.map((opt) => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}
-              </select>
-            </div>
-          </div>
-        </div>
-
-        {/* Section 3: Billing & Remarks */}
-        <div className="bg-white p-8 rounded-none shadow-sm border border-gray-200 space-y-6">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-sky-50 rounded-lg">
-              <Mail className="w-5 h-5 text-sky-600" />
-            </div>
-            <h3 className="text-base font-bold text-gray-900">Billing</h3>
-          </div>
-          
-          <div className="space-y-8">
-            <div>
-              <label className="block text-[11px] font-bold text-gray-700 mb-1.5">Address</label>
-              <textarea 
-                className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-none text-sm focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all min-h-[90px] resize-none" 
-                value={formData.billing_address || ''} 
-                onChange={(e) => setFormData({ ...formData, billing_address: e.target.value })} 
-                placeholder="Client Billing Address"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-[11px] font-bold text-gray-700 mb-1.5">GSTIN</label>
-                <input 
-                  type="text" 
-                  className="w-full h-[30px] px-4 bg-white border border-gray-200 rounded-none text-sm focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all" 
-                  value={formData.gstin || ''} 
-                  onChange={(e) => setFormData({ ...formData, gstin: e.target.value })} 
-                  placeholder="GST Number"
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] font-bold text-gray-700 mb-1.5">Prepared By</label>
-                <input 
-                  type="text" 
-                  className="w-full h-[30px] px-4 bg-white border border-gray-200 rounded-none text-sm focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all" 
-                  value={formData.prepared_by} 
-                  onChange={(e) => setFormData({ ...formData, prepared_by: e.target.value })} 
-                  placeholder="Your Name"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-bold text-gray-700 mb-1.5">Notes</label>
-              <input 
-                type="text" 
-                className="w-full h-[30px] px-4 bg-white border border-gray-200 rounded-none text-sm focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all" 
-                value={formData.reference} 
-                onChange={(e) => setFormData({ ...formData, reference: e.target.value })} 
-                placeholder="Internal Remarks"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-
-
-      {variants.length > 0 && (
-        <div className="bg-amber-50 border border-amber-200 rounded-none p-8 mb-10 shadow-sm" data-html2canvas-ignore>
-          <div className="flex items-center justify-between mb-8 pb-4 border-b border-amber-100">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center text-amber-600">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-              </div>
-              <div>
-                <span className="block text-lg font-bold text-amber-900 leading-none">DISCOUNT</span>
-              </div>
-            </div>
-            <button
-              className="h-[25px] px-6 min-w-[100px] rounded flex items-center justify-center text-[11px] font-bold text-white bg-gradient-to-b from-[#001f3f] to-[#003366] shadow-none border-none hover:opacity-90 transition-all"
-              onClick={() => setActiveTab(activeTab === 'items' ? 'approval' : 'items')}
-            >
-              {activeTab === 'items' ? 'View Approval History' : 'Back to Items'}
-            </button>
-          </div>
-          
-          {activeTab === 'items' && (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-4">
-            {variants.map(variant => {
-              const discountValue = headerDiscounts[variant.id] || 0;
-              const settings = discountSettings[variant.id];
-              const isAboveMax = settings && discountValue > settings.max;
-              const approvalDisplay = getApprovalDisplayStatus(variant.id);
-              
-              return (
-              <div 
-                key={variant.id} 
-                className={`flex items-center justify-between p-3 rounded-none border transition-all ${isAboveMax ? 'border-red-300 bg-red-50/50' : 'border-amber-200 bg-white hover:border-amber-400'}`}
-              >
-                <div className="flex flex-col gap-1 min-w-0 flex-1">
-                  <span className="text-[11px] font-bold text-amber-900 uppercase tracking-wider truncate" title={variant.variant_name}>
-                    {variant.variant_name}
-                  </span>
-                  {approvalDisplay !== 'none' && (
-                    <span className={`inline-block w-fit text-[8px] px-1.5 py-0.5 rounded-none font-bold uppercase tracking-tighter ${
-                      approvalDisplay === 'approved' ? 'bg-emerald-500 text-white' : 
-                      approvalDisplay === 'pending' ? 'bg-amber-500 text-white' : 'bg-red-500 text-white'
-                    }`}>
-                      {approvalDisplay === 'approved' ? 'Approved' : approvalDisplay === 'pending' ? 'Pending' : 'Rejected'}
-                    </span>
-                  )}
                 </div>
-                
-                <div className="flex flex-col items-end gap-1">
-                  <div className="flex items-center bg-white border border-amber-200 rounded-none overflow-hidden focus-within:border-amber-500 transition-all w-[100px]">
-                    <input
-                      type="number"
-                      className="w-full px-2 py-1.5 text-right text-sm font-bold text-amber-900 bg-transparent outline-none"
-                      value={headerDiscounts[variant.id] || 0}
-                      onChange={(e) => {
-                        const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0));
-                        setHeaderDiscounts(prev => ({ ...prev, [variant.id]: val }));
-                      }}
-                      onBlur={(e) => {
-                        const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0));
-                        handleHeaderDiscountChange(variant.id, val);
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') e.target.blur();
-                      }}
-                      min="0"
-                      max="100"
-                      step="0.01"
+
+                <div className="flex flex-col">
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Contact</label>
+                  <input 
+                    type="text" 
+                    className="w-full px-2 py-1.5 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[30px]" 
+                    value={formData.client_contact} 
+                    onChange={(e) => setFormData({ ...formData, client_contact: e.target.value })} 
+                    placeholder="+91 98765 43210"
+                  />
+                </div>
+
+                <div className="flex flex-col">
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Billing Address</label>
+                  <textarea 
+                    className="w-full px-2 py-1.5 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[50px] resize-y" 
+                    value={formData.billing_address} 
+                    onChange={(e) => setFormData({ ...formData, billing_address: e.target.value })} 
+                    placeholder="Full billing address..."
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+                  <div className="flex flex-col">
+                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">GSTIN</label>
+                    <input 
+                      type="text" 
+                      className="w-full px-2 py-1.5 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[30px]" 
+                      value={formData.gstin} 
+                      onChange={(e) => setFormData({ ...formData, gstin: e.target.value })} 
+                      placeholder="27AABCU9603R1ZX"
                     />
-                    <div className="bg-amber-50 px-2 py-1.5 text-[10px] font-bold text-amber-600 border-l border-amber-100">
-                      %
+                  </div>
+                  <div className="flex flex-col">
+                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">State</label>
+                    <div className="relative">
+                      <select 
+                        className="w-full px-2 py-1.5 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[30px] appearance-none" 
+                        value={formData.state} 
+                        onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                      >
+                        <option value="">Select state...</option>
+                        {INDIAN_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                      <div className="absolute right-2 top-2 pointer-events-none">
+                        <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                      </div>
                     </div>
                   </div>
-                  {isAboveMax && (
-                    <span className="text-[8px] font-bold text-red-600 uppercase tracking-tighter">Over Limit</span>
+                </div>
+              </div>
+
+              {/* Column 3: PROJECT & DISCOUNTS */}
+              <div className="space-y-4">
+                <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">Project</h3>
+                
+                <div className="flex flex-col relative">
+                  <select 
+                    className="w-full px-2 py-1.5 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[30px] appearance-none" 
+                    value={formData.project_id} 
+                    onChange={(e) => setFormData({ ...formData, project_id: e.target.value })}
+                  >
+                    <option value="">Select project...</option>
+                    {projects.filter((p) => !formData.client_id || p.client_id === formData.client_id).map((p) => (
+                      <option key={p.id} value={p.id}>{p.project_name || p.project_code}</option>
+                    ))}
+                  </select>
+                  <div className="absolute right-2 top-2 pointer-events-none">
+                    <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                  </div>
+                </div>
+
+                <div className="pt-2">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Discounts</h3>
+                    {variants.length > 0 && (
+                      <button 
+                        type="button" 
+                        className="text-[9px] font-bold text-blue-500 uppercase tracking-wider hover:text-blue-700 transition-colors"
+                        onClick={() => setActiveTab(activeTab === 'items' ? 'approval' : 'items')}
+                      >
+                        {activeTab === 'items' ? 'View Approvals' : 'Back to Discounts'}
+                      </button>
+                    )}
+                  </div>
+                  
+                  {activeTab === 'items' ? (
+                    <div className="space-y-2">
+                      {(() => {
+                        const renderVariants = [...variants];
+                        if (formData.include_erection_charges) {
+                          renderVariants.push({
+                            id: 'erection',
+                            variant_name: 'ERECTION CHARGES'
+                          });
+                        }
+                        
+                        return renderVariants.length > 0 ? renderVariants.map((variant, index) => {
+                          const colors = [
+                            { border: 'border-blue-500', bg: 'bg-blue-50/50', text: 'text-blue-700', percentBg: 'bg-blue-100/50', percentText: 'text-blue-600' },
+                            { border: 'border-amber-400', bg: 'bg-amber-50/50', text: 'text-amber-700', percentBg: 'bg-amber-100/50', percentText: 'text-amber-600' },
+                            { border: 'border-purple-400', bg: 'bg-purple-50/50', text: 'text-purple-700', percentBg: 'bg-purple-100/50', percentText: 'text-purple-600' },
+                            { border: 'border-emerald-500', bg: 'bg-emerald-50/50', text: 'text-emerald-700', percentBg: 'bg-emerald-100/50', percentText: 'text-emerald-600' },
+                          ];
+                          const color = colors[index % colors.length];
+                        
+                        const settings = discountSettings[variant.id];
+                        const discountValue = headerDiscounts[variant.id] || 0;
+                        const isAboveMax = settings && discountValue > settings.max;
+                        const approvalDisplay = getApprovalDisplayStatus(variant.id);
+                        
+                        return (
+                          <div key={variant.id} className="flex items-center justify-between border border-gray-100 bg-white">
+                            <div className={`flex items-center gap-2 px-2 py-1 flex-1 border-l-2 ${color.border} ${color.bg}`}>
+                              <span className={`text-[10px] font-bold uppercase tracking-wider ${color.text} truncate`}>
+                                {variant.variant_name}
+                              </span>
+                              {approvalDisplay !== 'none' && (
+                                <span className={`text-[8px] px-1 py-0.5 rounded-none font-bold uppercase tracking-tighter ${
+                                  approvalDisplay === 'approved' ? 'bg-emerald-500 text-white' : 
+                                  approvalDisplay === 'pending' ? 'bg-amber-500 text-white' : 'bg-red-500 text-white'
+                                }`}>
+                                  {approvalDisplay === 'approved' ? 'Approved' : approvalDisplay === 'pending' ? 'Pending' : 'Rejected'}
+                                </span>
+                              )}
+                            </div>
+                            <div className={`flex items-center border-l border-gray-100 focus-within:border-gray-300 transition-colors w-[60px] ${color.bg}`}>
+                              <input
+                                type="number"
+                                className={`w-full px-2 py-1 text-right text-[11px] font-bold ${color.text} bg-transparent outline-none`}
+                                value={headerDiscounts[variant.id] || 0}
+                                onChange={(e) => {
+                                  const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0));
+                                  setHeaderDiscounts(prev => ({ ...prev, [variant.id]: val }));
+                                }}
+                                onBlur={(e) => {
+                                  const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0));
+                                  handleHeaderDiscountChange(variant.id, val);
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') e.target.blur();
+                                }}
+                                min="0"
+                                max="100"
+                                step="0.01"
+                              />
+                              <div className={`px-1.5 py-1 text-[10px] font-bold ${color.percentText} ${color.percentBg} border-l border-white/50`}>
+                                %
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      }) : (
+                        <div className="text-xs text-gray-500 italic p-2 border border-gray-100 bg-gray-50">
+                          No variants available.
+                        </div>
+                      );
+                      })()}
+                    </div>
+                  ) : (
+                    <div className="text-xs text-gray-500 italic p-2 border border-gray-100 bg-gray-50">
+                      Approval history shown below.
+                    </div>
                   )}
                 </div>
               </div>
-              );
-            })}
-          </div>
-          )}
-          
-          {activeTab === 'approval' && (
-            <div className="bg-white rounded-xl border border-amber-200 overflow-hidden">
-              {approvalHistory.length === 0 ? (
-                <div className="py-12 text-center text-gray-500 italic text-sm">
-                  No approval history found for this document.
-                </div>
-              ) : (
-                <table className="w-full text-xs text-left">
-                  <thead className="bg-gray-50 border-b border-gray-100">
-                    <tr>
-                      <th className="px-4 py-3 font-bold text-gray-600">Variant</th>
-                      <th className="px-4 py-3 font-bold text-gray-600">Event</th>
-                      <th className="px-4 py-3 font-bold text-gray-600">By</th>
-                      <th className="px-4 py-3 font-bold text-gray-600">Date</th>
-                      <th className="px-4 py-3 font-bold text-gray-600">Remark</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-50">
-                    {approvalHistory.map((log) => {
-                      const variant = variants.find(v => v.id === log.variant_id);
-                      return (
-                        <tr key={log.id} className="hover:bg-gray-50 transition-colors">
-                          <td className="px-4 py-3 font-semibold text-gray-900">{variant?.variant_name || '-'}</td>
-                          <td className="px-4 py-3 capitalize">{log.event_type}</td>
-                          <td className="px-4 py-3 text-gray-500">{log.performed_by_email || '-'}</td>
-                          <td className="px-4 py-3 text-gray-500">{log.timestamp ? new Date(log.timestamp).toLocaleString() : '-'}</td>
-                          <td className="px-4 py-3 text-gray-700 italic">{log.remark || '-'}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              )}
             </div>
-          )}
-        </div>
-      )}
+
+            {/* Approval History Tab Content */}
+            {activeTab === 'approval' && (
+              <div className="px-5 pb-5 pt-2 border-t border-gray-100">
+                {approvalHistory.length === 0 ? (
+                  <div className="py-6 text-center text-gray-500 italic text-xs">
+                    No approval history found for this document.
+                  </div>
+                ) : (
+                  <table className="w-full text-[11px] text-left">
+                    <thead className="bg-gray-50 border-b border-gray-100">
+                      <tr>
+                        <th className="px-3 py-2 font-bold text-gray-500 uppercase tracking-wider">Variant</th>
+                        <th className="px-3 py-2 font-bold text-gray-500 uppercase tracking-wider">Event</th>
+                        <th className="px-3 py-2 font-bold text-gray-500 uppercase tracking-wider">By</th>
+                        <th className="px-3 py-2 font-bold text-gray-500 uppercase tracking-wider">Date</th>
+                        <th className="px-3 py-2 font-bold text-gray-500 uppercase tracking-wider">Remark</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {approvalHistory.map((log) => {
+                        const variant = variants.find(v => v.id === log.variant_id);
+                        return (
+                          <tr key={log.id} className="hover:bg-gray-50 transition-colors">
+                            <td className="px-3 py-2 font-bold text-gray-700">{variant?.variant_name || '-'}</td>
+                            <td className="px-3 py-2 capitalize">{log.event_type}</td>
+                            <td className="px-3 py-2 text-gray-500">{log.performed_by_email || '-'}</td>
+                            <td className="px-3 py-2 text-gray-500">{log.timestamp ? new Date(log.timestamp).toLocaleString() : '-'}</td>
+                            <td className="px-3 py-2 text-gray-500 italic">{log.remark || '-'}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            )}
+
+            {/* Bottom Options (Erection Charges, Round Off) */}
+            <div className="px-5 py-3 border-t border-gray-100 bg-gray-50/50 flex items-center gap-6">
+              <label className="flex items-center gap-2 cursor-pointer group">
+                <input 
+                  type="checkbox" 
+                  className="w-3.5 h-3.5 text-blue-600 border-gray-300 rounded-none focus:ring-0 focus:ring-offset-0"
+                  checked={formData.include_erection_charges}
+                  onChange={(e) => setFormData({ ...formData, include_erection_charges: e.target.checked })}
+                />
+                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider group-hover:text-gray-700 transition-colors">Include Erection Charges</span>
+              </label>
+              
+              <label className="flex items-center gap-2 cursor-pointer group">
+                <input 
+                  type="checkbox" 
+                  className="w-3.5 h-3.5 text-blue-600 border-gray-300 rounded-none focus:ring-0 focus:ring-offset-0"
+                  checked={formData.round_off_enabled}
+                  onChange={(e) => setFormData({ ...formData, round_off_enabled: e.target.checked })}
+                />
+                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider group-hover:text-gray-700 transition-colors">Enable Round Off</span>
+              </label>
+            </div>
+          </div>
 
       <div className="bg-white rounded-none border border-gray-200 shadow-sm overflow-hidden mb-6" ref={itemsTableRef}>
         <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 bg-gray-50/50">
@@ -2250,6 +2560,32 @@ const loadQuoteNoPreview = useCallback(async () => {
             <span className="ml-2 text-xs font-semibold px-2 py-0.5 bg-gray-100 text-gray-500 rounded-none">
               {items.length} {items.length === 1 ? 'Item' : 'Items'} Total
             </span>
+          </div>
+          
+          {/* Section Tabs */}
+          <div style={{ display: 'flex', gap: '0', borderBottom: '1px solid #e5e7eb', marginLeft: '20px' }}>
+            <button
+              type="button"
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                activeSection === 'materials'
+                  ? 'border-indigo-600 text-indigo-600'
+                  : 'border-transparent text-zinc-500 hover:text-zinc-700 hover:border-zinc-300'
+              }`}
+              onClick={() => setActiveSection('materials')}
+            >
+              Materials
+            </button>
+            <button
+              type="button"
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                activeSection === 'erection'
+                  ? 'border-indigo-600 text-indigo-600'
+                  : 'border-transparent text-zinc-500 hover:text-zinc-700 hover:border-zinc-300'
+              }`}
+              onClick={() => setActiveSection('erection')}
+            >
+              Erection Charges
+            </button>
           </div>
           
           <div className="flex items-center gap-2">
@@ -2273,7 +2609,7 @@ const loadQuoteNoPreview = useCallback(async () => {
         </div>
 
         <div className="grid-table-container">
-          <table className="grid-table">
+          <table className={`grid-table ${activeSection === 'erection' ? 'erection-section' : ''}`}>
             <thead>
               <tr>
                 <th className="col-shrink">#</th>
@@ -2319,7 +2655,15 @@ const loadQuoteNoPreview = useCallback(async () => {
                   <td colSpan={20} className="cell-static text-center" style={{ padding: '48px', color: '#94a3b8', fontSize: '14px' }}>No items added. Click "Add Row" or "Add Multiple Items".</td>
                 </tr>
               ) : (
-                items.map((item, index) => {
+                items
+                  .filter(item => {
+                    if (activeSection === 'materials') {
+                      return item.section !== 'erection';
+                    } else {
+                      return item.section === 'erection';
+                    }
+                  })
+                  .map((item, index) => {
                   const itemCountBefore = items.slice(0, index).filter(i => !i.is_header).length;
                   if (item.is_header) {
                     return (
@@ -2366,7 +2710,7 @@ const loadQuoteNoPreview = useCallback(async () => {
                           addEmptyItemRow();
                         }
                       }}
-                      className={draggingItemId === item.id ? 'row-dragging' : item.is_override ? 'override-indicator' : ''}
+                      className={`${draggingItemId === item.id ? 'row-dragging' : ''} ${item.is_override ? 'override-indicator' : ''} ${item.section === 'erection' ? 'erection-row' : ''}`}
                       onMouseEnter={() => setHoveredItemId(item.id)}
                       onMouseLeave={() => setHoveredItemId(null)}
                     >
@@ -2629,6 +2973,17 @@ const loadQuoteNoPreview = useCallback(async () => {
           </table>
         </div>
       </div>
+
+      {/* Erection Section - shown when materials tab is active */}
+      {activeSection === 'materials' && (
+        <ErectionSection
+          quotationId={formData.id || ''}
+          items={items}
+          onItemUpdate={(itemId, field, value) => {
+            updateItem(itemId, field, value);
+          }}
+        />
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '16px' }}>
         <div>
