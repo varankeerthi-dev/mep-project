@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCreateIssue } from '../hooks';
+import { useProjects } from '../../hooks/useProjects';
+import { useClients } from '../../hooks/useClients';
 import { ISSUE_TYPES, ISSUE_SYSTEMS, ISSUE_SEVERITIES, ISSUE_PRIORITIES } from '../types';
 import {
   X,
@@ -85,17 +87,36 @@ const styles = `
     flex: 1;
     overflow-y: auto;
     padding: 1.25rem;
+    max-height: calc(90vh - 120px); /* Constrain height for scroller */
+  }
+
+  /* Custom Scroller */
+  .icm-body::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  .icm-body::-webkit-scrollbar-track {
+    background: var(--icm-bg-page);
+  }
+  
+  .icm-body::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+  }
+  
+  .icm-body::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
   }
   
   .icm-form-grid {
     display: grid;
-    gap: 1rem;
+    gap: 1.25rem;
   }
   
   .icm-form-row {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 1rem;
+    gap: 1.25rem;
   }
   
   @media (max-width: 640px) {
@@ -105,15 +126,18 @@ const styles = `
   .icm-form-group {
     display: flex;
     flex-direction: column;
-    gap: 0.375rem;
+    gap: 0.5rem;
   }
   
   .icm-form-label {
     font-size: 0.75rem;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.05em;
     color: var(--icm-text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
   }
   
   .icm-form-label .required {
@@ -121,31 +145,33 @@ const styles = `
   }
   
   .icm-input, .icm-select, .icm-textarea {
-    padding: 0.625rem 0.75rem;
+    padding: 0.625rem 0.875rem;
     background: var(--icm-bg-page);
     border: 1px solid var(--icm-border);
-    border-radius: 0.375rem;
+    border-radius: 0.25rem; /* More professional look */
     font-size: 0.875rem;
     font-family: inherit;
     color: var(--icm-text-primary);
     width: 100%;
+    transition: all 0.2s ease;
   }
   
   .icm-input:focus, .icm-select:focus, .icm-textarea:focus {
     outline: none;
     border-color: var(--icm-accent);
     background: white;
+    box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.05);
   }
   
   .icm-textarea {
-    min-height: 100px;
+    min-height: 120px;
     resize: vertical;
   }
   
   .icm-location-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 0.5rem;
+    gap: 0.75rem;
   }
   
   @media (max-width: 480px) {
@@ -162,12 +188,25 @@ const styles = `
     background: var(--icm-bg-page);
   }
   
+  .icm-error-banner {
+    background: #fef2f2;
+    border: 1px solid #fee2e2;
+    border-radius: 0.375rem;
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: #991b1b;
+    font-size: 0.8125rem;
+  }
+  
   .icm-btn {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.625rem 1rem;
-    border-radius: 0.375rem;
+    padding: 0.625rem 1.25rem;
+    border-radius: 0.25rem;
     font-size: 0.875rem;
     font-weight: 600;
     cursor: pointer;
@@ -212,6 +251,7 @@ export function IssueCreateModal({ isOpen, onClose, projectId }: IssueCreateModa
   const createIssue = useCreateIssue();
   
   const [formData, setFormData] = useState({
+    client_id: '',
     project_id: projectId || '',
     title: '',
     description: '',
@@ -233,6 +273,11 @@ export function IssueCreateModal({ isOpen, onClose, projectId }: IssueCreateModa
   
   const [errors, setErrors] = useState<Record<string, string>>({});
   
+  const { data: projectsData } = useProjects();
+  const { data: clientsData } = useClients();
+  
+  const filteredProjects = (projectsData || []).filter(p => !formData.client_id || p.client_id === formData.client_id);
+  
   const handleChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     if (errors[field]) {
@@ -242,6 +287,7 @@ export function IssueCreateModal({ isOpen, onClose, projectId }: IssueCreateModa
   
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
+    if (!formData.client_id) newErrors.client_id = 'Client is required';
     if (!formData.project_id) newErrors.project_id = 'Project is required';
     if (!formData.title.trim()) newErrors.title = 'Title is required';
     if (!formData.issue_type) newErrors.issue_type = 'Issue type is required';
@@ -257,7 +303,8 @@ export function IssueCreateModal({ isOpen, onClose, projectId }: IssueCreateModa
     try {
       const issue = await createIssue.mutateAsync({
         organisation_id: organisation?.id!,
-        project_id: formData.project_id,
+        client_id: formData.client_id || null,
+        project_id: formData.project_id || null,
         title: formData.title,
         description: formData.description || undefined,
         issue_type: formData.issue_type,
@@ -298,6 +345,16 @@ export function IssueCreateModal({ isOpen, onClose, projectId }: IssueCreateModa
         
         <form onSubmit={handleSubmit}>
           <div className="icm-body">
+            {createIssue.isError && (
+              <div className="icm-error-banner">
+                <AlertTriangle size={18} />
+                <div>
+                  <strong>Failed to create issue:</strong> {(createIssue.error as any)?.message?.includes('row-level security') 
+                    ? 'Security Policy Error: Please ensure you have permissions for this organization. You may need to run the RLS fix script in Supabase.'
+                    : (createIssue.error as any)?.message || 'Unknown error'}
+                </div>
+              </div>
+            )}
             <div className="icm-form-grid">
               {/* Title */}
               <div className="icm-form-group">
@@ -316,8 +373,30 @@ export function IssueCreateModal({ isOpen, onClose, projectId }: IssueCreateModa
                 )}
               </div>
               
-              {/* Project & Type */}
+              {/* Client & Project */}
               <div className="icm-form-row">
+                <div className="icm-form-group">
+                  <label className="icm-form-label">
+                    Client <span className="required">*</span>
+                  </label>
+                  <select
+                    className="icm-select"
+                    value={formData.client_id}
+                    onChange={e => {
+                      handleChange('client_id', e.target.value);
+                      handleChange('project_id', ''); // Reset project when client changes
+                    }}
+                  >
+                    <option value="">Select Client</option>
+                    {clientsData?.map(c => (
+                      <option key={c.id} value={c.id}>{c.client_name}</option>
+                    ))}
+                  </select>
+                  {errors.client_id && (
+                    <span style={{ color: '#dc2626', fontSize: '0.75rem' }}>{errors.client_id}</span>
+                  )}
+                </div>
+
                 <div className="icm-form-group">
                   <label className="icm-form-label">
                     Project <span className="required">*</span>
@@ -328,12 +407,18 @@ export function IssueCreateModal({ isOpen, onClose, projectId }: IssueCreateModa
                     onChange={e => handleChange('project_id', e.target.value)}
                   >
                     <option value="">Select Project</option>
+                    {filteredProjects.map(p => (
+                      <option key={p.id} value={p.id}>{p.project_name}</option>
+                    ))}
                   </select>
                   {errors.project_id && (
                     <span style={{ color: '#dc2626', fontSize: '0.75rem' }}>{errors.project_id}</span>
                   )}
                 </div>
-                
+              </div>
+              
+              {/* Type & System */}
+              <div className="icm-form-row">
                 <div className="icm-form-group">
                   <label className="icm-form-label">
                     Issue Type <span className="required">*</span>
@@ -348,10 +433,7 @@ export function IssueCreateModal({ isOpen, onClose, projectId }: IssueCreateModa
                     ))}
                   </select>
                 </div>
-              </div>
-              
-              {/* System & Severity */}
-              <div className="icm-form-row">
+
                 <div className="icm-form-group">
                   <label className="icm-form-label">System</label>
                   <select
@@ -365,7 +447,9 @@ export function IssueCreateModal({ isOpen, onClose, projectId }: IssueCreateModa
                     ))}
                   </select>
                 </div>
-                
+              </div>
+              {/* Severity & Priority */}
+              <div className="icm-form-row">
                 <div className="icm-form-group">
                   <label className="icm-form-label">
                     Severity <span className="required">*</span>
@@ -380,10 +464,7 @@ export function IssueCreateModal({ isOpen, onClose, projectId }: IssueCreateModa
                     ))}
                   </select>
                 </div>
-              </div>
-              
-              {/* Priority & Due Date */}
-              <div className="icm-form-row">
+
                 <div className="icm-form-group">
                   <label className="icm-form-label">Priority</label>
                   <select
@@ -396,7 +477,10 @@ export function IssueCreateModal({ isOpen, onClose, projectId }: IssueCreateModa
                     ))}
                   </select>
                 </div>
-                
+              </div>
+
+              {/* Due Date & Empty (for alignment) */}
+              <div className="icm-form-row">
                 <div className="icm-form-group">
                   <label className="icm-form-label">Due Date</label>
                   <input
@@ -406,7 +490,9 @@ export function IssueCreateModal({ isOpen, onClose, projectId }: IssueCreateModa
                     onChange={e => handleChange('due_date', e.target.value)}
                   />
                 </div>
+                <div className="icm-form-group"></div>
               </div>
+
               
               {/* Location */}
               <div className="icm-form-group">

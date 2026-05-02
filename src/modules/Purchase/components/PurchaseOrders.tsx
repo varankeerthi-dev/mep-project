@@ -18,6 +18,7 @@ import {
   ChevronUp,
   ChevronDown
 } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { Button as ShadcnButton } from '../../../components/ui/button';
 import { Badge } from '../../../components/ui/Badge';
 import { AppTable } from '../../../components/ui/AppTable';
@@ -110,7 +111,11 @@ function StatusBadge({ status }: { status: string }) {
 
 export const PurchaseOrders: React.FC = () => {
   const { organisation } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [openDialog, setOpenDialog] = useState(false);
+  
+  const issueIdParam = searchParams.get('issue_id');
+  const actionParam = searchParams.get('action');
   const [activeStep, setActiveStep] = useState(0);
   const [selectedPO, setSelectedPO] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -159,6 +164,64 @@ export const PurchaseOrders: React.FC = () => {
       loadVariants();
     }
   }, [organisation?.id]);
+
+  // Handle action=create from URL
+  useEffect(() => {
+    if (actionParam === 'create' && !openDialog) {
+      handleAdd();
+      
+      // Clear action param so it doesn't re-trigger
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('action');
+      setSearchParams(newParams, { replace: true });
+    }
+  }, [actionParam, openDialog]);
+
+  // Fetch linked Issue info for pre-filling
+  const { data: linkedIssue } = useQuery({
+    queryKey: ['issue-for-po', issueIdParam],
+    enabled: !!issueIdParam && openDialog,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('issues')
+        .select('id, title, description, project_id, location_block, equipment_tag')
+        .eq('id', issueIdParam)
+        .single();
+      
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  // Pre-fill from issue
+  useEffect(() => {
+    if (linkedIssue && openDialog && items.length === 0) {
+      // Create an initial item based on the issue
+      const issueDesc = `Resolution for Issue: ${linkedIssue.title}${linkedIssue.description ? ` - ${linkedIssue.description}` : ''}`;
+      const newItem: POItem = {
+        sr: 1,
+        item_name: linkedIssue.equipment_tag || 'Material/Service',
+        make: '',
+        variant: '',
+        description: issueDesc,
+        hsn_code: '',
+        quantity: 1,
+        unit: 'Nos',
+        rate: 0,
+        discount_percent: 0,
+        discount_amount: 0,
+        taxable_value: 0,
+        cgst_percent: 9,
+        cgst_amount: 0,
+        sgst_percent: 9,
+        sgst_amount: 0,
+        igst_percent: 18,
+        igst_amount: 0,
+        total_amount: 0,
+      };
+      setItems([newItem]);
+    }
+  }, [linkedIssue, openDialog]);
 
   const loadMaterials = async () => {
     try {
@@ -384,6 +447,7 @@ export const PurchaseOrders: React.FC = () => {
     try {
       const poData = {
         organisation_id: organisation?.id,
+        issue_id: issueIdParam || null,
         po_number: poNumber,
         po_date: poDate,
         vendor_id: vendorId,
@@ -425,7 +489,19 @@ export const PurchaseOrders: React.FC = () => {
         total_amount_inr: item.total_amount * exchangeRate,
       }));
 
-      await createPO.mutateAsync({ poData, items: itemsData });
+      const result = await createPO.mutateAsync({ poData, items: itemsData });
+      
+      // Log creation in issue timeline if issue_id is present
+      if (issueIdParam && result?.id) {
+        await supabase.from('issue_activity_logs').insert({
+          issue_id: issueIdParam,
+          action: 'purchase_order_created',
+          new_value: { po_id: result.id, po_number: poNumber },
+          done_by: (organisation as any)?.created_by || null,
+          done_by_name: organisation?.name || 'System'
+        });
+      }
+      
       setOpenDialog(false);
     } catch (error) {
       console.error('Error saving PO:', error);

@@ -2,6 +2,8 @@ import { useState, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useIssues, useIssueCount, useDeleteIssue } from '../hooks';
+import { useProjects } from '../../hooks/useProjects';
+import { useClients } from '../../hooks/useClients';
 import { 
   formatIssueDate, 
   formatIssueAge, 
@@ -500,6 +502,7 @@ export function IssueListPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   
   const [search, setSearch] = useState(searchParams.get('search') || '');
+  const [clientFilter, setClientFilter] = useState(searchParams.get('client') || '');
   const [projectFilter, setProjectFilter] = useState(searchParams.get('project') || '');
   const [systemFilter, setSystemFilter] = useState(searchParams.get('system') || '');
   const [severityFilter, setSeverityFilter] = useState(searchParams.get('severity') || '');
@@ -512,6 +515,7 @@ export function IssueListPage() {
   
   const filters: IssueFilters = useMemo(() => ({
     organisationId: organisation?.id,
+    clientId: clientFilter || undefined,
     projectId: projectFilter || undefined,
     system: (systemFilter || null) as IssueSystem | null,
     severity: (severityFilter || null) as IssueSeverity | null,
@@ -520,11 +524,15 @@ export function IssueListPage() {
     search: search || undefined,
     page: currentPage,
     limit: PAGE_SIZE,
-  }), [organisation?.id, projectFilter, systemFilter, severityFilter, statusFilter, typeFilter, search, currentPage]);
+  }), [organisation?.id, clientFilter, projectFilter, systemFilter, severityFilter, statusFilter, typeFilter, search, currentPage]);
   
   const { data: issues, isLoading } = useIssues(filters);
   const { data: totalCount } = useIssueCount({ ...filters, limit: undefined });
+  const { data: projectsData } = useProjects();
+  const { data: clientsData } = useClients();
   const deleteIssue = useDeleteIssue();
+  
+  const filteredProjects = (projectsData || []).filter(p => !clientFilter || p.client_id === clientFilter);
   
   const totalPages = Math.ceil((totalCount || 0) / PAGE_SIZE);
   
@@ -546,10 +554,11 @@ export function IssueListPage() {
     setOpenMenuId(openMenuId === issueId ? null : issueId);
   };
   
-  const hasFilters = search || projectFilter || systemFilter || severityFilter || statusFilter || typeFilter;
+  const hasFilters = search || clientFilter || projectFilter || systemFilter || severityFilter || statusFilter || typeFilter;
   
   const clearFilters = () => {
     setSearch('');
+    setClientFilter('');
     setProjectFilter('');
     setSystemFilter('');
     setSeverityFilter('');
@@ -598,6 +607,24 @@ export function IssueListPage() {
             </div>
             
             <div className="ilt-filter-block">
+              <div className="ilt-filter-title">Client</div>
+              <select 
+                className="ilt-select"
+                value={clientFilter}
+                onChange={(e) => { 
+                  setClientFilter(e.target.value); 
+                  setProjectFilter(''); // Reset project when client changes
+                  setCurrentPage(1); 
+                }}
+              >
+                <option value="">All Clients</option>
+                {clientsData?.map(c => (
+                  <option key={c.id} value={c.id}>{c.client_name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="ilt-filter-block">
               <div className="ilt-filter-title">Project</div>
               <select 
                 className="ilt-select"
@@ -605,6 +632,9 @@ export function IssueListPage() {
                 onChange={(e) => { setProjectFilter(e.target.value); setCurrentPage(1); }}
               >
                 <option value="">All Projects</option>
+                {filteredProjects.map(p => (
+                  <option key={p.id} value={p.id}>{p.project_name}</option>
+                ))}
               </select>
             </div>
             

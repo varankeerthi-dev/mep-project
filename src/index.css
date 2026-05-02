@@ -1507,16 +1507,19 @@ body {
   overflow-x: auto;
   margin-bottom: 20px;
   border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  border-radius: 8px;
   background: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .grid-table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   table-layout: fixed;
   background: white;
+  border: 1px solid rgba(0, 0, 0, 0.7);
+  border-radius: 8px;
 }
 
 .grid-table th {
@@ -1592,9 +1595,15 @@ body {
 }
 
 .grid-table td {
-  border-bottom: 1px solid #e5e7eb;
+  border-right: 1px solid rgba(0, 0, 0, 0.15);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.15);
   padding: 0;
   vertical-align: middle;
+  background: rgba(255, 255, 255, 0.95);
+}
+
+.grid-table td:last-child {
+  border-right: none;
 }
 
 .grid-table tbody tr {
@@ -1771,6 +1780,67 @@ body {
 
 .grid-table .invalid-row {
   background: #fff3cd;
+}
+
+/* Erection Charges Table Specific Styles */
+.grid-table .erection-row td {
+  background: rgba(248, 250, 252, 0.95);
+  font-size: 11px;
+}
+
+.grid-table .erection-row td:nth-child(2) {
+  font-weight: 600;
+  color: #1e40af;
+}
+
+.grid-table .erection-row .cell-static {
+  background: transparent;
+}
+
+/* Excel-style grid enhancement */
+.grid-table th {
+  border-right: 1px solid rgba(0, 0, 0, 0.2);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.2);
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  font-weight: 700;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.grid-table th:last-child {
+  border-right: none;
+}
+
+/* Improve cell alignment for erection section */
+.grid-table .erection-section .cell-input {
+  text-align: right;
+  font-weight: 500;
+}
+
+.grid-table .erection-section .cell-static {
+  text-align: right;
+  font-weight: 600;
+}
+
+/* Column width optimizations for better alignment */
+.grid-table th.col-code {
+  width: 100px;
+  text-align: center;
+}
+
+.grid-table th.col-description {
+  width: 200px;
+  text-align: left;
+}
+
+.grid-table th.col-sac {
+  width: 60px;
+  text-align: center;
+}
+
+/* Hover effects for erection rows */
+.grid-table .erection-row:hover td {
+  background: rgba(219, 234, 254, 0.8);
+  transition: background-color 0.2s ease;
 }
 
 /* ============================================================================

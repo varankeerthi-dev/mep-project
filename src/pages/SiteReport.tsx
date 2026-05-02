@@ -62,6 +62,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useAuth } from '../App';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 
 // Removed Material-UI imports
 
@@ -164,6 +165,21 @@ export function SiteReport() {
   const [photoUrls, setPhotoUrls] = useState<string[]>([]);
   const [selectedReports, setSelectedReports] = useState<string[]>([]);
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+  
+  const issueIdParam = searchParams.get('issue_id');
+  const actionParam = searchParams.get('action');
+
+  useEffect(() => {
+    if (actionParam === 'create' && view !== 'create') {
+      setView('create');
+      // Clear the action param so we don't force 'create' if user clicks Back
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('action');
+      setSearchParams(newParams, { replace: true });
+    }
+  }, [actionParam, view, searchParams, setSearchParams]);
 
   useEffect(() => {
     const newUrls = photos.map(photo => URL.createObjectURL(photo));
@@ -276,6 +292,40 @@ export function SiteReport() {
     }
   });
 
+  // Fetch linked Issue if we came from an Issue
+  const { data: linkedIssue } = useQuery({
+    queryKey: ['issue-for-site-report', issueIdParam],
+    enabled: !!issueIdParam && view === 'create',
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('issues')
+        .select('id, title, description, project_id, client_id, location_block, equipment_tag')
+        .eq('id', issueIdParam)
+        .single();
+        
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  // Auto-fill form from linked issue
+  useEffect(() => {
+    if (linkedIssue && view === 'create') {
+      if (linkedIssue.client_id) form.setValue('client', linkedIssue.client_id);
+      if (linkedIssue.project_id) form.setValue('projectName', linkedIssue.project_id);
+      
+      const issueDesc = linkedIssue.title + (linkedIssue.description ? ` - ${linkedIssue.description}` : '');
+      const currentIssues = form.getValues('issues');
+      
+      // If the first issue is empty, overwrite it, otherwise append
+      if (currentIssues.length === 1 && !currentIssues[0].issue && !currentIssues[0].solution) {
+        form.setValue('issues', [{ issue: issueDesc, solution: '' }]);
+      } else if (!currentIssues.some(i => i.issue === issueDesc)) {
+        form.setValue('issues', [...currentIssues, { issue: issueDesc, solution: '' }]);
+      }
+    }
+  }, [linkedIssue, view, form]);
+
   const { fields: subContractorFields, append: appendSubContractor, remove: removeSubContractor } = useFieldArray({
     control: form.control,
     name: "manpower.subContractors"
@@ -318,6 +368,7 @@ export function SiteReport() {
         .from('site_reports')
         .insert([{
           organisation_id: organisation?.id,
+          issue_id: issueIdParam || null,
           client_id: values.client,
           project_id: values.projectName,
           report_date: values.date,
@@ -442,8 +493,13 @@ export function SiteReport() {
     onSuccess: () => {
       toast.success('Site report saved successfully!');
       queryClient.invalidateQueries({ queryKey: ['site-reports'] });
-      setView('list');
       form.reset();
+      
+      if (issueIdParam) {
+        navigate(`/issue/${issueIdParam}`);
+      } else {
+        setView('list');
+      }
     },
     
     onError: (error: any, newReport, context) => {
@@ -795,7 +851,13 @@ export function SiteReport() {
             <ShadcnButton 
               variant="ghost" 
               size="sm" 
-              onClick={() => setView('list')}
+              onClick={() => {
+                if (issueIdParam) {
+                  navigate(`/issue/${issueIdParam}`);
+                } else {
+                  setView('list');
+                }
+              }}
               className="text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-all duration-200"
             >
               <ArrowLeft className="w-4 h-4 mr-2" /> Back

@@ -2,6 +2,8 @@ import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useIssues, useIssueStats, useIssuesBySystem, useIssuesBySubcontractor } from '../hooks';
+import { useProjects } from '../../hooks/useProjects';
+import { useClients } from '../../hooks/useClients';
 import { formatIssueAge, getSeverityStyles, getStatusStyles, formatLocationPathCompact, getSystemLabel } from '../ui-utils';
 import type { Issue, IssueWithRelations, IssueFilters, IssueSeverity, IssueStatus } from '../types';
 import {
@@ -535,18 +537,26 @@ function OverdueIssuesTable({ issues }: { issues: IssueWithRelations[] }) {
 }
 
 export function IssueDashboard() {
+  const navigate = useNavigate();
   const { organisation } = useAuth();
+  const [clientFilter, setClientFilter] = useState<string>('');
   const [projectFilter, setProjectFilter] = useState<string>('');
   
+  const { data: projectsData } = useProjects();
+  const { data: clientsData } = useClients();
+  
+  const filteredProjects = (projectsData || []).filter(p => !clientFilter || p.client_id === clientFilter);
+
   const filters: IssueFilters = useMemo(() => ({
     organisationId: organisation?.id,
+    clientId: clientFilter || undefined,
     projectId: projectFilter || undefined,
-  }), [organisation?.id, projectFilter]);
+  }), [organisation?.id, clientFilter, projectFilter]);
   
-  const { data: stats, isLoading: statsLoading } = useIssueStats(organisation?.id || '', projectFilter || undefined);
+  const { data: stats, isLoading: statsLoading } = useIssueStats(organisation?.id || '', projectFilter || undefined, clientFilter || undefined);
   const { data: issues, isLoading: issuesLoading } = useIssues(filters);
-  const { data: bySystem } = useIssuesBySystem(organisation?.id || '', projectFilter || undefined);
-  const { data: bySub } = useIssuesBySubcontractor(organisation?.id || '', projectFilter || undefined);
+  const { data: bySystem } = useIssuesBySystem(organisation?.id || '', projectFilter || undefined, clientFilter || undefined);
+  const { data: bySub } = useIssuesBySubcontractor(organisation?.id || '', projectFilter || undefined, clientFilter || undefined);
   
   const isLoading = statsLoading || issuesLoading;
   
@@ -562,11 +572,35 @@ export function IssueDashboard() {
           </div>
           
           <div className="iss-header-actions">
+            <select 
+              className="iss-btn iss-btn-secondary"
+              value={clientFilter}
+              onChange={(e) => { setClientFilter(e.target.value); setProjectFilter(''); }}
+              style={{ paddingRight: '2rem' }}
+            >
+              <option value="">All Clients</option>
+              {clientsData?.map(c => (
+                <option key={c.id} value={c.id}>{c.client_name}</option>
+              ))}
+            </select>
+
+            <select 
+              className="iss-btn iss-btn-secondary"
+              value={projectFilter}
+              onChange={(e) => setProjectFilter(e.target.value)}
+              style={{ paddingRight: '2rem' }}
+            >
+              <option value="">All Projects</option>
+              {filteredProjects.map(p => (
+                <option key={p.id} value={p.id}>{p.project_name}</option>
+              ))}
+            </select>
+
             <button className="iss-btn iss-btn-secondary">
               <Download size={16} />
               Export
             </button>
-            <button className="iss-btn iss-btn-primary">
+            <button className="iss-btn iss-btn-primary" onClick={() => navigate('/issue/new')}>
               <Plus size={16} />
               New Issue
             </button>

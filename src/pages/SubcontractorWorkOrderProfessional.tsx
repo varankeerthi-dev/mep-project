@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { useAuth } from '../App';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -129,6 +130,8 @@ export function WorkOrderCreateModal({
 }) {
   const { organisation } = useAuth();
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const issueIdParam = searchParams.get('issue_id');
 
   const [formData, setFormData] = useState<WorkOrderFormData>({
     work_order_no: '',
@@ -179,6 +182,43 @@ export function WorkOrderCreateModal({
     },
     enabled: !!organisation?.id && isOpen,
   });
+
+  // Fetch linked Issue info for pre-filling
+  const { data: linkedIssue } = useQuery({
+    queryKey: ['issue-for-wo', issueIdParam],
+    enabled: !!issueIdParam && isOpen,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('issues')
+        .select('id, title, description, project_id, location_block, equipment_tag')
+        .eq('id', issueIdParam)
+        .single();
+      
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  // Pre-fill from issue
+  useEffect(() => {
+    if (linkedIssue && isOpen && !editMode && formData.line_items.length === 0) {
+      const issueDesc = `${linkedIssue.title}${linkedIssue.description ? ` - ${linkedIssue.description}` : ''}`;
+      
+      setFormData(prev => ({
+        ...prev,
+        work_description: `Labor for Issue Resolution: ${issueDesc}`,
+        site_location: linkedIssue.location_block || '',
+        line_items: [{
+          id: `item-${Date.now()}`,
+          description: linkedIssue.equipment_tag || 'Labor Charges',
+          quantity: 1,
+          unit: 'Lump Sum',
+          rate: 0,
+          amount: 0
+        }]
+      }));
+    }
+  }, [linkedIssue, isOpen, editMode]);
 
   // Auto-generate work order number
   useEffect(() => {
@@ -322,6 +362,7 @@ export function WorkOrderCreateModal({
 
       const payload = {
         organisation_id: organisation.id,
+        issue_id: issueIdParam || null,
         work_order_no: formData.work_order_no,
         subcontractor_id: formData.subcontractor_id,
         issue_date: formData.issue_date,
@@ -355,10 +396,23 @@ export function WorkOrderCreateModal({
           .eq('id', workOrderData.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('subcontractor_work_orders')
-          .insert(payload);
+          .insert(payload)
+          .select()
+          .single();
         if (error) throw error;
+
+        // Log creation in issue timeline if issue_id is present
+        if (issueIdParam && data) {
+          await supabase.from('issue_activity_logs').insert({
+            issue_id: issueIdParam,
+            action: 'work_order_created',
+            new_value: { wo_id: data.id, wo_number: formData.work_order_no },
+            done_by: (organisation as any)?.created_by || null,
+            done_by_name: organisation?.name || 'System'
+          });
+        }
       }
     },
     onSuccess: () => {
@@ -772,8 +826,22 @@ export function WorkOrderCreateModal({
 export function WorkOrderList({ onNavigate }: { onNavigate?: (path: string) => void }) {
   const { organisation } = useAuth();
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const actionParam = searchParams.get('action');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedWO, setSelectedWO] = useState<any>(null);
+
+  // Handle action=create from URL
+  useEffect(() => {
+    if (actionParam === 'create' && !isModalOpen) {
+      setIsModalOpen(true);
+      
+      // Clear action param so it doesn't re-trigger
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('action');
+      setSearchParams(newParams, { replace: true });
+    }
+  }, [actionParam, isModalOpen]);
 
   // Filter states
   const [searchQuery, setSearchQuery] = useState('');

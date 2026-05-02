@@ -2917,6 +2917,7 @@ function ServiceTab() {
   const [showForm, setShowForm] = useState(false);
   const [editingService, setEditingService] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeSubTab, setActiveSubTab] = useState('items');
 
   const [formData, setFormData] = useState({
     service_code: '', service_name: '', description: '', unit: 'nos',
@@ -2989,11 +2990,270 @@ function ServiceTab() {
     <div>
       <div className="page-header">
         <h1 className="page-title">Services</h1>
-        <button className="btn btn-primary" onClick={() => setShowForm(true)}>+ Add Service</button>
       </div>
 
-      <div className="card" style={{ marginBottom: '16px' }}>
-        <input type="text" className="form-input" placeholder="Search services..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ maxWidth: '300px' }} />
+      {/* Sub-tab Navigation */}
+      <div style={{ borderBottom: '1px solid #e5e7eb', marginBottom: '20px' }}>
+        <button
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            activeSubTab === 'items'
+              ? 'border-indigo-600 text-indigo-600'
+              : 'border-transparent text-zinc-500 hover:text-zinc-700 hover:border-zinc-300'
+          }`}
+          onClick={() => setActiveSubTab('items')}
+        >
+          Service Items
+        </button>
+        <button
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            activeSubTab === 'rates'
+              ? 'border-indigo-600 text-indigo-600'
+              : 'border-transparent text-zinc-500 hover:text-zinc-700 hover:border-zinc-300'
+          }`}
+          onClick={() => setActiveSubTab('rates')}
+        >
+          Service Rates (Erection)
+        </button>
+      </div>
+
+      {activeSubTab === 'items' && (
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <input type="text" className="form-input" placeholder="Search services..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ maxWidth: '300px' }} />
+            <button className="btn btn-primary" onClick={() => setShowForm(true)}>+ Add Service</button>
+          </div>
+
+          <div className="bg-white border border-zinc-200 rounded-xl overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-zinc-50 sticky top-0 z-10">
+                  <tr>
+                    <th className="h-10 pl-4 pr-3 text-left align-middle text-xs font-medium text-zinc-500">Service Code</th>
+                    <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Service Name</th>
+                    <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Unit</th>
+                    <th className="h-10 px-3 text-right align-middle text-xs font-medium text-zinc-500">Sale Price</th>
+                    <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">HSN/SAC</th>
+                    <th className="h-10 px-3 text-center align-middle text-xs font-medium text-zinc-500">Active</th>
+                    <th className="h-10 pl-3 pr-3 text-right align-middle text-xs font-medium text-zinc-500 min-w-[100px]">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="[&_tr:last-child]:border-0">
+                  {filteredServices.map(s => (
+                    <tr key={s.id} className="border-b border-zinc-200 hover:bg-zinc-50/80" style={{ opacity: s.is_active === false ? 0.5 : 1 }}>
+                      <td className="pl-3 py-3 align-middle whitespace-nowrap text-xs font-medium text-zinc-600">{s.item_code || '-'}</td>
+                      <td className="px-3 py-3 align-middle whitespace-nowrap text-xs font-semibold text-zinc-700">{s.name}</td>
+                      <td className="px-3 py-3 align-middle whitespace-nowrap text-xs font-medium text-zinc-600">{s.unit}</td>
+                      <td className="pr-3 py-3 text-right align-middle text-xs font-medium text-zinc-600">₹{s.sale_price || '-'}</td>
+                      <td className="px-3 py-3 align-middle whitespace-nowrap text-xs font-medium text-zinc-600">{s.hsn_code || '-'}</td>
+                      <td className="px-3 py-3 text-center align-middle">
+                        {s.is_active ? (
+                          <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">Active</span>
+                        ) : (
+                          <span className="px-2 py-1 rounded-full text-xs font-medium bg-zinc-100 text-zinc-500">Inactive</span>
+                        )}
+                      </td>
+                      <td className="pr-3 py-3 text-right align-middle">
+                        <button className="btn btn-sm btn-secondary" onClick={() => editService(s)}>Edit</button>
+                        <button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px' }} onClick={() => deleteService(s.id)}>Delete</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {showForm && (
+            <div className="modal-overlay open" onClick={resetForm}>
+              <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                  <h2>{editingService ? 'Edit Service' : 'Add Service'}</h2>
+                  <button onClick={resetForm} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}>×</button>
+                </div>
+                <form onSubmit={handleSubmit}>
+                  <div className="form-row">
+                    <div className="form-group"><label className="form-label">Service Name *</label><input type="text" className="form-input" value={formData.service_name} onChange={e => setFormData({...formData, service_name: e.target.value})} required /></div>
+                    <div className="form-group"><label className="form-label">Service Code</label><input type="text" className="form-input" value={formData.service_code} onChange={e => setFormData({...formData, service_code: e.target.value})} /></div>
+                  </div>
+                  <div className="form-row">
+                    <div className="form-group"><label className="form-label">Unit</label><input type="text" className="form-input" value={formData.unit} onChange={e => setFormData({...formData, unit: e.target.value})} /></div>
+                    <div className="form-group"><label className="form-label">HSN/SAC</label><input type="text" className="form-input" value={formData.hsn_code} onChange={e => setFormData({...formData, hsn_code: e.target.value})} /></div>
+                  </div>
+                  <div className="form-row">
+                    <div className="form-group"><label className="form-label">Sale Price</label><input type="number" className="form-input" value={formData.sale_price} onChange={e => setFormData({...formData, sale_price: e.target.value})} step="0.01" /></div>
+                    <div className="form-group"><label className="form-label">Purchase Price</label><input type="number" className="form-input" value={formData.purchase_price} onChange={e => setFormData({...formData, purchase_price: e.target.value})} step="0.01" /></div>
+                  </div>
+                  <div className="form-group"><label className="form-label">Description</label><textarea className="form-textarea" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} /></div>
+                  <div className="form-group"><label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><input type="checkbox" checked={formData.is_active} onChange={e => setFormData({...formData, is_active: e.target.checked})} /> Active</label></div>
+                  <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}><button type="submit" className="btn btn-primary">{editingService ? 'Update' : 'Save'}</button><button type="button" className="btn btn-secondary" onClick={resetForm}>Cancel</button></div>
+                </form>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeSubTab === 'rates' && <ServiceRatesTab />}
+    </div>
+  );
+}
+
+function ServiceRatesTab() {
+  const [serviceRates, setServiceRates] = useState([]);
+  const [materials, setMaterials] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [editingRate, setEditingRate] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [materialSearch, setMaterialSearch] = useState('');
+  const [showMaterialDropdown, setShowMaterialDropdown] = useState(false);
+
+  const [formData, setFormData] = useState({
+    item_name: '',
+    default_erection_rate: '',
+    unit: 'Mtrs',
+    gst_rate: 18,
+    sac_code: '',
+    is_active: true
+  });
+
+  const UNIT_OPTIONS = ['Mtrs', 'Nos', 'Kgs', 'Sqft', 'Cum', 'Ltr', 'Pcs'];
+  const GST_OPTIONS = [0, 5, 12, 18, 28];
+
+  useEffect(() => {
+    loadServiceRates();
+    loadMaterials();
+  }, []);
+
+  const loadServiceRates = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('service_rates')
+        .select('*')
+        .order('item_name');
+      if (error) throw error;
+      setServiceRates(data || []);
+    } catch (err) {
+      console.error('Error loading service rates:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadMaterials = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('materials')
+        .select('id, name, hsn_code, gst_rate, unit')
+        .order('name')
+        .limit(100);
+      if (error) throw error;
+      setMaterials(data || []);
+    } catch (err) {
+      console.error('Error loading materials:', err);
+    }
+  };
+
+  const filteredMaterials = materials.filter(m =>
+    m.name?.toLowerCase().includes(materialSearch.toLowerCase())
+  );
+
+  const handleMaterialSelect = (material) => {
+    setFormData({
+      ...formData,
+      item_name: material.name,
+      unit: material.unit || 'Mtrs',
+      gst_rate: material.gst_rate || 18,
+      sac_code: material.hsn_code || ''
+    });
+    setShowMaterialDropdown(false);
+    setMaterialSearch('');
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const data = {
+      item_name: formData.item_name.trim(),
+      default_erection_rate: parseFloat(formData.default_erection_rate) || 0,
+      unit: formData.unit,
+      gst_rate: parseFloat(formData.gst_rate) || 18,
+      sac_code: formData.sac_code || null,
+      is_active: formData.is_active
+    };
+    try {
+      if (editingRate) {
+        const { error } = await supabase
+          .from('service_rates')
+          .update({ ...data, updated_at: new Date().toISOString() })
+          .eq('id', editingRate.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('service_rates')
+          .insert(data);
+        if (error) throw error;
+      }
+      resetForm();
+      loadServiceRates();
+    } catch (err) {
+      alert('Error saving service rate: ' + err.message);
+    }
+  };
+
+  const resetForm = () => {
+    setShowForm(false);
+    setEditingRate(null);
+    setFormData({ item_name: '', default_erection_rate: '', unit: 'Mtrs', gst_rate: 18, sac_code: '', is_active: true });
+    setMaterialSearch('');
+    setShowMaterialDropdown(false);
+  };
+
+  const editRate = (rate) => {
+    setEditingRate(rate);
+    setFormData({
+      item_name: rate.item_name || '',
+      default_erection_rate: rate.default_erection_rate || '',
+      unit: rate.unit || 'Mtrs',
+      gst_rate: rate.gst_rate || 18,
+      sac_code: rate.sac_code || '',
+      is_active: rate.is_active !== false
+    });
+    setShowForm(true);
+  };
+
+  const deleteRate = async (id) => {
+    if (confirm('Delete this service rate?')) {
+      try {
+        const { error } = await supabase.from('service_rates').delete().eq('id', id);
+        if (error) throw error;
+        loadServiceRates();
+      } catch (err) {
+        alert('Error deleting service rate: ' + err.message);
+      }
+    }
+  };
+
+  const filteredRates = serviceRates.filter(r =>
+    r.item_name?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  if (loading) return <div>Loading service rates...</div>;
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+        <input
+          type="text"
+          className="form-input"
+          placeholder="Search by material name..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          style={{ maxWidth: '300px' }}
+        />
+        <button className="btn btn-primary" onClick={() => setShowForm(true)}>
+          + Add Service Rate
+        </button>
       </div>
 
       <div className="bg-white border border-zinc-200 rounded-xl overflow-hidden">
@@ -3001,33 +3261,73 @@ function ServiceTab() {
           <table className="w-full text-sm">
             <thead className="bg-zinc-50 sticky top-0 z-10">
               <tr>
-                <th className="h-10 pl-4 pr-3 text-left align-middle text-xs font-medium text-zinc-500">Service Code</th>
-                <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Service Name</th>
-                <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">Unit</th>
-                <th className="h-10 px-3 text-right align-middle text-xs font-medium text-zinc-500">Sale Price</th>
-                <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">HSN/SAC</th>
-                <th className="h-10 px-3 text-center align-middle text-xs font-medium text-zinc-500">Active</th>
-                <th className="h-10 pl-3 pr-3 text-right align-middle text-xs font-medium text-zinc-500 min-w-[100px]">Actions</th>
+                <th className="h-10 pl-4 pr-3 text-left align-middle text-xs font-medium text-zinc-500">
+                  Material Name
+                </th>
+                <th className="h-10 px-3 text-right align-middle text-xs font-medium text-zinc-500">
+                  Erection Rate
+                </th>
+                <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">
+                  Unit
+                </th>
+                <th className="h-10 px-3 text-right align-middle text-xs font-medium text-zinc-500">
+                  GST %
+                </th>
+                <th className="h-10 px-3 text-left align-middle text-xs font-medium text-zinc-500">
+                  SAC Code
+                </th>
+                <th className="h-10 px-3 text-center align-middle text-xs font-medium text-zinc-500">
+                  Active
+                </th>
+                <th className="h-10 pl-3 pr-3 text-right align-middle text-xs font-medium text-zinc-500 min-w-[100px]">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className="[&_tr:last-child]:border-0">
-              {filteredServices.map(s => (
-                <tr key={s.id} className="border-b border-zinc-200 hover:bg-zinc-50/80" style={{ opacity: s.is_active === false ? 0.5 : 1 }}>
-                  <td className="pl-3 py-3 align-middle whitespace-nowrap text-xs font-medium text-zinc-600">{s.item_code || '-'}</td>
-                  <td className="px-3 py-3 align-middle whitespace-nowrap text-xs font-semibold text-zinc-700">{s.name}</td>
-                  <td className="px-3 py-3 align-middle whitespace-nowrap text-xs font-medium text-zinc-600">{s.unit}</td>
-                  <td className="pr-3 py-3 text-right align-middle text-xs font-medium text-zinc-600">₹{s.sale_price || '-'}</td>
-                  <td className="px-3 py-3 align-middle whitespace-nowrap text-xs font-medium text-zinc-600">{s.hsn_code || '-'}</td>
+              {filteredRates.map(r => (
+                <tr
+                  key={r.id}
+                  className="border-b border-zinc-200 hover:bg-zinc-50/80"
+                  style={{ opacity: r.is_active === false ? 0.5 : 1 }}
+                >
+                  <td className="pl-3 py-3 align-middle whitespace-nowrap text-xs font-semibold text-zinc-700">
+                    {r.item_name}
+                  </td>
+                  <td className="px-3 py-3 text-right align-middle text-xs font-medium text-zinc-600">
+                    ₹{r.default_erection_rate?.toFixed(2) || '-'}
+                  </td>
+                  <td className="px-3 py-3 align-middle whitespace-nowrap text-xs font-medium text-zinc-600">
+                    {r.unit}
+                  </td>
+                  <td className="px-3 py-3 text-right align-middle text-xs font-medium text-zinc-600">
+                    {r.gst_rate || 18}%
+                  </td>
+                  <td className="px-3 py-3 align-middle whitespace-nowrap text-xs font-medium text-zinc-600">
+                    {r.sac_code || '-'}
+                  </td>
                   <td className="px-3 py-3 text-center align-middle">
-                    {s.is_active ? (
-                      <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">Active</span>
+                    {r.is_active ? (
+                      <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                        Active
+                      </span>
                     ) : (
-                      <span className="px-2 py-1 rounded-full text-xs font-medium bg-zinc-100 text-zinc-500">Inactive</span>
+                      <span className="px-2 py-1 rounded-full text-xs font-medium bg-zinc-100 text-zinc-500">
+                        Inactive
+                      </span>
                     )}
                   </td>
                   <td className="pr-3 py-3 text-right align-middle">
-                    <button className="btn btn-sm btn-secondary" onClick={() => editService(s)}>Edit</button>
-                    <button className="btn btn-sm btn-secondary" style={{ marginLeft: '4px' }} onClick={() => deleteService(s.id)}>Delete</button>
+                    <button className="btn btn-sm btn-secondary" onClick={() => editRate(r)}>
+                      Edit
+                    </button>
+                    <button
+                      className="btn btn-sm btn-secondary"
+                      style={{ marginLeft: '4px' }}
+                      onClick={() => deleteRate(r.id)}
+                    >
+                      Delete
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -3037,28 +3337,326 @@ function ServiceTab() {
       </div>
 
       {showForm && (
-        <div className="modal-overlay open" onClick={resetForm}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h2>{editingService ? 'Edit Service' : 'Add Service'}</h2>
-              <button onClick={resetForm} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }}>×</button>
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+        }} onClick={resetForm}>
+          <div style={{
+            background: '#fff',
+            borderRadius: '8px',
+            width: '90%',
+            maxWidth: '500px',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            boxShadow: '0 4px 24px rgba(0, 0, 0, 0.15)',
+          }} onClick={e => e.stopPropagation()}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '16px 20px',
+              borderBottom: '1px solid #e5e5e5',
+            }}>
+              <h3 style={{
+                fontSize: '16px',
+                fontWeight: 600,
+                color: '#171717',
+                margin: 0,
+              }}>
+                {editingRate ? 'Edit Service Rate' : 'Add Service Rate'}
+              </h3>
+              <button
+                type="button"
+                onClick={resetForm}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '4px',
+                  border: 'none',
+                  background: 'transparent',
+                  color: '#525252',
+                  cursor: 'pointer',
+                  borderRadius: '4px',
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = '#f5f5f5'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+              >
+                <X size={20} />
+              </button>
             </div>
-            <form onSubmit={handleSubmit}>
-              <div className="form-row">
-                <div className="form-group"><label className="form-label">Service Name *</label><input type="text" className="form-input" value={formData.service_name} onChange={e => setFormData({...formData, service_name: e.target.value})} required /></div>
-                <div className="form-group"><label className="form-label">Service Code</label><input type="text" className="form-input" value={formData.service_code} onChange={e => setFormData({...formData, service_code: e.target.value})} /></div>
+            <form onSubmit={handleSubmit} style={{ padding: '20px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    color: '#525252',
+                  }}>
+                    Select from Materials
+                  </label>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type="text"
+                      value={materialSearch}
+                      onChange={e => {
+                        setMaterialSearch(e.target.value);
+                        setShowMaterialDropdown(true);
+                      }}
+                      onFocus={() => setShowMaterialDropdown(true)}
+                      placeholder="Search material or type manually..."
+                      style={{
+                        padding: '8px 12px',
+                        border: '1px solid #d4d4d4',
+                        borderRadius: '4px',
+                        fontSize: '14px',
+                        color: '#171717',
+                        width: '100%',
+                      }}
+                    />
+                    {showMaterialDropdown && filteredMaterials.length > 0 && (
+                      <div style={{
+                        position: 'absolute',
+                        top: '100%',
+                        left: 0,
+                        right: 0,
+                        background: '#fff',
+                        border: '1px solid #d4d4d4',
+                        borderRadius: '4px',
+                        marginTop: '4px',
+                        maxHeight: '200px',
+                        overflowY: 'auto',
+                        zIndex: 10,
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                      }}>
+                        {filteredMaterials.map(m => (
+                          <div
+                            key={m.id}
+                            onClick={() => handleMaterialSelect(m)}
+                            style={{
+                              padding: '8px 12px',
+                              cursor: 'pointer',
+                              fontSize: '13px',
+                              color: '#171717',
+                              borderBottom: '1px solid #f5f5f5',
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.background = '#f5f5f5'}
+                            onMouseLeave={(e) => e.currentTarget.style.background = '#fff'}
+                          >
+                            <div style={{ fontWeight: 500 }}>{m.name}</div>
+                            <div style={{ fontSize: '11px', color: '#737373' }}>
+                              Unit: {m.unit || 'N/A'} | GST: {m.gst_rate || 0}%
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    color: '#525252',
+                  }}>
+                    Material Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.item_name}
+                    onChange={e => setFormData({ ...formData, item_name: e.target.value })}
+                    placeholder="e.g., 100NB Pipe, Gate Valve"
+                    required
+                    style={{
+                      padding: '8px 12px',
+                      border: '1px solid #d4d4d4',
+                      borderRadius: '4px',
+                      fontSize: '14px',
+                      color: '#171717',
+                    }}
+                  />
+                  <p style={{ fontSize: '11px', color: '#737373', marginTop: '2px' }}>
+                    Must match material name exactly for auto-linking
+                  </p>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      color: '#525252',
+                    }}>
+                      Erection Rate *
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.default_erection_rate}
+                      onChange={e => setFormData({ ...formData, default_erection_rate: e.target.value })}
+                      step="0.01"
+                      required
+                      style={{
+                        padding: '8px 12px',
+                        border: '1px solid #d4d4d4',
+                        borderRadius: '4px',
+                        fontSize: '14px',
+                        color: '#171717',
+                      }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      color: '#525252',
+                    }}>
+                      Unit *
+                    </label>
+                    <select
+                      value={formData.unit}
+                      onChange={e => setFormData({ ...formData, unit: e.target.value })}
+                      style={{
+                        padding: '8px 12px',
+                        border: '1px solid #d4d4d4',
+                        borderRadius: '4px',
+                        fontSize: '14px',
+                        color: '#171717',
+                      }}
+                    >
+                      {UNIT_OPTIONS.map(u => (
+                        <option key={u} value={u}>{u}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      color: '#525252',
+                    }}>
+                      GST % *
+                    </label>
+                    <select
+                      value={formData.gst_rate}
+                      onChange={e => setFormData({ ...formData, gst_rate: parseFloat(e.target.value) })}
+                      style={{
+                        padding: '8px 12px',
+                        border: '1px solid #d4d4d4',
+                        borderRadius: '4px',
+                        fontSize: '14px',
+                        color: '#171717',
+                      }}
+                    >
+                      {GST_OPTIONS.map(g => (
+                        <option key={g} value={g}>{g}%</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    color: '#525252',
+                  }}>
+                    SAC Code
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.sac_code}
+                    onChange={e => setFormData({ ...formData, sac_code: e.target.value })}
+                    placeholder="e.g., 9954, 9988"
+                    style={{
+                      padding: '8px 12px',
+                      border: '1px solid #d4d4d4',
+                      borderRadius: '4px',
+                      fontSize: '14px',
+                      color: '#171717',
+                    }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input
+                    type="checkbox"
+                    id="is_active"
+                    checked={formData.is_active}
+                    onChange={e => setFormData({ ...formData, is_active: e.target.checked })}
+                    style={{
+                      width: '16px',
+                      height: '16px',
+                      cursor: 'pointer',
+                    }}
+                  />
+                  <label htmlFor="is_active" style={{
+                    fontSize: '13px',
+                    color: '#525252',
+                    cursor: 'pointer',
+                  }}>
+                    Active (auto-create erection charges)
+                  </label>
+                </div>
               </div>
-              <div className="form-row">
-                <div className="form-group"><label className="form-label">Unit</label><input type="text" className="form-input" value={formData.unit} onChange={e => setFormData({...formData, unit: e.target.value})} /></div>
-                <div className="form-group"><label className="form-label">HSN/SAC</label><input type="text" className="form-input" value={formData.hsn_code} onChange={e => setFormData({...formData, hsn_code: e.target.value})} /></div>
+
+              <div style={{
+                display: 'flex',
+                gap: '12px',
+                marginTop: '24px',
+                paddingTop: '16px',
+                borderTop: '1px solid #e5e5e5',
+              }}>
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  style={{
+                    flex: 1,
+                    padding: '10px 16px',
+                    border: '1px solid #d4d4d4',
+                    borderRadius: '4px',
+                    background: '#fff',
+                    color: '#525252',
+                    fontSize: '14px',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s',
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = '#f5f5f5'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = '#fff'}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  style={{
+                    flex: 1,
+                    padding: '10px 16px',
+                    border: 'none',
+                    borderRadius: '4px',
+                    background: '#171717',
+                    color: '#fff',
+                    fontSize: '14px',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s',
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = '#262626'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = '#171717'}
+                >
+                  {editingRate ? 'Update' : 'Save'}
+                </button>
               </div>
-              <div className="form-row">
-                <div className="form-group"><label className="form-label">Sale Price</label><input type="number" className="form-input" value={formData.sale_price} onChange={e => setFormData({...formData, sale_price: e.target.value})} step="0.01" /></div>
-                <div className="form-group"><label className="form-label">Purchase Price</label><input type="number" className="form-input" value={formData.purchase_price} onChange={e => setFormData({...formData, purchase_price: e.target.value})} step="0.01" /></div>
-              </div>
-              <div className="form-group"><label className="form-label">Description</label><textarea className="form-textarea" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} /></div>
-              <div className="form-group"><label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><input type="checkbox" checked={formData.is_active} onChange={e => setFormData({...formData, is_active: e.target.checked})} /> Active</label></div>
-              <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}><button type="submit" className="btn btn-primary">{editingService ? 'Update' : 'Save'}</button><button type="button" className="btn btn-secondary" onClick={resetForm}>Cancel</button></div>
             </form>
           </div>
         </div>

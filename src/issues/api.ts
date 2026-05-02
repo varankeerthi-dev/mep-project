@@ -49,7 +49,7 @@ const ISSUE_SELECT = `
   updated_at,
   project:projects(id, project_name),
   client:clients(id, client_name),
-  subcontractor:subcontractors(id, name)
+  subcontractor:subcontractors(id, company_name)
 `;
 
 const ATTACHMENT_SELECT = `
@@ -566,7 +566,7 @@ export async function getIssuesBySubcontractor(
 ): Promise<IssuesBySubcontractor[]> {
   let query = supabase
     .from('issues')
-    .select('subcontractor_id, subcontractors(name)')
+    .select('subcontractor_id, subcontractors(company_name)')
     .eq('organisation_id', organisationId)
     .not('subcontractor_id', 'is', null);
 
@@ -581,7 +581,7 @@ export async function getIssuesBySubcontractor(
   (data || []).forEach((issue: any) => {
     if (issue.subcontractor_id) {
       if (!counts[issue.subcontractor_id]) {
-        counts[issue.subcontractor_id] = { name: issue.subcontractors?.name || 'Unknown', count: 0 };
+        counts[issue.subcontractor_id] = { name: issue.subcontractors?.company_name || 'Unknown', count: 0 };
       }
       counts[issue.subcontractor_id].count++;
     }

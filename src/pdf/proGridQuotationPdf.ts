@@ -86,9 +86,14 @@ export function generateProGridQuotationPdf(data: Record<string, unknown>, organ
       }
       lineNo += 1;
       const lineTotal = Number(item.line_total ?? 0);
+      // For erection items, use SAC code, otherwise use HSN code
+      const hsnOrSacCode = item.section === 'erection' 
+        ? (item.sac_code || '—') 
+        : ((item.item as Record<string, string>)?.hsn_code || item.hsn_code || '—');
+      
       return [
         String(lineNo),
-        String((item.item as Record<string, string>)?.hsn_code || '—'),
+        String(hsnOrSacCode),
         String(item.description || (item.item as Record<string, string>)?.name || '—'),
         String(item.qty ?? '0'),
         String(item.uom || '—'),

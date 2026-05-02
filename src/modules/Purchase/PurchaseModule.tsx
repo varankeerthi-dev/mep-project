@@ -17,6 +17,7 @@ import { Card } from '../../components/ui/Card';
 import { cn } from '../../lib/utils';
 
 import { useAuth } from '../../contexts/AuthContext';
+import { useLocation } from 'react-router-dom';
 import { Vendors } from './components/Vendors';
 import { PurchaseOrders } from './components/PurchaseOrders';
 import { Bills } from './components/Bills';
@@ -28,6 +29,22 @@ import { PaymentQueue } from './components/PaymentQueue';
 
 export const PurchaseModule: React.FC = () => {
   const { organisation } = useAuth();
+  const location = useLocation();
+  
+  // Determine active tab from path
+  const getInitialTab = () => {
+    const path = location.pathname;
+    if (path.includes('/purchase/vendors')) return 'vendors';
+    if (path.includes('/purchase/orders')) return 'orders';
+    if (path.includes('/purchase/bills')) return 'bills';
+    if (path.includes('/purchase/debit-notes')) return 'debit-notes';
+    if (path.includes('/purchase/payments')) return 'payments';
+    if (path.includes('/purchase/payment-queue')) return 'payment-queue';
+    return 'vendors';
+  };
+
+  const [activeTab, setActiveTab] = useState(getInitialTab());
+
   const tabs = [
     { value: 'vendors', label: 'Vendors', icon: Building2, component: Vendors },
     { value: 'orders', label: 'Purchase Orders', icon: ShoppingCart, component: PurchaseOrders },
@@ -49,7 +66,7 @@ export const PurchaseModule: React.FC = () => {
         </div>
       </header>
 
-      <Tabs defaultValue="vendors" className="flex-1 flex flex-col">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
         <div className="bg-white px-2 border-b border-slate-200 shadow-sm z-10">
           <TabsList className="h-12 bg-transparent justify-start gap-4 p-0">
             {tabs.map((tab) => (

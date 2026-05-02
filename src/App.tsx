@@ -131,9 +131,10 @@ const BOQ = lazyAny(() => import('./pages/BOQ'));
 const BOQList = lazyAny(() => import('./pages/BOQList'));
 const IssueList = lazyAny(() => ProjectManagementInternal.then(m => ({ default: m.IssueList })));
 const IssueAllList = lazyAny(() => ProjectManagementInternal.then(m => ({ default: m.IssueAllList })));
-const IssueListPage = lazyAny(() => import('./issues/pages/IssueListPage'));
-const IssueDetailPage = lazyAny(() => import('./issues/pages/IssueDetailPage'));
-const IssueCreateModal = lazyAny(() => import('./issues/pages/IssueCreateModal'));
+const IssueDashboard = lazyAny(() => import('./issues/pages/IssueDashboard').then(m => ({ default: m.IssueDashboard })));
+const IssueListPage = lazyAny(() => import('./issues/pages/IssueListPage').then(m => ({ default: m.IssueListPage })));
+const IssueDetailPage = lazyAny(() => import('./issues/pages/IssueDetailPage').then(m => ({ default: m.IssueDetailPage })));
+const IssueCreateModal = lazyAny(() => import('./issues/pages/IssueCreateModal').then(m => ({ default: m.IssueCreateModal })));
 const ClientComm = lazyAny(() => ProjectManagementInternal.then(m => ({ default: m.ClientComm })));
 const Documents = lazyAny(() => ProjectManagementInternal.then(m => ({ default: m.Documents })));
 const DCEdit = lazyAny(() => import('./pages/DCEdit'));
@@ -252,7 +253,7 @@ export default function App() {
       case '/boq': return <BOQList />;
       case '/boq/create': return <BOQ onSuccess={() => navigate('/boq')} onCancel={() => navigate('/boq')} />;
       case '/documents': return <Documents />;
-      case '/issue': return <IssueList />;
+      case '/issue': return <IssueDashboard />;
       case '/issues': return <IssueListPage />;
       case '/issue/new': return <IssueCreateModal isOpen={true} onClose={() => navigate('/issues')} />;
       case '/purchase':
