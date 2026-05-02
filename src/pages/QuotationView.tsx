@@ -38,73 +38,30 @@ export default function QuotationView() {
   const quotationQuery = useQuery({
     queryKey: ['quotation', quotationId],
     queryFn: async () => {
-      // Load quotation header with client and project data
-      const headerResult = await timedSupabaseQuery(
+      const data = await timedSupabaseQuery(
         supabase
           .from('quotation_header')
           .select(`
             *,
             client:clients(*),
-            project:projects(id, project_name, project_code)
+            project:projects(id, project_name, project_code),
+            items:quotation_items(
+              *,
+              item:materials(
+                id, 
+                item_code, 
+                display_name, 
+                name, 
+                hsn_code,
+                mappings:material_client_mappings(*)
+              )
+            )
           `)
           .eq('id', quotationId)
           .eq('organisation_id', organisation?.id || '00000000-0000-0000-0000-000000000000')
           .single(),
-        'Quotation header',
+        'Quotation view',
       );
-      
-      // Load items separately to avoid join issues
-      let items = [];
-      if (headerResult) {
-        console.log('QuotationView: Header loaded, now loading items for quotation_id:', quotationId);
-        console.log('QuotationView: Organisation ID:', organisation?.id);
-        
-        // Test without organisation_id filter first
-        let itemsResult = await timedSupabaseQuery(
-          supabase
-            .from('quotation_items')
-            .select('*')
-            .eq('quotation_id', quotationId)
-            .order('display_order', { ascending: true }),
-          'Quotation items (no org filter)',
-        );
-        
-        console.log('QuotationView: Items without org filter:', itemsResult);
-        console.log('QuotationView: Items count without org filter:', itemsResult?.length || 0);
-        
-        // If no items found, try with organisation_id filter
-        if (!itemsResult || itemsResult.length === 0) {
-          itemsResult = await timedSupabaseQuery(
-            supabase
-              .from('quotation_items')
-              .select('*')
-              .eq('quotation_id', quotationId)
-              .eq('organisation_id', organisation?.id || '00000000-0000-0000-0000-000000000000')
-              .order('display_order', { ascending: true }),
-            'Quotation items (with org filter)',
-          );
-          console.log('QuotationView: Items with org filter:', itemsResult);
-          console.log('QuotationView: Items count with org filter:', itemsResult?.length || 0);
-        }
-        console.log('QuotationView: Items query result:', itemsResult);
-        console.log('QuotationView: Items count:', itemsResult?.length || 0);
-        
-        // Additional debugging: check if any items exist for this quotation_id at all
-        const allItemsResult = await timedSupabaseQuery(
-          supabase
-            .from('quotation_items')
-            .select('quotation_id, organisation_id, description, qty, rate')
-            .eq('quotation_id', quotationId),
-          'All items for quotation',
-        );
-        console.log('QuotationView: ALL items for this quotation:', allItemsResult);
-        
-        items = itemsResult || [];
-      } else {
-        console.log('QuotationView: No header result found for quotation_id:', quotationId);
-      }
-      
-      const data = { ...headerResult, items };
       return data;
     },
     enabled: !!quotationId

@@ -903,11 +903,6 @@ const loadQuoteNoPreview = useCallback(async () => {
     }
 
     if (data) {
-      // Debug: Log the loaded data to verify items are being fetched
-      console.log('Loaded quotation data:', data);
-      console.log('Loaded items:', data.items);
-      console.log('Number of items:', data.items?.length || 0);
-      
       setFormData({
         id: isDuplicate ? '' : (data.id || ''),
         quotation_no: isDuplicate ? '' : (data.quotation_no || ''),
@@ -935,7 +930,6 @@ const loadQuoteNoPreview = useCallback(async () => {
       });
 
       if (data.items) {
-        console.log('Processing items for mapping:', data.items);
         const mappedItems = data.items.map(item => {
           // Better erection detection - check for sac_code or explicit section
           const isErection = item.sac_code !== null || item.item_id === null || (item.description && item.description.includes(' - Erection'));
@@ -970,8 +964,6 @@ const loadQuoteNoPreview = useCallback(async () => {
           };
         });
         
-        console.log('Mapped items:', mappedItems);
-        console.log('Setting items with count:', mappedItems.length);
         setItems(mappedItems);
 
         const erectionItems = mappedItems.filter(item => item.section === 'erection');
