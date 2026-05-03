@@ -1911,9 +1911,7 @@ const loadQuoteNoPreview = useCallback(async () => {
         }
       }
 
-      const itemsToInsert = items
-        .filter(item => (item.is_header && item.description?.trim()) || (!item.is_header && (item.item_id || (item.section === 'erection' && item.sac_code))))
-        .map(item => ({
+      const itemsToInsert = items.map(item => ({
           quotation_id: quotationId,
           item_id: item.item_id || null,
         variant_id: item.variant_id || null,
