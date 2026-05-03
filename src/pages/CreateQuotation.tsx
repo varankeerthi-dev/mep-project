@@ -916,8 +916,9 @@ const loadQuoteNoPreview = useCallback(async () => {
 
       if (data.items) {
         const mappedItems = data.items.map(item => {
-          // Better erection detection - check for sac_code or explicit section
-          const isErection = item.sac_code !== null || item.item_id === null || (item.description && item.description.includes(' - Erection'));
+          // Better erection detection - precise logic
+          const isErection = (item.item_id === null && item.sac_code !== null) || 
+                           (item.description && item.description.includes(' - Erection'));
           let linked_material_id = null;
           if (isErection && item.description && item.description.includes(' - Erection')) {
             const baseName = item.description.replace(' - Erection', '');
@@ -1911,7 +1912,7 @@ const loadQuoteNoPreview = useCallback(async () => {
       }
 
       const itemsToInsert = items
-        .filter(item => (item.is_header && item.description?.trim()) || (!item.is_header && (item.item_id || item.section === 'erection')))
+        .filter(item => (item.is_header && item.description?.trim()) || (!item.is_header && (item.item_id || (item.section === 'erection' && item.sac_code))))
         .map(item => ({
           quotation_id: quotationId,
           item_id: item.item_id || null,
