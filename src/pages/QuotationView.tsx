@@ -45,17 +45,7 @@ export default function QuotationView() {
             *,
             client:clients(*),
             project:projects(id, project_name, project_code),
-            items:quotation_items(
-              *,
-              item:materials(
-                id, 
-                item_code, 
-                display_name, 
-                name, 
-                hsn_code,
-                mappings:material_client_mappings(*)
-              )
-            )
+            items:quotation_items(*)
           `)
           .eq('id', quotationId)
           .eq('organisation_id', organisation?.id || '00000000-0000-0000-0000-000000000000')
@@ -1339,8 +1329,8 @@ export default function QuotationView() {
                       const template = templates.find(t => t.id === selectedTemplateId);
                       const optCols = template?.column_settings?.optional || {};
                       
-                      const hasHSN = quotation.items?.some(i => i.sac_code || i.hsn_code || i.item?.hsn_code);
-                      const hasItemCode = quotation.items?.some(i => i.item?.item_code);
+                      const hasHSN = quotation.items?.some(i => i.sac_code || i.hsn_code);
+                      const hasItemCode = false; // No material data since we removed join
                       const hasMake = quotation.items?.some(i => i.make);
                       const hasVariant = quotation.items?.some(i => i.variant_id);
                       const hasDiscount = quotation.items?.some(i => i.discount_percent > 0);
@@ -1351,11 +1341,11 @@ export default function QuotationView() {
                       return (
                         <tr key={item.id} className="hover:bg-gray-50/50 transition-colors align-top">
                           {optCols.sno !== false && <td className="px-6 py-8 whitespace-nowrap text-[13px] text-gray-400 font-medium">{String(index + 1).padStart(2, '0')}</td>}
-                          {hasHSN && <td className="px-6 py-8 whitespace-nowrap text-[12px] text-gray-500 font-mono">{item.sac_code || item.hsn_code || item.item?.hsn_code || '-'}</td>}
-                          {hasItemCode && <td className="px-6 py-8 whitespace-nowrap text-[12px] text-gray-500">{item.item?.item_code || '-'}</td>}
+                          {hasHSN && <td className="px-6 py-8 whitespace-nowrap text-[12px] text-gray-500 font-mono">{item.sac_code || item.hsn_code || '-'}</td>}
+                          {hasItemCode && <td className="px-6 py-8 whitespace-nowrap text-[12px] text-gray-500">-</td>}
                           {hasMake && <td className="px-6 py-8 whitespace-nowrap text-[12px] text-gray-400 italic">{item.make || '-'}</td>}
                           <td className="px-6 py-8">
-                            <div className="text-[14px] font-semibold text-gray-900 leading-relaxed mb-1">{item.description || item.item?.display_name || item.item?.name}</div>
+                            <div className="text-[14px] font-semibold text-gray-900 leading-relaxed mb-1">{item.description || '-'}</div>
                             {item.override_flag && (
                               <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-50 text-amber-600 border border-amber-100">Modified</span>
                             )}
