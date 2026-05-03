@@ -76,7 +76,7 @@ const getCellValue = (item: any, key: string, index: number, quotation: any) => 
   
   switch (key) {
     case "sno": return index + 1;
-    case "hsn_code": return item.item?.hsn_code || "-";
+    case "hsn_code": return item.sac_code || item.item?.hsn_code || "-";
     case "item": return mapping?.client_description || item.item?.name || "-";
     case "item_code": return mapping?.client_part_no || item.item?.item_code || "-";
     case "client_part_no": return mapping?.client_part_no || "-";

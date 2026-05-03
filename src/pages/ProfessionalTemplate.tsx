@@ -207,7 +207,7 @@ export const generateProfessionalTemplate = (data, organisation, templateSetting
       
       const mapping = client?.id && item.item?.mappings?.find((m: any) => m.client_id === client.id);
       const row = [index + 1];
-      if (colSettings.hsn_code !== false) row.push(item.item?.hsn_code || '-');
+      if (colSettings.hsn_code !== false) row.push(item.sac_code || item.item?.hsn_code || '-');
       if (colSettings.item !== false) row.push(mapping?.client_description || item.description || item.item?.name || '-');
       if (colSettings.client_part_no === true) row.push(mapping?.client_part_no || '-');
       if (colSettings.client_description === true) row.push(mapping?.client_description || '-');

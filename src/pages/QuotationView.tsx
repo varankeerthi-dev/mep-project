@@ -488,7 +488,7 @@ export default function QuotationView() {
             const mapping = clientId && item.item?.mappings?.find((m: any) => m.client_id === clientId);
             return {
               index: idx + 1,
-              hsn: item.item?.hsn_code || '',
+              hsn: item.sac_code || item.item?.hsn_code || '',
               item_code: mapping?.client_part_no || item.item?.item_code || '',
               description: mapping?.client_description || item.description || item.item?.display_name || item.item?.name || '',
               qty: String(item.qty || ''),
@@ -740,7 +740,7 @@ export default function QuotationView() {
         if (optionalCols.sno !== false) row.sno = index + 1;
         const clientId = quotation.client_id || quotation.client?.id;
         const mapping = clientId && material?.mappings?.find((m: any) => m.client_id === clientId);
-        if (optionalCols.hsn_code) row.hsn_code = material.hsn_code || '-';
+        if (optionalCols.hsn_code) row.hsn_code = item.sac_code || material.hsn_code || '-';
         if (optionalCols.item !== false) row.item = mapping?.client_description || item.description || material.name || '-';
         if (optionalCols.item_code) row.item_code = mapping?.client_part_no || material.item_code || '-';
         if (optionalCols.make) row.make = item.make || '-';
@@ -883,7 +883,7 @@ export default function QuotationView() {
       const material = item.item || {};
       let rowHTML = '<tr>';
       if (optionalCols.sno !== false) rowHTML += `<td>${index + 1}</td>`;
-      if (optionalCols.hsn_code) rowHTML += `<td>${material.hsn_code || '-'}</td>`;
+      if (optionalCols.hsn_code) rowHTML += `<td>${item.sac_code || material.hsn_code || '-'}</td>`;
       if (optionalCols.item !== false) rowHTML += `<td>${item.description || '-'}</td>`;
       if (optionalCols.variant) rowHTML += `<td>${item.variant?.variant_name || '-'}</td>`;
       if (optionalCols.description) rowHTML += `<td>${item.description || '-'}</td>`;

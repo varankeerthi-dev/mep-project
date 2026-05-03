@@ -246,7 +246,7 @@ export const generateClassicQuotationTemplate = (data: any, organisation: any, t
   const tableRows = (items || []).map((item: any, index: number) => {
     const row = [];
     row.push(index + 1);
-    if (showHsn) row.push(item.item?.hsn_code || '');
+    if (showHsn) row.push(item.sac_code || item.item?.hsn_code || '');
     const mapping = client?.id && item.item?.mappings?.find((m: any) => m.client_id === client.id);
     if (showItem) row.push(mapping?.client_description || item.description || item.item?.display_name || item.item?.name || '');
     if (showClientDescription) row.push(mapping?.client_description || '');
