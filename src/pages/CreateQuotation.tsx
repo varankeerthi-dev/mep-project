@@ -876,10 +876,7 @@ const loadQuoteNoPreview = useCallback(async () => {
       data = await timedSupabaseQuery(
         supabase
           .from('quotation_header')
-          .select(`
-            *,
-            items:quotation_items(*)
-          `)
+          .select('*, items:quotation_items(*, item:materials(id, item_code, display_name, name, hsn_code, sale_price, unit, mappings:material_client_mappings(*)))')
           .eq('id', id)
           .eq('organisation_id', organisation?.id || '00000000-0000-0000-0000-000000000000')
           .single(),
@@ -933,8 +930,8 @@ const loadQuoteNoPreview = useCallback(async () => {
             id: item.id || (Date.now() + Math.random()),
             section: isErection ? 'erection' : 'materials',
             linked_material_id,
-            material: null, // No material data since we removed the join
-            hsn_code: item.hsn_code || null,
+            material: item.item,
+            hsn_code: item.hsn_code || item.item?.hsn_code || null,
             sac_code: item.sac_code || null,
             base_rate_snapshot: parseFloat(item.base_rate_snapshot) || parseFloat(item.rate) || 0,
             applied_discount_percent: parseFloat(item.applied_discount_percent) || 0,
