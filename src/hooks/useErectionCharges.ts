@@ -119,7 +119,7 @@ export async function lookupServiceRate(itemName: string): Promise<ServiceRate |
   const { data, error } = await supabase
     .from('service_rates')
     .select('*')
-    .eq('item_name', itemName)
+    .eq('item_name', String(itemName))
     .eq('is_active', true)
     .single();
   

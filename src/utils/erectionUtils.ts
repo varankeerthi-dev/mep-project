@@ -52,7 +52,7 @@ export async function autoCreateOrUpdateErection(materialItem: QuotationItemExte
     .from('quotation_items')
     .select('*')
     .eq('section', 'erection')
-    .eq('linked_material_id', materialItem.id)
+    .eq('linked_material_id', String(materialItem.id))
     .single();
 
   if (existingErection) {
@@ -85,7 +85,7 @@ export async function autoCreateOrUpdateErection(materialItem: QuotationItemExte
       rate: serviceRate.default_erection_rate,
       tax_percent: materialItem.tax_percent || 0,
       line_total: (materialItem.qty || 0) * serviceRate.default_erection_rate,
-      linked_material_id: materialItem.id,
+      linked_material_id: String(materialItem.id),
       is_auto_quantity: true,
       rate_manually_edited: false,
       sac_code: serviceRate.sac_code || null,
@@ -132,7 +132,7 @@ export async function hasLinkedErection(materialId: string): Promise<boolean> {
     .from('quotation_items')
     .select('id')
     .eq('section', 'erection')
-    .eq('linked_material_id', materialId)
+    .eq('linked_material_id', String(materialId))
     .single();
   
   return !!data;
@@ -149,7 +149,7 @@ export async function getLinkedErection(materialId: string): Promise<QuotationIt
     .from('quotation_items')
     .select('*')
     .eq('section', 'erection')
-    .eq('linked_material_id', materialId)
+    .eq('linked_material_id', String(materialId))
     .single();
   
   if (error) {
