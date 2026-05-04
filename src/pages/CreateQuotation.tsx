@@ -3245,32 +3245,6 @@ const loadQuoteNoPreview = useCallback(async () => {
             </select>
           </div>
         </div>
-        
-        <div className="flex items-center gap-2">
-          <button 
-            className="h-[25px] px-10 min-w-[100px] rounded flex items-center justify-center text-[11px] font-bold text-white bg-gradient-to-b from-[#001f3f] to-[#003366] shadow-none border-none hover:opacity-90 transition-all"
-            onClick={() => navigate('/quotations')}
-          >
-            Cancel
-          </button>
-          <button 
-            className={`h-[25px] px-10 min-w-[100px] rounded flex items-center justify-center text-[11px] font-bold text-white bg-gradient-to-b from-[#001f3f] to-[#003366] shadow-none border-none hover:opacity-90 transition-all ${
-              saving ? 'opacity-50 cursor-not-allowed' : ''
-            }`}
-            onClick={() => handleSave(true)}
-          >
-            Save as Draft
-          </button>
-          <button 
-            className={`h-[25px] px-10 min-w-[100px] rounded flex items-center justify-center text-[11px] font-bold text-white bg-gradient-to-b from-[#001f3f] to-[#003366] shadow-none border-none hover:opacity-90 transition-all ${
-              saving ? 'opacity-50 cursor-not-allowed' : ''
-            }`}
-            onClick={handleSave}
-            disabled={saving}
-          >
-            {saving ? 'Saving...' : editId ? 'Update Quotation' : 'Confirm & Save'}
-          </button>
-        </div>
       </div>
       
       {showCustomLabelEditor && (
