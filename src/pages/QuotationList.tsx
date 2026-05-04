@@ -424,9 +424,9 @@ export default function QuotationList() {
           <button
             key={tab}
             onClick={() => setSubTab(tab)}
-            className={`px-4 py-2 h-[20px] text-sm font-medium transition-colors ${
+            className={`w-[150px] h-[26px] px-4 text-sm font-medium transition-colors ${
               subTab === tab
-                ? 'bg-indigo-600 text-white'
+                ? 'bg-zinc-800 text-white'
                 : 'text-zinc-600 hover:bg-zinc-100'
             }`}
           >
@@ -439,7 +439,7 @@ export default function QuotationList() {
           <div className="relative" ref={dropdownRef}>
             <button
               onClick={() => setShowStatusDropdown(!showStatusDropdown)}
-              className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100 rounded-md transition-colors"
+              className="w-[150px] h-[26px] flex items-center justify-center gap-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100 rounded-md transition-colors"
             >
               {statusFilter === 'All' ? 'All Statuses' : statusFilter}
               <ChevronDownIcon className="w-4 h-4" />
@@ -471,25 +471,25 @@ export default function QuotationList() {
       {/* Table */}
       <div className="flex-1 overflow-auto">
         <div className="min-w-full">
-          <table className="w-full border-separate border-spacing-0">
+          <table className="w-full border-separate border-spacing-0 table-fixed">
             <thead className="sticky top-0 z-10">
-              <tr className="bg-slate-50 border-b border-slate-200">
-                <th className="h-[25px] px-5 text-left align-middle text-[13px] font-semibold text-slate-700 tracking-tight w-[120px] border-r border-slate-200">
+              <tr className="bg-blue-100/80 border-b border-blue-200">
+                <th className="h-[36px] px-5 text-left align-middle text-[13px] font-semibold text-slate-700 tracking-tight w-[120px] border-r border-slate-200">
                   Date
                 </th>
-                <th className="h-[25px] px-5 text-left align-middle text-[13px] font-semibold text-slate-700 tracking-tight w-[160px] border-r border-slate-200">
+                <th className="h-[36px] px-5 text-left align-middle text-[13px] font-semibold text-slate-700 tracking-tight w-[160px] border-r border-slate-200">
                   Quote No
                 </th>
-                <th className="h-[25px] px-5 text-left align-middle text-[13px] font-semibold text-slate-700 tracking-tight min-w-[200px]">
+                <th className="h-[36px] px-5 text-left align-middle text-[13px] font-semibold text-slate-700 tracking-tight w-[500px]">
                   Client
                 </th>
-                <th className="h-[25px] px-5 text-right align-middle text-[13px] font-semibold text-slate-700 tracking-tight w-[140px] border-r border-slate-200">
+                <th className="h-[36px] px-5 text-left align-middle text-[13px] font-semibold text-slate-700 tracking-tight w-[180px] border-r border-slate-200">
                   Amount
                 </th>
-                <th className="h-[25px] px-5 text-left align-middle text-[13px] font-semibold text-slate-700 tracking-tight w-[140px] border-r border-slate-200">
+                <th className="h-[36px] px-5 text-left align-middle text-[13px] font-semibold text-slate-700 tracking-tight w-[120px] border-r border-slate-200">
                   Status
                 </th>
-                <th className="h-[25px] px-5 text-center align-middle text-[13px] font-semibold text-slate-700 tracking-tight w-[80px]">
+                <th className="h-[36px] px-5 text-center align-middle text-[13px] font-semibold text-slate-700 tracking-tight w-[70px]">
                   Action
                 </th>
               </tr>
@@ -511,26 +511,26 @@ export default function QuotationList() {
                 paginationData.currentItems.map((q: any, index) => (
                   <tr
                     key={q.id}
-                    className={`border-b border-slate-100 hover:bg-slate-50 cursor-pointer transition-all duration-150 ${
+                    className={`hover:bg-slate-50 cursor-pointer transition-all duration-150 ${
                       index % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'
                     }`}
                     onClick={() => navigate(`/quotation/view?id=${q.id}`)}
                   >
-                    <td className="px-5 py-5 align-middle text-sm text-slate-600 whitespace-nowrap border-r border-slate-100">
+                    <td className="px-5 py-6 align-middle text-sm text-slate-900 whitespace-nowrap border-r border-slate-100 border-t border-slate-200/70">
                       {formatDate(q.date)}
                     </td>
-                    <td className="px-5 py-5 align-middle text-sm font-medium text-slate-900 whitespace-nowrap border-r border-slate-100">
+                    <td className="px-5 py-6 align-middle text-sm font-semibold text-slate-900 whitespace-nowrap border-r border-slate-100 border-t border-slate-200/70">
                       {q.quotation_no}
                     </td>
-                    <td className="px-5 py-5 align-middle text-sm text-slate-700">
-                      <div className="max-w-[200px] truncate" title={q.client?.client_name || '-'}>
+                    <td className="px-5 py-6 align-middle text-sm text-slate-800 border-t border-slate-200/70">
+                      <div className="max-w-[350px] truncate" title={q.client?.client_name || '-'}>
                         {q.client?.client_name || '-'}
                       </div>
                     </td>
-                    <td className="px-5 py-5 align-middle text-sm font-semibold text-slate-900 text-right whitespace-nowrap tabular-nums border-r border-slate-100">
+                    <td className="px-8 py-6 align-middle text-sm font-semibold text-slate-900 whitespace-nowrap tabular-nums border-r border-slate-100 border-t border-slate-200/70">
                       {formatCurrency(q.grand_total)}
                     </td>
-                    <td className="px-5 py-5 align-middle whitespace-nowrap border-r border-slate-100">
+                    <td className="px-8 py-6 align-middle whitespace-nowrap border-r border-slate-100 border-t border-slate-200/70">
                       <span
                         className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-full border"
                         style={{
@@ -542,7 +542,7 @@ export default function QuotationList() {
                         {q.status}
                       </span>
                     </td>
-                    <td className="px-5 py-5 align-middle text-center">
+                    <td className="px-5 py-6 align-middle text-center border-t border-slate-200/70">
                       <div className="relative inline-block" ref={openMenuId === q.id ? menuRef : null}>
                         <button
                           onClick={(e) => {
@@ -554,15 +554,15 @@ export default function QuotationList() {
                           <MoreHorizontalIcon className="w-4 h-4 text-slate-500" />
                         </button>
                       {openMenuId === q.id && (
-                        <div className="absolute right-0 top-full mt-1 z-50 min-w-[160px] bg-white border border-slate-200 rounded-lg shadow-lg py-1">
+                        <div className="absolute right-0 top-full mt-2 z-50 min-w-[200px] bg-white border border-slate-200 rounded-lg shadow-lg py-3">
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               navigate(`/quotation/view?id=${q.id}`);
                             }}
-                            className="flex items-center gap-2 w-full px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 transition-colors"
+                            className="flex items-center gap-4 w-full px-6 py-5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
                           >
-                            <EyeIcon className="w-3.5 h-3.5" />
+                            <EyeIcon className="w-4 h-4" />
                             View Details
                           </button>
                           <button
@@ -570,9 +570,9 @@ export default function QuotationList() {
                               e.stopPropagation();
                               downloadQuotationPDF(q.id);
                             }}
-                            className="flex items-center gap-2 w-full px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 transition-colors"
+                            className="flex items-center gap-4 w-full px-6 py-5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
                           >
-                            <DownloadIcon className="w-3.5 h-3.5" />
+                            <DownloadIcon className="w-4 h-4" />
                             Download PDF
                           </button>
                           <button
@@ -581,7 +581,7 @@ export default function QuotationList() {
                               setOpenMenuId(null);
                               navigate(`/quotation/edit?id=${q.id}`);
                             }}
-                            className="flex items-center gap-2 w-full px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 transition-colors"
+                            className="flex items-center gap-4 w-full px-6 py-5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
                           >
                             Edit
                           </button>
@@ -591,11 +591,11 @@ export default function QuotationList() {
                               setOpenMenuId(null);
                               navigate(`/quotation/create?duplicateId=${q.id}`);
                             }}
-                            className="flex items-center gap-2 w-full px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 transition-colors"
+                            className="flex items-center gap-4 w-full px-6 py-5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
                           >
                             Duplicate
                           </button>
-                          <div className="border-t border-slate-100 my-1" />
+                          <div className="border-t border-slate-100 my-3" />
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -606,9 +606,9 @@ export default function QuotationList() {
                                 });
                               }
                             }}
-                            className="flex items-center gap-2 w-full px-3 py-2 text-xs text-red-600 hover:bg-red-50 transition-colors"
+                            className="flex items-center gap-4 w-full px-6 py-5 text-sm text-red-600 hover:bg-red-50 transition-colors"
                           >
-                            <Trash2Icon className="w-3.5 h-3.5" />
+                            <Trash2Icon className="w-4 h-4" />
                             Delete
                           </button>
                         </div>
@@ -626,15 +626,15 @@ export default function QuotationList() {
       {/* Pagination Controls */}
       {paginationData.totalPages > 1 && (
         <div className="flex items-center justify-between px-6 py-4 border-t border-slate-200 bg-slate-50/50">
-          <div className="text-sm text-slate-600">
+          <div className="text-base text-slate-600">
             Showing {paginationData.startIndex + 1} to {Math.min(paginationData.endIndex, paginationData.totalItems)} of {paginationData.totalItems} quotes
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2">
             {/* Previous Button */}
             <button
               onClick={() => setCurrentPage(currentPage - 1)}
               disabled={!paginationData.hasPrevPage}
-              className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+              className={`px-4 py-2 text-base font-medium rounded-md transition-colors h-[36px] min-w-[80px] ${
                 paginationData.hasPrevPage
                   ? 'text-slate-700 hover:bg-slate-100'
                   : 'text-slate-300 cursor-not-allowed'
@@ -644,7 +644,7 @@ export default function QuotationList() {
             </button>
             
             {/* Page Numbers */}
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-2">
               {Array.from({ length: Math.min(5, paginationData.totalPages) }, (_, i) => {
                 let pageNum;
                 if (paginationData.totalPages <= 5) {
@@ -661,7 +661,7 @@ export default function QuotationList() {
                   <button
                     key={pageNum}
                     onClick={() => setCurrentPage(pageNum)}
-                    className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                    className={`px-4 py-2 text-base font-medium rounded-md transition-colors h-[36px] min-w-[36px] ${
                       currentPage === pageNum
                         ? 'bg-slate-900 text-white'
                         : 'text-slate-700 hover:bg-slate-100'
@@ -677,7 +677,7 @@ export default function QuotationList() {
             <button
               onClick={() => setCurrentPage(currentPage + 1)}
               disabled={!paginationData.hasNextPage}
-              className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+              className={`px-4 py-2 text-base font-medium rounded-md transition-colors h-[36px] min-w-[80px] ${
                 paginationData.hasNextPage
                   ? 'text-slate-700 hover:bg-slate-100'
                   : 'text-slate-300 cursor-not-allowed'

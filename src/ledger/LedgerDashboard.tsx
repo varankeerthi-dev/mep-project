@@ -471,22 +471,22 @@ export default function LedgerDashboard() {
         </div>
 
         {/* Stats Cards */}
-        <section className="mb-8 grid gap-4 md:grid-cols-3">
-          <div className="rounded-xl border border-zinc-200 bg-white p-5">
+        <section className="mb-6 grid gap-3 md:grid-cols-3">
+          <div className="bg-white p-5">
             <div className="text-xs font-medium text-zinc-500">Outstanding</div>
             <div className="mt-1 text-2xl font-semibold text-zinc-700">
               {formatCurrency(dashboardTotals.totalOutstanding)}
             </div>
           </div>
 
-          <div className="rounded-xl border border-zinc-200 bg-white p-5">
+          <div className="bg-white p-5">
             <div className="text-xs font-medium text-zinc-500">Invoice Debits</div>
             <div className="mt-1 text-2xl font-semibold text-zinc-700">
               {formatCurrency(dashboardTotals.totalDebits)}
             </div>
           </div>
 
-          <div className="rounded-xl border border-zinc-200 bg-white p-5">
+          <div className="bg-white p-5">
             <div className="text-xs font-medium text-zinc-500">Receipt Credits</div>
             <div className="mt-1 text-2xl font-semibold text-zinc-700">
               {formatCurrency(dashboardTotals.totalCredits)}
@@ -495,35 +495,35 @@ export default function LedgerDashboard() {
         </section>
 
         {/* Main Content */}
-        <section className="rounded-lg border border-zinc-200 bg-white shadow-sm">
+        <section className="bg-white shadow-sm">
           {/* Header with Filter Dropdown and Tabs */}
-          <div className="relative border-b border-zinc-200 p-4">
+          <div className="border-b border-zinc-200 px-5 py-3">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex items-center gap-4">
-                {/* Tabs */}
-                <div className="flex rounded-md border border-zinc-200 bg-zinc-50/50 p-0.5">
+                {/* Tabs - Segmented Control */}
+                <div className="inline-flex rounded-md bg-zinc-100 p-0.5">
                   <button
                     type="button"
                     onClick={() => setActiveTab('ledger')}
-                    className={`inline-flex items-center gap-1.5 rounded px-3 py-1.5 text-xs font-medium transition ${
+                    className={`inline-flex items-center gap-1.5 rounded px-3 py-1.5 text-[13px] font-medium transition ${
                       activeTab === 'ledger'
-                        ? 'bg-white text-zinc-700 shadow-sm'
+                        ? 'bg-white text-zinc-900 shadow-sm'
                         : 'text-zinc-500 hover:text-zinc-700'
                     }`}
                   >
-                    <FileText size={13} />
+                    <FileText size={14} />
                     Client Ledger
                   </button>
                   <button
                     type="button"
                     onClick={() => setActiveTab('payments')}
-                    className={`inline-flex items-center gap-1.5 rounded px-3 py-1.5 text-xs font-medium transition ${
+                    className={`inline-flex items-center gap-1.5 rounded px-3 py-1.5 text-[13px] font-medium transition ${
                       activeTab === 'payments'
-                        ? 'bg-white text-zinc-700 shadow-sm'
+                        ? 'bg-white text-zinc-900 shadow-sm'
                         : 'text-zinc-500 hover:text-zinc-700'
                     }`}
                   >
-                    <Wallet size={13} />
+                    <Wallet size={14} />
                     Payments
                   </button>
                 </div>
@@ -534,7 +534,7 @@ export default function LedgerDashboard() {
                     <select
                       value={selectedFy}
                       onChange={(e) => setSelectedFy(e.target.value)}
-                      className="h-7 rounded border border-zinc-200 bg-white px-2 text-xs text-zinc-900 outline-none focus:border-zinc-400"
+                      className="h-9 rounded border border-zinc-200 bg-white px-3 text-sm text-zinc-900 outline-none focus:border-zinc-400"
                     >
                       <option value="">Select FY</option>
                       {generateFyOptions(
@@ -554,7 +554,7 @@ export default function LedgerDashboard() {
                     size="sm"
                     variant="secondary"
                     onClick={handleStartOpeningBalanceEdit}
-                    leftIcon={<Pencil size={12} />}
+                    leftIcon={<Pencil size={14} />}
                   >
                     Edit
                   </Button>
@@ -568,7 +568,7 @@ export default function LedgerDashboard() {
                         size="sm"
                         variant="primary"
                         onClick={() => setShowLedger(true)}
-                        leftIcon={<Filter size={12} />}
+                        leftIcon={<Filter size={14} />}
                       >
                         Show Ledger
                       </Button>
@@ -577,7 +577,7 @@ export default function LedgerDashboard() {
                       size="sm"
                       variant="secondary"
                       onClick={() => setActiveTab('opening-balance')}
-                      leftIcon={<Calculator size={12} />}
+                      leftIcon={<Calculator size={14} />}
                     >
                       Opening Balance
                     </Button>
@@ -589,50 +589,48 @@ export default function LedgerDashboard() {
           </div>
 
           {/* Content Area */}
-          <div className="grid gap-5 p-4 xl:grid-cols-[1fr_320px]">
+          <div className="grid gap-5 p-5 xl:grid-cols-[1fr_320px]">
             {/* Main Table Area */}
-            <div className="overflow-hidden rounded-xl border border-zinc-200/60 bg-white shadow-sm ring-1 ring-black/[0.02]">
+            <div className="overflow-hidden bg-white">
               {activeTab === 'payments' && (
                 <div className="flex flex-col font-sans" style={{ fontFamily: 'Roboto, sans-serif' }}>
-                  <div className="flex items-center justify-between border-b border-zinc-200 bg-zinc-50/50 p-3">
+                  <div className="flex items-center justify-between border-b border-zinc-200 bg-zinc-50 px-4 py-2.5">
                     <div className="relative">
-                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400" size={13} />
+                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400" size={14} />
                       <input
                         type="text"
                         placeholder="Search payments..."
                         value={paymentsSearch}
                         onChange={(e) => setPaymentsSearch(e.target.value)}
-                        className="h-8 w-64 rounded-md border border-zinc-200 bg-white pl-8 pr-3 text-xs outline-none transition-all focus:border-zinc-400"
+                        className="h-9 w-64 rounded border border-zinc-200 bg-white pl-8 pr-3 text-sm outline-none transition-all focus:border-zinc-400"
                       />
                     </div>
-                    <div className="flex items-center gap-4">
-                      <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3">
                       <input
                         type="date"
                         value={paymentsStartDate}
                         onChange={(e) => setPaymentsStartDate(e.target.value)}
-                        className="h-8 rounded-md border border-zinc-200 bg-white px-2 text-xs outline-none focus:border-zinc-400"
+                        className="h-9 rounded border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-zinc-400"
                       />
-                      <span className="text-xs font-medium text-zinc-400">to</span>
+                      <span className="text-sm font-medium text-zinc-400">to</span>
                       <input
                         type="date"
                         value={paymentsEndDate}
                         onChange={(e) => setPaymentsEndDate(e.target.value)}
-                        className="h-8 rounded-md border border-zinc-200 bg-white px-2 text-xs outline-none focus:border-zinc-400"
+                        className="h-9 rounded border border-zinc-200 bg-white px-3 text-sm outline-none focus:border-zinc-400"
                       />
                     </div>
                   </div>
-                </div>
                   <div className="overflow-x-auto">
                     <Table>
                       <TableHeader>
-                        <TableRow className="border-b border-zinc-200 bg-zinc-100/50 hover:bg-zinc-100/50">
-                          <TableHead className="h-9 px-4 text-left align-middle text-[11px] font-semibold text-zinc-600">Date</TableHead>
-                          <TableHead className="h-9 px-4 text-left align-middle text-[11px] font-semibold text-zinc-600">Client Name</TableHead>
-                          <TableHead className="h-9 px-4 text-left align-middle text-[11px] font-semibold text-zinc-600">Payment Type</TableHead>
-                          <TableHead className="h-9 px-4 text-left align-middle text-[11px] font-semibold text-zinc-600">Remarks</TableHead>
-                          <TableHead className="h-9 px-4 text-right align-middle text-[11px] font-semibold text-zinc-600">Amount</TableHead>
-                          <TableHead className="h-9 px-4 text-right align-middle text-[11px] font-semibold text-zinc-600">Actions</TableHead>
+                        <TableRow className="border-b border-zinc-200 bg-zinc-50 hover:bg-zinc-50">
+                          <TableHead className="h-10 px-4 text-left align-middle text-[12px] font-semibold text-zinc-600">Date</TableHead>
+                          <TableHead className="h-10 px-4 text-left align-middle text-[12px] font-semibold text-zinc-600">Client Name</TableHead>
+                          <TableHead className="h-10 px-4 text-left align-middle text-[12px] font-semibold text-zinc-600">Payment Type</TableHead>
+                          <TableHead className="h-10 px-4 text-left align-middle text-[12px] font-semibold text-zinc-600">Remarks</TableHead>
+                          <TableHead className="h-10 px-4 text-right align-middle text-[12px] font-semibold text-zinc-600">Amount</TableHead>
+                          <TableHead className="h-10 px-4 text-right align-middle text-[12px] font-semibold text-zinc-600">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody className="[&_tr:last-child]:border-0">
@@ -658,60 +656,60 @@ export default function LedgerDashboard() {
                             if (isEditing && editingForm) {
                               return (
                                 <TableRow key={receipt.id} className="bg-amber-50/50 border-b border-amber-100">
-                                  <TableCell className="py-2 px-4">
+                                  <TableCell className="py-2.5 px-4">
                                     <input
                                       type="date"
                                       value={editingForm.receipt_date}
                                       onChange={(e) => setEditingForm({ ...editingForm, receipt_date: e.target.value })}
-                                      className="h-8 w-full rounded border border-zinc-200 bg-white px-2 text-xs"
+                                      className="h-9 w-full rounded border border-zinc-200 bg-white px-2.5 text-sm"
                                     />
                                   </TableCell>
-                                  <TableCell className="py-2 px-4">
-                                    <div className="text-[13px] font-medium text-zinc-800">
+                                  <TableCell className="py-2.5 px-4">
+                                    <div className="text-sm font-medium text-zinc-800">
                                       {clients.find(c => c.id === receipt.client_id)?.name || 'Unknown'}
                                     </div>
                                   </TableCell>
-                                  <TableCell className="py-2 px-4">
+                                  <TableCell className="py-2.5 px-4">
                                     <select
                                       value={editingForm.payment_type}
                                       onChange={(e) => setEditingForm({ ...editingForm, payment_type: e.target.value })}
-                                      className="h-8 w-full rounded border border-zinc-200 bg-white px-2 text-xs"
+                                      className="h-9 w-full rounded border border-zinc-200 bg-white px-2.5 text-sm"
                                     >
                                       <option value="">-</option>
                                       <option value="Opening Balance">Opening Balance</option>
                                       <option value="Advance">Advance</option>
                                     </select>
                                   </TableCell>
-                                  <TableCell className="py-2 px-4">
+                                  <TableCell className="py-2.5 px-4">
                                     <input
                                       type="text"
                                       value={editingForm.remarks}
                                       onChange={(e) => setEditingForm({ ...editingForm, remarks: e.target.value })}
-                                      className="h-8 w-full rounded border border-zinc-200 bg-white px-2 text-xs"
+                                      className="h-9 w-full rounded border border-zinc-200 bg-white px-2.5 text-sm"
                                     />
                                   </TableCell>
-                                  <TableCell className="py-2 px-4">
+                                  <TableCell className="py-2.5 px-4">
                                     <input
                                       type="number"
                                       step="0.01"
                                       value={editingForm.amount}
                                       onChange={(e) => setEditingForm({ ...editingForm, amount: parseFloat(e.target.value) || 0 })}
-                                      className="h-8 w-full rounded border border-zinc-200 bg-white px-2 text-xs text-right tabular-nums"
+                                      className="h-9 w-full rounded border border-zinc-200 bg-white px-2.5 text-right text-sm tabular-nums"
                                     />
                                   </TableCell>
-                                  <TableCell className="py-2 px-4 text-right">
-                                    <div className="flex items-center justify-end gap-1">
+                                  <TableCell className="py-2.5 px-4 text-right">
+                                    <div className="flex items-center justify-end gap-1.5">
                                       <button
                                         type="button"
                                         onClick={handleSaveEdit}
-                                        className="inline-flex items-center gap-1 rounded bg-zinc-900 px-2 py-1 text-[11px] font-medium text-white hover:bg-zinc-800 transition"
+                                        className="inline-flex items-center gap-1 rounded bg-zinc-900 px-3 py-1.5 text-[13px] font-medium text-white hover:bg-zinc-800 transition"
                                       >
                                         Save
                                       </button>
                                       <button
                                         type="button"
                                         onClick={handleCancelEdit}
-                                        className="inline-flex items-center gap-1 rounded px-2 py-1 text-[11px] font-medium text-zinc-600 hover:bg-zinc-100 transition"
+                                        className="inline-flex items-center gap-1 rounded px-3 py-1.5 text-[13px] font-medium text-zinc-600 hover:bg-zinc-100 transition"
                                       >
                                         Cancel
                                       </button>
@@ -723,16 +721,16 @@ export default function LedgerDashboard() {
 
                             return (
                               <TableRow key={receipt.id} className="group border-b border-zinc-100 hover:bg-zinc-50/80">
-                                <TableCell className="py-2.5 px-4 text-[12.5px] tabular-nums text-zinc-600">{formatDisplayDate(receipt.receipt_date)}</TableCell>
-                                <TableCell className="py-2.5 px-4 text-[13px] font-medium text-zinc-800">
+                                <TableCell className="py-3 px-4 text-sm tabular-nums text-zinc-600">{formatDisplayDate(receipt.receipt_date)}</TableCell>
+                                <TableCell className="py-3 px-4 text-sm font-medium text-zinc-800">
                                   {clients.find(c => c.id === receipt.client_id)?.name || 'Unknown'}
                                 </TableCell>
-                                <TableCell className="py-2.5 px-4 text-[12.5px] text-zinc-600">{receipt.payment_type || '-'}</TableCell>
-                                <TableCell className="py-2.5 px-4 text-[12.5px] text-zinc-500">{receipt.remarks || '-'}</TableCell>
-                                <TableCell className="py-2.5 px-4 text-right text-[13px] font-medium tabular-nums text-emerald-600">
+                                <TableCell className="py-3 px-4 text-sm text-zinc-600">{receipt.payment_type || '-'}</TableCell>
+                                <TableCell className="py-3 px-4 text-sm text-zinc-500">{receipt.remarks || '-'}</TableCell>
+                                <TableCell className="py-3 px-4 text-right text-sm font-medium tabular-nums text-emerald-600">
                                   {formatCurrency(receipt.amount)}
                                 </TableCell>
-                                <TableCell className="py-2.5 px-4 text-right">
+                                <TableCell className="py-3 px-4 text-right">
                                   <div className="flex items-center justify-end gap-3 opacity-0 transition-opacity group-hover:opacity-100">
                                     <button
                                       type="button"
@@ -740,7 +738,7 @@ export default function LedgerDashboard() {
                                       className="text-zinc-400 hover:text-zinc-900 transition-colors"
                                       title="Edit Payment"
                                     >
-                                      <Pencil size={12} />
+                                      <Pencil size={14} />
                                     </button>
                                     <button
                                       type="button"
@@ -752,7 +750,7 @@ export default function LedgerDashboard() {
                                       className="text-rose-400 hover:text-rose-600 transition-colors"
                                       title="Delete Payment"
                                     >
-                                      <Trash2 size={12} />
+                                      <Trash2 size={14} />
                                     </button>
                                   </div>
                                 </TableCell>
@@ -770,39 +768,39 @@ export default function LedgerDashboard() {
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
-                      <TableRow className="border-b border-zinc-200/60 bg-zinc-50/50 backdrop-blur-xl">
+                      <TableRow className="border-b border-zinc-200 bg-zinc-50">
                         <TableHead className="h-12 w-[350px] px-5 text-left align-middle">
                           <div className="flex items-center gap-3">
-                            <span className="text-[10.5px] font-medium uppercase tracking-wider text-zinc-500/80">Client Name</span>
+                            <span className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">Client Name</span>
                             {showLedger && (
                               <div className="relative">
-                                <Search className="absolute left-2 top-1/2 -translate-y-1/2 text-zinc-400" size={11} />
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={14} />
                                 <input
                                   type="text"
                                   placeholder="Filter..."
                                   value={searchTerm}
                                   onChange={(e) => setSearchTerm(e.target.value)}
-                                  className="h-7 w-32 rounded border border-zinc-200/60 bg-white px-2 pl-6 text-[11px] text-zinc-700 shadow-sm outline-none transition-all placeholder:text-zinc-400 focus:w-48 focus:border-zinc-400 focus:ring-1 focus:ring-zinc-400"
+                                  className="h-9 w-36 rounded border border-zinc-200 bg-white pl-9 pr-3 text-sm text-zinc-700 outline-none transition-all placeholder:text-zinc-400 focus:w-48 focus:border-zinc-400"
                                 />
                               </div>
                             )}
                           </div>
                         </TableHead>
-                        <TableHead className="h-12 w-[180px] px-5 text-right align-middle text-[10.5px] font-medium uppercase tracking-wider text-zinc-500/80">Outstanding</TableHead>
-                        <TableHead className="h-12 w-[160px] px-5 text-left align-middle text-[10.5px] font-medium uppercase tracking-wider text-zinc-500/80">Due Date</TableHead>
-                        <TableHead className="h-12 w-[160px] px-5 text-left align-middle text-[10.5px] font-medium uppercase tracking-wider text-zinc-500/80">Status</TableHead>
-                        <TableHead className="h-12 w-auto px-5 text-right align-middle text-[10.5px] font-medium uppercase tracking-wider text-zinc-500/80">Action</TableHead>
+                        <TableHead className="h-12 w-[180px] px-5 text-right align-middle text-[11px] font-medium uppercase tracking-wider text-zinc-500">Outstanding</TableHead>
+                        <TableHead className="h-12 w-[160px] px-5 text-left align-middle text-[11px] font-medium uppercase tracking-wider text-zinc-500">Due Date</TableHead>
+                        <TableHead className="h-12 w-[160px] px-5 text-left align-middle text-[11px] font-medium uppercase tracking-wider text-zinc-500">Status</TableHead>
+                        <TableHead className="h-12 w-auto px-5 text-right align-middle text-[11px] font-medium uppercase tracking-wider text-zinc-500">Action</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody className="[&_tr:last-child]:border-0">
                       {isLoading && showLedger && (
                         Array.from({ length: 5 }).map((_, i) => (
-                          <tr key={i} className="border-b border-zinc-100/60 bg-white/30">
-                            <td className="px-5 py-4"><Skeleton className="h-4 w-32 rounded-md bg-zinc-200/60" /></td>
-                            <td className="px-5 py-4"><Skeleton className="h-4 w-24 ml-auto rounded-md bg-zinc-200/60" /></td>
-                            <td className="px-5 py-4"><Skeleton className="h-4 w-20 rounded-md bg-zinc-200/60" /></td>
-                            <td className="px-5 py-4"><Skeleton className="h-4 w-16 rounded-md bg-zinc-200/60" /></td>
-                            <td className="px-5 py-4"><Skeleton className="h-4 w-24 ml-auto rounded-md bg-zinc-200/60" /></td>
+                          <tr key={i} className="border-b border-zinc-100 bg-white">
+                            <td className="px-5 py-5"><Skeleton className="h-4 w-32 bg-zinc-200" /></td>
+                            <td className="px-5 py-5"><Skeleton className="h-4 w-24 ml-auto bg-zinc-200" /></td>
+                            <td className="px-5 py-5"><Skeleton className="h-4 w-20 bg-zinc-200" /></td>
+                            <td className="px-5 py-5"><Skeleton className="h-4 w-16 bg-zinc-200" /></td>
+                            <td className="px-5 py-5"><Skeleton className="h-4 w-24 ml-auto bg-zinc-200" /></td>
                           </tr>
                         ))
                       )}
@@ -834,15 +832,15 @@ export default function LedgerDashboard() {
                       )}
 
                       {filteredSummaries.map((summary) => (
-                        <tr key={summary.clientId} className="group relative border-b border-zinc-100/60 transition-colors hover:bg-zinc-50/80">
+                        <tr key={summary.clientId} className="group relative border-b border-zinc-100 transition-colors hover:bg-zinc-50">
                           <td className="px-5 py-5 align-middle cursor-pointer" onClick={() => handleView(summary.clientId)}>
-                            <span className="text-[13px] font-medium text-zinc-800 transition-colors group-hover:text-zinc-950 group-hover:underline decoration-zinc-300 underline-offset-4">{summary.clientName}</span>
+                            <span className="text-sm font-medium text-zinc-800 transition-colors group-hover:text-zinc-950 group-hover:underline decoration-zinc-300 underline-offset-4">{summary.clientName}</span>
                           </td>
                           <td className="px-5 py-5 text-right align-middle">
-                            <span className="tabular-nums tracking-tight text-[13px] font-semibold text-zinc-800">{formatCurrency(summary.outstanding)}</span>
+                            <span className="tabular-nums tracking-tight text-sm font-semibold text-zinc-800">{formatCurrency(summary.outstanding)}</span>
                           </td>
                           <td className="px-5 py-5 align-middle">
-                            <span className="tabular-nums text-[12.5px] text-zinc-500/90">{formatDisplayDate(summary.oldestDueDate)}</span>
+                            <span className="tabular-nums text-sm text-zinc-500">{formatDisplayDate(summary.oldestDueDate)}</span>
                           </td>
                           <td className="px-5 py-5 align-middle">
                             {(() => {
@@ -859,29 +857,30 @@ export default function LedgerDashboard() {
                               };
                               const variant = status.icon as keyof typeof dotColors;
                               return (
-                                <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10.5px] font-medium ring-1 ring-inset ${bgColors[variant]}`}>
-                                  <span className={`h-1 w-1 rounded-full ${dotColors[variant]}`} />
+                                <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-medium ring-1 ring-inset ${bgColors[variant]}`}>
+                                  <span className={`h-1.5 w-1.5 rounded-full ${dotColors[variant]}`} />
                                   {status.label}
                                 </span>
                               );
                             })()}
                           </td>
                           <td className="px-5 py-5 text-right align-middle opacity-0 transition-opacity group-hover:opacity-100">
-                            <button
-                              type="button"
-                              onClick={() => handleView(summary.clientId)}
-                              className="inline-flex h-7 items-center justify-center rounded-md bg-white px-2.5 text-[11px] font-medium text-zinc-700 shadow-sm ring-1 ring-inset ring-zinc-300 transition-all hover:bg-zinc-50 hover:text-zinc-900"
-                            >
-                              Open
-                            </button>
-                            <span className="mx-2 text-zinc-200">|</span>
-                            <button
-                              type="button"
-                              onClick={() => handleEditLedger(summary.clientId)}
-                              className="text-[11px] font-medium text-zinc-500 transition-colors hover:text-zinc-900"
-                            >
-                              Edit
-                            </button>
+                            <div className="inline-flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleView(summary.clientId)}
+                                className="inline-flex h-9 items-center justify-center rounded bg-zinc-100 px-4 text-sm font-medium text-zinc-700 transition-all hover:bg-zinc-200"
+                              >
+                                Open
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleEditLedger(summary.clientId)}
+                                className="inline-flex h-9 items-center justify-center rounded border border-zinc-200 px-3 text-sm font-medium text-zinc-600 transition-colors hover:bg-zinc-50 hover:text-zinc-900"
+                              >
+                                Edit
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -904,7 +903,7 @@ export default function LedgerDashboard() {
                         <button
                           type="button"
                           onClick={() => setDetailsDrawerOpen(false)}
-                          className="text-zinc-500 hover:text-zinc-700 bg-zinc-100 hover:bg-zinc-200 p-1.5 rounded-md transition"
+                          className="text-zinc-500 hover:text-zinc-700 bg-zinc-100 hover:bg-zinc-200 p-1.5 rounded transition"
                         >
                           <X size={16} />
                         </button>
@@ -938,15 +937,15 @@ export default function LedgerDashboard() {
                       <div className="text-[11px] font-medium uppercase tracking-wider text-zinc-400">
                         Receipts for {selectedClient.name}
                       </div>
-                      <div className="overflow-x-auto rounded-lg border border-zinc-200">
+                      <div className="overflow-x-auto">
                         <Table>
                           <TableHeader>
-                            <TableRow className="border-b border-zinc-200 bg-zinc-50/80">
-                              <TableHead className="h-10 px-4 text-left align-middle text-[11px] font-medium text-zinc-500">Date</TableHead>
-                              <TableHead className="h-10 px-4 text-left align-middle text-[11px] font-medium text-zinc-500">Payment Type</TableHead>
-                              <TableHead className="h-10 px-4 text-left align-middle text-[11px] font-medium text-zinc-500">Remarks</TableHead>
-                              <TableHead className="h-10 px-4 text-right align-middle text-[11px] font-medium text-zinc-500">Amount</TableHead>
-                              <TableHead className="h-10 px-4 text-right align-middle text-[11px] font-medium text-zinc-500">Actions</TableHead>
+                            <TableRow className="border-b border-zinc-200 bg-zinc-50">
+                              <TableHead className="h-10 px-4 text-left align-middle text-[12px] font-medium text-zinc-500">Date</TableHead>
+                              <TableHead className="h-10 px-4 text-left align-middle text-[12px] font-medium text-zinc-500">Payment Type</TableHead>
+                              <TableHead className="h-10 px-4 text-left align-middle text-[12px] font-medium text-zinc-500">Remarks</TableHead>
+                              <TableHead className="h-10 px-4 text-right align-middle text-[12px] font-medium text-zinc-500">Amount</TableHead>
+                              <TableHead className="h-10 px-4 text-right align-middle text-[12px] font-medium text-zinc-500">Actions</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody className="[&_tr:last-child]:border-0">
@@ -961,14 +960,14 @@ export default function LedgerDashboard() {
                                         type="date"
                                         value={editingForm.receipt_date}
                                         onChange={(e) => setEditingForm({ ...editingForm, receipt_date: e.target.value })}
-                                        className="h-8 w-full rounded border border-zinc-200 px-2 text-xs"
+                                        className="h-9 w-full rounded border border-zinc-200 bg-white px-2.5 text-sm"
                                       />
                                     </td>
                                     <td className="px-4 py-2.5">
                                       <select
                                         value={editingForm.payment_type}
                                         onChange={(e) => setEditingForm({ ...editingForm, payment_type: e.target.value })}
-                                        className="h-8 w-full rounded border border-zinc-200 px-2 text-xs"
+                                        className="h-9 w-full rounded border border-zinc-200 bg-white px-2.5 text-sm"
                                       >
                                         <option value="">-</option>
                                         <option value="Opening Balance">Opening Balance</option>
@@ -980,7 +979,7 @@ export default function LedgerDashboard() {
                                         type="text"
                                         value={editingForm.remarks}
                                         onChange={(e) => setEditingForm({ ...editingForm, remarks: e.target.value })}
-                                        className="h-8 w-full rounded border border-zinc-200 px-2 text-xs"
+                                        className="h-9 w-full rounded border border-zinc-200 bg-white px-2.5 text-sm"
                                       />
                                     </td>
                                     <td className="px-4 py-2.5">
@@ -989,29 +988,29 @@ export default function LedgerDashboard() {
                                         step="0.01"
                                         value={editingForm.amount}
                                         onChange={(e) => setEditingForm({ ...editingForm, amount: parseFloat(e.target.value) || 0 })}
-                                        className="h-8 w-24 rounded border border-zinc-200 px-2 text-right text-xs"
+                                        className="h-9 w-24 rounded border border-zinc-200 bg-white px-2.5 text-right text-sm"
                                       />
                                     </td>
                                     <td className="px-4 py-2.5 text-right">
-                                      <div className="inline-flex items-center gap-1">
+                                      <div className="inline-flex items-center gap-1.5">
                                         <button
                                           type="button"
                                           onClick={handleSaveEdit}
                                           disabled={updateReceiptMutation.isPending}
-                                          className="inline-flex h-7 w-7 items-center justify-center rounded bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
+                                          className="inline-flex h-9 w-9 items-center justify-center rounded bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
                                         >
                                           {updateReceiptMutation.isPending ? (
-                                            <Loader2 size={10} className="animate-spin" />
+                                            <Loader2 size={14} className="animate-spin" />
                                           ) : (
-                                            <Save size={10} />
+                                            <Save size={14} />
                                           )}
                                         </button>
                                         <button
                                           type="button"
                                           onClick={handleCancelEdit}
-                                          className="inline-flex h-7 w-7 items-center justify-center rounded border border-zinc-200 text-zinc-600 hover:bg-zinc-100"
+                                          className="inline-flex h-9 w-9 items-center justify-center rounded border border-zinc-200 text-zinc-600 hover:bg-zinc-100"
                                         >
-                                          <X size={10} />
+                                          <X size={14} />
                                         </button>
                                       </div>
                                     </td>
@@ -1021,18 +1020,18 @@ export default function LedgerDashboard() {
 
                               return (
                                 <tr key={receipt.id} className="border-b border-zinc-100 hover:bg-zinc-50/50">
-                                  <td className="px-4 py-3.5 text-xs text-zinc-600">{formatDisplayDate(receipt.receipt_date)}</td>
-                                  <td className="px-4 py-3.5 text-xs text-zinc-600">{receipt.payment_type || '-'}</td>
-                                  <td className="px-4 py-3.5 text-sm text-zinc-700">{receipt.remarks || 'Receipt'}</td>
-                                  <td className="px-4 py-3.5 text-right text-sm font-medium text-zinc-700">{formatCurrency(receipt.amount)}</td>
-                                  <td className="px-4 py-3.5 text-right">
-                                    <div className="inline-flex items-center gap-1">
+                                  <td className="px-4 py-3 text-sm text-zinc-600">{formatDisplayDate(receipt.receipt_date)}</td>
+                                  <td className="px-4 py-3 text-sm text-zinc-600">{receipt.payment_type || '-'}</td>
+                                  <td className="px-4 py-3 text-sm text-zinc-700">{receipt.remarks || 'Receipt'}</td>
+                                  <td className="px-4 py-3 text-right text-sm font-medium text-zinc-700">{formatCurrency(receipt.amount)}</td>
+                                  <td className="px-4 py-3 text-right">
+                                    <div className="inline-flex items-center gap-1.5">
                                       <button
                                         type="button"
                                         onClick={() => handleStartEdit(receipt)}
-                                        className="inline-flex h-7 w-7 items-center justify-center rounded border border-zinc-200 text-zinc-600 hover:bg-zinc-100"
+                                        className="inline-flex h-9 w-9 items-center justify-center rounded border border-zinc-200 text-zinc-600 hover:bg-zinc-100"
                                       >
-                                        <Pencil size={10} />
+                                        <Pencil size={14} />
                                       </button>
                                       <button
                                         type="button"
@@ -1041,9 +1040,9 @@ export default function LedgerDashboard() {
                                             deleteReceiptMutation.mutate(receipt.id);
                                           }
                                         }}
-                                        className="inline-flex h-7 w-7 items-center justify-center rounded border border-rose-200 text-rose-600 hover:bg-rose-50"
+                                        className="inline-flex h-9 w-9 items-center justify-center rounded border border-rose-200 text-rose-600 hover:bg-rose-50"
                                       >
-                                        <Trash2 size={10} />
+                                        <Trash2 size={14} />
                                       </button>
                                     </div>
                                   </td>
@@ -1079,11 +1078,11 @@ export default function LedgerDashboard() {
 
             {/* Payment Form - Hidden for opening-balance tab */}
             {activeTab !== 'opening-balance' && (
-            <div ref={paymentCardRef} className="h-fit rounded-lg border border-zinc-200 bg-zinc-50/50 p-0.5">
-              <div className="rounded-md border border-zinc-200 bg-white p-4 shadow-sm">
-                <span className="text-[10px] font-medium uppercase tracking-wider text-zinc-400">Record Payment</span>
+            <div ref={paymentCardRef} className="h-fit bg-white">
+              <div className="p-5">
+                <span className="text-[11px] font-medium uppercase tracking-wider text-zinc-400">Record Payment</span>
                 <h2 className="mt-1.5 text-lg font-semibold tracking-tight text-zinc-700">Add receipt</h2>
-                <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+                <p className="mt-1 text-sm leading-relaxed text-zinc-500">
                   Receipts refresh the ledger immediately after save.
                 </p>
 
@@ -1091,11 +1090,11 @@ export default function LedgerDashboard() {
                   onSubmit={paymentForm.handleSubmit((values) => recordPaymentMutation.mutate(values))}
                   className="mt-4 space-y-3"
                 >
-                  <div className="space-y-1">
-                    <span className="block text-[11px] font-medium uppercase tracking-wider text-zinc-400">Client</span>
+                  <div className="space-y-1.5">
+                    <label className="block text-[12px] font-semibold uppercase tracking-wider text-zinc-500">Client</label>
                     <select
                       {...paymentForm.register('client_id')}
-                      className="h-9 w-full rounded-md border border-zinc-200 bg-white px-2.5 text-xs text-zinc-900 outline-none transition focus:border-zinc-400"
+                      className="h-9 w-full rounded border border-zinc-200 bg-zinc-50 px-3 text-sm text-zinc-900 outline-none transition focus:border-zinc-400 focus:bg-white"
                     >
                       <option value="">Select client</option>
                       {clients.map((client) => (
@@ -1105,43 +1104,43 @@ export default function LedgerDashboard() {
                       ))}
                     </select>
                     {paymentForm.formState.errors.client_id && (
-                      <p className="text-[11px] text-rose-600">{paymentForm.formState.errors.client_id.message}</p>
+                      <p className="text-[12px] text-rose-600">{paymentForm.formState.errors.client_id.message}</p>
                     )}
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1">
-                      <span className="block text-[11px] font-medium uppercase tracking-wider text-zinc-400">Amount</span>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <label className="block text-[12px] font-semibold uppercase tracking-wider text-zinc-500">Amount</label>
                       <input
                         type="number"
                         step="0.01"
                         {...paymentForm.register('amount')}
-                        className="h-9 w-full rounded-md border border-zinc-200 bg-white px-2.5 text-xs text-zinc-900 outline-none transition focus:border-zinc-400"
+                        className="h-9 w-full rounded border border-zinc-200 bg-zinc-50 px-3 text-sm text-zinc-900 outline-none transition focus:border-zinc-400 focus:bg-white"
                         placeholder="0.00"
                       />
                       {paymentForm.formState.errors.amount && (
-                        <p className="text-[11px] text-rose-600">{paymentForm.formState.errors.amount.message}</p>
+                        <p className="text-[12px] text-rose-600">{paymentForm.formState.errors.amount.message}</p>
                       )}
                     </div>
 
-                    <div className="space-y-1">
-                      <span className="block text-[11px] font-medium uppercase tracking-wider text-zinc-400">Date</span>
+                    <div className="space-y-1.5">
+                      <label className="block text-[12px] font-semibold uppercase tracking-wider text-zinc-500">Date</label>
                       <input
                         type="date"
                         {...paymentForm.register('receipt_date')}
-                        className="h-9 w-full rounded-md border border-zinc-200 bg-white px-2.5 text-xs text-zinc-900 outline-none transition focus:border-zinc-400"
+                        className="h-9 w-full rounded border border-zinc-200 bg-zinc-50 px-3 text-sm text-zinc-900 outline-none transition focus:border-zinc-400 focus:bg-white"
                       />
                       {paymentForm.formState.errors.receipt_date && (
-                        <p className="text-[11px] text-rose-600">{paymentForm.formState.errors.receipt_date.message}</p>
+                        <p className="text-[12px] text-rose-600">{paymentForm.formState.errors.receipt_date.message}</p>
                       )}
                     </div>
                   </div>
 
-                  <div className="space-y-1">
-                    <span className="block text-[11px] font-medium uppercase tracking-wider text-zinc-400">Payment Type</span>
+                  <div className="space-y-1.5">
+                    <label className="block text-[12px] font-semibold uppercase tracking-wider text-zinc-500">Payment Type</label>
                     <select
                       {...paymentForm.register('payment_type')}
-                      className="h-9 w-full rounded-md border border-zinc-200 bg-white px-2.5 text-xs text-zinc-900 outline-none transition focus:border-zinc-400"
+                      className="h-9 w-full rounded border border-zinc-200 bg-zinc-50 px-3 text-sm text-zinc-900 outline-none transition focus:border-zinc-400 focus:bg-white"
                     >
                       <option value="">-- Select (Optional) --</option>
                       <option value="Opening Balance">Opening Balance</option>
@@ -1149,16 +1148,16 @@ export default function LedgerDashboard() {
                     </select>
                   </div>
 
-                  <div className="space-y-1">
-                    <span className="block text-[11px] font-medium uppercase tracking-wider text-zinc-400">Remarks</span>
+                  <div className="space-y-1.5">
+                    <label className="block text-[12px] font-semibold uppercase tracking-wider text-zinc-500">Remarks</label>
                     <textarea
                       {...paymentForm.register('remarks')}
                       rows={2}
-                      className="w-full rounded-md border border-zinc-200 bg-white px-2.5 py-2 text-xs text-zinc-900 outline-none transition focus:border-zinc-400"
+                      className="w-full rounded border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 outline-none transition focus:border-zinc-400 focus:bg-white resize-none"
                       placeholder="Advance, part payment, retention release..."
                     />
                     {paymentForm.formState.errors.remarks && (
-                      <p className="text-[11px] text-rose-600">{paymentForm.formState.errors.remarks.message}</p>
+                      <p className="text-[12px] text-rose-600">{paymentForm.formState.errors.remarks.message}</p>
                     )}
                   </div>
 
@@ -1166,7 +1165,7 @@ export default function LedgerDashboard() {
                     type="submit"
                     disabled={recordPaymentMutation.isPending || clients.length === 0}
                     isLoading={recordPaymentMutation.isPending}
-                    leftIcon={<Plus size={12} />}
+                    leftIcon={<Plus size={14} />}
                     className="w-full"
                   >
                     Record Payment
