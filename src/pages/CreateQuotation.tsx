@@ -2166,21 +2166,21 @@ const loadQuoteNoPreview = useCallback(async () => {
               <h2 className="text-xs font-bold text-gray-700 tracking-wider uppercase">Quotation Details</h2>
             </div>
             
-            <div className="grid grid-cols-[1fr_1.5fr_1.2fr] gap-6 p-5">
+            <div className="grid grid-cols-[1fr_1.4fr_400px] gap-6 p-5">
               
               {/* Column 1: DOCUMENT */}
               <div className="space-y-4">
                 <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">Document</h3>
                 
-                <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+                <div className="grid grid-cols-2 gap-x-6 gap-y-5">
                   <div className="flex flex-col">
-                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Quotation No <span className="text-red-500">*</span></label>
+                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Quotation No <span className="text-red-500">*</span></label>
                     <div className="w-full px-2 py-1.5 border border-blue-200 bg-blue-50 text-blue-700 text-xs font-medium focus:outline-none transition-colors min-h-[30px] flex items-center">
                       {formData.quotation_no || quoteNoPreview || 'Auto-generating...'}
                     </div>
                   </div>
                   <div className="flex flex-col">
-                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Prepared By</label>
+                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Prepared By</label>
                     <input 
                       type="text" 
                       className="w-full px-2 py-1.5 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[30px]" 
@@ -2191,9 +2191,9 @@ const loadQuoteNoPreview = useCallback(async () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+                <div className="grid grid-cols-2 gap-x-6 gap-y-5">
                   <div className="flex flex-col">
-                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Quotation Date <span className="text-red-500">*</span></label>
+                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Quotation Date <span className="text-red-500">*</span></label>
                     <input 
                       type="date" 
                       className="w-full px-2 py-1.5 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[30px]" 
@@ -2202,7 +2202,7 @@ const loadQuoteNoPreview = useCallback(async () => {
                     />
                   </div>
                   <div className="flex flex-col">
-                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Valid Till</label>
+                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Valid Till</label>
                     <input 
                       type="date" 
                       className="w-full px-2 py-1.5 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[30px]" 
@@ -2212,9 +2212,9 @@ const loadQuoteNoPreview = useCallback(async () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+                <div className="grid grid-cols-2 gap-x-6 gap-y-5">
                   <div className="flex flex-col">
-                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Variant</label>
+                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Variant</label>
                     <select 
                       className="w-full px-2 py-1.5 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[30px]" 
                       value={formData.variant_id} 
@@ -2227,7 +2227,7 @@ const loadQuoteNoPreview = useCallback(async () => {
                     </select>
                   </div>
                   <div className="flex flex-col">
-                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Reference</label>
+                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Reference</label>
                     <input 
                       type="text" 
                       className="w-full px-2 py-1.5 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[30px]" 
@@ -2239,7 +2239,7 @@ const loadQuoteNoPreview = useCallback(async () => {
                 </div>
 
                 <div className="flex flex-col">
-                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Payment Terms</label>
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Payment Terms</label>
                   <input 
                     type="text" 
                     className="w-full px-2 py-1.5 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[30px]" 
@@ -2371,8 +2371,8 @@ const loadQuoteNoPreview = useCallback(async () => {
                   </div>
                 </div>
 
-                <div className="pt-2">
-                  <div className="flex items-center justify-between mb-3">
+                <div className="pt-3">
+                  <div className="flex items-center justify-between mb-4">
                     <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Discounts</h3>
                     {variants.length > 0 && (
                       <button 
@@ -2386,7 +2386,7 @@ const loadQuoteNoPreview = useCallback(async () => {
                   </div>
                   
                   {activeTab === 'items' ? (
-                    <div className="space-y-2">
+                    <div className="space-y-[15px]">
                       {(() => {
                         const renderVariants = [...variants];
                         if (formData.include_erection_charges) {
@@ -2410,10 +2410,10 @@ const loadQuoteNoPreview = useCallback(async () => {
                         const isAboveMax = settings && discountValue > settings.max;
                         const approvalDisplay = getApprovalDisplayStatus(variant.id);
                         
-                        return (
-                          <div key={variant.id} className="flex items-center justify-between border border-gray-100 bg-white">
-                            <div className={`flex items-center gap-2 px-2 py-1 flex-1 border-l-2 ${color.border} ${color.bg}`}>
-                              <span className={`text-[10px] font-bold uppercase tracking-wider ${color.text} truncate`}>
+                          return (
+                            <div key={variant.id} className="flex items-center justify-between border border-gray-100 bg-white rounded-md h-[25px]">
+                              <div className={`flex items-center gap-2 px-2.5 flex-1 border-l-2 ${color.border} ${color.bg} rounded-l-md h-full`}>
+                                <span className={`text-[10px] font-bold uppercase tracking-wider ${color.text} truncate`}>
                                 {variant.variant_name}
                               </span>
                               {approvalDisplay !== 'none' && (
@@ -2425,7 +2425,7 @@ const loadQuoteNoPreview = useCallback(async () => {
                                 </span>
                               )}
                             </div>
-                            <div className={`flex items-center border-l border-gray-100 focus-within:border-gray-300 transition-colors w-[60px] ${color.bg}`}>
+                            <div className={`flex items-center border-l border-gray-200 focus-within:border-gray-400 transition-colors w-[70px] bg-white rounded-none shadow-inner`}>
                               <input
                                 type="number"
                                 className={`w-full px-2 py-1 text-right text-[11px] font-bold ${color.text} bg-transparent outline-none`}
