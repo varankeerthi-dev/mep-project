@@ -945,6 +945,9 @@ const loadQuoteNoPreview = useCallback(async () => {
             base_rate_snapshot: parseFloat(item.base_rate_snapshot) || parseFloat(item.rate) || 0,
             applied_discount_percent: parseFloat(item.applied_discount_percent) || 0,
             is_override: item.is_override || false,
+            is_header: item.is_header || false,
+            is_subtotal: item.is_subtotal || false,
+            subtotal_label: item.subtotal_label || null,
             final_rate_snapshot: parseFloat(item.final_rate_snapshot) || parseFloat(item.rate) || 0,
             display_order: item.display_order || 0,
             custom1: item.custom1 || '',
@@ -1653,6 +1656,9 @@ const loadQuoteNoPreview = useCallback(async () => {
   };
 
   const addSectionHeader = () => {
+    const headerText = prompt('Enter section header text:');
+    if (!headerText || !headerText.trim()) return;
+    
     const rowId = Date.now() + Math.random();
     setItems((prev) => [
       ...prev,
@@ -1660,8 +1666,8 @@ const loadQuoteNoPreview = useCallback(async () => {
         id: rowId,
         item_id: null,
         variant_id: null,
-        description: '',
-        qty: 0,
+        description: headerText.trim(),
+        qty: null,
         uom: '',
         rate: 0,
         discount_percent: 0,
@@ -1675,18 +1681,66 @@ const loadQuoteNoPreview = useCallback(async () => {
     ]);
   };
 
+  const addSubtotal = (afterIndex?: number) => {
+    const labels = ['Civil:', 'Electrical:', 'Plumbing:', 'HVAC:', 'Fire Protection:'];
+    const label = prompt(`Enter sub-total label:\n\nPredefined: ${labels.join(', ')}\nor type custom label`);
+    
+    if (!label || !label.trim()) return;
+    
+    const rowId = Date.now() + Math.random();
+    setItems((prev) => {
+      const newItems = [...prev];
+      const insertIndex = afterIndex !== undefined ? afterIndex + 1 : newItems.length;
+      
+      newItems.splice(insertIndex, 0, {
+        id: rowId,
+        item_id: null,
+        variant_id: null,
+        description: label.trim(),
+        qty: null,
+        uom: '',
+        rate: 0,
+        discount_percent: 0,
+        discount_amount: 0,
+        tax_percent: 0,
+        tax_amount: 0,
+        line_total: 0,
+        is_subtotal: true,
+        subtotal_label: label.trim(),
+        display_order: insertIndex
+      });
+      
+      // Recalculate display_order for all items
+      return newItems.map((item, idx) => ({ ...item, display_order: idx }));
+    });
+  };
+
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; rowId: number } | null>(null);
+
   const calculations = useMemo(() => {
     // In this UI, `rate` is treated as the final "rate after discount".
     // So totals/tax should be computed off `qty * rate` (not applying discount_percent again).
     let subtotal = 0;
     let totalItemDiscount = 0;
     let totalTax = 0;
+    
+    // Sub-total groups
+    const subTotalGroups: { [key: string]: number } = {};
+    let currentGroup = 'default';
 
     // Calculate taxes by rate for mixed tax scenarios
     const taxGroups: { [key: string]: { baseAmount: number; taxAmount: number; sgst: number; cgst: number } } = {};
 
     items.forEach(item => {
+      // Skip header rows
       if (item.is_header) return;
+      
+      // Track sub-total groups
+      if (item.is_subtotal) {
+        currentGroup = item.subtotal_label || 'Sub-total:';
+        return;
+      }
+      
       const qty = parseFloat(item.qty) || 0;
       const finalRate = parseFloat(item.rate) || 0;
       const baseRate = parseFloat(item.base_rate_snapshot) || finalRate;
@@ -1702,8 +1756,14 @@ const loadQuoteNoPreview = useCallback(async () => {
       subtotal += net;
       totalItemDiscount += discountAmount;
       totalTax += taxAmount;
+      
+      // Add to current sub-total group
+      if (!subTotalGroups[currentGroup]) {
+        subTotalGroups[currentGroup] = 0;
+      }
+      subTotalGroups[currentGroup] += net;
 
-      // Group taxes by rate
+      // Group taxes by rate (only for items, not sub-totals)
       if (taxPercent > 0) {
         if (!taxGroups[taxPercent]) {
           taxGroups[taxPercent] = { baseAmount: 0, taxAmount: 0, sgst: 0, cgst: 0 };
@@ -1760,6 +1820,7 @@ const loadQuoteNoPreview = useCallback(async () => {
       roundOff: roundOffValue,
       grandTotal,
       taxGroups,
+      subTotalGroups,
       amountInWords: numberToWords(grandTotal)
     };
   }, [items, formData.extra_discount_percent, formData.extra_discount_amount, formData.round_off, formData.round_off_enabled, formData.state, companyState]);
@@ -1979,33 +2040,36 @@ const loadQuoteNoPreview = useCallback(async () => {
         }
       }
 
-      const itemsToInsert = items.map(item => ({
+const itemsToInsert = items.map(item => ({
           quotation_id: quotationId,
           item_id: item.item_id || null,
-        variant_id: item.variant_id || null,
-        make: item.make || null,
-        description: item.description,
-        qty: parseFloat(item.qty) || 1,
-        uom: item.uom,
-        rate: parseFloat(item.rate) || 0,
-        original_discount_percent: parseFloat(item.original_discount_percent) || 0,
-        discount_percent: parseFloat(item.discount_percent) || 0,
-        discount_amount: item.discount_amount || 0,
-        tax_percent: parseFloat(item.tax_percent) || 0,
-        tax_amount: item.tax_amount || 0,
-        line_total: item.line_total || 0,
-        override_flag: item.override_flag || false,
-        base_rate_snapshot: parseFloat(item.base_rate_snapshot) || parseFloat(item.rate) || 0,
-        applied_discount_percent: parseFloat(item.applied_discount_percent) || 0,
-        is_override: item.is_override || false,
-        final_rate_snapshot: parseFloat(item.final_rate_snapshot) || parseFloat(item.rate) || 0,
-        display_order: item.display_order || 0,
-        custom1: item.custom1 || '',
-        custom2: item.custom2 || '',
-        hsn_code: item.hsn_code || null,
-        sac_code: item.sac_code || null,
-        organisation_id: organisation?.id || '00000000-0000-0000-0000-000000000000'
-      }));
+          variant_id: item.variant_id || null,
+          make: item.make || null,
+          description: item.description,
+          qty: item.is_header || item.is_subtotal ? null : (parseFloat(item.qty) || 1),
+          uom: item.uom,
+          rate: parseFloat(item.rate) || 0,
+          original_discount_percent: parseFloat(item.original_discount_percent) || 0,
+          discount_percent: parseFloat(item.discount_percent) || 0,
+          discount_amount: item.discount_amount || 0,
+          tax_percent: parseFloat(item.tax_percent) || 0,
+          tax_amount: item.tax_amount || 0,
+          line_total: item.line_total || 0,
+          override_flag: item.override_flag || false,
+          base_rate_snapshot: parseFloat(item.base_rate_snapshot) || parseFloat(item.rate) || 0,
+          applied_discount_percent: parseFloat(item.applied_discount_percent) || 0,
+          is_override: item.is_override || false,
+          is_header: item.is_header || false,
+          is_subtotal: item.is_subtotal || false,
+          subtotal_label: item.subtotal_label || null,
+          final_rate_snapshot: parseFloat(item.final_rate_snapshot) || parseFloat(item.rate) || 0,
+          display_order: item.display_order || 0,
+          custom1: item.custom1 || '',
+          custom2: item.custom2 || '',
+          hsn_code: item.hsn_code || null,
+          sac_code: item.sac_code || null,
+          organisation_id: organisation?.id || '00000000-0000-0000-0000-000000000000'
+        }));
 
       const variantDiscountRecords = Object.entries(headerDiscounts)
         .filter(([variantId]) => variantId !== 'erection')
@@ -2696,6 +2760,7 @@ const loadQuoteNoPreview = useCallback(async () => {
             <div className="w-px h-6 bg-gray-200 mx-2"></div>
             <button className="h-[25px] min-w-[100px] px-4 text-[11px] font-bold text-white bg-gradient-to-r from-[#001f3f] to-[#003366] border-none rounded-none hover:opacity-90 transition-all shadow-sm" onClick={addEmptyItemRow}>+ Add Row</button>
             <button className="h-[25px] min-w-[100px] px-4 text-[11px] font-bold text-white bg-gradient-to-r from-[#001f3f] to-[#003366] border-none rounded-none hover:opacity-90 transition-all shadow-sm" onClick={addSectionHeader}>+ Add Header</button>
+            <button className="h-[25px] min-w-[110px] px-4 text-[11px] font-bold text-white bg-gradient-to-r from-[#b45309] to-[#d97706] border-none rounded-none hover:opacity-90 transition-all shadow-sm" onClick={() => addSubtotal()}>+ Add Sub-total</button>
             <button className="h-[25px] min-w-[120px] px-4 text-[11px] font-bold text-white bg-gradient-to-r from-[#001f3f] to-[#003366] border-none rounded-none hover:opacity-90 transition-all shadow-sm flex items-center justify-center gap-1.5" onClick={() => setShowItemPicker(true)}>
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
               Add Multiple Items
@@ -2760,7 +2825,7 @@ const loadQuoteNoPreview = useCallback(async () => {
                     }
                   })
                   .map((item, index) => {
-                  const itemCountBefore = items.slice(0, index).filter(i => !i.is_header).length;
+                  const itemCountBefore = items.slice(0, index).filter(i => !i.is_header && !i.is_subtotal).length;
                   if (item.is_header) {
                     return (
                       <tr 
@@ -2779,7 +2844,7 @@ const loadQuoteNoPreview = useCallback(async () => {
                         >
                           {item.description ? itemCountBefore + 1 : ':::'}
                         </td>
-                        <td colSpan={11} style={{ padding: '4px 8px' }}>
+                        <td colSpan={12} style={{ padding: '4px 8px' }}>
                           <input
                             type="text"
                             className="cell-input"
@@ -2788,6 +2853,50 @@ const loadQuoteNoPreview = useCallback(async () => {
                             value={item.description}
                             onChange={(e) => updateItem(item.id, 'description', e.target.value)}
                           />
+                        </td>
+                        <td className="delete-cell col-shrink">
+                          <button type="button" className="btn-delete" onClick={() => removeItem(item.id)}>×</button>
+                        </td>
+                      </tr>
+                    );
+                  }
+                  
+                  // Sub-total row
+                  if (item.is_subtotal) {
+                    const groupLabel = item.subtotal_label || 'Sub-total:';
+                    const groupAmount = calculations.subTotalGroups?.[groupLabel] || 0;
+                    return (
+                      <tr 
+                        key={item.id} 
+                        onDragOver={handleDragOver}
+                        onDrop={(e) => handleDropOnRow(e, item.id)}
+                        className={draggingItemId === item.id ? 'row-dragging' : ''}
+                        style={{ background: '#fef9c3', borderTop: '2px solid #eab308' }}
+                      >
+                        <td 
+                          className="text-center cell-static col-shrink row-drag-handle" 
+                          title="Drag to reorder"
+                          draggable
+                          onDragStart={(e) => handleDragStart(e, item.id)}
+                          onDragEnd={handleDragEnd}
+                        >
+                          ---
+                        </td>
+                        <td colSpan={12} style={{ padding: '4px 8px' }}>
+                          <input
+                            type="text"
+                            className="cell-input"
+                            style={{ fontWeight: 'bold', color: '#b45309', background: 'transparent', border: 'none', borderBottom: '1px dashed #f59e0b', fontSize: '11px' }}
+                            placeholder="Enter sub-total label..."
+                            value={item.subtotal_label || ''}
+                            onChange={(e) => {
+                              updateItem(item.id, 'subtotal_label', e.target.value);
+                              updateItem(item.id, 'description', e.target.value);
+                            }}
+                          />
+                        </td>
+                        <td className="text-right font-bold" style={{ color: '#b45309', paddingRight: '12px' }}>
+                          {formatCurrency(groupAmount)}
                         </td>
                         <td className="delete-cell col-shrink">
                           <button type="button" className="btn-delete" onClick={() => removeItem(item.id)}>×</button>

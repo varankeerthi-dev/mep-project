@@ -44,6 +44,7 @@ export type GridMinimalItem = {
   discPct?: number;
   gstPct?: number;
   amount: number;
+  is_header?: boolean;
 };
 
 export type GridMinimalTotals = {

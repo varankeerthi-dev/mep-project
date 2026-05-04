@@ -44,6 +44,7 @@ export type GridMinimalItem = {
   discPct?: number;
   gstPct?: number;
   amount: number;
+  is_header?: boolean;
 };
 
 export type GridMinimalTotals = {
@@ -472,15 +473,26 @@ export default function GridMinimalDocument({
             </View>
 
             {vm.items.map((item) => (
-              <View key={item.id} style={{ display: 'flex', flexDirection: 'row' }}>
+              <View 
+                key={item.id} 
+                style={{ 
+                  display: 'flex', 
+                  flexDirection: 'row',
+                  backgroundColor: item.is_header ? '#f0f0f0' : 'transparent',
+                  fontWeight: item.is_header ? 'bold' : 'normal',
+                  paddingTop: item.is_header ? 4 : 0,
+                  paddingBottom: item.is_header ? 4 : 0,
+                }}
+              >
                 {visibleColumns.map((column, idx) => (
                   <Text
-                    key={`${item.id}-`}
+                    key={`${item.id}-col-${idx}`}
                     style={[
                       styles.td,
                       alignStyle(column.align),
                       idx === visibleColumns.length - 1 ? styles.tdLast : undefined,
                       column.key === 'description' ? styles.desc : undefined,
+                      item.is_header ? { fontWeight: 'bold', fontStyle: 'italic' } : undefined,
                       { width: column.width === 999 ? undefined : column.width, flexGrow: column.width === 999 ? 1 : 0, flexBasis: column.width === 999 ? 0 : undefined },
                     ]}
                   >

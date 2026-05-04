@@ -24,8 +24,25 @@ export async function generateGridMinimalQuotationPdfBlob(
       : 'QUOTATION';
 
   const items = (quotation.items || [])
-    .filter((item: any) => !item.is_header)
     .map((item: any, idx: number) => {
+      // Section header row
+      if (item.is_header) {
+        return {
+          id: String(item.id ?? idx),
+          sno: '',
+          hsn: '',
+          description: item.description || 'Section',
+          make: '',
+          qty: 0,
+          unit: '',
+          rate: 0,
+          discPct: 0,
+          gstPct: 0,
+          amount: 0,
+          is_header: true,
+        };
+      }
+      
       const qty = toNum(item.qty);
       const rate = toNum(item.rate);
       const discPct = toNum(item.discount_percent);
@@ -45,6 +62,7 @@ export async function generateGridMinimalQuotationPdfBlob(
         discPct,
         gstPct,
         amount,
+        is_header: false,
       };
     });
 
@@ -99,10 +117,10 @@ export async function generateGridMinimalQuotationPdfBlob(
     meta: [
       { label: headerLabels.document_no || 'Quotation No.', value: safe(quotation?.quotation_no, '') },
       { label: headerLabels.document_date || 'Quotation Date', value: safe(quotation?.date, '') },
-      { label: headerLabels.po_no || 'PO No.', value: safe(quotation?.reference, '—') },
-      { label: headerLabels.po_date || 'PO Date', value: safe('', '—') },
-      { label: headerLabels.eway_bill || 'E-Way Bill', value: safe('', '—') },
-      { label: headerLabels.remarks || 'Remarks', value: safe(quotation?.remarks || quotation?.reference, '—') },
+      { label: headerLabels.po_no || 'PO No.', value: safe(quotation?.reference, 'ï¿½') },
+      { label: headerLabels.po_date || 'PO Date', value: safe('', 'ï¿½') },
+      { label: headerLabels.eway_bill || 'E-Way Bill', value: safe('', 'ï¿½') },
+      { label: headerLabels.remarks || 'Remarks', value: safe(quotation?.remarks || quotation?.reference, 'ï¿½') },
     ],
     items,
     totals: {
