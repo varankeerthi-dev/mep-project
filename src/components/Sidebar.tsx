@@ -32,7 +32,8 @@ const menuData: MenuSection[] = [
   {
     section: '',
     items: [
-      { id: 'dashboard', label: 'Dashboard', path: '/' }
+      { id: 'dashboard', label: 'Dashboard', path: '/' },
+      { id: 'terms-conditions', label: 'Terms & Conditions', path: '/terms-conditions' }
     ]
   },
   {
@@ -219,6 +220,7 @@ const menuData: MenuSection[] = [
           { id: 'settings-print', label: 'Print Settings', path: '/settings/print' },
           { id: 'settings-document', label: 'Document Settings', path: '/settings/document-series' },
           { id: 'settings-template', label: 'Template Settings', path: '/settings/template' },
+          { id: 'settings-terms', label: 'Terms & Conditions', path: '/settings/terms-conditions' },
           { id: 'settings-quick-quote', label: 'Quick Quote', path: '/settings/quick-quote' },
           { id: 'settings-organisation', label: 'Organisation Settings', path: '/settings/organisation' },
           { id: 'settings-access', label: 'Access Control', path: '/settings/access-control' },

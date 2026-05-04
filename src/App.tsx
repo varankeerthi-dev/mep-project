@@ -78,6 +78,8 @@ const QuotationView = lazyAny(() => import('./pages/QuotationView'));
 const TemplateSettings = lazyAny(() => import('./pages/TemplateSettings'));
 const DiscountSettings = lazyAny(() => import('./pages/DiscountSettings'));
 const QuickQuoteSettings = lazyAny(() => import('./pages/QuickQuoteSettings'));
+import { TermsConditionsDashboard } from './pages/TermsConditionsDirect';
+import { TermsConditionsSettings } from './pages/TermsConditionsSettingsRefactored';
 const QuickStockCheckList = lazyAny(() => import('./pages/QuickStockCheckList'));
 const QuickStockCheck = lazyAny(() => import('./pages/QuickStockCheck'));
 const ProcurementList = lazyAny(() => import('./pages/ProcurementList'));
@@ -199,6 +201,7 @@ export default function App() {
     const pathKey = (currentPath || '/').split('?')[0];
 
     switch (pathKey) {
+      case '/terms-conditions': return <TermsConditionsDashboard />;
       case '/': 
         return user ? <Dashboard onNavigate={navigate} /> : <LandingPage />;
       case '/login': 
@@ -286,6 +289,7 @@ export default function App() {
       case '/settings/template': return <TemplateSettings />;
       case '/settings/discounts': return <DiscountSettings />;
       case '/settings/quick-quote': return <QuickQuoteSettings />;
+      case '/settings/terms-conditions': return <TermsConditionsSettings />;
       case '/settings/document-series': return <TransactionNumberSeries />;
       case '/settings/organisation': return <OrganisationSettings organisation={organisation} userId={user?.id} />;
       case '/settings/access-control': return <AccessControlPage />;

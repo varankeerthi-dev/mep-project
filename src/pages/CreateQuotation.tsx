@@ -21,6 +21,8 @@ import { FileText, Plus, Mail } from 'lucide-react';
 import { autoCreateOrUpdateErection } from '../utils/erectionUtils';
 import { lookupServiceRate } from '../hooks/useErectionCharges';
 import { ErectionSection } from '../components/ErectionSection';
+import { TermsConditionsTab } from '../components/TermsConditionsTabSafe';
+import { TermsConditionsDrawer } from '../components/TermsConditionsDrawer';
 
 const INDIAN_STATES = [
   'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
@@ -120,6 +122,7 @@ export default function CreateQuotation() {
   const [quickQuoteIncludeValves, setQuickQuoteIncludeValves] = useState(true);
   const [quickQuoteIncludeThreadItems, setQuickQuoteIncludeThreadItems] = useState(true);
   const [showItemCreateDrawer, setShowItemCreateDrawer] = useState(false);
+  const [showTermsDrawer, setShowTermsDrawer] = useState(false);
 
   const [formData, setFormData] = useState({
     id: '',
@@ -2539,29 +2542,42 @@ const loadQuoteNoPreview = useCallback(async () => {
           </div>
           
           {/* Section Tabs */}
-          <div style={{ display: 'flex', gap: '0', borderBottom: '1px solid #e5e7eb', marginLeft: '20px' }}>
-            <button
-              type="button"
-              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                activeSection === 'materials'
-                  ? 'border-indigo-600 text-indigo-600'
-                  : 'border-transparent text-zinc-500 hover:text-zinc-700 hover:border-zinc-300'
-              }`}
-              onClick={() => setActiveSection('materials')}
-            >
-              Materials
-            </button>
-            <button
-              type="button"
-              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                activeSection === 'erection'
-                  ? 'border-indigo-600 text-indigo-600'
-                  : 'border-transparent text-zinc-500 hover:text-zinc-700 hover:border-zinc-300'
-              }`}
-              onClick={() => setActiveSection('erection')}
-            >
-              Erection Charges
-            </button>
+          <div className="px-5 py-[30px]">
+            <div className="flex border-b border-gray-200">
+              <button
+                type="button"
+                className={`px-4 py-2 text-sm font-bold border-b-2 transition-colors ${
+                  activeSection === 'materials'
+                    ? 'border-blue-800 text-blue-800'
+                    : 'border-transparent text-amber-700 hover:text-amber-800 hover:border-amber-300'
+                }`}
+                onClick={() => setActiveSection('materials')}
+              >
+                Materials
+              </button>
+              <button
+                type="button"
+                className={`px-4 py-2 text-sm font-bold border-b-2 transition-colors ${
+                  activeSection === 'erection'
+                    ? 'border-blue-800 text-blue-800'
+                    : 'border-transparent text-amber-700 hover:text-amber-800 hover:border-amber-300'
+                }`}
+                onClick={() => setActiveSection('erection')}
+              >
+                Erection Charges
+              </button>
+              <button
+                type="button"
+                className={`px-4 py-2 text-sm font-bold border-b-2 transition-colors ${
+                  activeSection === 'terms'
+                    ? 'border-blue-800 text-blue-800'
+                    : 'border-transparent text-amber-700 hover:text-amber-800 hover:border-amber-300'
+                }`}
+                onClick={() => setActiveSection('terms')}
+              >
+                Terms & Conditions
+              </button>
+            </div>
           </div>
           
           <div className="flex items-center gap-2">
@@ -2961,13 +2977,47 @@ const loadQuoteNoPreview = useCallback(async () => {
         />
       )}
 
+      {/* Terms & Conditions Section */}
+      {activeSection === 'terms' && (
+        <TermsConditionsTab
+          quotationId={formData.id || ''}
+          onSave={(termsData) => {
+            console.log('Terms saved:', termsData);
+          }}
+        />
+      )}
+
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '16px' }}>
         <div>
           <div className="card" style={{ padding: '12px', height: '100%' }}>
-            <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#374151', marginBottom: '8px' }}>Notes & Remarks:</label>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: '#374151' }}>Notes & Remarks:</label>
+              <button
+                onClick={() => setShowTermsDrawer(true)}
+                style={{
+                  padding: '6px 12px',
+                  border: '1px solid #d4d4d4',
+                  borderRadius: '4px',
+                  background: '#fff',
+                  color: '#525252',
+                  fontSize: '11px',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  transition: 'all 0.15s',
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = '#f5f5f5'}
+                onMouseLeave={(e) => e.currentTarget.style.background = '#fff'}
+              >
+                <FileText size={12} />
+                Terms & Conditions
+              </button>
+            </div>
             <textarea 
               className="form-input" 
-              style={{ width: '100%', height: 'calc(100% - 24px)', minHeight: '120px', fontSize: '11px', resize: 'none' }}
+              style={{ width: '100%', height: 'calc(100% - 40px)', minHeight: '120px', fontSize: '11px', resize: 'none' }}
               placeholder="Enter internal notes or additional instructions..."
               value={formData.remarks || ''}
               onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
@@ -3307,6 +3357,15 @@ const loadQuoteNoPreview = useCallback(async () => {
         isOpen={showItemCreateDrawer}
         onClose={() => setShowItemCreateDrawer(false)}
         onSuccess={handleItemCreateSuccess}
+      />
+      
+      <TermsConditionsDrawer
+        isOpen={showTermsDrawer}
+        onClose={() => setShowTermsDrawer(false)}
+        quotationId={formData.id || ''}
+        onSave={(termsData) => {
+          console.log('Terms applied to quotation:', termsData);
+        }}
       />
     </div>
   );
