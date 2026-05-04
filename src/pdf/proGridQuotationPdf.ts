@@ -179,6 +179,54 @@ export function generateProGridQuotationPdf(data: Record<string, unknown>, organ
   doc.setTextColor(71, 85, 105);
   doc.text(String(sign.name || 'Authorised Signatory'), signX, y + 22, { align: 'center' });
 
+  // Add Terms & Conditions section if available
+  if (data.terms_conditions) {
+    y += 30; // Add some space before terms section
+    y = appendSectionHeading(doc, y, 'Terms & Conditions');
+    
+    try {
+      const termsData = typeof data.terms_conditions === 'string' 
+        ? JSON.parse(data.terms_conditions) 
+        : data.terms_conditions;
+      
+      if (termsData && termsData.sections) {
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(15, 23, 42);
+        
+        termsData.sections.forEach((section: any) => {
+          // Add section title
+          doc.setFont('helvetica', 'bold');
+          const sectionTitle = `${section.display_order + 1}. ${section.title}`;
+          const titleLines = doc.splitTextToSize(sectionTitle, doc.internal.pageSize.getWidth() - 2 * PRO_MARGIN_MM);
+          doc.text(titleLines, PRO_MARGIN_MM, y + 2);
+          y += titleLines.length * 4 + 2;
+          
+          // Add section items
+          if (section.items && section.items.length > 0) {
+            doc.setFont('helvetica', 'normal');
+            section.items.forEach((item: any) => {
+              const prefix = item.item_type === 'bullet' ? '•' : `${item.display_order + 1}.`;
+              const itemText = `${prefix} ${item.content}`;
+              const itemLines = doc.splitTextToSize(itemText, doc.internal.pageSize.getWidth() - 2 * PRO_MARGIN_MM - 10);
+              doc.text(itemLines, PRO_MARGIN_MM + 5, y + 2);
+              y += itemLines.length * 4 + 1;
+            });
+            y += 3; // Space between sections
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error parsing terms conditions:', error);
+      // Fallback: display as plain text if JSON parsing fails
+      doc.setFont('helvetica', 'normal');
+      const termsText = String(data.terms_conditions);
+      const termsLines = doc.splitTextToSize(termsText, doc.internal.pageSize.getWidth() - 2 * PRO_MARGIN_MM);
+      doc.text(termsLines, PRO_MARGIN_MM, y + 2);
+      y += termsLines.length * 4 + 3;
+    }
+  }
+
   appendProFooterNote(doc, 'Computer-generated document. Valid subject to terms printed overleaf where applicable.');
   return doc;
 }

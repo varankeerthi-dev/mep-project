@@ -607,10 +607,41 @@ export const generateClassicQuotationTemplate = (data: any, organisation: any, t
   
   // Terms & conditions explicitly hugging left underneath bank details seamlessly wrapping new extra room bounds
   if (showTandC) {
-    const terms = terms_conditions || organisation.terms_conditions || '';
-    const termsLines = doc.splitTextToSize(terms, (authDivX - margin) - 4);
-    doc.setFontSize(6);
-    doc.text(termsLines, margin + 2, showBankDet ? (currentY + 22) : (currentY + 8));
+    let termsText = '';
+    
+    // Handle new Terms & Conditions format
+    if (terms_conditions) {
+      try {
+        const termsData = typeof terms_conditions === 'string' 
+          ? JSON.parse(terms_conditions) 
+          : terms_conditions;
+        
+        if (termsData && termsData.sections) {
+          termsText = termsData.sections.map((section: any, sectionIndex: number) => {
+            const sectionTitle = `${sectionIndex + 1}. ${section.title}`;
+            const items = section.items ? section.items.map((item: any, itemIndex: number) => {
+              const prefix = item.item_type === 'bullet' ? '•' : `${itemIndex + 1}.`;
+              return `   ${prefix} ${item.content}`;
+            }).join('\n') : '';
+            return `${sectionTitle}\n${items}`;
+          }).join('\n\n');
+        }
+      } catch (error) {
+        // Fallback to plain text if JSON parsing fails
+        termsText = String(terms_conditions);
+      }
+    }
+    
+    // Fallback to organisation terms if no quotation terms
+    if (!termsText) {
+      termsText = organisation.terms_conditions || '';
+    }
+    
+    if (termsText) {
+      const termsLines = doc.splitTextToSize(termsText, (authDivX - margin) - 4);
+      doc.setFontSize(6);
+      doc.text(termsLines, margin + 2, showBankDet ? (currentY + 22) : (currentY + 8));
+    }
   }
 
   // Right-aligned strictly symmetric centered bounding constraints for Authorised matrix physically!

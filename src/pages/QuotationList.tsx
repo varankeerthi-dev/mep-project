@@ -11,7 +11,7 @@ import { generateProfessionalTemplate } from './ProfessionalTemplate';
 import { renderTemplateToPdf } from '../utils/htmlTemplateRenderer';
 import { generateClassicQuotationTemplate } from './ClassicQuotationTemplate';
 import { generateProGridQuotationPdf } from '../pdf/proGridQuotationPdf';
-import { generateGridMinimalQuotationPdfBlob } from '../pdf/grid-minimal/quotation';
+import { generateGridMinimalQuotationPdfBlobWithTerms } from '../pdf/grid-minimal/quotation-with-terms';
 import {
   Search as SearchIcon,
   Plus as PlusIcon,
@@ -130,6 +130,17 @@ export default function QuotationList() {
         `)
         .eq('id', quotationId)
         .single();
+
+      // Fetch Terms & Conditions separately
+      let termsConditions = null;
+      if (quotation) {
+        const { data: termsData } = await supabase
+          .from('quotation_terms_conditions')
+          .select('*')
+          .eq('quotation_id', quotationId)
+          .single();
+        termsConditions = termsData;
+      }
       
       if (quoteError) throw quoteError;
       if (!quotation) {
@@ -245,9 +256,10 @@ export default function QuotationList() {
         return;
       }
 
+      // Grid Minimal template commented out
       /*
       if (template?.column_settings?.print?.style === 'grid_minimal') {
-        const blob = await generateGridMinimalQuotationPdfBlob(quotation, org, template);
+        const blob = await generateGridMinimalQuotationPdfBlobWithTerms(quotation, org, template);
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
@@ -283,18 +295,25 @@ export default function QuotationList() {
       }
       */
       if (template.template_code === 'QTN_CLASSIC') {
-        const doc = generateClassicQuotationTemplate(quotation, org, template);
+        const quotationWithTerms = {
+          ...quotation,
+          terms_conditions: termsConditions?.custom_content || null
+        };
+        const doc = generateClassicQuotationTemplate(quotationWithTerms, org, template);
         doc.save(`${safeFileName}.pdf`);
         return;
       }
 
-      /*
       if (template.template_code === 'QTN_GRID_PRO') {
-        const doc = generateProGridQuotationPdf(quotation, org, template);
+        // Include Terms & Conditions data in the quotation object
+        const quotationWithTerms = {
+          ...quotation,
+          terms_conditions: termsConditions?.custom_content || null
+        };
+        const doc = generateProGridQuotationPdf(quotationWithTerms, org, template);
         doc.save(`${safeFileName}.pdf`);
         return;
       }
-      */
 
       const doc = new jsPDF();
       doc.setFontSize(16);

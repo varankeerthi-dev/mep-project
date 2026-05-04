@@ -237,7 +237,31 @@ export default function DocumentPreview({
               Terms & Conditions
             </div>
             <div className="text-[10px] whitespace-pre-line">
-              {data.terms_conditions}
+              {(() => {
+                if (!data.terms_conditions) return '';
+                
+                try {
+                  const termsData = typeof data.terms_conditions === 'string' 
+                    ? JSON.parse(data.terms_conditions) 
+                    : data.terms_conditions;
+                  
+                  if (termsData && termsData.sections) {
+                    return termsData.sections.map((section: any, sectionIndex: number) => {
+                      const sectionTitle = `${sectionIndex + 1}. ${section.title}`;
+                      const items = section.items ? section.items.map((item: any, itemIndex: number) => {
+                        const prefix = item.item_type === 'bullet' ? '•' : `${itemIndex + 1}.`;
+                        return `   ${prefix} ${item.content}`;
+                      }).join('\n') : '';
+                      return `${sectionTitle}\n${items}`;
+                    }).join('\n\n');
+                  }
+                } catch (error) {
+                  // Fallback to plain text if JSON parsing fails
+                  return String(data.terms_conditions);
+                }
+                
+                return String(data.terms_conditions);
+              })()}
             </div>
           </div>
         </div>

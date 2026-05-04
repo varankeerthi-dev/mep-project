@@ -639,9 +639,39 @@ export default function VerticalTemplate({
         
         <div className="mt-4 flex-1 text-[11px] leading-relaxed txt-slate-700 font-medium">
           <div dangerouslySetInnerHTML={{ 
-            __html: data.terms_conditions?.replace(/\n/g, '<br/>') || 
-                   organisation.terms_conditions?.replace(/\n/g, '<br/>') || 
-                   'Standard terms and conditions apply.' 
+            __html: (() => {
+              let termsText = '';
+              
+              // Handle new Terms & Conditions format
+              if (data.terms_conditions) {
+                try {
+                  const termsData = typeof data.terms_conditions === 'string' 
+                    ? JSON.parse(data.terms_conditions) 
+                    : data.terms_conditions;
+                  
+                  if (termsData && termsData.sections) {
+                    termsText = termsData.sections.map((section: any, sectionIndex: number) => {
+                      const sectionTitle = `${sectionIndex + 1}. ${section.title}`;
+                      const items = section.items ? section.items.map((item: any, itemIndex: number) => {
+                        const prefix = item.item_type === 'bullet' ? '•' : `${itemIndex + 1}.`;
+                        return `   ${prefix} ${item.content}`;
+                      }).join('\n') : '';
+                      return `${sectionTitle}\n${items}`;
+                    }).join('\n\n');
+                  }
+                } catch (error) {
+                  // Fallback to plain text if JSON parsing fails
+                  termsText = String(data.terms_conditions);
+                }
+              }
+              
+              // Fallback to organisation terms if no quotation terms
+              if (!termsText) {
+                termsText = organisation.terms_conditions || 'Standard terms and conditions apply.';
+              }
+              
+              return termsText.replace(/\n/g, '<br/>');
+            })()
           }} />
         </div>
 

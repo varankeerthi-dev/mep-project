@@ -11,7 +11,7 @@ import { generateProfessionalTemplate } from './ProfessionalTemplate';
 import { renderTemplateToPdf } from '../utils/htmlTemplateRenderer';
 import { generateClassicQuotationTemplate } from './ClassicQuotationTemplate';
 import { generateProGridQuotationPdf } from '../pdf/proGridQuotationPdf';
-import { generateGridMinimalQuotationPdfBlob } from '../pdf/grid-minimal/quotation';
+import { generateGridMinimalQuotationPdfBlobWithTerms } from '../pdf/grid-minimal/quotation-with-terms';
 import { timedSupabaseQuery } from '../utils/queryTimeout';
 import SaaSTemplate from '../templates/SaaSTemplate';
 import VerticalTemplate from '../templates/VerticalTemplate';
@@ -41,7 +41,7 @@ export default function QuotationView() {
       const data = await timedSupabaseQuery(
         supabase
           .from('quotation_header')
-          .select('*, client:clients(*), project:projects(id, project_name, project_code), items:quotation_items(*, item:materials(id, item_code, display_name, name, hsn_code, mappings:material_client_mappings(*)))')
+          .select('*, client:clients(*), project:projects(id, project_name, project_code), items:quotation_items(*, item:materials(id, item_code, display_name, name, hsn_code))')
           .eq('id', quotationId)
           .eq('organisation_id', organisation?.id || '00000000-0000-0000-0000-000000000000')
           .single(),
@@ -72,6 +72,24 @@ export default function QuotationView() {
   const quotation = quotationQuery.data || null;
   const templates = templatesQuery.data || [];
   const loading = quotationQuery.isPending && !quotationQuery.data;
+
+  // Separate query for Terms & Conditions
+  const termsConditionsQuery = useQuery({
+    queryKey: ['quotation-terms', quotationId],
+    queryFn: async () => {
+      if (!quotationId) return null;
+      const data = await timedSupabaseQuery(
+        supabase
+          .from('quotation_terms_conditions')
+          .select('*')
+          .eq('quotation_id', quotationId)
+          .single(),
+        'Quotation terms conditions',
+      );
+      return data;
+    },
+    enabled: !!quotationId
+  });
 
   const quotationsQuery = useQuery({
     queryKey: ['quotations', organisation?.id],
@@ -305,8 +323,14 @@ export default function QuotationView() {
   };
 
   const previewQuotation = (template) => {
+    // Grid Minimal template commented out
+    /*
     if (template?.column_settings?.print?.style === 'grid_minimal') {
-      generateGridMinimalQuotationPdfBlob(quotation, organisation, template).then((blob) => {
+      const quotationWithTerms = {
+      ...quotation,
+      terms_conditions: termsConditionsQuery.data?.custom_content || null
+    };
+    generateGridMinimalQuotationPdfBlobWithTerms(quotationWithTerms, organisation, template).then((blob) => {
         const url = URL.createObjectURL(blob);
         window.open(url, '_blank', 'noopener,noreferrer');
       }).catch((err) => {
@@ -315,6 +339,7 @@ export default function QuotationView() {
       });
       return;
     }
+    */
 
     if (template?.column_settings?.print?.style === 'saas') {
       const container = document.createElement('div');
@@ -326,9 +351,13 @@ export default function QuotationView() {
 
       const root = createRoot(container);
       flushSync(() => {
+        const quotationWithTerms = {
+          ...quotation,
+          terms_conditions: termsConditionsQuery.data?.custom_content || null
+        };
         root.render(
           <SaaSTemplate
-            data={quotation}
+            data={quotationWithTerms}
             organisation={organisation}
             templateConfig={template.column_settings}
           />
@@ -369,9 +398,13 @@ export default function QuotationView() {
 
       const root = createRoot(container);
       flushSync(() => {
+        const quotationWithTerms = {
+          ...quotation,
+          terms_conditions: termsConditionsQuery.data?.custom_content || null
+        };
         root.render(
           <VerticalTemplate
-            data={quotation}
+            data={quotationWithTerms}
             organisation={organisation}
             templateConfig={template.column_settings}
           />
@@ -622,7 +655,12 @@ export default function QuotationView() {
 
       // Special handling for Classic Template
       if (template.template_code === 'QTN_CLASSIC') {
-        const classicDoc = generateClassicQuotationTemplate(quotation, organisation, template);
+        const quotationWithTerms = {
+          ...quotation,
+          terms_conditions: termsConditionsQuery.data?.custom_content || null
+        };
+        console.log('Generating Classic PDF with terms:', quotationWithTerms.terms_conditions);
+        const classicDoc = generateClassicQuotationTemplate(quotationWithTerms, organisation, template);
         const safeFileName = String(quotation.quotation_no || 'quotation')
           .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
           .replace(/\s+/g, '_');
@@ -630,17 +668,22 @@ export default function QuotationView() {
         return;
       }
 
-      /*
       // Special handling for Grid Pro Template
       if (template.template_code === 'QTN_GRID_PRO') {
-        const gridDoc = generateProGridQuotationPdf(quotation, organisation, template);
+        // Include Terms & Conditions data in the quotation object
+        const quotationWithTerms = {
+          ...quotation,
+          terms_conditions: termsConditionsQuery.data?.custom_content || null
+        };
+        console.log('Generating Grid Pro PDF with terms:', quotationWithTerms.terms_conditions);
+        console.log('Terms conditions query data:', termsConditionsQuery.data);
+        const gridDoc = generateProGridQuotationPdf(quotationWithTerms, organisation, template);
         const safeFileName = String(quotation.quotation_no || 'quotation')
           .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
           .replace(/\s+/g, '_');
         gridDoc.save(`${safeFileName}.pdf`);
         return;
       }
-      */
 
       const isLandscape = template.orientation === 'Landscape';
       const doc = new jsPDF({
@@ -1413,9 +1456,55 @@ export default function QuotationView() {
                 </div>
               </div>
             </div>
-          </div>
+
+          {/* Terms & Conditions Section */}
+          {termsConditionsQuery.data?.custom_content && (
+            <div className="mt-8 border-t border-gray-200 pt-8">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">Terms & Conditions</h3>
+              <div className="bg-gray-50 rounded-lg p-6">
+                {(() => {
+                  try {
+                    const termsData = typeof termsConditionsQuery.data.custom_content === 'string' 
+                      ? JSON.parse(termsConditionsQuery.data.custom_content) 
+                      : termsConditionsQuery.data.custom_content;
+                    
+                    if (termsData && termsData.sections) {
+                      return termsData.sections.map((section: any, sectionIndex: number) => (
+                        <div key={sectionIndex} className="mb-4 last:mb-0">
+                          <h4 className="text-sm font-semibold text-gray-900 mb-2">
+                            {sectionIndex + 1}. {section.title}
+                          </h4>
+                          {section.items && section.items.length > 0 && (
+                            <div className="space-y-1">
+                              {section.items.map((item: any, itemIndex: number) => (
+                                <div key={itemIndex} className="text-sm text-gray-600 flex items-start">
+                                  <span className="mr-2 text-gray-400">
+                                    {item.item_type === 'bullet' ? '•' : `${itemIndex + 1}.`}
+                                  </span>
+                                  <span>{item.content}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ));
+                    }
+                  } catch (error) {
+                    // Fallback to plain text if JSON parsing fails
+                    return (
+                      <div className="text-sm text-gray-600 whitespace-pre-line">
+                        {String(termsConditionsQuery.data.custom_content)}
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
+              </div>
+            </div>
+          )}
         </div>
       </div>
+    </div>
     </div>
   );
 }
