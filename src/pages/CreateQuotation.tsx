@@ -2062,9 +2062,6 @@ const loadQuoteNoPreview = useCallback(async () => {
           <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
             {editId ? 'Edit Quotation' : duplicateId ? 'Duplicate Quotation' : 'Create New Quotation'}
           </h1>
-          <p className="text-sm text-gray-500 mt-2">
-            Add details, items, and discounts to create your proposal.
-          </p>
         </div>
         
         <div className="flex items-center gap-4">

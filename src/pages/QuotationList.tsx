@@ -399,18 +399,18 @@ export default function QuotationList() {
         </div>
         <div className="flex items-center gap-3">
           <div className="relative">
-            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
             <input
               type="text"
               placeholder="Search quotations..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 pr-4 py-2 w-64 text-sm border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="pl-10 pr-4 h-[30px] w-64 text-sm border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             />
           </div>
           <button
             onClick={() => navigate('/quotation/create')}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors"
+            className="inline-flex items-center justify-center gap-2 px-4 h-[30px] text-sm font-medium text-zinc-700 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-100 hover:text-zinc-900 transition-colors"
           >
             <PlusIcon className="w-4 h-4" />
             Create Quotation
@@ -554,13 +554,14 @@ export default function QuotationList() {
                           <MoreHorizontalIcon className="w-4 h-4 text-slate-500" />
                         </button>
                       {openMenuId === q.id && (
-                        <div className="absolute right-0 top-full mt-2 z-50 min-w-[200px] bg-white border border-slate-200 rounded-lg shadow-lg py-3">
+                        <div className="absolute right-0 top-full mt-1 z-50 w-48 rounded-lg border border-slate-200/60 bg-white p-1.5 shadow-lg shadow-black/5">
+                          {/* Section 1: Read actions */}
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               navigate(`/quotation/view?id=${q.id}`);
                             }}
-                            className="flex items-center gap-4 w-full px-6 py-5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-slate-600 transition-all hover:bg-slate-100/60 hover:text-slate-900"
                           >
                             <EyeIcon className="w-4 h-4" />
                             View Details
@@ -570,18 +571,22 @@ export default function QuotationList() {
                               e.stopPropagation();
                               downloadQuotationPDF(q.id);
                             }}
-                            className="flex items-center gap-4 w-full px-6 py-5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-slate-600 transition-all hover:bg-slate-100/60 hover:text-slate-900"
                           >
                             <DownloadIcon className="w-4 h-4" />
                             Download PDF
                           </button>
+
+                          <div className="my-1 border-t border-slate-100" />
+
+                          {/* Section 2: Modify actions */}
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               setOpenMenuId(null);
                               navigate(`/quotation/edit?id=${q.id}`);
                             }}
-                            className="flex items-center gap-4 w-full px-6 py-5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-slate-600 transition-all hover:bg-slate-100/60 hover:text-slate-900"
                           >
                             Edit
                           </button>
@@ -591,11 +596,14 @@ export default function QuotationList() {
                               setOpenMenuId(null);
                               navigate(`/quotation/create?duplicateId=${q.id}`);
                             }}
-                            className="flex items-center gap-4 w-full px-6 py-5 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-slate-600 transition-all hover:bg-slate-100/60 hover:text-slate-900"
                           >
                             Duplicate
                           </button>
-                          <div className="border-t border-slate-100 my-3" />
+
+                          <div className="my-1 border-t border-slate-100" />
+
+                          {/* Section 3: Destructive */}
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -606,7 +614,7 @@ export default function QuotationList() {
                                 });
                               }
                             }}
-                            className="flex items-center gap-4 w-full px-6 py-5 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-slate-600 transition-all hover:bg-red-50 hover:text-red-600"
                           >
                             <Trash2Icon className="w-4 h-4" />
                             Delete
