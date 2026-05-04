@@ -16,6 +16,17 @@ export function useMaterials() {
         .eq('organisation_id', organisation.id)
         .order('name');
       if (error) throw error;
+      
+      // Debug: Check unit values in materials
+      if (data && data.length > 0) {
+        console.log('Materials data with units:', data.map(m => ({
+          id: m.id,
+          name: m.name,
+          unit: m.unit,
+          unitType: typeof m.unit
+        })));
+      }
+      
       return data || [];
     }),
     enabled: !!organisation?.id,

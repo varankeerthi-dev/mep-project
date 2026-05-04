@@ -272,30 +272,37 @@ export default function QuotationView() {
   const handlePrintAction = async (action, templateId = null) => {
     try {
       let template = null;
+      console.log('handlePrintAction called with:', { action, templateId, quotationId });
 
       if (templateId) {
+        console.log('Fetching template by ID:', templateId);
         const { data, error } = await supabase
           .from('document_templates')
           .select('*')
           .eq('id', templateId)
           .single();
+        console.log('Template query result:', { data, error });
         if (error) throw error;
         template = data;
       } else if (quotation.template_id) {
+        console.log('Fetching template by quotation.template_id:', quotation.template_id);
         const { data, error } = await supabase
           .from('document_templates')
           .select('*')
           .eq('id', quotation.template_id)
           .single();
+        console.log('Template query result:', { data, error });
         if (error) throw error;
         template = data;
       } else {
+        console.log('Fetching default template');
         const { data, error } = await supabase
           .from('document_templates')
           .select('*')
           .eq('document_type', 'Quotation')
           .eq('is_default', true)
           .single();
+        console.log('Default template query result:', { data, error });
         if (error) throw error;
         template = data;
       }
@@ -402,6 +409,12 @@ export default function QuotationView() {
           ...quotation,
           terms_conditions: termsConditionsQuery.data?.custom_content || null
         };
+        console.log('QuotationView: Passing to VerticalTemplate:', {
+          quotationId,
+          hasTerms: !!quotationWithTerms.terms_conditions,
+          termsData: quotationWithTerms.terms_conditions,
+          termsQueryData: termsConditionsQuery.data
+        });
         root.render(
           <VerticalTemplate
             data={quotationWithTerms}
@@ -655,17 +668,25 @@ export default function QuotationView() {
 
       // Special handling for Classic Template
       if (template.template_code === 'QTN_CLASSIC') {
-        const quotationWithTerms = {
-          ...quotation,
-          terms_conditions: termsConditionsQuery.data?.custom_content || null
-        };
-        console.log('Generating Classic PDF with terms:', quotationWithTerms.terms_conditions);
-        const classicDoc = generateClassicQuotationTemplate(quotationWithTerms, organisation, template);
-        const safeFileName = String(quotation.quotation_no || 'quotation')
-          .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
-          .replace(/\s+/g, '_');
-        classicDoc.save(`${safeFileName}.pdf`);
-        return;
+        console.log('Classic template detected, template:', template);
+        try {
+          const quotationWithTerms = {
+            ...quotation,
+            terms_conditions: termsConditionsQuery.data?.custom_content || null
+          };
+          console.log('Generating Classic PDF with terms:', quotationWithTerms.terms_conditions);
+          console.log('Organisation data:', organisation);
+          console.log('Template settings:', template);
+          const classicDoc = generateClassicQuotationTemplate(quotationWithTerms, organisation, template);
+          const safeFileName = String(quotation.quotation_no || 'quotation')
+            .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
+            .replace(/\s+/g, '_');
+          classicDoc.save(`${safeFileName}.pdf`);
+          return;
+        } catch (error) {
+          console.error('Error generating Classic template:', error);
+          throw error;
+        }
       }
 
       // Special handling for Grid Pro Template

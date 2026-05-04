@@ -340,7 +340,7 @@ export default function VerticalTemplate({
           <div className="flex gap-5">
             <div className="w-20 h-20 bg-slate-900 rounded-lg flex items-center justify-center text-white shrink-0 overflow-hidden border brd-slate-200">
               {organisation.logo_url ? (
-                <img src={organisation.logo_url} alt="Logo" className="w-full h-full object-contain bg-white p-1" crossOrigin="anonymous" />
+                <img src={organisation.logo_url} alt="Logo" className="w-full h-full object-contain bg-white p-1" />
               ) : (
                 <span className="text-4xl font-bold italic">{organisation.name?.[0] || 'S'}</span>
               )}
@@ -644,12 +644,36 @@ export default function VerticalTemplate({
               
               // Handle new Terms & Conditions format
               if (data.terms_conditions) {
+                console.log('VerticalTemplate: Processing terms_conditions:', data.terms_conditions);
+                console.log('Type:', typeof data.terms_conditions);
+                console.log('Stringified:', JSON.stringify(data.terms_conditions, null, 2));
                 try {
-                  const termsData = typeof data.terms_conditions === 'string' 
-                    ? JSON.parse(data.terms_conditions) 
-                    : data.terms_conditions;
+                  let termsData = data.terms_conditions;
                   
-                  if (termsData && termsData.sections) {
+                  // Handle if it's a string that needs parsing
+                  if (typeof termsData === 'string') {
+                    console.log('Parsing string terms data');
+                    termsData = JSON.parse(termsData);
+                  }
+                  
+                  console.log('Processed termsData:', termsData);
+                  console.log('Is array:', Array.isArray(termsData));
+                  console.log('Has sections:', termsData?.sections);
+                  console.log('Keys:', termsData ? Object.keys(termsData) : 'null');
+                  
+                  // Handle actual database structure
+                  if (Array.isArray(termsData)) {
+                    // Direct array of sections
+                    termsText = termsData.map((section: any, sectionIndex: number) => {
+                      const sectionTitle = `${sectionIndex + 1}. ${section.title}`;
+                      const items = section.items ? section.items.map((item: any, itemIndex: number) => {
+                        const prefix = item.item_type === 'bullet' ? '•' : `${itemIndex + 1}.`;
+                        return `   ${prefix} ${item.content}`;
+                      }).join('\n') : '';
+                      return `${sectionTitle}\n${items}`;
+                    }).join('\n\n');
+                  } else if (termsData && termsData.sections) {
+                    // Nested structure with sections property
                     termsText = termsData.sections.map((section: any, sectionIndex: number) => {
                       const sectionTitle = `${sectionIndex + 1}. ${section.title}`;
                       const items = section.items ? section.items.map((item: any, itemIndex: number) => {
@@ -658,18 +682,26 @@ export default function VerticalTemplate({
                       }).join('\n') : '';
                       return `${sectionTitle}\n${items}`;
                     }).join('\n\n');
+                  } else {
+                    // Fallback: treat as plain text
+                    console.log('Using fallback plain text for terms');
+                    termsText = String(data.terms_conditions);
                   }
                 } catch (error) {
+                  console.error('Error parsing terms conditions:', error);
                   // Fallback to plain text if JSON parsing fails
+                  console.log('Using fallback plain text due to error');
                   termsText = String(data.terms_conditions);
                 }
               }
               
               // Fallback to organisation terms if no quotation terms
               if (!termsText) {
+                console.log('No terms text found, using organisation terms or default');
                 termsText = organisation.terms_conditions || 'Standard terms and conditions apply.';
               }
               
+              console.log('Final termsText:', termsText);
               return termsText.replace(/\n/g, '<br/>');
             })()
           }} />

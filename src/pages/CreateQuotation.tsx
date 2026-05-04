@@ -446,7 +446,7 @@ export default function CreateQuotation() {
         hsn_code: '',
         description: '',
         qty: 1,
-        uom: 'Nos',
+        uom: '',
         rate: 0,
         discount_percent: 0,
         discount_amount: 0,
@@ -500,7 +500,7 @@ export default function CreateQuotation() {
         qty: item.qty,
         rate: item.rate,
         tax_percent: item.tax_percent || 0,
-        uom: item.uom || 'nos',
+        uom: item.uom,
         discount_percent: 0,
         line_total: item.qty * item.rate,
       }));
@@ -1166,13 +1166,21 @@ const loadQuoteNoPreview = useCallback(async () => {
         i.item_id === material.id && (i.variant_id || null) === null ? { ...i, qty: i.qty + 1 } : i
       ));
     } else {
+      console.log('Adding material with unit:', {
+        materialId: material.id,
+        materialName: material.name,
+        unit: material.unit,
+        unitType: typeof material.unit,
+        finalUom: material.unit || 'Nos'
+      });
+      
       setPickerItems([...pickerItems, {
         item_id: material.id,
         variant_id: null,
         material: material,
         qty: 1,
         rate: getRateForMaterialVariant(material, null),
-        uom: material.unit || 'Nos',
+        uom: material.unit,
         tax_percent: material.gst_rate || 0,
         discount_percent: 0,
         description: material.display_name || material.name
@@ -1181,6 +1189,7 @@ const loadQuoteNoPreview = useCallback(async () => {
   };
 
   const handleItemCreateSuccess = useCallback((newItem) => {
+    // ...
     // Update local state immediately for better UX
     const updatedMaterials = [...materials, newItem];
     
@@ -1207,7 +1216,7 @@ const loadQuoteNoPreview = useCallback(async () => {
       material: newItem,
       qty: 1,
       rate: getRateForMaterialVariant(newItem, null),
-      uom: newItem.unit || 'Nos',
+      uom: newItem.unit,
       tax_percent: newItem.gst_rate || 0,
       discount_percent: 0,
       description: newItem.display_name || newItem.name,
@@ -1601,7 +1610,7 @@ const loadQuoteNoPreview = useCallback(async () => {
         hsn_code: '',
         description: '',
         qty: 1,
-        uom: 'Nos',
+        uom: '',
         rate: 0,
         discount_percent: headerVariantDiscount,
         discount_amount: 0,

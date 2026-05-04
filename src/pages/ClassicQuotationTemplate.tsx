@@ -272,7 +272,7 @@ export const generateClassicQuotationTemplate = (data: any, organisation: any, t
     doc.setFontSize(7);
     doc.setFont('helvetica', 'normal');
     tableRows.forEach(row => {
-      const w = doc.getTextWidth(row[idx] || '');
+      const w = doc.getTextWidth(String(row[idx] || ''));
       if (w > maxW) maxW = w;
     });
     
