@@ -127,6 +127,8 @@ export default function CreateQuotation() {
   const [formData, setFormData] = useState({
     id: '',
     quotation_no: '',
+    revision_no: 1,
+    revision_history: [],
     client_id: '',
     project_id: '',
     billing_address: '',
@@ -879,7 +881,7 @@ const loadQuoteNoPreview = useCallback(async () => {
       data = await timedSupabaseQuery(
         supabase
           .from('quotation_header')
-          .select('*, items:quotation_items(*, item:materials(id, item_code, display_name, name, hsn_code, sale_price, unit, mappings:material_client_mappings(*)))')
+          .select('*, items:quotation_items(*, item:materials(id, item_code, display_name, name, hsn_code, sale_price, unit, gst_rate, mappings:material_client_mappings(*)))')
           .eq('id', id)
           .eq('organisation_id', organisation?.id || '00000000-0000-0000-0000-000000000000')
           .single(),
@@ -894,6 +896,8 @@ const loadQuoteNoPreview = useCallback(async () => {
       setFormData({
         id: isDuplicate ? '' : (data.id || ''),
         quotation_no: isDuplicate ? '' : (data.quotation_no || ''),
+        revision_no: isDuplicate ? 1 : (data.revision_no || 1),
+        revision_history: isDuplicate ? [] : (data.revision_history || []),
         client_id: data.client_id || '',
         project_id: data.project_id || '',
         billing_address: data.billing_address || '',
@@ -937,6 +941,7 @@ const loadQuoteNoPreview = useCallback(async () => {
             material: item.item,
             hsn_code: item.hsn_code || item.item?.hsn_code || null,
             sac_code: item.sac_code || null,
+            uom: item.uom || item.item?.unit || '',
             base_rate_snapshot: parseFloat(item.base_rate_snapshot) || parseFloat(item.rate) || 0,
             applied_discount_percent: parseFloat(item.applied_discount_percent) || 0,
             is_override: item.is_override || false,
@@ -1524,6 +1529,8 @@ const loadQuoteNoPreview = useCallback(async () => {
             const nextMake = item.make || '';
             const newRate = getRateForMaterialVariant(mat, nextVariant, nextMake);
             updates.base_rate_snapshot = newRate;
+            updates.uom = mat.unit || '';
+            updates.tax_percent = mat.gst_rate || 0;
             
             const variantDiscount = nextVariant ? (headerDiscounts[nextVariant] || 0) : 0;
             updates.applied_discount_percent = variantDiscount;
@@ -1609,7 +1616,7 @@ const loadQuoteNoPreview = useCallback(async () => {
         material: null,
         hsn_code: '',
         description: '',
-        qty: 1,
+        qty: null,
         uom: '',
         rate: 0,
         discount_percent: headerVariantDiscount,
@@ -1757,6 +1764,53 @@ const loadQuoteNoPreview = useCallback(async () => {
     };
   }, [items, formData.extra_discount_percent, formData.extra_discount_amount, formData.round_off, formData.round_off_enabled, formData.state, companyState]);
 
+  const saveCurrentRevision = useCallback(async () => {
+    if (!formData.id || !editId) return null;
+    
+    const currentRevisionNo = formData.revision_no || 1;
+    const newRevisionNo = currentRevisionNo + 1;
+    
+    const revisionSnapshot = {
+      revision_no: currentRevisionNo,
+      saved_at: new Date().toISOString(),
+      items: items.map(item => ({
+        ...item,
+        id: item.id || Date.now() + Math.random()
+      })),
+      header: {
+        subtotal: calculations.subtotal,
+        total_item_discount: calculations.totalItemDiscount,
+        extra_discount_percent: formData.extra_discount_percent,
+        extra_discount_amount: formData.extra_discount_amount,
+        total_tax: calculations.totalTax,
+        round_off: calculations.roundOff,
+        grand_total: calculations.grandTotal,
+        variant_id: formData.variant_id,
+        remarks: formData.remarks
+      },
+      header_discounts: { ...headerDiscounts }
+    };
+    
+    const newHistory = [...(formData.revision_history || []), revisionSnapshot];
+    
+    try {
+      const { error } = await supabase
+        .from('quotation_header')
+        .update({
+          revision_no: newRevisionNo,
+          revision_history: newHistory
+        })
+        .eq('id', formData.id);
+      
+      if (error) throw error;
+      
+      return { newRevisionNo, newHistory };
+    } catch (err) {
+      console.error('Error saving revision:', err);
+      return null;
+    }
+  }, [formData, items, calculations, headerDiscounts, editId]);
+
   const handleSave = async (saveAndNew = false) => {
     if (saving) return;
     // --- Pre-flight validation (before setting saving=true) ---
@@ -1811,7 +1865,9 @@ const loadQuoteNoPreview = useCallback(async () => {
         grand_total: calculations.grandTotal,
         status: saveAndNew ? 'Draft' : (formData.status || 'Draft'),
         negotiation_mode: formData.negotiation_mode,
-        authorized_signatory_id: formData.authorized_signatory_id || null
+        authorized_signatory_id: formData.authorized_signatory_id || null,
+        revision_no: formData.revision_no || 1,
+        revision_history: formData.revision_history || []
       };
 
       let quotationId = editId;
@@ -2067,10 +2123,15 @@ const loadQuoteNoPreview = useCallback(async () => {
   return (
     <div>
       <div className="flex items-center justify-between mb-10 pb-2">
-        <div>
+        <div className="flex items-center gap-3">
           <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
             {editId ? 'Edit Quotation' : duplicateId ? 'Duplicate Quotation' : 'Create New Quotation'}
           </h1>
+          {editId && formData.revision_no > 1 && (
+            <span className="px-2 py-1 text-xs font-bold bg-amber-100 text-amber-700 rounded">
+              Rev. {formData.revision_no}
+            </span>
+          )}
         </div>
         
         <div className="flex items-center gap-4">
@@ -2080,15 +2141,53 @@ const loadQuoteNoPreview = useCallback(async () => {
                 type="checkbox"
                 className="sr-only peer"
                 checked={formData.negotiation_mode}
-                onChange={(e) => setFormData({ 
-                  ...formData, 
-                  negotiation_mode: e.target.checked, 
-                  status: e.target.checked ? 'Under Negotiation' : formData.status 
-                })}
+                onChange={async (e) => {
+                  if (e.target.checked && editId && !formData.negotiation_mode) {
+                    const confirmed = window.confirm(
+                      'Enable negotiation mode?\n\nThis will save the current quotation as Revision ' + 
+                      formData.revision_no + ' before making changes.\n\nContinue?'
+                    );
+                    if (!confirmed) return;
+                    const result = await saveCurrentRevision();
+                    if (!result) {
+                      alert('Failed to save revision. Please try again.');
+                      return;
+                    }
+                    setFormData(prev => ({ 
+                      ...prev, 
+                      revision_no: result.newRevisionNo,
+                      revision_history: result.newHistory,
+                      negotiation_mode: true,
+                      status: 'Under Negotiation'
+                    }));
+                  } else {
+                    setFormData({ 
+                      ...formData, 
+                      negotiation_mode: e.target.checked, 
+                      status: e.target.checked ? 'Under Negotiation' : formData.status 
+                    });
+                  }
+                }}
               />
               <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-sky-600"></div>
               <span className="ms-3 text-sm font-medium text-gray-700 group-hover:text-sky-700 transition-colors">Negotiation Mode</span>
             </label>
+            {(formData.revision_history?.length > 0) && (
+              <button
+                type="button"
+                className="text-xs font-medium text-blue-600 hover:text-blue-800 underline ml-2"
+                onClick={() => {
+                  const history = formData.revision_history || [];
+                  if (history.length === 0) return;
+                  const revInfo = history.map((rev, idx) => 
+                    `Rev ${rev.revision_no}: ₹${rev.header?.grand_total?.toLocaleString() || 0} (${new Date(rev.saved_at).toLocaleDateString()})`
+                  ).join('\n');
+                  alert('Revision History:\n\n' + revInfo);
+                }}
+              >
+                View History ({formData.revision_history?.length})
+              </button>
+            )}
           </div>
 
           <div className="flex items-center gap-2">
@@ -2393,7 +2492,7 @@ const loadQuoteNoPreview = useCallback(async () => {
                       </button>
                     )}
                   </div>
-                  
+                   
                   {activeTab === 'items' ? (
                     <div className="space-y-[15px]">
                       {(() => {
@@ -2414,57 +2513,56 @@ const loadQuoteNoPreview = useCallback(async () => {
                           ];
                           const color = colors[index % colors.length];
                         
-                        const settings = discountSettings[variant.id];
-                        const discountValue = headerDiscounts[variant.id] || 0;
-                        const isAboveMax = settings && discountValue > settings.max;
-                        const approvalDisplay = getApprovalDisplayStatus(variant.id);
+                          const settings = discountSettings[variant.id];
+                          const discountValue = headerDiscounts[variant.id] || 0;
+                          const approvalDisplay = getApprovalDisplayStatus(variant.id);
                         
                           return (
-                            <div key={variant.id} className="flex items-center justify-between border border-gray-100 bg-white rounded-md h-[25px]">
-                              <div className={`flex items-center gap-2 px-2.5 flex-1 border-l-2 ${color.border} ${color.bg} rounded-l-md h-full`}>
+                            <div key={variant.id} className="flex items-center justify-between border border-gray-100 bg-white rounded-md h-[35px]">
+                              <div className={`flex items-center gap-2 px-2.5 flex-1 border-l-2 ${color.border} ${color.bg} rounded-none h-full`}>
                                 <span className={`text-[10px] font-bold uppercase tracking-wider ${color.text} truncate`}>
-                                {variant.variant_name}
-                              </span>
-                              {approvalDisplay !== 'none' && (
-                                <span className={`text-[8px] px-1 py-0.5 rounded-none font-bold uppercase tracking-tighter ${
-                                  approvalDisplay === 'approved' ? 'bg-emerald-500 text-white' : 
-                                  approvalDisplay === 'pending' ? 'bg-amber-500 text-white' : 'bg-red-500 text-white'
-                                }`}>
-                                  {approvalDisplay === 'approved' ? 'Approved' : approvalDisplay === 'pending' ? 'Pending' : 'Rejected'}
+                                  {variant.variant_name}
                                 </span>
-                              )}
-                            </div>
-                            <div className={`flex items-center border-l border-gray-200 focus-within:border-gray-400 transition-colors w-[70px] bg-white rounded-none shadow-inner`}>
-                              <input
-                                type="number"
-                                className={`w-full px-2 py-1 text-right text-[11px] font-bold ${color.text} bg-transparent outline-none`}
-                                value={headerDiscounts[variant.id] || 0}
-                                onChange={(e) => {
-                                  const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0));
-                                  setHeaderDiscounts(prev => ({ ...prev, [variant.id]: val }));
-                                }}
-                                onBlur={(e) => {
-                                  const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0));
-                                  handleHeaderDiscountChange(variant.id, val);
-                                }}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter') e.target.blur();
-                                }}
-                                min="0"
-                                max="100"
-                                step="0.01"
-                              />
-                              <div className={`px-1.5 py-1 text-[10px] font-bold ${color.percentText} ${color.percentBg} border-l border-white/50`}>
-                                %
+                                {approvalDisplay !== 'none' && (
+                                  <span className={`text-[8px] px-1 py-0.5 rounded-none font-bold uppercase tracking-tighter ${
+                                    approvalDisplay === 'approved' ? 'bg-emerald-500 text-white' : 
+                                    approvalDisplay === 'pending' ? 'bg-amber-500 text-white' : 'bg-red-500 text-white'
+                                  }`}>
+                                    {approvalDisplay === 'approved' ? 'Approved' : approvalDisplay === 'pending' ? 'Pending' : 'Rejected'}
+                                  </span>
+                                )}
+                              </div>
+                              <div className={`flex items-center border border-gray-200 rounded-none bg-white shadow-sm`}>
+                                <input
+                                  type="number"
+                                  className={`w-[60px] px-2 py-2 text-right text-[11px] font-bold ${color.text} bg-transparent outline-none`}
+                                  value={headerDiscounts[variant.id] || 0}
+                                  onChange={(e) => {
+                                    const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0));
+                                    setHeaderDiscounts(prev => ({ ...prev, [variant.id]: val }));
+                                  }}
+                                  onBlur={(e) => {
+                                    const val = Math.max(0, Math.min(100, parseFloat(e.target.value) || 0));
+                                    handleHeaderDiscountChange(variant.id, val);
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') e.target.blur();
+                                  }}
+                                  min="0"
+                                  max="100"
+                                  step="0.01"
+                                />
+                                <div className={`px-2 py-2 text-[10px] font-bold ${color.percentText} border-l border-gray-200`}>
+                                  %
+                                </div>
                               </div>
                             </div>
+                          );
+                        }) : (
+                          <div className="text-xs text-gray-500 italic p-2 border border-gray-100 bg-gray-50">
+                            No variants available.
                           </div>
                         );
-                      }) : (
-                        <div className="text-xs text-gray-500 italic p-2 border border-gray-100 bg-gray-50">
-                          No variants available.
-                        </div>
-                      );
                       })()}
                     </div>
                   ) : (
