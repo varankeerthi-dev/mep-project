@@ -2984,13 +2984,27 @@ const loadQuoteNoPreview = useCallback(async () => {
                         </td>
                       )}
                       <td className="col-shrink">
-                        <input type="number" className="cell-input text-right" value={item.qty} onChange={(e) => updateItem(item.id, 'qty', e.target.value)} min="0" />
+                        <input type="number" className="cell-input text-right" value={item.qty} onChange={(e) => updateItem(item.id, 'qty', e.target.value)} min="0" style={{appearance: 'textfield'}} />
                       </td>
                       <td className="col-shrink">
                         <input type="text" className="cell-input text-center" value={item.uom} onChange={(e) => updateItem(item.id, 'uom', e.target.value)} />
                       </td>
                       <td className="col-shrink">
-                        <input type="number" className="cell-input text-right" value={item.base_rate_snapshot || 0} readOnly style={{ background: '#f8fafc' }} />
+                        <input 
+                          type="number" 
+                          className="cell-input text-right" 
+                          value={item.base_rate_snapshot || 0} 
+                          onChange={(e) => {
+                            const newBaseRate = Math.max(0, parseFloat(e.target.value) || 0);
+                            const disc = item.discount_percent || 0;
+                            const finalRate = newBaseRate - (newBaseRate * disc / 100);
+                            updateItem(item.id, 'base_rate_snapshot', newBaseRate);
+                            updateItem(item.id, 'rate', finalRate);
+                            updateItem(item.id, 'is_override', true);
+                            updateItem(item.id, 'applied_discount_percent', disc);
+                          }}
+                          style={{ background: item.is_override ? '#fef3c7' : '#f8fafc', border: item.is_override ? '1px solid #f59e0b' : '' }}
+                        />
                       </td>
                       <td className="col-shrink">
                         <input
