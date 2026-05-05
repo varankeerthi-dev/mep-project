@@ -18,7 +18,7 @@ import VerticalTemplate from '../templates/VerticalTemplate';
 import { htmlToPdf } from '../utils/htmlTemplateRenderer';
 import { createRoot } from 'react-dom/client';
 import { flushSync } from 'react-dom';
-import { Printer, Edit, Copy, MoreHorizontal, Trash2, XCircle, ArrowLeft, ChevronDown, ChevronRight, ChevronLeft, Mail, Download, Eye, FileText, Plus } from 'lucide-react';
+import { Printer, Edit, Copy, MoreHorizontal, Trash2, XCircle, ArrowLeft, ChevronDown, ChevronRight, ChevronLeft, Mail, Download, Eye, FileText, Plus, Loader2, RotateCcw } from 'lucide-react';
 import { useVariants } from '../hooks/useVariants';
 
 
@@ -34,6 +34,12 @@ export default function QuotationView() {
   const [showTemplateMenu, setShowTemplateMenu] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState(null);
   const [printMenuView, setPrintMenuView] = useState('main'); // 'main' or 'templates'
+  
+  // Preview modal state
+  const [previewModalOpen, setPreviewModalOpen] = useState(false);
+  const [previewHTML, setPreviewHTML] = useState('');
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewTemplate, setPreviewTemplate] = useState(null);
 
   const quotationQuery = useQuery({
     queryKey: ['quotation', quotationId],
@@ -329,157 +335,147 @@ export default function QuotationView() {
     }
   };
 
-  const previewQuotation = (template) => {
-    // Grid Minimal template commented out
-    /*
-    if (template?.column_settings?.print?.style === 'grid_minimal') {
-      const quotationWithTerms = {
-      ...quotation,
-      terms_conditions: termsConditionsQuery.data?.custom_content || null
-    };
-    generateGridMinimalQuotationPdfBlobWithTerms(quotationWithTerms, organisation, template).then((blob) => {
-        const url = URL.createObjectURL(blob);
-        window.open(url, '_blank', 'noopener,noreferrer');
-      }).catch((err) => {
-        console.error('Unable to generate grid minimal quotation PDF:', err);
-        alert('Unable to generate PDF. Please check template settings.');
-      });
-      return;
-    }
-    */
+  const previewQuotation = async (template) => {
+    setPreviewTemplate(template);
+    setPreviewModalOpen(true);
+    setPreviewLoading(true);
 
-    if (template?.column_settings?.print?.style === 'saas') {
-      const container = document.createElement('div');
-      container.style.width = '210mm';
-      container.style.position = 'fixed';
-      container.style.left = '-9999px';
-      container.style.top = '0';
-      document.body.appendChild(container);
+    const generatePreviewHTML = async (tmpl) => {
+      if (tmpl?.column_settings?.print?.style === 'saas') {
+        const container = document.createElement('div');
+        container.style.width = '210mm';
+        container.style.position = 'fixed';
+        container.style.left = '-9999px';
+        container.style.top = '0';
+        document.body.appendChild(container);
 
-      const root = createRoot(container);
-      flushSync(() => {
-        const quotationWithTerms = {
-          ...quotation,
-          terms_conditions: termsConditionsQuery.data?.custom_content || null
-        };
-        root.render(
-          <SaaSTemplate
-            data={quotationWithTerms}
-            organisation={organisation}
-            templateConfig={template.column_settings}
-          />
-        );
-      });
-
-      const printWindow = window.open('', '_blank');
-      printWindow.document.write(`
-        <html>
-          <head>
-            <title>Quotation Preview - ${quotation.quotation_no}</title>
-            <script src="https://cdn.tailwindcss.com"></script>
-            <style>
-              body { background-color: #f3f4f6; margin: 0; padding: 20px; display: flex; justify-content: center; }
-              #preview-container { width: 210mm; background: white; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1); }
-            </style>
-          </head>
-          <body>
-            <div id="preview-container">
-              ${container.innerHTML}
-            </div>
-          </body>
-        </html>
-      `);
-      printWindow.document.close();
-
-      document.body.removeChild(container);
-      return;
-    }
-
-    if (template?.column_settings?.print?.style === 'vertical' || template?.template_code === 'QTN_VERTICAL') {
-      const container = document.createElement('div');
-      container.style.width = '210mm';
-      container.style.position = 'fixed';
-      container.style.left = '-9999px';
-      container.style.top = '0';
-      document.body.appendChild(container);
-
-      const root = createRoot(container);
-      flushSync(() => {
-        const quotationWithTerms = {
-          ...quotation,
-          terms_conditions: termsConditionsQuery.data?.custom_content || null
-        };
-        console.log('QuotationView: Passing to VerticalTemplate:', {
-          quotationId,
-          hasTerms: !!quotationWithTerms.terms_conditions,
-          termsData: quotationWithTerms.terms_conditions,
-          termsQueryData: termsConditionsQuery.data
+        const root = createRoot(container);
+        flushSync(() => {
+          const quotationWithTerms = {
+            ...quotation,
+            terms_conditions: termsConditionsQuery.data?.custom_content || null
+          };
+          root.render(
+            <SaaSTemplate
+              data={quotationWithTerms}
+              organisation={organisation}
+              templateConfig={tmpl.column_settings}
+            />
+          );
         });
-        root.render(
-          <VerticalTemplate
-            data={quotationWithTerms}
-            organisation={organisation}
-            templateConfig={template.column_settings}
-          />
-        );
-      });
 
-      const printWindow = window.open('', '_blank');
-      printWindow.document.write(`
-        <html>
-          <head>
-            <title>Quotation Preview - ${quotation.quotation_no}</title>
-            <script src="https://cdn.tailwindcss.com"></script>
-            <style>
-              body { background-color: #f3f4f6; margin: 0; padding: 20px; display: flex; justify-content: center; }
-              #preview-container { width: 210mm; background: white; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1); }
-            </style>
-          </head>
-          <body>
-            <div id="preview-container">
-              ${container.innerHTML}
-            </div>
-          </body>
-        </html>
-      `);
-      printWindow.document.close();
+        await new Promise(resolve => setTimeout(resolve, 500));
+        const html = container.innerHTML;
+        document.body.removeChild(container);
+        return html;
+      }
 
-      document.body.removeChild(container);
-      return;
+      if (tmpl?.column_settings?.print?.style === 'vertical' || tmpl?.template_code === 'QTN_VERTICAL') {
+        const container = document.createElement('div');
+        container.style.width = '210mm';
+        container.style.position = 'fixed';
+        container.style.left = '-9999px';
+        container.style.top = '0';
+        document.body.appendChild(container);
+
+        const root = createRoot(container);
+        flushSync(() => {
+          const quotationWithTerms = {
+            ...quotation,
+            terms_conditions: termsConditionsQuery.data?.custom_content || null
+          };
+          root.render(
+            <VerticalTemplate
+              data={quotationWithTerms}
+              organisation={organisation}
+              templateConfig={tmpl.column_settings}
+            />
+          );
+        });
+
+        await new Promise(resolve => setTimeout(resolve, 500));
+        const html = container.innerHTML;
+        document.body.removeChild(container);
+        return html;
+      }
+
+      // Default HTML template
+      return generateQuotationHTML(tmpl);
+    };
+
+    try {
+      const html = await generatePreviewHTML(template);
+      setPreviewHTML(html);
+    } catch (err) {
+      console.error('Preview error:', err);
+      setPreviewHTML('<div class="p-8 text-center text-red-500">Error generating preview</div>');
+    } finally {
+      setPreviewLoading(false);
     }
-    /*
-    if (template.template_code === 'QTN_TALLY') {
-      const doc = generateQuotationTally(quotation, organisation, template);
-      const pdfBlob = doc.output('blob');
-      const url = URL.createObjectURL(pdfBlob);
-      window.open(url, '_blank');
-      return;
+  };
+
+  // Download from preview modal
+  const downloadFromPreview = async () => {
+    if (!previewTemplate || !quotation) return;
+    
+    const safeFileName = String(quotation.quotation_no || 'quotation')
+      .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
+      .replace(/\s+/g, '_');
+
+    try {
+      if (previewTemplate?.column_settings?.print?.style === 'saas') {
+        const blob = await htmlToPdf(document.getElementById('preview-modal-content'), `${safeFileName}.pdf`);
+        return;
+      }
+      if (previewTemplate?.column_settings?.print?.style === 'vertical' || previewTemplate?.template_code === 'QTN_VERTICAL') {
+        const blob = await htmlToPdf(document.getElementById('preview-modal-content'), `${safeFileName}.pdf`);
+        return;
+      }
+      // Fallback for other templates
+      downloadPDF(previewTemplate);
+    } catch (err) {
+      console.error('Download error:', err);
+      downloadPDF(previewTemplate);
     }
-    if (template.template_code === 'QTN_PROFESSIONAL') {
-      const doc = generateProfessionalTemplate(quotation, organisation, template);
-      const pdfBlob = doc.output('blob');
-      const url = URL.createObjectURL(pdfBlob);
-      window.open(url, '_blank');
-      return;
-    }
-    */
-    if (template.template_code === 'QTN_ZOHO') {
-      const doc = generateZohoTemplate(quotation, organisation, template);
-      const pdfBlob = doc.output('blob');
-      const url = URL.createObjectURL(pdfBlob);
-      window.open(url, '_blank');
-      return;
-    }
-    if (template.template_code === 'QTN_CLASSIC') {
-      const doc = generateClassicQuotationTemplate(quotation, organisation, template);
-      const pdfBlob = doc.output('blob');
-      const url = URL.createObjectURL(pdfBlob);
-      window.open(url, '_blank');
-      return;
-    }
+  };
+
+  // Print from preview modal
+  const printFromPreview = () => {
+    const printContent = document.getElementById('preview-modal-content');
+    if (!printContent) return;
+
     const printWindow = window.open('', '_blank');
-    const html = generateQuotationHTML(template);
-    printWindow.document.write(html);
+    if (!printWindow) return;
+
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Print - ${quotation?.quotation_no || 'Quotation'}</title>
+          <script src="https://cdn.tailwindcss.com"></script>
+          <style>
+            @media print {
+              body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+              @page { margin: 0; }
+            }
+            body { margin: 0; padding: 0; }
+            #print-container { width: 210mm; margin: 0 auto; background: white; }
+          </style>
+        </head>
+        <body>
+          <div id="print-container">
+            ${printContent.innerHTML}
+          </div>
+          <script>
+            window.onload = function() {
+              setTimeout(function() {
+                window.print();
+                window.close();
+              }, 500);
+            };
+          </script>
+        </body>
+      </html>
+    `);
     printWindow.document.close();
   };
 
@@ -600,8 +596,13 @@ export default function QuotationView() {
 
         const root = createRoot(container);
         try {
+          // Include Terms & Conditions data
+          const quotationWithTerms = {
+            ...quotation,
+            terms_conditions: termsConditionsQuery.data?.custom_content || null
+          };
           flushSync(() => {
-            root.render(<SaaSTemplate data={quotation} organisation={organisation} templateConfig={template.column_settings} />);
+            root.render(<SaaSTemplate data={quotationWithTerms} organisation={organisation} templateConfig={template.column_settings} />);
           });
 
           // Wait longer for fonts and layout
@@ -639,8 +640,13 @@ export default function QuotationView() {
 
         const root = createRoot(container);
         try {
+          // Include Terms & Conditions data
+          const quotationWithTerms = {
+            ...quotation,
+            terms_conditions: termsConditionsQuery.data?.custom_content || null
+          };
           flushSync(() => {
-            root.render(<VerticalTemplate data={quotation} organisation={organisation} templateConfig={template.column_settings} />);
+            root.render(<VerticalTemplate data={quotationWithTerms} organisation={organisation} templateConfig={template.column_settings} />);
           });
 
           // Wait longer for fonts and layout
@@ -1523,9 +1529,91 @@ export default function QuotationView() {
               </div>
             </div>
           )}
-        </div>
+</div>
       </div>
     </div>
+
+    {/* Preview Modal */}
+    {previewModalOpen && (
+      <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-lg w-full max-w-4xl max-h-[95vh] flex flex-col shadow-2xl">
+          {/* Modal Header */}
+          <div className="flex items-center justify-between px-6 py-4 border-b bg-gray-50 rounded-t-lg">
+            <div className="flex items-center gap-4">
+              <h3 className="font-semibold text-gray-800 text-lg">
+                Preview - {quotation?.quotation_no || 'Quotation'}
+              </h3>
+              {previewLoading && (
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Loading...</span>
+                </div>
+              )}
+            </div>
+            <div className="flex items-center gap-3">
+              {/* Edit Button */}
+              <button
+                onClick={() => {
+                  setPreviewModalOpen(false);
+                  navigate(`/create-quotation?id=${quotationId}`);
+                }}
+                className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+              >
+                <Edit className="w-4 h-4" />
+                Edit
+              </button>
+              
+              {/* Download Button */}
+              <button
+                onClick={downloadFromPreview}
+                disabled={previewLoading}
+                className="flex items-center gap-2 px-4 py-2 text-sm bg-green-600 text-white rounded hover:bg-green-700 transition-colors disabled:opacity-50"
+              >
+                <Download className="w-4 h-4" />
+                PDF
+              </button>
+              
+              {/* Print Button */}
+              <button
+                onClick={printFromPreview}
+                disabled={previewLoading}
+                className="flex items-center gap-2 px-4 py-2 text-sm bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors disabled:opacity-50"
+              >
+                <Printer className="w-4 h-4" />
+                Print
+              </button>
+              
+              {/* Close Button */}
+              <button
+                onClick={() => setPreviewModalOpen(false)}
+                className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors"
+              >
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+          
+          {/* Modal Content */}
+          <div className="flex-1 overflow-auto bg-gray-100 p-4">
+            {previewLoading ? (
+              <div className="flex items-center justify-center h-full min-h-[400px]">
+                <div className="text-center">
+                  <Loader2 className="w-10 h-10 animate-spin text-blue-600 mx-auto mb-3" />
+                  <p className="text-gray-500">Generating preview...</p>
+                </div>
+              </div>
+            ) : (
+              <div 
+                id="preview-modal-content"
+                className="bg-white mx-auto shadow-lg"
+                style={{ width: '210mm', minHeight: '297mm' }}
+                dangerouslySetInnerHTML={{ __html: previewHTML }}
+              />
+            )}
+          </div>
+        </div>
+      </div>
+    )}
     </div>
   );
 }

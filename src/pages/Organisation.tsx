@@ -381,7 +381,7 @@ export function OrganisationSettings({ organisation, userId }) {
       alert('Please provide a name and upload a signature image')
       return
     }
-    const updatedSignatures = [...orgDetails.signatures, { ...newSignature, id: Date.now() }]
+    const updatedSignatures = [...orgDetails.signatures, { ...newSignature, id: crypto.randomUUID() }]
     setOrgDetails(prev => ({ ...prev, signatures: updatedSignatures }))
     setNewSignature({ name: '', url: '' })
   }
@@ -799,6 +799,15 @@ export function OrganisationSettings({ organisation, userId }) {
             </div>
           )}
         </div>
+        
+        {/* Save button appears after adding signature */}
+        {orgDetails.signatures.length > 0 && isAdmin && (
+          <div style={{ marginTop: '16px', textAlign: 'center' }}>
+            <button onClick={handleUpdateOrg} className="btn btn-primary" style={{ padding: '12px 32px', fontSize: '16px' }}>
+              Save Signatures
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="card">

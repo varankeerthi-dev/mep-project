@@ -602,27 +602,27 @@ export default function VerticalTemplate({
               * This is a computer generated document.
             </div>
             <div className="text-right">
-              <div className="font-black uppercase text-[11px] txt-slate-900 mb-0">
+              <div className="font-black uppercase text-[11px] txt-slate-900 mb-[5px]">
                 FOR {organisation.name}
               </div>
-              <div className="h-16 flex items-center justify-end mb-1">
+              <div className="h-8 flex items-center justify-end mb-[2px]">
                 {organisation.signatures?.find((s: any) => String(s.id) === String(data.authorized_signatory_id))?.url ? (
                   <img 
                     src={organisation.signatures.find((s: any) => String(s.id) === String(data.authorized_signatory_id)).url} 
                     alt="Signature" 
-                    className="max-h-full max-w-[200px] object-contain"
+                    className="max-h-8 max-w-[160px] object-contain"
                   />
                 ) : organisation.signatures?.[0]?.url ? (
                   <img 
                     src={organisation.signatures[0].url} 
                     alt="Signature" 
-                    className="max-h-full max-w-[200px] object-contain"
+                    className="max-h-8 max-w-[160px] object-contain"
                   />
                 ) : (
-                  <div className="h-10"></div>
+                  <div className="h-6"></div>
                 )}
               </div>
-              <div className="font-black uppercase text-[11px] txt-slate-900 border-t-2 brd-slate-900 pt-1 px-6 inline-block">
+              <div className="font-black uppercase text-[11px] txt-slate-900 border-t-2 brd-slate-900 pt-0.5 px-4 inline-block">
                 Authorised Signature
               </div>
             </div>

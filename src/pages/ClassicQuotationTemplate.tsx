@@ -648,20 +648,20 @@ export const generateClassicQuotationTemplate = (data: any, organisation: any, t
   if (showAuthSig) {
     doc.setFontSize(7);
     doc.setFont('helvetica', 'bold');
-    doc.text(`For ${organisation.name || ''}`, authCenterX, currentY + 8, { align: 'center' });
+    doc.text(`For ${organisation.name || ''}`, authCenterX, currentY + 6, { align: 'center' });
     
     // Attempt signature natively mapping directly into center coordinates if physically available
     if (authorized_signatory?.url) {
       try {
-        doc.addImage(authorized_signatory.url, 'PNG', authCenterX - 15, currentY + 10, 30, 8);
+        doc.addImage(authorized_signatory.url, 'PNG', authCenterX - 12, currentY + 8, 24, 7);
       } catch (e) {
-         doc.text('__________________', authCenterX, currentY + 19, { align: 'center' });
+         doc.text('__________________', authCenterX, currentY + 14, { align: 'center' });
       }
     } else {
-      doc.text('__________________', authCenterX, currentY + 19, { align: 'center' });
+      doc.text('__________________', authCenterX, currentY + 14, { align: 'center' });
     }
     
-    doc.text('Authorised Signatory', authCenterX, currentY + 22, { align: 'center' });
+    doc.text('Authorised Signatory', authCenterX, currentY + 17, { align: 'center' });
   }
 
   return doc;

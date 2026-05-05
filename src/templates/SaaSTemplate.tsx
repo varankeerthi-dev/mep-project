@@ -283,9 +283,9 @@ export default function DocumentPreview({
             <span>{formatCurrency(data.grand_total || data.total)}</span>
           </div>
 
-          <div className="mt-6 text-center">
+          <div className="mt-[10px] text-center">
             <div>For {organisation?.name || '-'}</div>
-            <div className="mt-8 border-t pt-1 text-xs w-40 mx-auto">
+            <div className="mt-[8px] border-t pt-0.5 text-xs w-32 mx-auto">
               Authorized Signature
             </div>
           </div>

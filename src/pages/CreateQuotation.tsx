@@ -17,12 +17,11 @@ import type { QuickQuoteConfig } from '../quotation/quick-quote/types';
 import { useConvertDocument, useConversionStatus, getSourceTableName } from '../conversions/hooks';
 import type { ConversionType } from '../conversions/types';
 import ItemCreateDrawer from '../components/ItemCreateDrawer';
+import { TermsConditionsDrawer } from '../components/TermsConditionsDrawer';
 import { FileText, Plus, Mail } from 'lucide-react';
 import { autoCreateOrUpdateErection } from '../utils/erectionUtils';
 import { lookupServiceRate } from '../hooks/useErectionCharges';
 import { ErectionSection } from '../components/ErectionSection';
-import { TermsConditionsTab } from '../components/TermsConditionsTabSafe';
-import { TermsConditionsDrawer } from '../components/TermsConditionsDrawer';
 
 const INDIAN_STATES = [
   'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
@@ -917,7 +916,14 @@ const loadQuoteNoPreview = useCallback(async () => {
         reference: data.reference || '',
         status: isDuplicate ? 'Draft' : (data.status || 'Draft'),
         negotiation_mode: isDuplicate ? false : (data.negotiation_mode || false),
-        authorized_signatory_id: data.authorized_signatory_id || '',
+        authorized_signatory_id: (() => {
+          const val = data.authorized_signatory_id;
+          // Only accept if it's a valid UUID format (not a number string like "1777960083410")
+          if (val && val.length > 0 && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val)) {
+            return String(val);
+          }
+          return null;
+        })(),
         include_erection_charges: data.include_erection_charges !== undefined ? data.include_erection_charges : true
       });
 
@@ -1926,7 +1932,13 @@ const loadQuoteNoPreview = useCallback(async () => {
         grand_total: calculations.grandTotal,
         status: saveAndNew ? 'Draft' : (formData.status || 'Draft'),
         negotiation_mode: formData.negotiation_mode,
-        authorized_signatory_id: formData.authorized_signatory_id || null,
+        authorized_signatory_id: (() => {
+          const val = formData.authorized_signatory_id;
+          if (val && val.length > 0 && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val)) {
+            return String(val);
+          }
+          return null;
+        })(),
         revision_no: formData.revision_no || 1,
         revision_history: formData.revision_history || []
       };
@@ -2734,17 +2746,6 @@ const itemsToInsert = items.map(item => ({
               >
                 Erection Charges
               </button>
-              <button
-                type="button"
-                className={`px-4 py-2 text-sm font-bold border-b-2 transition-colors ${
-                  activeSection === 'terms'
-                    ? 'border-blue-800 text-blue-800'
-                    : 'border-transparent text-amber-700 hover:text-amber-800 hover:border-amber-300'
-                }`}
-                onClick={() => setActiveSection('terms')}
-              >
-                Terms & Conditions
-              </button>
             </div>
           </div>
           
@@ -3204,16 +3205,6 @@ const itemsToInsert = items.map(item => ({
         />
       )}
 
-      {/* Terms & Conditions Section */}
-      {activeSection === 'terms' && (
-        <TermsConditionsTab
-          quotationId={formData.id || ''}
-          onSave={(termsData) => {
-            console.log('Terms saved:', termsData);
-          }}
-        />
-      )}
-
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '16px' }}>
         <div>
           <div className="card" style={{ padding: '12px', height: '100%' }}>
@@ -3358,16 +3349,65 @@ const itemsToInsert = items.map(item => ({
             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none mb-1">Authorized Signatory</span>
             <select 
               className="bg-transparent border-none p-0 text-sm font-bold text-gray-800 focus:ring-0 cursor-pointer min-w-[200px]"
-              value={formData.authorized_signatory_id || ''} 
-              onChange={(e) => setFormData({ ...formData, authorized_signatory_id: e.target.value })}
+              value={formData.authorized_signatory_id ?? ''} 
+              onChange={(e) => {
+                const val = e.target.value;
+                setFormData({ ...formData, authorized_signatory_id: val || '' });
+              }}
             >
               <option value="">Select Signatory...</option>
-              {(organisation?.signatures || []).map((sig) => (
-                <option key={sig.id} value={sig.id}>{sig.name}</option>
-              ))}
+              {(organisation?.signatures || []).length > 0 ? (
+                (organisation?.signatures || []).map((sig) => (
+                  <option key={String(sig.id)} value={String(sig.id)}>{sig.name}</option>
+                ))
+              ) : (
+                <option disabled>No signatures - Add in Settings → Organisation</option>
+              )}
             </select>
+            {(organisation?.signatures || []).length === 0 && (
+              <>
+                <a 
+                  href="/settings" 
+                  target="_blank"
+                  className="text-xs text-blue-600 underline ml-2"
+                >
+                  Add signatures here
+                </a>
+                <button 
+                  type="button"
+                  onClick={() => console.log('Org signatures:', organisation?.signatures)}
+                  className="text-xs text-gray-400 ml-2"
+                >
+                  (debug)
+                </button>
+              </>
+            )}
           </div>
         </div>
+        
+        {/* Signature Preview */}
+        {formData.authorized_signatory_id && formData.authorized_signatory_id !== null && (
+          <div className="bg-white border border-gray-200 rounded-none px-4 py-3 shadow-sm">
+            <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none mb-2">Signature Preview</div>
+            <div className="h-16 flex items-center">
+              {(() => {
+                const sigId = String(formData.authorized_signatory_id);
+                const selectedSig = (organisation?.signatures || []).find(s => String(s.id) === sigId);
+                console.log('Looking for signature:', sigId, 'Available:', organisation?.signatures);
+                if (selectedSig?.url) {
+                  return (
+                    <img 
+                      src={selectedSig.url} 
+                      alt={selectedSig.name} 
+                      className="max-h-14 max-w-[180px] object-contain"
+                    />
+                  );
+                }
+                return <span className="text-gray-400 text-sm">No signature preview</span>;
+              })()}
+            </div>
+          </div>
+        )}
       </div>
       
       {showCustomLabelEditor && (
@@ -3563,9 +3603,10 @@ const itemsToInsert = items.map(item => ({
       <TermsConditionsDrawer
         isOpen={showTermsDrawer}
         onClose={() => setShowTermsDrawer(false)}
-        quotationId={formData.id || ''}
-        onSave={(termsData) => {
-          console.log('Terms applied to quotation:', termsData);
+        quotationId={formData.id}
+        onSave={(terms) => {
+          setFormData({ ...formData, terms_conditions: terms });
+          setShowTermsDrawer(false);
         }}
       />
     </div>

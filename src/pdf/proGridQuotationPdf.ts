@@ -170,14 +170,14 @@ export function generateProGridQuotationPdf(data: Record<string, unknown>, organ
   doc.text(`For ${String(organisation.name || '')}`, signX, y, { align: 'center' });
   if (sign.url) {
     try {
-      doc.addImage(sign.url, 'PNG', signX - 12, y + 2, 36, 14);
+      doc.addImage(sign.url, 'PNG', signX - 10, y + 1, 24, 8);
     } catch {
       /* ignore */
     }
   }
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(71, 85, 105);
-  doc.text(String(sign.name || 'Authorised Signatory'), signX, y + 22, { align: 'center' });
+  doc.text(String(sign.name || 'Authorised Signatory'), signX, y + 12, { align: 'center' });
 
   // Add Terms & Conditions section if available
   if (data.terms_conditions) {
