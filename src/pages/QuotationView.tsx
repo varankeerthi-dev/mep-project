@@ -1089,8 +1089,8 @@ export default function QuotationView() {
 
   return (
     <div className="flex h-[calc(100vh-48px)] bg-zinc-100 overflow-hidden gap-[20px]">
-      {/* Sidebar List (30%) */}
-      <div className="w-[30%] flex flex-col bg-white shadow-sm">
+      {/* Sidebar List (300px) */}
+      <div className="w-[300px] flex flex-col bg-white shadow-sm">
         <div className="py-5 px-6 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
           <h2 className="text-sm font-bold text-gray-700">All Quotes</h2>
           <button 
@@ -1111,7 +1111,8 @@ export default function QuotationView() {
                 <div 
                   key={q.id}
                   onClick={() => navigate(`/quotation/view?id=${q.id}`)}
-                  className={`py-5 px-6 cursor-pointer transition-colors hover:bg-sky-50/30 ${quotationId === q.id ? 'bg-sky-50 border-l-4 border-sky-500' : 'bg-white'}`}
+                  className={`px-6 cursor-pointer transition-colors hover:bg-sky-50/30 ${quotationId === q.id ? 'bg-sky-50 border-l-4 border-sky-500' : 'bg-white'}`}
+                  style={{ paddingTop: '14px', paddingBottom: '14px' }}
                 >
                   <div className="flex justify-between items-start mb-1">
                     <span className="text-[13px] font-bold text-gray-900 truncate pr-2">
@@ -1121,12 +1122,12 @@ export default function QuotationView() {
                       {formatCurrency(q.grand_total)}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center">
+                  <div className="flex justify-between items-center mt-1 gap-4" style={{ paddingRight: '14px' }}>
                     <div className="text-[11px] text-gray-500 font-mono">
                       {q.quotation_no} <span className="mx-1 text-gray-300">•</span> {formatDate(q.date)}
                     </div>
                     <span 
-                      className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded"
+                      className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded"
                       style={{ 
                         backgroundColor: q.status === 'Approved' ? '#d1fae5' : q.status === 'Draft' ? '#f3f4f6' : '#fff7ed',
                         color: q.status === 'Approved' ? '#047857' : q.status === 'Draft' ? '#6b7280' : '#c2410c'
