@@ -54,7 +54,10 @@ export async function generateGridMinimalQuotationPdfBlob(
         id: String(item.id ?? idx),
         sno: idx + 1,
         hsn: safe(item.item?.hsn_code, ''),
-        description: safe(item.description || item.item?.display_name || item.item?.name, 'Item'),
+        // Only show description if it's manually edited (different from item name)
+        description: (item.description && item.description !== item.item?.display_name && item.description !== item.item?.name) 
+          ? item.description 
+          : safe(item.item?.display_name || item.item?.name, 'Item'),
         make: safe(item.make, ''),
         qty,
         unit: safe(item.uom, ''),
