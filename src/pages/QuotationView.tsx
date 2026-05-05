@@ -1352,24 +1352,24 @@ export default function QuotationView() {
                 </div>
               ) : (
                 <div className="overflow-x-auto -mx-12">
-                  <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
+                  <table className="min-w-full border border-gray-200">
+                  <thead className="bg-gray-100">
+                    <tr className="border-b border-gray-200">
                       {templates.find(t => t.id === selectedTemplateId)?.column_settings?.optional?.sno !== false && (
-                        <th className="px-6 py-4 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider">#</th>
+                        <th className="px-3 py-4 text-left text-[10px] font-bold text-gray-500 uppercase tracking-wider">#</th>
                       )}
                       {quotation.items?.some(i => i.sac_code || i.hsn_code || i.item?.hsn_code) && (
-                        <th className="px-6 py-4 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider">HSN/SAC</th>
+                        <th className="px-3 py-4 text-left text-[10px] font-bold text-gray-500 uppercase tracking-wider">HSN/SAC</th>
                       )}
                       {quotation.items?.some(i => i.item?.item_code) && (
-                        <th className="px-6 py-4 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider">Part No</th>
+                        <th className="px-3 py-4 text-left text-[10px] font-bold text-gray-500 uppercase tracking-wider">Part No</th>
                       )}
                       {quotation.items?.some(i => i.make) && (
-                        <th className="px-6 py-4 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider">Make</th>
+                        <th className="px-3 py-4 text-left text-[10px] font-bold text-gray-500 uppercase tracking-wider">Make</th>
                       )}
-                      <th className="px-6 py-4 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider">Description</th>
+                      <th className="px-3 py-4 text-left text-[10px] font-bold text-gray-500 uppercase tracking-wider">Description</th>
                       {quotation.items?.some(i => i.variant_id) && (
-                        <th className="px-6 py-4 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider">Variant</th>
+                        <th className="px-3 py-4 text-left text-[10px] font-bold text-gray-500 uppercase tracking-wider">Variant</th>
                       )}
                       <th className="px-6 pr-12 py-4 text-right text-[11px] font-bold text-gray-400 uppercase tracking-wider min-w-[80px]">Qty</th>
                       <th className="px-6 pl-12 py-4 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider min-w-[60px]">Unit</th>
@@ -1390,7 +1390,7 @@ export default function QuotationView() {
                       <th className="px-6 py-4 text-right text-[11px] font-bold text-gray-400 uppercase tracking-wider">Total</th>
                     </tr>
                   </thead>
-                  <tbody className="bg-white divide-y divide-gray-100">
+                  <tbody className="bg-white">
                     {quotation.items?.map((item, index) => {
                       const template = templates.find(t => t.id === selectedTemplateId);
                       const optCols = template?.column_settings?.optional || {};
@@ -1405,31 +1405,31 @@ export default function QuotationView() {
                       const hasCustom2 = quotation.items?.some(i => i.custom2);
 
                       return (
-                        <tr key={item.id} className="hover:bg-gray-50/50 transition-colors align-top">
-                          {optCols.sno !== false && <td className="px-6 py-8 whitespace-nowrap text-[13px] text-gray-400 font-medium">{String(index + 1).padStart(2, '0')}</td>}
-                          {hasHSN && <td className="px-6 py-8 whitespace-nowrap text-[12px] text-gray-500 font-mono">{item.sac_code || item.hsn_code || item.item?.hsn_code || '-'}</td>}
-                          {hasItemCode && <td className="px-6 py-8 whitespace-nowrap text-[12px] text-gray-500">{item.item?.item_code || '-'}</td>}
-                          {hasMake && <td className="px-6 py-8 whitespace-nowrap text-[12px] text-gray-400 italic">{item.make || '-'}</td>}
-                          <td className="px-6 py-8">
-                            <div className="text-[14px] font-semibold text-gray-900 leading-relaxed mb-1">{item.description || item.item?.display_name || item.item?.name}</div>
+                        <tr key={item.id} className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors align-top">
+                          {optCols.sno !== false && <td className="border-r border-gray-100" style={{ padding: '14px 7px' }}><span className="text-[11px] text-gray-400 font-medium block">{String(index + 1).padStart(2, '0')}</span></td>}
+                          {hasHSN && <td className="border-r border-gray-100" style={{ padding: '14px 7px' }}><span className="text-[10px] text-gray-500 font-mono block">{item.sac_code || item.hsn_code || item.item?.hsn_code || '-'}</span></td>}
+                          {hasItemCode && <td className="border-r border-gray-100" style={{ padding: '14px 7px' }}><span className="text-[10px] text-gray-500 block">{item.item?.item_code || '-'}</span></td>}
+                          {hasMake && <td className="border-r border-gray-100" style={{ padding: '14px 7px' }}><span className="text-[10px] text-gray-400 italic block">{item.make || '-'}</span></td>}
+                          <td className="border-r border-gray-100" style={{ padding: '14px 7px' }}>
+                            <div className="text-[12px] font-medium text-gray-900 leading-tight">{item.description || item.item?.display_name || item.item?.name}</div>
                             {item.override_flag && (
-                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-50 text-amber-600 border border-amber-100">Modified</span>
+                              <span className="inline-flex items-center px-1 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-amber-50 text-amber-600 border border-amber-100">Modified</span>
                             )}
                           </td>
                           {hasVariant && (
-                            <td className="px-6 py-8 whitespace-nowrap text-[13px] text-gray-500">
-                              {allVariants.find(v => v.id === item.variant_id)?.variant_name || '-'}
+                            <td className="border-r border-gray-100" style={{ padding: '14px 7px' }}>
+                              <span className="text-[11px] text-gray-500 block">{allVariants.find(v => v.id === item.variant_id)?.variant_name || '-'}</span>
                             </td>
                           )}
-                          <td className="px-6 pr-12 py-8 whitespace-nowrap text-[14px] text-gray-900 text-right font-bold min-w-[80px]">{item.qty}</td>
-                          <td className="px-6 pl-12 py-8 whitespace-nowrap text-[13px] text-gray-400 min-w-[60px]">{item.uom}</td>
-                          <td className="px-6 py-8 whitespace-nowrap text-[14px] text-gray-900 text-right">{formatCurrency(item.rate)}</td>
+                          <td className="border-r border-gray-100" style={{ padding: '14px 7px' }}><span className="text-[11px] text-gray-900 text-right font-medium block">{item.qty}</span></td>
+                          <td style={{ padding: '14px 7px' }}><span className="text-[10px] text-gray-400 block">{item.uom}</span></td>
+                          <td className="border-l border-gray-100" style={{ padding: '14px 7px' }}><span className="text-[11px] text-gray-900 text-right block">{formatCurrency(item.rate)}</span></td>
 
-                          {hasDiscount && <td className="px-6 py-8 whitespace-nowrap text-[13px] text-red-500 text-right font-medium">{item.discount_percent}%</td>}
-                          {hasTax && <td className="px-6 py-8 whitespace-nowrap text-[13px] text-gray-500 text-right">{item.tax_percent}%</td>}
-                          {hasCustom1 && <td className="px-6 py-8 whitespace-nowrap text-[13px] text-gray-500">{item.custom1 || '-'}</td>}
-                          {hasCustom2 && <td className="px-6 py-8 whitespace-nowrap text-[13px] text-gray-500">{item.custom2 || '-'}</td>}
-                          <td className="px-6 py-8 whitespace-nowrap text-[14px] font-extrabold text-gray-900 text-right bg-gray-50/30">{formatCurrency(item.line_total)}</td>
+                          {hasDiscount && <td style={{ padding: '14px 7px' }}><span className="text-[10px] text-red-500 text-right font-medium block">{item.discount_percent}%</span></td>}
+                          {hasTax && <td style={{ padding: '14px 7px' }}><span className="text-[10px] text-gray-500 text-right block">{item.tax_percent}%</span></td>}
+                          {hasCustom1 && <td style={{ padding: '14px 7px' }}><span className="text-[10px] text-gray-500 block">{item.custom1 || '-'}</span></td>}
+                          {hasCustom2 && <td style={{ padding: '14px 7px' }}><span className="text-[10px] text-gray-500 block">{item.custom2 || '-'}</span></td>}
+                          <td className="bg-gray-50" style={{ padding: '14px 7px' }}><span className="text-[11px] font-bold text-gray-900 text-right block">{formatCurrency(item.line_total)}</span></td>
                         </tr>
                       );
                     })}
