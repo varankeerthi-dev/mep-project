@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../supabase';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -34,6 +34,26 @@ export default function QuotationView() {
   const [showTemplateMenu, setShowTemplateMenu] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState(null);
   const [printMenuView, setPrintMenuView] = useState('main'); // 'main' or 'templates'
+  const [printLoading, setPrintLoading] = useState(false);
+  
+  // Print dropdown ref for click outside
+  const printMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (printMenuRef.current && !printMenuRef.current.contains(event.target as Node)) {
+        setShowPrintMenu(false);
+        setShowConvertMenu(false);
+      }
+    };
+    if (showPrintMenu || showConvertMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showPrintMenu, showConvertMenu]);
   
   // Preview modal state
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
@@ -277,6 +297,8 @@ export default function QuotationView() {
 
   const handlePrintAction = async (action, templateId = null) => {
     try {
+      setPrintLoading(true);
+      setShowPrintMenu(false);
       let template = null;
       console.log('handlePrintAction called with:', { action, templateId, quotationId });
 
@@ -924,6 +946,8 @@ export default function QuotationView() {
     } catch (err) {
       console.error('Error generating PDF:', err);
       alert('PDF export failed. Please check template settings and try again.');
+    } finally {
+      setPrintLoading(false);
     }
   };
 
@@ -1173,19 +1197,19 @@ export default function QuotationView() {
 
           <div className="flex flex-wrap items-center gap-2 mb-6">
             {isEditable && (
-              <button className="inline-flex items-center gap-2 px-10 h-[25px] min-w-[100px] bg-gradient-to-b from-[#001f3f] to-[#003366] text-white rounded-none hover:opacity-90 transition-all text-[11px] font-bold shadow-none border-none" onClick={handleEdit}>
+              <button className="inline-flex items-center gap-2 px-10 h-[25px] min-w-[100px] bg-white text-gray-700 border border-gray-300 rounded hover:bg-gray-50 transition-all text-[12px] font-bold" onClick={handleEdit}>
                 <Edit className="w-[14px] h-[14px]" />
                 Edit
               </button>
             )}
-            <button className="inline-flex items-center gap-2 px-10 h-[25px] min-w-[100px] bg-gradient-to-b from-[#001f3f] to-[#003366] text-white rounded-none hover:opacity-90 transition-all text-[11px] font-bold shadow-none border-none" onClick={handleDuplicate}>
+            <button className="inline-flex items-center gap-2 px-10 h-[25px] min-w-[100px] bg-white text-gray-700 border border-gray-300 rounded hover:bg-gray-50 transition-all text-[12px] font-bold" onClick={handleDuplicate}>
               <Copy className="w-[14px] h-[14px]" />
               Duplicate
             </button>
 
             <div className="relative">
               <button 
-                className="inline-flex items-center gap-2 px-10 h-[25px] min-w-[100px] bg-gradient-to-b from-[#001f3f] to-[#003366] text-white rounded-none hover:opacity-90 transition-all text-[11px] font-bold shadow-none border-none" 
+                className="inline-flex items-center gap-2 px-10 h-[25px] min-w-[100px] bg-white text-gray-700 border border-gray-300 rounded hover:bg-gray-50 transition-all text-[12px] font-bold" 
                 onClick={() => { setShowConvertMenu(!showConvertMenu); setShowPrintMenu(false); setShowTemplateMenu(false); }}
               >
                 <FileText className="w-[14px] h-[14px]" />
@@ -1203,33 +1227,39 @@ export default function QuotationView() {
 
             <div className="relative">
               <button 
-                className="inline-flex items-center gap-2 px-10 h-[25px] min-w-[100px] bg-gradient-to-b from-[#001f3f] to-[#003366] text-white rounded-none hover:opacity-90 transition-all text-[11px] font-bold shadow-none border-none" 
+                className="inline-flex items-center gap-2 px-10 h-[25px] min-w-[100px] bg-white text-gray-700 border border-gray-300 rounded hover:bg-gray-50 transition-all text-[12px] font-bold" 
                 onClick={() => { 
                   setShowPrintMenu(!showPrintMenu); 
                   setShowConvertMenu(false); 
                   setShowTemplateMenu(false);
-                  setPrintMenuView('main');
                 }}
+                disabled={printLoading}
               >
-                <Printer className="w-[14px] h-[14px]" />
+                {printLoading ? (
+                  <Loader2 className="w-[14px] h-[14px] animate-spin" />
+                ) : (
+                  <Printer className="w-[14px] h-[14px]" />
+                )}
                 Print ({getSelectedTemplateName()})
                 <ChevronDown className={`w-[14px] h-[14px] transition-transform ${showPrintMenu ? 'rotate-180' : ''}`} />
               </button>
 
               {showPrintMenu && (
-                <div className="absolute left-0 top-full mt-1 z-50 min-w-[240px] bg-white border border-gray-200 shadow-xl p-1 rounded-sm">
+                <div ref={printMenuRef} className="absolute left-0 top-full mt-1 z-50 min-w-[240px] bg-white border border-gray-200 shadow-xl p-1 rounded-sm">
                   {printMenuView === 'main' ? (
                     <>
                       <button 
                         onClick={() => handlePrintAction('preview')}
-                        className="flex items-center gap-3 w-full text-left px-3 py-2.5 text-xs font-bold text-gray-700 hover:bg-sky-50 transition-colors"
+                        className="flex items-center gap-3 w-full text-left text-xs font-bold text-gray-700 hover:bg-sky-50 transition-colors"
+                        style={{ padding: '12px' }}
                       >
                         <Eye className="w-4 h-4 text-sky-500" />
                         Preview in New Tab
                       </button>
                       <button 
                         onClick={() => handlePrintAction('download')}
-                        className="flex items-center gap-3 w-full text-left px-3 py-2.5 text-xs font-bold text-gray-700 hover:bg-sky-50 transition-colors"
+                        className="flex items-center gap-3 w-full text-left text-xs font-bold text-gray-700 hover:bg-sky-50 transition-colors"
+                        style={{ padding: '12px' }}
                       >
                         <Download className="w-4 h-4 text-sky-500" />
                         Download PDF
@@ -1237,7 +1267,8 @@ export default function QuotationView() {
                       <div className="h-px bg-gray-100 my-1" />
                       <button 
                         onClick={() => setPrintMenuView('templates')}
-                        className="flex items-center justify-between w-full text-left px-3 py-2.5 text-xs font-bold text-gray-700 hover:bg-sky-50 transition-colors group"
+                        className="flex items-center justify-between w-full text-left text-xs font-bold text-gray-700 hover:bg-sky-50 transition-colors group"
+                        style={{ padding: '12px' }}
                       >
                         <div className="flex items-center gap-3">
                           <FileText className="w-4 h-4 text-sky-500" />
@@ -1265,7 +1296,8 @@ export default function QuotationView() {
                               handleSelectTemplate(t.id);
                               setPrintMenuView('main');
                             }} 
-                            className={`block w-full text-left px-3 py-2 text-xs font-bold transition-colors ${selectedTemplateId === t.id ? 'bg-sky-50 text-sky-600' : 'text-gray-700 hover:bg-sky-50/50'}`}
+                            className={`block w-full text-left text-xs font-bold transition-colors ${selectedTemplateId === t.id ? 'bg-sky-50 text-sky-600' : 'text-gray-700 hover:bg-sky-50/50'}`}
+                            style={{ padding: '10px 12px' }}
                           >
                             {t.template_name}
                             {t.is_default && <span className="ml-2 text-[10px] text-gray-400 font-normal italic">(Default)</span>}
@@ -1279,21 +1311,21 @@ export default function QuotationView() {
             </div>
 
             {isCancellable && (
-              <button className="inline-flex items-center gap-2 px-10 h-[25px] min-w-[100px] bg-gradient-to-b from-[#001f3f] to-[#003366] text-white rounded-none hover:opacity-90 transition-all text-[11px] font-bold shadow-none border-none" onClick={handleCancel}>
-                <XCircle className="w-[14px] h-[14px]" />
-                Cancel
-              </button>
+<button className="inline-flex items-center gap-2 px-10 h-[25px] min-w-[100px] bg-white text-gray-700 border border-gray-300 rounded hover:bg-gray-50 transition-all text-[12px] font-bold" onClick={handleCancel}>
+              <XCircle className="w-[14px] h-[14px]" />
+              Cancel
+            </button>
             )}
             
             {isDeletable && (
-              <button className="inline-flex items-center gap-2 px-10 h-[25px] min-w-[100px] bg-gradient-to-b from-[#001f3f] to-[#003366] text-white rounded-none hover:opacity-90 transition-all text-[11px] font-bold shadow-none border-none" onClick={handleDelete}>
+              <button className="inline-flex items-center gap-2 px-10 h-[25px] min-w-[100px] bg-white text-red-600 border border-red-300 rounded hover:bg-red-50 transition-all text-[12px] font-bold" onClick={handleDelete}>
                 <Trash2 className="w-[14px] h-[14px]" />
                 Delete
               </button>
             )}
           </div>
 
-          <div className="space-y-6 bg-white p-12 border border-gray-200 shadow-2xl min-h-[1120px] mb-12 rounded-none">
+          <div className="space-y-6 bg-white border border-gray-200 shadow-2xl min-h-[1120px] mb-12 rounded-none" style={{ padding: '14px' }}>
             <div className="grid grid-cols-2 gap-[72px] border-b border-gray-100 pb-12">
               <div>
                 <h3 className="text-lg font-bold text-gray-900 mb-6">General Information</h3>
@@ -1356,38 +1388,38 @@ export default function QuotationView() {
                   <thead className="bg-gray-100">
                     <tr className="border-b border-gray-200">
                       {templates.find(t => t.id === selectedTemplateId)?.column_settings?.optional?.sno !== false && (
-                        <th className="px-3 py-4 text-left text-[10px] font-bold text-gray-500 uppercase tracking-wider">#</th>
+                        <th className="border-r border-gray-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">#</span></th>
                       )}
                       {quotation.items?.some(i => i.sac_code || i.hsn_code || i.item?.hsn_code) && (
-                        <th className="px-3 py-4 text-left text-[10px] font-bold text-gray-500 uppercase tracking-wider">HSN/SAC</th>
+                        <th className="border-r border-gray-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">HSN/SAC</span></th>
                       )}
                       {quotation.items?.some(i => i.item?.item_code) && (
-                        <th className="px-3 py-4 text-left text-[10px] font-bold text-gray-500 uppercase tracking-wider">Part No</th>
+                        <th className="border-r border-gray-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">Part No</span></th>
                       )}
                       {quotation.items?.some(i => i.make) && (
-                        <th className="px-3 py-4 text-left text-[10px] font-bold text-gray-500 uppercase tracking-wider">Make</th>
+                        <th className="border-r border-gray-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">Make</span></th>
                       )}
-                      <th className="px-3 py-4 text-left text-[10px] font-bold text-gray-500 uppercase tracking-wider">Description</th>
+                      <th className="border-r border-gray-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">Description</span></th>
                       {quotation.items?.some(i => i.variant_id) && (
-                        <th className="px-3 py-4 text-left text-[10px] font-bold text-gray-500 uppercase tracking-wider">Variant</th>
+                        <th className="border-r border-gray-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">Variant</span></th>
                       )}
-                      <th className="px-6 pr-12 py-4 text-right text-[11px] font-bold text-gray-400 uppercase tracking-wider min-w-[80px]">Qty</th>
-                      <th className="px-6 pl-12 py-4 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider min-w-[60px]">Unit</th>
-                      <th className="px-6 py-4 text-right text-[11px] font-bold text-gray-400 uppercase tracking-wider">Rate</th>
+                      <th className="border-r border-gray-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block text-right">Qty</span></th>
+                      <th className="border-r border-gray-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">Unit</span></th>
+                      <th className="border-r border-gray-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block text-right">Rate</span></th>
 
                       {quotation.items?.some(i => i.discount_percent > 0) && (
-                        <th className="px-6 py-4 text-right text-[11px] font-bold text-gray-400 uppercase tracking-wider">Disc %</th>
+                        <th className="border-r border-gray-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block text-right">Disc %</span></th>
                       )}
                       {quotation.items?.some(i => i.tax_percent > 0) && (
-                        <th className="px-6 py-4 text-right text-[11px] font-bold text-gray-400 uppercase tracking-wider">Tax %</th>
+                        <th className="border-r border-gray-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block text-right">Tax %</span></th>
                       )}
                       {quotation.items?.some(i => i.custom1) && (
-                        <th className="px-6 py-4 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider">{templates.find(t => t.id === selectedTemplateId)?.column_settings?.labels?.custom1 || 'Custom 1'}</th>
+                        <th className="border-r border-gray-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">{templates.find(t => t.id === selectedTemplateId)?.column_settings?.labels?.custom1 || 'Custom 1'}</span></th>
                       )}
                       {quotation.items?.some(i => i.custom2) && (
-                        <th className="px-6 py-4 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wider">{templates.find(t => t.id === selectedTemplateId)?.column_settings?.labels?.custom2 || 'Custom 2'}</th>
+                        <th className="border-r border-gray-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">{templates.find(t => t.id === selectedTemplateId)?.column_settings?.labels?.custom2 || 'Custom 2'}</span></th>
                       )}
-                      <th className="px-6 py-4 text-right text-[11px] font-bold text-gray-400 uppercase tracking-wider">Total</th>
+                      <th className="border-r border-gray-200" style={{ padding: '16px 12px' }}><span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block text-right">Total</span></th>
                     </tr>
                   </thead>
                   <tbody className="bg-white">

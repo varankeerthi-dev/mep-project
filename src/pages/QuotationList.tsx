@@ -474,22 +474,22 @@ export default function QuotationList() {
           <table className="w-full border-separate border-spacing-0 table-fixed">
             <thead className="sticky top-0 z-10">
               <tr className="bg-blue-100/80 border-b border-blue-200">
-                <th className="h-[36px] px-5 text-left align-middle text-[13px] font-semibold text-slate-700 tracking-tight w-[120px] border-r border-slate-200">
+                <th className="h-[36px] px-5 pl-1 text-left align-middle text-[13px] font-semibold text-slate-700 tracking-tight w-[120px] border-r border-slate-200">
                   Date
                 </th>
-                <th className="h-[36px] px-5 text-left align-middle text-[13px] font-semibold text-slate-700 tracking-tight w-[160px] border-r border-slate-200">
+                <th className="h-[36px] px-5 pl-1 text-left align-middle text-[13px] font-semibold text-slate-700 tracking-tight w-[160px] border-r border-slate-200">
                   Quote No
                 </th>
-                <th className="h-[36px] px-5 text-left align-middle text-[13px] font-semibold text-slate-700 tracking-tight w-[500px]">
+                <th className="h-[36px] px-5 pl-1 text-left align-middle text-[13px] font-semibold text-slate-700 tracking-tight w-[500px]">
                   Client
                 </th>
-                <th className="h-[36px] px-5 text-left align-middle text-[13px] font-semibold text-slate-700 tracking-tight w-[180px] border-r border-slate-200">
+                <th className="h-[36px] px-5 pl-1 text-left align-middle text-[13px] font-semibold text-slate-700 tracking-tight w-[180px] border-r border-slate-200">
                   Amount
                 </th>
-                <th className="h-[36px] px-5 text-left align-middle text-[13px] font-semibold text-slate-700 tracking-tight w-[120px] border-r border-slate-200">
+                <th className="h-[36px] px-5 pl-1 text-left align-middle text-[13px] font-semibold text-slate-700 tracking-tight w-[120px] border-r border-slate-200">
                   Status
                 </th>
-                <th className="h-[36px] px-5 text-center align-middle text-[13px] font-semibold text-slate-700 tracking-tight w-[70px]">
+                <th className="h-[36px] px-5 pl-1 text-center align-middle text-[13px] font-semibold text-slate-700 tracking-tight w-[70px]">
                   Action
                 </th>
               </tr>
@@ -514,23 +514,23 @@ export default function QuotationList() {
                     className={`hover:bg-slate-50 cursor-pointer transition-all duration-150 ${
                       index % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'
                     }`}
-                    onClick={() => navigate(`/quotation/view?id=${q.id}`)}
+onClick={() => navigate(`/quotation/view?id=${q.id}`)}
                   >
-                    <td className="px-5 py-6 align-middle text-sm text-slate-900 whitespace-nowrap border-r border-slate-100 border-t border-slate-200/70">
+                    <td className="px-4 py-6 align-middle text-sm font-semibold text-slate-900 whitespace-nowrap border-r border-slate-100 border-t border-slate-200/70">
                       {formatDate(q.date)}
                     </td>
-                    <td className="px-5 py-6 align-middle text-sm font-semibold text-slate-900 whitespace-nowrap border-r border-slate-100 border-t border-slate-200/70">
+                    <td className="px-4 py-6 align-middle text-sm font-semibold text-slate-900 whitespace-nowrap border-r border-slate-100 border-t border-slate-200/70">
                       {q.quotation_no}
                     </td>
-                    <td className="px-5 py-6 align-middle text-sm text-slate-800 border-t border-slate-200/70">
+                    <td className="px-4 py-6 align-middle text-sm text-slate-800 border-t border-slate-200/70">
                       <div className="max-w-[350px] truncate" title={q.client?.client_name || '-'}>
                         {q.client?.client_name || '-'}
                       </div>
                     </td>
-                    <td className="px-8 py-6 align-middle text-sm font-semibold text-slate-900 whitespace-nowrap tabular-nums border-r border-slate-100 border-t border-slate-200/70">
+                    <td className="px-4 py-6 align-middle text-sm font-semibold text-slate-900 whitespace-nowrap tabular-nums border-r border-slate-100 border-t border-slate-200/70">
                       {formatCurrency(q.grand_total)}
                     </td>
-                    <td className="px-8 py-6 align-middle whitespace-nowrap border-r border-slate-100 border-t border-slate-200/70">
+                    <td className="px-4 py-6 align-middle whitespace-nowrap border-r border-slate-100 border-t border-slate-200/70">
                       <span
                         className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-full border"
                         style={{
@@ -542,7 +542,7 @@ export default function QuotationList() {
                         {q.status}
                       </span>
                     </td>
-                    <td className="px-5 py-6 align-middle text-center border-t border-slate-200/70">
+                    <td className="px-5 pl-1 py-6 align-middle text-center border-t border-slate-200/70">
                       <div className="relative inline-block" ref={openMenuId === q.id ? menuRef : null}>
                         <button
                           onClick={(e) => {
@@ -561,9 +561,9 @@ export default function QuotationList() {
                               e.stopPropagation();
                               navigate(`/quotation/view?id=${q.id}`);
                             }}
-                            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-slate-600 transition-all hover:bg-slate-100/60 hover:text-slate-900"
+                            className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-slate-600 transition-all hover:bg-slate-100/60 hover:text-slate-900"
+                            style={{ padding: '8px' }}
                           >
-                            <EyeIcon className="w-4 h-4" />
                             View Details
                           </button>
                           <button
@@ -571,9 +571,9 @@ export default function QuotationList() {
                               e.stopPropagation();
                               downloadQuotationPDF(q.id);
                             }}
-                            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-slate-600 transition-all hover:bg-slate-100/60 hover:text-slate-900"
+                            className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-slate-600 transition-all hover:bg-slate-100/60 hover:text-slate-900"
+                            style={{ padding: '8px' }}
                           >
-                            <DownloadIcon className="w-4 h-4" />
                             Download PDF
                           </button>
 
@@ -586,17 +586,132 @@ export default function QuotationList() {
                               setOpenMenuId(null);
                               navigate(`/quotation/edit?id=${q.id}`);
                             }}
-                            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-slate-600 transition-all hover:bg-slate-100/60 hover:text-slate-900"
+                            className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-slate-600 transition-all hover:bg-slate-100/60 hover:text-slate-900"
+                            style={{ padding: '8px' }}
                           >
                             Edit
                           </button>
                           <button
-                            onClick={(e) => {
+                            onClick={async (e) => {
                               e.stopPropagation();
                               setOpenMenuId(null);
-                              navigate(`/quotation/create?duplicateId=${q.id}`);
+                              
+                              try {
+                                // Get default series from document_series table
+                                const { data: seriesRow } = await supabase
+                                  .from('document_series')
+                                  .select('id, configs, current_number')
+                                  .eq('is_default', true)
+                                  .eq('organisation_id', organisation?.id)
+                                  .limit(1)
+                                  .maybeSingle();
+
+                                let quotationNo = 'QT-0001';
+                                let newSeriesNumber = 1;
+                                
+                                if (seriesRow) {
+                                  const cfg = seriesRow?.configs?.quote || {};
+                                  const prefix = cfg.prefix || 'QT-';
+                                  const suffix = cfg.suffix || '';
+                                  newSeriesNumber = (seriesRow.current_number || 0) + 1;
+                                  const padded = String(newSeriesNumber).padStart(4, '0');
+                                  quotationNo = `${prefix}${padded}${suffix}`;
+                                  
+                                  // Update series number
+                                  await supabase
+                                    .from('document_series')
+                                    .update({ current_number: newSeriesNumber })
+                                    .eq('id', seriesRow.id);
+                                } else {
+                                  // Fallback: get existing quotations to generate new number
+                                  const { data: existing } = await supabase
+                                    .from('quotation_header')
+                                    .select('quotation_no')
+                                    .eq('organisation_id', organisation?.id)
+                                    .order('created_at', { ascending: false })
+                                    .limit(1);
+
+                                  if (existing && existing.length > 0) {
+                                    const lastNum = parseInt(existing[0].quotation_no.replace(/[^0-9]/g, ''));
+                                    quotationNo = `QT-${String(lastNum + 1).padStart(4, '0')}`;
+                                  }
+                                }
+
+                                // Duplicate quotation
+                                const { data: newQuote, error } = await supabase
+                                  .from('quotation_header')
+                                  .insert({
+                                    organisation_id: organisation?.id,
+                                    quotation_no: quotationNo,
+                                    client_id: q.client_id,
+                                    project_id: q.project_id,
+                                    billing_address: q.billing_address,
+                                    gstin: q.gstin,
+                                    state: q.state,
+                                    date: new Date().toISOString().split('T')[0],
+                                    valid_till: q.valid_till,
+                                    payment_terms: q.payment_terms,
+                                    contact_no: q.contact_no,
+                                    remarks: q.remarks || q.reference,
+                                    reference: q.reference,
+                                    subtotal: q.subtotal,
+                                    total_item_discount: q.total_item_discount,
+                                    extra_discount_percent: q.extra_discount_percent,
+                                    extra_discount_amount: q.extra_discount_amount,
+                                    total_tax: q.total_tax,
+                                    round_off: q.round_off,
+                                    grand_total: q.grand_total,
+                                    status: 'Draft',
+                                    negotiation_mode: false,
+                                    revised_from_id: q.id
+                                  })
+                                  .select()
+                                  .single();
+
+                                if (error) {
+                                  console.error('Duplicate error:', error);
+                                  alert('Failed to duplicate: ' + error.message);
+                                  return;
+                                }
+
+                                console.log('Duplicated quote:', newQuote);
+
+                                // Duplicate items if any
+                                if (q.items && q.items.length > 0) {
+                                  const itemsToInsert = q.items.map(item => ({
+                                    quotation_id: newQuote.id,
+                                    item_id: item.item_id,
+                                    variant_id: item.variant_id,
+                                    description: item.description,
+                                    qty: item.qty,
+                                    uom: item.uom,
+                                    rate: item.rate,
+                                    original_discount_percent: item.original_discount_percent,
+                                    discount_percent: item.discount_percent,
+                                    discount_amount: item.discount_amount,
+                                    tax_percent: item.tax_percent,
+                                    tax_amount: item.tax_amount,
+                                    line_total: item.line_total,
+                                    override_flag: false
+                                  }));
+
+                                  const { error: itemsError } = await supabase.from('quotation_items').insert(itemsToInsert);
+                                  if (itemsError) {
+                                    console.error('Items error:', itemsError);
+                                  }
+                                }
+
+// Refresh list with exact query key
+                                await queryClient.invalidateQueries({ 
+                                  queryKey: ['quotations', statusFilter, organisation?.id] 
+                                });
+                              } catch (err) {
+                                console.error('Duplicate exception:', err);
+                                alert('Error: ' + err.message);
+                              }
                             }}
-                            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-slate-600 transition-all hover:bg-slate-100/60 hover:text-slate-900"
+                            className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-slate-600 transition-all hover:bg-slate-100/60 hover:text-slate-900"
+                            style={{ padding: '8px' }}
                           >
                             Duplicate
                           </button>
@@ -614,9 +729,9 @@ export default function QuotationList() {
                                 });
                               }
                             }}
-                            className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-slate-600 transition-all hover:bg-red-50 hover:text-red-600"
+                            className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-slate-600 transition-all hover:bg-red-50 hover:text-red-600"
+                            style={{ padding: '8px' }}
                           >
-                            <Trash2Icon className="w-4 h-4" />
                             Delete
                           </button>
                         </div>
