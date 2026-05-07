@@ -235,6 +235,22 @@ export async function createInvoice(input: InvoiceInput & { organisation_id: str
       if (materialError) throw materialError;
     }
 
+    // Update PO utilized value if invoice is created from PO
+    if (validated.source_type === 'po' && validated.source_id) {
+      const invoiceTotal = validated.total || 0;
+      try {
+        const { error: poError } = await supabase.rpc('update_po_utilized_value', {
+          p_po_id: validated.source_id,
+          p_invoice_amount: invoiceTotal
+        });
+        if (poError) {
+          console.warn('Failed to update PO utilized value:', poError);
+        }
+      } catch (err) {
+        console.warn('PO update RPC call failed:', err);
+      }
+    }
+
     return getInvoiceById(insertedInvoiceId, organisationId);
   } catch (error) {
     if (invoiceId) {
@@ -488,6 +504,15 @@ export async function loadInvoiceSource(sourceType: InvoiceSourceType, sourceId:
     .maybeSingle();
   if (clientError) throw clientError;
 
+  // Load PO line items
+  const { data: lineItems, error: lineItemsError } = await supabase
+    .from('po_line_items')
+    .select('*')
+    .eq('po_id', sourceId)
+    .order('line_order', { ascending: true });
+  
+  if (lineItemsError) throw lineItemsError;
+
   const source: PurchaseOrderInvoiceSource = {
     type: 'po',
     header: {
@@ -498,7 +523,23 @@ export async function loadInvoiceSource(sourceType: InvoiceSourceType, sourceId:
       po_total_value: Number(header.po_total_value ?? 0),
       remarks: header.remarks ?? null,
     },
-    materials: [],
+    items: (lineItems ?? []).map((item) => ({
+      id: item.id,
+      item_id: null, // PO items don't reference inventory items
+      product_id: null, // PO items don't reference inventory items
+      description: item.description ?? 'PO item',
+      hsn_code: item.hsn_sac_code ?? null,
+      qty: Number(item.quantity ?? 0),
+      rate: Number(item.rate ?? 0),
+      amount: Number(item.amount ?? roundCurrency(Number(item.quantity ?? 0) * Number(item.rate ?? 0))),
+      tax_percent: Number(item.gst_percentage ?? 18),
+      meta_json: {
+        tax_percent: Number(item.gst_percentage ?? 18),
+        uom: item.unit || 'Nos',
+        item_code: item.item_code || null,
+      },
+    })),
+    materials: [], // PO items are treated as line items, not materials
   };
 
   return source;

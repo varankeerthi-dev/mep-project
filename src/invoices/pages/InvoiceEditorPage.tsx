@@ -12,6 +12,7 @@ import { InvoiceMaterialsEditor } from '../components/InvoiceMaterialsEditor';
 import { InvoiceSummaryFooter } from '../components/InvoiceSummaryFooter';
 import { InvoiceStatusBadge } from '../components/InvoiceStatusBadge';
 import { AddShippingAddressModal } from '../components/AddShippingAddressModal';
+import POLineItemsSelector from '../components/POLineItemsSelector';
 import { useCreateInvoice, useInvoice, useInvoiceTemplates, useUpdateInvoice } from '../hooks';
 import { downloadInvoicePDF, emailInvoicePDF, previewInvoicePDF, printInvoicePDF } from '../pdf';
 import type { InvoiceEditorFormValues, InvoiceClientOption, InvoiceMaterialOption, ClientShippingAddress } from './ui-utils';
@@ -26,6 +27,7 @@ import {
   createEmptyMaterial,
   createLotItem,
   formatDate,
+  formatCurrency,
   getSourceLabel,
   getTemplateExtraColumnLabel,
   getTemplateTypeFromTemplate,
@@ -160,7 +162,7 @@ async function loadClientDetails(clientId: string, organisationId: string) {
   return data;
 }
 
-async function loadSourceOptions(sourceType: InvoiceEditorFormValues['source_type'], organisationId: string): Promise<InvoiceSourceOption[]> {
+async function loadSourceOptions(sourceType: InvoiceEditorFormValues['source_type'], organisationId: string, clientId?: string): Promise<InvoiceSourceOption[]> {
   if (sourceType === 'direct') {
     return [];
   }
@@ -197,19 +199,33 @@ async function loadSourceOptions(sourceType: InvoiceEditorFormValues['source_typ
     }));
   }
 
-  const { data, error } = await supabase
-    .from('client_purchase_orders')
-    .select('id, po_number, po_date, created_at')
-    .eq('organisation_id', organisationId)
-    .order('created_at', { ascending: false })
-    .limit(100);
-  if (error) throw error;
+  // For POs, use the same working pattern as ProformaEditorPage
+  if (clientId) {
+    const { data, error } = await supabase
+      .from('client_purchase_orders')
+      .select('*')
+      .eq('client_id', clientId)
+      .eq('organisation_id', organisationId)
+      .in('status', ['Open', 'Partially Billed'])
+      .gt('po_available_value', 0)
+      .order('po_date', { ascending: false });
 
-  return (data ?? []).map((row: any) => ({
-    id: String(row.id),
-    label: row.po_number ?? `PO ${String(row.id).slice(0, 6)}`,
-    sublabel: `Issued ${formatDate(row.po_date ?? row.created_at)}`,
-  }));
+    if (error) {
+      console.error('Error fetching client POs:', error);
+      return [];
+    }
+    
+    return (data || []).map((row: any) => ({
+      id: String(row.id),
+      label: row.po_number ?? `PO ${String(row.id).slice(0, 6)}`,
+      sublabel: `Issued ${formatDate(row.po_date ?? row.created_at)} | Total: ₹${formatCurrency(row.po_total_value)} | Available: ₹${formatCurrency(row.po_available_value)}`,
+      po_total_value: Number(row.po_total_value) || 0,
+      po_available_value: Number(row.po_available_value) || 0,
+    }));
+  }
+
+  // If no client selected, return empty array
+  return [];
 }
 
 export default function InvoiceEditorPage() {
@@ -223,7 +239,46 @@ export default function InvoiceEditorPage() {
   const isConverting = Boolean(convertFrom && sourceId && !isEditMode);
   const [pdfAction, setPdfAction] = useState<'preview' | 'download' | 'print' | 'email' | null>(null);
   const [isShippingAddressModalOpen, setIsShippingAddressModalOpen] = useState(false);
+  const [isPOSelectorOpen, setIsPOSelectorOpen] = useState(false);
+  const [selectedPOLineItems, setSelectedPOLineItems] = useState<any[]>([]);
 
+  // PO line items selector handlers
+  const handlePOSelection = () => {
+    if (selectedSourceType === 'po' && selectedSourceId && poDetailsQuery.data) {
+      setIsPOSelectorOpen(true);
+    }
+  };
+
+  const handlePOLineItemsApply = (selectedItems: any[]) => {
+    // Convert selected PO line items to invoice items
+    const invoiceItems = selectedItems.map(item => ({
+      id: undefined,
+      item_id: null,
+      description: item.description,
+      hsn_code: item.hsn_sac_code || null,
+      qty: item.quantity,
+      rate: item.rate_per_unit,
+      amount: item.full_amount,
+      tax_percent: item.gst_percentage,
+      meta_json: {
+        tax_percent: item.gst_percentage,
+        uom: item.unit || 'Nos',
+        item_code: item.item_code || null,
+        po_line_item_id: item.id,
+        original_quantity: item.original_quantity,
+      },
+    }));
+
+    itemsFieldArray.replace(invoiceItems);
+    setSelectedPOLineItems(selectedItems);
+    setIsPOSelectorOpen(false);
+  };
+
+  const handlePOSelectorClose = () => {
+    setIsPOSelectorOpen(false);
+  };
+
+  
   const form = useForm<InvoiceEditorFormValues>({
     resolver: zodResolver(InvoiceEditorSchema),
     defaultValues: createEmptyInvoiceFormValues((organisation?.state as string | null | undefined) || null),
@@ -286,14 +341,31 @@ export default function InvoiceEditorPage() {
   });
 
   const selectedShippingAddress = useMemo(() => {
+    // If "Same as billing" is selected, create address from client details
+    if (selectedShippingAddressId === '' && clientDetailsQuery.data) {
+      const client = clientDetailsQuery.data;
+      return {
+        id: 'same-as-billing',
+        address_line1: client.address1 || '',
+        address_line2: client.address2 || '',
+        city: client.city || '',
+        state: client.state || '',
+        pincode: client.pincode || '',
+        contact_person: client.contact || '',
+        contact_phone: client.email || '',
+        is_default: false,
+      };
+    }
+    
+    // Otherwise, return selected shipping address
     if (!selectedShippingAddressId || !shippingAddressesQuery.data) return null;
     return shippingAddressesQuery.data.find(addr => addr.id === selectedShippingAddressId) || null;
-  }, [selectedShippingAddressId, shippingAddressesQuery.data]);
+  }, [selectedShippingAddressId, shippingAddressesQuery.data, clientDetailsQuery.data]);
 
   const sourceOptionsQuery = useQuery({
-    queryKey: ['invoice-ui', 'sources', selectedSourceType, organisation?.id],
-    queryFn: () => loadSourceOptions(selectedSourceType, organisation?.id!),
-    enabled: !!organisation?.id,
+    queryKey: ['invoice-ui', 'sources', selectedSourceType, selectedClientId, organisation?.id],
+    queryFn: () => loadSourceOptions(selectedSourceType, organisation?.id!, selectedClientId),
+    enabled: !!organisation?.id && (selectedSourceType === 'po' ? Boolean(selectedClientId) : true),
     staleTime: 2 * 60 * 1000,
   });
   const sourceDraftQuery = useQuery({
@@ -304,6 +376,45 @@ export default function InvoiceEditorPage() {
         mode: selectedMode,
       }),
     enabled: Boolean(selectedSourceType && selectedSourceId && organisation?.id),
+    staleTime: 0,
+  });
+
+  // PO details query for line items selector
+  const poDetailsQuery = useQuery({
+    queryKey: ['po-details', selectedSourceId, organisation?.id],
+    queryFn: async () => {
+      if (!selectedSourceId || selectedSourceType !== 'po') return null;
+      
+      // Load PO header
+      const { data: header, error: headerError } = await supabase
+        .from('client_purchase_orders')
+        .select('id, po_number, po_total_value, po_utilized_value, po_available_value')
+        .eq('id', selectedSourceId)
+        .eq('organisation_id', organisation?.id)
+        .single();
+      
+      if (headerError) throw headerError;
+      
+      // Load PO line items
+      const { data: lineItems, error: lineItemsError } = await supabase
+        .from('po_line_items')
+        .select('*')
+        .eq('po_id', selectedSourceId)
+        .order('line_order', { ascending: true });
+      
+      if (lineItemsError) throw lineItemsError;
+      
+      return {
+        header: {
+          po_number: header.po_number,
+          po_total_value: Number(header.po_total_value || 0),
+          po_utilized_value: Number(header.po_utilized_value || 0),
+          po_available_value: Number(header.po_available_value || 0)
+        },
+        lineItems: lineItems || []
+      };
+    },
+    enabled: Boolean(selectedSourceId && selectedSourceType === 'po' && organisation?.id),
     staleTime: 0,
   });
 
@@ -338,6 +449,26 @@ export default function InvoiceEditorPage() {
       }, enableRoundOff),
     [companyState, clientState, watchedItems, enableRoundOff],
   );
+
+  // Validation for PO-based invoices
+  const poValidation = useMemo(() => {
+    if (selectedSourceType !== 'po' || !selectedSourceId) return { isValid: true, message: '' };
+    
+    const selectedPO = sourceOptionsQuery.data?.find(po => po.id === selectedSourceId);
+    if (!selectedPO) return { isValid: true, message: '' };
+    
+    const poTotalValue = selectedPO.po_total_value || 0;
+    const invoiceTotalValue = totals.total || 0;
+    
+    if (invoiceTotalValue > poTotalValue) {
+      return {
+        isValid: false,
+        message: `Invoice total (₹${formatCurrency(invoiceTotalValue)}) cannot exceed PO total (₹${formatCurrency(poTotalValue)})`
+      };
+    }
+    
+    return { isValid: true, message: '' };
+  }, [selectedSourceType, selectedSourceId, sourceOptionsQuery.data, totals.total]);
 
   useEffect(() => {
     watchedItems.forEach((item, index) => {
@@ -529,6 +660,15 @@ export default function InvoiceEditorPage() {
   const onSubmit = handleSubmit(async (values) => {
     let invoiceNo = values.invoice_no;
     let seriesId: string | null = null;
+
+    // Check PO validation first
+    if (!poValidation.isValid) {
+      form.setError('root', {
+        type: 'validation',
+        message: poValidation.message,
+      });
+      return;
+    }
 
     if (!isEditMode && !invoiceNo && organisation?.id) {
       const result = await generateInvoiceNumber(organisation.id);
@@ -1199,6 +1339,32 @@ export default function InvoiceEditorPage() {
                   {errors.source_id.message}
                 </span>
               )}
+              
+              {/* PO Line Items Selector Button */}
+              {selectedSourceType === 'po' && selectedSourceId && poDetailsQuery.data && (
+                <button
+                  type="button"
+                  onClick={handlePOSelection}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '6px 12px',
+                    border: '1px solid #059669',
+                    borderRadius: '4px',
+                    backgroundColor: '#f0fdf4',
+                    color: '#059669',
+                    fontSize: '12px',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s',
+                    marginTop: '8px'
+                  }}
+                >
+                  <span style={{ fontSize: '14px', color: '#525252' }}>📄</span>
+                  Select PO Line Items
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -1583,6 +1749,17 @@ export default function InvoiceEditorPage() {
           onSuccess={() => {
             shippingAddressesQuery.refetch();
           }}
+        />
+      )}
+
+      {/* PO Line Items Selector Popup */}
+      {isPOSelectorOpen && poDetailsQuery.data && (
+        <POLineItemsSelector
+          isOpen={isPOSelectorOpen}
+          onClose={handlePOSelectorClose}
+          poHeader={poDetailsQuery.data.header}
+          lineItems={poDetailsQuery.data.lineItems}
+          onApply={handlePOLineItemsApply}
         />
       )}
     </div>

@@ -5,6 +5,7 @@ import { Plus, X, GripVertical } from 'lucide-react';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { createPortal } from 'react-dom';
 import type { InvoiceEditorFormValues, InvoiceMaterialOption } from '../ui-utils';
 import { createEmptyItem, createLotItem, formatCurrency, round2 } from '../ui-utils';
 import { useAuth } from '../../App';
@@ -87,35 +88,67 @@ export function InvoiceItemsEditor({
     }
   };
 
-  const handleMaterialChange = useCallback((index: number, materialId: string) => {
+  const handleMaterialSelect = useCallback((index: number, materialId: string) => {
     const material = productOptions.find(m => m.id === materialId);
-    if (material && setValue) {
-      setValue(`items.${index}.description`, material.name, { shouldDirty: true });
-      setValue(`items.${index}.hsn_code`, material.hsn_code || '', { shouldDirty: true });
+    if (material) {
       setValue(`items.${index}.meta_json.material_id`, materialId, { shouldDirty: true });
-      setValue(`items.${index}.meta_json.make`, material.make || '', { shouldDirty: true });
-      // Set variant to first variant if available, or empty string
+      setValue(`items.${index}.description`, material.name || '', { shouldDirty: true });
+      setValue(`items.${index}.hsn_code`, material.hsn_code || '', { shouldDirty: true });
       const firstVariant = material.variants && material.variants.length > 0 ? material.variants[0].variant_name || '' : '';
       setValue(`items.${index}.meta_json.variant`, firstVariant, { shouldDirty: true });
       setValue(`items.${index}.meta_json.unit`, material.unit || '', { shouldDirty: true });
       if (material.sale_price) {
-        // Set base_rate to the material's sale price
+        // Set base_rate to be material's landing rate
         setValue(`items.${index}.meta_json.base_rate`, material.sale_price, { shouldDirty: true });
-        // Calculate rate after discount (initially with 0% discount)
-        const rateAfterDiscount = material.sale_price;
-        setValue(`items.${index}.rate`, rateAfterDiscount, { shouldDirty: true });
-        setValue(`items.${index}.meta_json.rate_after_discount`, rateAfterDiscount, { shouldDirty: true });
+        
+        // Auto-calculate rate after discount and set to Rate/Unit field
+        const discountPercent = Number(items[index]?.discount_percent || 0);
+        const rateAfterDiscount = material.sale_price - (material.sale_price * discountPercent / 100);
+        const roundedRate = roundOffEnabled ? Math.round(rateAfterDiscount) : rateAfterDiscount;
+        
+        // Set the calculated rate to Rate/Unit field (this is what gets saved)
+        setValue(`items.${index}.rate`, roundedRate, { shouldDirty: true });
+        // Store the rate after discount in meta for reference
+        setValue(`items.${index}.meta_json.rate_after_discount`, roundedRate, { shouldDirty: true });
       }
     }
     setOpenDropdowns(prev => ({ ...prev, [index]: false }));
     setSelectedIndices(prev => ({ ...prev, [index]: 0 }));
-  }, [productOptions, setValue]);
+  }, [productOptions, setValue, items, roundOffEnabled]);
 
   const handleSearchChange = useCallback((index: number, value: string) => {
     setSearchTerms(prev => ({ ...prev, [index]: value }));
     setOpenDropdowns(prev => ({ ...prev, [index]: true }));
     setSelectedIndices(prev => ({ ...prev, [index]: 0 }));
   }, []);
+
+  const handleMaterialChange = useCallback((index: number, materialId: string) => {
+    const material = productOptions.find(m => m.id === materialId);
+    if (material) {
+      setValue(`items.${index}.meta_json.material_id`, materialId, { shouldDirty: true });
+      setValue(`items.${index}.description`, material.name || '', { shouldDirty: true });
+      setValue(`items.${index}.hsn_code`, material.hsn_code || '', { shouldDirty: true });
+      const firstVariant = material.variants && material.variants.length > 0 ? material.variants[0].variant_name || '' : '';
+      setValue(`items.${index}.meta_json.variant`, firstVariant, { shouldDirty: true });
+      setValue(`items.${index}.meta_json.unit`, material.unit || '', { shouldDirty: true });
+      if (material.sale_price) {
+        // Set base_rate to be material's landing rate
+        setValue(`items.${index}.meta_json.base_rate`, material.sale_price, { shouldDirty: true });
+        
+        // Auto-calculate rate after discount and set to Rate/Unit field
+        const discountPercent = Number(items[index]?.discount_percent || 0);
+        const rateAfterDiscount = material.sale_price - (material.sale_price * discountPercent / 100);
+        const roundedRate = roundOffEnabled ? Math.round(rateAfterDiscount) : rateAfterDiscount;
+        
+        // Set the calculated rate to Rate/Unit field (this is what gets saved)
+        setValue(`items.${index}.rate`, roundedRate, { shouldDirty: true });
+        // Store the rate after discount in meta for reference
+        setValue(`items.${index}.meta_json.rate_after_discount`, roundedRate, { shouldDirty: true });
+      }
+    }
+    setOpenDropdowns(prev => ({ ...prev, [index]: false }));
+    setSelectedIndices(prev => ({ ...prev, [index]: 0 }));
+  }, [productOptions, setValue, items, roundOffEnabled]);
 
   const handleInputClick = useCallback((index: number) => {
     setOpenDropdowns(prev => ({ ...prev, [index]: true }));
@@ -498,49 +531,6 @@ export function InvoiceItemsEditor({
                           background: 'transparent',
                         }}
                       />
-                      {openDropdowns[index] && (
-                        <div
-                          ref={(el) => { dropdownRefs.current[index] = el; }}
-                          style={{
-                            position: 'fixed',
-                            maxHeight: '200px',
-                            overflowY: 'auto',
-                            background: '#fff',
-                            border: '1px solid #d4d4d4',
-                            borderRadius: '4px',
-                            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                            zIndex: 9999,
-                            minWidth: '150px',
-                          }}
-                        >
-                          {getFilteredMaterials(index).length === 0 ? (
-                            <div style={{ padding: '8px', fontSize: '11px', color: '#737373' }}>
-                              No materials found
-                            </div>
-                          ) : (
-                            getFilteredMaterials(index).slice(0, 50).map((option, idx) => (
-                              <div
-                                key={option.id}
-                                onClick={() => handleMaterialChange(index, option.id)}
-                                style={{
-                                  padding: '6px 8px',
-                                  fontSize: '11px',
-                                  cursor: 'pointer',
-                                  borderBottom: '1px solid #f0f0f0',
-                                  background: idx === (selectedIndices[index] || 0) ? '#e5e7eb' : '#fff'
-                                }}
-                                onMouseEnter={(e) => {
-                                  e.currentTarget.style.background = '#f5f5f5';
-                                  setSelectedIndices({ ...selectedIndices, [index]: idx });
-                                }}
-                                onMouseLeave={(e) => e.currentTarget.style.background = idx === (selectedIndices[index] || 0) ? '#e5e7eb' : '#fff'}
-                              >
-                                {option.name}
-                              </div>
-                            ))
-                          )}
-                        </div>
-                      )}
                     </td>
                   )}
                   <td style={{ padding: '4px' }}>
@@ -761,18 +751,16 @@ export function InvoiceItemsEditor({
                       />
                     </td>
                   )}
-                  <td style={{ padding: '4px' }}>
-                    <div style={{
-                      padding: '4px 6px',
-                      textAlign: 'right',
-                      fontSize: '11px',
-                      fontWeight: 600,
-                      color: '#171717',
-                      background: '#f5f5f5',
-                      borderRadius: '2px'
-                    }}>
-                      {formatCurrency(amount)}
-                    </div>
+                  <td style={{ 
+                    padding: '4px 6px',
+                    textAlign: 'right',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    color: '#171717',
+                    background: '#f5f5f5',
+                    borderRadius: '2px'
+                  }}>
+                    {formatCurrency(amount)}
                   </td>
                   <td style={{ padding: '4px' }}>
                     {mode !== 'lot' && fields.length > 1 ? (
@@ -834,5 +822,6 @@ export function InvoiceItemsEditor({
       )}
       {error && <div style={{ padding: '6px 12px', fontSize: '11px', color: '#dc2626' }}>{error}</div>}
     </div>
-  );
+    
+      );
 }
