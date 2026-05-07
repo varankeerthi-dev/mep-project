@@ -22,6 +22,7 @@ import { FileText, Plus, Mail } from 'lucide-react';
 import { autoCreateOrUpdateErection } from '../utils/erectionUtils';
 import { lookupServiceRate } from '../hooks/useErectionCharges';
 import { ErectionSection } from '../components/ErectionSection';
+import { ApprovalIntegration } from '../approvals/integration';
 
 const INDIAN_STATES = [
   'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
@@ -1910,6 +1911,36 @@ const loadQuoteNoPreview = useCallback(async () => {
         return;
       }
 
+      // Check if approval is needed based on grand total
+      const needsApproval = calculations.grandTotal > 100000; // Example threshold - can be configurable
+      let quotationId = editId;
+      let finalStatus = saveAndNew ? 'Draft' : (formData.status || 'Draft');
+
+      // If approval is needed, create approval request first
+      if (needsApproval && !editId) {
+        try {
+          const approvalResult = await ApprovalIntegration.createQuotationApproval(
+            'temp-id', // Will be updated after saving
+            formData.client_name || 'Unknown Client',
+            formData.quotation_no || 'QT-TEMP',
+            calculations.grandTotal,
+            'NORMAL'
+          );
+
+          if (approvalResult.success && approvalResult.approvalId) {
+            finalStatus = 'PENDING_APPROVAL';
+            console.log('Quotation approval request created:', approvalResult.approvalId);
+          } else if (approvalResult.error) {
+            console.error('Failed to create approval request:', approvalResult.error);
+            // Continue with draft status but show error
+            alert('Failed to create approval request: ' + approvalResult.error);
+          }
+        } catch (approvalError) {
+          console.error('Error creating approval request:', approvalError);
+          alert('Error creating approval request. Quotation saved as draft.');
+        }
+      }
+
       const quotationData = {
         client_id: formData.client_id,
         project_id: formData.project_id || null,
@@ -1919,8 +1950,8 @@ const loadQuoteNoPreview = useCallback(async () => {
         date: formData.date,
         valid_till: formData.valid_till || null,
         payment_terms: formData.payment_terms,
+        client_contact: formData.client_contact,
         variant_id: formData.variant_id || null,
-        remarks: formData.remarks || null,
         reference: formData.reference || null,
         prepared_by: formData.prepared_by || null,
         subtotal: calculations.subtotal,
@@ -1930,11 +1961,11 @@ const loadQuoteNoPreview = useCallback(async () => {
         total_tax: calculations.totalTax,
         round_off: calculations.roundOff,
         grand_total: calculations.grandTotal,
-        status: saveAndNew ? 'Draft' : (formData.status || 'Draft'),
+        status: finalStatus,
         negotiation_mode: formData.negotiation_mode,
         authorized_signatory_id: (() => {
           const val = formData.authorized_signatory_id;
-          if (val && val.length > 0 && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val)) {
+          if (val && val.length > 0 && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(val)) {
             return String(val);
           }
           return null;
@@ -1942,8 +1973,6 @@ const loadQuoteNoPreview = useCallback(async () => {
         revision_no: formData.revision_no || 1,
         revision_history: formData.revision_history || []
       };
-
-      let quotationId = editId;
 
       if (editId) {
         const { data: updatedHeader, error: updateError } = await withTimeout(
@@ -2146,6 +2175,22 @@ const itemsToInsert = items.map(item => ({
 
       queryClient.invalidateQueries({ queryKey: ['quotations'] });
       queryClient.invalidateQueries({ queryKey: ['quotations', organisation?.id] });
+
+      // Update approval with actual quotation ID if approval was created
+      if (needsApproval && !editId && finalStatus === 'PENDING_APPROVAL' && quotationId) {
+        try {
+          const approvalUpdateResult = await ApprovalIntegration.updateApprovalReference(
+            quotationId,
+            'quotation_header',
+            quotationId
+          );
+          if (approvalUpdateResult.success) {
+            console.log('Approval reference updated with quotation ID:', quotationId);
+          }
+        } catch (updateError) {
+          console.error('Error updating approval reference:', updateError);
+        }
+      }
 
       // alert removed
 

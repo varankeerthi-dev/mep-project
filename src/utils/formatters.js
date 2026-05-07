@@ -15,6 +15,28 @@ export const formatDate = (date) => {
 };
 
 /**
+ * Formats a date string to DD-MMM-YYYY format (e.g., 25-Dec-2023)
+ * @param {string|Date} date - The date to format
+ * @returns {string} Formatted date string or '-' if date is invalid
+ */
+export const formatDateTable = (date) => {
+  if (!date) return '-';
+  try {
+    const d = new Date(date);
+    if (isNaN(d.getTime())) return '-';
+    
+    const day = d.getDate().toString().padStart(2, '0');
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const month = months[d.getMonth()];
+    const year = d.getFullYear();
+    
+    return `${day}-${month}-${year}`;
+  } catch (err) {
+    return '-';
+  }
+};
+
+/**
  * Formats a number as Indian Rupee (INR) currency
  * @param {number} amount - The amount to format
  * @returns {string} Formatted currency string

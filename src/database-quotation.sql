@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS quotation_header (
   valid_till DATE,
   payment_terms TEXT,
   contact_no VARCHAR(30),
+  client_contact VARCHAR(100),
   remarks TEXT,
   reference VARCHAR(255),
   subtotal DECIMAL(15,2) DEFAULT 0,

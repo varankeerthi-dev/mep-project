@@ -114,6 +114,8 @@ export type InvoiceSourceOption = {
   id: string;
   label: string;
   sublabel: string;
+  po_total_value?: number;
+  po_available_value?: number;
 };
 
 export type ClientShippingAddress = {

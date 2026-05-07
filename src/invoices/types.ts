@@ -77,6 +77,7 @@ export interface PurchaseOrderInvoiceSource {
     po_total_value: number;
     remarks?: string | null;
   };
+  items?: InvoiceSourceLine[];
   materials?: InvoiceSourceMaterial[];
 }
 

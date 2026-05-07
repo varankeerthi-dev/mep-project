@@ -32,8 +32,7 @@ const menuData: MenuSection[] = [
   {
     section: '',
     items: [
-      { id: 'dashboard', label: 'Dashboard', path: '/' },
-      { id: 'terms-conditions', label: 'Terms & Conditions', path: '/terms-conditions' }
+      { id: 'dashboard', label: 'Dashboard', path: '/' }
     ]
   },
   {
@@ -45,8 +44,8 @@ const menuData: MenuSection[] = [
   {
     section: 'Tasks',
     items: [
-      { id: 'todo', label: 'To Do List', path: '/todo' },
-      { id: 'approvals', label: 'Approvals', path: '/approvals' }
+      { id: 'approvals', label: 'Approvals', path: '/approvals' },
+      { id: 'todo', label: 'To Do List', path: '/todo' }
     ]
   },
   {
@@ -201,6 +200,12 @@ const menuData: MenuSection[] = [
         id: 'reports', 
         label: 'Reports', 
         submenu: [
+          { id: 'reports-dashboard', label: 'Dashboard', path: '/reports' },
+          { id: 'invoice-reports', label: 'Invoice Reports', path: '/reports/invoices' },
+          { id: 'financial-reports', label: 'Financial', path: '/reports/financial' },
+          { id: 'project-reports', label: 'Projects', path: '/reports/projects' },
+          { id: 'inventory-reports', label: 'Inventory', path: '/reports/inventory' },
+          { id: 'compliance-reports', label: 'Compliance', path: '/reports/compliance' },
           { id: 'stock-report', label: 'Stock Report', path: '/reports/stock' },
           { id: 'purchase-report', label: 'Purchase Report', path: '/reports/purchase' },
           { id: 'sales-report', label: 'Sales Report', path: '/reports/sales' }
@@ -216,6 +221,7 @@ const menuData: MenuSection[] = [
         label: 'Settings', 
         submenu: [
           { id: 'settings-general', label: 'General', path: '/settings' },
+          { id: 'settings-approval', label: 'Approval Settings', path: '/approval-settings' },
           { id: 'documents', label: 'Documents', path: '/documents' },
           { id: 'settings-print', label: 'Print Settings', path: '/settings/print' },
           { id: 'settings-document', label: 'Document Settings', path: '/settings/document-series' },
@@ -235,7 +241,7 @@ const ICON_MAP: Record<string, keyof typeof HeroIcons> = {
   dashboard: 'HomeIcon',
   projects: 'FolderIcon',
   todo: 'ClipboardDocumentCheckIcon',
-  approvals: 'ShieldCheckIcon',
+  approvals: 'CheckCircleIcon',
   clients: 'UsersIcon',
   'client-po': 'DocumentTextIcon',
   meetings: 'CalendarDaysIcon',

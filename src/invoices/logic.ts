@@ -171,19 +171,22 @@ export function mapSourceToInvoice(source: InvoiceSourceDocument, options: Invoi
   }
 
   if (source.type === 'po') {
-    items = [
+    // Use actual PO line items instead of creating single lot item
+    items = source.items.map((item) =>
       InvoiceItemSchema.parse({
-        description: buildLotDescription(source),
-        hsn_code: null,
-        qty: 1,
-        rate: roundCurrency(source.header.po_total_value),
-        amount: roundCurrency(source.header.po_total_value),
+        description: item.description,
+        hsn_code: item.hsn_code ?? null,
+        qty: item.qty,
+        rate: item.rate,
+        amount: item.amount ?? roundCurrency(item.qty * item.rate),
         meta_json: {
-          tax_percent: defaultTaxPercent,
+          tax_percent: item.tax_percent ?? defaultTaxPercent,
           po_id: source.header.id,
+          po_line_item_id: item.id ?? item.item_id ?? null,
+          ...(item.meta_json ?? {}),
         },
       }),
-    ];
+    );
 
     materials = (source.materials ?? []).map((material) =>
       InvoiceMaterialSchema.parse({

@@ -209,7 +209,6 @@ function buildProformaPayload(proforma: Proforma): {
       tax_percent: item.tax_percent ?? DEFAULT_TAX,
       meta_json: item.meta_json ?? {},
       sort_order: index,
-      organisation_id: proformaRow.organisation_id,
     })),
   };
 }

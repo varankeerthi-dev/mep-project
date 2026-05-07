@@ -125,6 +125,12 @@ const StockBalance = lazyAny(() => Reports.then(m => ({ default: m.StockBalance 
 const StockReport = lazyAny(() => Reports.then(m => ({ default: m.StockReport })));
 const PurchaseReport = lazyAny(() => Reports.then(m => ({ default: m.PurchaseReport })));
 const SalesReport = lazyAny(() => Reports.then(m => ({ default: m.SalesReport })));
+const ReportsDashboard = lazyAny(() => import('./pages/reports/ReportsDashboard'));
+const FinancialReports = lazyAny(() => import('./pages/reports/FinancialReports'));
+const ProjectReports = lazyAny(() => import('./pages/reports/ProjectReports'));
+const InventoryReports = lazyAny(() => import('./pages/reports/InventoryReports'));
+const ComplianceReports = lazyAny(() => import('./pages/reports/ComplianceReports'));
+const InvoiceReports = lazyAny(() => import('./pages/reports/InvoiceReports'));
 const ProjectManagementInternal = import('./pages/ProjectManagementInternal');
 const SiteMaterials = lazyAny(() => ProjectManagementInternal.then(m => ({ default: m.SiteMaterials })));
 const ToolsList = lazyAny(() => ProjectManagementInternal.then(m => ({ default: m.ToolsList })));
@@ -275,6 +281,16 @@ export default function App() {
       case '/store/transfer': return <StockTransfer />;
       case '/store/stock': return <StockBalance />;
       case '/quick-stock-check': return <QuickStockCheck />;
+      // Reports
+      case '/reports': return <ReportsDashboard />;
+      case '/reports/financial': return <FinancialReports />;
+      case '/reports/projects': return <ProjectReports />;
+      case '/reports/inventory': return <InventoryReports />;
+      case '/reports/compliance': return <ComplianceReports />;
+      case '/reports/invoices': return <InvoiceReports />;
+      case '/reports/stock': return <StockReport />;
+      case '/reports/purchase': return <PurchaseReport />;
+      case '/reports/sales': return <SalesReport />;
       // Delivery Challan
       case '/dc/create': return <CreateDC onCancel={() => navigate('/dc/list')} />;
       case '/dc/list': return <DCList />;

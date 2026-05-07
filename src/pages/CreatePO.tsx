@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../supabase';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Plus, Save, X, FileText, Upload, CheckCircle, Clock, XCircle, Trash2 } from 'lucide-react';
@@ -28,16 +29,21 @@ type PaymentMilestone = {
   fixed_amount?: number
   condition?: string
   due_days?: number
+  includes_gst?: boolean
+  calculated_amount?: number
 }
 
 type POLineItem = {
   id?: string
+  material_id?: string  // Reference to inventory material
+  is_manual: boolean    // true = manual entry, false = inventory item
   description: string
   quantity: number
   unit: string
   rate_per_unit: number
   gst_percentage: number
   item_code?: string
+  hsn_sac_code?: string
   remarks?: string
 }
 
@@ -51,6 +57,22 @@ export default function CreatePO() {
   // Use shared hooks — they handle org filtering, session, and caching
   const { data: clients = [] } = useClients();
   const { data: allProjects = [] } = useProjects();
+  
+  // Load materials for inventory selection
+  const { data: materials = [] } = useQuery({
+    queryKey: ['materials', organisation?.id],
+    queryFn: async () => {
+      if (!organisation?.id) return [];
+      const { data, error } = await supabase
+        .from('materials')
+        .select('id, name, display_name, hsn_code, make, unit, sale_price')
+        .eq('organisation_id', organisation.id)
+        .order('name');
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!organisation?.id
+  });
   
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -146,12 +168,15 @@ export default function CreatePO() {
       if (data && data.length > 0) {
         setLineItems(data.map((m: any) => ({
           id: m.id,
+          material_id: m.material_id || undefined,
+          is_manual: !m.material_id, // If no material_id, it's manual entry
           description: m.description,
           quantity: m.quantity,
-          unit: m.unit || '',
+          unit: m.unit,
           rate_per_unit: m.rate_per_unit,
-          gst_percentage: m.gst_percentage || 18,
+          gst_percentage: m.gst_percentage,
           item_code: m.item_code,
+          hsn_sac_code: m.hsn_sac_code,
           remarks: m.remarks
         })));
       }
@@ -162,6 +187,7 @@ export default function CreatePO() {
 
   const addLineItem = () => {
     const newItem: POLineItem = {
+      is_manual: true,  // Default to manual entry
       description: '',
       quantity: 1,
       unit: '',
@@ -178,6 +204,39 @@ export default function CreatePO() {
   const updateLineItem = (index: number, field: keyof POLineItem, value: any) => {
     const updated = [...lineItems];
     updated[index] = { ...updated[index], [field]: value };
+    setLineItems(updated);
+  };
+
+  const handleMaterialSelection = (index: number, materialId: string) => {
+    const material = materials.find(m => m.id === materialId);
+    if (!material) return;
+    
+    const updated = [...lineItems];
+    updated[index] = {
+      ...updated[index],
+      material_id: materialId,
+      is_manual: false,
+      description: material.display_name || material.name,
+      unit: material.unit || 'Nos',
+      rate_per_unit: material.sale_price || 0,
+      hsn_sac_code: material.hsn_code || null,
+      item_code: material.make || null
+    };
+    setLineItems(updated);
+  };
+
+  const toggleEntryMode = (index: number) => {
+    const updated = [...lineItems];
+    updated[index] = {
+      ...updated[index],
+      is_manual: !updated[index].is_manual,
+      material_id: undefined,
+      description: '',
+      unit: '',
+      rate_per_unit: 0,
+      hsn_sac_code: null,
+      item_code: null
+    };
     setLineItems(updated);
   };
 
@@ -274,7 +333,9 @@ export default function CreatePO() {
       milestone_order: paymentMilestones.filter(m => m.milestone_type === type).length + 1,
       percentage: 0,
       condition: '',
-      due_days: undefined
+      due_days: undefined,
+      includes_gst: false,
+      calculated_amount: 0
     };
     setPaymentMilestones([...paymentMilestones, newMilestone]);
   };
@@ -290,6 +351,25 @@ export default function CreatePO() {
   const updateMilestone = (index: number, field: keyof PaymentMilestone, value: any) => {
     const updated = [...paymentMilestones];
     updated[index] = { ...updated[index], [field]: value };
+    
+    // Validate percentage doesn't exceed 100% for each type
+    if (field === 'percentage') {
+      const milestone = updated[index];
+      const typeMilestones = updated.filter(m => m.milestone_type === milestone.milestone_type);
+      const totalPercentage = typeMilestones.reduce((sum, m) => sum + (m.percentage || 0), 0);
+      
+      if (totalPercentage > 100) {
+        alert(`Total ${milestone.milestone_type} percentage cannot exceed 100%. Current total: ${totalPercentage}%`);
+        return; // Don't update if exceeds 100%
+      }
+    }
+    
+    // Auto-calculate amount when percentage or GST inclusion changes
+    if (field === 'percentage' || field === 'includes_gst') {
+      const milestone = updated[index];
+      milestone.calculated_amount = calculateMilestoneAmount(milestone);
+    }
+    
     setPaymentMilestones(updated);
   };
 
@@ -299,6 +379,44 @@ export default function CreatePO() {
       .reduce((sum, m) => sum + (m.percentage || 0), 0);
   };
 
+  const calculateMilestoneAmount = (milestone: PaymentMilestone) => {
+    const totalValue = lineItems.length > 0 ? calculateBasicTotal() : parseFloat(formData.po_total_value || '0');
+    const percentage = parseFloat(milestone.percentage?.toString() || '0');
+    const basicAmount = totalValue * percentage / 100;
+    
+    console.log('Debug - calculateMilestoneAmount:', {
+      milestone,
+      totalValue,
+      percentage,
+      basicAmount,
+      includes_gst: milestone.includes_gst,
+      lineItemsCount: lineItems.length
+    });
+    
+    if (milestone.includes_gst) {
+      // Calculate average GST from line items
+      const avgGst = lineItems.length > 0 
+        ? lineItems.reduce((sum, item) => sum + (item.gst_percentage || 18), 0) / lineItems.length
+        : 18; // Default GST if no line items
+      
+      // Calculate GST amount on basic amount and add to basic amount
+      const gstAmount = basicAmount * (avgGst / 100);
+      const finalAmount = basicAmount + gstAmount;
+      
+      console.log('Debug - GST calculation:', {
+        avgGst,
+        gstAmount,
+        finalAmount,
+        expectedBasic: totalValue * 1.0 // For 100%
+      });
+      
+      return finalAmount;
+    }
+    
+    return basicAmount;
+  };
+
+// ... (rest of the code remains the same)
   const uploadAttachment = async (poId: string) => {
     if (!attachment) return null;
     
@@ -452,12 +570,19 @@ export default function CreatePO() {
 
       // Save line items
       if (lineItems.length > 0) {
+        console.log('Saving line items:', lineItems);
+        console.log('PO ID:', poId);
+        
         // Delete existing line items for this PO (if editing)
         if (editId) {
-          await supabase
+          console.log('Deleting existing line items for PO:', editId);
+          const { error: deleteError } = await supabase
             .from('po_line_items')
             .delete()
             .eq('po_id', poId);
+          if (deleteError) {
+            console.error('Error deleting existing line items:', deleteError);
+          }
         }
 
         // Insert new line items
@@ -469,13 +594,26 @@ export default function CreatePO() {
           rate_per_unit: item.rate_per_unit,
           gst_percentage: item.gst_percentage || 18,
           item_code: item.item_code || null,
+          hsn_sac_code: item.hsn_sac_code || null,
           remarks: item.remarks || null,
           line_order: index
         }));
 
-        await supabase
+        console.log('Line items to insert:', lineItemsToInsert);
+        
+        const { data: lineItemData, error: lineItemError } = await supabase
           .from('po_line_items')
-          .insert(lineItemsToInsert);
+          .insert(lineItemsToInsert)
+          .select();
+          
+        if (lineItemError) {
+          console.error('Error inserting line items:', lineItemError);
+          throw lineItemError;
+        } else {
+          console.log('Line items inserted successfully:', lineItemData);
+        }
+      } else {
+        console.log('No line items to save');
       }
 
       alert(editId ? 'PO updated successfully!' : 'PO created successfully!');
@@ -1083,29 +1221,127 @@ export default function CreatePO() {
                 <div
                   key={index}
                   style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px',
+                    padding: '12px',
+                    background: '#fff',
+                    border: '1px solid #e5e5e5',
+                    borderRadius: '6px'
+                  }}
+                >
+                  {/* Entry Mode Toggle */}
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    marginBottom: '4px'
+                  }}>
+                    <span style={{
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      color: '#525252'
+                    }}>
+                      Entry Mode:
+                    </span>
+                    <div style={{
+                      display: 'flex',
+                      background: '#f5f5f5',
+                      borderRadius: '4px',
+                      padding: '2px'
+                    }}>
+                      <button
+                        type="button"
+                        onClick={() => toggleEntryMode(index)}
+                        style={{
+                          padding: '4px 12px',
+                          border: 'none',
+                          borderRadius: '3px',
+                          fontSize: '11px',
+                          fontWeight: 500,
+                          background: item.is_manual ? '#fff' : 'transparent',
+                          color: item.is_manual ? '#171717' : '#737373',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s'
+                        }}
+                      >
+                        Manual Entry
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => toggleEntryMode(index)}
+                        style={{
+                          padding: '4px 12px',
+                          border: 'none',
+                          borderRadius: '3px',
+                          fontSize: '11px',
+                          fontWeight: 500,
+                          background: !item.is_manual ? '#fff' : 'transparent',
+                          color: !item.is_manual ? '#171717' : '#737373',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s'
+                        }}
+                      >
+                        From Inventory
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Input Fields */}
+                  <div style={{
                     display: 'grid',
                     gridTemplateColumns: '3fr 1fr 1fr 1fr 1fr 1fr auto',
                     gap: '8px',
-                    padding: '8px 12px',
-                    background: '#fff',
-                    border: '1px solid #e5e5e5',
-                    borderRadius: '6px',
                     alignItems: 'center'
-                  }}
-                >
-                  <input
-                    type="text"
-                    value={item.description}
-                    onChange={(e) => updateLineItem(index, 'description', e.target.value)}
-                    placeholder="Description"
-                    style={{
-                      padding: '6px 10px',
-                      border: '1px solid #d4d4d4',
-                      borderRadius: '4px',
-                      fontSize: '13px',
-                      width: '100%'
-                    }}
-                  />
+                  }}>
+                    <input
+                      type="text"
+                      value={item.hsn_sac_code || ''}
+                      onChange={(e) => updateLineItem(index, 'hsn_sac_code', e.target.value)}
+                      placeholder="HSN/SAC Code"
+                      style={{
+                        padding: '6px 10px',
+                        border: '1px solid #d4d4d4',
+                        borderRadius: '4px',
+                        fontSize: '13px',
+                        width: '33px'
+                      }}
+                    />
+                    {item.is_manual ? (
+                      <input
+                        type="text"
+                        value={item.description}
+                        onChange={(e) => updateLineItem(index, 'description', e.target.value)}
+                        placeholder="Description"
+                        style={{
+                          padding: '6px 10px',
+                          border: '1px solid #d4d4d4',
+                          borderRadius: '4px',
+                          fontSize: '13px',
+                          width: '100%'
+                        }}
+                      />
+                    ) : (
+                      <select
+                        value={item.material_id || ''}
+                        onChange={(e) => handleMaterialSelection(index, e.target.value)}
+                        style={{
+                          padding: '6px 10px',
+                          border: '1px solid #d4d4d4',
+                          borderRadius: '4px',
+                          fontSize: '13px',
+                          width: '100%',
+                          background: '#fff'
+                        }}
+                      >
+                        <option value="">Select Material</option>
+                        {materials.map(material => (
+                          <option key={material.id} value={material.id}>
+                            {material.display_name || material.name}
+                          </option>
+                        ))}
+                      </select>
+                    )}
                   <input
                     type="number"
                     value={item.quantity}
@@ -1196,6 +1432,7 @@ export default function CreatePO() {
                   >
                     <Trash2 size={14} />
                   </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -1330,9 +1567,9 @@ export default function CreatePO() {
                 Supply Payments
               </span>
               <span style={{
-                fontSize: '12px',
+                fontSize: '11px',
                 color: calculateTotalPercentage('supply') === 100 ? '#166534' : '#ca8a04',
-                fontWeight: 600
+                fontWeight: 500
               }}>
                 Total: {calculateTotalPercentage('supply')}%
               </span>
@@ -1402,6 +1639,45 @@ export default function CreatePO() {
                               fontSize: '13px'
                             }}
                           />
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <label style={{ fontSize: '11px', fontWeight: 600, color: '#737373' }}>Include GST?</label>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <input
+                              type="checkbox"
+                              checked={milestone.includes_gst || false}
+                              onChange={(e) => updateMilestone(globalIndex, 'includes_gst', e.target.checked)}
+                              style={{
+                                width: '16px',
+                                height: '16px',
+                                cursor: 'pointer'
+                              }}
+                            />
+                            <span style={{ fontSize: '12px', color: '#666' }}>Include GST in amount</span>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <label style={{ fontSize: '11px', fontWeight: 600, color: '#737373' }}>Amount</label>
+                          <input
+                            type="number"
+                            value={milestone.calculated_amount || 0}
+                            onChange={(e) => updateMilestone(globalIndex, 'calculated_amount', parseFloat(e.target.value) || 0)}
+                            placeholder="0"
+                            min="0"
+                            step="0.01"
+                            style={{
+                              padding: '8px 12px',
+                              border: '1px solid #d4d4d4',
+                              borderRadius: '6px',
+                              fontSize: '13px',
+                              backgroundColor: milestone.percentage > 0 ? '#f0fdf4' : '#fff'
+                            }}
+                          />
+                          {milestone.percentage > 0 && (
+                            <span style={{ fontSize: '10px', color: '#666', fontStyle: 'italic' }}>
+                              Auto-calculated from {milestone.percentage}%{milestone.includes_gst ? ' (incl. GST)' : ''}
+                            </span>
+                          )}
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                           <label style={{ fontSize: '11px', fontWeight: 600, color: '#737373' }}>Condition</label>
@@ -1490,9 +1766,9 @@ export default function CreatePO() {
                 Erection Payments
               </span>
               <span style={{
-                fontSize: '12px',
+                fontSize: '11px',
                 color: calculateTotalPercentage('erection') === 100 ? '#166534' : '#ca8a04',
-                fontWeight: 600
+                fontWeight: 500
               }}>
                 Total: {calculateTotalPercentage('erection')}%
               </span>
@@ -1562,6 +1838,45 @@ export default function CreatePO() {
                               fontSize: '13px'
                             }}
                           />
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <label style={{ fontSize: '11px', fontWeight: 600, color: '#737373' }}>Include GST?</label>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <input
+                              type="checkbox"
+                              checked={milestone.includes_gst || false}
+                              onChange={(e) => updateMilestone(globalIndex, 'includes_gst', e.target.checked)}
+                              style={{
+                                width: '16px',
+                                height: '16px',
+                                cursor: 'pointer'
+                              }}
+                            />
+                            <span style={{ fontSize: '12px', color: '#666' }}>Include GST in amount</span>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <label style={{ fontSize: '11px', fontWeight: 600, color: '#737373' }}>Amount</label>
+                          <input
+                            type="number"
+                            value={milestone.calculated_amount || 0}
+                            onChange={(e) => updateMilestone(globalIndex, 'calculated_amount', parseFloat(e.target.value) || 0)}
+                            placeholder="0"
+                            min="0"
+                            step="0.01"
+                            style={{
+                              padding: '8px 12px',
+                              border: '1px solid #d4d4d4',
+                              borderRadius: '6px',
+                              fontSize: '13px',
+                              backgroundColor: milestone.percentage > 0 ? '#f0fdf4' : '#fff'
+                            }}
+                          />
+                          {milestone.percentage > 0 && (
+                            <span style={{ fontSize: '10px', color: '#666', fontStyle: 'italic' }}>
+                              Auto-calculated from {milestone.percentage}%{milestone.includes_gst ? ' (incl. GST)' : ''}
+                            </span>
+                          )}
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                           <label style={{ fontSize: '11px', fontWeight: 600, color: '#737373' }}>Condition</label>

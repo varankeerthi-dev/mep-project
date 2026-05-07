@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabase';
 import { useNavigate } from 'react-router-dom';
-import { formatDate, formatCurrency } from '../utils/formatters';
+import { formatDate, formatCurrency, formatDateTable } from '../utils/formatters';
 import { ensureValidSession } from '../queryClient';
 import { useAuth } from '../contexts/AuthContext';
 import { 
@@ -21,7 +21,8 @@ import {
   Layers,
   FileCheck,
   RefreshCcw,
-  X
+  X,
+  MoreHorizontal
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import {
@@ -50,6 +51,9 @@ export default function POList() {
   const [showProformaModal, setShowProformaModal] = useState(false);
   const [selectedPO, setSelectedPO] = useState<any>(null);
   const [poLineItems, setPOLineItems] = useState<any[]>([]);
+  
+  // Action menu state
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   useEffect(() => {
     loadPOs();
@@ -62,6 +66,18 @@ export default function POList() {
     // Reset to page 1 on filter or search changes
     setCurrentPage(1);
   }, [searchTerm, statusFilter, dateFrom, dateTo]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (openMenuId && !(event.target as Element).closest('.action-dropdown')) {
+        setOpenMenuId(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [openMenuId]);
 
   const loadPOs = async () => {
     // Guard: wait for organisation to be available before querying
@@ -117,20 +133,27 @@ export default function POList() {
   const totalPages = Math.ceil(filteredPOs.length / pageSize);
   const paginatedPOs = filteredPOs.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
-  const getStatusBadge = (status: string) => {
-    const config: Record<string, { bg: string, text: string, icon: any }> = {
-      'Open': { bg: 'bg-blue-50', text: 'text-blue-700', icon: CheckCircle },
-      'Partially Billed': { bg: 'bg-amber-50', text: 'text-amber-700', icon: Clock },
-      'Closed': { bg: 'bg-emerald-50', text: 'text-emerald-700', icon: FileCheck }
+  const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
+      'Open':              { bg: '#dbeafe', color: '#1d4ed8' },
+      'Partially Billed':  { bg: '#fef3c7', color: '#b45309' },
+      'Closed':            { bg: '#d1fae5', color: '#047857' },
     };
-    const cfg = config[status] || config['Open'];
-    const Icon = cfg.icon;
-    
+
+  const getStatusColor = (status?: string) =>
+    STATUS_COLORS[status ?? ''] ?? STATUS_COLORS['Open'];
+
+  const getStatusBadge = (status: string) => {
     return (
-      <div className={cn("inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-black uppercase tracking-wider", cfg.bg, cfg.text)}>
-        <Icon size={12} />
+      <span
+        className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-full border"
+        style={{
+          backgroundColor: getStatusColor(status).bg,
+          color: getStatusColor(status).color,
+          borderColor: getStatusColor(status).color + '20',
+        }}
+      >
         {status}
-      </div>
+      </span>
     );
   };
 
@@ -301,91 +324,164 @@ export default function POList() {
             </div>
           ) : (
             <>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Client</TableHead>
-                      <TableHead>PO Number</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead className="text-right">Amount</TableHead>
-                      <TableHead className="text-right">Utilised</TableHead>
-                      <TableHead className="text-right">Balance</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
+              <div className="overflow-x-auto overflow-y-visible">
+                <table className="w-full border-separate border-spacing-0 table-fixed">
+                  <thead className="sticky top-0 z-10">
+                    <tr className="bg-blue-100/80 border-b border-blue-200">
+                      <th className="h-[36px] px-5 pl-1 text-left align-middle text-[13px] font-semibold text-slate-700 tracking-tight w-[120px] border-r border-slate-200">
+                        Date
+                      </th>
+                      <th className="h-[36px] px-5 pl-1 text-left align-middle text-[13px] font-semibold text-slate-700 tracking-tight w-[160px] border-r border-slate-200">
+                        Client
+                      </th>
+                      <th className="h-[36px] px-5 pl-1 text-left align-middle text-[13px] font-semibold text-slate-700 tracking-tight w-[140px] border-r border-slate-200">
+                        PO Number
+                      </th>
+                      <th className="h-[36px] px-5 pl-1 text-left align-middle text-[13px] font-semibold text-slate-700 tracking-tight w-[140px] border-r border-slate-200">
+                        Amount
+                      </th>
+                      <th className="h-[36px] px-5 pl-1 text-left align-middle text-[13px] font-semibold text-slate-700 tracking-tight w-[140px] border-r border-slate-200">
+                        Utilised
+                      </th>
+                      <th className="h-[36px] px-5 pl-1 text-left align-middle text-[13px] font-semibold text-slate-700 tracking-tight w-[140px] border-r border-slate-200">
+                        Balance
+                      </th>
+                      <th className="h-[36px] px-5 pl-1 text-left align-middle text-[13px] font-semibold text-slate-700 tracking-tight w-[120px] border-r border-slate-200">
+                        Status
+                      </th>
+                      <th className="h-[36px] px-5 pl-1 text-center align-middle text-[13px] font-semibold text-slate-700 tracking-tight w-[80px]">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white">
                     {paginatedPOs.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={8} className="h-32 text-center text-zinc-500">
+                      <tr>
+                        <td colSpan={8} className="px-5 py-16 text-center text-sm text-slate-500">
                           No matching purchase orders found
-                        </TableCell>
-                      </TableRow>
+                        </td>
+                      </tr>
                     ) : (
-                      paginatedPOs.map((po) => (
-                        <TableRow key={po.id}>
-                          <TableCell className="font-medium text-zinc-700 whitespace-nowrap">
-                            {po.clients?.client_name || '-'}
-                          </TableCell>
-                          <TableCell className="font-semibold text-blue-600 whitespace-nowrap">
-                            {po.po_number}
-                          </TableCell>
-                          <TableCell className="text-zinc-500 whitespace-nowrap">
-                            {formatDate(po.po_date)}
-                          </TableCell>
-                          <TableCell className="text-right font-medium text-zinc-700 tabular-nums whitespace-nowrap">
-                            ₹{formatCurrency(po.po_total_value)}
-                          </TableCell>
-                          <TableCell className="text-right text-zinc-500 tabular-nums whitespace-nowrap">
-                            ₹{formatCurrency(po.po_utilized_value)}
-                          </TableCell>
-                          <TableCell className={cn(
-                            "text-right font-medium tabular-nums whitespace-nowrap",
-                            (po.po_available_value || 0) > 0 ? "text-emerald-600" : "text-rose-600"
-                          )}>
-                            ₹{formatCurrency(po.po_available_value || 0)}
-                          </TableCell>
-                          <TableCell className="whitespace-nowrap">
-                            {getStatusBadge(po.status)}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center justify-end gap-1">
-                              <button
-                                className="flex h-7 w-7 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
-                                onClick={() => handleCreateProforma(po)}
-                                title="Create Proforma"
-                              >
-                                <FileCheck size={14} />
-                              </button>
-                              <button
-                                className="flex h-7 w-7 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-                                onClick={() => navigate(`/client-po/create?id=${po.id}`)}
-                                title="Edit"
-                              >
-                                <Edit2 size={14} />
-                              </button>
-                              <button
-                                className="flex h-7 w-7 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                                onClick={() => deletePO(po.id)}
-                                title="Delete"
-                              >
-                                <Trash2 size={14} />
-                              </button>
-                              <button
-                                className="flex h-7 w-7 items-center justify-center rounded-md border border-zinc-200 bg-white text-zinc-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-                                onClick={() => navigate(`/client-po/details?id=${po.id}`)}
-                                title="View"
-                              >
-                                <ChevronRight size={14} />
-                              </button>
+                      paginatedPOs.map((po, index) => (
+                        <tr
+                          key={po.id}
+                          className={`hover:bg-slate-50 cursor-pointer transition-all duration-150 ${
+                            index % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'
+                          }`}
+                        >
+                          <td className="px-4 py-6 align-middle text-sm font-semibold text-slate-900 whitespace-nowrap border-r border-slate-100 border-t border-slate-200/70">
+                            {formatDateTable(po.po_date)}
+                          </td>
+                          <td className="px-4 py-6 align-middle text-sm text-slate-800 border-t border-slate-200/70">
+                            <div className="max-w-[350px] truncate" title={po.clients?.client_name || '-'}>
+                              {po.clients?.client_name || '-'}
                             </div>
-                          </TableCell>
-                        </TableRow>
+                          </td>
+                          <td className="px-4 py-6 align-middle text-sm font-semibold text-slate-900 whitespace-nowrap border-r border-slate-100 border-t border-slate-200/70">
+                            {po.po_number}
+                          </td>
+                          <td className="px-4 py-6 align-middle text-sm font-semibold text-slate-900 whitespace-nowrap tabular-nums border-r border-slate-100 border-t border-slate-200/70">
+                            {formatCurrency(po.po_total_value)}
+                          </td>
+                          <td className="px-4 py-6 align-middle text-sm font-semibold text-slate-900 whitespace-nowrap tabular-nums border-r border-slate-100 border-t border-slate-200/70">
+                            {formatCurrency(po.po_utilized_value)}
+                          </td>
+                          <td className="px-4 py-6 align-middle text-sm font-semibold whitespace-nowrap tabular-nums border-r border-slate-100 border-t border-slate-200/70">
+                            <span className={cn(
+                              (po.po_available_value || 0) > 0 ? "text-emerald-600" : "text-rose-600"
+                            )}>
+                              {formatCurrency(po.po_available_value || 0)}
+                            </span>
+                          </td>
+                          <td className="px-4 py-6 align-middle whitespace-nowrap border-r border-slate-100 border-t border-slate-200/70">
+                            {getStatusBadge(po.status)}
+                          </td>
+                          <td className="px-4 py-6 align-middle text-center border-t border-slate-200/70">
+                            <div className="relative inline-block action-dropdown">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenMenuId(openMenuId === po.id ? null : po.id);
+                                }}
+                                className="inline-flex items-center justify-center w-8 h-8 rounded-md hover:bg-slate-100 transition-colors"
+                              >
+                                <MoreHorizontal className="w-4 h-4 text-slate-500" />
+                              </button>
+                              {openMenuId === po.id && (
+                                <div className="fixed bg-white border border-zinc-200 rounded-lg shadow-lg py-1 min-w-[160px]" 
+                                     style={{
+                                       top: 'auto',
+                                       right: 'auto',
+                                       position: 'fixed',
+                                       zIndex: 9999
+                                     }}
+                                     ref={(el) => {
+                                       if (el) {
+                                         const rect = el.parentElement?.getBoundingClientRect();
+                                         if (rect) {
+                                           el.style.top = `${rect.bottom + window.scrollY + 4}px`;
+                                           el.style.left = `${rect.right - 160 + window.scrollX}px`;
+                                         }
+                                       }
+                                     }}>
+                                  {/* Section 1: Read actions */}
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      navigate(`/client-po/details?id=${po.id}`);
+                                      setOpenMenuId(null);
+                                    }}
+                                    className="block w-full text-left px-3 py-2 text-sm transition-colors text-zinc-700 hover:bg-zinc-50"
+                                  >
+                                    View Details
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleCreateProforma(po);
+                                      setOpenMenuId(null);
+                                    }}
+                                    className="block w-full text-left px-3 py-2 text-sm transition-colors text-zinc-700 hover:bg-zinc-50"
+                                  >
+                                    Create Proforma
+                                  </button>
+
+                                  <div className="border-t border-zinc-100 my-1" />
+
+                                  {/* Section 2: Modify actions */}
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      navigate(`/client-po/create?id=${po.id}`);
+                                      setOpenMenuId(null);
+                                    }}
+                                    className="block w-full text-left px-3 py-2 text-sm transition-colors text-zinc-700 hover:bg-zinc-50"
+                                  >
+                                    Edit
+                                  </button>
+
+                                  <div className="border-t border-zinc-100 my-1" />
+
+                                  {/* Section 3: Destructive */}
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      deletePO(po.id);
+                                      setOpenMenuId(null);
+                                    }}
+                                    className="block w-full text-left px-3 py-2 text-sm transition-colors text-red-600 hover:bg-red-50"
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
                       ))
                     )}
-                  </TableBody>
-                </Table>
+                  </tbody>
+                </table>
               </div>
 
               {/* Pagination Footer */}
