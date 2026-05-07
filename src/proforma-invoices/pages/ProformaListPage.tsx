@@ -793,6 +793,17 @@ export default function ProformaListPage() {
           <div className="pi-dropdown">
             <button
               type="button"
+              onClick={() => {
+                setOpenMenuId(null);
+                navigate(`/invoice/create?source=proforma&sourceId=${proforma.id}`);
+              }}
+              className="pi-dropdown-item"
+            >
+              <FileCheck size={14} />
+              Convert to Invoice
+            </button>
+            <button
+              type="button"
               onClick={() => handleDownloadPdf(proforma)}
               className="pi-dropdown-item"
             >

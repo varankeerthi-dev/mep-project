@@ -13,6 +13,8 @@ import { InvoiceSummaryFooter } from '../components/InvoiceSummaryFooter';
 import { InvoiceStatusBadge } from '../components/InvoiceStatusBadge';
 import { AddShippingAddressModal } from '../components/AddShippingAddressModal';
 import POLineItemsSelector from '../components/POLineItemsSelector';
+import QuotationLineItemsSelector from '../components/QuotationLineItemsSelector';
+import ProformaLineItemsSelector from '../components/ProformaLineItemsSelector';
 import { useCreateInvoice, useInvoice, useInvoiceTemplates, useUpdateInvoice } from '../hooks';
 import { downloadInvoicePDF, emailInvoicePDF, previewInvoicePDF, printInvoicePDF } from '../pdf';
 import type { InvoiceEditorFormValues, InvoiceClientOption, InvoiceMaterialOption, ClientShippingAddress } from './ui-utils';
@@ -237,10 +239,19 @@ export default function InvoiceEditorPage() {
   const convertFrom = queryParam(location.search, 'convertFrom') as ConversionType | null;
   const sourceId = queryParam(location.search, 'sourceId');
   const isConverting = Boolean(convertFrom && sourceId && !isEditMode);
+  const duplicateFrom = queryParam(location.search, 'from');
+  const isDuplicating = Boolean(duplicateFrom && !isEditMode);
   const [pdfAction, setPdfAction] = useState<'preview' | 'download' | 'print' | 'email' | null>(null);
   const [isShippingAddressModalOpen, setIsShippingAddressModalOpen] = useState(false);
   const [isPOSelectorOpen, setIsPOSelectorOpen] = useState(false);
   const [selectedPOLineItems, setSelectedPOLineItems] = useState<any[]>([]);
+  const [isApplyingPOItems, setIsApplyingPOItems] = useState(false);
+  const [isQuotationSelectorOpen, setIsQuotationSelectorOpen] = useState(false);
+  const [selectedQuotationItems, setSelectedQuotationItems] = useState<any[]>([]);
+  const [isApplyingQuotationItems, setIsApplyingQuotationItems] = useState(false);
+  const [isProformaSelectorOpen, setIsProformaSelectorOpen] = useState(false);
+  const [selectedProformaItems, setSelectedProformaItems] = useState<any[]>([]);
+  const [isApplyingProformaItems, setIsApplyingProformaItems] = useState(false);
 
   // PO line items selector handlers
   const handlePOSelection = () => {
@@ -250,35 +261,208 @@ export default function InvoiceEditorPage() {
   };
 
   const handlePOLineItemsApply = (selectedItems: any[]) => {
-    // Convert selected PO line items to invoice items
-    const invoiceItems = selectedItems.map(item => ({
-      id: undefined,
-      item_id: null,
-      description: item.description,
-      hsn_code: item.hsn_sac_code || null,
-      qty: item.quantity,
-      rate: item.rate_per_unit,
-      amount: item.full_amount,
-      tax_percent: item.gst_percentage,
-      meta_json: {
-        tax_percent: item.gst_percentage,
-        uom: item.unit || 'Nos',
-        item_code: item.item_code || null,
-        po_line_item_id: item.id,
-        original_quantity: item.original_quantity,
-      },
-    }));
+    setIsApplyingPOItems(true);
 
-    itemsFieldArray.replace(invoiceItems);
-    setSelectedPOLineItems(selectedItems);
-    setIsPOSelectorOpen(false);
+    // Convert selected PO line items to invoice items
+    const invoiceItems = selectedItems.map(item => {
+      const poRate = item.rate_per_unit;
+      return {
+        id: undefined,
+        item_id: null,
+        description: item.description,
+        hsn_code: item.hsn_sac_code || null,
+        qty: item.quantity,
+        rate: poRate, // Final rate (no discount applied for PO items)
+        discount_percent: 0, // No discount for PO items
+        amount: item.full_amount,
+        tax_percent: item.gst_percentage,
+        meta_json: {
+          tax_percent: item.gst_percentage,
+          uom: item.unit || 'Nos',
+          item_code: item.item_code || null,
+          po_line_item_id: item.id,
+          original_quantity: item.original_quantity,
+          base_rate: poRate, // PO rate goes to base_rate field
+          rate_after_discount: poRate, // No discount, so rate_after_discount = base_rate
+        },
+      };
+    });
+
+    // Clear existing items first, then add new ones
+    itemsFieldArray.remove();
+    setTimeout(() => {
+      invoiceItems.forEach((item, index) => {
+        if (index === 0) {
+          itemsFieldArray.replace([item]);
+        } else {
+          itemsFieldArray.append(item);
+        }
+      });
+      
+      setSelectedPOLineItems(selectedItems);
+      setIsPOSelectorOpen(false);
+      
+      // Clear any focus and prevent cursor from landing in rate field
+      setTimeout(() => {
+        setIsApplyingPOItems(false);
+        // Clear all active elements
+        if (document.activeElement instanceof HTMLElement) {
+          document.activeElement.blur();
+        }
+        // Remove focus from any input fields
+        const allInputs = document.querySelectorAll('input');
+        allInputs.forEach(input => {
+          if (input instanceof HTMLElement) {
+            input.blur();
+          }
+        });
+        // Focus on body to completely remove focus
+        document.body.focus();
+      }, 100);
+    }, 50);
   };
 
   const handlePOSelectorClose = () => {
     setIsPOSelectorOpen(false);
   };
 
-  
+  // Quotation line items selector handlers
+  const handleQuotationSelection = () => {
+    if (selectedSourceType === 'quotation' && selectedSourceId && quotationDetailsQuery.data) {
+      setIsQuotationSelectorOpen(true);
+    }
+  };
+
+  const handleQuotationItemsApply = (selectedItems: any[]) => {
+    setIsApplyingQuotationItems(true);
+
+    // Convert selected quotation items to invoice items
+    const invoiceItems = selectedItems.map(item => {
+      const qtRate = item.rate;
+      return {
+        id: undefined,
+        item_id: item.item_id || null,
+        description: item.description,
+        hsn_code: item.hsn_code || null,
+        qty: item.qty,
+        rate: qtRate, // Final rate (no discount initially)
+        discount_percent: item.discount_percent || 0, // Keep original discount
+        amount: item.line_total || (item.qty * qtRate),
+        tax_percent: item.tax_percent || 18,
+        meta_json: {
+          tax_percent: item.tax_percent || 18,
+          uom: item.uom || 'Nos',
+          base_rate: qtRate,
+          rate_after_discount: qtRate - (qtRate * (item.discount_percent || 0) / 100),
+          quotation_item_id: item.id,
+          original_qty: item.qty,
+        },
+      };
+    });
+
+    // Clear existing items first, then add new ones
+    itemsFieldArray.remove();
+    setTimeout(() => {
+      invoiceItems.forEach((item, index) => {
+        if (index === 0) {
+          itemsFieldArray.replace([item]);
+        } else {
+          itemsFieldArray.append(item);
+        }
+      });
+
+      setSelectedQuotationItems(selectedItems);
+      setIsQuotationSelectorOpen(false);
+
+      // Clear any focus and prevent cursor from landing in rate field
+      setTimeout(() => {
+        setIsApplyingQuotationItems(false);
+        if (document.activeElement instanceof HTMLElement) {
+          document.activeElement.blur();
+        }
+        const allInputs = document.querySelectorAll('input');
+        allInputs.forEach(input => {
+          if (input instanceof HTMLElement) {
+            input.blur();
+          }
+        });
+        document.body.focus();
+      }, 100);
+    }, 50);
+  };
+
+  const handleQuotationSelectorClose = () => {
+    setIsQuotationSelectorOpen(false);
+  };
+
+  // Proforma line items selector handlers
+  const handleProformaSelection = () => {
+    if (selectedSourceType === 'proforma' && selectedSourceId && proformaDetailsQuery.data) {
+      setIsProformaSelectorOpen(true);
+    }
+  };
+
+  const handleProformaItemsApply = (selectedItems: any[]) => {
+    setIsApplyingProformaItems(true);
+
+    // Convert selected proforma items to invoice items
+    const invoiceItems = selectedItems.map(item => {
+      const pfRate = item.rate;
+      return {
+        id: undefined,
+        item_id: item.item_id || null,
+        description: item.description,
+        hsn_code: item.hsn_code || null,
+        qty: item.qty,
+        rate: pfRate,
+        discount_percent: item.discount_percent || 0,
+        amount: item.line_total || (item.qty * pfRate),
+        tax_percent: item.tax_percent || 18,
+        meta_json: {
+          tax_percent: item.tax_percent || 18,
+          uom: item.uom || 'Nos',
+          base_rate: pfRate,
+          rate_after_discount: pfRate - (pfRate * (item.discount_percent || 0) / 100),
+          proforma_item_id: item.id,
+          original_qty: item.qty,
+        },
+      };
+    });
+
+    // Clear existing items first, then add new ones
+    itemsFieldArray.remove();
+    setTimeout(() => {
+      invoiceItems.forEach((item, index) => {
+        if (index === 0) {
+          itemsFieldArray.replace([item]);
+        } else {
+          itemsFieldArray.append(item);
+        }
+      });
+
+      setSelectedProformaItems(selectedItems);
+      setIsProformaSelectorOpen(false);
+
+      setTimeout(() => {
+        setIsApplyingProformaItems(false);
+        if (document.activeElement instanceof HTMLElement) {
+          document.activeElement.blur();
+        }
+        const allInputs = document.querySelectorAll('input');
+        allInputs.forEach(input => {
+          if (input instanceof HTMLElement) {
+            input.blur();
+          }
+        });
+        document.body.focus();
+      }, 100);
+    }, 50);
+  };
+
+  const handleProformaSelectorClose = () => {
+    setIsProformaSelectorOpen(false);
+  };
+
   const form = useForm<InvoiceEditorFormValues>({
     resolver: zodResolver(InvoiceEditorSchema),
     defaultValues: createEmptyInvoiceFormValues((organisation?.state as string | null | undefined) || null),
@@ -292,7 +476,7 @@ export default function InvoiceEditorPage() {
     reset,
     setValue,
     getValues,
-    formState: { errors },
+    formState,
   } = form;
 
   const itemsFieldArray = useFieldArray({ control, name: 'items' });
@@ -309,7 +493,10 @@ export default function InvoiceEditorPage() {
   const clientState = useWatch({ control, name: 'client_state' }) ?? null;
   const selectedShippingAddressId = useWatch({ control, name: 'shipping_address_id' }) ?? null;
 
+  const { errors } = formState;
+
   const invoiceQuery = useInvoice(invoiceId ?? undefined);
+  const duplicateInvoiceQuery = useInvoice(duplicateFrom ?? undefined);
   const createInvoice = useCreateInvoice();
   const updateInvoice = useUpdateInvoice(invoiceId ?? '');
   const templatesQuery = useInvoiceTemplates();
@@ -384,7 +571,7 @@ export default function InvoiceEditorPage() {
     queryKey: ['po-details', selectedSourceId, organisation?.id],
     queryFn: async () => {
       if (!selectedSourceId || selectedSourceType !== 'po') return null;
-      
+
       // Load PO header
       const { data: header, error: headerError } = await supabase
         .from('client_purchase_orders')
@@ -392,18 +579,18 @@ export default function InvoiceEditorPage() {
         .eq('id', selectedSourceId)
         .eq('organisation_id', organisation?.id)
         .single();
-      
+
       if (headerError) throw headerError;
-      
+
       // Load PO line items
       const { data: lineItems, error: lineItemsError } = await supabase
         .from('po_line_items')
         .select('*')
         .eq('po_id', selectedSourceId)
         .order('line_order', { ascending: true });
-      
+
       if (lineItemsError) throw lineItemsError;
-      
+
       return {
         header: {
           po_number: header.po_number,
@@ -415,6 +602,80 @@ export default function InvoiceEditorPage() {
       };
     },
     enabled: Boolean(selectedSourceId && selectedSourceType === 'po' && organisation?.id),
+    staleTime: 0,
+  });
+
+  // Quotation details query for line items selector
+  const quotationDetailsQuery = useQuery({
+    queryKey: ['quotation-details', selectedSourceId, organisation?.id],
+    queryFn: async () => {
+      if (!selectedSourceId || selectedSourceType !== 'quotation') return null;
+
+      // Load quotation header
+      const { data: header, error: headerError } = await supabase
+        .from('quotation_header')
+        .select('id, quotation_no, grand_total, status')
+        .eq('id', selectedSourceId)
+        .eq('organisation_id', organisation?.id)
+        .single();
+
+      if (headerError) throw headerError;
+
+      // Load quotation items
+      const { data: items, error: itemsError } = await supabase
+        .from('quotation_items')
+        .select('*')
+        .eq('quotation_id', selectedSourceId);
+
+      if (itemsError) throw itemsError;
+
+      return {
+        header: {
+          quotation_no: header.quotation_no,
+          grand_total: Number(header.grand_total || 0),
+          status: header.status
+        },
+        items: items || []
+      };
+    },
+    enabled: Boolean(selectedSourceId && selectedSourceType === 'quotation' && organisation?.id),
+    staleTime: 0,
+  });
+
+  // Proforma details query for line items selector
+  const proformaDetailsQuery = useQuery({
+    queryKey: ['proforma-details', selectedSourceId, organisation?.id],
+    queryFn: async () => {
+      if (!selectedSourceId || selectedSourceType !== 'proforma') return null;
+
+      // Load proforma header
+      const { data: header, error: headerError } = await supabase
+        .from('proforma_invoices')
+        .select('id, proforma_no, grand_total, billing_status')
+        .eq('id', selectedSourceId)
+        .eq('organisation_id', organisation?.id)
+        .single();
+
+      if (headerError) throw headerError;
+
+      // Load proforma items
+      const { data: items, error: itemsError } = await supabase
+        .from('proforma_items')
+        .select('*')
+        .eq('proforma_id', selectedSourceId);
+
+      if (itemsError) throw itemsError;
+
+      return {
+        header: {
+          proforma_no: header.proforma_no,
+          grand_total: Number(header.grand_total || 0),
+          billing_status: header.billing_status
+        },
+        items: items || []
+      };
+    },
+    enabled: Boolean(selectedSourceId && selectedSourceType === 'proforma' && organisation?.id),
     staleTime: 0,
   });
 
@@ -556,6 +817,26 @@ export default function InvoiceEditorPage() {
     }
   }, [isConverting, conversionQuery.data, convertFrom, sourceId, setValue, itemsFieldArray, materialsFieldArray, organisation?.state]);
 
+  // Load duplication data when creating from existing invoice
+  useEffect(() => {
+    if (!isDuplicating || !duplicateInvoiceQuery.data) return;
+
+    const sourceInvoice = duplicateInvoiceQuery.data;
+    const duplicatedFormValues = invoiceToFormValues(sourceInvoice);
+
+    // Clear invoice-specific fields for new invoice
+    duplicatedFormValues.invoice_no = '';
+    duplicatedFormValues.status = 'draft';
+
+    // Pre-fill form with duplicated data using reset for proper form state
+    reset({
+      ...duplicatedFormValues,
+      invoice_no: '',
+      status: 'draft',
+      invoice_date: new Date().toISOString().split('T')[0],
+    });
+  }, [isDuplicating, duplicateInvoiceQuery.data, reset]);
+
   useEffect(() => {
     if (!selectedClient) return;
 
@@ -661,11 +942,36 @@ export default function InvoiceEditorPage() {
     let invoiceNo = values.invoice_no;
     let seriesId: string | null = null;
 
+    // Clear any previous root errors
+    form.clearErrors('root');
+
     // Check PO validation first
     if (!poValidation.isValid) {
       form.setError('root', {
         type: 'validation',
         message: poValidation.message,
+      });
+      return;
+    }
+
+    // Debug: Log form values before validation
+    console.log('Form values before validation:', values);
+    console.log('Items being validated:', values.items);
+
+    // Validate all items have proper rates
+    const invalidItems = values.items.filter((item, index) => {
+      const rate = Number(item.rate);
+      const qty = Number(item.qty);
+      const isValid = !isNaN(rate) && rate >= 0 && !isNaN(qty) && qty > 0;
+      console.log(`Item ${index}: rate=${rate}, qty=${qty}, valid=${isValid}`);
+      return !isValid;
+    });
+
+    if (invalidItems.length > 0) {
+      console.log('Invalid items found:', invalidItems);
+      form.setError('root', {
+        type: 'validation',
+        message: 'Please ensure all items have valid quantity (greater than 0) and rate (not negative).',
       });
       return;
     }
@@ -717,14 +1023,71 @@ export default function InvoiceEditorPage() {
           .eq('id', sourceId);
       }
 
+      // Update quotation status if converted from quotation
+      if (selectedSourceType === 'quotation' && selectedSourceId && newInvoiceId) {
+        // Check if all items were billed or only some
+        const allQuotationItems = quotationDetailsQuery.data?.items || [];
+        const billedItems = values.items.filter(item => item.meta_json?.quotation_item_id);
+
+        const newStatus = billedItems.length === allQuotationItems.length ? 'converted' : 'partially converted';
+
+        await supabase
+          .from('quotation_header')
+          .update({
+            conversion_status: newStatus,
+            status: newStatus === 'converted' ? 'Converted' : 'Partially Converted'
+          })
+          .eq('id', selectedSourceId);
+
+        // Also update the invoice to reference the quotation
+        await supabase
+          .from('invoices')
+          .update({ quotation_id: selectedSourceId })
+          .eq('id', newInvoiceId);
+      }
+
+      // Update proforma billing status if converted from proforma
+      if (selectedSourceType === 'proforma' && selectedSourceId && newInvoiceId) {
+        // Check if all items were billed or only some
+        const allProformaItems = proformaDetailsQuery.data?.items || [];
+        const billedItems = values.items.filter(item => item.meta_json?.proforma_item_id);
+
+        const newStatus = billedItems.length === allProformaItems.length ? 'fully billed' : 'partially billed';
+
+        await supabase
+          .from('proforma_invoices')
+          .update({
+            billing_status: newStatus
+          })
+          .eq('id', selectedSourceId);
+
+        // Also update the invoice to reference the proforma
+        await supabase
+          .from('invoices')
+          .update({ proforma_id: selectedSourceId })
+          .eq('id', newInvoiceId);
+      }
+
       navigate('/invoices');
     } catch (error) {
       console.error('Failed to save invoice:', error);
       alert('Failed to save invoice: ' + (error as Error).message);
     }
+  }, (errors) => {
+    // Custom error handling - don't get stuck in validation loop
+    console.error('Form validation errors found:', Object.keys(errors));
+    
+    // Show user-friendly error message
+    if (errors.items || errors.client_id || errors.root) {
+      form.setError('root', {
+        type: 'validation',
+        message: 'Please fix validation errors before saving.',
+      });
+    }
   });
 
   const handlePreviewPdf = async () => {
+    // ...
     if (!invoiceId) {
       alert('Please save the invoice first before previewing.');
       return;
@@ -806,12 +1169,12 @@ export default function InvoiceEditorPage() {
     }
   };
 
-  if (isEditMode && invoiceQuery.isLoading) {
+  if ((isEditMode && invoiceQuery.isLoading) || (isDuplicating && duplicateInvoiceQuery.isLoading)) {
     return (
       <div style={{ padding: '40px', textAlign: 'center' }}>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '12px', color: '#525252' }}>
           <Loader2 style={{ animation: 'spin 1s linear infinite' }} size={20} />
-          Loading invoice...
+          {isDuplicating ? 'Loading invoice for duplication...' : 'Loading invoice...'}
         </div>
       </div>
     );
@@ -839,7 +1202,7 @@ export default function InvoiceEditorPage() {
           color: '#0a0a0a',
           margin: 0
         }}>
-          {isEditMode ? 'Edit Invoice' : 'New Invoice'}
+          {isEditMode ? 'Edit Invoice' : isDuplicating ? 'Create Invoice from Existing' : 'New Invoice'}
         </h1>
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
@@ -1339,7 +1702,7 @@ export default function InvoiceEditorPage() {
                   {errors.source_id.message}
                 </span>
               )}
-              
+
               {/* PO Line Items Selector Button */}
               {selectedSourceType === 'po' && selectedSourceId && poDetailsQuery.data && (
                 <button
@@ -1363,6 +1726,58 @@ export default function InvoiceEditorPage() {
                 >
                   <span style={{ fontSize: '14px', color: '#525252' }}>📄</span>
                   Select PO Line Items
+                </button>
+              )}
+
+              {/* Quotation Items Selector Button */}
+              {selectedSourceType === 'quotation' && selectedSourceId && quotationDetailsQuery.data && (
+                <button
+                  type="button"
+                  onClick={handleQuotationSelection}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '6px 12px',
+                    border: '1px solid #059669',
+                    borderRadius: '4px',
+                    backgroundColor: '#f0fdf4',
+                    color: '#059669',
+                    fontSize: '12px',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s',
+                    marginTop: '8px'
+                  }}
+                >
+                  <span style={{ fontSize: '14px', color: '#525252' }}>📄</span>
+                  Select Quotation Items
+                </button>
+              )}
+
+              {/* Proforma Items Selector Button */}
+              {selectedSourceType === 'proforma' && selectedSourceId && proformaDetailsQuery.data && (
+                <button
+                  type="button"
+                  onClick={handleProformaSelection}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '6px 12px',
+                    border: '1px solid #059669',
+                    borderRadius: '4px',
+                    backgroundColor: '#f0fdf4',
+                    color: '#059669',
+                    fontSize: '12px',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s',
+                    marginTop: '8px'
+                  }}
+                >
+                  <span style={{ fontSize: '14px', color: '#525252' }}>📄</span>
+                  Select Proforma Items
                 </button>
               )}
             </div>
@@ -1571,6 +1986,8 @@ export default function InvoiceEditorPage() {
           error={fieldErrorMessage(errors.items)}
           productOptions={materialsQuery.data ?? []}
           setValue={setValue}
+          formState={formState}
+          isApplyingPOItems={isApplyingPOItems}
         />
 
         {/* Materials Editor - Compact Excel Style */}
@@ -1760,6 +2177,26 @@ export default function InvoiceEditorPage() {
           poHeader={poDetailsQuery.data.header}
           lineItems={poDetailsQuery.data.lineItems}
           onApply={handlePOLineItemsApply}
+        />
+      )}
+
+      {isQuotationSelectorOpen && quotationDetailsQuery.data && (
+        <QuotationLineItemsSelector
+          isOpen={isQuotationSelectorOpen}
+          onClose={handleQuotationSelectorClose}
+          quotationHeader={quotationDetailsQuery.data.header}
+          items={quotationDetailsQuery.data.items}
+          onApply={handleQuotationItemsApply}
+        />
+      )}
+
+      {isProformaSelectorOpen && proformaDetailsQuery.data && (
+        <ProformaLineItemsSelector
+          isOpen={isProformaSelectorOpen}
+          onClose={handleProformaSelectorClose}
+          proformaHeader={proformaDetailsQuery.data.header}
+          items={proformaDetailsQuery.data.items}
+          onApply={handleProformaItemsApply}
         />
       )}
     </div>

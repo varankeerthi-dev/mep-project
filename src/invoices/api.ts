@@ -401,6 +401,56 @@ async function enrichHsnCodes<T extends { product_id?: string | null; item_id?: 
   return new Map((data ?? []).map((item) => [item.id, item.hsn_code ?? null]));
 }
 
+interface MaterialMatch {
+  id: string;
+  hsn_code: string | null;
+  name: string;
+  display_name: string;
+  sale_price: number | null;
+  unit: string | null;
+}
+
+async function matchMaterialByDescriptionOrHsn(
+  description: string,
+  hsnCode: string | null,
+  organisationId: string,
+): Promise<MaterialMatch | null> {
+  if (!description && !hsnCode) return null;
+
+  // Try exact match by HSN first
+  if (hsnCode) {
+    const { data, error } = await supabase
+      .from('materials')
+      .select('id, hsn_code, name, display_name, sale_price, unit')
+      .eq('organisation_id', organisationId)
+      .eq('hsn_code', hsnCode)
+      .limit(1)
+      .maybeSingle();
+    
+    if (!error && data) {
+      return data as MaterialMatch;
+    }
+  }
+
+  // Try fuzzy match by description/name
+  if (description) {
+    const searchTerm = description.toLowerCase().trim();
+    const { data, error } = await supabase
+      .from('materials')
+      .select('id, hsn_code, name, display_name, sale_price, unit')
+      .eq('organisation_id', organisationId)
+      .or(`name.ilike.%${searchTerm}%,display_name.ilike.%${searchTerm}%`)
+      .limit(5)
+      .maybeSingle();
+    
+    if (!error && data) {
+      return data as MaterialMatch;
+    }
+  }
+
+  return null;
+}
+
 export async function loadInvoiceSource(sourceType: InvoiceSourceType, sourceId: string, organisationId: string): Promise<InvoiceSourceDocument> {
   if (sourceType === 'quotation') {
     const { data: header, error: headerError } = await supabase
@@ -419,6 +469,35 @@ export async function loadInvoiceSource(sourceType: InvoiceSourceType, sourceId:
 
     const hsnById = await enrichHsnCodes(items ?? [], organisationId);
 
+    // Match each quotation item to inventory materials
+    const matchedItems = await Promise.all(
+      (items ?? []).map(async (item) => {
+        const matchedMaterial = await matchMaterialByDescriptionOrHsn(
+          item.description ?? '',
+          hsnById.get(item.item_id) ?? null,
+          organisationId
+        );
+
+        return {
+          id: item.id,
+          item_id: matchedMaterial?.id ?? item.item_id ?? null,
+          product_id: matchedMaterial?.id ?? null,
+          description: item.description ?? 'Quotation item',
+          hsn_code: matchedMaterial?.hsn_code ?? hsnById.get(item.item_id) ?? null,
+          qty: Number(item.qty ?? 0),
+          rate: matchedMaterial?.sale_price ?? Number(item.rate ?? 0),
+          amount: Number(item.line_total ?? roundCurrency(Number(item.qty ?? 0) * Number(item.rate ?? 0))),
+          tax_percent: Number(item.tax_percent ?? 18),
+          meta_json: matchedMaterial ? {
+            material_id: matchedMaterial.id,
+            base_rate: matchedMaterial.sale_price,
+            unit: matchedMaterial.unit,
+            matched_from_quotation: true,
+          } : undefined,
+        };
+      })
+    );
+
     const source: QuotationInvoiceSource = {
       type: 'quotation',
       header: {
@@ -427,16 +506,7 @@ export async function loadInvoiceSource(sourceType: InvoiceSourceType, sourceId:
         client_state: header.state ?? null,
         reference: header.reference ?? null,
       },
-      items: (items ?? []).map((item) => ({
-        id: item.id,
-        item_id: item.item_id ?? null,
-        description: item.description ?? 'Quotation item',
-        hsn_code: hsnById.get(item.item_id) ?? null,
-        qty: Number(item.qty ?? 0),
-        rate: Number(item.rate ?? 0),
-        amount: Number(item.line_total ?? roundCurrency(Number(item.qty ?? 0) * Number(item.rate ?? 0))),
-        tax_percent: Number(item.tax_percent ?? 18),
-      })),
+      items: matchedItems,
     };
 
     return source;
@@ -510,8 +580,41 @@ export async function loadInvoiceSource(sourceType: InvoiceSourceType, sourceId:
     .select('*')
     .eq('po_id', sourceId)
     .order('line_order', { ascending: true });
-  
+
   if (lineItemsError) throw lineItemsError;
+
+  // Match each PO line item to inventory materials
+  const matchedLineItems = await Promise.all(
+    (lineItems ?? []).map(async (item) => {
+      const matchedMaterial = await matchMaterialByDescriptionOrHsn(
+        item.description ?? '',
+        item.hsn_sac_code ?? null,
+        organisationId
+      );
+
+      return {
+        id: item.id,
+        item_id: matchedMaterial?.id ?? null,
+        product_id: matchedMaterial?.id ?? null,
+        description: item.description ?? 'PO item',
+        hsn_code: matchedMaterial?.hsn_code ?? item.hsn_sac_code ?? null,
+        qty: Number(item.quantity ?? 0),
+        rate: matchedMaterial?.sale_price ?? Number(item.rate ?? 0),
+        amount: Number(item.amount ?? roundCurrency(Number(item.quantity ?? 0) * Number(item.rate ?? 0))),
+        tax_percent: Number(item.gst_percentage ?? 18),
+        meta_json: {
+          tax_percent: Number(item.gst_percentage ?? 18),
+          uom: matchedMaterial?.unit ?? (item.unit || 'Nos'),
+          item_code: item.item_code || null,
+          ...(matchedMaterial ? {
+            material_id: matchedMaterial.id,
+            base_rate: matchedMaterial.sale_price,
+            matched_from_po: true,
+          } : {}),
+        },
+      };
+    })
+  );
 
   const source: PurchaseOrderInvoiceSource = {
     type: 'po',
@@ -523,22 +626,7 @@ export async function loadInvoiceSource(sourceType: InvoiceSourceType, sourceId:
       po_total_value: Number(header.po_total_value ?? 0),
       remarks: header.remarks ?? null,
     },
-    items: (lineItems ?? []).map((item) => ({
-      id: item.id,
-      item_id: null, // PO items don't reference inventory items
-      product_id: null, // PO items don't reference inventory items
-      description: item.description ?? 'PO item',
-      hsn_code: item.hsn_sac_code ?? null,
-      qty: Number(item.quantity ?? 0),
-      rate: Number(item.rate ?? 0),
-      amount: Number(item.amount ?? roundCurrency(Number(item.quantity ?? 0) * Number(item.rate ?? 0))),
-      tax_percent: Number(item.gst_percentage ?? 18),
-      meta_json: {
-        tax_percent: Number(item.gst_percentage ?? 18),
-        uom: item.unit || 'Nos',
-        item_code: item.item_code || null,
-      },
-    })),
+    items: matchedLineItems,
     materials: [], // PO items are treated as line items, not materials
   };
 

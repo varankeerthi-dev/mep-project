@@ -1,6 +1,7 @@
 export const conversionTypes = [
   'quotation-to-proforma',
   'quotation-to-invoice',
+  'quotation-to-dc',
   'dc-to-quotation',
   'dc-to-proforma',
   'proforma-to-invoice',
@@ -182,12 +183,32 @@ export interface ConvertedQuotationItem {
   uom: string;
 }
 
-export type ConvertedData = ConvertedInvoiceData | ConvertedProformaData | ConvertedQuotationData;
+export interface ConvertedDCData {
+  client_id: string;
+  project_id: string | null;
+  dc_number: string | null;
+  dc_date: string;
+  ship_to_address: string | null;
+  ship_to_state: string | null;
+  po_number: string | null;
+  remarks: string | null;
+  items: ConvertedDCItem[];
+}
+
+export interface ConvertedDCItem {
+  material_id: string | null;
+  material_name: string;
+  quantity: number;
+  rate: number;
+  amount: number;
+}
+
+export type ConvertedData = ConvertedInvoiceData | ConvertedProformaData | ConvertedQuotationData | ConvertedDCData;
 
 export interface ConversionResult {
   data: ConvertedData;
   sourceType: string;
   sourceNumber: string;
   conversionType: ConversionType;
-  targetDocumentType: 'invoice' | 'proforma' | 'quotation';
+  targetDocumentType: 'invoice' | 'proforma' | 'quotation' | 'dc';
 }

@@ -579,7 +579,38 @@ onClick={() => navigate(`/quotation/view?id=${q.id}`)}
 
                           <div className="my-1 border-t border-slate-100" />
 
-                          {/* Section 2: Modify actions */}
+                          {/* Section 2: Convert actions */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenMenuId(null);
+                              navigate(`/invoice/create?convertFrom=quotation-to-invoice&sourceId=${q.id}`);
+                            }}
+                            className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-slate-600 transition-all hover:bg-slate-100/60 hover:text-slate-900"
+                            style={{ padding: '8px' }}
+                          >
+                            Convert to Invoice
+                          </button>
+                          <button onClick={() => {
+                toggleMenu(q.id);
+                navigate(`/proforma/create?convertFrom=quotation-to-proforma&sourceId=${q.id}`);
+              }}>Convert to Proforma</button>
+
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenMenuId(null);
+                              navigate(`/dc/create?convertFrom=quotation-to-dc&sourceId=${q.id}`);
+                            }}
+                            className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-slate-600 transition-all hover:bg-slate-100/60 hover:text-slate-900"
+                            style={{ padding: '8px' }}
+                          >
+                            Convert to Delivery
+                          </button>
+
+                          <div className="my-1 border-t border-slate-100" />
+
+                          {/* Section 3: Modify actions */}
                           <button
                             onClick={(e) => {
                               e.stopPropagation();

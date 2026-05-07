@@ -8,9 +8,11 @@ import {
   type ConvertedInvoiceData,
   type ConvertedProformaData,
   type ConvertedQuotationData,
+  type ConvertedDCData,
   type ConvertedInvoiceItem,
   type ConvertedProformaItem,
   type ConvertedQuotationItem,
+  type ConvertedDCItem,
   type ConversionResult,
 } from './types';
 
@@ -20,7 +22,7 @@ export async function fetchSourceDocument(
   sourceId: string,
   organisationId: string
 ): Promise<QuotationSourceData | DCSourceData | ProformaSourceData> {
-  if (type === 'quotation-to-proforma' || type === 'quotation-to-invoice') {
+  if (type === 'quotation-to-proforma' || type === 'quotation-to-invoice' || type === 'quotation-to-dc') {
     const { data, error } = await supabase
       .from('quotation_header')
       .select(`
@@ -118,7 +120,7 @@ export async function fetchSourceDocument(
       client_name: data.client_name,
       client_id: null,
       project_id: data.project_id,
-      state: '',
+      ship_to_state: '',
       po_no: '',
       remarks: data.remarks,
       dc_date: data.dc_date,
@@ -286,6 +288,39 @@ export function transformQuotationToInvoice(
   };
 }
 
+// Transform Quotation to Delivery Challan
+export function transformQuotationToDC(
+  source: QuotationSourceData
+): ConversionResult {
+  const items: ConvertedDCItem[] = source.items.map((item) => ({
+    material_id: item.item_id,
+    material_name: item.description,
+    quantity: item.qty,
+    rate: item.rate,
+    amount: item.line_total,
+  }));
+
+  const data: ConvertedDCData = {
+    client_id: source.client_id,
+    project_id: source.project_id,
+    dc_number: null, // Will be auto-generated
+    dc_date: new Date().toISOString().split('T')[0],
+    ship_to_address: source.billing_address,
+    ship_to_state: source.state,
+    po_number: source.reference,
+    remarks: source.remarks,
+    items,
+  };
+
+  return {
+    data,
+    sourceType: 'Quotation',
+    sourceNumber: source.quotation_no,
+    conversionType: 'quotation-to-dc',
+    targetDocumentType: 'dc',
+  };
+}
+
 // Transform DC to Quotation
 export function transformDCToQuotation(source: DCSourceData): ConversionResult {
   const items: ConvertedQuotationItem[] = source.items.map((item) => ({
@@ -408,6 +443,8 @@ export function transformSourceToTarget(
       return transformQuotationToProforma(sourceData as QuotationSourceData);
     case 'quotation-to-invoice':
       return transformQuotationToInvoice(sourceData as QuotationSourceData);
+    case 'quotation-to-dc':
+      return transformQuotationToDC(sourceData as QuotationSourceData);
     case 'dc-to-quotation':
       return transformDCToQuotation(sourceData as DCSourceData);
     case 'dc-to-proforma':
@@ -444,6 +481,7 @@ export function getSourceStatusAfterConversion(conversionType: ConversionType): 
   const statusMap: Record<ConversionType, string> = {
     'quotation-to-proforma': 'Converted to Proforma',
     'quotation-to-invoice': 'Converted to Sales',
+    'quotation-to-dc': 'Converted to Delivery',
     'dc-to-quotation': 'Converted to Quotation',
     'dc-to-proforma': 'Converted to Proforma',
     'proforma-to-invoice': 'Converted to Invoice',

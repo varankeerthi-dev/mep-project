@@ -23,6 +23,8 @@ type InvoiceItemsEditorProps = {
   error?: string;
   productOptions?: InvoiceMaterialOption[];
   setValue?: UseFormSetValue<InvoiceEditorFormValues>;
+  formState?: any;
+  isApplyingPOItems?: boolean;
 };
 
 function SortableRow({ children, id, index }: { children: React.ReactNode; id: string; index: number }) {
@@ -54,12 +56,20 @@ export function InvoiceItemsEditor({
   error,
   productOptions = [],
   setValue,
+  formState,
+  isApplyingPOItems = false,
 }: InvoiceItemsEditorProps) {
   const { organisation } = useAuth();
   const [searchTerms, setSearchTerms] = useState<Record<number, string>>({});
   const [openDropdowns, setOpenDropdowns] = useState<Record<number, boolean>>({});
   const [selectedIndices, setSelectedIndices] = useState<Record<number, number>>({});
+  const [makeDropdowns, setMakeDropdowns] = useState<Record<number, boolean>>({});
+  const [variantDropdowns, setVariantDropdowns] = useState<Record<number, boolean>>({});
+  const [selectedMakes, setSelectedMakes] = useState<Record<number, string>>({});
+  const [selectedVariants, setSelectedVariants] = useState<Record<number, string>>({});
   const dropdownRefs = useRef<Record<number, HTMLDivElement | null>>({});
+  const makeDropdownRefs = useRef<Record<number, HTMLDivElement | null>>({});
+  const variantDropdownRefs = useRef<Record<number, HTMLDivElement | null>>({});
   const inputRefs = useRef<Record<number, HTMLInputElement | null>>({});
 
   // Get round off setting from organisation
@@ -215,6 +225,31 @@ export function InvoiceItemsEditor({
     }
   }, [getFilteredMaterials, selectedIndices, handleMaterialChange, setValue]);
 
+  const handleMakeSelect = useCallback((index: number, make: string) => {
+    setValue(`items.${index}.meta_json.make`, make, { shouldDirty: true });
+    setSelectedMakes(prev => ({ ...prev, [index]: make }));
+    setMakeDropdowns(prev => ({ ...prev, [index]: false }));
+  }, [setValue]);
+
+  const handleVariantSelect = useCallback((index: number, variant: string) => {
+    setValue(`items.${index}.meta_json.variant`, variant, { shouldDirty: true });
+    setSelectedVariants(prev => ({ ...prev, [index]: variant }));
+    setVariantDropdowns(prev => ({ ...prev, [index]: false }));
+  }, [setValue]);
+
+  const getMaterialMakes = useCallback((materialId: string) => {
+    const material = productOptions.find(m => m.id === materialId);
+    if (!material || !material.variants) return [];
+    const makes = [...new Set(material.variants.map(v => v.make || '').filter(Boolean))];
+    return makes;
+  }, [productOptions]);
+
+  const getMaterialVariants = useCallback((materialId: string, make?: string) => {
+    const material = productOptions.find(m => m.id === materialId);
+    if (!material || !material.variants) return [];
+    return material.variants.filter(v => !make || v.make === make);
+  }, [productOptions]);
+
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -225,11 +260,29 @@ export function InvoiceItemsEditor({
           setOpenDropdowns(prev => ({ ...prev, [Number(index)]: false }));
         }
       });
+
+      // Close make dropdowns
+      Object.keys(makeDropdownRefs.current).forEach(index => {
+        const dropdown = makeDropdownRefs.current[Number(index)];
+        const input = inputRefs.current[Number(index)];
+        if (dropdown && !dropdown.contains(e.target as Node) && input && !input.contains(e.target as Node)) {
+          setMakeDropdowns(prev => ({ ...prev, [Number(index)]: false }));
+        }
+      });
+
+      // Close variant dropdowns
+      Object.keys(variantDropdownRefs.current).forEach(index => {
+        const dropdown = variantDropdownRefs.current[Number(index)];
+        const input = inputRefs.current[Number(index)];
+        if (dropdown && !dropdown.contains(e.target as Node) && input && !input.contains(e.target as Node)) {
+          setVariantDropdowns(prev => ({ ...prev, [Number(index)]: false }));
+        }
+      });
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [openDropdowns, makeDropdowns, variantDropdowns]);
 
   // Cleanup refs when fields are removed
   useEffect(() => {
@@ -239,6 +292,18 @@ export function InvoiceItemsEditor({
       if (index >= fields.length) {
         dropdownRefs.current[index] = null;
         inputRefs.current[index] = null;
+      }
+    });
+    Object.keys(makeDropdownRefs.current).forEach(key => {
+      const index = Number(key);
+      if (index >= fields.length) {
+        makeDropdownRefs.current[index] = null;
+      }
+    });
+    Object.keys(variantDropdownRefs.current).forEach(key => {
+      const index = Number(key);
+      if (index >= fields.length) {
+        variantDropdownRefs.current[index] = null;
       }
     });
   }, [fields.length]);
@@ -251,13 +316,39 @@ export function InvoiceItemsEditor({
         const dropdown = dropdownRefs.current[Number(index)];
         if (input && dropdown) {
           const rect = input.getBoundingClientRect();
+          dropdown.style.top = `${rect.bottom + window.scrollY + 2}px`;
+          dropdown.style.left = `${rect.left + window.scrollX}px`;
+          dropdown.style.width = `${rect.width}px`;
+        }
+      }
+    });
+
+    Object.keys(makeDropdowns).forEach(index => {
+      if (makeDropdowns[Number(index)]) {
+        const input = inputRefs.current[Number(index)];
+        const dropdown = makeDropdownRefs.current[Number(index)];
+        if (input && dropdown) {
+          const rect = input.getBoundingClientRect();
           dropdown.style.top = `${rect.bottom + 2}px`;
           dropdown.style.left = `${rect.left}px`;
           dropdown.style.width = `${rect.width}px`;
         }
       }
     });
-  }, [openDropdowns]);
+
+    Object.keys(variantDropdowns).forEach(index => {
+      if (variantDropdowns[Number(index)]) {
+        const input = inputRefs.current[Number(index)];
+        const dropdown = variantDropdownRefs.current[Number(index)];
+        if (input && dropdown) {
+          const rect = input.getBoundingClientRect();
+          dropdown.style.top = `${rect.bottom + 2}px`;
+          dropdown.style.left = `${rect.left}px`;
+          dropdown.style.width = `${rect.width}px`;
+        }
+      }
+    });
+  }, [openDropdowns, makeDropdowns, variantDropdowns]);
 
   return (
     <div style={{ border: '1px solid #d4d4d4', borderRadius: '4px', overflow: 'hidden' }}>
@@ -325,6 +416,20 @@ export function InvoiceItemsEditor({
                 #
               </th>
               {mode === 'itemized' && (
+                <th style={{ 
+                  padding: '6px 4px', 
+                  textAlign: 'left', 
+                  fontSize: '10px', 
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.03em',
+                  color: '#737373',
+                  minWidth: '150px'
+                }}>
+                  MATERIAL
+                </th>
+              )}
+              {mode !== 'itemized' && (
                 <th style={{ 
                   padding: '6px 4px', 
                   textAlign: 'left', 
@@ -531,6 +636,116 @@ export function InvoiceItemsEditor({
                           background: 'transparent',
                         }}
                       />
+                      {openDropdowns[index] && (
+                        <div
+                          ref={(el) => { dropdownRefs.current[index] = el; }}
+                          style={{
+                            position: 'fixed',
+                            background: 'white',
+                            border: '1px solid #d4d4d4',
+                            borderRadius: '4px',
+                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                            zIndex: 9999,
+                            maxHeight: '200px',
+                            overflowY: 'auto',
+                            minWidth: '200px'
+                          }}
+                        >
+                          {getFilteredMaterials(index).map((material, idx) => (
+                            <div
+                              key={material.id}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleMaterialSelect(index, material.id);
+                              }}
+                              style={{
+                                padding: '8px 12px',
+                                cursor: 'pointer',
+                                fontSize: '11px',
+                                borderBottom: '1px solid #f3f4f6',
+                                background: selectedIndices[index] === idx ? '#f5f5f5' : 'white'
+                              }}
+                              onMouseEnter={(e) => e.currentTarget.style.background = '#f5f5f5'}
+                              onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+                            >
+                              {material.name}
+                            </div>
+                          ))}
+                          {getFilteredMaterials(index).length === 0 && (
+                            <div style={{ padding: '8px 12px', fontSize: '11px', color: '#737373' }}>
+                              No materials found
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </td>
+                  )}
+                  {mode !== 'itemized' && (
+                    <td style={{ padding: '4px', position: 'relative' }}>
+                      <input
+                        ref={(el) => { inputRefs.current[index] = el; }}
+                        type="text"
+                        value={getSelectedMaterialName(index)}
+                        onChange={(e) => handleSearchChange(index, e.target.value)}
+                        onFocus={(e) => {
+                          setOpenDropdowns({ ...openDropdowns, [index]: true });
+                          e.currentTarget.style.borderColor = '#d4d4d4';
+                        }}
+                        onClick={() => handleInputClick(index)}
+                        onKeyDown={(e) => handleKeyDown(index, e)}
+                        onBlur={(e) => e.currentTarget.style.borderColor = 'transparent'}
+                        placeholder=""
+                        style={{
+                          width: '100%',
+                          padding: '4px 6px',
+                          border: '1px solid transparent',
+                          borderRadius: '2px',
+                          fontSize: '11px',
+                          background: 'transparent',
+                        }}
+                      />
+                      {openDropdowns[index] && (
+                        <div
+                          ref={(el) => { dropdownRefs.current[index] = el; }}
+                          style={{
+                            position: 'fixed',
+                            background: 'white',
+                            border: '1px solid #d4d4d4',
+                            borderRadius: '4px',
+                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                            zIndex: 9999,
+                            maxHeight: '200px',
+                            overflowY: 'auto',
+                            minWidth: '200px'
+                          }}
+                        >
+                          {getFilteredMaterials(index).map((material, idx) => (
+                            <div
+                              key={material.id}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleMaterialSelect(index, material.id);
+                              }}
+                              style={{
+                                padding: '8px 12px',
+                                cursor: 'pointer',
+                                fontSize: '11px',
+                                borderBottom: '1px solid #f3f4f6',
+                                background: selectedIndices[index] === idx ? '#f5f5f5' : 'white'
+                              }}
+                              onMouseEnter={(e) => e.currentTarget.style.background = '#f5f5f5'}
+                              onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+                            >
+                              {material.name}
+                            </div>
+                          ))}
+                          {getFilteredMaterials(index).length === 0 && (
+                            <div style={{ padding: '8px 12px', fontSize: '11px', color: '#737373' }}>
+                              No materials found
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </td>
                   )}
                   <td style={{ padding: '4px' }}>
@@ -577,10 +792,16 @@ export function InvoiceItemsEditor({
                       onBlur={(e) => e.currentTarget.style.borderColor = 'transparent'}
                     />
                   </td>
-                  <td style={{ padding: '4px' }}>
+                  <td style={{ padding: '4px', position: 'relative' }}>
                     <input
                       {...register(`items.${index}.meta_json.make` as const)}
                       placeholder="-"
+                      onClick={() => {
+                        const materialId = items[index]?.meta_json?.material_id as string | undefined;
+                        if (materialId) {
+                          setMakeDropdowns(prev => ({ ...prev, [index]: true }));
+                        }
+                      }}
                       style={{
                         width: '100%',
                         padding: '4px 6px',
@@ -588,16 +809,68 @@ export function InvoiceItemsEditor({
                         borderRadius: '2px',
                         fontSize: '11px',
                         background: 'transparent',
-                        textAlign: 'left'
+                        textAlign: 'left',
+                        cursor: 'pointer'
                       }}
-                      onFocus={(e) => e.currentTarget.style.borderColor = '#d4d4d4'}
+                      onFocus={(e) => {
+                        e.currentTarget.style.borderColor = '#d4d4d4';
+                        const materialId = items[index]?.meta_json?.material_id as string | undefined;
+                        if (materialId) {
+                          setMakeDropdowns(prev => ({ ...prev, [index]: true }));
+                        }
+                      }}
                       onBlur={(e) => e.currentTarget.style.borderColor = 'transparent'}
                     />
+                    {makeDropdowns[index] && (
+                      <div
+                        ref={(el) => { makeDropdownRefs.current[index] = el; }}
+                        style={{
+                          position: 'absolute',
+                          top: '100%',
+                          left: 0,
+                          right: 0,
+                          background: 'white',
+                          border: '1px solid #d4d4d4',
+                          borderRadius: '4px',
+                          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                          zIndex: 1000,
+                          maxHeight: '200px',
+                          overflowY: 'auto'
+                        }}
+                      >
+                        {(() => {
+                          const materialId = items[index]?.meta_json?.material_id as string | undefined;
+                          const makes = materialId ? getMaterialMakes(materialId) : [];
+                          return makes.map((make, idx) => (
+                            <div
+                              key={idx}
+                              onClick={() => handleMakeSelect(index, make)}
+                              style={{
+                                padding: '8px 12px',
+                                cursor: 'pointer',
+                                fontSize: '11px',
+                                borderBottom: '1px solid #f3f4f6'
+                              }}
+                              onMouseEnter={(e) => e.currentTarget.style.background = '#f5f5f5'}
+                              onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+                            >
+                              {make}
+                            </div>
+                          ));
+                        })()}
+                      </div>
+                    )}
                   </td>
-                  <td style={{ padding: '4px' }}>
+                  <td style={{ padding: '4px', position: 'relative' }}>
                     <input
                       {...register(`items.${index}.meta_json.variant` as const)}
                       placeholder="-"
+                      onClick={() => {
+                        const materialId = items[index]?.meta_json?.material_id as string | undefined;
+                        if (materialId) {
+                          setVariantDropdowns(prev => ({ ...prev, [index]: true }));
+                        }
+                      }}
                       style={{
                         width: '100%',
                         padding: '4px 6px',
@@ -605,11 +878,58 @@ export function InvoiceItemsEditor({
                         borderRadius: '2px',
                         fontSize: '11px',
                         background: 'transparent',
-                        textAlign: 'left'
+                        textAlign: 'left',
+                        cursor: 'pointer'
                       }}
-                      onFocus={(e) => e.currentTarget.style.borderColor = '#d4d4d4'}
+                      onFocus={(e) => {
+                        e.currentTarget.style.borderColor = '#d4d4d4';
+                        const materialId = items[index]?.meta_json?.material_id as string | undefined;
+                        if (materialId) {
+                          setVariantDropdowns(prev => ({ ...prev, [index]: true }));
+                        }
+                      }}
                       onBlur={(e) => e.currentTarget.style.borderColor = 'transparent'}
                     />
+                    {variantDropdowns[index] && (
+                      <div
+                        ref={(el) => { variantDropdownRefs.current[index] = el; }}
+                        style={{
+                          position: 'absolute',
+                          top: '100%',
+                          left: 0,
+                          right: 0,
+                          background: 'white',
+                          border: '1px solid #d4d4d4',
+                          borderRadius: '4px',
+                          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                          zIndex: 1000,
+                          maxHeight: '200px',
+                          overflowY: 'auto'
+                        }}
+                      >
+                        {(() => {
+                          const materialId = items[index]?.meta_json?.material_id as string | undefined;
+                          const selectedMake = selectedMakes[index] || items[index]?.meta_json?.make as string;
+                          const variants = materialId ? getMaterialVariants(materialId, selectedMake) : [];
+                          return variants.map((variant, idx) => (
+                            <div
+                              key={idx}
+                              onClick={() => handleVariantSelect(index, variant.variant_name || '')}
+                              style={{
+                                padding: '8px 12px',
+                                cursor: 'pointer',
+                                fontSize: '11px',
+                                borderBottom: '1px solid #f3f4f6'
+                              }}
+                              onMouseEnter={(e) => e.currentTarget.style.background = '#f5f5f5'}
+                              onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+                            >
+                              {variant.variant_name || `${variant.make} - ${variant.sale_price}`}
+                            </div>
+                          ));
+                        })()}
+                      </div>
+                    )}
                   </td>
                   <td style={{ padding: '4px' }}>
                     <input
@@ -699,7 +1019,38 @@ export function InvoiceItemsEditor({
                     <input
                       type="number"
                       step={roundOffEnabled ? "1" : "0.01"}
-                      {...register(`items.${index}.rate`, { valueAsNumber: true })}
+                      {...register(`items.${index}.rate`, { 
+                        valueAsNumber: true,
+                        onChange: (e) => {
+                          // Prevent focus handling during PO item application
+                          if (isApplyingPOItems) {
+                            return;
+                          }
+                          
+                          // Debug: Log rate changes
+                          console.log(`Rate ${index} changed:`, e.target.value);
+                          
+                          // Recalculate amount when rate changes
+                          const qty = Number(items[index]?.qty || 0);
+                          const rate = Number(e.target.value || 0);
+                          const discountPercent = Number(items[index]?.discount_percent || 0);
+                          const rateAfterDiscount = rate - (rate * discountPercent / 100);
+                          const amount = round2(qty * rateAfterDiscount);
+                          if (setValue) {
+                            setValue(`items.${index}.amount`, amount, { shouldDirty: true });
+                          }
+                        },
+                        onBlur: (e) => {
+                          // Debug: Log rate on blur
+                          console.log(`Rate ${index} blurred:`, e.target.value);
+                          
+                          // Ensure rate is not negative on blur
+                          const rate = Number(e.target.value || 0);
+                          if (rate < 0 && setValue) {
+                            setValue(`items.${index}.rate`, 0, { shouldDirty: true });
+                          }
+                        }
+                      })}
                       placeholder="0"
                       style={{
                         width: '100%',
@@ -711,7 +1062,14 @@ export function InvoiceItemsEditor({
                         background: 'transparent'
                       }}
                       onFocus={(e) => e.currentTarget.style.borderColor = '#d4d4d4'}
-                      onBlur={(e) => e.currentTarget.style.borderColor = 'transparent'}
+                      onBlur={(e) => {
+                        e.currentTarget.style.borderColor = 'transparent';
+                        // Additional blur handling
+                        const rate = Number(e.target.value || 0);
+                        if (rate < 0 && setValue) {
+                          setValue(`items.${index}.rate`, 0, { shouldDirty: true });
+                        }
+                      }}
                     />
                   </td>
                   <td style={{ padding: '4px' }}>

@@ -47,23 +47,44 @@ export const InvoiceEditorSchema = z
     company_state: z.string().trim().min(1, 'Company state is required.'),
     client_state: z.string().trim().nullable().optional(),
     shipping_address_id: z.string().uuid().nullable().optional(),
-    items: z.array(InvoiceEditorItemSchema).min(1, 'At least one line item is required.'),
+    items: z.array(InvoiceEditorItemSchema).min(1, 'At least one line item is required.').optional(),
     materials: z.array(InvoiceEditorMaterialSchema).default([]),
   })
   .superRefine((value, ctx) => {
-    if (value.mode === 'lot' && value.items.length !== 1) {
+    // Skip items length validation for PO-based invoices
+    const isPOBased = value.source_type === 'po';
+    
+    if (value.mode === 'lot' && value.items.length !== 1 && !isPOBased) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['items'],
         message: 'Lot invoices must contain exactly one line item.',
       });
     }
-
+    
     if (value.mode !== 'lot' && value.materials.length > 0) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['materials'],
         message: 'Materials are only used in lot mode.',
+      });
+    }
+    
+    // Ensure PO-based invoices have at least one item
+    if (isPOBased && value.items.length < 1) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['items'],
+        message: 'PO-based invoices must have at least one line item.',
+      });
+    }
+    
+    // For non-PO invoices, ensure at least one item
+    if (!isPOBased && value.items.length < 1) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['items'],
+        message: 'At least one line item is required.',
       });
     }
 

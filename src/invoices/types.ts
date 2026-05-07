@@ -92,4 +92,5 @@ export interface InvoiceClientSummary {
   gst_number: string | null;
   state: string | null;
   default_template_id: string | null;
+  email: string | null;
 }
