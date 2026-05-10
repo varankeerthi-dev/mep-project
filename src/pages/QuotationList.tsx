@@ -591,10 +591,17 @@ onClick={() => navigate(`/quotation/view?id=${q.id}`)}
                           >
                             Convert to Invoice
                           </button>
-                          <button onClick={() => {
-                toggleMenu(q.id);
-                navigate(`/proforma/create?convertFrom=quotation-to-proforma&sourceId=${q.id}`);
-              }}>Convert to Proforma</button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenMenuId(null);
+                              navigate(`/proforma/create?convertFrom=quotation-to-proforma&sourceId=${q.id}`);
+                            }}
+                            className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-slate-600 transition-all hover:bg-slate-100/60 hover:text-slate-900"
+                            style={{ padding: '8px' }}
+                          >
+                            Convert to Proforma
+                          </button>
 
                           <button
                             onClick={(e) => {

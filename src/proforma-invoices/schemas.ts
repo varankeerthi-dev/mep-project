@@ -39,6 +39,9 @@ export const ProformaItemMetaSchema = z
   .object({
     tax_percent: PercentSchema.optional(),
     source_item_id: z.string().optional(),
+    uom: z.string().optional(),
+    base_rate: z.number().optional(),
+    rate_after_discount: z.number().optional(),
   })
   .catchall(JsonValueSchema);
 
@@ -46,6 +49,8 @@ export const ProformaItemSchema = z
   .object({
     id: z.string().optional(),
     proforma_id: z.string().optional(),
+    item_id: z.string().optional().nullable(),
+    variant_id: z.string().optional().nullable(),
     description: z.string(),
     hsn_code: z.string().optional().nullable(),
     qty: z.number().default(1),
@@ -54,6 +59,9 @@ export const ProformaItemSchema = z
     discount_percent: z.number().default(0),
     discount_amount: z.number().default(0),
     tax_percent: z.number().default(18),
+    make: z.string().optional().nullable(),
+    variant: z.string().optional().nullable(),
+    unit: z.string().optional().nullable(),
     meta_json: z.record(z.any()).default({}),
     sort_order: z.number().optional(),
   });
@@ -89,6 +97,8 @@ export const ProformaSchema = z
     items: z.array(z.object({
       id: z.string().optional(),
       proforma_id: z.string().optional(),
+      item_id: z.string().optional().nullable(),
+      variant_id: z.string().optional().nullable(),
       description: z.string(),
       hsn_code: z.string().optional().nullable(),
       qty: z.number().default(1),
@@ -97,6 +107,9 @@ export const ProformaSchema = z
       discount_percent: z.number().default(0),
       discount_amount: z.number().default(0),
       tax_percent: z.number().default(18),
+      make: z.string().optional().nullable(),
+      variant: z.string().optional().nullable(),
+      unit: z.string().optional().nullable(),
       meta_json: z.record(z.any()).default({}),
       sort_order: z.number().optional(),
     })).default([]),

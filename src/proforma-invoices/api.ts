@@ -37,7 +37,7 @@ const PROFORMA_SELECT = `
   created_at,
   updated_at,
   client:clients(id, client_name, gstin, state, default_template_id, email),
-  items:proforma_items(id, proforma_id, organisation_id, description, hsn_code, qty, rate, amount, discount_percent, discount_amount, tax_percent, meta_json, sort_order)
+  items:proforma_items(id, proforma_id, organisation_id, item_id, variant_id, description, hsn_code, qty, rate, amount, discount_percent, discount_amount, tax_percent, make, variant, unit, meta_json, sort_order)
 `;
 
 function parseClientSummary(client: any): ProformaClientSummary | null {
@@ -58,6 +58,8 @@ function parseProformaRecord(row: any): ProformaWithRelations {
         ProformaItemSchema.parse({
           id: item.id,
           proforma_id: item.proforma_id,
+          item_id: item.item_id ?? null,
+          variant_id: item.variant_id ?? null,
           description: item.description,
           hsn_code: item.hsn_code ?? null,
           qty: item.qty,
@@ -66,6 +68,9 @@ function parseProformaRecord(row: any): ProformaWithRelations {
           discount_percent: item.discount_percent ?? 0,
           discount_amount: item.discount_amount ?? 0,
           tax_percent: item.tax_percent ?? 18,
+          make: item.make ?? null,
+          variant: item.variant ?? null,
+          unit: item.unit ?? null,
           meta_json: item.meta_json ?? {},
           sort_order: item.sort_order ?? 0,
         }),
@@ -120,6 +125,11 @@ function buildProformaPayload(proforma: Proforma): {
     discount_percent: number;
     discount_amount: number;
     tax_percent: number;
+    item_id: string | null;
+    variant_id: string | null;
+    make: string | null;
+    variant: string | null;
+    unit: string | null;
     meta_json: Record<string, unknown>;
     sort_order: number;
   }>;
@@ -136,6 +146,11 @@ function buildProformaPayload(proforma: Proforma): {
       discount_percent: item.discount_percent ?? 0,
       discount_amount: discountAmt,
       tax_percent: item.tax_percent ?? DEFAULT_TAX,
+      item_id: item.item_id ?? null,
+      variant_id: item.variant_id ?? null,
+      make: item.make ?? null,
+      variant: item.variant ?? null,
+      unit: item.unit ?? null,
       meta_json: { tax_percent: item.tax_percent ?? DEFAULT_TAX, ...item.meta_json },
       sort_order: idx,
     };
@@ -207,6 +222,11 @@ function buildProformaPayload(proforma: Proforma): {
       discount_percent: item.discount_percent ?? 0,
       discount_amount: item.discount_amount ?? 0,
       tax_percent: item.tax_percent ?? DEFAULT_TAX,
+      item_id: item.item_id ?? null,
+      variant_id: item.variant_id ?? null,
+      make: item.make ?? null,
+      variant: item.variant ?? null,
+      unit: item.unit ?? null,
       meta_json: item.meta_json ?? {},
       sort_order: index,
     })),

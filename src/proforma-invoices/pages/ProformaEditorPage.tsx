@@ -1,19 +1,21 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useRef, useMemo, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { useAuth } from '../../App';
-import { withSessionCheck } from '../../queryClient';
 import { supabase } from '../../supabase';
-import { getProformaById, createProforma, updateProforma, sendProforma, markAccepted, markRejected } from '../api';
-import { calculateTotals, isInterstate } from '../logic';
-import { formatCurrency } from '../../invoices/ui-utils';
-import type { ProformaInput } from '../schemas';
-import type { ProformaStatus } from '../types';
+import { useAuth } from '../../contexts/AuthContext';
 import { useClients } from '../../hooks/useClients';
-import { useClientPOs } from '../hooks';
-import { useConvertDocument, useConversionStatus, getSourceTableName } from '../../conversions/hooks';
+import { useConvertDocument } from '../../conversions/hooks';
 import type { ConversionType } from '../../conversions/types';
-import { ArrowLeft, Save, Send, CheckCircle, FileCheck, Loader2, Plus, Trash2 } from 'lucide-react';
+import { formatCurrency } from '../../utils/formatters';
+import { isInterstate } from '../logic';
+import { createProforma, updateProforma, getProformaById, sendProforma, markAccepted } from '../api';
+import type { ProformaInput, ProformaItem, ProformaStatus } from '../types';
+import { FileText, Download, Trash2, Plus, ArrowLeft, Save, Send, CheckCircle, FileCheck, Loader2 } from 'lucide-react';
+import ItemSelectorDrawer from '../../components/ItemSelectorDrawer';
+import ItemCreateDrawer from '../../components/ItemCreateDrawer';
+import { useClientPOs } from '../hooks';
+import { useConversionStatus, getSourceTableName } from '../../conversions/hooks';
+import { withSessionCheck } from '../../queryClient';
 
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap');
@@ -275,8 +277,13 @@ interface LineItem {
   rate: number;
   amount: number;
   discount_percent: number;
-  discount_amount: number;
+  rate_after_discount: number;
   tax_percent: number;
+  item_id: string | null;
+  variant_id: string | null;
+  make: string | null;
+  variant: string | null;
+  unit: string | null;
 }
 
 export default function ProformaEditorPage() {
@@ -293,15 +300,13 @@ export default function ProformaEditorPage() {
   const conversionInfoRef = useRef<{ type: ConversionType; sourceId: string } | null>(null);
 
   const [clientId, setClientId] = useState('');
-  const [items, setItems] = useState<LineItem[]>([{ description: '', hsn_code: null, qty: 1, rate: 0, amount: 0, discount_percent: 0, discount_amount: 0, tax_percent: 18 }]);
+  const [items, setItems] = useState<LineItem[]>([{ description: '', hsn_code: null, qty: 1, rate: 0, amount: 0, discount_percent: 0, rate_after_discount: 0, tax_percent: 18, item_id: null, variant_id: null, make: null, variant: null, unit: null }]);
   const [companyState, setCompanyState] = useState('');
   const [clientState, setClientState] = useState('');
   const [status, setStatus] = useState<ProformaStatus>('draft');
   const [notes, setNotes] = useState('');
   const [terms, setTerms] = useState('');
   const [paymentTerms, setPaymentTerms] = useState('');
-  const [discountPercent, setDiscountPercent] = useState(0);
-  const [discountAmount, setDiscountAmount] = useState(0);
   const [poNumber, setPoNumber] = useState('');
   const [poDate, setPoDate] = useState('');
   const [manualPO, setManualPO] = useState(false);
@@ -309,6 +314,9 @@ export default function ProformaEditorPage() {
   const [saving, setSaving] = useState(false);
   const [proformaDate, setProformaDate] = useState(new Date().toISOString().split('T')[0]);
   const [proformaNumber, setProformaNumber] = useState('');
+  const [showItemSelectorDrawer, setShowItemSelectorDrawer] = useState(false);
+  const [showItemCreateDrawer, setShowItemCreateDrawer] = useState(false);
+  const [roundOff, setRoundOff] = useState(false);
 
   const { data: clients = [] } = useClients();
   const { data: clientPOs = [] } = useClientPOs(clientId);
@@ -386,10 +394,15 @@ export default function ProformaEditorPage() {
               hsn_code: null,
               qty: item.quantity,
               rate: item.rate_per_unit,
-              amount: item.amount || (item.quantity * item.rate_per_unit * (1 + (item.gst_percentage || 18) / 100)),
+              amount: item.amount || (item.quantity * item.rate_per_unit),
               discount_percent: 0,
-              discount_amount: 0,
-              tax_percent: item.gst_percentage || 18
+              rate_after_discount: item.rate_per_unit,
+              tax_percent: item.gst_percentage || 18,
+              item_id: null,
+              variant_id: null,
+              make: null,
+              variant: null,
+              unit: item.unit || 'Nos',
             }));
             setItems(proformaItems);
           }
@@ -496,16 +509,26 @@ export default function ProformaEditorPage() {
   useEffect(() => {
     if (proforma) {
       setClientId(proforma.client_id);
-      setItems(proforma.items.map(i => ({
-        description: i.description,
-        hsn_code: i.hsn_code,
-        qty: i.qty,
-        rate: i.rate,
-        amount: i.amount,
-        discount_percent: i.discount_percent || 0,
-        discount_amount: i.discount_amount || 0,
-        tax_percent: i.tax_percent || 18,
-      })));
+      setItems(proforma.items.map(i => {
+        const discountPercent = i.discount_percent || 0;
+        const baseRate = i.rate || 0;
+        const rateAfterDiscount = baseRate - (baseRate * discountPercent / 100);
+        return {
+          description: i.description,
+          hsn_code: i.hsn_code,
+          qty: i.qty,
+          rate: i.rate,
+          amount: i.amount,
+          discount_percent: discountPercent,
+          rate_after_discount: rateAfterDiscount,
+          tax_percent: i.tax_percent || 18,
+          item_id: i.item_id || null,
+          variant_id: i.variant_id || null,
+          make: i.make || null,
+          variant: i.variant || null,
+          unit: i.unit || null,
+        };
+      }));
       setCompanyState(proforma.company_state ?? '');
       setClientState(proforma.client_state ?? '');
       setStatus(proforma.status);
@@ -513,8 +536,6 @@ export default function ProformaEditorPage() {
       setTerms(proforma.terms ?? '');
       setTemplateId(proforma.template_id ?? '');
       setPaymentTerms(proforma.payment_terms ?? '');
-      setDiscountPercent(proforma.discount_percent || 0);
-      setDiscountAmount(proforma.discount_amount || 0);
     }
   }, [proforma]);
 
@@ -530,12 +551,6 @@ export default function ProformaEditorPage() {
 
     const convertedData = conversionQuery.data.data as any;
 
-    console.log('Conversion Data Pre-fill:', {
-      convertedData,
-      clientId: convertedData.client_id,
-      items: convertedData.items,
-    });
-
     // Pre-fill form with converted data
     if (convertedData.client_id) {
       setClientId(convertedData.client_id);
@@ -550,45 +565,45 @@ export default function ProformaEditorPage() {
 
     // Pre-fill items
     if (convertedData.items && convertedData.items.length > 0) {
-      const mappedItems = convertedData.items.map((item: any) => ({
-        description: item.description,
-        hsn_code: item.hsn_code,
-        qty: item.qty,
-        rate: item.rate,
-        amount: item.amount,
-        discount_percent: item.discount_percent || 0,
-        discount_amount: item.discount_amount || 0,
-        tax_percent: item.tax_percent || 18,
-      }));
-      console.log('Setting items:', mappedItems);
+      const mappedItems = convertedData.items.map((item: any) => {
+        const discountPercent = item.discount_percent || 0;
+        const baseRate = item.rate || 0;
+        const rateAfterDiscount = baseRate - (baseRate * discountPercent / 100);
+        return {
+          description: item.description,
+          hsn_code: item.hsn_code,
+          qty: item.qty,
+          rate: item.rate,
+          amount: item.amount,
+          discount_percent: discountPercent,
+          rate_after_discount: rateAfterDiscount,
+          tax_percent: item.tax_percent || 18,
+          item_id: item.item_id || null,
+          variant_id: item.variant_id || null,
+          make: item.make || null,
+          variant: item.variant || null,
+          unit: item.unit || null,
+        };
+      });
       setItems(mappedItems);
     }
   }, [isConverting, conversionQuery.data, convertFrom, sourceId, organisation?.state]);
 
   const calculateTotals = () => {
-    const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
-    
-    // Calculate item-level discounts
-    const itemDiscountTotal = items.reduce((sum, item) => sum + (item.discount_amount || 0), 0);
-    
-    // Calculate invoice-level discount
-    let invoiceDiscount = 0;
-    if (discountPercent > 0) {
-      invoiceDiscount = (subtotal - itemDiscountTotal) * (discountPercent / 100);
-    } else if (discountAmount > 0) {
-      invoiceDiscount = discountAmount;
-    }
-    
-    const totalDiscount = itemDiscountTotal + invoiceDiscount;
-    const taxableAmount = subtotal - totalDiscount;
-    
-    // Calculate tax with configurable rates per item
+    // Calculate subtotal as sum of (qty × rate_after_discount) for each item
+    const subtotal = items.reduce((sum, item) => {
+      const rateAfterDiscount = item.rate_after_discount || item.rate;
+      return sum + (item.qty * rateAfterDiscount);
+    }, 0);
+
+    // Calculate tax based on amount (qty × rate_after_discount)
     const taxTotal = items.reduce((sum, item) => {
       const itemTaxPercent = item.tax_percent || 18;
-      const itemAmountAfterDiscount = item.amount - (item.discount_amount || 0);
-      return sum + itemAmountAfterDiscount * (itemTaxPercent / 100);
+      const rateAfterDiscount = item.rate_after_discount || item.rate;
+      const amount = item.qty * rateAfterDiscount;
+      return sum + amount * (itemTaxPercent / 100);
     }, 0);
-    
+
     let cgst = 0, sgst = 0, igst = 0;
     if (isInterstate(companyState, clientState)) {
       igst = taxTotal;
@@ -596,37 +611,113 @@ export default function ProformaEditorPage() {
       cgst = taxTotal / 2;
       sgst = taxTotal / 2;
     }
-    return { subtotal, discount: totalDiscount, cgst, sgst, igst, total: taxableAmount + taxTotal };
+
+    let total = subtotal + taxTotal;
+    let roundOffAmount = 0;
+
+    if (roundOff) {
+      const roundedTotal = Math.round(total);
+      roundOffAmount = roundedTotal - total;
+      total = roundedTotal;
+    }
+
+    return { subtotal, discount: 0, cgst, sgst, igst, total, roundOffAmount };
   };
 
   const totals = useMemo(() => {
     const validItems = items.filter(i => i.description?.trim());
     if (validItems.length === 0) {
-      return { subtotal: 0, discount: 0, cgst: 0, sgst: 0, igst: 0, total: 0, taxTotal: 0, items: [] };
+      return { subtotal: 0, discount: 0, cgst: 0, sgst: 0, igst: 0, total: 0, taxTotal: 0, roundOffAmount: 0 };
     }
     const calculated = calculateTotals();
     return calculated;
-  }, [items, companyState, discountPercent, discountAmount]);
+  }, [items, companyState, roundOff]);
 
   const handleItemChange = (index: number, field: keyof LineItem, value: string | number) => {
     setItems(prev => {
       const updated = [...prev];
       updated[index] = { ...updated[index], [field]: value };
-      if (field === 'qty' || field === 'rate') {
-        updated[index].amount = Number(updated[index].qty) * Number(updated[index].rate);
+      const item = updated[index];
+
+      // Calculate rate after discount
+      if (field === 'discount_percent' || field === 'rate') {
+        const discountPercent = Number(item.discount_percent) || 0;
+        const baseRate = Number(item.rate) || 0;
+        const rateAfterDiscount = baseRate - (baseRate * discountPercent / 100);
+        item.rate_after_discount = Math.max(0, rateAfterDiscount);
       }
+
+      // Calculate amount as qty × rate_after_discount
+      if (field === 'qty' || field === 'rate' || field === 'discount_percent' || field === 'rate_after_discount') {
+        const rateAfterDiscount = item.rate_after_discount || item.rate;
+        item.amount = Number(item.qty) * rateAfterDiscount;
+      }
+
       return updated;
     });
   };
 
   const handleAddItem = () => {
-    setItems(prev => [...prev, { description: '', hsn_code: null, qty: 1, rate: 0, amount: 0, discount_percent: 0, discount_amount: 0, tax_percent: 18 }]);
+    setItems(prev => [...prev, { description: '', hsn_code: null, qty: 1, rate: 0, amount: 0, discount_percent: 0, rate_after_discount: 0, tax_percent: 18, item_id: null, variant_id: null, make: null, variant: null, unit: null }]);
   };
 
   const handleRemoveItem = (index: number) => {
     if (items.length > 1) {
       setItems(prev => prev.filter((_, i) => i !== index));
     }
+  };
+
+  const handleItemSelectorSuccess = (newItems: any[]) => {
+    const newLineItems = newItems.map((newItem: any) => {
+      const discountPercent = 0;
+      const rate = Number(newItem.sale_price || newItem.default_rate) || 0;
+      const rateAfterDiscount = rate;
+
+      return {
+        description: newItem.display_name || newItem.item_name || newItem.name,
+        hsn_code: newItem.hsn_code,
+        qty: 1,
+        rate: rate,
+        amount: rate,
+        discount_percent: discountPercent,
+        rate_after_discount: rateAfterDiscount,
+        tax_percent: newItem.gst_rate || 18,
+        item_id: newItem.id || null,
+        variant_id: newItem.variant_id || null,
+        make: newItem.make || null,
+        variant: newItem.variant || null,
+        unit: newItem.unit || 'Nos',
+      };
+    });
+
+    setItems(prev => [...prev, ...newLineItems]);
+    setShowItemSelectorDrawer(false);
+  };
+
+  const handleItemCreateSuccess = (newItem: any) => {
+    const discountPercent = 0;
+    const rate = Number(newItem.sale_price) || 0;
+    const rateAfterDiscount = rate;
+
+    setItems(prev => [
+      ...prev,
+      {
+        description: newItem.display_name || newItem.item_name,
+        hsn_code: newItem.hsn_code,
+        qty: 1,
+        rate: rate,
+        amount: rate,
+        discount_percent: discountPercent,
+        rate_after_discount: rateAfterDiscount,
+        tax_percent: newItem.gst_rate || 18,
+        item_id: newItem.id || null,
+        variant_id: newItem.variant_id || null,
+        make: newItem.make || null,
+        variant: newItem.variant || null,
+        unit: newItem.unit || 'Nos',
+      }
+    ]);
+    setShowItemCreateDrawer(false);
   };
 
   const handleSave = async (shouldPrint: boolean = false) => {
@@ -662,8 +753,8 @@ export default function ProformaEditorPage() {
         client_state: clientState || null,
         pi_number: proformaNumber || undefined,
         created_at: proformaDate ? new Date(proformaDate).toISOString() : new Date().toISOString(),
-        discount_amount: totals.discount,
-        discount_percent: discountPercent || 0,
+        discount_amount: 0,
+        discount_percent: 0,
         po_number: poNumber || undefined,
         po_date: poDate || undefined,
         template_id: templateId || undefined,
@@ -674,9 +765,14 @@ export default function ProformaEditorPage() {
           rate: item.rate,
           amount: item.amount,
           discount_percent: item.discount_percent || 0,
-          discount_amount: item.discount_amount || 0,
+          discount_amount: 0,
           tax_percent: item.tax_percent || 18,
-          meta_json: { tax_percent: item.tax_percent || 18 },
+          item_id: item.item_id || null,
+          variant_id: item.variant_id || null,
+          make: item.make || null,
+          variant: item.variant || null,
+          unit: item.unit || null,
+          meta_json: { tax_percent: item.tax_percent || 18, rate_after_discount: item.rate_after_discount },
         })),
         notes,
         terms,
@@ -938,10 +1034,13 @@ export default function ProformaEditorPage() {
               <tr>
                 <th>Description</th>
                 <th>HSN Code</th>
+                <th>Make</th>
+                <th>Variant</th>
                 <th>Qty</th>
+                <th>Unit</th>
                 <th>Rate</th>
                 <th>Discount %</th>
-                <th>Discount Amt</th>
+                <th>Rate After Discount</th>
                 <th>Tax %</th>
                 <th>Amount</th>
                 <th></th>
@@ -968,11 +1067,35 @@ export default function ProformaEditorPage() {
                   </td>
                   <td>
                     <input
+                      type="text"
+                      value={item.make ?? ''}
+                      onChange={(e) => handleItemChange(index, 'make', e.target.value)}
+                      placeholder="Make"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      value={item.variant ?? ''}
+                      onChange={(e) => handleItemChange(index, 'variant', e.target.value)}
+                      placeholder="Variant"
+                    />
+                  </td>
+                  <td>
+                    <input
                       type="number"
                       value={item.qty}
                       onChange={(e) => handleItemChange(index, 'qty', Number(e.target.value))}
                       min="0"
                       step="0.001"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      value={item.unit ?? ''}
+                      onChange={(e) => handleItemChange(index, 'unit', e.target.value)}
+                      placeholder="Unit"
                     />
                   </td>
                   <td>
@@ -998,11 +1121,12 @@ export default function ProformaEditorPage() {
                   <td>
                     <input
                       type="number"
-                      value={item.discount_amount}
-                      onChange={(e) => handleItemChange(index, 'discount_amount', Number(e.target.value))}
+                      value={item.rate_after_discount}
+                      onChange={(e) => handleItemChange(index, 'rate_after_discount', Number(e.target.value))}
                       min="0"
                       step="0.01"
                       placeholder="0"
+                      readOnly
                     />
                   </td>
                   <td>
@@ -1033,22 +1157,38 @@ export default function ProformaEditorPage() {
               ))}
             </tbody>
           </table>
-          <button type="button" onClick={handleAddItem} className="pe-add-item-btn">
-            <Plus size={14} />
-            Add Item
-          </button>
+          <div className="flex gap-2 mt-4">
+            <button type="button" onClick={handleAddItem} className="pe-add-item-btn">
+              <Plus size={14} />
+              Add Item
+            </button>
+            <button type="button" onClick={() => setShowItemSelectorDrawer(true)} className="pe-add-item-btn">
+              <Plus size={14} />
+              Select from Inventory
+            </button>
+            <button type="button" onClick={() => setShowItemCreateDrawer(true)} className="pe-add-item-btn">
+              <Plus size={14} />
+              Create New Material
+            </button>
+          </div>
+
+          <div className="flex items-center justify-end gap-2 mt-4">
+            <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={roundOff}
+                onChange={(e) => setRoundOff(e.target.checked)}
+                className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              Round Off Total
+            </label>
+          </div>
 
           <div className="pe-totals">
             <div className="pe-total-row">
               <span className="pe-total-label">Subtotal</span>
               <span className="pe-total-value">{formatCurrency(totals.subtotal)}</span>
             </div>
-            {totals.discount > 0 && (
-              <div className="pe-total-row" style={{ color: '#dc2626' }}>
-                <span className="pe-total-label">Discount</span>
-                <span className="pe-total-value">-{formatCurrency(totals.discount)}</span>
-              </div>
-            )}
             <div className="pe-total-row">
               <span className="pe-total-label">CGST</span>
               <span className="pe-total-value">{formatCurrency(totals.cgst)}</span>
@@ -1061,46 +1201,15 @@ export default function ProformaEditorPage() {
               <span className="pe-total-label">IGST</span>
               <span className="pe-total-value">{formatCurrency(totals.igst)}</span>
             </div>
+            {roundOff && totals.roundOffAmount !== 0 && (
+              <div className="pe-total-row">
+                <span className="pe-total-label">Round Off</span>
+                <span className="pe-total-value">{formatCurrency(totals.roundOffAmount)}</span>
+              </div>
+            )}
             <div className="pe-total-row pe-grand-total">
               <span className="pe-total-label">Total</span>
               <span className="pe-total-value">{formatCurrency(totals.total)}</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="pe-card">
-          <div className="pe-card-title">Invoice-Level Discount</div>
-          <div className="pe-form-row">
-            <div className="pe-form-group">
-              <label className="pe-label">Discount Percent (%)</label>
-              <input
-                type="number"
-                value={discountPercent}
-                onChange={(e) => {
-                  setDiscountPercent(Number(e.target.value));
-                  setDiscountAmount(0);
-                }}
-                className="pe-input"
-                min="0"
-                max="100"
-                step="0.1"
-                placeholder="0"
-              />
-            </div>
-            <div className="pe-form-group">
-              <label className="pe-label">Discount Amount</label>
-              <input
-                type="number"
-                value={discountAmount}
-                onChange={(e) => {
-                  setDiscountAmount(Number(e.target.value));
-                  setDiscountPercent(0);
-                }}
-                className="pe-input"
-                min="0"
-                step="0.01"
-                placeholder="0"
-              />
             </div>
           </div>
         </div>
@@ -1164,6 +1273,18 @@ export default function ProformaEditorPage() {
           )}
         </div>
       </div>
+
+      <ItemSelectorDrawer
+        isOpen={showItemSelectorDrawer}
+        onClose={() => setShowItemSelectorDrawer(false)}
+        onSuccess={handleItemSelectorSuccess}
+      />
+
+      <ItemCreateDrawer
+        isOpen={showItemCreateDrawer}
+        onClose={() => setShowItemCreateDrawer(false)}
+        onSuccess={handleItemCreateSuccess}
+      />
     </div>
   );
 }

@@ -43,12 +43,21 @@ export async function fetchSourceDocument(
         items:quotation_items(
           id,
           item_id,
+          variant_id,
           description,
           hsn_code,
           qty,
+          uom,
           rate,
+          base_rate_snapshot,
+          final_rate_snapshot,
+          original_discount_percent,
+          discount_percent,
+          discount_amount,
           tax_percent,
-          line_total
+          tax_amount,
+          line_total,
+          make
         )
       `)
       .eq('id', sourceId)
@@ -57,6 +66,33 @@ export async function fetchSourceDocument(
 
     if (error) throw error;
     if (!data) throw new Error('Quotation not found');
+
+    const mappedItems = (data.items || []).map((item: any) => {
+      // Use base_rate_snapshot as original rate if available, otherwise use rate
+      const originalRate = Number(item.base_rate_snapshot || item.rate || 0);
+      // Use final_rate_snapshot if available, otherwise use rate
+      const finalRate = Number(item.final_rate_snapshot || item.rate || 0);
+      // Calculate discount percent from the difference
+      const discountPercent = originalRate > 0 ? ((originalRate - finalRate) / originalRate) * 100 : 0;
+
+      return {
+        id: item.id,
+        item_id: item.item_id,
+        variant_id: item.variant_id,
+        description: item.description,
+        hsn_code: item.hsn_code,
+        qty: Number(item.qty),
+        uom: item.uom,
+        rate: originalRate, // Original rate (before discount)
+        original_discount_percent: Number(item.original_discount_percent || 0),
+        discount_percent: Number(discountPercent),
+        discount_amount: Number(item.discount_amount || 0),
+        tax_percent: Number(item.tax_percent || 18),
+        tax_amount: Number(item.tax_amount || 0),
+        line_total: Number(item.line_total),
+        make: item.make,
+      };
+    });
 
     return {
       id: data.id,
@@ -75,16 +111,7 @@ export async function fetchSourceDocument(
       subtotal: data.subtotal || 0,
       total_tax: 0,
       grand_total: data.grand_total || 0,
-      items: (data.items || []).map((item: any) => ({
-        id: item.id,
-        item_id: item.item_id,
-        description: item.description,
-        hsn_code: item.hsn_code,
-        qty: Number(item.qty),
-        rate: Number(item.rate),
-        tax_percent: Number(item.tax_percent),
-        line_total: Number(item.line_total),
-      })),
+      items: mappedItems,
     };
   }
 
@@ -211,16 +238,38 @@ export async function fetchSourceDocument(
 export function transformQuotationToProforma(
   source: QuotationSourceData
 ): ConversionResult {
-  const items: ConvertedProformaItem[] = source.items.map((item) => ({
-    description: item.description,
-    hsn_code: item.hsn_code,
-    qty: item.qty,
-    rate: item.rate,
-    amount: item.line_total,
-    tax_percent: item.tax_percent,
-    discount_percent: 0,
-    discount_amount: 0,
-  }));
+  const items: ConvertedProformaItem[] = source.items.map((item) => {
+    // Use the original rate from quotation
+    const originalRate = item.rate;
+    const discountPercent = item.discount_percent || 0;
+    // Calculate rate after discount
+    const rateAfterDiscount = originalRate - (originalRate * discountPercent / 100);
+    // Amount should be qty × rate after discount
+    const amount = item.qty * rateAfterDiscount;
+
+    return {
+      description: item.description,
+      hsn_code: item.hsn_code,
+      qty: item.qty,
+      rate: originalRate, // Original rate (before discount)
+      amount: amount,
+      tax_percent: item.tax_percent,
+      discount_percent: discountPercent,
+      discount_amount: 0,
+      item_id: item.item_id,
+      variant_id: item.variant_id,
+      make: item.make,
+      variant: null, // quotation_items doesn't have variant column
+      unit: item.uom, // quotation_items uses uom
+      meta_json: {
+        tax_percent: item.tax_percent,
+        uom: item.uom,
+        base_rate: originalRate,
+        rate_after_discount: rateAfterDiscount,
+        source_item_id: item.id,
+      },
+    };
+  });
 
   const data: ConvertedProformaData = {
     client_id: source.client_id,

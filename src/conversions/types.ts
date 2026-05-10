@@ -38,12 +38,21 @@ export interface QuotationSourceData {
 export interface QuotationItemData {
   id: string;
   item_id: string | null;
+  variant_id: string | null;
   description: string;
   hsn_code: string | null;
   qty: number;
+  uom: string | null;
   rate: number;
+  base_rate_snapshot: number;
+  final_rate_snapshot: number;
+  original_discount_percent: number;
+  discount_percent: number;
+  discount_amount: number;
   tax_percent: number;
+  tax_amount: number;
   line_total: number;
+  make: string | null;
 }
 
 export interface DCSourceData {
@@ -90,6 +99,8 @@ export interface ProformaSourceData {
 
 export interface ProformaItemData {
   id: string;
+  item_id: string | null;
+  variant_id: string | null;
   description: string;
   hsn_code: string | null;
   qty: number;
@@ -98,6 +109,10 @@ export interface ProformaItemData {
   tax_percent: number;
   discount_percent: number;
   discount_amount: number;
+  make: string | null;
+  variant: string | null;
+  unit: string | null;
+  meta_json: Record<string, unknown> | null;
 }
 
 export type SourceDocumentData = QuotationSourceData | DCSourceData | ProformaSourceData;
@@ -158,6 +173,12 @@ export interface ConvertedProformaItem {
   tax_percent: number;
   discount_percent: number;
   discount_amount: number;
+  item_id: string | null;
+  variant_id: string | null;
+  make: string | null;
+  variant: string | null;
+  unit: string | null;
+  meta_json?: Record<string, unknown>;
 }
 
 export interface ConvertedQuotationData {
