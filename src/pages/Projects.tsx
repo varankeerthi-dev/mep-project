@@ -11,6 +11,7 @@ import MaterialIntentsList from './MaterialIntentsList';
 import ProjectMaterialList from './ProjectMaterialList';
 import MaterialUsageTracker from './MaterialUsageTracker';
 import MaterialConsumptionReport from './MaterialConsumptionReport';
+import ToolsDashboard from './ToolsDashboard';
 
 const ProjectList = () => import('./ProjectList').then(m => ({ default: m.default }));
 const CreateProject = () => import('./CreateProject').then(m => ({ default: m.default }));
@@ -20,6 +21,7 @@ const SiteMaterials = () => import('./ProjectManagementInternal').then(m => ({ d
 const TABS = [
   { id: 'list', label: 'Projects', icon: Folder, component: ProjectList },
   { id: 'material-management', label: 'Material', icon: Package, component: null },
+  { id: 'tools-management', label: 'Tools', icon: Package, component: null },
 ];
 
 const MATERIAL_SUBTABS = [
@@ -91,6 +93,7 @@ export default function Projects() {
   };
 
   const isMaterialManagement = activeTab === 'material-management';
+  const isToolsManagement = activeTab === 'tools-management';
 
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -166,6 +169,8 @@ export default function Projects() {
               )}
             </div>
           </div>
+        ) : isToolsManagement ? (
+          <ToolsDashboard organisationId={organisationId} />
         ) : (
           Component && <Component />
         )}

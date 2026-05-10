@@ -9,6 +9,7 @@ import Sidebar from './components/Sidebar';
 import { supabase, getUserOrganisations, createOrganization, signOut } from './supabase';
 import { queryClient, refreshSessionIfNeeded } from './queryClient';
 import LandingPage from './pages/LandingPage';
+import ToolsManagement from './pages/ToolsManagement';
 import { AuthContext, type AuthContextValue, type Organisation, type OrganisationMember } from './contexts/AuthContext';
 
 export { useAuth } from './contexts/AuthContext';
@@ -215,6 +216,7 @@ export default function App() {
       case '/dashboard': 
         return <Dashboard onNavigate={navigate} />;
       case '/projects': return <Projects />;
+      case '/tools': return <ToolsManagement />;
       case '/projects/new': return <CreateProject onSuccess={() => navigate('/projects')} onCancel={() => navigate('/projects')} />;
       case '/projects/edit': return <Projects />;
       case '/projects/daily-updates': return <Projects />;

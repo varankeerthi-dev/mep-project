@@ -23,12 +23,17 @@ export const InvoiceEditorItemSchema = z.object({
     rate_after_discount: z.number().optional(),
     client_custom_label: z.string().optional(),
     client_custom_value: z.union([z.string(), z.number(), z.boolean(), z.null()]).optional(),
+    material_id: z.string().uuid().optional(),
+    warehouse_id: z.string().uuid().optional(),
+    variant_id: z.string().uuid().optional(),
+    is_service: z.boolean().optional(),
   }).catchall(z.unknown()).optional().default({ tax_percent: 18, uom: 'Nos' }),
 });
 
 export const InvoiceEditorMaterialSchema = z.object({
   product_id: z.string().uuid('Product is required.'),
   qty_used: z.coerce.number().positive('Qty used must be greater than zero.'),
+  warehouse_id: z.string().uuid().nullable().optional(),
 });
 
 export const InvoiceEditorSchema = z
@@ -47,6 +52,9 @@ export const InvoiceEditorSchema = z
     company_state: z.string().trim().min(1, 'Company state is required.'),
     client_state: z.string().trim().nullable().optional(),
     shipping_address_id: z.string().uuid().nullable().optional(),
+    default_warehouse_id: z.string().uuid().nullable().optional(),
+    deduct_stock_on_finalize: z.boolean().optional().default(false),
+    allow_insufficient_stock: z.boolean().optional().default(false),
     items: z.array(InvoiceEditorItemSchema).min(1, 'At least one line item is required.').optional(),
     materials: z.array(InvoiceEditorMaterialSchema).default([]),
   })
@@ -128,6 +136,7 @@ export type InvoiceMaterialOption = {
   make: string | null;
   unit: string | null;
   sale_price: number | null;
+  item_type: string;
   variants: MaterialVariant[];
 };
 
@@ -179,6 +188,10 @@ export function createEmptyItem(overrides: any = {}): InvoiceEditorFormValues['i
       make: meta?.make as string | undefined,
       variant: meta?.variant as string | undefined,
       base_rate: meta?.base_rate as number | undefined,
+      material_id: meta?.material_id as string | undefined,
+      warehouse_id: meta?.warehouse_id as string | undefined,
+      variant_id: meta?.variant_id as string | undefined,
+      is_service: meta?.is_service as boolean | undefined,
     },
   };
 }
@@ -217,6 +230,10 @@ export function createEmptyInvoiceFormValues(companyState?: string | null): Invo
     status: 'draft',
     company_state: companyState || DEFAULT_COMPANY_STATE,
     client_state: null,
+    shipping_address_id: null,
+    default_warehouse_id: null,
+    deduct_stock_on_finalize: false,
+    allow_insufficient_stock: false,
     items: [createEmptyItem()],
     materials: [],
   };
@@ -237,6 +254,9 @@ export function invoiceToFormValues(invoice: InvoiceWithRelations): InvoiceEdito
     status: invoice.status,
     company_state: invoice.company_state ?? DEFAULT_COMPANY_STATE,
     client_state: invoice.client_state ?? null,
+    default_warehouse_id: null,
+    deduct_stock_on_finalize: false,
+    allow_insufficient_stock: false,
     items: invoice.items.map((item: any) => ({
       description: item.description,
       hsn_code: item.hsn_code ?? '',
@@ -250,6 +270,10 @@ export function invoiceToFormValues(invoice: InvoiceWithRelations): InvoiceEdito
         make: item.meta_json?.make,
         variant: item.meta_json?.variant,
         base_rate: item.rate,
+        material_id: item.meta_json?.material_id,
+        warehouse_id: item.meta_json?.warehouse_id,
+        variant_id: item.meta_json?.variant_id,
+        is_service: item.meta_json?.is_service,
       },
     })),
     materials: invoice.materials.map((material) => createEmptyMaterial(material)),
@@ -306,6 +330,7 @@ export function composeInvoiceInput(
     materials: values.materials.map((material) => ({
       product_id: material.product_id,
       qty_used: round2(material.qty_used),
+      warehouse_id: material.warehouse_id,
     })),
   } as InvoiceInput;
 }

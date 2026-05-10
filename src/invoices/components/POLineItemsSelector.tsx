@@ -40,6 +40,7 @@ interface POLineItemsSelectorProps {
   poHeader: POHeader;
   lineItems: POLineItem[];
   onApply: (selectedItems: SelectedItem[]) => void;
+  onSelectAll?: () => void;
 }
 
 export default function POLineItemsSelector({
@@ -47,7 +48,8 @@ export default function POLineItemsSelector({
   onClose,
   poHeader,
   lineItems,
-  onApply
+  onApply,
+  onSelectAll
 }: POLineItemsSelectorProps) {
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [editableQuantities, setEditableQuantities] = useState<Record<string, number>>({});

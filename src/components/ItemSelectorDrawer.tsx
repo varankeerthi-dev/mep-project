@@ -14,6 +14,8 @@ interface Material {
   default_rate?: number;
   gst_rate?: number;
   make?: string;
+  variant?: string;
+  variant_id?: string;
 }
 
 interface ItemSelectorDrawerProps {
@@ -32,19 +34,43 @@ export default function ItemSelectorDrawer({ isOpen, onClose, onSuccess }: ItemS
     queryFn: async () => {
       if (!organisation?.id) return [];
 
-      let query = supabase
-        .from('materials')
-        .select('*')
-        .eq('organisation_id', organisation.id)
-        .order('name', { ascending: true });
+      const [materialsRes, pricingRes] = await Promise.all([
+        supabase
+          .from('materials')
+          .select('id, display_name, name, unit, uses_variant, sale_price, item_type, item_code, gst_rate, hsn_code, make, mappings:material_client_mappings(id, client_id, client_part_no, client_description)')
+          .eq('organisation_id', organisation.id)
+          .order('name', { ascending: true })
+          .limit(50),
+        supabase
+          .from('item_variant_pricing')
+          .select('item_id, make')
+          .eq('organisation_id', organisation.id)
+      ]);
 
-      if (searchTerm) {
-        query = query.or(`name.ilike.%${searchTerm}%,item_name.ilike.%${searchTerm}%,display_name.ilike.%${searchTerm}%`);
-      }
+      if (materialsRes.error) throw materialsRes.error;
+      if (pricingRes.error) throw pricingRes.error;
 
-      const { data, error } = await query.limit(50);
-      if (error) throw error;
-      return data || [];
+      const materials = materialsRes.data || [];
+      const pricing = pricingRes.data || [];
+
+      // Build makes map from pricing data
+      const makesMap = {};
+      pricing.forEach(row => {
+        if (row.make) {
+          if (!makesMap[row.item_id]) makesMap[row.item_id] = new Set();
+          makesMap[row.item_id].add(row.make);
+        }
+      });
+
+      // Transform materials to include first make from pricing
+      return materials.map(material => {
+        const itemMakes = makesMap[material.id];
+        const firstMake = itemMakes ? Array.from(itemMakes)[0] : null;
+        return {
+          ...material,
+          make: firstMake || material.make || null,
+        };
+      });
     },
     enabled: isOpen && !!organisation?.id,
   });

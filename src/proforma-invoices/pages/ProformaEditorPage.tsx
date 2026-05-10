@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo, useEffect } from 'react';
+import { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { supabase } from '../../supabase';
@@ -317,15 +317,31 @@ export default function ProformaEditorPage() {
   const [showItemSelectorDrawer, setShowItemSelectorDrawer] = useState(false);
   const [showItemCreateDrawer, setShowItemCreateDrawer] = useState(false);
   const [roundOff, setRoundOff] = useState(false);
+  const [templateSettings, setTemplateSettings] = useState<any>(null);
+  const [discountSettings, setDiscountSettings] = useState<Record<string, { default: number; min: number; max: number }>>({});
+  const [headerDiscounts, setHeaderDiscounts] = useState<Record<string, number>>({});
 
   const { data: clients = [] } = useClients();
   const { data: clientPOs = [] } = useClientPOs(clientId);
+  const { data: variants = [] } = useQuery({
+    queryKey: ['company-variants'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('company_variants')
+        .select('id, variant_name')
+        .eq('organisation_id', organisation?.id)
+        .order('variant_name', { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!organisation?.id,
+  });
   const { data: templates = [] } = useQuery({
     queryKey: ['document-templates'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('document_templates')
-        .select('id, template_name, document_type')
+        .select('id, template_name, document_type, column_settings')
         .order('template_name', { ascending: true });
       if (error) throw error;
       // Filter for proforma and invoice on client side
@@ -357,6 +373,97 @@ export default function ProformaEditorPage() {
       }
     }
   }, [clientId, templates, templateId, clients]);
+
+  // Load discount settings and template settings when template changes
+  useEffect(() => {
+    const loadSettings = async () => {
+      if (organisation?.id) {
+        // Load discount settings
+        const { data: settings } = await supabase
+          .from('discount_settings')
+          .select('variant_id, default_discount_percent, min_discount_percent, max_discount_percent')
+          .eq('organisation_id', organisation.id);
+
+        const settingsMap: Record<string, { default: number; min: number; max: number }> = {};
+        (settings || []).forEach((row) => {
+          settingsMap[row.variant_id] = {
+            default: parseFloat(row.default_discount_percent) || 0,
+            min: parseFloat(row.min_discount_percent) || 0,
+            max: parseFloat(row.max_discount_percent) || 0
+          };
+        });
+        setDiscountSettings(settingsMap);
+
+        // Load template settings
+        if (templateId) {
+          const { data: template } = await supabase
+            .from('document_templates')
+            .select('column_settings')
+            .eq('id', templateId)
+            .single();
+
+          if (template) {
+            setTemplateSettings(template);
+          } else {
+            // Default template settings
+            setTemplateSettings({
+              column_settings: {
+                mandatory: ['sno', 'item', 'qty', 'uom'],
+                optional: {
+                  item_code: true,
+                  variant: true,
+                  description: true,
+                  hsn_code: true,
+                  rate: true,
+                  discount_percent: true,
+                  rate_after_discount: true,
+                  tax_percent: true,
+                  line_total: true,
+                  custom1: false,
+                  custom2: false
+                },
+                labels: {
+                  custom1: 'Custom 1',
+                  custom2: 'Custom 2',
+                  rate_after_discount: 'Rate/Unit'
+                }
+              }
+            });
+          }
+        }
+      }
+    };
+
+    loadSettings();
+  }, [organisation?.id, templateId]);
+
+  // Handle header discount change for variant-based discounts
+  const handleHeaderDiscountChange = useCallback((variantId: string, newValue: number) => {
+    const numValue = parseFloat(newValue.toString()) || 0;
+    
+    // Apply discount to items with matching variant_id (only for items that have variant_id)
+    // Items without variant_id (from PO conversion) are not affected
+    const affectedItems = items.filter(item => item.variant_id === variantId);
+    
+    if (affectedItems.length > 0) {
+      const updatedItems = items.map(item => {
+        if (item.variant_id === variantId) {
+          const baseRate = item.rate || 0;
+          const rateAfterDiscount = baseRate - (baseRate * numValue / 100);
+          return {
+            ...item,
+            discount_percent: numValue,
+            rate_after_discount: rateAfterDiscount,
+            amount: item.qty * rateAfterDiscount
+          };
+        }
+        return item;
+      });
+      setItems(updatedItems);
+    }
+    
+    setHeaderDiscounts(prev => ({ ...prev, [variantId]: numValue }));
+  }, [items]);
 
   // Load PO line items when converting from PO
   useEffect(() => {
@@ -441,13 +548,6 @@ export default function ProformaEditorPage() {
     return null;
   };
 
-  // Generate PI number on mount
-  useEffect(() => {
-    if (isNew && !proformaNumber) {
-      generatePINumber();
-    }
-  }, [isNew]);
-
   const generatePINumber = async (reserveNumber = false) => {
     const seriesData = await fetchSeriesRowForPI();
 
@@ -499,6 +599,13 @@ export default function ProformaEditorPage() {
       setProformaNumber(`${prefix}${Date.now().toString().slice(-6)}`);
     }
   };
+
+  // Generate PI number on mount
+  useEffect(() => {
+    if (isNew && !proformaNumber) {
+      generatePINumber();
+    }
+  }, [isNew]);
 
   const { data: proforma, isLoading } = useQuery({
     queryKey: ['proforma-invoice', id],
@@ -1029,19 +1136,50 @@ export default function ProformaEditorPage() {
 
         <div className="pe-card">
           <div className="pe-card-title">Line Items</div>
+          
+          {/* Header Discounts for Variants */}
+          {variants.length > 0 && Object.keys(discountSettings).length > 0 && (
+            <div className="mb-4 p-3 bg-slate-50 rounded border border-slate-200">
+              <div className="text-xs font-semibold text-slate-600 mb-2 uppercase tracking-wide">Variant Discounts</div>
+              <div className="flex flex-wrap gap-4">
+                {variants.map((variant) => {
+                  const settings = discountSettings[variant.id];
+                  if (!settings) return null;
+                  const variantName = variant.variant_name || variant.id;
+                  return (
+                    <div key={variant.id} className="flex items-center gap-2">
+                      <label className="text-sm font-medium text-slate-700">{variantName}:</label>
+                      <input
+                        type="number"
+                        value={headerDiscounts[variant.id] ?? settings.default}
+                        onChange={(e) => handleHeaderDiscountChange(variant.id, Number(e.target.value))}
+                        className="w-20 px-2 py-1 text-sm border border-slate-300 rounded"
+                        min={settings.min}
+                        max={settings.max}
+                        step="0.1"
+                      />
+                      <span className="text-xs text-slate-500">%</span>
+                      <span className="text-xs text-slate-400">(Max: {settings.max}%)</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          
           <table className="pe-items-table">
             <thead>
               <tr>
-                <th>Description</th>
-                <th>HSN Code</th>
-                <th>Make</th>
-                <th>Variant</th>
+                {(templateSettings?.column_settings?.optional?.hsn_code !== false) && <th>HSN Code</th>}
+                {(templateSettings?.column_settings?.optional?.item !== false) && <th>Description</th>}
+                {(templateSettings?.column_settings?.optional?.make !== false) && <th>Make</th>}
+                {(templateSettings?.column_settings?.optional?.variant !== false) && <th>Variant</th>}
                 <th>Qty</th>
-                <th>Unit</th>
-                <th>Rate</th>
-                <th>Discount %</th>
-                <th>Rate After Discount</th>
-                <th>Tax %</th>
+                {(templateSettings?.column_settings?.optional?.unit !== false) && <th>Unit</th>}
+                {(templateSettings?.column_settings?.optional?.rate !== false) && <th>Rate</th>}
+                {(templateSettings?.column_settings?.optional?.discount_percent !== false) && <th>Discount %</th>}
+                {(templateSettings?.column_settings?.optional?.rate_after_discount !== false) && <th>Rate After Discount</th>}
+                {(templateSettings?.column_settings?.optional?.tax_percent !== false) && <th>Tax %</th>}
                 <th>Amount</th>
                 <th></th>
               </tr>
@@ -1049,38 +1187,60 @@ export default function ProformaEditorPage() {
             <tbody>
               {items.map((item, index) => (
                 <tr key={index}>
-                  <td>
-                    <input
-                      type="text"
-                      value={item.description}
-                      onChange={(e) => handleItemChange(index, 'description', e.target.value)}
-                      placeholder="Item description"
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="text"
-                      value={item.hsn_code ?? ''}
-                      onChange={(e) => handleItemChange(index, 'hsn_code', e.target.value)}
-                      placeholder="HSN"
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="text"
-                      value={item.make ?? ''}
-                      onChange={(e) => handleItemChange(index, 'make', e.target.value)}
-                      placeholder="Make"
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="text"
-                      value={item.variant ?? ''}
-                      onChange={(e) => handleItemChange(index, 'variant', e.target.value)}
-                      placeholder="Variant"
-                    />
-                  </td>
+                  {(templateSettings?.column_settings?.optional?.hsn_code !== false) && (
+                    <td>
+                      <input
+                        type="text"
+                        value={item.hsn_code ?? ''}
+                        onChange={(e) => handleItemChange(index, 'hsn_code', e.target.value)}
+                        placeholder="HSN"
+                      />
+                    </td>
+                  )}
+                  {(templateSettings?.column_settings?.optional?.item !== false) && (
+                    <td>
+                      <input
+                        type="text"
+                        value={item.description}
+                        onChange={(e) => handleItemChange(index, 'description', e.target.value)}
+                        placeholder="Item description"
+                      />
+                    </td>
+                  )}
+                  {(templateSettings?.column_settings?.optional?.make !== false) && (
+                    <td>
+                      <input
+                        type="text"
+                        value={item.make ?? ''}
+                        onChange={(e) => handleItemChange(index, 'make', e.target.value)}
+                        placeholder="Make"
+                        list={`make-options-${index}`}
+                        autoComplete="off"
+                      />
+                      <datalist id={`make-options-${index}`}>
+                        {Array.from(new Set(items.map(i => i.make).filter(Boolean))).map((make) => (
+                          <option key={make} value={make} />
+                        ))}
+                      </datalist>
+                    </td>
+                  )}
+                  {(templateSettings?.column_settings?.optional?.variant !== false) && (
+                    <td>
+                      <input
+                        type="text"
+                        value={item.variant ?? ''}
+                        onChange={(e) => handleItemChange(index, 'variant', e.target.value)}
+                        placeholder="Variant"
+                        list={`variant-options-${index}`}
+                        autoComplete="off"
+                      />
+                      <datalist id={`variant-options-${index}`}>
+                        {variants.map((v) => (
+                          <option key={v.id} value={v.variant_name} />
+                        ))}
+                      </datalist>
+                    </td>
+                  )}
                   <td>
                     <input
                       type="number"
@@ -1090,56 +1250,66 @@ export default function ProformaEditorPage() {
                       step="0.001"
                     />
                   </td>
-                  <td>
-                    <input
-                      type="text"
-                      value={item.unit ?? ''}
-                      onChange={(e) => handleItemChange(index, 'unit', e.target.value)}
-                      placeholder="Unit"
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="number"
-                      value={item.rate}
-                      onChange={(e) => handleItemChange(index, 'rate', Number(e.target.value))}
-                      min="0"
-                      step="0.01"
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="number"
-                      value={item.discount_percent}
-                      onChange={(e) => handleItemChange(index, 'discount_percent', Number(e.target.value))}
-                      min="0"
-                      max="100"
-                      step="0.1"
-                      placeholder="0"
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="number"
-                      value={item.rate_after_discount}
-                      onChange={(e) => handleItemChange(index, 'rate_after_discount', Number(e.target.value))}
-                      min="0"
-                      step="0.01"
-                      placeholder="0"
-                      readOnly
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="number"
-                      value={item.tax_percent}
-                      onChange={(e) => handleItemChange(index, 'tax_percent', Number(e.target.value))}
-                      min="0"
-                      max="100"
-                      step="0.1"
-                      placeholder="18"
-                    />
-                  </td>
+                  {(templateSettings?.column_settings?.optional?.unit !== false) && (
+                    <td>
+                      <input
+                        type="text"
+                        value={item.unit ?? ''}
+                        onChange={(e) => handleItemChange(index, 'unit', e.target.value)}
+                        placeholder="Unit"
+                      />
+                    </td>
+                  )}
+                  {(templateSettings?.column_settings?.optional?.rate !== false) && (
+                    <td>
+                      <input
+                        type="number"
+                        value={item.rate}
+                        onChange={(e) => handleItemChange(index, 'rate', Number(e.target.value))}
+                        min="0"
+                        step="0.01"
+                      />
+                    </td>
+                  )}
+                  {(templateSettings?.column_settings?.optional?.discount_percent !== false) && (
+                    <td>
+                      <input
+                        type="number"
+                        value={item.discount_percent}
+                        onChange={(e) => handleItemChange(index, 'discount_percent', Number(e.target.value))}
+                        min="0"
+                        max="100"
+                        step="0.1"
+                        placeholder="0"
+                      />
+                    </td>
+                  )}
+                  {(templateSettings?.column_settings?.optional?.rate_after_discount !== false) && (
+                    <td>
+                      <input
+                        type="number"
+                        value={item.rate_after_discount}
+                        onChange={(e) => handleItemChange(index, 'rate_after_discount', Number(e.target.value))}
+                        min="0"
+                        step="0.01"
+                        placeholder="0"
+                        readOnly
+                      />
+                    </td>
+                  )}
+                  {(templateSettings?.column_settings?.optional?.tax_percent !== false) && (
+                    <td>
+                      <input
+                        type="number"
+                        value={item.tax_percent}
+                        onChange={(e) => handleItemChange(index, 'tax_percent', Number(e.target.value))}
+                        min="0"
+                        max="100"
+                        step="0.1"
+                        placeholder="18"
+                      />
+                    </td>
+                  )}
                   <td style={{ textAlign: 'right' }}>
                     {formatCurrency(item.amount)}
                   </td>

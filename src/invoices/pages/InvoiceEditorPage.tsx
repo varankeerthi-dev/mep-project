@@ -18,6 +18,7 @@ import ProformaLineItemsSelector from '../components/ProformaLineItemsSelector';
 import { useCreateInvoice, useInvoice, useInvoiceTemplates, useUpdateInvoice } from '../hooks';
 import { downloadInvoicePDF, emailInvoicePDF, previewInvoicePDF, printInvoicePDF } from '../pdf';
 import type { InvoiceEditorFormValues, InvoiceClientOption, InvoiceMaterialOption, ClientShippingAddress } from './ui-utils';
+import { useWarehouses } from '@/hooks/useWarehouses';
 import {
   InvoiceEditorSchema,
   type InvoiceSourceOption,
@@ -252,6 +253,7 @@ export default function InvoiceEditorPage() {
   const [isProformaSelectorOpen, setIsProformaSelectorOpen] = useState(false);
   const [selectedProformaItems, setSelectedProformaItems] = useState<any[]>([]);
   const [isApplyingProformaItems, setIsApplyingProformaItems] = useState(false);
+  const [warehousePanelOpen, setWarehousePanelOpen] = useState(false);
 
   // PO line items selector handlers
   const handlePOSelection = () => {
@@ -513,6 +515,22 @@ export default function InvoiceEditorPage() {
     staleTime: 5 * 60 * 1000,
   });
 
+  const warehousesQuery = useWarehouses();
+  const stockQuery = useQuery({
+    queryKey: ['item-stock', organisation?.id],
+    queryFn: async () => {
+      if (!organisation?.id) return [];
+      const { data, error } = await supabase
+        .from('item_stock')
+        .select('item_id, warehouse_id, company_variant_id, current_stock')
+        .eq('organisation_id', organisation.id);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!organisation?.id,
+    staleTime: 2 * 60 * 1000,
+  });
+
   const shippingAddressesQuery = useQuery({
     queryKey: ['invoice-ui', 'shipping-addresses', selectedClientId, organisation?.id],
     queryFn: () => loadClientShippingAddresses(selectedClientId, organisation?.id!),
@@ -552,7 +570,7 @@ export default function InvoiceEditorPage() {
   const sourceOptionsQuery = useQuery({
     queryKey: ['invoice-ui', 'sources', selectedSourceType, selectedClientId, organisation?.id],
     queryFn: () => loadSourceOptions(selectedSourceType, organisation?.id!, selectedClientId),
-    enabled: !!organisation?.id && (selectedSourceType === 'po' ? Boolean(selectedClientId) : true),
+    enabled: !!organisation?.id,
     staleTime: 2 * 60 * 1000,
   });
   const sourceDraftQuery = useQuery({
@@ -639,7 +657,7 @@ export default function InvoiceEditorPage() {
       };
     },
     enabled: Boolean(selectedSourceId && selectedSourceType === 'quotation' && organisation?.id),
-    staleTime: 0,
+    staleTime: 2 * 60 * 1000, // Longer stale time for quotation data
   });
 
   // Proforma details query for line items selector
@@ -935,6 +953,20 @@ export default function InvoiceEditorPage() {
   const customColumnLabel = getTemplateExtraColumnLabel(selectedTemplate, watchedItems);
   const showCustomColumn = getValues('template_type') === 'client_custom';
   const isSaving = createInvoice.isPending || updateInvoice.isPending;
+
+  // Extract all useWatch calls to component level to avoid hook rule violations
+  const defaultWarehouseId = useWatch({ control, name: 'default_warehouse_id' });
+  useEffect(() => {
+    const defaultWh = defaultWarehouseId;
+    if (!defaultWh) return;
+    
+    const items = useWatch({ control, name: 'items' });
+    items.forEach((item, idx) => {
+      if (item.meta_json?.material_id && !item.meta_json?.warehouse_id) {
+        setValue(`items.${idx}.meta_json.warehouse_id`, defaultWh);
+      }
+    });
+  }, [defaultWarehouseId]);
 
   console.log('InvoiceEditorPage - fields:', itemsFieldArray.fields.length, 'watchedItems:', watchedItems.length);
 
@@ -1972,6 +2004,130 @@ export default function InvoiceEditorPage() {
           </div>
         )}
 
+        {/* Stock & Warehouse Panel */}
+        <div style={{ 
+          border: '1px solid #e5e5e5', 
+          borderRadius: '4px', 
+          marginBottom: '16px',
+          background: '#fafafa'
+        }}>
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'space-between',
+            padding: '8px 12px',
+            borderBottom: '1px solid #e5e5e5',
+            cursor: 'pointer',
+            userSelect: 'none'
+          }} onClick={() => setWarehousePanelOpen(!warehousePanelOpen)}>
+            <span style={{ 
+              fontSize: '12px', 
+              fontWeight: 600, 
+              color: '#171717' 
+            }}>
+              Stock & Warehouse
+            </span>
+            <span style={{ 
+              fontSize: '10px', 
+              color: '#737373' 
+            }}>
+              {warehousePanelOpen ? '▼' : '▶'}
+            </span>
+          </div>
+          
+          {warehousePanelOpen && (
+            <div style={{ padding: '12px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ 
+                    fontSize: '11px', 
+                    fontWeight: 600, 
+                    color: '#525252', 
+                    marginBottom: '4px', 
+                    display: 'block' 
+                  }}>
+                    Default Warehouse
+                  </label>
+                  <select
+                    {...register('default_warehouse_id')}
+                    style={{
+                      width: '100%',
+                      padding: '6px 8px',
+                      border: '1px solid #d4d4d4',
+                      borderRadius: '2px',
+                      fontSize: '12px',
+                      background: '#fff',
+                      color: '#525252'
+                    }}
+                  >
+                    <option value="">Select warehouse</option>
+                    {warehousesQuery.data?.map((wh) => (
+                      <option key={wh.id} value={wh.id}>
+                        {wh.warehouse_name || wh.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ 
+                    fontSize: '11px', 
+                    fontWeight: 600, 
+                    color: '#525252', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '4px' 
+                  }}>
+                    <input
+                      type="checkbox"
+                      {...register('deduct_stock_on_finalize')}
+                      style={{ width: '14px', height: '14px' }}
+                    />
+                    Deduct stock on finalize
+                  </label>
+                  
+                  {useWatch({ control, name: 'deduct_stock_on_finalize' }) && (
+                    <label style={{ 
+                      fontSize: '11px', 
+                      fontWeight: 600, 
+                      color: '#525252', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '4px',
+                      marginLeft: '16px'
+                    }}>
+                      <input
+                        type="checkbox"
+                        {...register('allow_insufficient_stock')}
+                        style={{ width: '14px', height: '14px' }}
+                      />
+                      Allow insufficient stock
+                    </label>
+                  )}
+                </div>
+              </div>
+              
+              {/* Stock Summary */}
+              <div style={{ 
+                fontSize: '11px', 
+                color: '#525252', 
+                padding: '8px', 
+                background: '#f5f5f5', 
+                borderRadius: '2px',
+                border: '1px solid #e5e5e5'
+              }}>
+                {(() => {
+                  const materialItems = watchedItems.filter(item => item.meta_json?.material_id && !item.meta_json?.is_service);
+                  const serviceItems = watchedItems.filter(item => item.meta_json?.is_service);
+                  const descriptionOnlyItems = watchedItems.filter(item => !item.meta_json?.material_id);
+                  
+                  return `${materialItems.length} material items · ${serviceItems.length} service items · ${descriptionOnlyItems.length} description-only`;
+                })()}
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Invoice Items Editor - Compact Excel Style */}
         <InvoiceItemsEditor
           fields={itemsFieldArray.fields}
@@ -1988,6 +2144,9 @@ export default function InvoiceEditorPage() {
           setValue={setValue}
           formState={formState}
           isApplyingPOItems={isApplyingPOItems}
+          warehouses={warehousesQuery.data ?? []}
+          stockRows={stockQuery.data ?? []}
+          defaultWarehouseId={useWatch({ control, name: 'default_warehouse_id' })}
         />
 
         {/* Materials Editor - Compact Excel Style */}
@@ -1998,9 +2157,8 @@ export default function InvoiceEditorPage() {
               register={register}
               append={materialsFieldArray.append}
               remove={materialsFieldArray.remove}
-              materials={watchedMaterials}
-              productOptions={materialsQuery.data ?? []}
-              error={fieldErrorMessage(errors.materials)}
+              warehouses={warehousesQuery.data ?? []}
+              defaultWarehouseId={useWatch({ control, name: 'default_warehouse_id' })}
             />
           </div>
         )}

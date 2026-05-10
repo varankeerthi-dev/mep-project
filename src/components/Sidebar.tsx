@@ -38,7 +38,8 @@ const menuData: MenuSection[] = [
   {
     section: 'Projects',
     items: [
-      { id: 'projects', label: 'Projects', path: '/projects' }
+      { id: 'projects', label: 'Projects', path: '/projects' },
+      { id: 'tools', label: 'Tools', path: '/tools' }
     ]
   },
   {
@@ -227,10 +228,10 @@ const menuData: MenuSection[] = [
           { id: 'settings-document', label: 'Document Settings', path: '/settings/document-series' },
           { id: 'settings-template', label: 'Template Settings', path: '/settings/template' },
           { id: 'settings-terms', label: 'Terms & Conditions', path: '/settings/terms-conditions' },
-          { id: 'settings-quick-quote', label: 'Quick Quote', path: '/settings/quick-quote' },
           { id: 'settings-organisation', label: 'Organisation Settings', path: '/settings/organisation' },
           { id: 'settings-access', label: 'Access Control', path: '/settings/access-control' },
-          { id: 'settings-discounts', label: 'Discount Settings', path: '/settings/discounts' }
+          { id: 'settings-discounts', label: 'Discount Settings', path: '/settings/discounts' },
+          { id: 'settings-tools', label: 'Tools Settings', path: '/tools-settings' }
         ]
       }
     ]
@@ -246,6 +247,7 @@ const ICON_MAP: Record<string, keyof typeof HeroIcons> = {
   'client-po': 'DocumentTextIcon',
   meetings: 'CalendarDaysIcon',
   'site-visit': 'MapPinIcon',
+  tools: 'WrenchIcon',
   'site-report': 'ClipboardDocumentCheckIcon',
   'client-communication': 'ChatBubbleLeftRightIcon',
   subcontractor: 'UserGroupIcon',

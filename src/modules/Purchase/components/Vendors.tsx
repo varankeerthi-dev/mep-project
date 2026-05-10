@@ -71,8 +71,13 @@ interface VendorFormData {
   bank_ifsc: string;
   bank_name: string;
   bank_branch: string;
+  account_holder_name: string;
+  re_enter_account_number: string;
   remarks: string;
   status: string;
+  msme_register_type: string;
+  msme_number: string;
+  gst_treatment: string;
 }
 
 const defaultFormData: VendorFormData = {
@@ -93,8 +98,13 @@ const defaultFormData: VendorFormData = {
   bank_ifsc: '',
   bank_name: '',
   bank_branch: '',
+  account_holder_name: '',
+  re_enter_account_number: '',
   remarks: '',
   status: 'Active',
+  msme_register_type: '',
+  msme_number: '',
+  gst_treatment: ''
 };
 
 export const Vendors: React.FC = () => {
@@ -523,6 +533,58 @@ export const Vendors: React.FC = () => {
                   {errors.pan ? <p className="text-[10px] text-red-500 mt-1 ml-1">{errors.pan}</p> : <p className="text-[10px] text-slate-400 mt-1 ml-1">Format: ABCUP1234A</p>}
                 </div>
               </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">GST Treatment</label>
+                <Select
+                  value={formData.gst_treatment}
+                  onValueChange={(val) => setFormData({ ...formData, gst_treatment: val })}
+                >
+                  <SelectTrigger className="rounded-xl">
+                    <SelectValue placeholder="Select GST Treatment" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Registered Business Regular">Registered Business Regular - Standard GST registered business</SelectItem>
+                    <SelectItem value="Registered Business Composition">Registered Business Composition - Business under GST Composition Scheme</SelectItem>
+                    <SelectItem value="Unregistered Business">Unregistered Business - Not registered under GST</SelectItem>
+                    <SelectItem value="Consumer">Consumer - Regular end-consumer</SelectItem>
+                    <SelectItem value="Overseas">Overseas - Import/Export outside India</SelectItem>
+                    <SelectItem value="Special Economic Zone (SEZ)">Special Economic Zone (SEZ) - Units located in an Indian SEZ</SelectItem>
+                    <SelectItem value="Deemed Export">Deemed Export - Supply to EOUs or against Advance Authorization</SelectItem>
+                    <SelectItem value="Tax Deductor">Tax Deductor - Government departments/local authorities</SelectItem>
+                    <SelectItem value="SEZ Developer">SEZ Developer - Owners of SEZ infrastructure</SelectItem>
+                    <SelectItem value="Input Service Distributor">Input Service Distributor - For distributing ITC across different branches</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">MSME Register Type</label>
+                  <Select
+                    value={formData.msme_register_type}
+                    onValueChange={(val) => setFormData({ ...formData, msme_register_type: val })}
+                  >
+                    <SelectTrigger className="rounded-xl">
+                      <SelectValue placeholder="Select MSME Type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="micro">Micro Enterprise</SelectItem>
+                      <SelectItem value="small">Small Enterprise</SelectItem>
+                      <SelectItem value="macro">Macro Enterprise</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">MSME Number</label>
+                  <Input
+                    value={formData.msme_number}
+                    onChange={(e) => setFormData({ ...formData, msme_number: e.target.value.toUpperCase() })}
+                    placeholder="UDYAM/MSME Registration Number"
+                    className="rounded-xl uppercase font-mono text-sm"
+                  />
+                </div>
+              </div>
             </div>
 
             <div className="space-y-4">
@@ -645,11 +707,38 @@ export const Vendors: React.FC = () => {
                 <span>Bank Details</span>
               </div>
               <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Account Holder Name</label>
+                <Input
+                  value={formData.account_holder_name}
+                  onChange={(e) => setFormData({ ...formData, account_holder_name: e.target.value })}
+                  placeholder="Enter account holder name"
+                  className="rounded-xl bg-white border-slate-200 shadow-sm"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Bank Name</label>
+                <Input
+                  value={formData.bank_name}
+                  onChange={(e) => setFormData({ ...formData, bank_name: e.target.value })}
+                  placeholder="State Bank of India"
+                  className="rounded-xl bg-white border-slate-200 shadow-sm"
+                />
+              </div>
+              <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Account Number</label>
                 <Input
                   value={formData.bank_account_no}
                   onChange={(e) => setFormData({ ...formData, bank_account_no: e.target.value })}
                   placeholder="00000000000"
+                  className="rounded-xl bg-white border-slate-200 shadow-sm"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Re-enter Account Number</label>
+                <Input
+                  value={formData.re_enter_account_number}
+                  onChange={(e) => setFormData({ ...formData, re_enter_account_number: e.target.value })}
+                  placeholder="Re-enter account number"
                   className="rounded-xl bg-white border-slate-200 shadow-sm"
                 />
               </div>
@@ -660,15 +749,6 @@ export const Vendors: React.FC = () => {
                   onChange={(e) => setFormData({ ...formData, bank_ifsc: e.target.value.toUpperCase() })}
                   placeholder="SBIN0001234"
                   className="rounded-xl bg-white border-slate-200 shadow-sm uppercase font-mono"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Bank Name</label>
-                <Input
-                  value={formData.bank_name}
-                  onChange={(e) => setFormData({ ...formData, bank_name: e.target.value })}
-                  placeholder="State Bank of India"
-                  className="rounded-xl bg-white border-slate-200 shadow-sm"
                 />
               </div>
               <div className="space-y-1.5">

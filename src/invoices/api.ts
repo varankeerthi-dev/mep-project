@@ -7,6 +7,7 @@ import {
   type Invoice,
   type InvoiceInput,
 } from './schemas';
+import { deductInvoiceStock, reverseInvoiceStockDeductions } from './stock-deduction/api';
 import type {
   ChallanInvoiceSource,
   InvoiceClientSummary,
@@ -251,6 +252,28 @@ export async function createInvoice(input: InvoiceInput & { organisation_id: str
       }
     }
 
+    // Handle stock deduction if enabled
+    if (validated.deduct_stock_on_finalize && validated.mode) {
+      try {
+        const deductionResults = await deductInvoiceStock(
+          insertedInvoiceId,
+          organisationId,
+          validated.mode,
+          validated.allow_insufficient_stock || false
+        );
+        
+        // Check for insufficient stock errors
+        const insufficientItems = deductionResults.filter(r => r.status === 'INSUFFICIENT');
+        if (insufficientItems.length > 0) {
+          console.warn('Insufficient stock for items:', insufficientItems);
+          // Note: We don't fail the invoice creation, just log the warning
+        }
+      } catch (err) {
+        console.error('Stock deduction failed:', err);
+        // Note: We don't fail the invoice creation, just log the error
+      }
+    }
+
     return getInvoiceById(insertedInvoiceId, organisationId);
   } catch (error) {
     if (invoiceId) {
@@ -297,10 +320,40 @@ export async function updateInvoice(id: string, input: InvoiceInput & { organisa
     if (materialError) throw materialError;
   }
 
+  // Handle stock deduction if enabled
+  if (validated.deduct_stock_on_finalize && validated.mode) {
+    try {
+      const deductionResults = await deductInvoiceStock(
+        id,
+        input.organisation_id,
+        validated.mode,
+        validated.allow_insufficient_stock || false
+      );
+      
+      // Check for insufficient stock errors
+      const insufficientItems = deductionResults.filter(r => r.status === 'INSUFFICIENT');
+      if (insufficientItems.length > 0) {
+        console.warn('Insufficient stock for items:', insufficientItems);
+        // Note: We don't fail the update, just log the warning
+      }
+    } catch (err) {
+      console.error('Stock deduction failed:', err);
+      // Note: We don't fail the update, just log the error
+    }
+  }
+
   return getInvoiceById(id, input.organisation_id);
 }
 
 export async function deleteInvoice(id: string, organisationId: string): Promise<void> {
+  // Reverse stock deductions before deleting invoice
+  try {
+    await reverseInvoiceStockDeductions(id);
+  } catch (err) {
+    console.error('Failed to reverse stock deductions:', err);
+    // Continue with deletion even if reversal fails
+  }
+
   const { error } = await supabase.from('invoices').delete().eq('id', id).eq('organisation_id', organisationId);
   if (error) throw error;
 }

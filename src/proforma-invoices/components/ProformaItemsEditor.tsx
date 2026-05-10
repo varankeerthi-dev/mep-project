@@ -9,6 +9,7 @@ import { createPortal } from 'react-dom';
 import type { ProformaMaterialOption } from '../ui-utils';
 import { createEmptyProformaItem, formatCurrency, round2 } from '../ui-utils';
 import { useAuth } from '../../App';
+import { supabase } from '../../supabase';
 
 type ProformaItemsEditorProps = {
   fields: FieldArrayWithId<any, 'items', 'id'>[];
@@ -21,6 +22,10 @@ type ProformaItemsEditorProps = {
   productOptions?: ProformaMaterialOption[];
   setValue?: UseFormSetValue<any>;
   formState?: any;
+  templateSettings?: any;
+  discountSettings?: Record<string, { default: number; min: number; max: number }>;
+  headerDiscounts?: Record<string, number>;
+  onHeaderDiscountChange?: (variantId: string, value: number) => void;
 };
 
 function SortableRow({ children, id, index }: { children: React.ReactNode; id: string; index: number }) {
@@ -50,6 +55,10 @@ export function ProformaItemsEditor({
   productOptions = [],
   setValue,
   formState,
+  templateSettings,
+  discountSettings,
+  headerDiscounts,
+  onHeaderDiscountChange,
 }: ProformaItemsEditorProps) {
   const { organisation } = useAuth();
   const [searchTerms, setSearchTerms] = useState<Record<number, string>>({});
@@ -90,7 +99,7 @@ export function ProformaItemsEditor({
     }
   };
 
-  const handleMaterialSelect = useCallback((index: number, materialId: string) => {
+  const handleMaterialSelect = useCallback(async (index: number, materialId: string) => {
     const material = productOptions.find(m => m.id === materialId);
     if (material) {
       setValue(`items.${index}.item_id`, materialId, { shouldDirty: true });
@@ -99,13 +108,38 @@ export function ProformaItemsEditor({
       const firstVariant = material.variants && material.variants.length > 0 ? material.variants[0].variant_name || '' : '';
       setValue(`items.${index}.variant`, firstVariant, { shouldDirty: true });
       setValue(`items.${index}.unit`, material.unit || '', { shouldDirty: true });
-      if (material.sale_price) {
-        // Set base_rate to be material's landing rate
-        setValue(`items.${index}.meta_json.base_rate`, material.sale_price, { shouldDirty: true });
+      
+      // Fetch variant pricing from item_variant_pricing if variant and make are available
+      const selectedMake = selectedMakes[index] || '';
+      const selectedVariant = selectedVariants[index] || firstVariant;
+      
+      let baseRate = material.sale_price;
+      
+      if (selectedMake && selectedVariant && organisation?.id) {
+        try {
+          const { data: variantPricing } = await supabase
+            .from('item_variant_pricing')
+            .select('sale_price')
+            .eq('item_id', materialId)
+            .eq('make', selectedMake)
+            .eq('company_variant_id', selectedVariant)
+            .single();
+          
+          if (variantPricing?.sale_price) {
+            baseRate = variantPricing.sale_price;
+          }
+        } catch (err) {
+          console.error('Error fetching variant pricing:', err);
+        }
+      }
+      
+      if (baseRate) {
+        // Set base_rate
+        setValue(`items.${index}.meta_json.base_rate`, baseRate, { shouldDirty: true });
         
         // Auto-calculate rate after discount and set to Rate/Unit field
         const discountPercent = Number(items[index]?.discount_percent || 0);
-        const rateAfterDiscount = material.sale_price - (material.sale_price * discountPercent / 100);
+        const rateAfterDiscount = baseRate - (baseRate * discountPercent / 100);
         const roundedRate = roundOffEnabled ? Math.round(rateAfterDiscount) : rateAfterDiscount;
         
         // Set the calculated rate to Rate/Unit field (this is what gets saved)
@@ -116,7 +150,7 @@ export function ProformaItemsEditor({
     }
     setOpenDropdowns(prev => ({ ...prev, [index]: false }));
     setSelectedIndices(prev => ({ ...prev, [index]: 0 }));
-  }, [productOptions, setValue, items, roundOffEnabled]);
+  }, [productOptions, setValue, items, roundOffEnabled, selectedMakes, selectedVariants, organisation?.id]);
 
   const handleSearchChange = useCallback((index: number, value: string) => {
     setSearchTerms(prev => ({ ...prev, [index]: value }));
@@ -124,7 +158,7 @@ export function ProformaItemsEditor({
     setSelectedIndices(prev => ({ ...prev, [index]: 0 }));
   }, []);
 
-  const handleMaterialChange = useCallback((index: number, materialId: string) => {
+  const handleMaterialChange = useCallback(async (index: number, materialId: string) => {
     const material = productOptions.find(m => m.id === materialId);
     if (material) {
       setValue(`items.${index}.item_id`, materialId, { shouldDirty: true });
@@ -133,13 +167,38 @@ export function ProformaItemsEditor({
       const firstVariant = material.variants && material.variants.length > 0 ? material.variants[0].variant_name || '' : '';
       setValue(`items.${index}.variant`, firstVariant, { shouldDirty: true });
       setValue(`items.${index}.unit`, material.unit || '', { shouldDirty: true });
-      if (material.sale_price) {
-        // Set base_rate to be material's landing rate
-        setValue(`items.${index}.meta_json.base_rate`, material.sale_price, { shouldDirty: true });
+      
+      // Fetch variant pricing from item_variant_pricing if variant and make are available
+      const selectedMake = selectedMakes[index] || '';
+      const selectedVariant = selectedVariants[index] || firstVariant;
+      
+      let baseRate = material.sale_price;
+      
+      if (selectedMake && selectedVariant && organisation?.id) {
+        try {
+          const { data: variantPricing } = await supabase
+            .from('item_variant_pricing')
+            .select('sale_price')
+            .eq('item_id', materialId)
+            .eq('make', selectedMake)
+            .eq('company_variant_id', selectedVariant)
+            .single();
+          
+          if (variantPricing?.sale_price) {
+            baseRate = variantPricing.sale_price;
+          }
+        } catch (err) {
+          console.error('Error fetching variant pricing:', err);
+        }
+      }
+      
+      if (baseRate) {
+        // Set base_rate
+        setValue(`items.${index}.meta_json.base_rate`, baseRate, { shouldDirty: true });
         
         // Auto-calculate rate after discount and set to Rate/Unit field
         const discountPercent = Number(items[index]?.discount_percent || 0);
-        const rateAfterDiscount = material.sale_price - (material.sale_price * discountPercent / 100);
+        const rateAfterDiscount = baseRate - (baseRate * discountPercent / 100);
         const roundedRate = roundOffEnabled ? Math.round(rateAfterDiscount) : rateAfterDiscount;
         
         // Set the calculated rate to Rate/Unit field (this is what gets saved)
@@ -150,7 +209,7 @@ export function ProformaItemsEditor({
     }
     setOpenDropdowns(prev => ({ ...prev, [index]: false }));
     setSelectedIndices(prev => ({ ...prev, [index]: 0 }));
-  }, [productOptions, setValue, items, roundOffEnabled]);
+  }, [productOptions, setValue, items, roundOffEnabled, selectedMakes, selectedVariants, organisation?.id]);
 
   const handleInputClick = useCallback((index: number) => {
     setOpenDropdowns(prev => ({ ...prev, [index]: true }));

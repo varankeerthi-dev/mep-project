@@ -190,7 +190,8 @@ export default function PrintSettings() {
                             template.show_logo && 'Logo',
                             template.show_bank_details && 'Bank',
                             template.show_terms && 'Terms',
-                            template.show_signature && 'Sign'
+                            template.show_signature && 'Sign',
+                            template.show_msme && 'MSME'
                           ].filter(Boolean).join(' • ')}
                         </div>
                       </div>

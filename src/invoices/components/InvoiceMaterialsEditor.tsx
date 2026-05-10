@@ -11,6 +11,8 @@ type InvoiceMaterialsEditorProps = {
   materials: InvoiceEditorFormValues['materials'];
   productOptions: InvoiceMaterialOption[];
   error?: string;
+  warehouses?: Array<{ id: string; warehouse_name?: string; name?: string }>;
+  defaultWarehouseId?: string;
 };
 
 export function InvoiceMaterialsEditor({
@@ -20,6 +22,8 @@ export function InvoiceMaterialsEditor({
   remove,
   productOptions,
   error,
+  warehouses = [],
+  defaultWarehouseId,
 }: InvoiceMaterialsEditorProps) {
   return (
     <div style={{ border: '1px solid #d4d4d4', borderRadius: '4px', overflow: 'hidden' }}>
@@ -85,6 +89,18 @@ export function InvoiceMaterialsEditor({
               }}>
                 Qty Used
               </th>
+              <th style={{ 
+                padding: '6px 8px', 
+                textAlign: 'left', 
+                fontSize: '10px', 
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: '0.03em',
+                color: '#737373',
+                width: '150px'
+              }}>
+                Warehouse
+              </th>
               <th style={{ padding: '6px 8px', width: '32px' }} />
             </tr>
           </thead>
@@ -131,6 +147,29 @@ export function InvoiceMaterialsEditor({
                     onFocus={(e) => e.currentTarget.style.borderColor = '#d4d4d4'}
                     onBlur={(e) => e.currentTarget.style.borderColor = 'transparent'}
                   />
+                </td>
+                <td style={{ padding: '4px 8px' }}>
+                  <select
+                    {...register(`materials.${index}.warehouse_id`)}
+                    style={{
+                      width: '100%',
+                      padding: '4px 6px',
+                      border: '1px solid transparent',
+                      borderRadius: '2px',
+                      fontSize: '12px',
+                      background: 'transparent',
+                      cursor: 'pointer'
+                    }}
+                    onFocus={(e) => e.currentTarget.style.borderColor = '#d4d4d4'}
+                    onBlur={(e) => e.currentTarget.style.borderColor = 'transparent'}
+                  >
+                    <option value="">Select warehouse</option>
+                    {warehouses.map((wh) => (
+                      <option key={wh.id} value={wh.id}>
+                        {wh.warehouse_name || wh.name}
+                      </option>
+                    ))}
+                  </select>
                 </td>
                 <td style={{ padding: '4px 8px' }}>
                   <button

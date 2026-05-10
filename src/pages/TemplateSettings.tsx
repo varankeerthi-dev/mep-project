@@ -5,16 +5,16 @@ import { useAuth } from '../App';
 
 import { PortraitTemplate } from '../templates/PortraitTemplate';
 
-const DOCUMENT_TYPES = ['Quotation', 'Sales Order', 'Proforma Invoice', 'Delivery Challan', 'Invoice'];
+const DOCUMENT_TYPES = ['Quotation', 'Sales Order', 'Proforma Invoice', 'Delivery Challan', 'Invoice', 'Tools Delivery Challan'];
 const PAGE_SIZES = ['A4', 'Letter'];
 const ORIENTATIONS = ['Portrait', 'Landscape'];
 
 const OPTIONAL_COLUMNS = [
   { key: 'sno', label: 'S.No.', isMandatory: true },
-  { key: 'item', label: 'Item Name' },
+  { key: 'item', label: 'Tool Name' },
   { key: 'qty', label: 'Qty', isMandatory: true },
   { key: 'uom', label: 'Unit (UOM)' },
-  { key: 'item_code', label: 'Item Code' },
+  { key: 'item_code', label: 'Tool Code' },
   { key: 'variant', label: 'Variant' },
   { key: 'description', label: 'Description' },
   { key: 'client_part_no', label: 'Client Part No' },
@@ -29,7 +29,7 @@ const OPTIONAL_COLUMNS = [
   { key: 'tax_amount', label: 'Tax Amount' },
   { key: 'line_total', label: 'Final Total' },
   { key: 'category', label: 'Category' },
-  { key: 'make', label: 'Make' },
+  { key: 'make', label: 'Make (Tool Source)' },
   { key: 'custom1', label: 'Custom 1' },
   { key: 'custom2', label: 'Custom 2' },
   { key: 'subtotal', label: 'Sub-Total' },
@@ -71,6 +71,7 @@ export default function TemplateSettings() {
     show_bank_details: true,
     show_terms: true,
     show_signature: true,
+    show_msme: false,
     column_settings: {
       mandatory: [],
       optional: {
@@ -508,6 +509,7 @@ export default function TemplateSettings() {
       show_bank_details: template.show_bank_details !== false,
       show_terms: template.show_terms !== false,
       show_signature: template.show_signature !== false,
+      show_msme: template.show_msme || false,
       column_settings: {
         mandatory: [],
         optional: template.column_settings?.optional || {
@@ -571,6 +573,7 @@ export default function TemplateSettings() {
       show_bank_details: true,
       show_terms: true,
       show_signature: true,
+      show_msme: false,
       column_settings: {
         mandatory: [],
         optional: {
@@ -1194,6 +1197,14 @@ export default function TemplateSettings() {
                 onChange={(e) => setFormData({ ...formData, show_signature: e.target.checked })}
               />
               <span>Show Signature</span>
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={formData.show_msme}
+                onChange={(e) => setFormData({ ...formData, show_msme: e.target.checked })}
+              />
+              <span>Show MSME Details</span>
             </label>
           </div>
 

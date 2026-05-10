@@ -29,7 +29,10 @@ export function QuickAddClientModal({ isOpen, onClose, onSuccess }: QuickAddClie
     contact_person: '',
     phone: '',
     email: '',
-    city: ''
+    city: '',
+    msme_register_type: '',
+    msme_number: '',
+    gst_treatment: ''
   });
 
   const addClientMutation = useMutation({
@@ -54,7 +57,10 @@ export function QuickAddClientModal({ isOpen, onClose, onSuccess }: QuickAddClie
         contact_person: '',
         phone: '',
         email: '',
-        city: ''
+        city: '',
+        msme_register_type: '',
+        msme_number: '',
+        gst_treatment: ''
       });
       if (onSuccess) onSuccess(data);
       onClose();
@@ -203,6 +209,59 @@ export function QuickAddClientModal({ isOpen, onClose, onSuccess }: QuickAddClie
                         <Sparkles className="w-4 h-4 animate-in zoom-in" />
                      </div>
                   )}
+                </div>
+             </div>
+
+             <div className="group">
+                <label className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-widest text-slate-500 mb-2 group-focus-within:text-indigo-600 transition-colors">
+                  <Tags className="w-3.5 h-3.5" /> GST Treatment
+                </label>
+                <select
+                  value={formData.gst_treatment}
+                  onChange={(e) => setFormData({ ...formData, gst_treatment: e.target.value })}
+                  className="w-full h-12 bg-slate-50/50 border border-slate-200 rounded-xl px-4 text-[14px] text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/15 focus:border-indigo-500 transition-all hover:bg-white"
+                >
+                  <option value="">Select GST Treatment</option>
+                  <option value="Registered Business Regular">Registered Business Regular - Standard GST registered business</option>
+                  <option value="Registered Business Composition">Registered Business Composition - Business under GST Composition Scheme</option>
+                  <option value="Unregistered Business">Unregistered Business - Not registered under GST</option>
+                  <option value="Consumer">Consumer - Regular end-consumer</option>
+                  <option value="Overseas">Overseas - Import/Export outside India</option>
+                  <option value="Special Economic Zone (SEZ)">Special Economic Zone (SEZ) - Units located in an Indian SEZ</option>
+                  <option value="Deemed Export">Deemed Export - Supply to EOUs or against Advance Authorization</option>
+                  <option value="Tax Deductor">Tax Deductor - Government departments/local authorities</option>
+                  <option value="SEZ Developer">SEZ Developer - Owners of SEZ infrastructure</option>
+                  <option value="Input Service Distributor">Input Service Distributor - For distributing ITC across different branches</option>
+                </select>
+             </div>
+
+             <div className="grid grid-cols-2 gap-5">
+                <div className="group">
+                  <label className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-widest text-slate-500 mb-2 group-focus-within:text-indigo-600 transition-colors">
+                    <Tags className="w-3.5 h-3.5" /> MSME Type
+                  </label>
+                  <select
+                    value={formData.msme_register_type}
+                    onChange={(e) => setFormData({ ...formData, msme_register_type: e.target.value })}
+                    className="w-full h-12 bg-slate-50/50 border border-slate-200 rounded-xl px-4 text-[14px] text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/15 focus:border-indigo-500 transition-all hover:bg-white"
+                  >
+                    <option value="">Select Type</option>
+                    <option value="micro">Micro Enterprise</option>
+                    <option value="small">Small Enterprise</option>
+                    <option value="macro">Macro Enterprise</option>
+                  </select>
+                </div>
+                <div className="group">
+                  <label className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-widest text-slate-500 mb-2 group-focus-within:text-indigo-600 transition-colors">
+                    <Tags className="w-3.5 h-3.5" /> MSME Number
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.msme_number}
+                    onChange={(e) => setFormData({ ...formData, msme_number: e.target.value.toUpperCase() })}
+                    placeholder="UDYAM Number"
+                    className="w-full h-12 bg-slate-50/50 border border-slate-200 rounded-xl px-4 text-[14px] font-mono text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/15 focus:border-indigo-500 transition-all hover:bg-white uppercase"
+                  />
                 </div>
              </div>
           </div>

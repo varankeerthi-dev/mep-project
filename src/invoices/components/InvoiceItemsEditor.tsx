@@ -25,6 +25,9 @@ type InvoiceItemsEditorProps = {
   setValue?: UseFormSetValue<InvoiceEditorFormValues>;
   formState?: any;
   isApplyingPOItems?: boolean;
+  warehouses?: Array<{ id: string; warehouse_name?: string; name?: string }>;
+  stockRows?: Array<{ item_id: string; warehouse_id: string; company_variant_id: string | null; current_stock: number }>;
+  defaultWarehouseId?: string;
 };
 
 function SortableRow({ children, id, index }: { children: React.ReactNode; id: string; index: number }) {
@@ -58,6 +61,9 @@ export function InvoiceItemsEditor({
   setValue,
   formState,
   isApplyingPOItems = false,
+  warehouses = [],
+  stockRows = [],
+  defaultWarehouseId,
 }: InvoiceItemsEditorProps) {
   const { organisation } = useAuth();
   const [searchTerms, setSearchTerms] = useState<Record<number, string>>({});
@@ -136,14 +142,12 @@ export function InvoiceItemsEditor({
     const material = productOptions.find(m => m.id === materialId);
     if (material) {
       setValue(`items.${index}.meta_json.material_id`, materialId, { shouldDirty: true });
-      setValue(`items.${index}.description`, material.name || '', { shouldDirty: true });
+      setValue(`items.${index}.description`, material.display_name || material.name, { shouldDirty: true });
       setValue(`items.${index}.hsn_code`, material.hsn_code || '', { shouldDirty: true });
-      const firstVariant = material.variants && material.variants.length > 0 ? material.variants[0].variant_name || '' : '';
-      setValue(`items.${index}.meta_json.variant`, firstVariant, { shouldDirty: true });
-      setValue(`items.${index}.meta_json.unit`, material.unit || '', { shouldDirty: true });
-      if (material.sale_price) {
-        // Set base_rate to be material's landing rate
-        setValue(`items.${index}.meta_json.base_rate`, material.sale_price, { shouldDirty: true });
+      // Auto-set default warehouse if not already set
+      const currentWarehouse = items[index]?.meta_json?.warehouse_id as string | undefined;
+      if (!currentWarehouse && defaultWarehouseId) {
+        setValue(`items.${index}.meta_json.warehouse_id`, defaultWarehouseId, { shouldDirty: true });
         
         // Auto-calculate rate after discount and set to Rate/Unit field
         const discountPercent = Number(items[index]?.discount_percent || 0);
@@ -490,6 +494,30 @@ export function InvoiceItemsEditor({
                 width: '80px'
               }}>
                 VARIANT
+              </th>
+              <th style={{ 
+                padding: '6px 4px', 
+                textAlign: 'left', 
+                fontSize: '10px', 
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: '0.03em',
+                color: '#737373',
+                width: '120px'
+              }}>
+                WAREHOUSE
+              </th>
+              <th style={{ 
+                padding: '6px 4px', 
+                textAlign: 'right', 
+                fontSize: '10px', 
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: '0.03em',
+                color: '#737373',
+                width: '80px'
+              }}>
+                STOCK
               </th>
               <th style={{ 
                 padding: '6px 4px', 
@@ -930,6 +958,62 @@ export function InvoiceItemsEditor({
                         })()}
                       </div>
                     )}
+                  </td>
+                  <td style={{ padding: '4px' }}>
+                    {item.meta_json?.material_id ? (
+                      <select
+                        {...register(`items.${index}.meta_json.warehouse_id` as const)}
+                        style={{
+                          width: '100%',
+                          padding: '4px 6px',
+                          border: '1px solid transparent',
+                          borderRadius: '2px',
+                          fontSize: '11px',
+                          background: 'transparent'
+                        }}
+                        onFocus={(e) => e.currentTarget.style.borderColor = '#d4d4d4'}
+                        onBlur={(e) => e.currentTarget.style.borderColor = 'transparent'}
+                      >
+                        <option value="">Select warehouse</option>
+                        {warehouses.map((wh) => (
+                          <option key={wh.id} value={wh.id}>
+                            {wh.warehouse_name || wh.name}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <span style={{ fontSize: '11px', color: '#a3a3a3' }}>-</span>
+                    )}
+                  </td>
+                  <td style={{ padding: '4px', textAlign: 'right' }}>
+                    {(() => {
+                      const materialId = item.meta_json?.material_id as string | undefined;
+                      const warehouseId = item.meta_json?.warehouse_id as string | undefined;
+                      const variantId = item.meta_json?.variant_id as string | undefined;
+                      
+                      if (!materialId || !warehouseId) {
+                        return <span style={{ fontSize: '11px', color: '#a3a3a3' }}>-</span>;
+                      }
+                      
+                      const stockRow = stockRows.find(s => 
+                        s.item_id === materialId && 
+                        s.warehouse_id === warehouseId && 
+                        (variantId ? s.company_variant_id === variantId : s.company_variant_id === null)
+                      );
+                      
+                      const stock = stockRow?.current_stock || 0;
+                      const hasStock = stock > 0;
+                      
+                      return (
+                        <span style={{ 
+                          fontSize: '11px', 
+                          color: hasStock ? '#171717' : '#dc2626',
+                          fontWeight: hasStock ? 'normal' : 600
+                        }}>
+                          {stock}
+                        </span>
+                      );
+                    })()}
                   </td>
                   <td style={{ padding: '4px' }}>
                     <input

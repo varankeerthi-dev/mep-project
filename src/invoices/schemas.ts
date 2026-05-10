@@ -50,6 +50,10 @@ export const InvoiceItemMetaSchema = z
     uom: z.string().optional(),
     base_rate: CurrencySchema.optional(),
     discount_percent: PercentSchema.optional(),
+    material_id: z.string().uuid().optional(),
+    warehouse_id: z.string().uuid().optional(),
+    variant_id: z.string().uuid().optional(),
+    is_service: z.boolean().optional(),
   })
   .catchall(JsonValueSchema);
 
@@ -81,6 +85,7 @@ export const InvoiceMaterialSchema = z
     invoice_id: z.string().uuid().optional(),
     product_id: z.string().uuid('Valid product id is required.'),
     qty_used: PositiveQuantitySchema,
+    warehouse_id: z.string().uuid().nullable().optional(),
   });
 
 export const InvoiceSchema = z
@@ -106,6 +111,8 @@ export const InvoiceSchema = z
     company_state: z.string().trim().min(1).optional().nullable(),
     client_state: z.string().trim().min(1).optional().nullable(),
     shipping_address_id: z.string().uuid().optional().nullable(),
+    deduct_stock_on_finalize: z.boolean().default(false),
+    allow_insufficient_stock: z.boolean().default(false),
     items: z.array(InvoiceItemSchema).min(1, 'At least one invoice item is required.').default([]),
     materials: z.array(InvoiceMaterialSchema).default([]),
   })
