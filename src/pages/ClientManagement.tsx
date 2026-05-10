@@ -428,7 +428,9 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
     contact_person: '', contact_designation: '', contact_person_email: '',
     contact_person_2: '', contact_designation_2: '', contact_person_2_contact: '', contact_person_2_email: '',
     purchase_person: '', purchase_designation: '', purchase_contact: '', purchase_email: '',
-    about_client: '', discount_type: 'Special', standard_pricelist_id: null
+    about_client: '', discount_type: 'Special', standard_pricelist_id: null,
+    msme_register_type: '', msme_number: '',
+    gst_treatment: ''
   });
   const [isDirty, setIsDirty] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -684,7 +686,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                   {/* Identity Block */}
                   <section>
                     <SectionHeading>Client Information</SectionHeading>
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6" style={{ paddingLeft: '16px' }}>
                       <FieldGroup label="Client Name" required>
                         <CompactInput value={val('client_name')} onChange={set('client_name')} required placeholder="Enter client name" />
                       </FieldGroup>
@@ -706,8 +708,47 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                         <CompactInput value={val('gstin')} onChange={handleGstChange} placeholder="15 Digit GST Number" maxLength={15} className="font-mono text-[14px] font-semibold tracking-wider placeholder:tracking-normal placeholder:font-sans uppercase" />
                       </FieldGroup>
 
+                      <FieldGroup label="GST Treatment">
+                        <div className="relative">
+                           <select className={selectCn} value={val('gst_treatment') || ''} onChange={e => setFormData({ ...formData, gst_treatment: e.target.value })}>
+                             <option value="">Select GST Treatment</option>
+                             <option value="Registered Business Regular">Registered Business Regular - Standard GST registered business</option>
+                             <option value="Registered Business Composition">Registered Business Composition - Business under GST Composition Scheme</option>
+                             <option value="Unregistered Business">Unregistered Business - Not registered under GST</option>
+                             <option value="Consumer">Consumer - Regular end-consumer</option>
+                             <option value="Overseas">Overseas - Import/Export outside India</option>
+                             <option value="Special Economic Zone (SEZ)">Special Economic Zone (SEZ) - Units located in an Indian SEZ</option>
+                             <option value="Deemed Export">Deemed Export - Supply to EOUs or against Advance Authorization</option>
+                             <option value="Tax Deductor">Tax Deductor - Government departments/local authorities</option>
+                             <option value="SEZ Developer">SEZ Developer - Owners of SEZ infrastructure</option>
+                             <option value="Input Service Distributor">Input Service Distributor - For distributing ITC across different branches</option>
+                           </select>
+                           <div className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-slate-400">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                           </div>
+                        </div>
+                      </FieldGroup>
+
                       <FieldGroup label="Vendor Code">
                         <CompactInput value={val('vendor_no')} onChange={set('vendor_no')} placeholder="Vendor Code" />
+                      </FieldGroup>
+
+                      <FieldGroup label="MSME Register Type">
+                        <div className="relative">
+                           <select className={selectCn} value={val('msme_register_type') || ''} onChange={e => setFormData({ ...formData, msme_register_type: e.target.value })}>
+                             <option value="">Select MSME Type</option>
+                             <option value="micro">Micro Enterprise</option>
+                             <option value="small">Small Enterprise</option>
+                             <option value="macro">Macro Enterprise</option>
+                           </select>
+                           <div className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-slate-400">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" /></svg>
+                           </div>
+                        </div>
+                      </FieldGroup>
+
+                      <FieldGroup label="MSME Number">
+                        <CompactInput value={val('msme_number')} onChange={set('msme_number')} placeholder="UDYAM/MSME Registration Number" className="font-mono text-[14px] font-semibold tracking-wider placeholder:tracking-normal placeholder:font-sans uppercase" />
                       </FieldGroup>
                     </div>
                   </section>
@@ -721,7 +762,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                     <div className="space-y-8">
                       <div>
                         <p className="text-[14px] font-semibold mb-4" style={{ color: '#3A6963' }}>Primary Contact</p>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4" style={{ marginLeft: '7px', border: '1px solid #e2e8f0', paddingLeft: '16px', borderRadius: '8px' }}>
                           <CompactInput value={val('contact_person')} onChange={set('contact_person')} placeholder="Contact Person Name" />
                           <CompactInput value={val('contact_designation')} onChange={set('contact_designation')} placeholder="Designation" />
                           <CompactInput value={val('contact')} onChange={set('contact')} placeholder="Phone number" />
@@ -733,7 +774,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
 
                       <div>
                         <p className="text-[14px] font-semibold mb-4" style={{ color: '#3A6963' }}>Secondary Contact</p>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4" style={{ marginLeft: '7px', border: '1px solid #e2e8f0', paddingLeft: '16px', borderRadius: '8px' }}>
                           <CompactInput value={val('contact_person_2')} onChange={set('contact_person_2')} placeholder="Contact Person Name" />
                           <CompactInput value={val('contact_designation_2')} onChange={set('contact_designation_2')} placeholder="Designation" />
                           <CompactInput value={val('contact_person_2_contact')} onChange={set('contact_person_2_contact')} placeholder="Phone Number" />
@@ -745,7 +786,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
 
                       <div>
                         <p className="text-[14px] font-semibold mb-4" style={{ color: '#3A6963' }}>Purchase Contact</p>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4" style={{ marginLeft: '7px', border: '1px solid #e2e8f0', paddingLeft: '16px', borderRadius: '8px' }}>
                           <CompactInput value={val('purchase_person')} onChange={set('purchase_person')} placeholder="Contact Person Name" />
                           <CompactInput value={val('purchase_designation')} onChange={set('purchase_designation')} placeholder="Designation" />
                           <CompactInput value={val('purchase_contact')} onChange={set('purchase_contact')} placeholder="Phone Number" />
@@ -759,7 +800,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                   <section>
 <SectionHeading>Address Details</SectionHeading>
 
-                    <div className="grid grid-cols-1 max-w-4xl gap-8">
+                    <div className="grid grid-cols-1 max-w-4xl gap-8" style={{ paddingLeft: '16px' }}>
                       {/* Billing Address */}
                       <div className="rounded-xl border border-slate-200 p-6">
                         <h4 className="text-[15px] font-semibold text-slate-900 mb-4">Billing Address</h4>
@@ -901,7 +942,7 @@ export function CreateClient({ onSuccess, onCancel, editMode, clientData }: Crea
                   {/* Operational Notes */}
                   <section>
 <SectionHeading>Notes</SectionHeading>
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-5xl">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-5xl" style={{ paddingLeft: '16px' }}>
                       <FieldGroup label="Internal Remarks">
                         <CompactTextarea rows={4} value={val('remarks')} onChange={e => setFormData({ ...formData, remarks: e.target.value })} placeholder="Internal remarks..." />
                       </FieldGroup>
