@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Search, Package, AlertTriangle, ArrowUpDown } from 'lucide-react';
+import { Plus, Edit2, Trash2, Search, Package, AlertTriangle, ArrowUpDown, X } from 'lucide-react';
 import { toolsApi } from '../tools/api';
 import { useAuth } from '../App';
 
@@ -322,30 +322,6 @@ export default function ToolsCatalog() {
               onSubmit={async (toolData) => {
                 try {
                   if (isCreateModalOpen) {
-                    await toolsApi.createTool(organisation.id, toolData);
-                  } else {
-                    await toolsApi.updateTool(organisation.id, selectedTool.id, toolData);
-                  }
-                  loadTools();
-                  setIsCreateModalOpen(false);
-                  setIsEditModalOpen(false);
-                  setSelectedTool(null);
-                } catch (error) {
-                  console.error('Error saving tool:', error);
-                }
-              }}
-              onCancel={() => {
-                setIsCreateModalOpen(false);
-                setIsEditModalOpen(false);
-                setSelectedTool(null);
-              }}
-            />
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
 
 // Tool Form Component
 interface ToolFormProps {
@@ -385,9 +361,62 @@ function ToolForm({ tool, onSubmit, onCancel }: ToolFormProps) {
     }
   }, [tool]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
+    
+    // Convert string values to numbers for numeric fields
+    const toolData = {
+      ...formData,
+      initial_stock: parseInt(formData.initial_stock) || 0,
+      min_stock_level: parseInt(formData.min_stock_level) || 0,
+      reorder_point: parseInt(formData.reorder_point) || 0,
+      gst_rate: parseFloat(formData.gst_rate) || 0,
+      purchase_price: parseFloat(formData.purchase_price) || 0,
+      depreciation_rate: parseFloat(formData.depreciation_rate) || 0,
+    };
+    
+    try {
+      if (tool) {
+        // Update existing tool
+        await toolsApi.updateTool(organisation.id, tool.id, toolData);
+      } else {
+        // Create new tool
+        await toolsApi.createTool(organisation.id, toolData);
+      }
+      
+      setIsCreateModalOpen(false);
+      setIsEditModalOpen(false);
+      setSelectedTool(null);
+      setFormData({
+        tool_name: '',
+        make: '',
+        model: '',
+        category: '',
+        purchase_price: '',
+        gst_rate: '',
+        depreciation_rate: '',
+        technical_specs: '',
+        custom_label_1_name: '',
+        custom_label_1_value: '',
+        custom_label_2_name: '',
+        custom_label_2_value: '',
+        custom_label_3_name: '',
+        custom_label_3_value: '',
+        custom_label_4_name: '',
+        custom_label_4_value: '',
+        initial_stock: 0,
+        min_stock_level: 0,
+        reorder_point: 0,
+        default_source_location: 'Warehouse',
+        hsn_code: '',
+      });
+      
+      if (tool) {
+        loadTools(); // Reload the list
+      }
+    } catch (error) {
+      console.error('Error saving tool:', error);
+    }
   };
 
   const updateFormData = (field: string, value: any) => {

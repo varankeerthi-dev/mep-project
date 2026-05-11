@@ -6,7 +6,7 @@ import ToolsReceiveModal from '../components/tools/ToolsReceiveModal';
 import ToolsTransferModal from '../components/tools/ToolsTransferModal';
 import SiteTransferModal from '../components/tools/SiteTransferModal';
 import ToolsDashboard from './ToolsDashboard';
-// import ToolsCatalog from './ToolsCatalog';
+import ToolsCatalog from './ToolsCatalog';
 // import ToolsHistory from './ToolsHistory';
 
 // Professional Modal Design System Tokens
@@ -105,17 +105,7 @@ export default function ToolsManagement() {
       case 'dashboard':
         return <ToolsDashboard />;
       case 'catalog':
-        // return <ToolsCatalog />;
-        return (
-          <div style={{ 
-            padding: DESIGN_TOKENS.spacing.padding.main, 
-            textAlign: 'center',
-            color: DESIGN_TOKENS.colors.text.muted 
-          }}>
-            <Package size={48} style={{ marginBottom: '16px' }} />
-            <p style={{ fontSize: '16px', marginBottom: '8px' }}>Tools Catalog - Coming Soon</p>
-          </div>
-        );
+        return <ToolsCatalog />;
       case 'history':
         // return <ToolsHistory />;
         return (
