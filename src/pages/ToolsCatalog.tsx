@@ -285,7 +285,7 @@ function ToolForm({ tool, onSubmit, onCancel }: ToolFormProps) {
                   letterSpacing: '0.04em',
                 }}
               >
-                MODEL
+                MODEL/Spec
               </div>
               <input
                 type="text"
@@ -736,7 +736,7 @@ export default function ToolsCatalog() {
             <tr style={{ backgroundColor: DESIGN_TOKENS.colors.surface.page }}>
               <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: DESIGN_TOKENS.typography.label, fontWeight: 600, color: DESIGN_TOKENS.colors.text.secondary }}>Tool Name</th>
               <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: DESIGN_TOKENS.typography.label, fontWeight: 600, color: DESIGN_TOKENS.colors.text.secondary }}>Make</th>
-              <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: DESIGN_TOKENS.typography.label, fontWeight: 600, color: DESIGN_TOKENS.colors.text.secondary }}>Model</th>
+              <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: DESIGN_TOKENS.typography.label, fontWeight: 600, color: DESIGN_TOKENS.colors.text.secondary }}>MODEL/Spec</th>
               <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: DESIGN_TOKENS.typography.label, fontWeight: 600, color: DESIGN_TOKENS.colors.text.secondary }}>Category</th>
               <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: DESIGN_TOKENS.typography.label, fontWeight: 600, color: DESIGN_TOKENS.colors.text.secondary }}>Current Stock</th>
               <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: DESIGN_TOKENS.typography.label, fontWeight: 600, color: DESIGN_TOKENS.colors.text.secondary }}>Status</th>

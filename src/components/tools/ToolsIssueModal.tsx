@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Plus, Trash2, Package, MapPin, Calendar, User, FileText } from 'lucide-react';
+import { useClients } from '../../hooks/useClients';
 
 // Professional Modal Design System Tokens
 const DESIGN_TOKENS = {
@@ -72,6 +73,9 @@ export default function ToolsIssueModal({ isOpen, onClose, onSubmit, loading = f
   const [remarks, setRemarks] = useState('');
   const [sourcePlace, setSourcePlace] = useState('Warehouse');
   const [tools, setTools] = useState<ToolItem[]>([]);
+  
+  // Load clients for dropdown
+  const { data: clients = [], isLoading: clientsLoading } = useClients();
   
   // Generate reference ID on mount
   useEffect(() => {
@@ -318,11 +322,10 @@ export default function ToolsIssueModal({ isOpen, onClose, onSubmit, loading = f
               >
                 CLIENT
               </div>
-              <input
-                type="text"
+              <select
                 value={client}
                 onChange={(e) => setClient(e.target.value)}
-                placeholder="Select client..."
+                disabled={clientsLoading}
                 style={{
                   width: '100%',
                   height: '38px',
@@ -334,7 +337,14 @@ export default function ToolsIssueModal({ isOpen, onClose, onSubmit, loading = f
                   padding: '0 12px',
                   fontFamily: 'Inter, sans-serif',
                 }}
-              />
+              >
+                <option value="">{clientsLoading ? 'Loading clients...' : 'Select client...'}</option>
+                {clients.map((clientData: any) => (
+                  <option key={clientData.id} value={clientData.id}>
+                    {clientData.client_name}
+                  </option>
+                ))}
+              </select>
             </div>
             <div>
               <div
