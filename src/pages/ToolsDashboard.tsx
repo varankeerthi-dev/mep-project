@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Package, TrendingUp, AlertCircle, RotateCw, ArrowRight } from 'lucide-react';
 import { toolsApi, toolTransactionsApi, siteTransfersApi } from '../tools/api';
 import { useAuth } from '../App';
+import ToolTransactionStorage from '../tools/storage';
 
 interface DashboardMetrics {
   total_tools: number;
@@ -21,6 +22,7 @@ interface RecentActivity {
 
 export default function ToolsDashboard() {
   const { organisation } = useAuth();
+  const [storage] = useState(() => ToolTransactionStorage.getInstance());
   const [metrics, setMetrics] = useState<DashboardMetrics>({
     total_tools: 0,
     tools_at_clients: 0,
@@ -39,89 +41,28 @@ export default function ToolsDashboard() {
   const loadDashboardData = async () => {
     try {
       setLoading(true);
-      const orgId = organisation.id;
 
-      // Get all tools
-      const tools = await toolsApi.getTools(orgId);
-      const totalTools = tools.length;
+      // Get data from storage system
+      const storageMetrics = storage.getDashboardMetrics();
+      const recentActivityData = storage.getRecentActivity(10);
 
-      // Get recent transactions
-      const transactions = await toolTransactionsApi.getTransactions(orgId, {
-        date_from: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-      });
-
-      // Get site transfers
-      const siteTransfers = await siteTransfersApi.getSiteTransfers(orgId, {
-        date_from: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-      });
-
-      // Calculate metrics
-      let toolsAtClients = 0;
-      let toolsAtWarehouse = 0;
-      let toolsInTransit = 0;
-
-      // Calculate from tools catalog
-      tools.forEach(tool => {
-        if (tool.current_stock && tool.current_stock > 0) {
-          toolsAtWarehouse += tool.current_stock;
-        }
-      });
-
-      // Calculate from transactions
-      transactions.forEach(transaction => {
-        if (transaction.status === 'ACTIVE' || transaction.status === 'IN_TRANSIT') {
-          toolsInTransit += 1;
-        }
-      });
-
-      siteTransfers.forEach(transfer => {
-        if (transfer.status === 'IN_TRANSIT') {
-          toolsInTransit += 1;
-        }
-      });
-
-      // Calculate tools at clients (simplified)
-      toolsAtClients = totalTools - toolsAtWarehouse - toolsInTransit;
-
+      // Update metrics
       setMetrics({
-        total_tools: totalTools,
-        tools_at_clients: toolsAtClients,
-        tools_at_warehouse: toolsAtWarehouse,
-        tools_in_transit: toolsInTransit,
+        total_tools: storageMetrics.total_tools,
+        tools_at_clients: storageMetrics.tools_at_clients,
+        tools_at_warehouse: storageMetrics.tools_at_warehouse,
+        tools_in_transit: storageMetrics.tools_in_transit,
         overdue_returns: 0, // TODO: Calculate based on due dates
       });
 
-      // Prepare recent activity
-      const allActivity: RecentActivity[] = [];
-
-      // Add recent transactions
-      transactions.slice(0, 5).forEach(transaction => {
-        allActivity.push({
-          id: transaction.id,
-          type: transaction.transaction_type,
-          description: `${transaction.transaction_type} - ${transaction.reference_id}`,
-          date: transaction.transaction_date,
-          status: transaction.status,
-        });
-      });
-
-      // Add recent site transfers
-      siteTransfers.slice(0, 3).forEach(transfer => {
-        allActivity.push({
-          id: transfer.id,
-          type: 'SITE_TRANSFER',
-          description: `Site Transfer - ${transfer.reference_id}`,
-          date: transfer.transfer_date,
-          status: transfer.status,
-        });
-      });
-
-      // Sort by date and take latest
-      setRecentActivity(
-        allActivity
-          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-          .slice(0, 10)
-      );
+      // Update recent activity
+      setRecentActivity(recentActivityData.map(activity => ({
+        id: activity.id,
+        type: activity.type,
+        description: activity.description,
+        date: activity.date,
+        status: activity.status,
+      })));
 
     } catch (error) {
       console.error('Error loading dashboard data:', error);
@@ -150,7 +91,7 @@ export default function ToolsDashboard() {
             <p className="text-sm font-medium text-gray-600">{title}</p>
             <p className="text-2xl font-bold">{value.toLocaleString()}</p>
           </div>
-          <icon className="h-8 w-8" />
+          <Icon className="h-8 w-8" />
         </div>
       </div>
     );

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../App';
 import { fetchDeliveryChallans, deleteDeliveryChallan } from '../api';
@@ -9,57 +9,114 @@ import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tansta
 import { useProjects } from '../hooks/useProjects';
 import {
   Truck as LocalShippingIcon,
-  Plus as AddIcon,
-  Eye as VisibilityIcon,
+  Plus as PlusIcon,
+  Eye as EyeIcon,
   FileText as PictureAsPdfIcon,
-  Trash2 as DeleteIcon,
+  Trash2 as Trash2Icon,
   Filter as FilterListIcon,
   Edit as EditIcon,
   ArrowRightLeft as SwapHorizIcon,
   X as CloseIcon,
   FileText,
+  Search as SearchIcon,
+  MoreHorizontal as MoreHorizontalIcon,
+  ChevronDown as ChevronDownIcon,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { formatDate, formatCurrency } from '../utils/formatters';
+
+const DC_STATUSES = ['All', 'Active', 'Not Sent', 'Quoted', 'Cancelled'];
+
+const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
+  Active: { bg: '#d1fae5', color: '#047857' },
+  'Not Sent': { bg: '#fef3c7', color: '#b45309' },
+  Quoted: { bg: '#dbeafe', color: '#1d4ed8' },
+  Cancelled: { bg: '#fee2e2', color: '#dc2626' },
+};
+
+const getStatusColor = (status?: string) =>
+  STATUS_COLORS[status ?? 'Active'] ?? STATUS_COLORS['Active'];
 
 export default function DCList() {
   const navigate = useNavigate();
   const { organisation } = useAuth();
   const queryClient = useQueryClient();
+  const menuRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  
   const [showConvertModal, setShowConvertModal] = useState(false);
   const [convertDC, setConvertDC] = useState<any | null>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [previewHtml, setPreviewHtml] = useState('');
   const [showPrintMenu, setShowPrintMenu] = useState(false);
   const [printMenuDC, setPrintMenuDC] = useState<any | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   
-  const [filters, setFilters] = useState(() => ({
-    projectId: '',
-    startDate: '',
-    endDate: '',
-    status: 'all',
-    organisation_id: organisation?.id
-  }));
-  const [appliedFilters, setAppliedFilters] = useState(() => ({
-    projectId: '',
-    startDate: '',
-    endDate: '',
-    status: 'all',
-    organisation_id: organisation?.id
-  }));
-  const [showFilters, setShowFilters] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('All');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(20);
 
   useEffect(() => {
-    if (organisation?.id) {
-      setFilters(prev => ({ ...prev, organisation_id: organisation.id }));
-      setAppliedFilters(prev => ({ ...prev, organisation_id: organisation.id }));
-    }
-  }, [organisation]);
+    if (!openMenuId) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setOpenMenuId(null);
+      }
+    };
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpenMenuId(null);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [openMenuId]);
+
+  useEffect(() => {
+    if (!showStatusDropdown) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowStatusDropdown(false);
+      }
+    };
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setShowStatusDropdown(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [showStatusDropdown]);
+
+  // Reset to first page when search or status filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter]);
 
   const challansQuery = useQuery({
-    queryKey: ['deliveryChallans', appliedFilters.projectId, appliedFilters.startDate, appliedFilters.endDate, appliedFilters.status, appliedFilters.organisation_id],
-    queryFn: () => fetchDeliveryChallans(appliedFilters),
-    placeholderData: keepPreviousData
+    queryKey: ['deliveryChallans', statusFilter, organisation?.id],
+    queryFn: async () => {
+      let query = supabase
+        .from('delivery_challans')
+        .select(`*, project:projects(id, project_name)`)
+        .eq('organisation_id', organisation?.id)
+        .order('created_at', { ascending: false });
+
+      if (statusFilter !== 'All') query = query.eq('status', statusFilter);
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!organisation?.id,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
 
   const projectsQuery = useProjects();
@@ -80,27 +137,43 @@ export default function DCList() {
   const deleteMutation = useMutation({
     mutationFn: deleteDeliveryChallan,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['deliveryChallans'] });
+      queryClient.invalidateQueries({ queryKey: ['deliveryChallans', statusFilter, organisation?.id] });
     }
   });
 
   const challans = challansQuery.data || [];
+  const loading = challansQuery.isPending && !challansQuery.data;
+
+  const filteredChallans = useMemo(() => {
+    const q = searchTerm.toLowerCase();
+    return challans.filter((dc: any) =>
+      dc.dc_number?.toLowerCase().includes(q) ||
+      dc.client_name?.toLowerCase().includes(q) ||
+      dc.project?.project_name?.toLowerCase().includes(q)
+    );
+  }, [challans, searchTerm]);
+
+  // Pagination calculations
+  const paginationData = useMemo(() => {
+    const totalItems = filteredChallans.length;
+    const totalPages = Math.ceil(totalItems / itemsPerPage);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const currentItems = filteredChallans.slice(startIndex, endIndex);
+    
+    return {
+      totalItems,
+      totalPages,
+      startIndex,
+      endIndex,
+      currentItems,
+      hasNextPage: currentPage < totalPages,
+      hasPrevPage: currentPage > 1
+    };
+  }, [filteredChallans, currentPage, itemsPerPage]);
+
   const projects = projectsQuery.data || [];
   const templates = templatesQuery.data || [];
-  const loading = 
-    (challansQuery.isPending && !challansQuery.data) ||
-    (projectsQuery.isPending && !projectsQuery.data);
-
-  const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    if (name) {
-      setFilters(prev => ({ ...prev, [name]: value }));
-    }
-  };
-
-  const applyFilters = () => {
-    setAppliedFilters(filters);
-  };
 
   const loadDCWithItems = async (dcId: string) => {
     const { data } = await supabase
@@ -384,6 +457,7 @@ export default function DCList() {
     if (confirm(`Are you sure you want to delete DC ${dcNumber}?`)) {
       try {
         await deleteMutation.mutateAsync(id);
+        setOpenMenuId(null);
       } catch (error) {
         console.error('Error deleting DC:', error);
         alert('Error deleting Delivery Challan');
@@ -410,14 +484,6 @@ export default function DCList() {
     return items.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
   };
 
-  const filteredChallans = useMemo(() => {
-    return challans.filter((challan: any) =>
-      challan.dc_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      challan.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      challan.project?.project_name?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [challans, searchTerm]);
-
   const getStatusClass = (status: string) => {
     switch (status?.toLowerCase()) {
       case 'active': return 'bg-emerald-100 text-emerald-700 font-bold';
@@ -429,208 +495,240 @@ export default function DCList() {
   };
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="flex flex-col h-full bg-white">
       {/* Header */}
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 mb-6">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-600/20">
-              <LocalShippingIcon className="w-6 h-6" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-black text-slate-900 tracking-tight">Delivery Challans</h1>
-              <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">{filteredChallans.length} records found</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className={cn(
-                "h-12 px-6 rounded-xl border-2 transition-all flex items-center gap-2 font-black text-[13px] uppercase tracking-widest",
-                showFilters ? "bg-slate-900 border-slate-900 text-white" : "border-slate-100 text-slate-600 hover:border-slate-300 bg-slate-50"
-              )}
-            >
-              <FilterListIcon className="w-4 h-4" /> Filters
-            </button>
-            <div className="relative group">
-              <input
-                type="text"
-                placeholder="Search challans..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="h-12 pl-12 pr-6 rounded-xl border-2 border-slate-100 group-focus-within:border-slate-900 focus:outline-none bg-slate-50 transition-all font-bold text-sm w-64"
-              />
-              <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-slate-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </div>
-            <button
-              onClick={() => navigate('/dc/new')}
-              className="h-12 px-8 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-[13px] uppercase tracking-widest shadow-lg shadow-indigo-600/20 transition-all flex items-center gap-2"
-            >
-              <AddIcon className="w-5 h-5" /> Add New DC
-            </button>
-          </div>
+      <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200">
+        <div className="flex items-center gap-3">
+          <h1 className="text-base font-semibold text-zinc-900">Delivery Challans</h1>
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-zinc-100 text-zinc-600">
+            {paginationData.totalItems}
+          </span>
         </div>
-
-        {/* Filters */}
-        {showFilters && (
-          <div className="mt-6 pt-6 border-t border-slate-100 animate-in slide-in-from-top-4 duration-300">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Project</label>
-                <select
-                  name="projectId"
-                  value={filters.projectId}
-                  onChange={handleFilterChange}
-                  className="w-full h-12 px-4 rounded-xl border-2 border-slate-100 bg-slate-50 focus:border-slate-900 outline-none font-bold text-sm"
-                >
-                  <option value="">All Projects</option>
-                  {projects.map((p: any) => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">From Date</label>
-                <input
-                  type="date"
-                  name="startDate"
-                  value={filters.startDate}
-                  onChange={handleFilterChange}
-                  className="w-full h-12 px-4 rounded-xl border-2 border-slate-100 bg-slate-50 focus:border-slate-900 outline-none font-bold text-sm"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">To Date</label>
-                <input
-                  type="date"
-                  name="endDate"
-                  value={filters.endDate}
-                  onChange={handleFilterChange}
-                  className="w-full h-12 px-4 rounded-xl border-2 border-slate-100 bg-slate-50 focus:border-slate-900 outline-none font-bold text-sm"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Status</label>
-                <select
-                  name="status"
-                  value={filters.status}
-                  onChange={handleFilterChange}
-                  className="w-full h-12 px-4 rounded-xl border-2 border-slate-100 bg-slate-50 focus:border-slate-900 outline-none font-bold text-sm"
-                >
-                  <option value="all">All Status</option>
-                  <option value="active">Active</option>
-                  <option value="Not sent">Not sent</option>
-                  <option value="Quoted">Quoted</option>
-                  <option value="cancelled">Cancelled</option>
-                </select>
-              </div>
-            </div>
-            <div className="flex justify-end mt-4">
-              <button
-                onClick={applyFilters}
-                className="btn bg-slate-900 text-white px-8 py-3 rounded-xl font-bold uppercase tracking-widest text-xs"
-              >
-                Apply Filters
-              </button>
-            </div>
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Search challans..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 pr-4 h-[30px] w-64 text-sm border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            />
           </div>
-        )}
+          <button
+            onClick={() => navigate('/dc/new')}
+            className="inline-flex items-center justify-center gap-2 px-4 h-[30px] text-sm font-medium text-zinc-700 bg-white border border-zinc-200 rounded-lg hover:bg-zinc-100 hover:text-zinc-900 transition-colors"
+          >
+            <PlusIcon className="w-4 h-4" />
+            Create DC
+          </button>
+        </div>
       </div>
 
-      {/* Main Table */}
-      <div className="bg-white rounded-[24px] shadow-sm border border-slate-100 flex-1 overflow-hidden flex flex-col">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-50 border-b border-slate-100">
-                <th className="px-6 py-4 font-black text-slate-500 uppercase tracking-widest text-[10px] text-center">DC No</th>
-                <th className="px-6 py-4 font-black text-slate-500 uppercase tracking-widest text-[10px]">Date</th>
-                <th className="px-6 py-4 font-black text-slate-500 uppercase tracking-widest text-[10px]">Project</th>
-                <th className="px-6 py-4 font-black text-slate-500 uppercase tracking-widest text-[10px]">Client</th>
-                <th className="px-6 py-4 font-black text-slate-500 uppercase tracking-widest text-[10px] text-center">Items</th>
-                <th className="px-6 py-4 font-black text-slate-500 uppercase tracking-widest text-[10px] text-right">Total Amount</th>
-                <th className="px-6 py-4 font-black text-slate-500 uppercase tracking-widest text-[10px] text-center">Status</th>
-                <th className="px-6 py-4 font-black text-slate-500 uppercase tracking-widest text-[10px] text-center">Actions</th>
+      {/* Status Filter */}
+      <div className="flex items-center gap-2 px-6 py-3 border-b border-zinc-100 bg-zinc-50/50">
+        <div className="relative" ref={dropdownRef}>
+          <button
+            onClick={() => setShowStatusDropdown(!showStatusDropdown)}
+            className="w-[150px] h-[26px] flex items-center justify-center gap-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100 rounded-md transition-colors"
+          >
+            {statusFilter === 'All' ? 'All Statuses' : statusFilter}
+            <ChevronDownIcon className="w-4 h-4" />
+          </button>
+          {showStatusDropdown && (
+            <div className="absolute left-0 top-full mt-1 z-50 min-w-[160px] bg-white border border-zinc-200 rounded-lg shadow-lg py-1">
+              {DC_STATUSES.map((status) => (
+                <button
+                  key={status}
+                  onClick={() => {
+                    setStatusFilter(status);
+                    setShowStatusDropdown(false);
+                  }}
+                  className={`block w-full text-left px-3 py-2 text-sm transition-colors ${
+                    statusFilter === status
+                      ? 'bg-indigo-50 text-indigo-700'
+                      : 'text-zinc-700 hover:bg-zinc-50'
+                  }`}
+                >
+                  {status === 'All' ? 'All Statuses' : status}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="flex-1 overflow-auto">
+        <div className="min-w-full">
+          <table className="w-full border-separate border-spacing-0 table-fixed">
+            <thead className="sticky top-0 z-10">
+              <tr className="bg-blue-100/80 border-b border-blue-200">
+                <th className="h-[36px] px-5 pl-1 text-left align-middle text-[13px] font-semibold text-slate-700 tracking-tight w-[120px] border-r border-slate-200">
+                  Date
+                </th>
+                <th className="h-[36px] px-5 pl-1 text-left align-middle text-[13px] font-semibold text-slate-700 tracking-tight w-[160px] border-r border-slate-200">
+                  DC No
+                </th>
+                <th className="h-[36px] px-5 pl-1 text-left align-middle text-[13px] font-semibold text-slate-700 tracking-tight w-[300px]">
+                  Client
+                </th>
+                <th className="h-[36px] px-5 pl-1 text-left align-middle text-[13px] font-semibold text-slate-700 tracking-tight w-[180px] border-r border-slate-200">
+                  Amount
+                </th>
+                <th className="h-[36px] px-5 pl-1 text-left align-middle text-[13px] font-semibold text-slate-700 tracking-tight w-[120px] border-r border-slate-200">
+                  Status
+                </th>
+                <th className="h-[36px] px-5 pl-1 text-center align-middle text-[13px] font-semibold text-slate-700 tracking-tight w-[70px]">
+                  Action
+                </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-50">
+            <tbody className="bg-white">
               {loading ? (
                 <tr>
-                   <td colSpan={8} className="p-20 text-center">
-                      <div className="flex flex-col items-center gap-4">
-                         <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-                         <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Hydrating Records...</p>
-                      </div>
-                   </td>
+                  <td colSpan={6} className="px-5 py-16 text-center text-sm text-slate-500">
+                    Loading delivery challans...
+                  </td>
                 </tr>
-              ) : filteredChallans.length === 0 ? (
+              ) : paginationData.currentItems.length === 0 ? (
                 <tr>
-                   <td colSpan={8} className="p-20 text-center">
-                      <div className="flex flex-col items-center gap-4 opacity-30">
-                         <LocalShippingIcon className="w-16 h-16 text-slate-300" />
-                         <p className="text-xl font-black text-slate-900">No records found</p>
-                         <p className="text-sm font-bold text-slate-500">Try adjusting your filters or search term</p>
-                      </div>
-                   </td>
+                  <td colSpan={6} className="px-5 py-16 text-center text-sm text-slate-500">
+                    No delivery challans found
+                  </td>
                 </tr>
               ) : (
-                filteredChallans.map((challan: any) => (
-                  <tr key={challan.id} className="hover:bg-indigo-50/30 transition-colors group">
-                    <td className="px-6 py-4 text-center">
-                      <span className="font-mono text-xs font-black p-1.5 px-3 bg-slate-900 text-white rounded-lg shadow-sm">
-                        {challan.dc_number}
+                paginationData.currentItems.map((dc: any, index) => (
+                  <tr
+                    key={dc.id}
+                    className={`hover:bg-slate-50 cursor-pointer transition-all duration-150 ${
+                      index % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'
+                    }`}
+                    onClick={() => navigate(`/dc/view/${dc.id}`)}
+                  >
+                    <td className="px-4 py-6 align-middle text-sm font-semibold text-slate-900 whitespace-nowrap border-r border-slate-100 border-t border-slate-200/70">
+                      {formatDate(dc.dc_date)}
+                    </td>
+                    <td className="px-4 py-6 align-middle text-sm font-semibold text-slate-900 whitespace-nowrap border-r border-slate-100 border-t border-slate-200/70">
+                      {dc.dc_number}
+                    </td>
+                    <td className="px-4 py-6 align-middle text-sm text-slate-800 border-t border-slate-200/70">
+                      <div className="max-w-[250px] truncate" title={dc.client_name || '-'}>
+                        {dc.client_name || '-'}
+                      </div>
+                    </td>
+                    <td className="px-4 py-6 align-middle text-sm font-semibold text-slate-900 whitespace-nowrap tabular-nums border-r border-slate-100 border-t border-slate-200/70">
+                      {formatCurrency(calculateTotal(dc.items))}
+                    </td>
+                    <td className="px-4 py-6 align-middle whitespace-nowrap border-r border-slate-100 border-t border-slate-200/70">
+                      <span
+                        className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-full border"
+                        style={{
+                          backgroundColor: getStatusColor(dc.status).bg,
+                          color: getStatusColor(dc.status).color,
+                          borderColor: getStatusColor(dc.status).color + '20',
+                        }}
+                      >
+                        {dc.status || 'Active'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 font-bold text-slate-600 text-[13px]">
-                      {challan.dc_date ? format(new Date(challan.dc_date), 'dd/MM/yyyy') : '-'}
-                    </td>
-                    <td className="px-6 py-4">
-                      <p className="text-[13px] font-black text-slate-800">{challan.project?.project_name || challan.project?.name || '-'}</p>
-                    </td>
-                    <td className="px-6 py-4">
-                      <p className="text-[13px] font-bold text-slate-600">{challan.client_name || '-'}</p>
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 text-slate-600 text-xs font-black">
-                        {challan.items?.length || 0}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <p className="text-[13px] font-black text-slate-900">
-                        ₹{calculateTotal(challan.items).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                      </p>
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <span className={cn("px-3 py-1 rounded-full text-[10px] uppercase tracking-wider", getStatusClass(challan.status))}>
-                        {challan.status || 'Active'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-all">
-                        <button onClick={() => handlePreview(challan)} title="View Preview" className="p-2 hover:bg-white rounded-lg text-indigo-600 shadow-sm border border-transparent hover:border-indigo-100">
-                          <VisibilityIcon size={18} />
-                        </button>
-                        <button 
+                    <td className="px-5 pl-1 py-6 align-middle text-center border-t border-slate-200/70">
+                      <div className="flex items-center justify-center gap-2">
+                        <button
                           onClick={(e) => {
-                            setPrintMenuDC(challan);
-                            setShowPrintMenu(true);
-                          }} 
-                          title="Print/Download" 
-                          className="p-2 hover:bg-white rounded-lg text-emerald-600 shadow-sm border border-transparent hover:border-emerald-100"
+                            e.stopPropagation();
+                            handlePreview(dc);
+                          }}
+                          className="px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-md hover:bg-slate-50 hover:text-slate-900 transition-colors"
                         >
-                          <PictureAsPdfIcon size={18} />
+                          View
                         </button>
-                        <button onClick={() => {setConvertDC(challan); setShowConvertModal(true);}} title="Convert DC" className="p-2 hover:bg-white rounded-lg text-blue-600 shadow-sm border border-transparent hover:border-blue-100">
-                          <SwapHorizIcon size={18} />
-                        </button>
-                        <button onClick={() => navigate(`/dc/edit/${challan.id}`)} title="Edit DC" className="p-2 hover:bg-white rounded-lg text-amber-600 shadow-sm border border-transparent hover:border-amber-100">
-                          <EditIcon size={18} />
-                        </button>
-                        <button onClick={() => handleDelete(challan.id, challan.dc_number)} title="Delete DC" className="p-2 hover:bg-white rounded-lg text-rose-600 shadow-sm border border-transparent hover:border-rose-100">
-                          <DeleteIcon size={18} />
-                        </button>
+                        <div className="relative inline-block" ref={openMenuId === dc.id ? menuRef : null}>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenMenuId(openMenuId === dc.id ? null : dc.id);
+                            }}
+                            className="inline-flex items-center justify-center w-8 h-8 rounded-md hover:bg-slate-100 transition-colors"
+                          >
+                            <MoreHorizontalIcon className="w-4 h-4 text-slate-500" />
+                          </button>
+                        {openMenuId === dc.id && (
+                          <div className="absolute right-0 top-full mt-1 z-50 w-48 rounded-lg border border-slate-200/60 bg-white p-1.5 shadow-lg shadow-black/5">
+                            {/* Section 1: Read actions */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handlePreview(dc);
+                              }}
+                              className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-slate-600 transition-all hover:bg-slate-100/60 hover:text-slate-900"
+                              style={{ padding: '8px' }}
+                            >
+                              View Details
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setPrintMenuDC(dc);
+                                setShowPrintMenu(true);
+                              }}
+                              className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-slate-600 transition-all hover:bg-slate-100/60 hover:text-slate-900"
+                              style={{ padding: '8px' }}
+                            >
+                              Download PDF
+                            </button>
+
+                            <div className="my-1 border-t border-slate-100" />
+
+                            {/* Section 2: Convert actions */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setConvertDC(dc);
+                                setShowConvertModal(true);
+                              }}
+                              className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-slate-600 transition-all hover:bg-slate-100/60 hover:text-slate-900"
+                              style={{ padding: '8px' }}
+                            >
+                              Convert to Quotation
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/proforma-invoices/create?convertFrom=dc-to-proforma&sourceId=${dc.id}`);
+                              }}
+                              className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-slate-600 transition-all hover:bg-slate-100/60 hover:text-slate-900"
+                              style={{ padding: '8px' }}
+                            >
+                              Convert to Proforma
+                            </button>
+
+                            <div className="my-1 border-t border-slate-100" />
+
+                            {/* Section 3: Modify actions */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/dc/edit/${dc.id}`);
+                              }}
+                              className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-slate-600 transition-all hover:bg-slate-100/60 hover:text-slate-900"
+                              style={{ padding: '8px' }}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDelete(dc.id, dc.dc_number);
+                              }}
+                              className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-slate-600 transition-all hover:bg-red-50 hover:text-red-600"
+                              style={{ padding: '8px' }}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        )}
+                        </div>
                       </div>
                     </td>
                   </tr>
@@ -640,6 +738,72 @@ export default function DCList() {
           </table>
         </div>
       </div>
+      
+      {/* Pagination Controls */}
+      {paginationData.totalPages > 1 && (
+        <div className="flex items-center justify-between px-6 py-4 border-t border-slate-200 bg-slate-50/50">
+          <div className="text-base text-slate-600">
+            Showing {paginationData.startIndex + 1} to {Math.min(paginationData.endIndex, paginationData.totalItems)} of {paginationData.totalItems} delivery challans
+          </div>
+          <div className="flex items-center gap-2">
+            {/* Previous Button */}
+            <button
+              onClick={() => setCurrentPage(currentPage - 1)}
+              disabled={!paginationData.hasPrevPage}
+              className={`px-4 py-2 text-base font-medium rounded-md transition-colors h-[36px] min-w-[80px] ${
+                paginationData.hasPrevPage
+                  ? 'text-slate-700 hover:bg-slate-100'
+                  : 'text-slate-300 cursor-not-allowed'
+              }`}
+            >
+              Previous
+            </button>
+            
+            {/* Page Numbers */}
+            <div className="flex items-center gap-2">
+              {Array.from({ length: Math.min(5, paginationData.totalPages) }, (_, i) => {
+                let pageNum;
+                if (paginationData.totalPages <= 5) {
+                  pageNum = i + 1;
+                } else if (currentPage <= 3) {
+                  pageNum = i + 1;
+                } else if (currentPage >= paginationData.totalPages - 2) {
+                  pageNum = paginationData.totalPages - 4 + i;
+                } else {
+                  pageNum = currentPage - 2 + i;
+                }
+                
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => setCurrentPage(pageNum)}
+                    className={`px-4 py-2 text-base font-medium rounded-md transition-colors h-[36px] min-w-[36px] ${
+                      currentPage === pageNum
+                        ? 'bg-slate-900 text-white'
+                        : 'text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+            </div>
+            
+            {/* Next Button */}
+            <button
+              onClick={() => setCurrentPage(currentPage + 1)}
+              disabled={!paginationData.hasNextPage}
+              className={`px-4 py-2 text-base font-medium rounded-md transition-colors h-[36px] min-w-[80px] ${
+                paginationData.hasNextPage
+                  ? 'text-slate-700 hover:bg-slate-100'
+                  : 'text-slate-300 cursor-not-allowed'
+              }`}
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Convert Modal */}
       {showConvertModal && (

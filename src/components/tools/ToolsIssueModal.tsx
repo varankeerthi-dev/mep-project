@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Trash2, Package, MapPin, Calendar, User, FileText } from 'lucide-react';
+import { X, Plus, Trash2, Package, MapPin, Calendar, User, FileText, List } from 'lucide-react';
 import { useClients } from '../../hooks/useClients';
+import ToolSelectionComponent from './ToolSelectionComponent';
+import { ToolCatalog } from '../../tools/api';
 
 // Professional Modal Design System Tokens
 const DESIGN_TOKENS = {
@@ -55,6 +57,7 @@ interface ToolItem {
   quantity: number;
   hsn_code?: string;
   rate?: number;
+  category?: string;
 }
 
 interface ToolsIssueModalProps {
@@ -73,6 +76,7 @@ export default function ToolsIssueModal({ isOpen, onClose, onSubmit, loading = f
   const [remarks, setRemarks] = useState('');
   const [sourcePlace, setSourcePlace] = useState('Warehouse');
   const [tools, setTools] = useState<ToolItem[]>([]);
+  const [isToolSelectionOpen, setIsToolSelectionOpen] = useState(false);
   
   // Load clients for dropdown
   const { data: clients = [], isLoading: clientsLoading } = useClients();
@@ -87,15 +91,20 @@ export default function ToolsIssueModal({ isOpen, onClose, onSubmit, loading = f
   }, [isOpen, organisation]);
 
   const addTool = () => {
-    const newTool: ToolItem = {
-      id: Date.now().toString(),
-      tool_name: '',
-      make: '',
+    setIsToolSelectionOpen(true);
+  };
+
+  const addSelectedTools = (selectedTools: ToolCatalog[]) => {
+    const newTools = selectedTools.map(tool => ({
+      id: Date.now().toString() + Math.random(),
+      tool_name: tool.tool_name,
+      make: tool.make || '',
       quantity: 1,
-      hsn_code: '',
-      rate: 0,
-    };
-    setTools([...tools, newTool]);
+      hsn_code: tool.hsn_code || '',
+      rate: tool.purchase_price || 0,
+      category: tool.category || '',
+    }));
+    setTools([...tools, ...newTools]);
   };
 
   const removeTool = (id: string) => {
@@ -121,12 +130,16 @@ export default function ToolsIssueModal({ isOpen, onClose, onSubmit, loading = f
     onSubmit(formData);
   };
 
-  const sourceOptions = [
-    'Warehouse',
-    'Main Office', 
-    'Central Store',
-    'Regional Hub',
-  ];
+  // Get source options from organisation settings or use defaults
+  const getSourceOptions = () => {
+    // In a real implementation, these would come from organisation settings
+    return [
+      'Warehouse',
+      'Main Office', 
+      'Central Store',
+      'Regional Hub',
+    ];
+  };
 
   if (!isOpen) return null;
 
@@ -227,7 +240,7 @@ export default function ToolsIssueModal({ isOpen, onClose, onSubmit, loading = f
                 fontFamily: 'Inter, sans-serif',
               }}
             >
-              {sourceOptions.map(option => (
+              {getSourceOptions().map(option => (
                 <option key={option} value={option}>{option}</option>
               ))}
             </select>
@@ -443,15 +456,15 @@ export default function ToolsIssueModal({ isOpen, onClose, onSubmit, loading = f
                   fontFamily: 'Inter, sans-serif',
                 }}
               >
-                <Plus size={16} />
-                Add Tool
+                <List size={16} />
+                Select from Catalog
               </button>
             </div>
 
             {/* Tools Header */}
             <div style={{ 
               display: 'grid', 
-              gridTemplateColumns: '2fr 1fr 80px 60px', 
+              gridTemplateColumns: '2fr 1fr 100px 80px 60px', 
               gap: '8px',
               padding: '8px 0',
               borderBottom: `1px solid ${DESIGN_TOKENS.colors.border}`,
@@ -475,6 +488,13 @@ export default function ToolsIssueModal({ isOpen, onClose, onSubmit, loading = f
                 fontWeight: 600, 
                 color: DESIGN_TOKENS.colors.text.secondary 
               }}>
+                CATEGORY
+              </div>
+              <div style={{ 
+                fontSize: DESIGN_TOKENS.typography.label, 
+                fontWeight: 600, 
+                color: DESIGN_TOKENS.colors.text.secondary 
+              }}>
                 QTY
               </div>
               <div style={{ width: '60px' }}></div>
@@ -484,7 +504,7 @@ export default function ToolsIssueModal({ isOpen, onClose, onSubmit, loading = f
             {tools.map((tool) => (
               <div key={tool.id} style={{ 
                 display: 'grid', 
-                gridTemplateColumns: '2fr 1fr 80px 60px', 
+                gridTemplateColumns: '2fr 1fr 100px 80px 60px', 
                 gap: '8px',
                 padding: '8px 0',
                 alignItems: 'center',
@@ -510,6 +530,22 @@ export default function ToolsIssueModal({ isOpen, onClose, onSubmit, loading = f
                   value={tool.make}
                   onChange={(e) => updateTool(tool.id, 'make', e.target.value)}
                   placeholder="Make..."
+                  style={{
+                    height: '38px',
+                    backgroundColor: DESIGN_TOKENS.colors.surface.page,
+                    border: `1px solid ${DESIGN_TOKENS.colors.border}`,
+                    borderRadius: DESIGN_TOKENS.borderRadius.none,
+                    fontSize: DESIGN_TOKENS.typography.input,
+                    color: DESIGN_TOKENS.colors.text.primary,
+                    padding: '0 12px',
+                    fontFamily: 'Inter, sans-serif',
+                  }}
+                />
+                <input
+                  type="text"
+                  value={tool.category || ''}
+                  onChange={(e) => updateTool(tool.id, 'category', e.target.value)}
+                  placeholder="Category..."
                   style={{
                     height: '38px',
                     backgroundColor: DESIGN_TOKENS.colors.surface.page,
@@ -626,18 +662,26 @@ export default function ToolsIssueModal({ isOpen, onClose, onSubmit, loading = f
           </button>
         </div>
       </div>
+
+      {/* Tool Selection Modal */}
+      <ToolSelectionComponent
+        isOpen={isToolSelectionOpen}
+        onClose={() => setIsToolSelectionOpen(false)}
+        onSelection={addSelectedTools}
+        organisation={organisation}
+      />
     </div>
   );
+}
 
-  // Add spinner animation
-  if (typeof window !== 'undefined') {
-    const style = document.createElement('style');
-    style.textContent = `
-      @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-      }
-    `;
-    document.head.appendChild(style);
-  }
+// Add spinner animation
+if (typeof window !== 'undefined') {
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  `;
+  document.head.appendChild(style);
 }

@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Search, Package, AlertTriangle, ArrowUpDown, X } from 'lucide-react';
+import { Plus, Edit2, Trash2, Search, Package, AlertTriangle, ArrowUpDown, X, Tag, Building } from 'lucide-react';
 import { toolsApi } from '../tools/api';
 import { useAuth } from '../App';
+import CategoryManager from '../components/tools/CategoryManager';
+import WarehouseManager from '../components/tools/WarehouseManager';
 
 // Professional Modal Design System Tokens
 const DESIGN_TOKENS = {
@@ -611,6 +613,8 @@ export default function ToolsCatalog() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isCategoryManagerOpen, setIsCategoryManagerOpen] = useState(false);
+  const [isWarehouseManagerOpen, setIsWarehouseManagerOpen] = useState(false);
 
   useEffect(() => {
     if (organisation?.id) {
@@ -708,25 +712,65 @@ export default function ToolsCatalog() {
             }}
           />
         </div>
-        <button
-          onClick={handleCreateTool}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '10px 16px',
-            backgroundColor: DESIGN_TOKENS.colors.accent,
-            border: 'none',
-            borderRadius: DESIGN_TOKENS.borderRadius.subtle,
-            fontSize: DESIGN_TOKENS.typography.button,
-            fontWeight: 600,
-            color: '#FFFFFF',
-            cursor: 'pointer',
-          }}
-        >
-          <Plus size={16} />
-          Add Tool
-        </button>
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <button
+            onClick={() => setIsCategoryManagerOpen(true)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 16px',
+              backgroundColor: DESIGN_TOKENS.colors.surface.page,
+              border: `1px solid ${DESIGN_TOKENS.colors.border}`,
+              borderRadius: DESIGN_TOKENS.borderRadius.subtle,
+              fontSize: DESIGN_TOKENS.typography.button,
+              fontWeight: 600,
+              color: DESIGN_TOKENS.colors.text.primary,
+              cursor: 'pointer',
+            }}
+          >
+            <Tag size={16} />
+            Manage Categories
+          </button>
+          <button
+            onClick={() => setIsWarehouseManagerOpen(true)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 16px',
+              backgroundColor: DESIGN_TOKENS.colors.surface.page,
+              border: `1px solid ${DESIGN_TOKENS.colors.border}`,
+              borderRadius: DESIGN_TOKENS.borderRadius.subtle,
+              fontSize: DESIGN_TOKENS.typography.button,
+              fontWeight: 600,
+              color: DESIGN_TOKENS.colors.text.primary,
+              cursor: 'pointer',
+            }}
+          >
+            <Building size={16} />
+            Manage Warehouses
+          </button>
+          <button
+            onClick={handleCreateTool}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 16px',
+              backgroundColor: DESIGN_TOKENS.colors.accent,
+              border: 'none',
+              borderRadius: DESIGN_TOKENS.borderRadius.subtle,
+              fontSize: DESIGN_TOKENS.typography.button,
+              fontWeight: 600,
+              color: '#FFFFFF',
+              cursor: 'pointer',
+            }}
+          >
+            <Plus size={16} />
+            Add Tool
+          </button>
+        </div>
       </div>
 
       {/* Tools Table */}
@@ -893,6 +937,20 @@ export default function ToolsCatalog() {
           </div>
         </div>
       )}
+
+      {/* Category Manager Modal */}
+      <CategoryManager
+        isOpen={isCategoryManagerOpen}
+        onClose={() => setIsCategoryManagerOpen(false)}
+        organisation={organisation}
+      />
+
+      {/* Warehouse Manager Modal */}
+      <WarehouseManager
+        isOpen={isWarehouseManagerOpen}
+        onClose={() => setIsWarehouseManagerOpen(false)}
+        organisation={organisation}
+      />
     </div>
   );
 }

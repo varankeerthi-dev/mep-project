@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Trash2, Package, Calendar, User } from 'lucide-react';
+import { X, Plus, Trash2, Package, Calendar, User, List } from 'lucide-react';
+import TransferToolSelectionComponent from './TransferToolSelectionComponent';
 
 // Professional Modal Design System Tokens
 const DESIGN_TOKENS = {
@@ -55,6 +56,9 @@ interface ToolItem {
   returned_quantity: number;
   hsn_code?: string;
   rate?: number;
+  category?: string;
+  transaction_id?: string;
+  client_id?: string;
 }
 
 interface ToolsReceiveModalProps {
@@ -73,6 +77,7 @@ export default function ToolsReceiveModal({ isOpen, onClose, onSubmit, loading =
   const [remarks, setRemarks] = useState('');
   const [tools, setTools] = useState<ToolItem[]>([]);
   const [transactionStatus, setTransactionStatus] = useState('ACTIVE');
+  const [isToolSelectionOpen, setIsToolSelectionOpen] = useState(false);
 
   // Auto-populate from reference ID
   const handleReferenceIdChange = async (refId: string) => {
@@ -89,16 +94,23 @@ export default function ToolsReceiveModal({ isOpen, onClose, onSubmit, loading =
   };
 
   const addTool = () => {
-    const newTool: ToolItem = {
-      id: Date.now().toString(),
-      tool_name: '',
-      make: '',
-      quantity: 0,
+    setIsToolSelectionOpen(true);
+  };
+
+  const addSelectedTools = (selectedTools: any[]) => {
+    const newTools = selectedTools.map(tool => ({
+      id: Date.now().toString() + Math.random(),
+      tool_name: tool.tool_name,
+      make: tool.make || '',
+      quantity: tool.issued_quantity,
       returned_quantity: 0,
-      hsn_code: '',
-      rate: 0,
-    };
-    setTools([...tools, newTool]);
+      hsn_code: tool.hsn_code || '',
+      rate: tool.rate || 0,
+      category: tool.category || '',
+      transaction_id: tool.transaction_id,
+      client_id: tool.client_id,
+    }));
+    setTools([...tools, ...newTools]);
   };
 
   const removeTool = (id: string) => {
@@ -434,15 +446,15 @@ export default function ToolsReceiveModal({ isOpen, onClose, onSubmit, loading =
                   fontFamily: 'Inter, sans-serif',
                 }}
               >
-                <Plus size={16} />
-                Add Tool
+                <List size={16} />
+                Select Open Tools
               </button>
             </div>
 
             {/* Tools Header */}
             <div style={{ 
               display: 'grid', 
-              gridTemplateColumns: '2fr 1fr 80px 80px 60px', 
+              gridTemplateColumns: '2fr 1fr 100px 80px 80px 60px', 
               gap: '8px',
               padding: '8px 0',
               borderBottom: `1px solid ${DESIGN_TOKENS.colors.border}`,
@@ -466,6 +478,13 @@ export default function ToolsReceiveModal({ isOpen, onClose, onSubmit, loading =
                 fontWeight: 600, 
                 color: DESIGN_TOKENS.colors.text.secondary 
               }}>
+                CATEGORY
+              </div>
+              <div style={{ 
+                fontSize: DESIGN_TOKENS.typography.label, 
+                fontWeight: 600, 
+                color: DESIGN_TOKENS.colors.text.secondary 
+              }}>
                 ISSUED QTY
               </div>
               <div style={{ 
@@ -475,13 +494,6 @@ export default function ToolsReceiveModal({ isOpen, onClose, onSubmit, loading =
               }}>
                 RETURNED QTY
               </div>
-              <div style={{ 
-                fontSize: DESIGN_TOKENS.typography.label, 
-                fontWeight: 600, 
-                color: DESIGN_TOKENS.colors.text.secondary 
-              }}>
-                BALANCE
-              </div>
               <div style={{ width: '60px' }}></div>
             </div>
 
@@ -489,7 +501,7 @@ export default function ToolsReceiveModal({ isOpen, onClose, onSubmit, loading =
             {tools.map((tool) => (
               <div key={tool.id} style={{ 
                 display: 'grid', 
-                gridTemplateColumns: '2fr 1fr 80px 80px 60px', 
+                gridTemplateColumns: '2fr 1fr 100px 80px 80px 60px', 
                 gap: '8px',
                 padding: '8px 0',
                 alignItems: 'center',
@@ -515,6 +527,22 @@ export default function ToolsReceiveModal({ isOpen, onClose, onSubmit, loading =
                   value={tool.make}
                   onChange={(e) => updateTool(tool.id, 'make', e.target.value)}
                   placeholder="Make..."
+                  style={{
+                    height: '38px',
+                    backgroundColor: DESIGN_TOKENS.colors.surface.page,
+                    border: `1px solid ${DESIGN_TOKENS.colors.border}`,
+                    borderRadius: DESIGN_TOKENS.borderRadius.none,
+                    fontSize: DESIGN_TOKENS.typography.input,
+                    color: DESIGN_TOKENS.colors.text.primary,
+                    padding: '0 12px',
+                    fontFamily: 'Inter, sans-serif',
+                  }}
+                />
+                <input
+                  type="text"
+                  value={tool.category || ''}
+                  onChange={(e) => updateTool(tool.id, 'category', e.target.value)}
+                  placeholder="Category..."
                   style={{
                     height: '38px',
                     backgroundColor: DESIGN_TOKENS.colors.surface.page,
@@ -655,6 +683,16 @@ export default function ToolsReceiveModal({ isOpen, onClose, onSubmit, loading =
           </button>
         </div>
       </div>
+
+      {/* Tool Selection Modal */}
+      <TransferToolSelectionComponent
+        isOpen={isToolSelectionOpen}
+        onClose={() => setIsToolSelectionOpen(false)}
+        onSelection={addSelectedTools}
+        organisation={organisation}
+        fromClientId={client}
+        filterType="receive"
+      />
     </div>
   );
 

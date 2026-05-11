@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Trash2, Package, User, ArrowRight } from 'lucide-react';
+import { X, Plus, Trash2, Package, User, ArrowRight, List } from 'lucide-react';
+import TransferToolSelectionComponent from './TransferToolSelectionComponent';
 
 // Professional Modal Design System Tokens
 const DESIGN_TOKENS = {
@@ -53,6 +54,9 @@ interface ToolItem {
   quantity: number;
   hsn_code?: string;
   rate?: number;
+  category?: string;
+  transaction_id?: string;
+  client_id?: string;
 }
 
 interface ToolsTransferModalProps {
@@ -70,6 +74,7 @@ export default function ToolsTransferModal({ isOpen, onClose, onSubmit, loading 
   const [toClient, setToClient] = useState('');
   const [reason, setReason] = useState('');
   const [tools, setTools] = useState<ToolItem[]>([]);
+  const [isToolSelectionOpen, setIsToolSelectionOpen] = useState(false);
 
   // Generate reference ID on mount
   useEffect(() => {
@@ -81,15 +86,22 @@ export default function ToolsTransferModal({ isOpen, onClose, onSubmit, loading 
   }, [isOpen, organisation]);
 
   const addTool = () => {
-    const newTool: ToolItem = {
-      id: Date.now().toString(),
-      tool_name: '',
-      make: '',
-      quantity: 1,
-      hsn_code: '',
-      rate: 0,
-    };
-    setTools([...tools, newTool]);
+    setIsToolSelectionOpen(true);
+  };
+
+  const addSelectedTools = (selectedTools: any[]) => {
+    const newTools = selectedTools.map(tool => ({
+      id: Date.now().toString() + Math.random(),
+      tool_name: tool.tool_name,
+      make: tool.make || '',
+      quantity: tool.available_quantity,
+      hsn_code: tool.hsn_code || '',
+      rate: tool.rate || 0,
+      category: tool.category || '',
+      transaction_id: tool.transaction_id,
+      client_id: tool.client_id,
+    }));
+    setTools([...tools, ...newTools]);
   };
 
   const removeTool = (id: string) => {
@@ -388,15 +400,15 @@ export default function ToolsTransferModal({ isOpen, onClose, onSubmit, loading 
                   fontFamily: 'Inter, sans-serif',
                 }}
               >
-                <Plus size={16} />
-                Add Tool
+                <List size={16} />
+                Select Open Tools
               </button>
             </div>
 
             {/* Tools Header */}
             <div style={{ 
               display: 'grid', 
-              gridTemplateColumns: '2fr 1fr 80px 60px', 
+              gridTemplateColumns: '2fr 1fr 100px 80px 60px', 
               gap: '8px',
               padding: '8px 0',
               borderBottom: `1px solid ${DESIGN_TOKENS.colors.border}`,
@@ -420,6 +432,13 @@ export default function ToolsTransferModal({ isOpen, onClose, onSubmit, loading 
                 fontWeight: 600, 
                 color: DESIGN_TOKENS.colors.text.secondary 
               }}>
+                CATEGORY
+              </div>
+              <div style={{ 
+                fontSize: DESIGN_TOKENS.typography.label, 
+                fontWeight: 600, 
+                color: DESIGN_TOKENS.colors.text.secondary 
+              }}>
                 QTY
               </div>
               <div style={{ width: '60px' }}></div>
@@ -429,7 +448,7 @@ export default function ToolsTransferModal({ isOpen, onClose, onSubmit, loading 
             {tools.map((tool) => (
               <div key={tool.id} style={{ 
                 display: 'grid', 
-                gridTemplateColumns: '2fr 1fr 80px 60px', 
+                gridTemplateColumns: '2fr 1fr 100px 80px 60px', 
                 gap: '8px',
                 padding: '8px 0',
                 alignItems: 'center',
@@ -455,6 +474,22 @@ export default function ToolsTransferModal({ isOpen, onClose, onSubmit, loading 
                   value={tool.make}
                   onChange={(e) => updateTool(tool.id, 'make', e.target.value)}
                   placeholder="Make..."
+                  style={{
+                    height: '38px',
+                    backgroundColor: DESIGN_TOKENS.colors.surface.page,
+                    border: `1px solid ${DESIGN_TOKENS.colors.border}`,
+                    borderRadius: DESIGN_TOKENS.borderRadius.none,
+                    fontSize: DESIGN_TOKENS.typography.input,
+                    color: DESIGN_TOKENS.colors.text.primary,
+                    padding: '0 12px',
+                    fontFamily: 'Inter, sans-serif',
+                  }}
+                />
+                <input
+                  type="text"
+                  value={tool.category || ''}
+                  onChange={(e) => updateTool(tool.id, 'category', e.target.value)}
+                  placeholder="Category..."
                   style={{
                     height: '38px',
                     backgroundColor: DESIGN_TOKENS.colors.surface.page,
@@ -571,6 +606,16 @@ export default function ToolsTransferModal({ isOpen, onClose, onSubmit, loading 
           </button>
         </div>
       </div>
+
+      {/* Tool Selection Modal */}
+      <TransferToolSelectionComponent
+        isOpen={isToolSelectionOpen}
+        onClose={() => setIsToolSelectionOpen(false)}
+        onSelection={addSelectedTools}
+        organisation={organisation}
+        fromClientId={fromClient}
+        filterType="transfer"
+      />
     </div>
   );
 

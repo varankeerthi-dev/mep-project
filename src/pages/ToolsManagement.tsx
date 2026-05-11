@@ -7,6 +7,7 @@ import ToolsTransferModal from '../components/tools/ToolsTransferModal';
 import SiteTransferModal from '../components/tools/SiteTransferModal';
 import ToolsDashboard from './ToolsDashboard';
 import ToolsCatalog from './ToolsCatalog';
+import ToolTransactionStorage from '../tools/storage';
 // import ToolsHistory from './ToolsHistory';
 
 // Professional Modal Design System Tokens
@@ -68,6 +69,7 @@ export default function ToolsManagement() {
   const [isReceiveModalOpen, setIsReceiveModalOpen] = useState(false);
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [isSiteTransferModalOpen, setIsSiteTransferModalOpen] = useState(false);
+  const [storage, setStorage] = useState(() => ToolTransactionStorage.getInstance());
 
   const organisationId = organisation?.id || '';
 
@@ -75,11 +77,11 @@ export default function ToolsManagement() {
     setActiveSubTab(subTabId);
   };
 
-  const handleIssueTools = () => {
+  const handleOpenIssueModal = () => {
     setIsIssueModalOpen(true);
   };
 
-  const handleReceiveTools = () => {
+  const handleOpenReceiveModal = () => {
     setIsReceiveModalOpen(true);
   };
 
@@ -93,10 +95,165 @@ export default function ToolsManagement() {
 
   const handleModalSubmit = async (data: any) => {
     try {
-      // TODO: Implement actual API calls
       console.log('Modal submitted:', data);
+      
+      // Determine the type of transaction based on the data structure
+      if (data.source_place && data.taken_by) {
+        // This is an Issue Tools transaction
+        await handleIssueTools(data);
+      } else if (data.from_client && data.to_client) {
+        // This is a Transfer Tools transaction
+        await handleTransferToolsSubmit(data);
+      } else if (data.returned_quantity !== undefined) {
+        // This is a Receive Tools transaction
+        await handleReceiveTools(data);
+      } else if (data.from_project && data.to_project) {
+        // This is a Site Transfer transaction
+        await handleSiteTransferSubmit(data);
+      }
+      
+      // Close the modal after successful submission
+      setIsIssueModalOpen(false);
+      setIsReceiveModalOpen(false);
+      setIsTransferModalOpen(false);
+      setIsSiteTransferModalOpen(false);
+      
     } catch (error) {
       console.error('Error submitting modal:', error);
+      alert('Error submitting transaction. Please try again.');
+    }
+  };
+
+  const handleIssueTools = async (data: any) => {
+    try {
+      // Create issue transaction using storage
+      const transaction = storage.createTransaction({
+        reference_id: data.reference_id,
+        transaction_date: data.date,
+        client_id: data.client,
+        transaction_type: 'ISSUE',
+        status: 'ACTIVE',
+        remarks: data.remarks,
+        source_place: data.source_place,
+        taken_by: data.taken_by,
+        tools: data.tools.map((tool: any) => ({
+          id: Date.now().toString() + Math.random(),
+          tool_id: tool.id,
+          tool_name: tool.tool_name,
+          make: tool.make,
+          category: tool.category,
+          quantity: tool.quantity,
+          hsn_code: tool.hsn_code,
+          rate: tool.rate,
+        }))
+      });
+      
+      console.log('Issue transaction created:', transaction);
+      
+      alert(`Tools issued successfully! Reference: ${transaction.reference_id}`);
+    } catch (error) {
+      console.error('Error issuing tools:', error);
+      throw error;
+    }
+  };
+
+  const handleTransferToolsSubmit = async (data: any) => {
+    try {
+      // Create transfer transaction using storage
+      const transaction = storage.createTransaction({
+        reference_id: data.reference_id,
+        transaction_date: data.date,
+        from_client: data.from_client,
+        to_client: data.to_client,
+        transaction_type: 'TRANSFER',
+        status: 'ACTIVE',
+        remarks: data.reason_for_transfer,
+        tools: data.tools.map((tool: any) => ({
+          id: Date.now().toString() + Math.random(),
+          tool_id: tool.id,
+          tool_name: tool.tool_name,
+          make: tool.make,
+          category: tool.category,
+          quantity: tool.quantity,
+          hsn_code: tool.hsn_code,
+          rate: tool.rate,
+        }))
+      });
+      
+      console.log('Transfer transaction created:', transaction);
+      
+      alert(`Tools transferred successfully! Reference: ${transaction.reference_id}`);
+    } catch (error) {
+      console.error('Error transferring tools:', error);
+      throw error;
+    }
+  };
+
+  const handleReceiveTools = async (data: any) => {
+    try {
+      // Create receive transaction using storage
+      const transaction = storage.createTransaction({
+        reference_id: data.reference_id,
+        transaction_date: data.date,
+        client_id: data.client,
+        transaction_type: 'RECEIVE',
+        status: data.transaction_status,
+        remarks: data.remarks,
+        received_by: data.receivedBy,
+        tools: data.tools.map((tool: any) => ({
+          id: Date.now().toString() + Math.random(),
+          tool_id: tool.id,
+          tool_name: tool.tool_name,
+          make: tool.make,
+          category: tool.category,
+          quantity: tool.quantity,
+          returned_quantity: tool.returned_quantity,
+          hsn_code: tool.hsn_code,
+          rate: tool.rate,
+        }))
+      });
+      
+      console.log('Receive transaction created:', transaction);
+      
+      alert(`Tools received successfully! Reference: ${transaction.reference_id}`);
+    } catch (error) {
+      console.error('Error receiving tools:', error);
+      throw error;
+    }
+  };
+
+  const handleSiteTransferSubmit = async (data: any) => {
+    try {
+      // Create site transfer transaction using storage
+      const transaction = storage.createTransaction({
+        reference_id: data.reference_id,
+        transaction_date: data.date,
+        from_project: data.fromProject,
+        to_project: data.toProject,
+        transaction_type: 'SITE_TRANSFER',
+        status: 'ACTIVE',
+        remarks: data.reason,
+        transferred_by: data.transferredBy,
+        received_by: data.receivedBy,
+        vehicle_number: data.vehicleNumber,
+        tools: data.tools.map((tool: any) => ({
+          id: Date.now().toString() + Math.random(),
+          tool_id: tool.id,
+          tool_name: tool.tool_name,
+          make: tool.make,
+          category: tool.category,
+          quantity: tool.quantity,
+          hsn_code: tool.hsn_code,
+          rate: tool.rate,
+        }))
+      });
+      
+      console.log('Site transfer transaction created:', transaction);
+      
+      alert(`Site transfer completed successfully! Reference: ${transaction.reference_id}`);
+    } catch (error) {
+      console.error('Error in site transfer:', error);
+      throw error;
     }
   };
 
@@ -169,7 +326,7 @@ export default function ToolsManagement() {
       }}>
         <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
           <button
-            onClick={handleIssueTools}
+            onClick={handleOpenIssueModal}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -189,7 +346,7 @@ export default function ToolsManagement() {
             Issue Tools
           </button>
           <button
-            onClick={handleReceiveTools}
+            onClick={handleOpenReceiveModal}
             style={{
               display: 'flex',
               alignItems: 'center',
