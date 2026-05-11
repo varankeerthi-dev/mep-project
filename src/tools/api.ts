@@ -192,9 +192,9 @@ export const toolTransactionsApi = {
       .from('tool_transactions')
       .select(`
         *,
-        client:clients(name),
-        from_client:from_clients(name),
-        to_client:to_clients(name)
+        client:clients!tool_transactions_client_id_fkey(name),
+        from_client:clients!tool_transactions_from_client_id_fkey(name),
+        to_client:clients!tool_transactions_to_client_id_fkey(name)
       `)
       .eq('organisation_id', organisationId);
 
@@ -227,9 +227,9 @@ export const toolTransactionsApi = {
       .from('tool_transactions')
       .select(`
         *,
-        client:clients(name),
-        from_client:from_clients(name),
-        to_client:to_clients(name)
+        client:clients!tool_transactions_client_id_fkey(name),
+        from_client:clients!tool_transactions_from_client_id_fkey(name),
+        to_client:clients!tool_transactions_to_client_id_fkey(name)
       `)
       .eq('organisation_id', organisationId)
       .eq('reference_id', referenceId)

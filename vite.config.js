@@ -30,5 +30,9 @@ export default defineConfig({
         }
       }
     }
+  },
+  assetsInclude: ['**/*.woff2', '**/*.woff', '**/*.ttf', '**/*.eot'],
+  optimizeDeps: {
+    include: ['@fontsource-variable/geist']
   }
 })
