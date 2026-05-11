@@ -66,6 +66,13 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 
 // Removed Material-UI imports
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const toNullableUuid = (value?: string | null): string | null => {
+  const v = (value ?? '').trim();
+  if (!v || v === 'null' || v === 'undefined') return null;
+  return UUID_REGEX.test(v) ? v : null;
+};
+
 const siteReportSchema = z.object({
   client: z.string().min(1, "Client name is required"),
   projectName: z.string().min(1, "Project name is required"),
@@ -368,9 +375,9 @@ export function SiteReport() {
         .from('site_reports')
         .insert([{
           organisation_id: organisation?.id,
-          issue_id: issueIdParam || null,
-          client_id: values.client,
-          project_id: values.projectName,
+          issue_id: toNullableUuid(issueIdParam),
+          client_id: toNullableUuid(values.client),
+          project_id: toNullableUuid(values.projectName),
           report_date: values.date,
           total_manpower: values.manpower.total,
           skilled_manpower: values.manpower.skilled,
