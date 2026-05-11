@@ -123,6 +123,7 @@ export type InvoiceClientOption = {
 };
 
 export type MaterialVariant = {
+  variant_id?: string | null;
   variant_name: string | null;
   make: string;
   sale_price: number;

@@ -19,6 +19,7 @@ import { useCreateInvoice, useInvoice, useInvoiceTemplates, useUpdateInvoice } f
 import { downloadInvoicePDF, emailInvoicePDF, previewInvoicePDF, printInvoicePDF } from '../pdf';
 import type { InvoiceEditorFormValues, InvoiceClientOption, InvoiceMaterialOption, ClientShippingAddress } from './ui-utils';
 import { useWarehouses } from '@/hooks/useWarehouses';
+import { useVariants } from '@/hooks/useVariants';
 import {
   InvoiceEditorSchema,
   type InvoiceSourceOption,
@@ -70,26 +71,42 @@ async function loadMaterialOptions(organisationId: string): Promise<InvoiceMater
   const { data: materialsData, error: materialsError } = await supabase.from('materials').select('id, name, display_name, hsn_code, make, unit, sale_price, material, size').eq('organisation_id', organisationId);
   if (materialsError) throw materialsError;
 
-  // Fetch variant pricing data with variant names
+  // Fetch variant pricing data (CreateQuotation-style: use variant id from pricing rows)
   const { data: variantPricingData, error: pricingError } = await supabase
     .from('item_variant_pricing')
-    .select('item_id, make, sale_price, company_variants(variant_name)')
+    .select('item_id, company_variant_id, make, sale_price')
     .in('item_id', (materialsData ?? []).map(m => m.id));
 
   if (pricingError) {
     console.warn('Failed to fetch variant pricing:', pricingError);
   }
 
-  // Build pricing map: material_id -> array of { make, sale_price, variant_name }
-  const pricingMap: Record<string, { make: string; sale_price: number; variant_name: string | null }[]> = {};
+  const variantIds = Array.from(
+    new Set((variantPricingData ?? []).map((row: any) => row.company_variant_id).filter(Boolean))
+  );
+
+  const variantNameMap: Record<string, string> = {};
+  if (variantIds.length > 0) {
+    const { data: variantRows } = await supabase
+      .from('company_variants')
+      .select('id, variant_name')
+      .in('id', variantIds);
+    (variantRows ?? []).forEach((row: any) => {
+      variantNameMap[row.id] = row.variant_name || '';
+    });
+  }
+
+  // Build pricing map: material_id -> array of { variant_id, make, sale_price, variant_name }
+  const pricingMap: Record<string, { variant_id: string | null; make: string; sale_price: number; variant_name: string | null }[]> = {};
   (variantPricingData ?? []).forEach((row: any) => {
     if (!pricingMap[row.item_id]) {
       pricingMap[row.item_id] = [];
     }
     pricingMap[row.item_id].push({
+      variant_id: row.company_variant_id || null,
       make: row.make || '',
-      sale_price: row.sale_price,
-      variant_name: row.company_variants?.variant_name || null,
+      sale_price: row.sale_price || 0,
+      variant_name: row.company_variant_id ? (variantNameMap[row.company_variant_id] || null) : null,
     });
   });
 
@@ -516,6 +533,45 @@ export default function InvoiceEditorPage() {
   });
 
   const warehousesQuery = useWarehouses();
+  const { data: variantRows = [] } = useVariants();
+
+  const itemVariantIdsMapQuery = useQuery({
+    queryKey: ['invoice-ui', 'item-variant-ids', organisation?.id],
+    queryFn: async () => {
+      if (!organisation?.id) return {};
+
+      const { data, error } = await supabase
+        .from('item_variant_pricing')
+        .select('item_id, company_variant_id, make');
+
+      if (error) throw error;
+
+      const map: Record<string, string[]> = {};
+      const makesMap: Record<string, string[]> = {};
+      (data ?? []).forEach((row: any) => {
+        if (!row?.item_id) return;
+
+        if (row.company_variant_id) {
+          if (!map[row.item_id]) map[row.item_id] = [];
+          if (!map[row.item_id].includes(row.company_variant_id)) {
+            map[row.item_id].push(row.company_variant_id);
+          }
+        }
+
+        const make = (row.make || '').trim();
+        if (make) {
+          if (!makesMap[row.item_id]) makesMap[row.item_id] = [];
+          if (!makesMap[row.item_id].includes(make)) {
+            makesMap[row.item_id].push(make);
+          }
+        }
+      });
+      return { variantIdsMap: map, makesMap };
+    },
+    enabled: !!organisation?.id,
+    staleTime: 5 * 60 * 1000,
+  });
+
   const stockQuery = useQuery({
     queryKey: ['item-stock', organisation?.id],
     queryFn: async () => {
@@ -2147,6 +2203,9 @@ export default function InvoiceEditorPage() {
           warehouses={warehousesQuery.data ?? []}
           stockRows={stockQuery.data ?? []}
           defaultWarehouseId={useWatch({ control, name: 'default_warehouse_id' })}
+          variantOptions={variantRows.map((v: any) => ({ id: String(v.id), variant_name: String(v.variant_name || '') }))}
+          itemVariantIdsMap={itemVariantIdsMapQuery.data?.variantIdsMap ?? {}}
+          itemMakesMap={itemVariantIdsMapQuery.data?.makesMap ?? {}}
         />
 
         {/* Materials Editor - Compact Excel Style */}

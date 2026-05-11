@@ -252,8 +252,10 @@ export async function createInvoice(input: InvoiceInput & { organisation_id: str
       }
     }
 
-    // Handle stock deduction if enabled
-    if (validated.deduct_stock_on_finalize && validated.mode) {
+    // Handle stock deduction if enabled.
+    // IMPORTANT: Delivery Challan already deducts stock at dispatch time,
+    // so invoices created from challans must never deduct again.
+    if (validated.source_type !== 'challan' && validated.deduct_stock_on_finalize && validated.mode) {
       try {
         const deductionResults = await deductInvoiceStock(
           insertedInvoiceId,
@@ -320,8 +322,10 @@ export async function updateInvoice(id: string, input: InvoiceInput & { organisa
     if (materialError) throw materialError;
   }
 
-  // Handle stock deduction if enabled
-  if (validated.deduct_stock_on_finalize && validated.mode) {
+  // Handle stock deduction if enabled.
+  // IMPORTANT: Delivery Challan already deducts stock at dispatch time,
+  // so invoices created from challans must never deduct again.
+  if (validated.source_type !== 'challan' && validated.deduct_stock_on_finalize && validated.mode) {
     try {
       const deductionResults = await deductInvoiceStock(
         id,

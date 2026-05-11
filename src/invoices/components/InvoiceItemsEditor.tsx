@@ -28,6 +28,9 @@ type InvoiceItemsEditorProps = {
   warehouses?: Array<{ id: string; warehouse_name?: string; name?: string }>;
   stockRows?: Array<{ item_id: string; warehouse_id: string; company_variant_id: string | null; current_stock: number }>;
   defaultWarehouseId?: string;
+  variantOptions?: Array<{ id: string; variant_name: string }>;
+  itemVariantIdsMap?: Record<string, string[]>;
+  itemMakesMap?: Record<string, string[]>;
 };
 
 function SortableRow({ children, id, index }: { children: React.ReactNode; id: string; index: number }) {
@@ -64,6 +67,9 @@ export function InvoiceItemsEditor({
   warehouses = [],
   stockRows = [],
   defaultWarehouseId,
+  variantOptions = [],
+  itemVariantIdsMap = {},
+  itemMakesMap = {},
 }: InvoiceItemsEditorProps) {
   const { organisation } = useAuth();
   const [searchTerms, setSearchTerms] = useState<Record<number, string>>({});
@@ -110,8 +116,10 @@ export function InvoiceItemsEditor({
       setValue(`items.${index}.meta_json.material_id`, materialId, { shouldDirty: true });
       setValue(`items.${index}.description`, material.name || '', { shouldDirty: true });
       setValue(`items.${index}.hsn_code`, material.hsn_code || '', { shouldDirty: true });
-      const firstVariant = material.variants && material.variants.length > 0 ? material.variants[0].variant_name || '' : '';
-      setValue(`items.${index}.meta_json.variant`, firstVariant, { shouldDirty: true });
+      const firstVariant = material.variants && material.variants.length > 0 ? material.variants[0] : null;
+      setValue(`items.${index}.meta_json.variant`, firstVariant?.variant_name || '', { shouldDirty: true });
+      setValue(`items.${index}.meta_json.variant_id`, firstVariant?.variant_id || undefined, { shouldDirty: true });
+      setValue(`items.${index}.meta_json.make`, firstVariant?.make || material.make || '', { shouldDirty: true });
       setValue(`items.${index}.meta_json.unit`, material.unit || '', { shouldDirty: true });
       if (material.sale_price) {
         // Set base_rate to be material's landing rate
@@ -144,6 +152,10 @@ export function InvoiceItemsEditor({
       setValue(`items.${index}.meta_json.material_id`, materialId, { shouldDirty: true });
       setValue(`items.${index}.description`, material.display_name || material.name, { shouldDirty: true });
       setValue(`items.${index}.hsn_code`, material.hsn_code || '', { shouldDirty: true });
+      const firstVariant = material.variants && material.variants.length > 0 ? material.variants[0] : null;
+      setValue(`items.${index}.meta_json.variant`, firstVariant?.variant_name || '', { shouldDirty: true });
+      setValue(`items.${index}.meta_json.variant_id`, firstVariant?.variant_id || undefined, { shouldDirty: true });
+      setValue(`items.${index}.meta_json.make`, firstVariant?.make || material.make || '', { shouldDirty: true });
       // Auto-set default warehouse if not already set
       const currentWarehouse = items[index]?.meta_json?.warehouse_id as string | undefined;
       if (!currentWarehouse && defaultWarehouseId) {
@@ -235,24 +247,55 @@ export function InvoiceItemsEditor({
     setMakeDropdowns(prev => ({ ...prev, [index]: false }));
   }, [setValue]);
 
-  const handleVariantSelect = useCallback((index: number, variant: string) => {
-    setValue(`items.${index}.meta_json.variant`, variant, { shouldDirty: true });
-    setSelectedVariants(prev => ({ ...prev, [index]: variant }));
+  const handleVariantSelect = useCallback((index: number, variant: { variant_name: string | null; variant_id?: string | null; make?: string }) => {
+    const variantName = variant.variant_name || '';
+    setValue(`items.${index}.meta_json.variant`, variantName, { shouldDirty: true });
+    setValue(`items.${index}.meta_json.variant_id`, variant.variant_id || undefined, { shouldDirty: true });
+    if (variant.make) {
+      setValue(`items.${index}.meta_json.make`, variant.make, { shouldDirty: true });
+      setSelectedMakes(prev => ({ ...prev, [index]: variant.make || '' }));
+    }
+    setSelectedVariants(prev => ({ ...prev, [index]: variantName }));
     setVariantDropdowns(prev => ({ ...prev, [index]: false }));
   }, [setValue]);
 
   const getMaterialMakes = useCallback((materialId: string) => {
-    const material = productOptions.find(m => m.id === materialId);
-    if (!material || !material.variants) return [];
-    const makes = [...new Set(material.variants.map(v => v.make || '').filter(Boolean))];
-    return makes;
-  }, [productOptions]);
+    const mappedMakes = itemMakesMap[materialId] || [];
+    if (mappedMakes.length > 0) return mappedMakes;
 
-  const getMaterialVariants = useCallback((materialId: string, make?: string) => {
     const material = productOptions.find(m => m.id === materialId);
-    if (!material || !material.variants) return [];
-    return material.variants.filter(v => !make || v.make === make);
-  }, [productOptions]);
+    if (!material) return [];
+    return material.make ? [material.make] : [];
+  }, [itemMakesMap, productOptions]);
+
+  const getMaterialVariants = useCallback((materialId: string) => {
+    const material = productOptions.find(m => m.id === materialId);
+    const variantsFromMaterial = material?.variants || [];
+
+    // Parity with CreateQuotation: derive variants from item->variant pricing mapping as source of truth.
+    const mappedIds = itemVariantIdsMap[materialId] || [];
+    const variantsFromMap = mappedIds
+      .map((variantId) => {
+        const opt = variantOptions.find((v) => v.id === variantId);
+        if (!opt) return null;
+        return {
+          variant_id: variantId,
+          variant_name: opt.variant_name || null,
+          make: '',
+          sale_price: 0,
+        };
+      })
+      .filter(Boolean) as Array<{ variant_id?: string | null; variant_name: string | null; make: string; sale_price: number }>;
+
+    const merged = [...variantsFromMaterial, ...variantsFromMap];
+    const seen = new Set<string>();
+    return merged.filter((variant) => {
+      const key = variant.variant_id || variant.variant_name || '';
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [productOptions, itemVariantIdsMap, variantOptions]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -832,7 +875,7 @@ export function InvoiceItemsEditor({
                       }}
                       style={{
                         width: '100%',
-                        padding: '4px 6px',
+                        padding: '4px 20px 4px 6px',
                         border: '1px solid transparent',
                         borderRadius: '2px',
                         fontSize: '11px',
@@ -849,6 +892,20 @@ export function InvoiceItemsEditor({
                       }}
                       onBlur={(e) => e.currentTarget.style.borderColor = 'transparent'}
                     />
+                    <span
+                      style={{
+                        position: 'absolute',
+                        right: '8px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        fontSize: '10px',
+                        color: '#737373',
+                        pointerEvents: 'none',
+                        userSelect: 'none'
+                      }}
+                    >
+                      ▼
+                    </span>
                     {makeDropdowns[index] && (
                       <div
                         ref={(el) => { makeDropdownRefs.current[index] = el; }}
@@ -901,7 +958,7 @@ export function InvoiceItemsEditor({
                       }}
                       style={{
                         width: '100%',
-                        padding: '4px 6px',
+                        padding: '4px 20px 4px 6px',
                         border: '1px solid transparent',
                         borderRadius: '2px',
                         fontSize: '11px',
@@ -918,6 +975,20 @@ export function InvoiceItemsEditor({
                       }}
                       onBlur={(e) => e.currentTarget.style.borderColor = 'transparent'}
                     />
+                    <span
+                      style={{
+                        position: 'absolute',
+                        right: '8px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        fontSize: '10px',
+                        color: '#737373',
+                        pointerEvents: 'none',
+                        userSelect: 'none'
+                      }}
+                    >
+                      ▼
+                    </span>
                     {variantDropdowns[index] && (
                       <div
                         ref={(el) => { variantDropdownRefs.current[index] = el; }}
@@ -937,12 +1008,11 @@ export function InvoiceItemsEditor({
                       >
                         {(() => {
                           const materialId = items[index]?.meta_json?.material_id as string | undefined;
-                          const selectedMake = selectedMakes[index] || items[index]?.meta_json?.make as string;
-                          const variants = materialId ? getMaterialVariants(materialId, selectedMake) : [];
+                          const variants = materialId ? getMaterialVariants(materialId) : [];
                           return variants.map((variant, idx) => (
                             <div
                               key={idx}
-                              onClick={() => handleVariantSelect(index, variant.variant_name || '')}
+                              onClick={() => handleVariantSelect(index, variant)}
                               style={{
                                 padding: '8px 12px',
                                 cursor: 'pointer',
