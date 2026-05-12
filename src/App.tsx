@@ -9,6 +9,7 @@ import Sidebar from './components/Sidebar';
 import { supabase, getUserOrganisations, createOrganization, signOut } from './supabase';
 import { queryClient, refreshSessionIfNeeded } from './queryClient';
 import LandingPage from './pages/LandingPage';
+import { Toaster } from './lib/logger';
 import ToolsManagement from './pages/ToolsManagement';
 import { AuthContext, type AuthContextValue, type Organisation, type OrganisationMember } from './contexts/AuthContext';
 
@@ -609,8 +610,9 @@ export default function App() {
           <Suspense fallback={<PageSkeleton />}>
             {renderedPage}
           </Suspense>
-        </main>
+</main>
       </div>
+      <Toaster />
       <ReactQueryDevtools initialIsOpen={false} />
     </AuthContext.Provider>
   );

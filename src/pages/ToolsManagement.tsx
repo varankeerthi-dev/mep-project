@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Package, Plus, Trash2, Search, FileText, Download, Eye } from 'lucide-react';
 import { useAuth } from '../App';
+import { supabase } from '../supabase';
+import { toolTransactionsApi } from '../tools/api';
+import { toast } from '../lib/logger';
 import ToolsIssueModal from '../components/tools/ToolsIssueModal';
 import ToolsReceiveModal from '../components/tools/ToolsReceiveModal';
 import ToolsTransferModal from '../components/tools/ToolsTransferModal';
 import SiteTransferModal from '../components/tools/SiteTransferModal';
 import ToolsDashboard from './ToolsDashboard';
 import ToolsCatalog from './ToolsCatalog';
-import ToolTransactionStorage from '../tools/storage';
-// import ToolsHistory from './ToolsHistory';
 
 // Professional Modal Design System Tokens
 const DESIGN_TOKENS = {
@@ -69,7 +70,6 @@ export default function ToolsManagement() {
   const [isReceiveModalOpen, setIsReceiveModalOpen] = useState(false);
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [isSiteTransferModalOpen, setIsSiteTransferModalOpen] = useState(false);
-  const [storage, setStorage] = useState(() => ToolTransactionStorage.getInstance());
 
   const organisationId = organisation?.id || '';
 
@@ -120,139 +120,155 @@ export default function ToolsManagement() {
       
     } catch (error) {
       console.error('Error submitting modal:', error);
-      alert('Error submitting transaction. Please try again.');
+      toast.error(`Failed to save: ${(error as Error).message}`);
     }
   };
 
   const handleIssueTools = async (data: any) => {
     try {
-      // Create issue transaction using storage
-      const transaction = storage.createTransaction({
+      const transaction = await toolTransactionsApi.createTransaction(organisationId, {
         reference_id: data.reference_id,
-        transaction_date: data.date,
-        client_id: data.client,
         transaction_type: 'ISSUE',
-        status: 'ACTIVE',
-        remarks: data.remarks,
-        source_place: data.source_place,
+        transaction_date: data.date,
+        client_id: data.client || null,
         taken_by: data.taken_by,
-        tools: data.tools.map((tool: any) => ({
-          id: Date.now().toString() + Math.random(),
-          tool_id: tool.id,
-          tool_name: tool.tool_name,
-          make: tool.make,
-          category: tool.category,
-          quantity: tool.quantity,
-          hsn_code: tool.hsn_code,
-          rate: tool.rate,
-        }))
+        remarks: data.remarks || null,
+        status: 'ACTIVE',
       });
-      
+
+      for (const tool of data.tools) {
+        await supabase.from('tool_transaction_items').insert({
+          transaction_id: transaction.id,
+          tool_id: tool.id,
+          quantity: tool.quantity,
+          organisation_id: organisationId,
+        });
+
+        const { data: currentTool } = await supabase
+          .from('tools_catalog')
+          .select('current_stock')
+          .eq('id', tool.id)
+          .single();
+
+        if (currentTool) {
+          await supabase
+            .from('tools_catalog')
+            .update({ current_stock: currentTool.current_stock - tool.quantity })
+            .eq('id', tool.id);
+        }
+      }
+
       console.log('Issue transaction created:', transaction);
-      
-      alert(`Tools issued successfully! Reference: ${transaction.reference_id}`);
+      toast.success(`Tools issued successfully! Reference: ${data.reference_id}`);
     } catch (error) {
       console.error('Error issuing tools:', error);
+      toast.error(`Failed to issue tools: ${(error as Error).message}`);
       throw error;
     }
   };
 
   const handleTransferToolsSubmit = async (data: any) => {
     try {
-      // Create transfer transaction using storage
-      const transaction = storage.createTransaction({
+      const transaction = await toolTransactionsApi.createTransaction(organisationId, {
         reference_id: data.reference_id,
-        transaction_date: data.date,
-        from_client: data.from_client,
-        to_client: data.to_client,
         transaction_type: 'TRANSFER',
+        transaction_date: data.date,
+        from_client_id: data.from_client || null,
+        to_client_id: data.to_client || null,
+        remarks: data.reason_for_transfer || null,
         status: 'ACTIVE',
-        remarks: data.reason_for_transfer,
-        tools: data.tools.map((tool: any) => ({
-          id: Date.now().toString() + Math.random(),
-          tool_id: tool.id,
-          tool_name: tool.tool_name,
-          make: tool.make,
-          category: tool.category,
-          quantity: tool.quantity,
-          hsn_code: tool.hsn_code,
-          rate: tool.rate,
-        }))
       });
-      
+
+      for (const tool of data.tools) {
+        await supabase.from('tool_transaction_items').insert({
+          transaction_id: transaction.id,
+          tool_id: tool.id,
+          quantity: tool.quantity,
+          organisation_id: organisationId,
+        });
+      }
+
       console.log('Transfer transaction created:', transaction);
-      
-      alert(`Tools transferred successfully! Reference: ${transaction.reference_id}`);
+      toast.success(`Tools transferred successfully! Reference: ${data.reference_id}`);
     } catch (error) {
       console.error('Error transferring tools:', error);
+      toast.error(`Failed to transfer tools: ${(error as Error).message}`);
       throw error;
     }
   };
 
   const handleReceiveTools = async (data: any) => {
     try {
-      // Create receive transaction using storage
-      const transaction = storage.createTransaction({
+      const transaction = await toolTransactionsApi.createTransaction(organisationId, {
         reference_id: data.reference_id,
-        transaction_date: data.date,
-        client_id: data.client,
         transaction_type: 'RECEIVE',
-        status: data.transaction_status,
-        remarks: data.remarks,
-        received_by: data.receivedBy,
-        tools: data.tools.map((tool: any) => ({
-          id: Date.now().toString() + Math.random(),
-          tool_id: tool.id,
-          tool_name: tool.tool_name,
-          make: tool.make,
-          category: tool.category,
-          quantity: tool.quantity,
-          returned_quantity: tool.returned_quantity,
-          hsn_code: tool.hsn_code,
-          rate: tool.rate,
-        }))
+        transaction_date: data.date,
+        client_id: data.client || null,
+        received_by: data.receivedBy || null,
+        remarks: data.remarks || null,
+        status: data.transaction_status || 'RETURNED',
       });
-      
+
+      for (const tool of data.tools) {
+        await supabase.from('tool_transaction_items').insert({
+          transaction_id: transaction.id,
+          tool_id: tool.id,
+          quantity: tool.quantity,
+          returned_quantity: tool.returned_quantity || 0,
+          organisation_id: organisationId,
+        });
+
+        const { data: currentTool } = await supabase
+          .from('tools_catalog')
+          .select('current_stock')
+          .eq('id', tool.id)
+          .single();
+
+        if (currentTool) {
+          await supabase
+            .from('tools_catalog')
+            .update({ current_stock: currentTool.current_stock + (tool.returned_quantity || tool.quantity) })
+            .eq('id', tool.id);
+        }
+      }
+
       console.log('Receive transaction created:', transaction);
-      
-      alert(`Tools received successfully! Reference: ${transaction.reference_id}`);
+      toast.success(`Tools received successfully! Reference: ${data.reference_id}`);
     } catch (error) {
       console.error('Error receiving tools:', error);
+      toast.error(`Failed to receive tools: ${(error as Error).message}`);
       throw error;
     }
   };
 
   const handleSiteTransferSubmit = async (data: any) => {
     try {
-      // Create site transfer transaction using storage
-      const transaction = storage.createTransaction({
+      const transaction = await toolTransactionsApi.createTransaction(organisationId, {
         reference_id: data.reference_id,
-        transaction_date: data.date,
-        from_project: data.fromProject,
-        to_project: data.toProject,
         transaction_type: 'SITE_TRANSFER',
-        status: 'ACTIVE',
-        remarks: data.reason,
-        transferred_by: data.transferredBy,
-        received_by: data.receivedBy,
-        vehicle_number: data.vehicleNumber,
-        tools: data.tools.map((tool: any) => ({
-          id: Date.now().toString() + Math.random(),
-          tool_id: tool.id,
-          tool_name: tool.tool_name,
-          make: tool.make,
-          category: tool.category,
-          quantity: tool.quantity,
-          hsn_code: tool.hsn_code,
-          rate: tool.rate,
-        }))
+        transaction_date: data.date,
+        from_project_id: data.fromProject || null,
+        to_project_id: data.toProject || null,
+        transferred_by: data.transferredBy || null,
+        received_by: data.receivedBy || null,
+        remarks: data.reason || null,
+        status: 'IN_TRANSIT',
       });
-      
+
+      for (const tool of data.tools) {
+        await supabase.from('tool_transaction_items').insert({
+          transaction_id: transaction.id,
+          tool_id: tool.id,
+          quantity: tool.quantity,
+          organisation_id: organisationId,
+        });
+      }
+
       console.log('Site transfer transaction created:', transaction);
-      
-      alert(`Site transfer completed successfully! Reference: ${transaction.reference_id}`);
+      toast.success(`Site transfer completed successfully! Reference: ${data.reference_id}`);
     } catch (error) {
       console.error('Error in site transfer:', error);
+      toast.error(`Failed to transfer tools: ${(error as Error).message}`);
       throw error;
     }
   };

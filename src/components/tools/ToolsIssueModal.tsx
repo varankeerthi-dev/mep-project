@@ -96,7 +96,7 @@ export default function ToolsIssueModal({ isOpen, onClose, onSubmit, loading = f
 
   const addSelectedTools = (selectedTools: ToolCatalog[]) => {
     const newTools = selectedTools.map(tool => ({
-      id: Date.now().toString() + Math.random(),
+      id: tool.id,
       tool_name: tool.tool_name,
       make: tool.make || '',
       quantity: 1,

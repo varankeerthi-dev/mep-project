@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Package, TrendingUp, AlertCircle, RotateCw, ArrowRight } from 'lucide-react';
+import { Package, TrendingUp, AlertCircle, RotateCw, ArrowRight, Pencil, Trash2, Download, Eye } from 'lucide-react';
 import { toolsApi, toolTransactionsApi, siteTransfersApi } from '../tools/api';
 import { useAuth } from '../App';
-import ToolTransactionStorage from '../tools/storage';
+import { supabase } from '../supabase';
+import { toast } from '../lib/logger';
 
 interface DashboardMetrics {
   total_tools: number;
@@ -18,11 +19,39 @@ interface RecentActivity {
   description: string;
   date: string;
   status: string;
+  reference_id?: string;
+}
+
+interface ToolTransactionRow {
+  id: string;
+  transaction_id: string;
+  reference_id: string;
+  tool_id: string;
+  tool_name: string;
+  make?: string;
+  category?: string;
+  client_name?: string;
+  from_client_name?: string;
+  to_client_name?: string;
+  from_project_name?: string;
+  to_project_name?: string;
+  quantity: number;
+  returned_quantity?: number;
+  status: string;
+  transaction_date: string;
+  transaction_type: string;
+  taken_by?: string;
+  received_by?: string;
+  remarks?: string;
+}
+
+interface ViewModalData {
+  transaction: any;
+  items: any[];
 }
 
 export default function ToolsDashboard() {
   const { organisation } = useAuth();
-  const [storage] = useState(() => ToolTransactionStorage.getInstance());
   const [metrics, setMetrics] = useState<DashboardMetrics>({
     total_tools: 0,
     tools_at_clients: 0,
@@ -33,73 +62,144 @@ export default function ToolsDashboard() {
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState('all');
-  const [allTools, setAllTools] = useState<any[]>([]);
-
-  useEffect(() => {
-    if (!organisation?.id) return;
-    loadDashboardData();
-    
-    // Set up periodic refresh every 30 seconds
-    const interval = setInterval(loadDashboardData, 30000);
-    
-    return () => clearInterval(interval);
-  }, [organisation, storage]);
+  const [allTools, setAllTools] = useState<ToolTransactionRow[]>([]);
+  const [viewModal, setViewModal] = useState<ViewModalData | null>(null);
+  const [editModal, setEditModal] = useState<ToolTransactionRow | null>(null);
 
   const loadDashboardData = async () => {
     try {
       setLoading(true);
+      const orgId = organisation?.id;
+      if (!orgId) return;
 
-      // Get data from storage system
-      const storageMetrics = storage.getDashboardMetrics();
-      const recentActivityData = storage.getRecentActivity(10);
-      const allTransactions = storage.getTransactions();
+      // Fetch all transactions with client/project info
+      let query = supabase
+        .from('tool_transactions')
+        .select(`
+          *,
+          client:clients!tool_transactions_client_id_fkey(client_name),
+          from_client:clients!tool_transactions_from_client_id_fkey(client_name),
+          to_client:clients!tool_transactions_to_client_id_fkey(client_name)
+        `)
+        .eq('organisation_id', orgId)
+        .order('transaction_date', { ascending: false });
 
-      // Update metrics
-      setMetrics({
-        total_tools: storageMetrics.total_tools,
-        tools_at_clients: storageMetrics.tools_at_clients,
-        tools_at_warehouse: storageMetrics.tools_at_warehouse,
-        tools_in_transit: storageMetrics.tools_in_transit,
-        overdue_returns: 0, // TODO: Calculate based on due dates
-      });
-
-      // Update recent activity
-      setRecentActivity(recentActivityData.map(activity => ({
-        id: activity.id,
-        type: activity.type,
-        description: activity.description,
-        date: activity.date,
-        status: activity.status,
-      })));
-
-      // Update all tools data for table
-      let filteredTools = allTransactions;
       if (filterType === 'issued') {
-        filteredTools = storage.getIssuedTools();
+        query = query.eq('transaction_type', 'ISSUE').eq('status', 'ACTIVE');
       } else if (filterType === 'intransit') {
-        filteredTools = storage.getInTransitTools();
+        query = query.eq('status', 'IN_TRANSIT');
       } else if (filterType === 'returned') {
-        filteredTools = storage.getTransactionsByType('RECEIVE');
+        query = query.eq('transaction_type', 'RECEIVE');
+      } else if (filterType === 'transfer') {
+        query = query.eq('transaction_type', 'TRANSFER');
+      } else if (filterType === 'site_transfer') {
+        query = query.eq('transaction_type', 'SITE_TRANSFER');
       }
 
-      // Flatten tools for display
-      const flattenedTools = filteredTools.flatMap(transaction => 
-        transaction.tools.map(tool => ({
-          id: transaction.id + '-' + tool.id,
-          reference_id: transaction.reference_id,
-          tool_name: tool.tool_name,
-          client_id: transaction.client_id || transaction.from_project || transaction.to_project,
-          quantity: tool.quantity,
-          status: transaction.status,
-          transaction_date: transaction.transaction_date,
-          transaction_type: transaction.transaction_type,
-        }))
-      );
+      const { data: transactions, error: txError } = await query;
+      if (txError) throw txError;
 
-      setAllTools(flattenedTools);
+      // Fetch transaction items with tool details
+      const txIds = (transactions || []).map((t: any) => t.id);
+      let items: any[] = [];
+      if (txIds.length > 0) {
+        const { data: fetchedItems } = await supabase
+          .from('tool_transaction_items')
+          .select(`*, tool:tools_catalog(tool_name, make, category)`)
+          .in('transaction_id', txIds);
+        items = fetchedItems || [];
+      }
+
+      // Flatten for table
+      const flattened: ToolTransactionRow[] = [];
+      for (const tx of transactions || []) {
+        const txItems = items.filter(i => i.transaction_id === tx.id);
+        if (txItems.length === 0) {
+          flattened.push({
+            id: tx.id,
+            transaction_id: tx.id,
+            reference_id: tx.reference_id,
+            tool_id: '',
+            tool_name: 'No items',
+            client_name: tx.client?.client_name || tx.from_client?.client_name || tx.to_client?.client_name || '',
+            from_client_name: tx.from_client?.client_name,
+            to_client_name: tx.to_client?.client_name,
+            quantity: 0,
+            status: tx.status,
+            transaction_date: tx.transaction_date,
+            transaction_type: tx.transaction_type,
+            taken_by: tx.taken_by,
+            received_by: tx.received_by,
+            remarks: tx.remarks,
+          });
+        } else {
+          for (const item of txItems) {
+            flattened.push({
+              id: item.id,
+              transaction_id: tx.id,
+              reference_id: tx.reference_id,
+              tool_id: item.tool_id,
+              tool_name: item.tool?.tool_name || 'Unknown',
+              make: item.tool?.make,
+              category: item.tool?.category,
+              client_name: tx.client?.client_name || tx.from_client?.client_name || tx.to_client?.client_name || '',
+              from_client_name: tx.from_client?.client_name,
+              to_client_name: tx.to_client?.client_name,
+              from_project_name: (tx as any).from_project?.project_name,
+              to_project_name: (tx as any).to_project?.project_name,
+              quantity: item.quantity,
+              returned_quantity: item.returned_quantity,
+              status: tx.status,
+              transaction_date: tx.transaction_date,
+              transaction_type: tx.transaction_type,
+              taken_by: tx.taken_by,
+              received_by: tx.received_by,
+              remarks: tx.remarks,
+            });
+          }
+        }
+      }
+
+      setAllTools(flattened);
+
+      // Build recent activity from transactions
+      const activities: RecentActivity[] = (transactions || []).slice(0, 10).map((t: any) => ({
+        id: t.id,
+        type: t.transaction_type,
+        description: `${t.transaction_type} — ${t.reference_id}`,
+        date: t.transaction_date,
+        status: t.status,
+        reference_id: t.reference_id,
+      }));
+      setRecentActivity(activities);
+
+      // Metrics from tool_transactions
+      const allTx = transactions || [];
+      const issued = allTx.filter((t: any) => t.transaction_type === 'ISSUE' && t.status === 'ACTIVE');
+      const inTransit = allTx.filter((t: any) => t.status === 'IN_TRANSIT');
+      const received = allTx.filter((t: any) => t.transaction_type === 'RECEIVE');
+      const totalQty = items.reduce((s: number, i: any) => s + (i.quantity || 0), 0);
+
+      setMetrics({
+        total_tools: totalQty,
+        tools_at_clients: issued.reduce((s: number, i: any) => {
+          const qty = items.filter((it: any) => it.transaction_id === i.id).reduce((qs: number, it: any) => qs + (it.quantity || 0), 0);
+          return s + qty;
+        }, 0),
+        tools_at_warehouse: received.reduce((s: number, i: any) => {
+          const qty = items.filter((it: any) => it.transaction_id === i.id).reduce((qs: number, it: any) => qs + (it.returned_quantity || 0), 0);
+          return s + qty;
+        }, 0),
+        tools_in_transit: inTransit.reduce((s: number, i: any) => {
+          const qty = items.filter((it: any) => it.transaction_id === i.id).reduce((qs: number, it: any) => qs + (it.quantity || 0), 0);
+          return s + qty;
+        }, 0),
+        overdue_returns: 0,
+      });
 
     } catch (error) {
       console.error('Error loading dashboard data:', error);
+      toast.error(`Failed to load: ${(error as Error).message}`);
     } finally {
       setLoading(false);
     }
@@ -155,55 +255,140 @@ export default function ToolsDashboard() {
       case 'ACTIVE': return 'bg-green-100 text-green-800';
       case 'IN_TRANSIT': return 'bg-orange-100 text-orange-800';
       case 'COMPLETED': return 'bg-blue-100 text-blue-800';
+      case 'RETURNED': return 'bg-green-100 text-green-800';
+      case 'PARTIAL': return 'bg-yellow-100 text-yellow-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
 
-  const handleViewTool = (tool: any) => {
-    console.log('View tool:', tool);
-    // TODO: Open tool details modal or navigate to details page
-    alert(`Viewing tool details for: ${tool.tool_name} (Ref: ${tool.reference_id})`);
-  };
+  const handleViewTool = async (tool: any) => {
+    try {
+      const { data: tx } = await supabase
+        .from('tool_transactions')
+        .select(`*, client:clients!tool_transactions_client_id_fkey(client_name), from_client:clients!tool_transactions_from_client_id_fkey(client_name), to_client:clients!tool_transactions_to_client_id_fkey(client_name)`)
+        .eq('id', tool.transaction_id)
+        .single();
 
-  const handleEditTool = (tool: any) => {
-    console.log('Edit tool:', tool);
-    // TODO: Open edit modal or navigate to edit page
-    alert(`Editing tool: ${tool.tool_name} (Ref: ${tool.reference_id})`);
-  };
+      const { data: items } = await supabase
+        .from('tool_transaction_items')
+        .select(`*, tool:tools_catalog(tool_name, make, category, hsn_code)`)
+        .eq('transaction_id', tool.transaction_id);
 
-  const handleDeleteTool = (tool: any) => {
-    if (window.confirm(`Are you sure you want to delete this tool transaction?\n\nTool: ${tool.tool_name}\nReference: ${tool.reference_id}`)) {
-      console.log('Delete tool:', tool);
-      // TODO: Delete from storage system
-      alert(`Tool transaction deleted: ${tool.reference_id}`);
-      // Refresh data after deletion
-      loadDashboardData();
+      setViewModal({ transaction: tx, items: items || [] });
+    } catch (err) {
+      toast.error(`Failed to load details: ${(err as Error).message}`);
     }
   };
 
-  const handleDownloadTool = (tool: any) => {
-    console.log('Download tool:', tool);
-    // TODO: Generate and download PDF/Excel report
-    const reportData = {
-      reference_id: tool.reference_id,
-      tool_name: tool.tool_name,
-      quantity: tool.quantity,
-      client_site: tool.client_id,
-      status: tool.status,
-      transaction_type: tool.transaction_type,
-      date: tool.transaction_date,
-    };
-    
-    const dataStr = JSON.stringify(reportData, null, 2);
-    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-    
-    const exportFileDefaultName = `tool_transaction_${tool.reference_id}.json`;
-    
-    const linkElement = document.createElement('a');
-    linkElement.setAttribute('href', dataUri);
-    linkElement.setAttribute('download', exportFileDefaultName);
-    linkElement.click();
+  const handleEditTool = async (tool: any) => {
+    try {
+      const { data: tx } = await supabase
+        .from('tool_transactions')
+        .select(`*, client:clients!tool_transactions_client_id_fkey(client_name)`)
+        .eq('id', tool.transaction_id)
+        .single();
+
+      const { data: items } = await supabase
+        .from('tool_transaction_items')
+        .select(`*, tool:tools_catalog(tool_name, make, category)`)
+        .eq('transaction_id', tool.transaction_id);
+
+      setEditModal({ ...tool, transaction: tx, items: items || [] });
+    } catch (err) {
+      toast.error(`Failed to load for edit: ${(err as Error).message}`);
+    }
   };
+
+  const handleDeleteTool = async (tool: any) => {
+    if (!window.confirm(`Delete transaction ${tool.reference_id}?\nTool: ${tool.tool_name}\nQty: ${tool.quantity}`)) return;
+    try {
+      await supabase.from('tool_transaction_items').delete().eq('id', tool.id);
+      // Check if this was the last item in the transaction
+      const { data: remaining } = await supabase
+        .from('tool_transaction_items')
+        .select('id')
+        .eq('transaction_id', tool.transaction_id);
+      if (!remaining || remaining.length === 0) {
+        await supabase.from('tool_transactions').delete().eq('id', tool.transaction_id);
+      }
+      toast.success('Transaction deleted');
+      loadDashboardData();
+    } catch (err) {
+      toast.error(`Delete failed: ${(err as Error).message}`);
+    }
+  };
+
+  const handleDownloadTool = async (tool: any) => {
+    try {
+      const { data: tx } = await supabase
+        .from('tool_transactions')
+        .select(`*, client:clients!tool_transactions_client_id_fkey(client_name)`)
+        .eq('id', tool.transaction_id)
+        .single();
+
+      const { data: items } = await supabase
+        .from('tool_transaction_items')
+        .select(`*, tool:tools_catalog(tool_name, make, category, hsn_code)`)
+        .eq('transaction_id', tool.transaction_id);
+
+      const content = [
+        'TOOL TRANSACTION REPORT',
+        '=================================',
+        `Reference ID   : ${tx?.reference_id}`,
+        `Date           : ${tx?.transaction_date}`,
+        `Type           : ${tx?.transaction_type}`,
+        `Status         : ${tx?.status}`,
+        `Client         : ${tx?.client?.client_name || '—'}`,
+        `Taken By       : ${tx?.taken_by || '—'}`,
+        `Received By    : ${tx?.received_by || '—'}`,
+        `Remarks        : ${tx?.remarks || '—'}`,
+        '',
+        'ITEMS',
+        '---------------------------------',
+        ...(items || []).map((i: any) =>
+          `  ${i.tool?.tool_name || '—'} | ${i.tool?.make || '—'} | Qty: ${i.quantity} | Returned: ${i.returned_quantity || 0}`
+        ),
+        '',
+        `Generated: ${new Date().toLocaleString()}`,
+      ].join('\n');
+
+      const blob = new Blob([content], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `tool_transaction_${tool.reference_id}.txt`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success('Report downloaded');
+    } catch (err) {
+      toast.error(`Download failed: ${(err as Error).message}`);
+    }
+  };
+
+  useEffect(() => {
+    if (!organisation?.id) return;
+    loadDashboardData();
+    
+    // Set up periodic refresh every 30 seconds
+    const interval = setInterval(loadDashboardData, 30000);
+    
+    return () => clearInterval(interval);
+  }, [organisation, filterType]);
+
+  // Listen for storage changes and refresh dashboard
+  useEffect(() => {
+    const handleStorageChange = () => {
+      console.log('Storage changed, refreshing dashboard...');
+      loadDashboardData();
+    };
+
+    // Add custom event listener for storage changes
+    window.addEventListener('storage-changed', handleStorageChange);
+    
+    return () => {
+      window.removeEventListener('storage-changed', handleStorageChange);
+    };
+  }, []);
 
   if (loading) {
     return (
@@ -394,7 +579,7 @@ export default function ToolsDashboard() {
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {tool.client_id || 'Unknown'}
+                          {tool.client_name || tool.from_client_name || tool.to_client_name || '—'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                           {tool.reference_id}
@@ -448,6 +633,76 @@ export default function ToolsDashboard() {
           )}
         </div>
       </div>
+
+      {/* View Modal */}
+      {viewModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(2px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+        }}>
+          <div style={{
+            width: '600px', backgroundColor: '#fff', borderRadius: '6px',
+            boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)', maxHeight: '80vh', overflowY: 'auto',
+          }}>
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid #E5E7EB', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0 }}>Transaction Details</h2>
+              <button onClick={() => setViewModal(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}>
+                ✕
+              </button>
+            </div>
+            <div style={{ padding: '20px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
+                <div><span style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', color: '#6B7280' }}>Reference ID</span><p style={{ margin: '4px 0 0', fontWeight: 500 }}>{viewModal.transaction?.reference_id}</p></div>
+                <div><span style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', color: '#6B7280' }}>Date</span><p style={{ margin: '4px 0 0', fontWeight: 500 }}>{viewModal.transaction?.transaction_date}</p></div>
+                <div><span style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', color: '#6B7280' }}>Type</span><p style={{ margin: '4px 0 0', fontWeight: 500 }}>{viewModal.transaction?.transaction_type}</p></div>
+                <div><span style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', color: '#6B7280' }}>Status</span><p style={{ margin: '4px 0 0', fontWeight: 500 }}>{viewModal.transaction?.status}</p></div>
+                <div><span style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', color: '#6B7280' }}>Client</span><p style={{ margin: '4px 0 0', fontWeight: 500 }}>{viewModal.transaction?.client?.client_name || '—'}</p></div>
+                <div><span style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', color: '#6B7280' }}>Taken By</span><p style={{ margin: '4px 0 0', fontWeight: 500 }}>{viewModal.transaction?.taken_by || '—'}</p></div>
+                <div style={{ gridColumn: '1 / -1' }}><span style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', color: '#6B7280' }}>Remarks</span><p style={{ margin: '4px 0 0', fontWeight: 500 }}>{viewModal.transaction?.remarks || '—'}</p></div>
+              </div>
+              <div><span style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', color: '#6B7280' }}>Items</span>
+                <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '8px', fontSize: '13px' }}>
+                  <thead><tr style={{ background: '#F8F9FA' }}>
+                    <th style={{ padding: '8px', textAlign: 'left' }}>Tool</th><th style={{ padding: '8px', textAlign: 'left' }}>Make</th><th style={{ padding: '8px', textAlign: 'right' }}>Qty</th><th style={{ padding: '8px', textAlign: 'right' }}>Returned</th>
+                  </tr></thead>
+                  <tbody>
+                    {viewModal.items.map((item: any) => (
+                      <tr key={item.id} style={{ borderBottom: '1px solid #E5E7EB' }}>
+                        <td style={{ padding: '8px' }}>{item.tool?.tool_name}</td>
+                        <td style={{ padding: '8px' }}>{item.tool?.make || '—'}</td>
+                        <td style={{ padding: '8px', textAlign: 'right' }}>{item.quantity}</td>
+                        <td style={{ padding: '8px', textAlign: 'right' }}>{item.returned_quantity || 0}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {editModal && (
+        <EditToolTransactionModal
+          data={editModal}
+          onClose={() => setEditModal(null)}
+          onSave={async (updated: any) => {
+            try {
+              await supabase
+                .from('tool_transactions')
+                .update({ status: updated.status, remarks: updated.remarks })
+                .eq('id', updated.transaction_id);
+              toast.success('Transaction updated');
+              setEditModal(null);
+              loadDashboardData();
+            } catch (err) {
+              toast.error(`Update failed: ${(err as Error).message}`);
+            }
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -2343,49 +2343,6 @@ const itemsToInsert = items.map(item => ({
         </div>
       </div>
       <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
-          {/* Header with Navigation */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => navigate('/quotations')}
-                className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-                <span className="font-medium">Back</span>
-              </button>
-              <h1 className="text-lg font-semibold text-gray-900">
-                {editId ? 'Edit Quotation' : 'Create Quotation'}
-              </h1>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => navigate('/quotations')}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => handleSave(false)}
-                disabled={saving}
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50"
-              >
-                {saving ? 'Saving...' : 'Save'}
-              </button>
-              <button
-                type="button"
-                onClick={() => handleSave(true)}
-                disabled={saving}
-                className="px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md hover:bg-green-700 transition-colors disabled:opacity-50"
-              >
-                {saving ? 'Saving...' : 'Save as Draft'}
-              </button>
-            </div>
-          </div>
         </div>
 
         {/* Document Details Grid */}
@@ -2496,11 +2453,9 @@ const itemsToInsert = items.map(item => ({
                           setClientSearch(e.target.value);
                           setIsClientDropdownOpen(true);
                         }}
+                        onClick={() => setIsClientDropdownOpen(true)}
                         onFocus={() => setIsClientDropdownOpen(true)}
                       />
-                      <div className="absolute right-2 top-2 pointer-events-none">
-                        <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                      </div>
                     </div>
                     {isClientDropdownOpen && (
                       <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 shadow-lg max-h-[300px] overflow-y-auto rounded-none">
@@ -2509,12 +2464,13 @@ const itemsToInsert = items.map(item => ({
                           .map(c => (
                             <div 
                               key={c.id}
-                              className="px-3 py-2 hover:bg-blue-50 cursor-pointer text-xs border-b border-gray-100 last:border-0"
+                              className="px-3 hover:bg-blue-50 cursor-pointer text-sm border-b border-gray-100 last:border-0" style={{ paddingTop: '14px', paddingBottom: '14px' }}
                               onClick={() => {
-                                handleClientChange(c.id);
-                                setClientSearch(c.client_name);
-                                setIsClientDropdownOpen(false);
-                              }}
+                              handleClientChange(c.id);
+                              setClientSearch(c.client_name);
+                              setIsClientDropdownOpen(false);
+                              setClientSearch('');
+                            }}
                             >
                               {c.client_name}
                             </div>

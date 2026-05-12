@@ -549,19 +549,19 @@ onClick={() => navigate(`/quotation/view?id=${q.id}`)}
                             e.stopPropagation();
                             setOpenMenuId(openMenuId === q.id ? null : q.id);
                           }}
-                          className="inline-flex items-center justify-center w-8 h-8 rounded-md hover:bg-slate-100 transition-colors"
+                          className="inline-flex items-center justify-center w-8 h-8 rounded-md bg-amber-100 hover:bg-amber-200 transition-colors"
                         >
                           <MoreHorizontalIcon className="w-4 h-4 text-slate-500" />
                         </button>
                       {openMenuId === q.id && (
-                        <div className="absolute right-0 top-full mt-1 z-50 w-48 rounded-lg border border-slate-200/60 bg-white p-1.5 shadow-lg shadow-black/5">
+                        <div className="absolute right-0 top-full mt-1 z-50 w-48 rounded-lg border border-slate-200/60 bg-gray-200 p-1.5 shadow-lg shadow-black/5">
                           {/* Section 1: Read actions */}
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               navigate(`/quotation/view?id=${q.id}`);
                             }}
-                            className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-slate-600 transition-all hover:bg-slate-100/60 hover:text-slate-900"
+                            className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-slate-600 transition-all hover:bg-amber-100 hover:text-slate-900"
                             style={{ padding: '8px' }}
                           >
                             View Details
@@ -571,7 +571,7 @@ onClick={() => navigate(`/quotation/view?id=${q.id}`)}
                               e.stopPropagation();
                               downloadQuotationPDF(q.id);
                             }}
-                            className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-slate-600 transition-all hover:bg-slate-100/60 hover:text-slate-900"
+                            className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-slate-600 transition-all hover:bg-amber-100 hover:text-slate-900"
                             style={{ padding: '8px' }}
                           >
                             Download PDF
@@ -586,7 +586,7 @@ onClick={() => navigate(`/quotation/view?id=${q.id}`)}
                               setOpenMenuId(null);
                               navigate(`/invoice/create?convertFrom=quotation-to-invoice&sourceId=${q.id}`);
                             }}
-                            className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-slate-600 transition-all hover:bg-slate-100/60 hover:text-slate-900"
+                            className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-slate-600 transition-all hover:bg-amber-100 hover:text-slate-900"
                             style={{ padding: '8px' }}
                           >
                             Convert to Invoice
@@ -597,7 +597,7 @@ onClick={() => navigate(`/quotation/view?id=${q.id}`)}
                               setOpenMenuId(null);
                               navigate(`/proforma/create?convertFrom=quotation-to-proforma&sourceId=${q.id}`);
                             }}
-                            className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-slate-600 transition-all hover:bg-slate-100/60 hover:text-slate-900"
+                            className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-slate-600 transition-all hover:bg-amber-100 hover:text-slate-900"
                             style={{ padding: '8px' }}
                           >
                             Convert to Proforma
@@ -609,7 +609,7 @@ onClick={() => navigate(`/quotation/view?id=${q.id}`)}
                               setOpenMenuId(null);
                               navigate(`/dc/create?convertFrom=quotation-to-dc&sourceId=${q.id}`);
                             }}
-                            className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-slate-600 transition-all hover:bg-slate-100/60 hover:text-slate-900"
+                            className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-slate-600 transition-all hover:bg-amber-100 hover:text-slate-900"
                             style={{ padding: '8px' }}
                           >
                             Convert to Delivery
@@ -624,7 +624,7 @@ onClick={() => navigate(`/quotation/view?id=${q.id}`)}
                               setOpenMenuId(null);
                               navigate(`/quotation/edit?id=${q.id}`);
                             }}
-                            className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-slate-600 transition-all hover:bg-slate-100/60 hover:text-slate-900"
+                            className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-slate-600 transition-all hover:bg-amber-100 hover:text-slate-900"
                             style={{ padding: '8px' }}
                           >
                             Edit
@@ -748,7 +748,7 @@ onClick={() => navigate(`/quotation/view?id=${q.id}`)}
                                 alert('Error: ' + err.message);
                               }
                             }}
-                            className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-slate-600 transition-all hover:bg-slate-100/60 hover:text-slate-900"
+                            className="flex w-full items-center gap-2 rounded-md px-2 text-sm text-slate-600 transition-all hover:bg-amber-100 hover:text-slate-900"
                             style={{ padding: '8px' }}
                           >
                             Duplicate

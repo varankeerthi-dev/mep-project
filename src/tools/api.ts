@@ -39,8 +39,13 @@ export interface ToolTransaction {
   client_id?: string;
   from_client_id?: string;
   to_client_id?: string;
+  from_project_id?: string;
+  to_project_id?: string;
   taken_by?: string;
   received_by?: string;
+  transferred_by?: string;
+  vehicle_number?: string;
+  source_place?: string;
   remarks?: string;
   status: 'ACTIVE' | 'RETURNED' | 'PARTIAL' | 'IN_TRANSIT';
   created_at?: string;

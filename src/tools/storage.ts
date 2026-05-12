@@ -54,6 +54,12 @@ class ToolTransactionStorage {
     };
     
     this.transactions.push(transaction);
+    
+    // Notify components that storage has changed
+    window.dispatchEvent(new CustomEvent('storage-changed', {
+      detail: { action: 'create', transaction }
+    }));
+    
     return transaction;
   }
 

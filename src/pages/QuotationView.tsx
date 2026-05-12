@@ -65,23 +65,24 @@ export default function QuotationView() {
   const quotationQuery = useQuery({
     queryKey: ['quotation', quotationId],
     queryFn: async () => {
-      const data = await timedSupabaseQuery(
-        supabase
-          .from('quotation_header')
-          .select(`
-            *,
-            client:clients(*),
-            project:projects(id, project_name, project_code),
-            items:quotation_items(*, item:materials(id, item_code, display_name, name, hsn_code))
-          `)
-          .eq('id', quotationId)
-          .eq('organisation_id', organisation?.id || '00000000-0000-0000-0000-000000000000')
-          .single(),
-        'Quotation view',
-      );
-      return data as any;
+      if (!quotationId) return null;
+      const query = supabase
+        .from('quotation_header')
+        .select(`
+          *,
+          client:clients(*),
+          project:projects(id, project_name, project_code),
+          items:quotation_items(*, item:materials(id, item_code, display_name, name, hsn_code))
+        `)
+        .eq('id', quotationId)
+        .eq('organisation_id', organisation?.id || '00000000-0000-0000-0000-000000000000')
+        .single();
+
+      const { data, error } = await timedSupabaseQuery(query, 'Quotation view');
+      if (error) throw error;
+      return data;
     },
-    enabled: !!quotationId
+    enabled: !!quotationId,
   });
 
   const templatesQuery = useQuery({
@@ -101,9 +102,9 @@ export default function QuotationView() {
     staleTime: 10 * 60 * 1000
   });
 
-  const quotation = (quotationQuery.data as any) || null;
+  const quotation = quotationQuery.data;
   const templates = templatesQuery.data || [];
-  const loading = quotationQuery.isPending && !quotationQuery.data;
+  const loading = quotationQuery.isPending;
 
   // Separate query for Terms & Conditions
   const termsConditionsQuery = useQuery({
@@ -160,6 +161,7 @@ export default function QuotationView() {
   };
 
   const handleDuplicate = async () => {
+    if (!quotation) return;
     try {
       const { data: existing } = await supabase
         .from('quotation_header')
@@ -236,6 +238,7 @@ export default function QuotationView() {
   };
 
   const handleConvert = (type) => {
+    if (!quotation) return;
     if (type === 'proforma-invoice') {
       navigate(`/proforma-invoices/create?convertFrom=quotation-to-proforma&sourceId=${quotationId}`);
     } else if (type === 'invoice') {
@@ -266,6 +269,7 @@ export default function QuotationView() {
   };
 
   const handleDelete = async () => {
+    if (!quotation) return;
     if (quotation.status !== 'Draft') {
       alert('Only Draft quotations can be deleted.');
       return;
