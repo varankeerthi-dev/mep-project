@@ -159,6 +159,52 @@ export default function ToolsDashboard() {
     }
   };
 
+  const handleViewTool = (tool: any) => {
+    console.log('View tool:', tool);
+    // TODO: Open tool details modal or navigate to details page
+    alert(`Viewing tool details for: ${tool.tool_name} (Ref: ${tool.reference_id})`);
+  };
+
+  const handleEditTool = (tool: any) => {
+    console.log('Edit tool:', tool);
+    // TODO: Open edit modal or navigate to edit page
+    alert(`Editing tool: ${tool.tool_name} (Ref: ${tool.reference_id})`);
+  };
+
+  const handleDeleteTool = (tool: any) => {
+    if (window.confirm(`Are you sure you want to delete this tool transaction?\n\nTool: ${tool.tool_name}\nReference: ${tool.reference_id}`)) {
+      console.log('Delete tool:', tool);
+      // TODO: Delete from storage system
+      alert(`Tool transaction deleted: ${tool.reference_id}`);
+      // Refresh data after deletion
+      loadDashboardData();
+    }
+  };
+
+  const handleDownloadTool = (tool: any) => {
+    console.log('Download tool:', tool);
+    // TODO: Generate and download PDF/Excel report
+    const reportData = {
+      reference_id: tool.reference_id,
+      tool_name: tool.tool_name,
+      quantity: tool.quantity,
+      client_site: tool.client_id,
+      status: tool.status,
+      transaction_type: tool.transaction_type,
+      date: tool.transaction_date,
+    };
+    
+    const dataStr = JSON.stringify(reportData, null, 2);
+    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+    
+    const exportFileDefaultName = `tool_transaction_${tool.reference_id}.json`;
+    
+    const linkElement = document.createElement('a');
+    linkElement.setAttribute('href', dataUri);
+    linkElement.setAttribute('download', exportFileDefaultName);
+    linkElement.click();
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -288,7 +334,7 @@ export default function ToolsDashboard() {
       <div className="bg-white rounded-lg border">
         <div className="p-6 border-b">
           <div className="flex justify-between items-center">
-            <h2 className="text-xl font-semibold">All Tools Status</h2>
+            <h2 className="text-xl font-semibold">Tools Management</h2>
             <div className="flex gap-2">
               <select 
                 className="px-3 py-1 border rounded-lg text-sm"
@@ -302,6 +348,8 @@ export default function ToolsDashboard() {
                 <option value="issued">Issued Tools</option>
                 <option value="intransit">In Transit</option>
                 <option value="returned">Returned Tools</option>
+                <option value="transfer">Transfers</option>
+                <option value="site_transfer">Site Transfers</option>
               </select>
             </div>
           </div>
@@ -317,45 +365,79 @@ export default function ToolsDashboard() {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reference</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tool Name</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client/Site</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client/Site</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ref ID</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tool Details</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">View</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {allTools.map((tool) => {
                     const statusBadgeColor = getToolStatusBadgeColor(tool.status);
+                    const typeBadgeColor = tool.transaction_type === 'ISSUE' ? 'bg-blue-100 text-blue-800' :
+                      tool.transaction_type === 'RECEIVE' ? 'bg-green-100 text-green-800' :
+                      tool.transaction_type === 'TRANSFER' ? 'bg-orange-100 text-orange-800' :
+                      tool.transaction_type === 'SITE_TRANSFER' ? 'bg-purple-100 text-purple-800' :
+                      'bg-gray-100 text-gray-800';
                     
                     return (
                       <tr key={tool.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {tool.reference_id}
-                        </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {tool.tool_name}
+                          {tool.transaction_date}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${typeBadgeColor}`}>
+                            {tool.transaction_type}
+                          </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {tool.client_id || 'Unknown'}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {tool.quantity}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusBadgeColor}`}>
-                            {tool.status}
-                          </span>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          {tool.reference_id}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {tool.transaction_date}
+                          <div>
+                            <p className="font-medium">{tool.tool_name}</p>
+                            <p className="text-xs text-gray-500">Qty: {tool.quantity}</p>
+                          </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <button className="text-indigo-600 hover:text-indigo-900">
-                            View Details
+                          <button 
+                            onClick={() => handleViewTool(tool)}
+                            className="text-indigo-600 hover:text-indigo-900 flex items-center gap-1"
+                          >
+                            <Package className="h-4 w-4" />
+                            View
                           </button>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          <div className="flex items-center gap-2">
+                            <button 
+                              onClick={() => handleEditTool(tool)}
+                              className="text-blue-600 hover:text-blue-900 flex items-center gap-1"
+                            >
+                              <ArrowRight className="h-4 w-4" />
+                              Edit
+                            </button>
+                            <button 
+                              onClick={() => handleDeleteTool(tool)}
+                              className="text-red-600 hover:text-red-900 flex items-center gap-1"
+                            >
+                              <AlertCircle className="h-4 w-4" />
+                              Delete
+                            </button>
+                            <button 
+                              onClick={() => handleDownloadTool(tool)}
+                              className="text-green-600 hover:text-green-900 flex items-center gap-1"
+                            >
+                              <RotateCw className="h-4 w-4" />
+                              Download
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
