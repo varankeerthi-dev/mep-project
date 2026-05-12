@@ -114,43 +114,115 @@ export const toolsApi = {
 
   // Create new tool
   async createTool(organisationId: string, toolData: Partial<ToolCatalog>): Promise<ToolCatalog> {
-    const { data, error } = await supabase
-      .from('tools_catalog')
-      .insert({
-        ...toolData,
-        organisation_id: organisationId,
-        current_stock: toolData.initial_stock || 0,
-      })
-      .select()
-      .single();
+    let retryCount = 0;
+    const maxRetries = 3;
     
-    if (error) throw error;
-    return data;
+    while (retryCount < maxRetries) {
+      try {
+        const { data, error } = await supabase
+          .from('tools_catalog')
+          .insert({
+            ...toolData,
+            organisation_id: organisationId,
+          })
+          .select()
+          .single();
+        
+        if (error) {
+          if (error.code === '409' && retryCount < maxRetries - 1) {
+            retryCount++;
+            console.log(`Retrying tool creation (attempt ${retryCount + 1}/${maxRetries})...`);
+            await new Promise(resolve => setTimeout(resolve, 1000 * retryCount)); // Exponential backoff
+            continue;
+          }
+          throw error;
+        }
+        
+        return data;
+      } catch (err) {
+        if (retryCount === maxRetries - 1) {
+          console.error('Max retries reached for tool creation:', err);
+          throw err;
+        }
+        retryCount++;
+        console.log(`Retrying tool creation (attempt ${retryCount + 1}/${maxRetries})...`);
+        await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+      }
+    }
   },
 
   // Update tool
   async updateTool(organisationId: string, toolId: string, updates: Partial<ToolCatalog>): Promise<ToolCatalog> {
-    const { data, error } = await supabase
-      .from('tools_catalog')
-      .update(updates)
-      .eq('organisation_id', organisationId)
-      .eq('id', toolId)
-      .select()
-      .single();
+    let retryCount = 0;
+    const maxRetries = 3;
     
-    if (error) throw error;
-    return data;
+    while (retryCount < maxRetries) {
+      try {
+        const { data, error } = await supabase
+          .from('tools_catalog')
+          .update(updates)
+          .eq('organisation_id', organisationId)
+          .eq('id', toolId)
+          .select()
+          .single();
+        
+        if (error) {
+          if (error.code === '409' && retryCount < maxRetries - 1) {
+            retryCount++;
+            console.log(`Retrying tool update (attempt ${retryCount + 1}/${maxRetries})...`);
+            await new Promise(resolve => setTimeout(resolve, 1000 * retryCount)); // Exponential backoff
+            continue;
+          }
+          throw error;
+        }
+        
+        return data;
+      } catch (err) {
+        if (retryCount === maxRetries - 1) {
+          console.error('Max retries reached for tool update:', err);
+          throw err;
+        }
+        retryCount++;
+        console.log(`Retrying tool update (attempt ${retryCount + 1}/${maxRetries})...`);
+        await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+      }
+    }
   },
 
   // Delete tool
   async deleteTool(organisationId: string, toolId: string): Promise<void> {
-    const { error } = await supabase
-      .from('tools_catalog')
-      .delete()
-      .eq('organisation_id', organisationId)
-      .eq('id', toolId);
+    let retryCount = 0;
+    const maxRetries = 3;
     
-    if (error) throw error;
+    while (retryCount < maxRetries) {
+      try {
+        const { error } = await supabase
+          .from('tools_catalog')
+          .delete()
+          .eq('organisation_id', organisationId)
+          .eq('id', toolId);
+        
+        if (error) {
+          if (error.code === '409' && retryCount < maxRetries - 1) {
+            retryCount++;
+            console.log(`Retrying tool deletion (attempt ${retryCount + 1}/${maxRetries})...`);
+            await new Promise(resolve => setTimeout(resolve, 1000 * retryCount)); // Exponential backoff
+            continue;
+          }
+          throw error;
+        }
+        
+        return;
+      } catch (err) {
+        if (retryCount === maxRetries - 1) {
+          console.error('Max retries reached for tool deletion:', err);
+          throw err;
+        }
+        retryCount++;
+        console.log(`Retrying tool deletion (attempt ${retryCount + 1}/${maxRetries})...`);
+        await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+      }
+    }
   },
 
   // Update stock levels
