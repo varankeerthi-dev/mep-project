@@ -503,6 +503,15 @@ ${intent.notes ? `\nNotes: ${intent.notes}` : ''}
                             <Send size={14} />
                           </button>
                           <button 
+                            onClick={() => {
+                              const content = `MATERIAL INTENT\n==================\nItem: ${intent.item_name}\n${intent.variant_name ? `Variant: ${intent.variant_name}\n` : ''}Quantity: ${intent.requested_qty} ${intent.uom}\nRequired Date: ${intent.required_date}\nPriority: ${intent.priority}\nStatus: ${intent.status}${intent.notes ? `\nNotes: ${intent.notes}` : ''}`;
+                              const printWindow = window.open('', '_blank');
+                              if (printWindow) {
+                                printWindow.document.write(`<html><head><title>Intent - ${intent.indent_number || intent.id}</title><style>body{font-family:monospace;white-space:pre-wrap;padding:40px;}h2{margin-bottom:0;}</style></head><body><h2>Material Intent</h2><p style="color:#6b7280">Indent: ${intent.indent_number || 'N/A'}</p><p style="color:#6b7280">Date: ${new Date(intent.created_at).toLocaleDateString()}</p><hr/><p><strong>Item:</strong> ${intent.item_name}</p>${intent.variant_name ? `<p><strong>Variant:</strong> ${intent.variant_name}</p>` : ''}<p><strong>Quantity:</strong> ${intent.requested_qty} ${intent.uom}</p><p><strong>Required Date:</strong> ${intent.required_date}</p><p><strong>Priority:</strong> ${intent.priority}</p><p><strong>Status:</strong> ${intent.status}</p>${intent.notes ? `<p><strong>Notes:</strong> ${intent.notes}</p>` : ''}</body></html>`);
+                                printWindow.document.close();
+                                printWindow.print();
+                              }
+                            }}
                             style={{ border: 'none', background: '#f9fafb', color: '#4b5563', cursor: 'pointer', padding: '6px', borderRadius: '6px' }}
                             title="Download PDF"
                           >

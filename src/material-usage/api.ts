@@ -171,56 +171,53 @@ export async function addNonBOQMaterial(material: {
 // Daily Material Usage API
 
 export async function getDailyUsageByDate(projectId: string, date: string) {
-  const { data, error } = await supabase
-    .from('daily_material_usage')
-    .select(`
-      *,
-      materials (
-        id,
-        name,
-        unit
-      ),
-      company_variants (
-        id,
-        variant_name
-      )
-    `)
-    .eq('project_id', projectId)
-    .eq('usage_date', date)
-    .order('created_at', { ascending: true });
+  // Use SECURITY DEFINER function to bypass RLS issues
+  const { data, error } = await supabase.rpc('get_daily_usage_by_date', {
+    p_project_id: projectId,
+    p_usage_date: date
+  });
 
-  if (error) throw error;
-  return data;
+  if (error) {
+    console.error('getDailyUsageByDate RPC error:', error);
+    // Fallback to direct query
+    const { data: fallbackData, error: fallbackError } = await supabase
+      .from('daily_material_usage')
+      .select('*')
+      .eq('project_id', projectId)
+      .eq('usage_date', date)
+      .order('created_at', { ascending: true });
+    if (fallbackError) throw fallbackError;
+    return fallbackData || [];
+  }
+  return data || [];
 }
 
 export async function getDailyUsageByProject(projectId: string, startDate?: string, endDate?: string) {
-  let query = supabase
-    .from('daily_material_usage')
-    .select(`
-      *,
-      materials (
-        id,
-        name,
-        unit
-      ),
-      company_variants (
-        id,
-        variant_name
-      )
-    `)
-    .eq('project_id', projectId);
+  // Use SECURITY DEFINER function to bypass RLS issues
+  const { data, error } = await supabase.rpc('get_daily_usage_by_project', {
+    p_project_id: projectId
+  });
 
-  if (startDate) {
-    query = query.gte('usage_date', startDate);
-  }
-  if (endDate) {
-    query = query.lte('usage_date', endDate);
+  if (error) {
+    console.error('getDailyUsageByProject RPC error:', error);
+    // Fallback
+    let query = supabase
+      .from('daily_material_usage')
+      .select('*')
+      .eq('project_id', projectId);
+
+    if (startDate) query = query.gte('usage_date', startDate);
+    if (endDate) query = query.lte('usage_date', endDate);
+
+    const { data: fallbackData, error: fallbackError } = await query.order('usage_date', { ascending: false });
+    if (fallbackError) throw fallbackError;
+    return fallbackData || [];
   }
 
-  const { data, error } = await query.order('usage_date', { ascending: false });
-
-  if (error) throw error;
-  return data;
+  let result = data || [];
+  if (startDate) result = result.filter((r: any) => r.usage_date >= startDate);
+  if (endDate) result = result.filter((r: any) => r.usage_date <= endDate);
+  return result;
 }
 
 export async function logDailyUsage(usage: {
@@ -234,7 +231,6 @@ export async function logDailyUsage(usage: {
   activity?: string;
   remarks?: string;
 }) {
-  console.log('logDailyUsage called with:', usage);
   const { error, data } = await supabase.rpc('log_daily_usage', {
     p_project_id: usage.project_id,
     p_organisation_id: usage.organisation_id,
@@ -247,9 +243,8 @@ export async function logDailyUsage(usage: {
     p_remarks: usage.remarks || null
   });
 
-  console.log('logDailyUsage response:', { error, data });
   if (error) throw error;
-  return { success: true };
+  return data;
 }
 
 export async function updateDailyUsage(

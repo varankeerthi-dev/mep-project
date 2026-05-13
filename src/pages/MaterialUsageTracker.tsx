@@ -2,129 +2,218 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { useMaterials } from '../hooks/useMaterials';
-import { useVariants } from '../hooks/useVariants';
-import { 
-  getDailyUsageByDate, 
+import {
+  getDailyUsageByDate,
+  getDailyUsageByProject,
   getProjectMaterialList,
   logDailyUsage,
   updateDailyUsage,
-  deleteDailyUsage 
+  deleteDailyUsage
 } from '../material-usage/api';
-import { Save, Trash2, Calendar, CheckCircle } from 'lucide-react';
+import { Plus, Trash2, Calendar, CheckCircle, X, Eye, Pencil, Printer } from 'lucide-react';
 
 interface ProjectProps {
   projectId: string;
   organisationId: string;
 }
 
+interface UsageItem {
+  id: string;
+  item_id: string;
+  variant_id: string;
+  quantity_used: string;
+  unit: string;
+  activity: string;
+  remarks: string;
+}
+
 export default function MaterialUsageTracker({ projectId, organisationId }: ProjectProps) {
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  const { data: materials } = useMaterials();
-  const { data: variants } = useVariants();
 
   if (!organisationId) {
-    return <div className="p-6 text-center text-red-600">Organisation ID is required</div>;
+    return <div style={{ padding: '24px', textAlign: 'center', color: '#dc2626' }}>Organisation ID is required</div>;
   }
 
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [viewMode, setViewMode] = useState<'today' | 'all'>('all');
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [previewItem, setPreviewItem] = useState<any | null>(null);
   const [showForm, setShowForm] = useState(true);
-  const [formData, setFormData] = useState({
-    item_id: '',
-    variant_id: '',
+  const [editFormData, setEditFormData] = useState({
     quantity_used: '',
     unit: '',
     activity: '',
     remarks: ''
   });
 
-  const { data: materialList = [] } = useQuery({
+  const [usageItems, setUsageItems] = useState<UsageItem[]>([{
+    id: Date.now().toString(),
+    item_id: '',
+    variant_id: '',
+    quantity_used: '',
+    unit: '',
+    activity: '',
+    remarks: ''
+  }]);
+
+  const { data: materialList = [], isLoading: materialListLoading } = useQuery({
     queryKey: ['projectMaterialList', projectId],
     queryFn: () => getProjectMaterialList(projectId),
     enabled: !!projectId
   });
 
-  const { data: dailyUsage = [], isLoading } = useQuery({
-    queryKey: ['dailyUsage', projectId, selectedDate],
-    queryFn: () => getDailyUsageByDate(projectId, selectedDate),
-    enabled: !!projectId && !!selectedDate
+  // Fetch all usage entries for the project - using direct query without joins to avoid RLS issues
+  const { data: dailyUsage = [], isLoading, error: fetchError } = useQuery({
+    queryKey: ['dailyUsage', projectId, selectedDate, viewMode],
+    queryFn: async () => {
+      if (viewMode === 'today') {
+        const data = await getDailyUsageByDate(projectId, selectedDate);
+        return (data || []) as any[];
+      }
+      // 'all' mode: fetch all entries for the project
+      const data = await getDailyUsageByProject(projectId);
+      return (data || []) as any[];
+    },
+    enabled: !!projectId
   });
 
-  // Debug logging
-  console.log('Daily Usage Debug:', { dailyUsage, isLoading, selectedDate, projectId });
-
   const logMutation = useMutation({
-    mutationFn: (data: any) => logDailyUsage({
-      ...data,
-      project_id: projectId,
-      organisation_id: organisationId,
-      usage_date: selectedDate
-    }),
+    mutationFn: async (items: UsageItem[]) => {
+      const results = [];
+      for (const item of items) {
+        if (!item.item_id || !item.quantity_used || !item.unit) continue;
+        const result = await logDailyUsage({
+          project_id: projectId,
+          organisation_id: organisationId,
+          usage_date: selectedDate,
+          item_id: item.item_id,
+          variant_id: item.variant_id || null,
+          quantity_used: parseFloat(item.quantity_used),
+          unit: item.unit,
+          activity: item.activity || null,
+          remarks: item.remarks || null
+        });
+        results.push(result);
+      }
+      return results;
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['dailyUsage', projectId, selectedDate] });
-      setFormData({ item_id: '', variant_id: '', quantity_used: '', unit: '', activity: '', remarks: '' });
+      queryClient.invalidateQueries({ queryKey: ['dailyUsage'] });
+      queryClient.invalidateQueries({ queryKey: ['materialConsumptionSummary', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['materialLogs', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['projectMaterialList', projectId] });
+      setUsageItems([{
+        id: Date.now().toString(),
+        item_id: '',
+        variant_id: '',
+        quantity_used: '',
+        unit: '',
+        activity: '',
+        remarks: ''
+      }]);
       setShowForm(false);
+      setViewMode('all');
+    },
+    onError: (error: any) => {
+      console.error('Failed to log usage:', error);
+      alert('Failed to log usage: ' + (error?.message || 'Unknown error'));
     }
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, updates }: { id: string; updates: any }) => 
+    mutationFn: ({ id, updates }: { id: string; updates: any }) =>
       updateDailyUsage(id, updates),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['dailyUsage', projectId, selectedDate] });
+      queryClient.invalidateQueries({ queryKey: ['dailyUsage'] });
+      queryClient.invalidateQueries({ queryKey: ['materialConsumptionSummary', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['materialLogs', projectId] });
       setEditingId(null);
+      setPreviewItem(null);
+    },
+    onError: (error: any) => {
+      alert('Failed to update: ' + (error?.message || 'Unknown error'));
     }
   });
 
   const deleteMutation = useMutation({
     mutationFn: deleteDailyUsage,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['dailyUsage', projectId, selectedDate] });
+      queryClient.invalidateQueries({ queryKey: ['dailyUsage'] });
+      queryClient.invalidateQueries({ queryKey: ['materialConsumptionSummary', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['materialLogs', projectId] });
+    },
+    onError: (error: any) => {
+      alert('Failed to delete: ' + (error?.message || 'Unknown error'));
     }
   });
 
-  const handleLog = () => {
-    if (!formData.item_id || !formData.quantity_used || !formData.unit) {
-      alert('Please fill in all required fields');
-      return;
-    }
-    logMutation.mutate({
-      item_id: formData.item_id,
-      variant_id: formData.variant_id || null,
-      quantity_used: parseFloat(formData.quantity_used),
-      unit: formData.unit,
-      activity: formData.activity || null,
-      remarks: formData.remarks || null
-    });
+  const handleAddRow = () => {
+    setUsageItems([...usageItems, {
+      id: Date.now().toString(),
+      item_id: '',
+      variant_id: '',
+      quantity_used: '',
+      unit: '',
+      activity: '',
+      remarks: ''
+    }]);
   };
 
-  const handleUpdate = (id: string) => {
-    if (!formData.quantity_used || !formData.unit) {
-      alert('Please fill in all required fields');
+  const handleRemoveRow = (id: string) => {
+    if (usageItems.length === 1) return;
+    setUsageItems(usageItems.filter(i => i.id !== id));
+  };
+
+  const handleItemChange = (id: string, field: string, value: string) => {
+    const updated = usageItems.map(item => {
+      if (item.id === id) {
+        const updatedItem = { ...item, [field]: value };
+        if (field === 'item_id') {
+          const selected = materialList.find((m: any) => m.item_id === value);
+          updatedItem.unit = selected?.unit || 'nos';
+          updatedItem.variant_id = '';
+        }
+        return updatedItem;
+      }
+      return item;
+    });
+    setUsageItems(updated);
+  };
+
+  const handleSubmit = () => {
+    const validItems = usageItems.filter(i => i.item_id && i.quantity_used && parseFloat(i.quantity_used) > 0);
+    if (validItems.length === 0) {
+      alert('Please add at least one item with quantity');
+      return;
+    }
+    logMutation.mutate(validItems);
+  };
+
+  const handleStartEdit = (item: any) => {
+    setEditingId(item.id);
+    setEditFormData({
+      quantity_used: item.quantity_used?.toString() || '',
+      unit: item.unit || '',
+      activity: item.activity || '',
+      remarks: item.remarks || ''
+    });
+    setPreviewItem(null);
+  };
+
+  const handleSaveEdit = (id: string) => {
+    if (!editFormData.quantity_used) {
+      alert('Please fill in the quantity');
       return;
     }
     updateMutation.mutate({
       id,
       updates: {
-        quantity_used: parseFloat(formData.quantity_used),
-        unit: formData.unit,
-        activity: formData.activity || null,
-        remarks: formData.remarks || null
+        quantity_used: parseFloat(editFormData.quantity_used),
+        unit: editFormData.unit,
+        activity: editFormData.activity || null,
+        remarks: editFormData.remarks || null
       }
-    });
-  };
-
-  const handleEdit = (item: any) => {
-    setEditingId(item.id);
-    setFormData({
-      item_id: item.item_id,
-      variant_id: item.variant_id || '',
-      quantity_used: item.quantity_used.toString(),
-      unit: item.unit,
-      activity: item.activity || '',
-      remarks: item.remarks || ''
     });
   };
 
@@ -134,250 +223,426 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
     }
   };
 
-  const getMaterialName = (itemId: string) => {
-    const material = materialList.find((m: any) => m.item_id === itemId);
-    return material?.materials?.display_name || material?.materials?.name || 'Unknown';
+  // Resolve material/variant names from both the row data and the project material list
+  const getMaterialName = (item: any) => {
+    if (item.item_name) return item.item_name;
+    if (item.materials?.display_name) return item.materials.display_name;
+    if (item.materials?.name) return item.materials.name;
+    const mat = materialList.find((m: any) => m.item_id === item.item_id);
+    return mat?.materials?.display_name || mat?.materials?.name || 'Unknown';
   };
 
-  const getVariantName = (variantId: string | null) => {
-    if (!variantId) return '';
-    const material = materialList.find((m: any) => m.variant_id === variantId);
-    return material?.company_variants?.variant_name || '';
-  };
-
-  const getUnit = (itemId: string, variantId: string | null) => {
-    const material = materialList.find((m: any) => 
-      m.item_id === itemId && m.variant_id === variantId
-    );
-    return material?.unit || 'nos';
+  const getVariantName = (item: any) => {
+    if (item.variant_name) return item.variant_name;
+    if (item.company_variants?.variant_name) return item.company_variants.variant_name;
+    if (!item.variant_id) return '';
+    const mat = materialList.find((m: any) => m.variant_id === item.variant_id);
+    return mat?.company_variants?.variant_name || '';
   };
 
   if (isLoading) {
-    return <div className="p-6 text-center">Loading usage data...</div>;
+    return <div style={{ padding: '24px', textAlign: 'center', color: '#6b7280' }}>Loading usage data...</div>;
   }
 
+  // Group entries by date for "all" view
+  const groupedByDate = viewMode === 'all'
+    ? (dailyUsage as any[]).reduce((acc: Record<string, any[]>, item: any) => {
+        const date = item.usage_date || 'Unknown';
+        if (!acc[date]) acc[date] = [];
+        acc[date].push(item);
+        return acc;
+      }, {} as Record<string, any[]>)
+    : null;
+
+  const sortedDates = groupedByDate ? Object.keys(groupedByDate).sort((a, b) => b.localeCompare(a)) : [];
+
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
+    <div style={{ padding: '24px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <div>
-          <h2 className="text-xl font-semibold">Daily Material Usage</h2>
-          <p className="text-sm text-gray-600">Log material consumption for the selected date</p>
+          <h2 style={{ fontSize: '20px', fontWeight: 600, color: '#111827', margin: 0 }}>Material Usage</h2>
+          <p style={{ fontSize: '13px', color: '#6b7280', marginTop: '4px' }}>Track material consumption for this project</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Calendar size={18} className="text-gray-500" />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ display: 'flex', background: '#f1f5f9', padding: '4px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+            <button
+              onClick={() => setViewMode('today')}
+              style={{
+                padding: '6px 14px', borderRadius: '6px', fontSize: '13px', fontWeight: 600, border: 'none',
+                background: viewMode === 'today' ? '#fff' : 'transparent',
+                color: viewMode === 'today' ? '#1e293b' : '#64748b',
+                boxShadow: viewMode === 'today' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
+                cursor: 'pointer',
+              }}
+            >
+              Today
+            </button>
+            <button
+              onClick={() => setViewMode('all')}
+              style={{
+                padding: '6px 14px', borderRadius: '6px', fontSize: '13px', fontWeight: 600, border: 'none',
+                background: viewMode === 'all' ? '#fff' : 'transparent',
+                color: viewMode === 'all' ? '#1e293b' : '#64748b',
+                boxShadow: viewMode === 'all' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
+                cursor: 'pointer',
+              }}
+            >
+              All Dates
+            </button>
+          </div>
+          <Calendar size={18} style={{ color: '#6b7280' }} />
           <input
             type="date"
             value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            className="px-3 py-2 border rounded-lg"
+            onChange={(e) => { setSelectedDate(e.target.value); setViewMode('today'); }}
+            style={{ padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '14px' }}
           />
         </div>
       </div>
 
+      {fetchError && (
+        <div style={{ padding: '12px 16px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', marginBottom: '16px', color: '#991b1b', fontSize: '13px' }}>
+          Error loading usage data: {fetchError.message}. Showing cached data if available.
+        </div>
+      )}
+
       {!showForm && (
-        <div className="mb-6">
+        <div style={{ marginBottom: '16px' }}>
           <button
             onClick={() => setShowForm(true)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 500, cursor: 'pointer' }}
           >
-            + Log New Usage
+            <Plus size={18} />
+            Log New Usage
           </button>
         </div>
       )}
 
       {materialList.length === 0 ? (
-        <div className="text-center py-12 bg-yellow-50 rounded-lg border-2 border-dashed border-yellow-200">
-          <p className="text-yellow-700">
-            No materials in project list. Please add materials to the Material List first.
-          </p>
+        <div style={{ textAlign: 'center', padding: '48px', background: '#fffbeb', borderRadius: '8px', border: '2px dashed #fbbf24' }}>
+          <p style={{ color: '#92400e', margin: 0 }}>No materials in project list. Please add materials to the Material List tab first.</p>
         </div>
       ) : (
         <>
           {showForm && (
-            <div className="bg-gray-50 p-4 rounded-lg mb-6 border">
-              <h3 className="font-medium mb-4">Log New Usage</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Material *</label>
-                <select
-                  value={formData.item_id}
-                  onChange={(e) => {
-                    const selected = materialList.find((m: any) => m.item_id === e.target.value);
-                    setFormData({ 
-                      ...formData, 
-                      item_id: e.target.value,
-                      unit: selected?.unit || 'nos'
-                    });
-                  }}
-                  className="w-full px-3 py-2 border rounded-lg"
-                >
-                  <option value="">Select material</option>
-                  {materialList.map((m: any) => (
-                    <option key={m.id} value={m.item_id}>
-                      {m.materials?.display_name || m.materials?.name}
-                      {m.company_variants?.variant_name && ` (${m.company_variants.variant_name})`}
-                    </option>
-                  ))}
-                </select>
+            <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '8px', marginBottom: '24px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid #e5e7eb' }}>
+                <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#111827', margin: 0 }}>Log Usage — {selectedDate}</h3>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    onClick={handleAddRow}
+                    style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '6px 12px', background: '#fff', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '13px', cursor: 'pointer' }}
+                  >
+                    <Plus size={14} />
+                    Add Row
+                  </button>
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Quantity Used *</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={formData.quantity_used}
-                  onChange={(e) => setFormData({ ...formData, quantity_used: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg"
-                  placeholder="0.00"
-                />
+
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                  <thead>
+                    <tr style={{ background: '#f3f4f6', borderBottom: '1px solid #e5e7eb' }}>
+                      <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 600, color: '#4b5563', width: '30%' }}>Material *</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 600, color: '#4b5563', width: '15%' }}>Variant</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 600, color: '#4b5563', width: '12%' }}>Qty Used *</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 600, color: '#4b5563', width: '10%' }}>Unit</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 600, color: '#4b5563', width: '18%' }}>Activity</th>
+                      <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 600, color: '#4b5563', width: '15%' }}>Remarks</th>
+                      <th style={{ padding: '10px 12px', width: '40px' }}></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {usageItems.map((item) => {
+                      const filteredVariants = item.item_id
+                        ? materialList.filter((m: any) => m.item_id === item.item_id && m.variant_id)
+                        : [];
+                      return (
+                        <tr key={item.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                          <td style={{ padding: '8px 12px' }}>
+                            <select
+                              value={item.item_id}
+                              onChange={(e) => handleItemChange(item.id, 'item_id', e.target.value)}
+                              style={{ width: '100%', padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '13px', background: '#fff' }}
+                            >
+                              <option value="">Select material</option>
+                              {materialList.map((m: any) => (
+                                <option key={m.id} value={m.item_id}>
+                                  {m.materials?.display_name || m.materials?.name}
+                                  {m.company_variants?.variant_name ? ` (${m.company_variants.variant_name})` : ''}
+                                </option>
+                              ))}
+                            </select>
+                          </td>
+                          <td style={{ padding: '8px 12px' }}>
+                            <select
+                              value={item.variant_id}
+                              onChange={(e) => handleItemChange(item.id, 'variant_id', e.target.value)}
+                              style={{ width: '100%', padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '13px', background: '#fff' }}
+                              disabled={!item.item_id}
+                            >
+                              <option value="">Default</option>
+                              {filteredVariants.map((m: any) => (
+                                <option key={m.variant_id} value={m.variant_id}>
+                                  {m.company_variants?.variant_name || 'Variant'}
+                                </option>
+                              ))}
+                            </select>
+                          </td>
+                          <td style={{ padding: '8px 12px' }}>
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              value={item.quantity_used}
+                              onChange={(e) => handleItemChange(item.id, 'quantity_used', e.target.value)}
+                              style={{ width: '100%', padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '13px', textAlign: 'right' }}
+                              placeholder="0.00"
+                            />
+                          </td>
+                          <td style={{ padding: '8px 12px' }}>
+                            <input
+                              type="text"
+                              value={item.unit}
+                              onChange={(e) => handleItemChange(item.id, 'unit', e.target.value)}
+                              style={{ width: '100%', padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '13px' }}
+                              placeholder="nos"
+                            />
+                          </td>
+                          <td style={{ padding: '8px 12px' }}>
+                            <input
+                              type="text"
+                              value={item.activity}
+                              onChange={(e) => handleItemChange(item.id, 'activity', e.target.value)}
+                              style={{ width: '100%', padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '13px' }}
+                              placeholder="e.g., Foundation"
+                            />
+                          </td>
+                          <td style={{ padding: '8px 12px' }}>
+                            <input
+                              type="text"
+                              value={item.remarks}
+                              onChange={(e) => handleItemChange(item.id, 'remarks', e.target.value)}
+                              style={{ width: '100%', padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '13px' }}
+                              placeholder="Notes"
+                            />
+                          </td>
+                          <td style={{ padding: '8px 4px', textAlign: 'center' }}>
+                            {usageItems.length > 1 && (
+                              <button
+                                onClick={() => handleRemoveRow(item.id)}
+                                style={{ border: 'none', background: 'none', color: '#ef4444', cursor: 'pointer', padding: '4px' }}
+                                title="Remove row"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Unit *</label>
-                <input
-                  type="text"
-                  value={formData.unit}
-                  onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg"
-                  placeholder="nos, kg, m, etc."
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Activity</label>
-                <input
-                  type="text"
-                  value={formData.activity}
-                  onChange={(e) => setFormData({ ...formData, activity: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg"
-                  placeholder="e.g., Foundation work"
-                />
-              </div>
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium mb-1">Remarks</label>
-                <input
-                  type="text"
-                  value={formData.remarks}
-                  onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-lg"
-                  placeholder="Optional notes"
-                />
-              </div>
-              <div className="md:col-span-2 flex items-end">
+
+              <div style={{ display: 'flex', gap: '12px', padding: '16px 20px', borderTop: '1px solid #e5e7eb', justifyContent: 'flex-end' }}>
                 <button
-                  onClick={handleLog}
+                  onClick={() => {
+                    setUsageItems([{ id: Date.now().toString(), item_id: '', variant_id: '', quantity_used: '', unit: '', activity: '', remarks: '' }]);
+                    setShowForm(false);
+                  }}
+                  style={{ padding: '10px 20px', border: '1px solid #d1d5db', borderRadius: '6px', background: '#fff', color: '#374151', fontSize: '14px', cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSubmit}
                   disabled={logMutation.isPending}
-                  className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                  style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', border: 'none', borderRadius: '6px', background: '#2563eb', color: '#fff', fontSize: '14px', fontWeight: 500, cursor: logMutation.isPending ? 'not-allowed' : 'pointer', opacity: logMutation.isPending ? 0.6 : 1 }}
                 >
                   <CheckCircle size={16} />
-                  {logMutation.isPending ? 'Logging...' : 'Log Usage'}
+                  {logMutation.isPending ? 'Saving...' : `Log ${usageItems.filter(i => i.item_id && i.quantity_used && parseFloat(i.quantity_used) > 0).length} Item(s)`}
                 </button>
               </div>
             </div>
-          </div>
           )}
 
-          {dailyUsage.length === 0 ? (
-            <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed">
-              <p className="text-gray-500">No usage logged for {selectedDate}</p>
+          {/* Usage Log Dashboard */}
+          <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', overflow: 'hidden' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
+              <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#111827', margin: 0 }}>
+                Usage Log {viewMode === 'all' ? `(All Dates — ${dailyUsage.length} entries)` : `— ${selectedDate}`}
+              </h3>
+              <button
+                onClick={async () => {
+                  const printWindow = window.open('', '_blank');
+                  if (printWindow) {
+                    const rowsHtml = dailyUsage.map((item: any) => {
+                      const dateCell = viewMode === 'all' ? `<td style="padding:8px;border:1px solid #e5e7eb">${item.usage_date || ''}</td>` : '';
+                      return `<tr>${dateCell}<td style="padding:8px;border:1px solid #e5e7eb">${getMaterialName(item)}</td><td style="padding:8px;border:1px solid #e5e7eb">${getVariantName(item) || '—'}</td><td style="padding:8px;border:1px solid #e5e7eb;text-align:right">${item.quantity_used}</td><td style="padding:8px;border:1px solid #e5e7eb">${item.unit}</td><td style="padding:8px;border:1px solid #e5e7eb">${item.activity || '—'}</td><td style="padding:8px;border:1px solid #e5e7eb">${item.remarks || '—'}</td></tr>`;
+                    }).join('');
+                    const dateHeader = viewMode === 'all' ? '<th style="padding:8px;border:1px solid #e5e7eb;background:#f3f4f6">Date</th>' : '';
+                    printWindow.document.write(`<html><head><title>Usage Report</title><style>body{font-family:system-ui;padding:40px}table{width:100%;border-collapse:collapse}th{background:#f3f4f6;padding:8px;border:1px solid #e5e7eb;text-align:left;font-size:13px}td{font-size:13px}</style></head><body><h2>Material Usage — {projectName}</h2><table><thead><tr>${dateHeader}<th>Material</th><th>Variant</th><th style="text-align:right">Qty Used</th><th>Unit</th><th>Activity</th><th>Remarks</th></tr></thead><tbody>${rowsHtml}</tbody></table></body></html>`);
+                    printWindow.document.close();
+                    printWindow.print();
+                  }
+                }}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', border: '1px solid #d1d5db', borderRadius: '6px', background: '#fff', fontSize: '13px', cursor: 'pointer', color: '#374151' }}
+              >
+                <Printer size={14} />
+                Print
+              </button>
             </div>
-          ) : (
-            <div className="bg-white border rounded-lg overflow-hidden">
-              <div className="bg-gray-50 px-4 py-3 border-b">
-                <h3 className="font-medium">Usage Log for {selectedDate}</h3>
+
+            {dailyUsage.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '48px', color: '#9ca3af' }}>
+                <p style={{ fontSize: '14px', margin: 0 }}>No usage entries found{viewMode === 'today' ? ` for ${selectedDate}` : ''}</p>
+                <p style={{ fontSize: '13px', margin: '8px 0 0', color: '#d1d5db' }}>Click "Log New Usage" to add entries</p>
               </div>
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b">
+            ) : viewMode === 'all' && sortedDates.length > 1 ? (
+              /* Grouped by date view */
+              sortedDates.map(date => (
+                <div key={date}>
+                  <div style={{ padding: '10px 16px', background: '#eff6ff', borderBottom: '1px solid #dbeafe', borderTop: date !== sortedDates[0] ? '1px solid #e5e7eb' : 'none', fontSize: '13px', fontWeight: 600, color: '#1e40af' }}>
+                    {new Date(date + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+                    <span style={{ marginLeft: '8px', fontWeight: 400, color: '#6b7280' }}>
+                      ({groupedByDate[date].length} {groupedByDate[date].length === 1 ? 'entry' : 'entries'})
+                    </span>
+                  </div>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead style={{ background: '#f9fafb' }}>
+                      <tr>
+                        <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: '#4b5563', fontSize: '12px', borderBottom: '1px solid #e5e7eb' }}>Material</th>
+                        <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: '#4b5563', fontSize: '12px', borderBottom: '1px solid #e5e7eb' }}>Variant</th>
+                        <th style={{ padding: '10px 16px', textAlign: 'right', fontWeight: 600, color: '#4b5563', fontSize: '12px', borderBottom: '1px solid #e5e7eb' }}>Qty Used</th>
+                        <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: '#4b5563', fontSize: '12px', borderBottom: '1px solid #e5e7eb' }}>Unit</th>
+                        <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: '#4b5563', fontSize: '12px', borderBottom: '1px solid #e5e7eb' }}>Activity</th>
+                        <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: '#4b5563', fontSize: '12px', borderBottom: '1px solid #e5e7eb' }}>Remarks</th>
+                        <th style={{ padding: '10px 16px', textAlign: 'center', fontWeight: 600, color: '#4b5563', fontSize: '12px', borderBottom: '1px solid #e5e7eb' }}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {groupedByDate[date].map((item: any) => (
+                        <tr key={item.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                          {editingId === item.id ? (
+                            <>
+                              <td style={{ padding: '8px 12px', fontWeight: 500 }}>{getMaterialName(item)}</td>
+                              <td style={{ padding: '8px 12px', fontSize: '13px', color: '#6b7280' }}>{getVariantName(item) || '—'}</td>
+                              <td style={{ padding: '8px 12px' }}>
+                                <input type="number" step="0.01" value={editFormData.quantity_used}
+                                  onChange={(e) => setEditFormData({ ...editFormData, quantity_used: e.target.value })}
+                                  style={{ width: '80px', padding: '6px 8px', border: '1px solid #3b82f6', borderRadius: '4px', fontSize: '13px', textAlign: 'right' }} autoFocus />
+                              </td>
+                              <td style={{ padding: '8px 12px' }}>
+                                <input type="text" value={editFormData.unit}
+                                  onChange={(e) => setEditFormData({ ...editFormData, unit: e.target.value })}
+                                  style={{ width: '60px', padding: '6px 8px', border: '1px solid #3b82f6', borderRadius: '4px', fontSize: '13px' }} />
+                              </td>
+                              <td style={{ padding: '8px 12px' }}>
+                                <input type="text" value={editFormData.activity}
+                                  onChange={(e) => setEditFormData({ ...editFormData, activity: e.target.value })}
+                                  style={{ width: '100%', padding: '6px 8px', border: '1px solid #3b82f6', borderRadius: '4px', fontSize: '13px' }} />
+                              </td>
+                              <td style={{ padding: '8px 12px' }}>
+                                <input type="text" value={editFormData.remarks}
+                                  onChange={(e) => setEditFormData({ ...editFormData, remarks: e.target.value })}
+                                  style={{ width: '100%', padding: '6px 8px', border: '1px solid #3b82f6', borderRadius: '4px', fontSize: '13px' }} />
+                              </td>
+                              <td style={{ padding: '8px 12px', textAlign: 'center' }}>
+                                <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+                                  <button onClick={() => handleSaveEdit(item.id)} disabled={updateMutation.isPending}
+                                    style={{ padding: '4px 8px', background: '#22c55e', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 500 }}>Save</button>
+                                  <button onClick={() => setEditingId(null)}
+                                    style={{ padding: '4px 8px', background: '#e5e7eb', color: '#374151', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}>Cancel</button>
+                                </div>
+                              </td>
+                            </>
+                          ) : (
+                            <>
+                              <td style={{ padding: '10px 16px', fontWeight: 500, color: '#111827' }}>{getMaterialName(item)}</td>
+                              <td style={{ padding: '10px 16px', fontSize: '13px', color: '#6b7280' }}>{getVariantName(item) || '—'}</td>
+                              <td style={{ padding: '10px 16px', textAlign: 'right', fontWeight: 600, color: '#111827' }}>{item.quantity_used}</td>
+                              <td style={{ padding: '10px 16px', color: '#6b7280' }}>{item.unit}</td>
+                              <td style={{ padding: '10px 16px', fontSize: '13px', color: '#4b5563' }}>{item.activity || '—'}</td>
+                              <td style={{ padding: '10px 16px', fontSize: '13px', color: '#6b7280' }}>{item.remarks || '—'}</td>
+                              <td style={{ padding: '8px 12px', textAlign: 'center' }}>
+                                <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
+                                  <button onClick={() => setPreviewItem(item)} style={{ padding: '4px', border: 'none', background: 'transparent', color: '#6b7280', cursor: 'pointer', borderRadius: '4px' }} title="Preview"><Eye size={15} /></button>
+                                  <button onClick={() => handleStartEdit(item)} style={{ padding: '4px', border: 'none', background: 'transparent', color: '#3b82f6', cursor: 'pointer', borderRadius: '4px' }} title="Edit"><Pencil size={15} /></button>
+                                  <button onClick={() => handleDelete(item.id)} style={{ padding: '4px', border: 'none', background: 'transparent', color: '#ef4444', cursor: 'pointer', borderRadius: '4px' }} title="Delete"><Trash2 size={15} /></button>
+                                </div>
+                              </td>
+                            </>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ))
+            ) : (
+              /* Single date flat table view */
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead style={{ background: '#f9fafb' }}>
                   <tr>
-                    <th className="px-4 py-3 text-left text-sm font-medium">Material</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium">Variant</th>
-                    <th className="px-4 py-3 text-right text-sm font-medium">Quantity Used</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium">Unit</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium">Activity</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium">Remarks</th>
-                    <th className="px-4 py-3 text-center text-sm font-medium">Actions</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#4b5563', fontSize: '13px', borderBottom: '1px solid #e5e7eb' }}>Material</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#4b5563', fontSize: '13px', borderBottom: '1px solid #e5e7eb' }}>Variant</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 600, color: '#4b5563', fontSize: '13px', borderBottom: '1px solid #e5e7eb' }}>Qty Used</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#4b5563', fontSize: '13px', borderBottom: '1px solid #e5e7eb' }}>Unit</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#4b5563', fontSize: '13px', borderBottom: '1px solid #e5e7eb' }}>Activity</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#4b5563', fontSize: '13px', borderBottom: '1px solid #e5e7eb' }}>Remarks</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'center', fontWeight: 600, color: '#4b5563', fontSize: '13px', borderBottom: '1px solid #e5e7eb' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {dailyUsage.map((item: any) => (
-                    <tr key={item.id} className="border-b hover:bg-gray-50">
+                    <tr key={item.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
                       {editingId === item.id ? (
                         <>
-                          <td className="px-4 py-3">
-                            <span className="font-medium">{getMaterialName(item.item_id)}</span>
+                          <td style={{ padding: '12px 16px', fontWeight: 500 }}>{getMaterialName(item)}</td>
+                          <td style={{ padding: '12px 16px', fontSize: '13px', color: '#6b7280' }}>{getVariantName(item) || '—'}</td>
+                          <td style={{ padding: '8px 12px' }}>
+                            <input type="number" step="0.01" value={editFormData.quantity_used}
+                              onChange={(e) => setEditFormData({ ...editFormData, quantity_used: e.target.value })}
+                              style={{ width: '80px', padding: '6px 8px', border: '1px solid #3b82f6', borderRadius: '4px', fontSize: '13px', textAlign: 'right' }} autoFocus />
                           </td>
-                          <td className="px-4 py-3 text-sm">{getVariantName(item.variant_id)}</td>
-                          <td className="px-4 py-3">
-                            <input
-                              type="number"
-                              step="0.01"
-                              value={formData.quantity_used}
-                              onChange={(e) => setFormData({ ...formData, quantity_used: e.target.value })}
-                              className="w-24 px-2 py-1 border rounded text-right"
-                            />
+                          <td style={{ padding: '8px 12px' }}>
+                            <input type="text" value={editFormData.unit}
+                              onChange={(e) => setEditFormData({ ...editFormData, unit: e.target.value })}
+                              style={{ width: '60px', padding: '6px 8px', border: '1px solid #3b82f6', borderRadius: '4px', fontSize: '13px' }} />
                           </td>
-                          <td className="px-4 py-3">
-                            <input
-                              type="text"
-                              value={formData.unit}
-                              onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                              className="w-20 px-2 py-1 border rounded"
-                            />
+                          <td style={{ padding: '8px 12px' }}>
+                            <input type="text" value={editFormData.activity}
+                              onChange={(e) => setEditFormData({ ...editFormData, activity: e.target.value })}
+                              style={{ width: '100%', padding: '6px 8px', border: '1px solid #3b82f6', borderRadius: '4px', fontSize: '13px' }} />
                           </td>
-                          <td className="px-4 py-3">
-                            <input
-                              type="text"
-                              value={formData.activity}
-                              onChange={(e) => setFormData({ ...formData, activity: e.target.value })}
-                              className="w-full px-2 py-1 border rounded"
-                            />
+                          <td style={{ padding: '8px 12px' }}>
+                            <input type="text" value={editFormData.remarks}
+                              onChange={(e) => setEditFormData({ ...editFormData, remarks: e.target.value })}
+                              style={{ width: '100%', padding: '6px 8px', border: '1px solid #3b82f6', borderRadius: '4px', fontSize: '13px' }} />
                           </td>
-                          <td className="px-4 py-3">
-                            <input
-                              type="text"
-                              value={formData.remarks}
-                              onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
-                              className="w-full px-2 py-1 border rounded"
-                            />
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <div className="flex justify-center gap-2">
-                              <button
-                                onClick={() => handleUpdate(item.id)}
-                                disabled={updateMutation.isPending}
-                                className="p-1 text-green-600 hover:bg-green-50 rounded"
-                              >
-                                <Save size={16} />
-                              </button>
-                              <button
-                                onClick={() => setEditingId(null)}
-                                className="p-1 text-gray-600 hover:bg-gray-100 rounded"
-                              >
-                                <Trash2 size={16} />
-                              </button>
+                          <td style={{ padding: '8px 12px', textAlign: 'center' }}>
+                            <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+                              <button onClick={() => handleSaveEdit(item.id)} disabled={updateMutation.isPending}
+                                style={{ padding: '4px 8px', background: '#22c55e', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 500 }}>Save</button>
+                              <button onClick={() => setEditingId(null)}
+                                style={{ padding: '4px 8px', background: '#e5e7eb', color: '#374151', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}>Cancel</button>
                             </div>
                           </td>
                         </>
                       ) : (
                         <>
-                          <td className="px-4 py-3 font-medium">{getMaterialName(item.item_id)}</td>
-                          <td className="px-4 py-3 text-sm">{getVariantName(item.variant_id)}</td>
-                          <td className="px-4 py-3 text-right font-medium">{item.quantity_used}</td>
-                          <td className="px-4 py-3">{item.unit}</td>
-                          <td className="px-4 py-3 text-sm">{item.activity || '-'}</td>
-                          <td className="px-4 py-3 text-sm text-gray-600">{item.remarks || '-'}</td>
-                          <td className="px-4 py-3 text-center">
-                            <div className="flex justify-center gap-2">
-                              <button
-                                onClick={() => handleEdit(item)}
-                                className="p-1 text-blue-600 hover:bg-blue-50 rounded"
-                              >
-                                <Save size={16} />
-                              </button>
-                              <button
-                                onClick={() => handleDelete(item.id)}
-                                className="p-1 text-red-600 hover:bg-red-50 rounded"
-                              >
-                                <Trash2 size={16} />
-                              </button>
+                          <td style={{ padding: '12px 16px', fontWeight: 500, color: '#111827' }}>{getMaterialName(item)}</td>
+                          <td style={{ padding: '12px 16px', fontSize: '13px', color: '#6b7280' }}>{getVariantName(item) || '—'}</td>
+                          <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 600, color: '#111827' }}>{item.quantity_used}</td>
+                          <td style={{ padding: '12px 16px', color: '#6b7280' }}>{item.unit}</td>
+                          <td style={{ padding: '12px 16px', fontSize: '13px', color: '#4b5563' }}>{item.activity || '—'}</td>
+                          <td style={{ padding: '12px 16px', fontSize: '13px', color: '#6b7280' }}>{item.remarks || '—'}</td>
+                          <td style={{ padding: '8px 12px', textAlign: 'center' }}>
+                            <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
+                              <button onClick={() => setPreviewItem(item)} style={{ padding: '4px', border: 'none', background: 'transparent', color: '#6b7280', cursor: 'pointer', borderRadius: '4px' }} title="Preview"><Eye size={15} /></button>
+                              <button onClick={() => handleStartEdit(item)} style={{ padding: '4px', border: 'none', background: 'transparent', color: '#3b82f6', cursor: 'pointer', borderRadius: '4px' }} title="Edit"><Pencil size={15} /></button>
+                              <button onClick={() => handleDelete(item.id)} style={{ padding: '4px', border: 'none', background: 'transparent', color: '#ef4444', cursor: 'pointer', borderRadius: '4px' }} title="Delete"><Trash2 size={15} /></button>
                             </div>
                           </td>
                         </>
@@ -386,9 +651,44 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
                   ))}
                 </tbody>
               </table>
-            </div>
-          )}
+            )}
+          </div>
         </>
+      )}
+
+      {previewItem && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }} onClick={() => setPreviewItem(null)}>
+          <div style={{ background: '#fff', borderRadius: '12px', width: '480px', maxWidth: '95vw', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid #e5e7eb' }}>
+              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>Usage Details</h3>
+              <button onClick={() => setPreviewItem(null)} style={{ border: 'none', background: 'transparent', cursor: 'pointer' }}><X size={20} /></button>
+            </div>
+            <div style={{ padding: '20px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', fontSize: '14px' }}>
+                <div><div style={{ color: '#6b7280', fontSize: '12px', marginBottom: '4px' }}>Material</div><div style={{ fontWeight: 500 }}>{getMaterialName(previewItem)}</div></div>
+                <div><div style={{ color: '#6b7280', fontSize: '12px', marginBottom: '4px' }}>Variant</div><div>{getVariantName(previewItem) || '—'}</div></div>
+                <div><div style={{ color: '#6b7280', fontSize: '12px', marginBottom: '4px' }}>Quantity Used</div><div style={{ fontWeight: 600, fontSize: '18px' }}>{previewItem.quantity_used} {previewItem.unit}</div></div>
+                <div><div style={{ color: '#6b7280', fontSize: '12px', marginBottom: '4px' }}>Date</div><div>{previewItem.usage_date}</div></div>
+                <div><div style={{ color: '#6b7280', fontSize: '12px', marginBottom: '4px' }}>Activity</div><div>{previewItem.activity || '—'}</div></div>
+                <div><div style={{ color: '#6b7280', fontSize: '12px', marginBottom: '4px' }}>Remarks</div><div>{previewItem.remarks || '—'}</div></div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '8px', padding: '16px 20px', borderTop: '1px solid #e5e7eb', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => { handleStartEdit(previewItem); setPreviewItem(null); }}
+                style={{ padding: '8px 16px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '14px' }}
+              >
+                Edit
+              </button>
+              <button
+                onClick={() => setPreviewItem(null)}
+                style={{ padding: '8px 16px', background: '#e5e7eb', color: '#374151', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '14px' }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

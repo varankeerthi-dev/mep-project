@@ -76,8 +76,9 @@ export default function ProjectMaterialDashboard({ projectId, organisationId, pr
   const { data: logs = [] } = useQuery({
     queryKey: ['materialLogs', projectId],
     queryFn: async () => {
+      // Query daily_material_usage (what Usage tracker writes to) instead of material_logs
       const { data } = await supabase
-        .from('material_logs')
+        .from('daily_material_usage')
         .select('*')
         .eq('project_id', projectId)
         .order('created_at', { ascending: false });
@@ -156,9 +157,21 @@ export default function ProjectMaterialDashboard({ projectId, organisationId, pr
 
     logs.forEach(log => {
       const key = `${log.item_id}-${log.variant_id || 'default'}`;
-      if (summaryMap[key]) {
-        summaryMap[key].total_purchase_cost += (log.qty_received || 0) * (log.purchase_price || 0);
+      if (!summaryMap[key]) {
+        summaryMap[key] = {
+          item_name: log.item_name || 'Unknown',
+          variant_name: log.variant_name || null,
+          uom: log.unit || 'Nos',
+          boq_qty: 0,
+          estimated_rate: 0,
+          selling_price: 0,
+          total_received: 0,
+          total_used: 0,
+          total_purchase_cost: 0,
+        };
       }
+      // Sum usage from daily_material_usage records
+      summaryMap[key].total_used += log.quantity_used || 0;
     });
 
     return Object.entries(summaryMap).map(([key, val]) => ({
@@ -180,18 +193,17 @@ export default function ProjectMaterialDashboard({ projectId, organisationId, pr
   }, [materialSummary]);
 
   const usageData = useMemo(() => {
-    return logs
-      .filter(log => log.type === 'IN' || log.type === 'OUT')
-      .map(log => ({
-        date: new Date(log.created_at).toLocaleDateString(),
-        item_name: log.item_name,
-        variant_name: log.variant_name,
-        type: log.type,
-        qty_in: log.type === 'IN' ? log.qty_received : 0,
-        qty_out: log.type === 'OUT' ? log.qty_used : 0,
-        supplier: log.supplier_name || '-',
-        dc_number: log.dc_number || '-',
-      }));
+    // daily_material_usage has: usage_date, item_name, variant_name, quantity_used, unit, activity, remarks
+    return logs.map(log => ({
+      date: new Date(log.usage_date || log.created_at).toLocaleDateString(),
+      item_name: log.item_name,
+      variant_name: log.variant_name,
+      type: 'Usage' as const,
+      qty_in: 0,
+      qty_out: log.quantity_used || 0,
+      supplier: '-',
+      dc_number: log.activity || '-',
+    }));
   }, [logs]);
 
   const exportToExcel = async () => {
@@ -437,10 +449,10 @@ export default function ProjectMaterialDashboard({ projectId, organisationId, pr
                       fontSize: '11px', 
                       padding: '4px 8px', 
                       borderRadius: '4px', 
-                      background: log.type === 'IN' ? '#dcfce7' : '#fee2e2',
-                      color: log.type === 'IN' ? '#22c55e' : '#ef4444'
+                      background: '#dcfce7',
+                      color: '#22c55e'
                     }}>
-                      {log.type}
+                      Usage
                     </span>
                   </TableCell>
                   <TableCell>{log.qty_in || '-'}</TableCell>

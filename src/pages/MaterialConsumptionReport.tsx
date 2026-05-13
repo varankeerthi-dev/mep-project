@@ -3,6 +3,18 @@ import { useQuery } from '@tanstack/react-query';
 import { getMaterialConsumptionSummary } from '../material-usage/api';
 import { TrendingUp, TrendingDown, AlertTriangle, CheckCircle, Download } from 'lucide-react';
 
+function getRemainingStatus(remaining: number) {
+  if (remaining < 0) return { color: 'text-red-600 bg-red-50', icon: AlertTriangle, label: 'Shortage' };
+  if (remaining === 0) return { color: 'text-yellow-600 bg-yellow-50', icon: AlertTriangle, label: 'Exhausted' };
+  return { color: 'text-green-600 bg-green-50', icon: CheckCircle, label: 'Available' };
+}
+
+function getVarianceStatus(variance: number) {
+  if (variance > 0) return { color: 'text-red-600 bg-red-50', icon: TrendingUp, label: 'Over' };
+  if (variance < 0) return { color: 'text-green-600 bg-green-50', icon: TrendingDown, label: 'Under' };
+  return { color: 'text-gray-600 bg-gray-50', icon: CheckCircle, label: 'On Track' };
+}
+
 interface ProjectProps {
   projectId: string;
   organisationId: string;
@@ -19,18 +31,6 @@ export default function MaterialConsumptionReport({ projectId, organisationId }:
     enabled: !!projectId
   });
 
-  const getVarianceStatus = (variance: number) => {
-    if (variance > 0) return { color: 'text-red-600 bg-red-50', icon: TrendingUp, label: 'Over' };
-    if (variance < 0) return { color: 'text-green-600 bg-green-50', icon: TrendingDown, label: 'Under' };
-    return { color: 'text-gray-600 bg-gray-50', icon: CheckCircle, label: 'On Track' };
-  };
-
-  const getRemainingStatus = (remaining: number) => {
-    if (remaining < 0) return { color: 'text-red-600 bg-red-50', icon: AlertTriangle, label: 'Shortage' };
-    if (remaining === 0) return { color: 'text-yellow-600 bg-yellow-50', icon: AlertTriangle, label: 'Exhausted' };
-    return { color: 'text-green-600 bg-green-50', icon: CheckCircle, label: 'Available' };
-  };
-
   const totalPlannedCost = consumptionData.reduce((sum, item: any) => sum + (item.planned_cost || 0), 0);
   const totalActualCost = consumptionData.reduce((sum, item: any) => sum + (item.actual_cost || 0), 0);
   const totalCostVariance = totalActualCost - totalPlannedCost;
@@ -46,7 +46,30 @@ export default function MaterialConsumptionReport({ projectId, organisationId }:
           <h2 className="text-xl font-semibold">Material Consumption Report</h2>
           <p className="text-sm text-gray-600">Compare planned vs actual material usage with cost analysis</p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 border rounded-lg hover:bg-gray-50">
+        <button 
+          onClick={async () => {
+            const XLSX = await import('xlsx');
+            const exportData = consumptionData.map((item: any, index: number) => ({
+              'S.No': index + 1,
+              'Material': item.materials?.display_name || item.materials?.name || 'Unknown',
+              'Variant': item.company_variants?.variant_name || '-',
+              'Planned Qty': item.planned_qty,
+              'Received Qty': item.received_qty,
+              'Used Qty': item.used_qty,
+              'Remaining': item.remaining_qty,
+              'Unit': item.unit,
+              'Variance': item.variance_qty,
+              'Planned Cost': item.planned_cost,
+              'Actual Cost': item.actual_cost,
+              'Cost Variance': item.cost_variance,
+            }));
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.json_to_sheet(exportData);
+            XLSX.utils.book_append_sheet(wb, ws, 'Consumption Report');
+            XLSX.writeFile(wb, `consumption_report_${projectId}.xlsx`);
+          }}
+          className="flex items-center gap-2 px-4 py-2 border rounded-lg hover:bg-gray-50"
+        >
           <Download size={16} />
           Export
         </button>
