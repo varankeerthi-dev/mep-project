@@ -260,12 +260,25 @@ export function InvoiceItemsEditor({
   }, [setValue]);
 
   const getMaterialMakes = useCallback((materialId: string) => {
-    const mappedMakes = itemMakesMap[materialId] || [];
-    if (mappedMakes.length > 0) return mappedMakes;
-
     const material = productOptions.find(m => m.id === materialId);
     if (!material) return [];
-    return material.make ? [material.make] : [];
+
+    // Collect makes from ALL sources (matching CreateQuotation's itemMakes pattern)
+    const makesSet = new Set<string>();
+
+    // 1. From itemMakesMap (built from item_variant_pricing rows)
+    const mappedMakes = itemMakesMap[materialId] || [];
+    mappedMakes.forEach(m => makesSet.add(m));
+
+    // 2. From material.variants (loaded by loadMaterialOptions)
+    (material.variants || []).forEach(v => {
+      if (v.make) makesSet.add(v.make);
+    });
+
+    // 3. From material.make (default make on the material itself)
+    if (material.make) makesSet.add(material.make);
+
+    return Array.from(makesSet).sort();
   }, [itemMakesMap, productOptions]);
 
   const getMaterialVariants = useCallback((materialId: string) => {
@@ -290,7 +303,8 @@ export function InvoiceItemsEditor({
     const merged = [...variantsFromMaterial, ...variantsFromMap];
     const seen = new Set<string>();
     return merged.filter((variant) => {
-      const key = variant.variant_id || variant.variant_name || '';
+      // Include make in dedup key so make-only entries (no variant_id/variant_name) aren't dropped
+      const key = variant.variant_id || variant.variant_name || variant.make || '';
       if (!key || seen.has(key)) return false;
       seen.add(key);
       return true;

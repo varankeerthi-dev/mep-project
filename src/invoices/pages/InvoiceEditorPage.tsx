@@ -540,6 +540,13 @@ export default function InvoiceEditorPage() {
     queryFn: async () => {
       if (!organisation?.id) return {};
 
+      // First get org-scoped material IDs to filter pricing rows
+      const { data: orgMaterials } = await supabase
+        .from('materials')
+        .select('id')
+        .eq('organisation_id', organisation.id);
+      const orgMaterialIds = new Set((orgMaterials ?? []).map((m: any) => m.id));
+
       const { data, error } = await supabase
         .from('item_variant_pricing')
         .select('item_id, company_variant_id, make');
@@ -550,6 +557,8 @@ export default function InvoiceEditorPage() {
       const makesMap: Record<string, string[]> = {};
       (data ?? []).forEach((row: any) => {
         if (!row?.item_id) return;
+        // Only include pricing for materials belonging to this organisation
+        if (!orgMaterialIds.has(row.item_id)) return;
 
         if (row.company_variant_id) {
           if (!map[row.item_id]) map[row.item_id] = [];
