@@ -2,6 +2,8 @@
 -- remaining_qty should be planned_qty - used_qty (not received - used)
 -- variance_qty should be used - planned (positive = over budget)
 
+DROP FUNCTION IF EXISTS update_material_consumption_summary() CASCADE;
+
 CREATE OR REPLACE FUNCTION update_material_consumption_summary()
 RETURNS TRIGGER AS $$
 BEGIN
