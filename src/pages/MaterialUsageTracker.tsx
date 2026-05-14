@@ -13,6 +13,31 @@ import {
   deleteDailyUsage
 } from '../material-usage/api';
 import { Plus, Trash2, Calendar, CheckCircle, X, Eye, Pencil, Printer } from 'lucide-react';
+import { z } from 'zod';
+
+const usageItemSchema = z.object({
+  quantity_used: z.string()
+    .min(1, 'Qty is required')
+    .refine(v => /^\d*\.?\d+$/.test(v), 'Must be a number'),
+  activity: z.string()
+    .refine(v => v === '' || /^[A-Za-z][A-Za-z0-9\s\-/,.]*$/.test(v), 'Must start with a letter'),
+  unit: z.string().min(1, 'Unit is required'),
+  item_id: z.string().min(1, 'Select a material'),
+});
+
+function validateField(item: Partial<Record<string, string>>, field: string): string | null {
+  try {
+    const partial = usageItemSchema.partial();
+    const fieldSchema = z.object({ [field]: usageItemSchema.shape[field as keyof typeof usageItemSchema.shape] });
+    fieldSchema.parse({ [field]: item[field] ?? '' });
+    return null;
+  } catch (e) {
+    if (e instanceof z.ZodError) {
+      return e.errors[0]?.message ?? null;
+    }
+    return null;
+  }
+}
 
 interface ProjectProps {
   projectId: string;
@@ -53,6 +78,7 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
     activity: '',
     remarks: ''
   });
+  const [editErrors, setEditErrors] = useState<Record<string, string>>({});
 
   const [usageItems, setUsageItems] = useState<UsageItem[]>([{
     id: Date.now().toString(),
@@ -63,6 +89,7 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
     activity: '',
     remarks: ''
   }]);
+  const [validationErrors, setValidationErrors] = useState<Record<string, Record<string, string>>>({});
 
   const { data: materialList = [], isLoading: materialListLoading } = useQuery({
     queryKey: ['projectMaterialList', projectId, organisationId],
@@ -185,12 +212,44 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
       return item;
     });
     setUsageItems(updated);
+    const error = validateField({ [field]: value }, field);
+    setValidationErrors(prev => {
+      const next = { ...prev };
+      if (error) {
+        next[id] = { ...next[id], [field]: error };
+      } else {
+        if (next[id]) {
+          const { [field]: _, ...rest } = next[id];
+          next[id] = Object.keys(rest).length ? rest : {};
+        }
+      }
+      return next;
+    });
   };
 
   const handleSubmit = () => {
     const validItems = usageItems.filter(i => i.item_id && i.quantity_used && parseFloat(i.quantity_used) > 0);
     if (validItems.length === 0) {
       alert('Please add at least one item with quantity');
+      return;
+    }
+    const errors: Record<string, Record<string, string>> = {};
+    let hasError = false;
+    for (const item of validItems) {
+      const rowErrors: Record<string, string> = {};
+      const result = usageItemSchema.safeParse(item);
+      if (!result.success) {
+        hasError = true;
+        for (const issue of result.error.issues) {
+          const field = issue.path[0]?.toString();
+          if (field) rowErrors[field] = issue.message;
+        }
+      }
+      if (Object.keys(rowErrors).length) errors[item.id] = rowErrors;
+    }
+    setValidationErrors(errors);
+    if (hasError) {
+      alert('Please fix validation errors before saving');
       return;
     }
     logMutation.mutate(validItems);
@@ -204,12 +263,30 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
       activity: item.activity || '',
       remarks: item.remarks || ''
     });
+    setEditErrors({});
     setPreviewItem(null);
   };
 
+  const handleEditFieldChange = (field: string, value: string) => {
+    setEditFormData(prev => ({ ...prev, [field]: value }));
+    const error = validateField({ [field]: value }, field);
+    setEditErrors(prev => {
+      if (error) return { ...prev, [field]: error };
+      const { [field]: _, ...rest } = prev;
+      return rest;
+    });
+  };
+
   const handleSaveEdit = (id: string) => {
-    if (!editFormData.quantity_used) {
-      alert('Please fill in the quantity');
+    const editErrors: Record<string, string> = {};
+    if (!editFormData.quantity_used || !/^\d*\.?\d+$/.test(editFormData.quantity_used)) {
+      editErrors.quantity_used = 'Must be a number';
+    }
+    if (editFormData.activity && !/^[A-Za-z][A-Za-z0-9\s\-/,.]*$/.test(editFormData.activity)) {
+      editErrors.activity = 'Must start with a letter';
+    }
+    if (Object.keys(editErrors).length) {
+      alert(Object.values(editErrors).join('\n'));
       return;
     }
     updateMutation.mutate({
@@ -440,9 +517,10 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
                               min="0"
                               value={item.quantity_used}
                               onChange={(e) => handleItemChange(item.id, 'quantity_used', e.target.value)}
-                              style={{ width: '100%', padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '13px', textAlign: 'right' }}
+                              style={{ width: '100%', padding: '8px 10px', border: validationErrors[item.id]?.quantity_used ? '1px solid #ef4444' : '1px solid #d1d5db', borderRadius: '6px', fontSize: '13px', textAlign: 'right' }}
                               placeholder="0.00"
                             />
+                            {validationErrors[item.id]?.quantity_used && <div style={{ color: '#ef4444', fontSize: '11px', marginTop: '2px' }}>{validationErrors[item.id].quantity_used}</div>}
                           </td>
                           <td style={{ padding: '8px 12px' }}>
                             <input
@@ -458,9 +536,10 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
                               type="text"
                               value={item.activity}
                               onChange={(e) => handleItemChange(item.id, 'activity', e.target.value)}
-                              style={{ width: '100%', padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '13px' }}
+                              style={{ width: '100%', padding: '8px 10px', border: validationErrors[item.id]?.activity ? '1px solid #ef4444' : '1px solid #d1d5db', borderRadius: '6px', fontSize: '13px' }}
                               placeholder="e.g., Foundation"
                             />
+                            {validationErrors[item.id]?.activity && <div style={{ color: '#ef4444', fontSize: '11px', marginTop: '2px' }}>{validationErrors[item.id].activity}</div>}
                           </td>
                           <td style={{ padding: '8px 12px' }}>
                             <input
@@ -612,22 +691,24 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
                               <td style={{ padding: '8px 12px', fontSize: '13px', color: '#6b7280' }}>{getVariantName(item) || '—'}</td>
                               <td style={{ padding: '8px 12px' }}>
                                 <input type="number" step="0.01" value={editFormData.quantity_used}
-                                  onChange={(e) => setEditFormData({ ...editFormData, quantity_used: e.target.value })}
-                                  style={{ width: '80px', padding: '6px 8px', border: '1px solid #3b82f6', borderRadius: '4px', fontSize: '13px', textAlign: 'right' }} autoFocus />
+                                  onChange={(e) => handleEditFieldChange('quantity_used', e.target.value)}
+                                  style={{ width: '80px', padding: '6px 8px', border: editErrors.quantity_used ? '1px solid #ef4444' : '1px solid #3b82f6', borderRadius: '4px', fontSize: '13px', textAlign: 'right' }} autoFocus />
+                                {editErrors.quantity_used && <div style={{ color: '#ef4444', fontSize: '10px' }}>{editErrors.quantity_used}</div>}
                               </td>
                               <td style={{ padding: '8px 12px' }}>
                                 <input type="text" value={editFormData.unit}
-                                  onChange={(e) => setEditFormData({ ...editFormData, unit: e.target.value })}
+                                  onChange={(e) => handleEditFieldChange('unit', e.target.value)}
                                   style={{ width: '60px', padding: '6px 8px', border: '1px solid #3b82f6', borderRadius: '4px', fontSize: '13px' }} />
                               </td>
                               <td style={{ padding: '8px 12px' }}>
                                 <input type="text" value={editFormData.activity}
-                                  onChange={(e) => setEditFormData({ ...editFormData, activity: e.target.value })}
-                                  style={{ width: '100%', padding: '6px 8px', border: '1px solid #3b82f6', borderRadius: '4px', fontSize: '13px' }} />
+                                  onChange={(e) => handleEditFieldChange('activity', e.target.value)}
+                                  style={{ width: '100%', padding: '6px 8px', border: editErrors.activity ? '1px solid #ef4444' : '1px solid #3b82f6', borderRadius: '4px', fontSize: '13px' }} />
+                                {editErrors.activity && <div style={{ color: '#ef4444', fontSize: '10px' }}>{editErrors.activity}</div>}
                               </td>
                               <td style={{ padding: '8px 12px' }}>
                                 <input type="text" value={editFormData.remarks}
-                                  onChange={(e) => setEditFormData({ ...editFormData, remarks: e.target.value })}
+                                  onChange={(e) => handleEditFieldChange('remarks', e.target.value)}
                                   style={{ width: '100%', padding: '6px 8px', border: '1px solid #3b82f6', borderRadius: '4px', fontSize: '13px' }} />
                               </td>
                               <td style={{ padding: '8px 12px', textAlign: 'center' }}>
@@ -687,22 +768,24 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
                           <td style={{ padding: '12px 16px', fontSize: '13px', color: '#6b7280' }}>{getVariantName(item) || '—'}</td>
                           <td style={{ padding: '8px 12px' }}>
                             <input type="number" step="0.01" value={editFormData.quantity_used}
-                              onChange={(e) => setEditFormData({ ...editFormData, quantity_used: e.target.value })}
-                              style={{ width: '80px', padding: '6px 8px', border: '1px solid #3b82f6', borderRadius: '4px', fontSize: '13px', textAlign: 'right' }} autoFocus />
+                              onChange={(e) => handleEditFieldChange('quantity_used', e.target.value)}
+                              style={{ width: '80px', padding: '6px 8px', border: editErrors.quantity_used ? '1px solid #ef4444' : '1px solid #3b82f6', borderRadius: '4px', fontSize: '13px', textAlign: 'right' }} autoFocus />
+                            {editErrors.quantity_used && <div style={{ color: '#ef4444', fontSize: '10px' }}>{editErrors.quantity_used}</div>}
                           </td>
                           <td style={{ padding: '8px 12px' }}>
                             <input type="text" value={editFormData.unit}
-                              onChange={(e) => setEditFormData({ ...editFormData, unit: e.target.value })}
+                              onChange={(e) => handleEditFieldChange('unit', e.target.value)}
                               style={{ width: '60px', padding: '6px 8px', border: '1px solid #3b82f6', borderRadius: '4px', fontSize: '13px' }} />
                           </td>
                           <td style={{ padding: '8px 12px' }}>
                             <input type="text" value={editFormData.activity}
-                              onChange={(e) => setEditFormData({ ...editFormData, activity: e.target.value })}
-                              style={{ width: '100%', padding: '6px 8px', border: '1px solid #3b82f6', borderRadius: '4px', fontSize: '13px' }} />
+                              onChange={(e) => handleEditFieldChange('activity', e.target.value)}
+                              style={{ width: '100%', padding: '6px 8px', border: editErrors.activity ? '1px solid #ef4444' : '1px solid #3b82f6', borderRadius: '4px', fontSize: '13px' }} />
+                            {editErrors.activity && <div style={{ color: '#ef4444', fontSize: '10px' }}>{editErrors.activity}</div>}
                           </td>
                           <td style={{ padding: '8px 12px' }}>
                             <input type="text" value={editFormData.remarks}
-                              onChange={(e) => setEditFormData({ ...editFormData, remarks: e.target.value })}
+                              onChange={(e) => handleEditFieldChange('remarks', e.target.value)}
                               style={{ width: '100%', padding: '6px 8px', border: '1px solid #3b82f6', borderRadius: '4px', fontSize: '13px' }} />
                           </td>
                           <td style={{ padding: '8px 12px', textAlign: 'center' }}>
