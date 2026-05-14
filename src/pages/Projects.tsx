@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { Folder, Plus, ClipboardList, Package, ArrowLeft, List, Calendar, BarChart3 } from 'lucide-react';
 import { supabase } from '../supabase';
@@ -243,34 +243,37 @@ function ProjectMaterialSelect({ onSelectProject }: { onSelectProject: (id: stri
   );
 }
 
+const MATERIAL_TAB_DEFS = [
+  { id: 'intents', label: 'Raise Intent', Icon: FileText },
+  { id: 'receive', label: 'Receive Material', Icon: Truck },
+  { id: 'dashboard', label: 'Dashboard', Icon: BarChart },
+  { id: 'material-list', label: 'Material List', Icon: List },
+  { id: 'usage', label: 'Usage', Icon: Calendar },
+  { id: 'consumption', label: 'Consumption Report', Icon: BarChart3 },
+];
+
 function ProjectMaterialTabs({ projectId, organisationId, projectName, onBack }: { projectId: string; organisationId: string; projectName: string; onBack: () => void }) {
   const [activeSubTab, setActiveSubTab] = useState('intents');
+  const [visitedTabs, setVisitedTabs] = useState<Set<string>>(() => new Set(['intents']));
 
   const handleSubTabChange = (subTab: string) => {
     setActiveSubTab(subTab);
+    setVisitedTabs(prev => {
+      if (prev.has(subTab)) return prev;
+      const next = new Set(prev);
+      next.add(subTab);
+      return next;
+    });
   };
 
-  const renderContent = () => {
-    if (activeSubTab === 'intents') {
-      return <ProjectMaterialIntents projectId={projectId} organisationId={organisationId} />;
-    }
-    if (activeSubTab === 'receive') {
-      return <ReceiveMaterial projectId={projectId} organisationId={organisationId} />;
-    }
-    if (activeSubTab === 'dashboard') {
-      return <ProjectMaterialDashboard projectId={projectId} organisationId={organisationId} projectName={projectName} isAdmin={true} />;
-    }
-    if (activeSubTab === 'material-list') {
-      return <ProjectMaterialList projectId={projectId} organisationId={organisationId} />;
-    }
-    if (activeSubTab === 'usage') {
-      return <MaterialUsageTracker projectId={projectId} organisationId={organisationId} />;
-    }
-    if (activeSubTab === 'consumption') {
-      return <MaterialConsumptionReport projectId={projectId} organisationId={organisationId} />;
-    }
-    return null;
-  };
+  const tabComponents = useMemo<Record<string, React.ReactNode>>(() => ({
+    'intents': <ProjectMaterialIntents projectId={projectId} organisationId={organisationId} />,
+    'receive': <ReceiveMaterial projectId={projectId} organisationId={organisationId} />,
+    'dashboard': <ProjectMaterialDashboard projectId={projectId} organisationId={organisationId} projectName={projectName} isAdmin={true} />,
+    'material-list': <ProjectMaterialList projectId={projectId} organisationId={organisationId} />,
+    'usage': <MaterialUsageTracker projectId={projectId} organisationId={organisationId} />,
+    'consumption': <MaterialConsumptionReport projectId={projectId} organisationId={organisationId} />,
+  }), [projectId, organisationId, projectName]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -280,14 +283,7 @@ function ProjectMaterialTabs({ projectId, organisationId, projectName, onBack }:
             <ArrowLeft size={18} />
           </button>
           <div style={{ display: 'flex', gap: '4px' }}>
-            {[
-              { id: 'intents', label: 'Raise Intent', Icon: FileText },
-              { id: 'receive', label: 'Receive Material', Icon: Truck },
-              { id: 'dashboard', label: 'Dashboard', Icon: BarChart },
-              { id: 'material-list', label: 'Material List', Icon: List },
-              { id: 'usage', label: 'Usage', Icon: Calendar },
-              { id: 'consumption', label: 'Consumption Report', Icon: BarChart3 },
-            ].map(tab => {
+            {MATERIAL_TAB_DEFS.map(tab => {
               const isActive = activeSubTab === tab.id;
               return (
                 <button
@@ -308,7 +304,13 @@ function ProjectMaterialTabs({ projectId, organisationId, projectName, onBack }:
         </div>
       </div>
       <div style={{ flex: 1, overflow: 'auto', padding: '16px' }}>
-        {renderContent()}
+        {MATERIAL_TAB_DEFS.map(tab =>
+          visitedTabs.has(tab.id) && (
+            <div key={tab.id} style={{ display: activeSubTab === tab.id ? 'block' : 'none' }}>
+              {tabComponents[tab.id]}
+            </div>
+          )
+        )}
       </div>
     </div>
   );
