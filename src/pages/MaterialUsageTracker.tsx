@@ -171,7 +171,7 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['dailyUsage'] });
-      queryClient.invalidateQueries({ queryKey: ['materialConsumptionSummary', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['materialConsumptionSummary', projectId, organisationId] });
       queryClient.invalidateQueries({ queryKey: ['materialLogs', projectId] });
       queryClient.invalidateQueries({ queryKey: ['projectMaterialList', projectId] });
       setUsageItems([{
@@ -197,7 +197,7 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
       updateDailyUsage(id, updates, organisationId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['dailyUsage'] });
-      queryClient.invalidateQueries({ queryKey: ['materialConsumptionSummary', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['materialConsumptionSummary', projectId, organisationId] });
       queryClient.invalidateQueries({ queryKey: ['materialLogs', projectId] });
       setEditingId(null);
       setPreviewItem(null);
@@ -211,7 +211,7 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
     mutationFn: (id: string) => deleteDailyUsage(id, organisationId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['dailyUsage'] });
-      queryClient.invalidateQueries({ queryKey: ['materialConsumptionSummary', projectId] });
+      queryClient.invalidateQueries({ queryKey: ['materialConsumptionSummary', projectId, organisationId] });
       queryClient.invalidateQueries({ queryKey: ['materialLogs', projectId] });
     },
     onError: (error: any) => {
