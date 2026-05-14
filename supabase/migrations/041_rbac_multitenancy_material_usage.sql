@@ -299,22 +299,11 @@ CREATE POLICY "Users can delete daily material usage"
 
 -- ================================================================
 -- 4. ADD material_usage permissions to the permissions table
---    These will be pickable when creating/editing roles in the RBAC UI
 -- ================================================================
 
--- Note: the actual permission_keys used in the app must match these entries.
--- The permissions table (if it exists as a seed/reference) needs these rows.
--- We use INSERT ... ON CONFLICT DO NOTHING to be idempotent.
-
--- First, ensure the permissions table exists. If your app uses a different
--- mechanism (e.g., the permission-catalog.ts defines the canonical list),
--- these INSERT statements are optional — the frontend catalog is the
--- source of truth. But adding them to a permissions reference table
--- enables admin UI to display them.
-
-INSERT INTO permissions (key, label, module) VALUES
-  ('material_usage.read', 'View Usage Logs', 'material_usage'),
-  ('material_usage.create', 'Log Usage', 'material_usage'),
-  ('material_usage.update', 'Edit Usage Logs', 'material_usage'),
-  ('material_usage.delete', 'Delete Usage Logs', 'material_usage')
+INSERT INTO permissions (key, description) VALUES
+  ('material_usage.read', 'View material usage logs'),
+  ('material_usage.create', 'Log material usage'),
+  ('material_usage.update', 'Edit material usage logs'),
+  ('material_usage.delete', 'Delete material usage logs')
 ON CONFLICT (key) DO NOTHING;
