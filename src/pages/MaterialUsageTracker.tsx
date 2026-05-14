@@ -241,9 +241,11 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
       if (item.id === id) {
         const updatedItem = { ...item, [field]: value };
         if (field === 'item_id') {
-          const selected = materialList.find((m: any) => m.item_id === value);
+          // value is the project_material_list row id; resolve real item_id, variant_id, unit from it
+          const selected = materialList.find((m: any) => m.id === value);
+          updatedItem.item_id = selected?.item_id || value;
+          updatedItem.variant_id = selected?.variant_id || '';
           updatedItem.unit = selected?.unit || 'nos';
-          updatedItem.variant_id = '';
         }
         return updatedItem;
       }
@@ -527,7 +529,6 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
                   <thead>
                     <tr style={{ background: '#f3f4f6', borderBottom: '1px solid #e5e7eb' }}>
                       <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 600, color: '#4b5563', width: '30%' }}>Material *</th>
-                      <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 600, color: '#4b5563', width: '15%' }}>Variant</th>
                       <th style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 600, color: '#4b5563', width: '12%' }}>Qty Used *</th>
                       <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 600, color: '#4b5563', width: '10%' }}>Unit</th>
                       <th style={{ padding: '10px 12px', textAlign: 'left', fontWeight: 600, color: '#4b5563', width: '18%' }}>Activity</th>
@@ -537,37 +538,25 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
                   </thead>
                   <tbody>
                     {usageItems.map((item) => {
-                      const filteredVariants = item.item_id
-                        ? materialList.filter((m: any) => m.item_id === item.item_id && m.variant_id)
-                        : [];
+                      const selectedPmlId = item.item_id
+                        ? materialList.find((m: any) =>
+                            m.item_id === item.item_id
+                            && (m.variant_id === item.variant_id || (!m.variant_id && !item.variant_id))
+                          )?.id || ''
+                        : '';
                       return (
                         <tr key={item.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
                           <td style={{ padding: '8px 12px' }}>
                             <select
-                              value={item.item_id}
+                              value={selectedPmlId}
                               onChange={(e) => handleItemChange(item.id, 'item_id', e.target.value)}
                               style={{ width: '100%', padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '13px', background: '#fff' }}
                             >
                               <option value="">Select material</option>
                               {materialList.map((m: any) => (
-                                <option key={m.id} value={m.item_id}>
+                                <option key={m.id} value={m.id}>
                                   {m.materials?.display_name || m.materials?.name}
                                   {m.company_variants?.variant_name ? ` (${m.company_variants.variant_name})` : ''}
-                                </option>
-                              ))}
-                            </select>
-                          </td>
-                          <td style={{ padding: '8px 12px' }}>
-                            <select
-                              value={item.variant_id}
-                              onChange={(e) => handleItemChange(item.id, 'variant_id', e.target.value)}
-                              style={{ width: '100%', padding: '8px 10px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '13px', background: '#fff' }}
-                              disabled={!item.item_id}
-                            >
-                              <option value="">Default</option>
-                              {filteredVariants.map((m: any) => (
-                                <option key={m.variant_id} value={m.variant_id}>
-                                  {m.company_variants?.variant_name || 'Variant'}
                                 </option>
                               ))}
                             </select>
