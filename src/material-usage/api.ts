@@ -57,6 +57,7 @@ export interface MaterialConsumptionSummary {
   planned_cost: number;
   actual_cost: number;
   cost_variance: number;
+  is_boq: boolean;
   last_updated: string;
 }
 

@@ -26,134 +26,56 @@ function formatDate(dateStr: string) {
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
-export default function MaterialConsumptionReport({ projectId, organisationId }: ProjectProps) {
-  const [searchText, setSearchText] = useState('');
+function SectionTable({ data, sectionLabel, sectionColor, bgColor }: { data: any[]; sectionLabel: string; sectionColor: string; bgColor: string }) {
   const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 25;
 
-  if (!organisationId) {
-    return <div style={{ padding: '24px', textAlign: 'center', color: '#dc2626' }}>Organisation ID is required</div>;
-  }
-
-  const { data: consumptionData = [], isLoading } = useQuery({
-    queryKey: ['materialConsumptionSummary', projectId, organisationId],
-    queryFn: () => getMaterialConsumptionSummary(projectId, organisationId),
-    enabled: !!projectId
-  });
-
-  const filteredData = useMemo(() => {
-    if (!searchText) return consumptionData as any[];
-    const q = searchText.toLowerCase();
-    return (consumptionData as any[]).filter((item: any) => {
-      const name = item.materials?.display_name || item.materials?.name || '';
-      const variant = item.company_variants?.variant_name || '';
-      return name.toLowerCase().includes(q) || variant.toLowerCase().includes(q);
-    });
-  }, [consumptionData, searchText]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredData.length / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(data.length / PAGE_SIZE));
   const safeCurrentPage = Math.min(currentPage, totalPages);
-  const paginatedData = filteredData.slice((safeCurrentPage - 1) * PAGE_SIZE, safeCurrentPage * PAGE_SIZE);
+  const paginatedData = data.slice((safeCurrentPage - 1) * PAGE_SIZE, safeCurrentPage * PAGE_SIZE);
 
-  const totalPlannedCost = filteredData.reduce((sum: number, item: any) => sum + (item.planned_cost || 0), 0);
-  const totalActualCost = filteredData.reduce((sum: number, item: any) => sum + (item.actual_cost || 0), 0);
+  const totalPlanned = data.reduce((sum: number, item: any) => sum + (item.planned_qty || 0), 0);
+  const totalReceived = data.reduce((sum: number, item: any) => sum + (item.received_qty || 0), 0);
+  const totalUsed = data.reduce((sum: number, item: any) => sum + (item.used_qty || 0), 0);
+  const totalPlannedCost = data.reduce((sum: number, item: any) => sum + (item.planned_cost || 0), 0);
+  const totalActualCost = data.reduce((sum: number, item: any) => sum + (item.actual_cost || 0), 0);
   const totalCostVariance = totalActualCost - totalPlannedCost;
-  const totalPlanned = filteredData.reduce((sum: number, item: any) => sum + (item.planned_qty || 0), 0);
-  const totalReceived = filteredData.reduce((sum: number, item: any) => sum + (item.received_qty || 0), 0);
-  const totalUsed = filteredData.reduce((sum: number, item: any) => sum + (item.used_qty || 0), 0);
-
-  const handlePrint = () => {
-    const printWin = window.open('', '_blank');
-    if (!printWin) return;
-    const rows = filteredData.map((item: any, i: number) => {
-      const remaining = item.remaining_qty ?? 0;
-      const variance = item.variance_qty ?? 0;
-      const costVar = item.cost_variance ?? 0;
-      return `<tr>
-        <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;font-size:13px">${i + 1}</td>
-        <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;font-weight:500">${item.materials?.display_name || item.materials?.name || 'Unknown'}</td>
-        <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;font-size:13px;color:#6b7280">${item.company_variants?.variant_name || '—'}</td>
-        <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:right;font-size:13px">${item.planned_qty} ${item.unit}</td>
-        <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:right;font-size:13px">${item.received_qty} ${item.unit}</td>
-        <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:right;font-weight:500">${item.used_qty} ${item.unit}</td>
-        <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:right;font-size:13px;color:${remaining < 0 ? '#dc2626' : remaining === 0 ? '#d97706' : '#16a34a'}">${remaining} ${item.unit}</td>
-        <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:right;font-size:13px;color:${variance > 0 ? '#dc2626' : variance < 0 ? '#16a34a' : '#6b7280'}">${variance > 0 ? '+' : ''}${variance} ${item.unit}</td>
-        <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:right;font-size:13px">₹${(item.planned_cost || 0).toFixed(2)}</td>
-        <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:right;font-weight:500">₹${(item.actual_cost || 0).toFixed(2)}</td>
-        <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:right;font-size:13px;color:${costVar > 0 ? '#dc2626' : costVar < 0 ? '#16a34a' : '#6b7280'}">${costVar > 0 ? '+' : ''}₹${costVar.toFixed(2)}</td>
-      </tr>`;
-    }).join('');
-    printWin.document.write(`<html><head><title>Consumption Report</title><style>body{font-family:system-ui,sans-serif;padding:20px}table{width:100%;border-collapse:collapse}th{background:#f9fafb;padding:10px 12px;text-align:left;font-size:13px;font-weight:600;color:#4b5563;border-bottom:2px solid #e5e7eb}td{font-size:13px}</style></head><body>
-      <h2 style="font-size:20px;font-weight:600;margin-bottom:4px">Material Consumption Report</h2>
-      <p style="color:#6b7280;font-size:14px;margin-bottom:20px">Total ${filteredData.length} materials</p>
-      <table><thead><tr>
-        <th style="text-align:left">#</th><th style="text-align:left">Material</th><th style="text-align:left">Variant</th>
-        <th style="text-align:right">Planned</th><th style="text-align:right">Received</th><th style="text-align:right">Used</th>
-        <th style="text-align:right">Remaining</th><th style="text-align:right">Variance</th>
-        <th style="text-align:right">Planned Cost</th><th style="text-align:right">Actual Cost</th><th style="text-align:right">Cost Var.</th>
-      </tr></thead><tbody>${rows}</tbody></table></body></html>`);
-    printWin.document.close();
-    printWin.print();
-  };
-
-  if (isLoading) {
-    return <div style={{ padding: '24px', textAlign: 'center', color: '#6b7280' }}>Loading consumption report...</div>;
-  }
 
   return (
-    <div style={{ padding: '24px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-        <div>
-          <h2 style={{ fontSize: '20px', fontWeight: 600, color: '#111827', margin: 0 }}>Consumption Report</h2>
-          <p style={{ fontSize: '14px', color: '#6b7280', margin: '4px 0 0' }}>Planned vs actual usage with cost analysis</p>
-        </div>
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <button onClick={() => { const XLSX = import('xlsx'); import('xlsx').then(m => { const exportData = filteredData.map((item: any, i: number) => ({ '#': i + 1, 'Material': item.materials?.display_name || item.materials?.name || '', 'Variant': item.company_variants?.variant_name || '-', 'Planned': item.planned_qty, 'Received': item.received_qty, 'Used': item.used_qty, 'Remaining': item.remaining_qty, 'Unit': item.unit, 'Variance': item.variance_qty, 'Planned Cost': item.planned_cost, 'Actual Cost': item.actual_cost, 'Cost Variance': item.cost_variance })); const wb = m.utils.book_new(); const ws = m.utils.json_to_sheet(exportData); m.utils.book_append_sheet(wb, ws, 'Consumption'); m.writeFile(wb, `consumption_report.xlsx`); }); }} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', background: '#fff', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '14px', cursor: 'pointer', color: '#374151' }}>
-            <Download size={16} />
-            Export
-          </button>
-          <button onClick={handlePrint} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', background: '#fff', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '14px', cursor: 'pointer', color: '#374151' }}>
-            <Printer size={16} />
-            Print
-          </button>
-        </div>
+    <div style={{ marginBottom: '24px' }}>
+      {/* Section header */}
+      <div style={{ padding: '10px 16px', background: bgColor, borderBottom: '1px solid #e5e7eb', borderRadius: '8px 8px 0 0', fontSize: '14px', fontWeight: 600, color: sectionColor }}>
+        {sectionLabel} ({data.length} materials)
       </div>
 
-      <div style={{ marginBottom: '16px' }}>
-        <div style={{ position: 'relative' }}>
-          <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }} />
-          <input type="text" placeholder="Search material, variant..." value={searchText} onChange={e => { setSearchText(e.target.value); setCurrentPage(1); }} style={{ width: '100%', padding: '10px 12px 10px 36px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box' }} />
+      {/* Summary cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', padding: '12px 0' }}>
+        <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '10px 14px' }}>
+          <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '4px' }}>Planned</div>
+          <div style={{ fontSize: '16px', fontWeight: 600 }}>{totalPlanned.toFixed(1)}</div>
         </div>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '20px' }}>
-        <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '12px 16px' }}>
-          <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '4px' }}>Total Planned</div>
-          <div style={{ fontSize: '18px', fontWeight: 600 }}>{totalPlanned.toFixed(1)}</div>
+        <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '10px 14px' }}>
+          <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '4px' }}>Received</div>
+          <div style={{ fontSize: '16px', fontWeight: 600 }}>{totalReceived.toFixed(1)}</div>
         </div>
-        <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '12px 16px' }}>
-          <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '4px' }}>Total Received</div>
-          <div style={{ fontSize: '18px', fontWeight: 600 }}>{totalReceived.toFixed(1)}</div>
+        <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '10px 14px' }}>
+          <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '4px' }}>Used</div>
+          <div style={{ fontSize: '16px', fontWeight: 600 }}>{totalUsed.toFixed(1)}</div>
         </div>
-        <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '12px 16px' }}>
-          <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '4px' }}>Total Used</div>
-          <div style={{ fontSize: '18px', fontWeight: 600 }}>{totalUsed.toFixed(1)}</div>
-        </div>
-        <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '12px 16px' }}>
+        <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '10px 14px' }}>
           <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '4px' }}>Cost Variance</div>
-          <div style={{ fontSize: '18px', fontWeight: 600, color: totalCostVariance > 0 ? '#dc2626' : totalCostVariance < 0 ? '#16a34a' : '#374151' }}>
+          <div style={{ fontSize: '16px', fontWeight: 600, color: totalCostVariance > 0 ? '#dc2626' : totalCostVariance < 0 ? '#16a34a' : '#374151' }}>
             {totalCostVariance > 0 ? '+' : ''}₹{totalCostVariance.toFixed(2)}
           </div>
         </div>
       </div>
 
-      {filteredData.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '48px', background: '#fffbeb', borderRadius: '8px', border: '2px dashed #fbbf24' }}>
-          <p style={{ color: '#92400e', margin: 0 }}>No consumption data available. Add materials to the project list and log usage to see the report.</p>
-        </div>
-      ) : (
-        <>
-          <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', overflow: 'hidden' }}>
+      {/* Table */}
+      <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '0 0 8px 8px', overflow: 'hidden' }}>
+        {data.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '32px', color: '#9ca3af', fontSize: '13px' }}>No materials in this section</div>
+        ) : (
+          <>
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                 <thead>
@@ -207,21 +129,191 @@ export default function MaterialConsumptionReport({ projectId, organisationId }:
                 </tbody>
               </table>
             </div>
-          </div>
 
-          {totalPages > 1 && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px' }}>
-              <span style={{ fontSize: '13px', color: '#6b7280' }}>
-                Showing {(safeCurrentPage - 1) * PAGE_SIZE + 1}–{Math.min(safeCurrentPage * PAGE_SIZE, filteredData.length)} of {filteredData.length}
-              </span>
-              <div style={{ display: 'flex', gap: '4px' }}>
-                <button onClick={() => setCurrentPage(1)} disabled={safeCurrentPage === 1} style={{ padding: '6px 10px', border: '1px solid #d1d5db', borderRadius: '6px', background: safeCurrentPage === 1 ? '#f9fafb' : '#fff', cursor: safeCurrentPage === 1 ? 'default' : 'pointer', fontSize: '13px' }}>First</button>
-                <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={safeCurrentPage === 1} style={{ padding: '6px 10px', border: '1px solid #d1d5db', borderRadius: '6px', background: safeCurrentPage === 1 ? '#f9fafb' : '#fff', cursor: safeCurrentPage === 1 ? 'default' : 'pointer', fontSize: '13px' }}><ChevronLeft size={14} /></button>
-                {Array.from({ length: totalPages }, (_, i) => i + 1).filter(p => p === 1 || p === totalPages || Math.abs(p - safeCurrentPage) <= 1).reduce((acc: number[], p, i, arr) => { if (i > 0 && p - arr[i - 1] > 1) acc.push(-1); acc.push(p); return acc; }, []).map((p, i) => p === -1 ? <span key={`dot${i}`} style={{ padding: '6px 4px', color: '#9ca3af' }}>…</span> : <button key={p} onClick={() => setCurrentPage(p)} style={{ padding: '6px 10px', border: p === safeCurrentPage ? '1px solid #2563eb' : '1px solid #d1d5db', borderRadius: '6px', background: p === safeCurrentPage ? '#2563eb' : '#fff', color: p === safeCurrentPage ? '#fff' : '#374151', cursor: 'pointer', fontSize: '13px', fontWeight: p === safeCurrentPage ? 600 : 400 }}>{p}</button>)}
-                <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={safeCurrentPage === totalPages} style={{ padding: '6px 10px', border: '1px solid #d1d5db', borderRadius: '6px', background: safeCurrentPage === totalPages ? '#f9fafb' : '#fff', cursor: safeCurrentPage === totalPages ? 'default' : 'pointer', fontSize: '13px' }}><ChevronRight size={14} /></button>
-                <button onClick={() => setCurrentPage(totalPages)} disabled={safeCurrentPage === totalPages} style={{ padding: '6px 10px', border: '1px solid #d1d5db', borderRadius: '6px', background: safeCurrentPage === totalPages ? '#f9fafb' : '#fff', cursor: safeCurrentPage === totalPages ? 'default' : 'pointer', fontSize: '13px' }}>Last</button>
+            {totalPages > 1 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', borderTop: '1px solid #f3f4f6' }}>
+                <span style={{ fontSize: '13px', color: '#6b7280' }}>
+                  Showing {(safeCurrentPage - 1) * PAGE_SIZE + 1}–{Math.min(safeCurrentPage * PAGE_SIZE, data.length)} of {data.length}
+                </span>
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  <button onClick={() => setCurrentPage(1)} disabled={safeCurrentPage === 1} style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: '4px', background: safeCurrentPage === 1 ? '#f9fafb' : '#fff', cursor: safeCurrentPage === 1 ? 'default' : 'pointer', fontSize: '12px' }}>First</button>
+                  <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={safeCurrentPage === 1} style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: '4px', background: safeCurrentPage === 1 ? '#f9fafb' : '#fff', cursor: safeCurrentPage === 1 ? 'default' : 'pointer', fontSize: '12px' }}><ChevronLeft size={12} /></button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).filter(p => p === 1 || p === totalPages || Math.abs(p - safeCurrentPage) <= 1).reduce((acc: number[], p, i, arr) => { if (i > 0 && p - arr[i - 1] > 1) acc.push(-1); acc.push(p); return acc; }, []).map((p, i) => p === -1 ? <span key={`dot${i}`} style={{ padding: '4px 2px', color: '#9ca3af', fontSize: '12px' }}>…</span> : <button key={p} onClick={() => setCurrentPage(p)} style={{ padding: '4px 8px', border: p === safeCurrentPage ? '1px solid #2563eb' : '1px solid #d1d5db', borderRadius: '4px', background: p === safeCurrentPage ? '#2563eb' : '#fff', color: p === safeCurrentPage ? '#fff' : '#374151', cursor: 'pointer', fontSize: '12px', fontWeight: p === safeCurrentPage ? 600 : 400 }}>{p}</button>)}
+                  <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={safeCurrentPage === totalPages} style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: '4px', background: safeCurrentPage === totalPages ? '#f9fafb' : '#fff', cursor: safeCurrentPage === totalPages ? 'default' : 'pointer', fontSize: '12px' }}><ChevronRight size={12} /></button>
+                  <button onClick={() => setCurrentPage(totalPages)} disabled={safeCurrentPage === totalPages} style={{ padding: '4px 8px', border: '1px solid #d1d5db', borderRadius: '4px', background: safeCurrentPage === totalPages ? '#f9fafb' : '#fff', cursor: safeCurrentPage === totalPages ? 'default' : 'pointer', fontSize: '12px' }}>Last</button>
+                </div>
               </div>
-            </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default function MaterialConsumptionReport({ projectId, organisationId }: ProjectProps) {
+  const [searchText, setSearchText] = useState('');
+
+  if (!organisationId) {
+    return <div style={{ padding: '24px', textAlign: 'center', color: '#dc2626' }}>Organisation ID is required</div>;
+  }
+
+  const { data: consumptionData = [], isLoading } = useQuery({
+    queryKey: ['materialConsumptionSummary', projectId, organisationId],
+    queryFn: () => getMaterialConsumptionSummary(projectId, organisationId),
+    enabled: !!projectId
+  });
+
+  const filteredData = useMemo(() => {
+    if (!searchText) return consumptionData as any[];
+    const q = searchText.toLowerCase();
+    return (consumptionData as any[]).filter((item: any) => {
+      const name = item.materials?.display_name || item.materials?.name || '';
+      const variant = item.company_variants?.variant_name || '';
+      return name.toLowerCase().includes(q) || variant.toLowerCase().includes(q);
+    });
+  }, [consumptionData, searchText]);
+
+  const boqData = useMemo(() => filteredData.filter((item: any) => item.is_boq !== false), [filteredData]);
+  const nonBoqData = useMemo(() => filteredData.filter((item: any) => item.is_boq === false), [filteredData]);
+
+  const handleExport = () => {
+    import('xlsx').then(m => {
+      const exportData = filteredData.map((item: any, i: number) => ({
+        '#': i + 1,
+        'Type': item.is_boq !== false ? 'BOQ' : 'Non-BOQ',
+        'Material': item.materials?.display_name || item.materials?.name || '',
+        'Variant': item.company_variants?.variant_name || '-',
+        'Planned': item.planned_qty,
+        'Received': item.received_qty,
+        'Used': item.used_qty,
+        'Remaining': item.remaining_qty,
+        'Unit': item.unit,
+        'Variance': item.variance_qty,
+        'Planned Cost': item.planned_cost,
+        'Actual Cost': item.actual_cost,
+        'Cost Variance': item.cost_variance
+      }));
+      const wb = m.utils.book_new();
+      const ws = m.utils.json_to_sheet(exportData);
+      m.utils.book_append_sheet(wb, ws, 'Consumption');
+      m.writeFile(wb, `consumption_report.xlsx`);
+    });
+  };
+
+  const handlePrint = () => {
+    const printWin = window.open('', '_blank');
+    if (!printWin) return;
+
+    const renderSection = (data: any[], label: string) => {
+      if (data.length === 0) return '';
+      return `
+        <tr><td colspan="11" style="padding:8px 12px;background:#f9fafb;font-weight:600;font-size:14px;border-bottom:2px solid #e5e7eb">${label} (${data.length} materials)</td></tr>
+        ${data.map((item: any, i: number) => {
+          const remaining = item.remaining_qty ?? 0;
+          const variance = item.variance_qty ?? 0;
+          const costVar = item.cost_variance ?? 0;
+          return `<tr>
+            <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;font-size:13px">${i + 1}</td>
+            <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;font-weight:500">${item.materials?.display_name || item.materials?.name || 'Unknown'}</td>
+            <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;font-size:13px;color:#6b7280">${item.company_variants?.variant_name || '—'}</td>
+            <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:right;font-size:13px">${item.planned_qty} ${item.unit}</td>
+            <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:right;font-size:13px">${item.received_qty} ${item.unit}</td>
+            <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:right;font-weight:500">${item.used_qty} ${item.unit}</td>
+            <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:right;font-size:13px;color:${remaining < 0 ? '#dc2626' : remaining === 0 ? '#d97706' : '#16a34a'}">${remaining} ${item.unit}</td>
+            <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:right;font-size:13px;color:${variance > 0 ? '#dc2626' : variance < 0 ? '#16a34a' : '#6b7280'}">${variance > 0 ? '+' : ''}${variance} ${item.unit}</td>
+            <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:right;font-size:13px">₹${(item.planned_cost || 0).toFixed(2)}</td>
+            <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:right;font-weight:500">₹${(item.actual_cost || 0).toFixed(2)}</td>
+            <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;text-align:right;font-size:13px;color:${costVar > 0 ? '#dc2626' : costVar < 0 ? '#16a34a' : '#6b7280'}">${costVar > 0 ? '+' : ''}₹${costVar.toFixed(2)}</td>
+          </tr>`;
+        }).join('')}`;
+    };
+
+    const rows = renderSection(boqData, 'BOQ Materials') + renderSection(nonBoqData, 'Non-BOQ Materials');
+
+    printWin.document.write(`<html><head><title>Consumption Report</title><style>body{font-family:system-ui,sans-serif;padding:20px}table{width:100%;border-collapse:collapse}th{background:#f9fafb;padding:10px 12px;text-align:left;font-size:13px;font-weight:600;color:#4b5563;border-bottom:2px solid #e5e7eb}td{font-size:13px}</style></head><body>
+      <h2 style="font-size:20px;font-weight:600;margin-bottom:4px">Material Consumption Report</h2>
+      <p style="color:#6b7280;font-size:14px;margin-bottom:20px">Total ${filteredData.length} materials (BOQ: ${boqData.length}, Non-BOQ: ${nonBoqData.length})</p>
+      <table><thead><tr>
+        <th style="text-align:left">#</th><th style="text-align:left">Material</th><th style="text-align:left">Variant</th>
+        <th style="text-align:right">Planned</th><th style="text-align:right">Received</th><th style="text-align:right">Used</th>
+        <th style="text-align:right">Remaining</th><th style="text-align:right">Variance</th>
+        <th style="text-align:right">Planned Cost</th><th style="text-align:right">Actual Cost</th><th style="text-align:right">Cost Var.</th>
+      </tr></thead><tbody>${rows}</tbody></table></body></html>`);
+    printWin.document.close();
+    printWin.print();
+  };
+
+  const totalPlannedCost = filteredData.reduce((sum: number, item: any) => sum + (item.planned_cost || 0), 0);
+  const totalActualCost = filteredData.reduce((sum: number, item: any) => sum + (item.actual_cost || 0), 0);
+  const totalCostVariance = totalActualCost - totalPlannedCost;
+
+  if (isLoading) {
+    return <div style={{ padding: '24px', textAlign: 'center', color: '#6b7280' }}>Loading consumption report...</div>;
+  }
+
+  return (
+    <div style={{ padding: '24px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+        <div>
+          <h2 style={{ fontSize: '20px', fontWeight: 600, color: '#111827', margin: 0 }}>Consumption Report</h2>
+          <p style={{ fontSize: '14px', color: '#6b7280', margin: '4px 0 0' }}>Planned vs actual usage with cost analysis</p>
+        </div>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button onClick={handleExport} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', background: '#fff', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '14px', cursor: 'pointer', color: '#374151' }}>
+            <Download size={16} />
+            Export
+          </button>
+          <button onClick={handlePrint} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', background: '#fff', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '14px', cursor: 'pointer', color: '#374151' }}>
+            <Printer size={16} />
+            Print
+          </button>
+        </div>
+      </div>
+
+      <div style={{ marginBottom: '16px' }}>
+        <div style={{ position: 'relative' }}>
+          <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }} />
+          <input type="text" placeholder="Search material, variant..." value={searchText} onChange={e => setSearchText(e.target.value)} style={{ width: '100%', padding: '10px 12px 10px 36px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box' }} />
+        </div>
+      </div>
+
+      {/* Overall summary */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '24px' }}>
+        <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '12px 16px' }}>
+          <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '4px' }}>Total Planned Cost</div>
+          <div style={{ fontSize: '18px', fontWeight: 600 }}>₹{totalPlannedCost.toFixed(2)}</div>
+        </div>
+        <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '12px 16px' }}>
+          <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '4px' }}>Total Actual Cost</div>
+          <div style={{ fontSize: '18px', fontWeight: 600 }}>₹{totalActualCost.toFixed(2)}</div>
+        </div>
+        <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '12px 16px' }}>
+          <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '4px' }}>Cost Variance</div>
+          <div style={{ fontSize: '18px', fontWeight: 600, color: totalCostVariance > 0 ? '#dc2626' : totalCostVariance < 0 ? '#16a34a' : '#374151' }}>
+            {totalCostVariance > 0 ? '+' : ''}₹{totalCostVariance.toFixed(2)}
+          </div>
+        </div>
+        <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '12px 16px' }}>
+          <div style={{ fontSize: '12px', color: '#6b7280', marginBottom: '4px' }}>Total Materials</div>
+          <div style={{ fontSize: '18px', fontWeight: 600 }}>{filteredData.length}</div>
+        </div>
+      </div>
+
+      {filteredData.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '48px', background: '#fffbeb', borderRadius: '8px', border: '2px dashed #fbbf24' }}>
+          <p style={{ color: '#92400e', margin: 0 }}>No consumption data available. Add materials to the project list and log usage to see the report.</p>
+        </div>
+      ) : (
+        <>
+          {/* BOQ Section */}
+          {boqData.length > 0 && (
+            <SectionTable data={boqData} sectionLabel="BOQ Materials" sectionColor="#1e40af" bgColor="#dbeafe" />
+          )}
+
+          {/* Non-BOQ Section */}
+          {nonBoqData.length > 0 && (
+            <SectionTable data={nonBoqData} sectionLabel="Non-BOQ Materials" sectionColor="#92400e" bgColor="#fef3c7" />
           )}
         </>
       )}
