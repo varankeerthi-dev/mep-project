@@ -681,7 +681,7 @@ ${intent.notes ? `\nNotes: ${intent.notes}` : ''}
                                       .map(m => (
                                         <div 
                                           key={m.id}
-                                          onClick={(e) => {
+                                          onMouseDown={(e) => {
                                             e.stopPropagation();
                                             handleItemChange(item.id, 'item_id', m.id);
                                             setEditingCell(null);

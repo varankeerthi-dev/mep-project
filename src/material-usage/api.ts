@@ -12,6 +12,11 @@ export interface ProjectMaterialList {
   item_id: string;
   variant_id: string | null;
   planned_qty: number;
+  supply_qty: number;
+  received_qty: number;
+  source_document: string | null;
+  source_type: 'manual' | 'boq' | 'quotation';
+  source_reference: string | null;
   unit: string;
   rate: number;
   remarks: string | null;
@@ -88,8 +93,10 @@ export async function addMaterialToProjectList(material: {
   item_id: string;
   variant_id?: string;
   planned_qty: number;
+  supply_qty: number;
   unit: string;
   rate: number;
+  source_document?: string;
   remarks?: string;
 }) {
   const { data, error } = await supabase
@@ -348,4 +355,29 @@ export async function refreshConsumptionSummary(projectId: string) {
 
   if (error) throw error;
   return data;
+}
+
+// Get material receipts from material_logs for auto-fetch in material list
+export async function getMaterialReceipts(
+  projectId: string,
+  itemId: string,
+  variantId?: string | null
+) {
+  let query = supabase
+    .from('material_logs')
+    .select('id, dc_number, invoice_number, qty_received, supplier_name, created_at')
+    .eq('project_id', projectId)
+    .eq('item_id', itemId)
+    .eq('type', 'IN')
+    .order('created_at', { ascending: false });
+
+  if (variantId) {
+    query = query.eq('variant_id', variantId);
+  } else {
+    query = query.is('variant_id', null);
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return data || [];
 }
