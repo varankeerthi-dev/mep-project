@@ -86,6 +86,16 @@ export const PERMISSION_MODULES: PermissionModule[] = [
     ],
   },
   {
+    id: 'material_usage',
+    label: 'Material Usage',
+    actions: [
+      { key: make('material_usage', 'read'), label: 'View' },
+      { key: make('material_usage', 'create'), label: 'Log Usage' },
+      { key: make('material_usage', 'update'), label: 'Edit Usage' },
+      { key: make('material_usage', 'delete'), label: 'Delete Usage' },
+    ],
+  },
+  {
     id: 'org',
     label: 'Organisation',
     actions: [

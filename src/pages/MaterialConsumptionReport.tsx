@@ -26,8 +26,8 @@ export default function MaterialConsumptionReport({ projectId, organisationId }:
   }
 
   const { data: consumptionData = [], isLoading } = useQuery({
-    queryKey: ['materialConsumptionSummary', projectId],
-    queryFn: () => getMaterialConsumptionSummary(projectId),
+    queryKey: ['materialConsumptionSummary', projectId, organisationId],
+    queryFn: () => getMaterialConsumptionSummary(projectId, organisationId),
     enabled: !!projectId
   });
 

@@ -46,6 +46,23 @@ export default function Projects() {
 
   const organisationId = organisation?.id || '';
 
+  const { data: validProjectId } = useQuery({
+    queryKey: ['validateProject', selectedProjectId, organisationId],
+    queryFn: async () => {
+      if (!selectedProjectId || !organisationId) return null;
+      const { data } = await supabase
+        .from('projects')
+        .select('id')
+        .eq('id', selectedProjectId)
+        .eq('organisation_id', organisationId)
+        .maybeSingle();
+      return data?.id || null;
+    },
+    enabled: !!selectedProjectId && !!organisationId,
+  });
+
+  const safeProjectId = validProjectId !== undefined ? validProjectId : selectedProjectId;
+
   const loadComponent = (tabId: string) => {
     const tabConfig = TABS.find(t => t.id === tabId);
     if (tabConfig && tabConfig.component) {
@@ -154,7 +171,7 @@ export default function Projects() {
               ) : materialSubTab === 'select-project' ? (
                 selectedProjectId ? (
                   <ProjectMaterialTabs 
-                    projectId={selectedProjectId}
+                    projectId={safeProjectId || selectedProjectId}
                     organisationId={organisationId}
                     projectName={projectName}
                     onBack={handleBackToProjects}

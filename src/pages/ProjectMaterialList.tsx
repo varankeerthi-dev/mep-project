@@ -41,8 +41,8 @@ export default function ProjectMaterialList({ projectId, organisationId }: Proje
   });
 
   const { data: materialList = [], isLoading } = useQuery({
-    queryKey: ['projectMaterialList', projectId],
-    queryFn: () => getProjectMaterialList(projectId),
+    queryKey: ['projectMaterialList', projectId, organisationId],
+    queryFn: () => getProjectMaterialList(projectId, organisationId),
     enabled: !!projectId
   });
 

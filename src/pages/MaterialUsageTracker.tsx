@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { useHasPermission } from '../rbac/hooks';
 import {
   getDailyUsageByDate,
   getDailyUsageByProject,
@@ -32,6 +33,10 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
+  const { data: canCreate } = useHasPermission('material_usage.create' as any);
+  const { data: canUpdate } = useHasPermission('material_usage.update' as any);
+  const { data: canDelete } = useHasPermission('material_usage.delete' as any);
+
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [viewMode, setViewMode] = useState<'today' | 'all'>('all');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -60,8 +65,8 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
   }]);
 
   const { data: materialList = [], isLoading: materialListLoading } = useQuery({
-    queryKey: ['projectMaterialList', projectId],
-    queryFn: () => getProjectMaterialList(projectId),
+    queryKey: ['projectMaterialList', projectId, organisationId],
+    queryFn: () => getProjectMaterialList(projectId, organisationId),
     enabled: !!projectId
   });
 
@@ -124,7 +129,7 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
 
   const updateMutation = useMutation({
     mutationFn: ({ id, updates }: { id: string; updates: any }) =>
-      updateDailyUsage(id, updates),
+      updateDailyUsage(id, updates, organisationId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['dailyUsage'] });
       queryClient.invalidateQueries({ queryKey: ['materialConsumptionSummary', projectId] });
@@ -138,7 +143,7 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
   });
 
   const deleteMutation = useMutation({
-    mutationFn: deleteDailyUsage,
+    mutationFn: (id: string) => deleteDailyUsage(id, organisationId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['dailyUsage'] });
       queryClient.invalidateQueries({ queryKey: ['materialConsumptionSummary', projectId] });
@@ -345,7 +350,7 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
         </div>
       )}
 
-      {!showForm && (
+      {!showForm && canCreate && (
         <div style={{ marginBottom: '16px' }}>
           <button
             onClick={() => setShowForm(true)}
@@ -645,8 +650,8 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
                               <td style={{ padding: '8px 12px', textAlign: 'center' }}>
                                 <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
                                   <button onClick={() => setPreviewItem(item)} style={{ padding: '4px', border: 'none', background: 'transparent', color: '#6b7280', cursor: 'pointer', borderRadius: '4px' }} title="Preview"><Eye size={15} /></button>
-                                  <button onClick={() => handleStartEdit(item)} style={{ padding: '4px', border: 'none', background: 'transparent', color: '#3b82f6', cursor: 'pointer', borderRadius: '4px' }} title="Edit"><Pencil size={15} /></button>
-                                  <button onClick={() => handleDelete(item.id)} style={{ padding: '4px', border: 'none', background: 'transparent', color: '#ef4444', cursor: 'pointer', borderRadius: '4px' }} title="Delete"><Trash2 size={15} /></button>
+                                  {canUpdate && <button onClick={() => handleStartEdit(item)} style={{ padding: '4px', border: 'none', background: 'transparent', color: '#3b82f6', cursor: 'pointer', borderRadius: '4px' }} title="Edit"><Pencil size={15} /></button>}
+                                  {canDelete && <button onClick={() => handleDelete(item.id)} style={{ padding: '4px', border: 'none', background: 'transparent', color: '#ef4444', cursor: 'pointer', borderRadius: '4px' }} title="Delete"><Trash2 size={15} /></button>}
                                 </div>
                               </td>
                             </>
@@ -721,8 +726,8 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
                           <td style={{ padding: '8px 12px', textAlign: 'center' }}>
                             <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
                               <button onClick={() => setPreviewItem(item)} style={{ padding: '4px', border: 'none', background: 'transparent', color: '#6b7280', cursor: 'pointer', borderRadius: '4px' }} title="Preview"><Eye size={15} /></button>
-                              <button onClick={() => handleStartEdit(item)} style={{ padding: '4px', border: 'none', background: 'transparent', color: '#3b82f6', cursor: 'pointer', borderRadius: '4px' }} title="Edit"><Pencil size={15} /></button>
-                              <button onClick={() => handleDelete(item.id)} style={{ padding: '4px', border: 'none', background: 'transparent', color: '#ef4444', cursor: 'pointer', borderRadius: '4px' }} title="Delete"><Trash2 size={15} /></button>
+                              {canUpdate && <button onClick={() => handleStartEdit(item)} style={{ padding: '4px', border: 'none', background: 'transparent', color: '#3b82f6', cursor: 'pointer', borderRadius: '4px' }} title="Edit"><Pencil size={15} /></button>}
+                              {canDelete && <button onClick={() => handleDelete(item.id)} style={{ padding: '4px', border: 'none', background: 'transparent', color: '#ef4444', cursor: 'pointer', borderRadius: '4px' }} title="Delete"><Trash2 size={15} /></button>}
                             </div>
                           </td>
                         </>
@@ -799,12 +804,12 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
               </div>
             </div>
             <div style={{ display: 'flex', gap: '8px', padding: '16px 20px', borderTop: '1px solid #e5e7eb', justifyContent: 'flex-end' }}>
-              <button
+              {canUpdate && <button
                 onClick={() => { handleStartEdit(previewItem); setPreviewItem(null); }}
                 style={{ padding: '8px 16px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '14px' }}
               >
                 Edit
-              </button>
+              </button>}
               <button
                 onClick={() => setPreviewItem(null)}
                 style={{ padding: '8px 16px', background: '#e5e7eb', color: '#374151', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '14px' }}

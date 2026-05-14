@@ -74,16 +74,17 @@ export default function ProjectMaterialDashboard({ projectId, organisationId, pr
   });
 
   const { data: logs = [] } = useQuery({
-    queryKey: ['materialLogs', projectId],
+    queryKey: ['materialLogs', projectId, organisationId],
     queryFn: async () => {
-      // Query daily_material_usage (what Usage tracker writes to) instead of material_logs
       const { data } = await supabase
         .from('daily_material_usage')
         .select('*')
         .eq('project_id', projectId)
+        .eq('organisation_id', organisationId)
         .order('created_at', { ascending: false });
       return data || [];
     },
+    enabled: !!projectId && !!organisationId,
   });
 
   const { data: boqItems = [] } = useQuery({

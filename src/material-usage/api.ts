@@ -57,8 +57,8 @@ export interface MaterialConsumptionSummary {
 
 // Project Material List API
 
-export async function getProjectMaterialList(projectId: string) {
-  const { data, error } = await supabase
+export async function getProjectMaterialList(projectId: string, organisationId?: string) {
+  let query = supabase
     .from('project_material_list')
     .select(`
       *,
@@ -72,8 +72,11 @@ export async function getProjectMaterialList(projectId: string) {
         variant_name
       )
     `)
-    .eq('project_id', projectId)
-    .order('created_at', { ascending: true });
+    .eq('project_id', projectId);
+
+  if (organisationId) query = query.eq('organisation_id', organisationId);
+
+  const { data, error } = await query.order('created_at', { ascending: true });
 
   if (error) throw error;
   return data;
@@ -280,32 +283,39 @@ export async function logDailyUsageBatch(
 
 export async function updateDailyUsage(
   id: string,
-  updates: Partial<DailyMaterialUsage>
+  updates: Partial<DailyMaterialUsage>,
+  organisationId?: string
 ) {
-  const { data, error } = await supabase
+  let query = supabase
     .from('daily_material_usage')
     .update(updates)
-    .eq('id', id)
-    .select()
-    .single();
+    .eq('id', id);
+
+  if (organisationId) query = query.eq('organisation_id', organisationId);
+
+  const { data, error } = await query.select().single();
 
   if (error) throw error;
   return data;
 }
 
-export async function deleteDailyUsage(id: string) {
-  const { error } = await supabase
+export async function deleteDailyUsage(id: string, organisationId?: string) {
+  let query = supabase
     .from('daily_material_usage')
     .delete()
     .eq('id', id);
+
+  if (organisationId) query = query.eq('organisation_id', organisationId);
+
+  const { error } = await query;
 
   if (error) throw error;
 }
 
 // Material Consumption Summary API
 
-export async function getMaterialConsumptionSummary(projectId: string) {
-  const { data, error } = await supabase
+export async function getMaterialConsumptionSummary(projectId: string, organisationId?: string) {
+  let query = supabase
     .from('material_consumption_summary')
     .select(`
       *,
@@ -319,8 +329,11 @@ export async function getMaterialConsumptionSummary(projectId: string) {
         variant_name
       )
     `)
-    .eq('project_id', projectId)
-    .order('last_updated', { ascending: false });
+    .eq('project_id', projectId);
+
+  if (organisationId) query = query.eq('organisation_id', organisationId);
+
+  const { data, error } = await query.order('last_updated', { ascending: false });
 
   if (error) throw error;
   return data;
