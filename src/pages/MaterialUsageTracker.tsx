@@ -113,9 +113,10 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
     );
     if (!matItem) return null;
     const planned = matItem.planned_qty ?? 0;
+    const received = summaryItem?.received_qty ?? 0;
     const used = summaryItem?.used_qty ?? 0;
-    const remaining = planned - used;
-    return Math.max(remaining, 0);
+    const available = Math.max(planned, received) - used;
+    return Math.max(available, 0);
   };
 
   // Fetch all usage entries for the project - using direct query without joins to avoid RLS issues

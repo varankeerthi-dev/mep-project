@@ -18,8 +18,8 @@ BEGIN
     COALESCE(pml.planned_qty, 0),
     COALESCE(SUM(mi.received_qty), 0),
     COALESCE(SUM(dmu.quantity_used), 0),
-    COALESCE(pml.planned_qty, 0) - COALESCE(SUM(dmu.quantity_used), 0),
-    COALESCE(SUM(dmu.quantity_used), 0) - COALESCE(pml.planned_qty, 0),
+    GREATEST(COALESCE(pml.planned_qty, 0), COALESCE(SUM(mi.received_qty), 0)) - COALESCE(SUM(dmu.quantity_used), 0),
+    COALESCE(SUM(dmu.quantity_used), 0) - GREATEST(COALESCE(pml.planned_qty, 0), COALESCE(SUM(mi.received_qty), 0)),
     COALESCE(NEW.unit, pml.unit, 'nos'),
     COALESCE(pml.rate, 0),
     COALESCE(pml.planned_qty, 0) * COALESCE(pml.rate, 0),
@@ -83,8 +83,8 @@ BEGIN
       COALESCE(pml.planned_qty, 0),
       COALESCE(SUM(mi.received_qty), 0),
       COALESCE(SUM(dmu.quantity_used), 0),
-      COALESCE(pml.planned_qty, 0) - COALESCE(SUM(dmu.quantity_used), 0),
-      COALESCE(SUM(dmu.quantity_used), 0) - COALESCE(pml.planned_qty, 0),
+      GREATEST(COALESCE(pml.planned_qty, 0), COALESCE(SUM(mi.received_qty), 0)) - COALESCE(SUM(dmu.quantity_used), 0),
+      COALESCE(SUM(dmu.quantity_used), 0) - GREATEST(COALESCE(pml.planned_qty, 0), COALESCE(SUM(mi.received_qty), 0)),
       COALESCE(OLD.unit, pml.unit, 'nos'),
       COALESCE(pml.rate, 0),
       COALESCE(pml.planned_qty, 0) * COALESCE(pml.rate, 0),
@@ -125,7 +125,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- Recalculate all existing consumption summary rows with the corrected formula
 UPDATE material_consumption_summary mcs
 SET
-  remaining_qty = mcs.planned_qty - mcs.used_qty,
-  variance_qty = mcs.used_qty - mcs.planned_qty,
+  remaining_qty = GREATEST(mcs.planned_qty, mcs.received_qty) - mcs.used_qty,
+  variance_qty = mcs.used_qty - GREATEST(mcs.planned_qty, mcs.received_qty),
   cost_variance = mcs.actual_cost - mcs.planned_cost
 WHERE mcs.planned_qty IS NOT NULL;
