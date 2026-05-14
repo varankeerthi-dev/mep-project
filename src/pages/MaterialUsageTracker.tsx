@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -31,15 +31,14 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
-  if (!organisationId) {
-    return <div style={{ padding: '24px', textAlign: 'center', color: '#dc2626' }}>Organisation ID is required</div>;
-  }
-
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [viewMode, setViewMode] = useState<'today' | 'all'>('all');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [previewItem, setPreviewItem] = useState<any | null>(null);
   const [showForm, setShowForm] = useState(true);
+  const [searchText, setSearchText] = useState('');
+  const [filterDateFrom, setFilterDateFrom] = useState('');
+  const [filterDateTo, setFilterDateTo] = useState('');
   const [editFormData, setEditFormData] = useState({
     quantity_used: '',
     unit: '',
@@ -240,13 +239,42 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
     return mat?.company_variants?.variant_name || '';
   };
 
-  if (isLoading) {
-    return <div style={{ padding: '24px', textAlign: 'center', color: '#6b7280' }}>Loading usage data...</div>;
+  const formatDate = (dateStr: string | null | undefined) => {
+    if (!dateStr) return '—';
+    const d = new Date(dateStr + 'T00:00:00');
+    if (isNaN(d.getTime())) return dateStr;
+    return d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  };
+
+  if (!organisationId) {
+    return <div style={{ padding: '24px', textAlign: 'center', color: '#dc2626' }}>Organisation ID is required</div>;
   }
+
+  // Filter and search
+  const filteredUsage = useMemo(() => {
+    let result = dailyUsage as any[];
+    if (searchText) {
+      const q = searchText.toLowerCase();
+      result = result.filter((item: any) => {
+        const name = getMaterialName(item).toLowerCase();
+        const variant = getVariantName(item).toLowerCase();
+        const activity = (item.activity || '').toLowerCase();
+        const remarks = (item.remarks || '').toLowerCase();
+        return name.includes(q) || variant.includes(q) || activity.includes(q) || remarks.includes(q);
+      });
+    }
+    if (filterDateFrom) {
+      result = result.filter((item: any) => item.usage_date >= filterDateFrom);
+    }
+    if (filterDateTo) {
+      result = result.filter((item: any) => item.usage_date <= filterDateTo);
+    }
+    return result;
+  }, [dailyUsage, searchText, filterDateFrom, filterDateTo]);
 
   // Group entries by date for "all" view
   const groupedByDate = viewMode === 'all'
-    ? (dailyUsage as any[]).reduce((acc: Record<string, any[]>, item: any) => {
+    ? (filteredUsage as any[]).reduce((acc: Record<string, any[]>, item: any) => {
         const date = item.usage_date || 'Unknown';
         if (!acc[date]) acc[date] = [];
         acc[date].push(item);
@@ -255,6 +283,10 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
     : null;
 
   const sortedDates = groupedByDate ? Object.keys(groupedByDate).sort((a, b) => b.localeCompare(a)) : [];
+
+  if (isLoading) {
+    return <div style={{ padding: '24px', textAlign: 'center', color: '#6b7280' }}>Loading usage data...</div>;
+  }
 
   return (
     <div style={{ padding: '24px' }}>
@@ -327,7 +359,7 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
           {showForm && (
             <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '8px', marginBottom: '24px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid #e5e7eb' }}>
-                <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#111827', margin: 0 }}>Log Usage — {selectedDate}</h3>
+                <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#111827', margin: 0 }}>Log Usage — {formatDate(selectedDate)}</h3>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <button
                     onClick={handleAddRow}
@@ -471,18 +503,16 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
           <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', overflow: 'hidden' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
               <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#111827', margin: 0 }}>
-                Usage Log {viewMode === 'all' ? `(All Dates — ${dailyUsage.length} entries)` : `— ${selectedDate}`}
+                Usage Log {viewMode === 'all' ? `(All Dates — ${filteredUsage.length} entries)` : `— ${formatDate(selectedDate)}`}
               </h3>
               <button
                 onClick={async () => {
                   const printWindow = window.open('', '_blank');
                   if (printWindow) {
-                    const rowsHtml = dailyUsage.map((item: any) => {
-                      const dateCell = viewMode === 'all' ? `<td style="padding:8px;border:1px solid #e5e7eb">${item.usage_date || ''}</td>` : '';
-                      return `<tr>${dateCell}<td style="padding:8px;border:1px solid #e5e7eb">${getMaterialName(item)}</td><td style="padding:8px;border:1px solid #e5e7eb">${getVariantName(item) || '—'}</td><td style="padding:8px;border:1px solid #e5e7eb;text-align:right">${item.quantity_used}</td><td style="padding:8px;border:1px solid #e5e7eb">${item.unit}</td><td style="padding:8px;border:1px solid #e5e7eb">${item.activity || '—'}</td><td style="padding:8px;border:1px solid #e5e7eb">${item.remarks || '—'}</td></tr>`;
+                    const rowsHtml = filteredUsage.map((item: any) => {
+                      return `<tr><td style="padding:8px;border:1px solid #e5e7eb">${formatDate(item.usage_date)}</td><td style="padding:8px;border:1px solid #e5e7eb">${getMaterialName(item)}</td><td style="padding:8px;border:1px solid #e5e7eb">${getVariantName(item) || '—'}</td><td style="padding:8px;border:1px solid #e5e7eb;text-align:right">${item.quantity_used}</td><td style="padding:8px;border:1px solid #e5e7eb">${item.unit}</td><td style="padding:8px;border:1px solid #e5e7eb">${item.activity || '—'}</td><td style="padding:8px;border:1px solid #e5e7eb">${item.remarks || '—'}</td></tr>`;
                     }).join('');
-                    const dateHeader = viewMode === 'all' ? '<th style="padding:8px;border:1px solid #e5e7eb;background:#f3f4f6">Date</th>' : '';
-                    printWindow.document.write(`<html><head><title>Usage Report</title><style>body{font-family:system-ui;padding:40px}table{width:100%;border-collapse:collapse}th{background:#f3f4f6;padding:8px;border:1px solid #e5e7eb;text-align:left;font-size:13px}td{font-size:13px}</style></head><body><h2>Material Usage — {projectName}</h2><table><thead><tr>${dateHeader}<th>Material</th><th>Variant</th><th style="text-align:right">Qty Used</th><th>Unit</th><th>Activity</th><th>Remarks</th></tr></thead><tbody>${rowsHtml}</tbody></table></body></html>`);
+                    printWindow.document.write(`<html><head><title>Usage Report</title><style>body{font-family:system-ui;padding:40px}table{width:100%;border-collapse:collapse}th{background:#f3f4f6;padding:8px;border:1px solid #e5e7eb;text-align:left;font-size:13px}td{font-size:13px}</style></head><body><h2>Material Usage Report</h2><table><thead><tr><th>Date</th><th>Material</th><th>Variant</th><th style="text-align:right">Qty Used</th><th>Unit</th><th>Activity</th><th>Remarks</th></tr></thead><tbody>${rowsHtml}</tbody></table></body></html>`);
                     printWindow.document.close();
                     printWindow.print();
                   }
@@ -494,9 +524,49 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
               </button>
             </div>
 
-            {dailyUsage.length === 0 ? (
+            {/* Filters */}
+            <div style={{ display: 'flex', gap: '12px', padding: '12px 16px', background: '#f9fafb', borderBottom: '1px solid #e5e7eb', flexWrap: 'wrap', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 600, color: '#4b5563', whiteSpace: 'nowrap' }}>Search:</label>
+                <input
+                  type="text"
+                  value={searchText}
+                  onChange={(e) => setSearchText(e.target.value)}
+                  placeholder="Material, activity, remarks..."
+                  style={{ padding: '6px 10px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '13px', width: '200px' }}
+                />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 600, color: '#4b5563', whiteSpace: 'nowrap' }}>From:</label>
+                <input
+                  type="date"
+                  value={filterDateFrom}
+                  onChange={(e) => setFilterDateFrom(e.target.value)}
+                  style={{ padding: '6px 10px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '13px' }}
+                />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 600, color: '#4b5563', whiteSpace: 'nowrap' }}>To:</label>
+                <input
+                  type="date"
+                  value={filterDateTo}
+                  onChange={(e) => setFilterDateTo(e.target.value)}
+                  style={{ padding: '6px 10px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '13px' }}
+                />
+              </div>
+              {(searchText || filterDateFrom || filterDateTo) && (
+                <button
+                  onClick={() => { setSearchText(''); setFilterDateFrom(''); setFilterDateTo(''); }}
+                  style={{ padding: '6px 12px', border: '1px solid #d1d5db', borderRadius: '6px', background: '#fff', fontSize: '12px', cursor: 'pointer', color: '#6b7280' }}
+                >
+                  Clear Filters
+                </button>
+              )}
+            </div>
+
+            {filteredUsage.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '48px', color: '#9ca3af' }}>
-                <p style={{ fontSize: '14px', margin: 0 }}>No usage entries found{viewMode === 'today' ? ` for ${selectedDate}` : ''}</p>
+                <p style={{ fontSize: '14px', margin: 0 }}>No usage entries found{viewMode === 'today' ? ` for ${formatDate(selectedDate)}` : ''}</p>
                 <p style={{ fontSize: '13px', margin: '8px 0 0', color: '#d1d5db' }}>Click "Log New Usage" to add entries</p>
               </div>
             ) : viewMode === 'all' && sortedDates.length > 1 ? (
@@ -581,10 +651,11 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
                 </div>
               ))
             ) : (
-              /* Single date flat table view */
+              /* Single date / flat table view */
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead style={{ background: '#f9fafb' }}>
                   <tr>
+                    <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#4b5563', fontSize: '13px', borderBottom: '1px solid #e5e7eb', whiteSpace: 'nowrap' }}>Date</th>
                     <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#4b5563', fontSize: '13px', borderBottom: '1px solid #e5e7eb' }}>Material</th>
                     <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#4b5563', fontSize: '13px', borderBottom: '1px solid #e5e7eb' }}>Variant</th>
                     <th style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 600, color: '#4b5563', fontSize: '13px', borderBottom: '1px solid #e5e7eb' }}>Qty Used</th>
@@ -595,10 +666,11 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
                   </tr>
                 </thead>
                 <tbody>
-                  {dailyUsage.map((item: any) => (
+                  {filteredUsage.map((item: any) => (
                     <tr key={item.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
                       {editingId === item.id ? (
                         <>
+                          <td style={{ padding: '12px 16px', fontSize: '13px', color: '#6b7280', whiteSpace: 'nowrap' }}>{formatDate(item.usage_date)}</td>
                           <td style={{ padding: '12px 16px', fontWeight: 500 }}>{getMaterialName(item)}</td>
                           <td style={{ padding: '12px 16px', fontSize: '13px', color: '#6b7280' }}>{getVariantName(item) || '—'}</td>
                           <td style={{ padding: '8px 12px' }}>
@@ -632,6 +704,7 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
                         </>
                       ) : (
                         <>
+                          <td style={{ padding: '12px 16px', fontSize: '13px', color: '#6b7280', whiteSpace: 'nowrap' }}>{formatDate(item.usage_date)}</td>
                           <td style={{ padding: '12px 16px', fontWeight: 500, color: '#111827' }}>{getMaterialName(item)}</td>
                           <td style={{ padding: '12px 16px', fontSize: '13px', color: '#6b7280' }}>{getVariantName(item) || '—'}</td>
                           <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 600, color: '#111827' }}>{item.quantity_used}</td>
@@ -668,7 +741,7 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
                 <div><div style={{ color: '#6b7280', fontSize: '12px', marginBottom: '4px' }}>Material</div><div style={{ fontWeight: 500 }}>{getMaterialName(previewItem)}</div></div>
                 <div><div style={{ color: '#6b7280', fontSize: '12px', marginBottom: '4px' }}>Variant</div><div>{getVariantName(previewItem) || '—'}</div></div>
                 <div><div style={{ color: '#6b7280', fontSize: '12px', marginBottom: '4px' }}>Quantity Used</div><div style={{ fontWeight: 600, fontSize: '18px' }}>{previewItem.quantity_used} {previewItem.unit}</div></div>
-                <div><div style={{ color: '#6b7280', fontSize: '12px', marginBottom: '4px' }}>Date</div><div>{previewItem.usage_date}</div></div>
+                <div><div style={{ color: '#6b7280', fontSize: '12px', marginBottom: '4px' }}>Date</div><div>{formatDate(previewItem.usage_date)}</div></div>
                 <div><div style={{ color: '#6b7280', fontSize: '12px', marginBottom: '4px' }}>Activity</div><div>{previewItem.activity || '—'}</div></div>
                 <div><div style={{ color: '#6b7280', fontSize: '12px', marginBottom: '4px' }}>Remarks</div><div>{previewItem.remarks || '—'}</div></div>
               </div>
