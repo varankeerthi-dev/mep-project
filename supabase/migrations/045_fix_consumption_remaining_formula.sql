@@ -3,6 +3,7 @@
 -- variance_qty should be used - planned (positive = over budget)
 
 DROP FUNCTION IF EXISTS update_material_consumption_summary() CASCADE;
+DROP FUNCTION IF EXISTS cleanup_consumption_summary_on_usage_delete() CASCADE;
 
 CREATE OR REPLACE FUNCTION update_material_consumption_summary()
 RETURNS TRIGGER AS $$
@@ -83,16 +84,16 @@ BEGIN
       OLD.organisation_id,
       OLD.item_id,
       OLD.variant_id,
-      COALESCE(pml.planned_qty, 0),
+      COALESCE(MAX(pml.planned_qty), 0),
       COALESCE(SUM(mi.received_qty), 0),
       COALESCE(SUM(dmu.quantity_used), 0),
-      GREATEST(COALESCE(pml.planned_qty, 0), COALESCE(SUM(mi.received_qty), 0)) - COALESCE(SUM(dmu.quantity_used), 0),
-      COALESCE(SUM(dmu.quantity_used), 0) - GREATEST(COALESCE(pml.planned_qty, 0), COALESCE(SUM(mi.received_qty), 0)),
-      COALESCE(OLD.unit, pml.unit, 'nos'),
-      COALESCE(pml.rate, 0),
-      COALESCE(pml.planned_qty, 0) * COALESCE(pml.rate, 0),
-      COALESCE(SUM(dmu.quantity_used), 0) * COALESCE(pml.rate, 0),
-      (COALESCE(SUM(dmu.quantity_used), 0) * COALESCE(pml.rate, 0)) - (COALESCE(pml.planned_qty, 0) * COALESCE(pml.rate, 0)),
+      GREATEST(COALESCE(MAX(pml.planned_qty), 0), COALESCE(SUM(mi.received_qty), 0)) - COALESCE(SUM(dmu.quantity_used), 0),
+      COALESCE(SUM(dmu.quantity_used), 0) - GREATEST(COALESCE(MAX(pml.planned_qty), 0), COALESCE(SUM(mi.received_qty), 0)),
+      COALESCE(OLD.unit, MAX(pml.unit), 'nos'),
+      COALESCE(MAX(pml.rate), 0),
+      COALESCE(MAX(pml.planned_qty), 0) * COALESCE(MAX(pml.rate), 0),
+      COALESCE(SUM(dmu.quantity_used), 0) * COALESCE(MAX(pml.rate), 0),
+      (COALESCE(SUM(dmu.quantity_used), 0) * COALESCE(MAX(pml.rate), 0)) - (COALESCE(MAX(pml.planned_qty), 0) * COALESCE(MAX(pml.rate), 0)),
       NOW()
     FROM project_material_list pml
     LEFT JOIN (
@@ -109,6 +110,7 @@ BEGIN
     WHERE pml.project_id = OLD.project_id
       AND pml.item_id = OLD.item_id
       AND (pml.variant_id = OLD.variant_id OR (pml.variant_id IS NULL AND OLD.variant_id IS NULL))
+    GROUP BY pml.project_id, pml.item_id, pml.variant_id
     GROUP BY pml.project_id, pml.item_id, pml.variant_id
     ON CONFLICT (project_id, item_id, variant_id)
     DO UPDATE SET
