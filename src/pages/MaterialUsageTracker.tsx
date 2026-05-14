@@ -105,21 +105,17 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
   });
 
   const getAvailableQty = (itemId: string, variantId: string | null): number | null => {
-    const key = variantId ? `${itemId}_${variantId}` : itemId;
     const summaryItem = (consumptionSummary as any[]).find((s: any) =>
       variantId ? s.item_id === itemId && s.variant_id === variantId : s.item_id === itemId && !s.variant_id
     );
-    if (summaryItem) {
-      const remaining = (summaryItem.received_qty ?? 0) - (summaryItem.used_qty ?? 0);
-      return remaining;
-    }
     const matItem = materialList.find((m: any) =>
       variantId ? m.item_id === itemId && m.variant_id === variantId : m.item_id === itemId && !m.variant_id
     );
-    if (matItem) {
-      return (matItem.planned_qty ?? 0);
-    }
-    return null;
+    if (!matItem) return null;
+    const planned = matItem.planned_qty ?? 0;
+    const used = summaryItem?.used_qty ?? 0;
+    const remaining = planned - used;
+    return Math.max(remaining, 0);
   };
 
   // Fetch all usage entries for the project - using direct query without joins to avoid RLS issues
@@ -285,7 +281,7 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
       const available = getAvailableQty(item.item_id, item.variant_id || null);
       if (available !== null && parseFloat(item.quantity_used) > available) {
         hasError = true;
-        rowErrors.quantity_used = `Exceeds available qty (${available}). Receive material via DC or Invoice first.`;
+        rowErrors.quantity_used = `Exceeds remaining qty (${available}). Receive more material via DC or Invoice to increase planned qty.`;
       }
       if (Object.keys(rowErrors).length) errors[item.id] = rowErrors;
     }
@@ -331,7 +327,7 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
     if (editingItem && editErrors.quantity_used === undefined) {
       const avail = getAvailableQty(editingItem.item_id, editingItem.variant_id);
       if (avail !== null && parseFloat(editFormData.quantity_used) > avail) {
-        editErrors.quantity_used = `Exceeds available qty (${avail}). Receive material via DC or Invoice first.`;
+        editErrors.quantity_used = `Exceeds remaining qty (${avail}). Receive more material via DC or Invoice to increase planned qty.`;
       }
     }
     if (Object.keys(editErrors).length) {
