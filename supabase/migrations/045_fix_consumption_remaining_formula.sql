@@ -111,7 +111,6 @@ BEGIN
       AND pml.item_id = OLD.item_id
       AND (pml.variant_id = OLD.variant_id OR (pml.variant_id IS NULL AND OLD.variant_id IS NULL))
     GROUP BY pml.project_id, pml.item_id, pml.variant_id
-    GROUP BY pml.project_id, pml.item_id, pml.variant_id
     ON CONFLICT (project_id, item_id, variant_id)
     DO UPDATE SET
       planned_qty = EXCLUDED.planned_qty,
