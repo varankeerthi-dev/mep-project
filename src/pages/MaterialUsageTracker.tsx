@@ -134,6 +134,22 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
     enabled: !!projectId
   });
 
+  const { data: userNames = {} } = useQuery({
+    queryKey: ['userNames', projectId, dailyUsage],
+    queryFn: async () => {
+      const userIds = [...new Set((dailyUsage as any[]).map((u: any) => u.logged_by).filter(Boolean))];
+      if (userIds.length === 0) return {};
+      const { data } = await supabase
+        .from('user_profiles')
+        .select('id, full_name')
+        .in('id', userIds);
+      const map: Record<string, string> = {};
+      (data || []).forEach((p: any) => { map[p.id] = p.full_name || p.email || 'Unknown'; });
+      return map;
+    },
+    enabled: !!projectId && (dailyUsage as any[]).length > 0
+  });
+
   const logMutation = useMutation({
     mutationFn: async (items: UsageItem[]) => {
       const validItems = items.filter(i => i.item_id && i.quantity_used && parseFloat(i.quantity_used) > 0);
@@ -663,9 +679,9 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
                   const printWindow = window.open('', '_blank');
                   if (printWindow) {
                     const rowsHtml = filteredUsage.map((item: any) => {
-                      return `<tr><td style="padding:8px;border:1px solid #e5e7eb">${formatDate(item.usage_date)}</td><td style="padding:8px;border:1px solid #e5e7eb">${getMaterialName(item)}</td><td style="padding:8px;border:1px solid #e5e7eb">${getVariantName(item) || '—'}</td><td style="padding:8px;border:1px solid #e5e7eb;text-align:right">${item.quantity_used}</td><td style="padding:8px;border:1px solid #e5e7eb">${item.unit}</td><td style="padding:8px;border:1px solid #e5e7eb">${item.activity || '—'}</td><td style="padding:8px;border:1px solid #e5e7eb">${item.remarks || '—'}</td></tr>`;
+                      return `<tr><td style="padding:8px;border:1px solid #e5e7eb">${formatDate(item.usage_date)}</td><td style="padding:8px;border:1px solid #e5e7eb">${getMaterialName(item)}</td><td style="padding:8px;border:1px solid #e5e7eb">${getVariantName(item) || '—'}</td><td style="padding:8px;border:1px solid #e5e7eb;text-align:right">${item.quantity_used}</td><td style="padding:8px;border:1px solid #e5e7eb">${item.unit}</td><td style="padding:8px;border:1px solid #e5e7eb">${item.activity || '—'}</td><td style="padding:8px;border:1px solid #e5e7eb">${item.remarks || '—'}</td><td style="padding:8px;border:1px solid #e5e7eb">${userNames[item.logged_by] || '-'}</td></tr>`;
                     }).join('');
-                    printWindow.document.write(`<html><head><title>Usage Report</title><style>body{font-family:system-ui;padding:40px}table{width:100%;border-collapse:collapse}th{background:#f3f4f6;padding:8px;border:1px solid #e5e7eb;text-align:left;font-size:13px}td{font-size:13px}</style></head><body><h2>Material Usage Report</h2><table><thead><tr><th>Date</th><th>Material</th><th>Variant</th><th style="text-align:right">Qty Used</th><th>Unit</th><th>Activity</th><th>Remarks</th></tr></thead><tbody>${rowsHtml}</tbody></table></body></html>`);
+                    printWindow.document.write(`<html><head><title>Usage Report</title><style>body{font-family:system-ui;padding:40px}table{width:100%;border-collapse:collapse}th{background:#f3f4f6;padding:8px;border:1px solid #e5e7eb;text-align:left;font-size:13px}td{font-size:13px}</style></head><body><h2>Material Usage Report</h2><table><thead><tr><th>Date</th><th>Material</th><th>Variant</th><th style="text-align:right">Qty Used</th><th>Unit</th><th>Activity</th><th>Remarks</th><th>Logged By</th></tr></thead><tbody>${rowsHtml}</tbody></table></body></html>`);
                     printWindow.document.close();
                     printWindow.print();
                   }
@@ -741,6 +757,7 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
                         <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: '#4b5563', fontSize: '12px', borderBottom: '1px solid #e5e7eb' }}>Unit</th>
                         <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: '#4b5563', fontSize: '12px', borderBottom: '1px solid #e5e7eb' }}>Activity</th>
                         <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: '#4b5563', fontSize: '12px', borderBottom: '1px solid #e5e7eb' }}>Remarks</th>
+                        <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: '#4b5563', fontSize: '12px', borderBottom: '1px solid #e5e7eb' }}>Logged By</th>
                         <th style={{ padding: '10px 16px', textAlign: 'center', fontWeight: 600, color: '#4b5563', fontSize: '12px', borderBottom: '1px solid #e5e7eb' }}>Actions</th>
                       </tr>
                     </thead>
@@ -797,6 +814,7 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
                               <td style={{ padding: '10px 16px', color: '#6b7280' }}>{item.unit}</td>
                               <td style={{ padding: '10px 16px', fontSize: '13px', color: '#4b5563' }}>{item.activity || '—'}</td>
                               <td style={{ padding: '10px 16px', fontSize: '13px', color: '#6b7280' }}>{item.remarks || '—'}</td>
+                              <td style={{ padding: '10px 16px', fontSize: '13px', color: '#6b7280' }}>{userNames[item.logged_by] || '—'}</td>
                               <td style={{ padding: '8px 12px', textAlign: 'center' }}>
                                 <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
                                   <button onClick={() => setPreviewItem(item)} style={{ padding: '4px', border: 'none', background: 'transparent', color: '#6b7280', cursor: 'pointer', borderRadius: '4px' }} title="Preview"><Eye size={15} /></button>
@@ -824,6 +842,7 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
                     <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#4b5563', fontSize: '13px', borderBottom: '1px solid #e5e7eb' }}>Unit</th>
                     <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#4b5563', fontSize: '13px', borderBottom: '1px solid #e5e7eb' }}>Activity</th>
                     <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#4b5563', fontSize: '13px', borderBottom: '1px solid #e5e7eb' }}>Remarks</th>
+                    <th style={{ padding: '12px 16px', textAlign: 'left', fontWeight: 600, color: '#4b5563', fontSize: '13px', borderBottom: '1px solid #e5e7eb' }}>Logged By</th>
                     <th style={{ padding: '12px 16px', textAlign: 'center', fontWeight: 600, color: '#4b5563', fontSize: '13px', borderBottom: '1px solid #e5e7eb' }}>Actions</th>
                   </tr>
                 </thead>
@@ -882,6 +901,7 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
                           <td style={{ padding: '12px 16px', color: '#6b7280' }}>{item.unit}</td>
                           <td style={{ padding: '12px 16px', fontSize: '13px', color: '#4b5563' }}>{item.activity || '—'}</td>
                           <td style={{ padding: '12px 16px', fontSize: '13px', color: '#6b7280' }}>{item.remarks || '—'}</td>
+                          <td style={{ padding: '12px 16px', fontSize: '13px', color: '#6b7280' }}>{userNames[item.logged_by] || '—'}</td>
                           <td style={{ padding: '8px 12px', textAlign: 'center' }}>
                             <div style={{ display: 'flex', gap: '4px', justifyContent: 'center' }}>
                               <button onClick={() => setPreviewItem(item)} style={{ padding: '4px', border: 'none', background: 'transparent', color: '#6b7280', cursor: 'pointer', borderRadius: '4px' }} title="Preview"><Eye size={15} /></button>
