@@ -7,6 +7,7 @@ import {
   getDailyUsageByProject,
   getProjectMaterialList,
   logDailyUsage,
+  logDailyUsageBatch,
   updateDailyUsage,
   deleteDailyUsage
 } from '../material-usage/api';
@@ -39,6 +40,8 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
   const [searchText, setSearchText] = useState('');
   const [filterDateFrom, setFilterDateFrom] = useState('');
   const [filterDateTo, setFilterDateTo] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 25;
   const [editFormData, setEditFormData] = useState({
     quantity_used: '',
     unit: '',
@@ -79,23 +82,22 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
 
   const logMutation = useMutation({
     mutationFn: async (items: UsageItem[]) => {
-      const results = [];
-      for (const item of items) {
-        if (!item.item_id || !item.quantity_used || !item.unit) continue;
-        const result = await logDailyUsage({
-          project_id: projectId,
-          organisation_id: organisationId,
-          usage_date: selectedDate,
+      const validItems = items.filter(i => i.item_id && i.quantity_used && parseFloat(i.quantity_used) > 0);
+      if (validItems.length === 0) throw new Error('No valid items');
+      // Use batch RPC for better performance (single round-trip)
+      return logDailyUsageBatch(
+        projectId,
+        organisationId,
+        selectedDate,
+        validItems.map(item => ({
           item_id: item.item_id,
-          variant_id: item.variant_id || null,
+          variant_id: item.variant_id || undefined,
           quantity_used: parseFloat(item.quantity_used),
           unit: item.unit,
-          activity: item.activity || null,
-          remarks: item.remarks || null
-        });
-        results.push(result);
-      }
-      return results;
+          activity: item.activity || undefined,
+          remarks: item.remarks || undefined,
+        }))
+      );
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['dailyUsage'] });
@@ -272,9 +274,14 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
     return result;
   }, [dailyUsage, searchText, filterDateFrom, filterDateTo]);
 
-  // Group entries by date for "all" view
+  // Pagination — show PAGE_SIZE rows per page, print uses ALL filteredUsage
+  const totalPages = Math.max(1, Math.ceil(filteredUsage.length / PAGE_SIZE));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const paginatedUsage = filteredUsage.slice((safeCurrentPage - 1) * PAGE_SIZE, safeCurrentPage * PAGE_SIZE);
+
+  // Group entries by date for "all" view (uses paginated data for display)
   const groupedByDate = viewMode === 'all'
-    ? (filteredUsage as any[]).reduce((acc: Record<string, any[]>, item: any) => {
+    ? (paginatedUsage as any[]).reduce((acc: Record<string, any[]>, item: any) => {
         const date = item.usage_date || 'Unknown';
         if (!acc[date]) acc[date] = [];
         acc[date].push(item);
@@ -298,7 +305,7 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <div style={{ display: 'flex', background: '#f1f5f9', padding: '4px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
             <button
-              onClick={() => setViewMode('today')}
+              onClick={() => { setViewMode('today'); setCurrentPage(1); }}
               style={{
                 padding: '6px 14px', borderRadius: '6px', fontSize: '13px', fontWeight: 600, border: 'none',
                 background: viewMode === 'today' ? '#fff' : 'transparent',
@@ -310,7 +317,7 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
               Today
             </button>
             <button
-              onClick={() => setViewMode('all')}
+              onClick={() => { setViewMode('all'); setCurrentPage(1); }}
               style={{
                 padding: '6px 14px', borderRadius: '6px', fontSize: '13px', fontWeight: 600, border: 'none',
                 background: viewMode === 'all' ? '#fff' : 'transparent',
@@ -326,7 +333,7 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
           <input
             type="date"
             value={selectedDate}
-            onChange={(e) => { setSelectedDate(e.target.value); setViewMode('today'); }}
+            onChange={(e) => { setSelectedDate(e.target.value); setViewMode('today'); setCurrentPage(1); }}
             style={{ padding: '8px 12px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '14px' }}
           />
         </div>
@@ -531,7 +538,7 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
                 <input
                   type="text"
                   value={searchText}
-                  onChange={(e) => setSearchText(e.target.value)}
+                  onChange={(e) => { setSearchText(e.target.value); setCurrentPage(1); }}
                   placeholder="Material, activity, remarks..."
                   style={{ padding: '6px 10px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '13px', width: '200px' }}
                 />
@@ -541,7 +548,7 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
                 <input
                   type="date"
                   value={filterDateFrom}
-                  onChange={(e) => setFilterDateFrom(e.target.value)}
+                  onChange={(e) => { setFilterDateFrom(e.target.value); setCurrentPage(1); }}
                   style={{ padding: '6px 10px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '13px' }}
                 />
               </div>
@@ -550,13 +557,13 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
                 <input
                   type="date"
                   value={filterDateTo}
-                  onChange={(e) => setFilterDateTo(e.target.value)}
+                  onChange={(e) => { setFilterDateTo(e.target.value); setCurrentPage(1); }}
                   style={{ padding: '6px 10px', border: '1px solid #d1d5db', borderRadius: '6px', fontSize: '13px' }}
                 />
               </div>
               {(searchText || filterDateFrom || filterDateTo) && (
                 <button
-                  onClick={() => { setSearchText(''); setFilterDateFrom(''); setFilterDateTo(''); }}
+                  onClick={() => { setSearchText(''); setFilterDateFrom(''); setFilterDateTo(''); setCurrentPage(1); }}
                   style={{ padding: '6px 12px', border: '1px solid #d1d5db', borderRadius: '6px', background: '#fff', fontSize: '12px', cursor: 'pointer', color: '#6b7280' }}
                 >
                   Clear Filters
@@ -570,7 +577,7 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
                 <p style={{ fontSize: '13px', margin: '8px 0 0', color: '#d1d5db' }}>Click "Log New Usage" to add entries</p>
               </div>
             ) : viewMode === 'all' && sortedDates.length > 1 ? (
-              /* Grouped by date view */
+              /* Grouped by date view — paginated */
               sortedDates.map(date => (
                 <div key={date}>
                   <div style={{ padding: '10px 16px', background: '#eff6ff', borderBottom: '1px solid #dbeafe', borderTop: date !== sortedDates[0] ? '1px solid #e5e7eb' : 'none', fontSize: '13px', fontWeight: 600, color: '#1e40af' }}>
@@ -666,7 +673,7 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredUsage.map((item: any) => (
+                  {paginatedUsage.map((item: any) => (
                     <tr key={item.id} style={{ borderBottom: '1px solid #f3f4f6' }}>
                       {editingId === item.id ? (
                         <>
@@ -724,6 +731,51 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
                   ))}
                 </tbody>
               </table>
+            )}
+
+            {/* Pagination */}
+            {filteredUsage.length > PAGE_SIZE && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', borderTop: '1px solid #e5e7eb', background: '#f9fafb' }}>
+                <span style={{ fontSize: '13px', color: '#6b7280' }}>
+                  Showing {(safeCurrentPage - 1) * PAGE_SIZE + 1}–{Math.min(safeCurrentPage * PAGE_SIZE, filteredUsage.length)} of {filteredUsage.length} entries
+                </span>
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  <button
+                    onClick={() => setCurrentPage(1)}
+                    disabled={safeCurrentPage === 1}
+                    style={{ padding: '4px 10px', border: '1px solid #d1d5db', borderRadius: '4px', background: safeCurrentPage === 1 ? '#f3f4f6' : '#fff', color: safeCurrentPage === 1 ? '#9ca3af' : '#374151', fontSize: '12px', cursor: safeCurrentPage === 1 ? 'not-allowed' : 'pointer' }}
+                  >First</button>
+                  <button
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={safeCurrentPage === 1}
+                    style={{ padding: '4px 10px', border: '1px solid #d1d5db', borderRadius: '4px', background: safeCurrentPage === 1 ? '#f3f4f6' : '#fff', color: safeCurrentPage === 1 ? '#9ca3af' : '#374151', fontSize: '12px', cursor: safeCurrentPage === 1 ? 'not-allowed' : 'pointer' }}
+                  >Prev</button>
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let page: number;
+                    if (totalPages <= 5) { page = i + 1; }
+                    else if (safeCurrentPage <= 3) { page = i + 1; }
+                    else if (safeCurrentPage >= totalPages - 2) { page = totalPages - 4 + i; }
+                    else { page = safeCurrentPage - 2 + i; }
+                    return (
+                      <button
+                        key={page}
+                        onClick={() => setCurrentPage(page)}
+                        style={{ padding: '4px 10px', border: safeCurrentPage === page ? '1px solid #2563eb' : '1px solid #d1d5db', borderRadius: '4px', background: safeCurrentPage === page ? '#2563eb' : '#fff', color: safeCurrentPage === page ? '#fff' : '#374151', fontSize: '12px', cursor: 'pointer', fontWeight: safeCurrentPage === page ? 600 : 400 }}
+                      >{page}</button>
+                    );
+                  })}
+                  <button
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={safeCurrentPage === totalPages}
+                    style={{ padding: '4px 10px', border: '1px solid #d1d5db', borderRadius: '4px', background: safeCurrentPage === totalPages ? '#f3f4f6' : '#fff', color: safeCurrentPage === totalPages ? '#9ca3af' : '#374151', fontSize: '12px', cursor: safeCurrentPage === totalPages ? 'not-allowed' : 'pointer' }}
+                  >Next</button>
+                  <button
+                    onClick={() => setCurrentPage(totalPages)}
+                    disabled={safeCurrentPage === totalPages}
+                    style={{ padding: '4px 10px', border: '1px solid #d1d5db', borderRadius: '4px', background: safeCurrentPage === totalPages ? '#f3f4f6' : '#fff', color: safeCurrentPage === totalPages ? '#9ca3af' : '#374151', fontSize: '12px', cursor: safeCurrentPage === totalPages ? 'not-allowed' : 'pointer' }}
+                  >Last</button>
+                </div>
+              </div>
             )}
           </div>
         </>

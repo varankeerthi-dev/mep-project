@@ -247,6 +247,37 @@ export async function logDailyUsage(usage: {
   return data;
 }
 
+export async function logDailyUsageBatch(
+  projectId: string,
+  organisationId: string,
+  usageDate: string,
+  items: Array<{
+    item_id: string;
+    variant_id?: string;
+    quantity_used: number;
+    unit: string;
+    activity?: string;
+    remarks?: string;
+  }>
+) {
+  const { data, error } = await supabase.rpc('log_daily_usage_batch', {
+    p_project_id: projectId,
+    p_organisation_id: organisationId,
+    p_usage_date: usageDate,
+    p_items: items.map(item => ({
+      item_id: item.item_id,
+      variant_id: item.variant_id || null,
+      quantity_used: item.quantity_used,
+      unit: item.unit,
+      activity: item.activity || null,
+      remarks: item.remarks || null,
+    }))
+  });
+
+  if (error) throw error;
+  return data;
+}
+
 export async function updateDailyUsage(
   id: string,
   updates: Partial<DailyMaterialUsage>
