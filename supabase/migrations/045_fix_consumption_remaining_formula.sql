@@ -15,16 +15,16 @@ BEGIN
     NEW.organisation_id,
     NEW.item_id,
     NEW.variant_id,
-    COALESCE(pml.planned_qty, 0),
+    COALESCE(MAX(pml.planned_qty), 0),
     COALESCE(SUM(mi.received_qty), 0),
     COALESCE(SUM(dmu.quantity_used), 0),
-    GREATEST(COALESCE(pml.planned_qty, 0), COALESCE(SUM(mi.received_qty), 0)) - COALESCE(SUM(dmu.quantity_used), 0),
-    COALESCE(SUM(dmu.quantity_used), 0) - GREATEST(COALESCE(pml.planned_qty, 0), COALESCE(SUM(mi.received_qty), 0)),
-    COALESCE(NEW.unit, pml.unit, 'nos'),
-    COALESCE(pml.rate, 0),
-    COALESCE(pml.planned_qty, 0) * COALESCE(pml.rate, 0),
-    COALESCE(SUM(dmu.quantity_used), 0) * COALESCE(pml.rate, 0),
-    (COALESCE(SUM(dmu.quantity_used), 0) * COALESCE(pml.rate, 0)) - (COALESCE(pml.planned_qty, 0) * COALESCE(pml.rate, 0)),
+    GREATEST(COALESCE(MAX(pml.planned_qty), 0), COALESCE(SUM(mi.received_qty), 0)) - COALESCE(SUM(dmu.quantity_used), 0),
+    COALESCE(SUM(dmu.quantity_used), 0) - GREATEST(COALESCE(MAX(pml.planned_qty), 0), COALESCE(SUM(mi.received_qty), 0)),
+    COALESCE(NEW.unit, MAX(pml.unit), 'nos'),
+    COALESCE(MAX(pml.rate), 0),
+    COALESCE(MAX(pml.planned_qty), 0) * COALESCE(MAX(pml.rate), 0),
+    COALESCE(SUM(dmu.quantity_used), 0) * COALESCE(MAX(pml.rate), 0),
+    (COALESCE(SUM(dmu.quantity_used), 0) * COALESCE(MAX(pml.rate), 0)) - (COALESCE(MAX(pml.planned_qty), 0) * COALESCE(MAX(pml.rate), 0)),
     NOW()
   FROM project_material_list pml
   LEFT JOIN (
@@ -40,6 +40,7 @@ BEGIN
   WHERE pml.project_id = NEW.project_id
     AND pml.item_id = NEW.item_id
     AND (pml.variant_id = NEW.variant_id OR (pml.variant_id IS NULL AND NEW.variant_id IS NULL))
+  GROUP BY pml.project_id, pml.item_id, pml.variant_id
   ON CONFLICT (project_id, item_id, variant_id)
   DO UPDATE SET
     planned_qty = EXCLUDED.planned_qty,
@@ -106,6 +107,7 @@ BEGIN
     WHERE pml.project_id = OLD.project_id
       AND pml.item_id = OLD.item_id
       AND (pml.variant_id = OLD.variant_id OR (pml.variant_id IS NULL AND OLD.variant_id IS NULL))
+    GROUP BY pml.project_id, pml.item_id, pml.variant_id
     ON CONFLICT (project_id, item_id, variant_id)
     DO UPDATE SET
       planned_qty = EXCLUDED.planned_qty,
