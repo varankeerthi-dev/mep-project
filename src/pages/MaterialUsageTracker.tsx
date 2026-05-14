@@ -7,12 +7,13 @@ import {
   getDailyUsageByDate,
   getDailyUsageByProject,
   getProjectMaterialList,
+  getMaterialConsumptionSummary,
   logDailyUsage,
   logDailyUsageBatch,
   updateDailyUsage,
   deleteDailyUsage
 } from '../material-usage/api';
-import { Plus, Trash2, Calendar, CheckCircle, X, Eye, Pencil, Printer } from 'lucide-react';
+import { Plus, Trash2, Calendar, CheckCircle, X, Eye, Pencil, Printer, AlertTriangle } from 'lucide-react';
 import { z } from 'zod';
 
 const usageItemSchema = z.object({
@@ -96,6 +97,30 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
     queryFn: () => getProjectMaterialList(projectId, organisationId),
     enabled: !!projectId
   });
+
+  const { data: consumptionSummary = [] } = useQuery({
+    queryKey: ['materialConsumptionSummary', projectId, organisationId],
+    queryFn: () => getMaterialConsumptionSummary(projectId, organisationId),
+    enabled: !!projectId && !!organisationId
+  });
+
+  const getAvailableQty = (itemId: string, variantId: string | null): number | null => {
+    const key = variantId ? `${itemId}_${variantId}` : itemId;
+    const summaryItem = (consumptionSummary as any[]).find((s: any) =>
+      variantId ? s.item_id === itemId && s.variant_id === variantId : s.item_id === itemId && !s.variant_id
+    );
+    if (summaryItem) {
+      const remaining = (summaryItem.received_qty ?? 0) - (summaryItem.used_qty ?? 0);
+      return remaining;
+    }
+    const matItem = materialList.find((m: any) =>
+      variantId ? m.item_id === itemId && m.variant_id === variantId : m.item_id === itemId && !m.variant_id
+    );
+    if (matItem) {
+      return (matItem.planned_qty ?? 0);
+    }
+    return null;
+  };
 
   // Fetch all usage entries for the project - using direct query without joins to avoid RLS issues
   const { data: dailyUsage = [], isLoading, error: fetchError } = useQuery({
@@ -225,6 +250,18 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
       }
       return next;
     });
+    if (field === 'quantity_used' && value && /^\d*\.?\d+$/.test(value)) {
+      const item = updated.find(i => i.id === id);
+      if (item) {
+        const available = getAvailableQty(item.item_id, item.variant_id || null);
+        if (available !== null && parseFloat(value) > available) {
+          setValidationErrors(prev => ({
+            ...prev,
+            [id]: { ...prev[id], quantity_used: `Exceeds available qty (${available})` }
+          }));
+        }
+      }
+    }
   };
 
   const handleSubmit = () => {
@@ -244,6 +281,11 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
           const field = issue.path[0]?.toString();
           if (field) rowErrors[field] = issue.message;
         }
+      }
+      const available = getAvailableQty(item.item_id, item.variant_id || null);
+      if (available !== null && parseFloat(item.quantity_used) > available) {
+        hasError = true;
+        rowErrors.quantity_used = `Exceeds available qty (${available}). Receive material via DC or Invoice first.`;
       }
       if (Object.keys(rowErrors).length) errors[item.id] = rowErrors;
     }
@@ -284,6 +326,13 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
     }
     if (editFormData.activity && !/^[A-Za-z][A-Za-z0-9\s\-/,.]*$/.test(editFormData.activity)) {
       editErrors.activity = 'Must start with a letter';
+    }
+    const editingItem = dailyUsage.find((u: any) => u.id === id);
+    if (editingItem && editErrors.quantity_used === undefined) {
+      const avail = getAvailableQty(editingItem.item_id, editingItem.variant_id);
+      if (avail !== null && parseFloat(editFormData.quantity_used) > avail) {
+        editErrors.quantity_used = `Exceeds available qty (${avail}). Receive material via DC or Invoice first.`;
+      }
     }
     if (Object.keys(editErrors).length) {
       alert(Object.values(editErrors).join('\n'));
@@ -520,6 +569,22 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
                               style={{ width: '100%', padding: '8px 10px', border: validationErrors[item.id]?.quantity_used ? '1px solid #ef4444' : '1px solid #d1d5db', borderRadius: '6px', fontSize: '13px', textAlign: 'right' }}
                               placeholder="0.00"
                             />
+                            {item.item_id && (() => {
+                              const avail = getAvailableQty(item.item_id, item.variant_id || null);
+                              if (avail === null) return null;
+                              const entered = parseFloat(item.quantity_used) || 0;
+                              const isOver = entered > avail;
+                              return (
+                                <div style={{ fontSize: '11px', marginTop: '2px', color: isOver ? '#ef4444' : '#16a34a' }}>
+                                  Avail: {avail} {item.unit || 'nos'}
+                                  {isOver && (
+                                    <span title="Receive material through Delivery Challan or Invoice first to increase available qty" style={{ marginLeft: '4px', cursor: 'help' }}>
+                                      <AlertTriangle size={11} style={{ display: 'inline', verticalAlign: 'middle' }} />
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })()}
                             {validationErrors[item.id]?.quantity_used && <div style={{ color: '#ef4444', fontSize: '11px', marginTop: '2px' }}>{validationErrors[item.id].quantity_used}</div>}
                           </td>
                           <td style={{ padding: '8px 12px' }}>
@@ -693,6 +758,13 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
                                 <input type="number" step="0.01" value={editFormData.quantity_used}
                                   onChange={(e) => handleEditFieldChange('quantity_used', e.target.value)}
                                   style={{ width: '80px', padding: '6px 8px', border: editErrors.quantity_used ? '1px solid #ef4444' : '1px solid #3b82f6', borderRadius: '4px', fontSize: '13px', textAlign: 'right' }} autoFocus />
+                                {(() => {
+                                  const avail = getAvailableQty(item.item_id, item.variant_id);
+                                  const entered = parseFloat(editFormData.quantity_used) || 0;
+                                  if (avail === null) return null;
+                                  const isOver = entered > avail;
+                                  return <div style={{ fontSize: '10px', marginTop: '2px', color: isOver ? '#ef4444' : '#16a34a' }}>Avail: {avail} {item.unit || 'nos'}{isOver ? ' ⚠' : ''}</div>;
+                                })()}
                                 {editErrors.quantity_used && <div style={{ color: '#ef4444', fontSize: '10px' }}>{editErrors.quantity_used}</div>}
                               </td>
                               <td style={{ padding: '8px 12px' }}>
@@ -770,6 +842,13 @@ export default function MaterialUsageTracker({ projectId, organisationId }: Proj
                             <input type="number" step="0.01" value={editFormData.quantity_used}
                               onChange={(e) => handleEditFieldChange('quantity_used', e.target.value)}
                               style={{ width: '80px', padding: '6px 8px', border: editErrors.quantity_used ? '1px solid #ef4444' : '1px solid #3b82f6', borderRadius: '4px', fontSize: '13px', textAlign: 'right' }} autoFocus />
+                            {(() => {
+                              const avail = getAvailableQty(item.item_id, item.variant_id);
+                              const entered = parseFloat(editFormData.quantity_used) || 0;
+                              if (avail === null) return null;
+                              const isOver = entered > avail;
+                              return <div style={{ fontSize: '10px', marginTop: '2px', color: isOver ? '#ef4444' : '#16a34a' }}>Avail: {avail} {item.unit || 'nos'}{isOver ? ' ⚠' : ''}</div>;
+                            })()}
                             {editErrors.quantity_used && <div style={{ color: '#ef4444', fontSize: '10px' }}>{editErrors.quantity_used}</div>}
                           </td>
                           <td style={{ padding: '8px 12px' }}>
