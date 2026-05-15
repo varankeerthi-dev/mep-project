@@ -19,6 +19,7 @@ export type LedgerSummaryRow = {
   overdue: boolean;
   invoices: LedgerInvoice[];
   receipts: LedgerReceipt[];
+  creditNotes: LedgerCreditNote[];
   openingBalance: number;
 };
 
@@ -211,6 +212,7 @@ export function buildLedgerSummaries(
         overdue,
         invoices: clientInvoices,
         receipts: clientReceipts,
+        creditNotes: clientCNs,
         openingBalance,
       };
     })

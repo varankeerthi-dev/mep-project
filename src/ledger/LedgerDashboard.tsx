@@ -31,6 +31,7 @@ import {
   listLedgerClients,
   listLedgerInvoices,
   listLedgerReceipts,
+  listLedgerCreditNotes,
   updateReceipt,
   deleteReceipt,
   getOpeningBalances,
@@ -238,6 +239,12 @@ export default function LedgerDashboard() {
     enabled: Boolean(orgId) && showLedger,
   });
 
+  const creditNotesQuery = useQuery({
+    queryKey: ['ledger', 'credit-notes', orgId, 'all-time'],
+    queryFn: () => listLedgerCreditNotes(orgId, { startDate: '2000-01-01', endDate: '2099-12-31' }),
+    enabled: Boolean(orgId) && showLedger,
+  });
+
   const paymentForm = useForm<RecordPaymentValues>({
     resolver: zodResolver(recordPaymentSchema),
     defaultValues: {
@@ -315,10 +322,10 @@ export default function LedgerDashboard() {
       clients,
       invoicesQuery.data ?? [],
       receiptsQuery.data ?? [],
-      [],
+      creditNotesQuery.data ?? [],
       openingBalances,
     ),
-    [clients, invoicesQuery.data, receiptsQuery.data, openingBalances],
+    [clients, invoicesQuery.data, receiptsQuery.data, creditNotesQuery.data, openingBalances],
   );
 
   const selectedSummary = useMemo(
@@ -339,14 +346,15 @@ export default function LedgerDashboard() {
   const dashboardTotals = useMemo(() => {
     const totalOutstanding = summaries.reduce((sum, row) => sum + row.outstanding, 0);
     const totalDebits = (invoicesQuery.data ?? []).reduce((sum, row) => sum + Number(row.total || 0), 0);
-    const totalCredits = (receiptsQuery.data ?? []).reduce((sum, row) => sum + Number(row.amount || 0), 0);
+    const totalCredits = (receiptsQuery.data ?? []).reduce((sum, row) => sum + Number(row.amount || 0), 0)
+      + (creditNotesQuery.data ?? []).reduce((sum, row) => sum + Number(row.total_amount || 0), 0);
 
     return {
       totalOutstanding,
       totalDebits,
       totalCredits,
     };
-  }, [invoicesQuery.data, receiptsQuery.data, summaries]);
+  }, [invoicesQuery.data, receiptsQuery.data, creditNotesQuery.data, summaries]);
 
   const filteredSummaries = useMemo(() => {
     if (!searchTerm.trim()) return summaries;
