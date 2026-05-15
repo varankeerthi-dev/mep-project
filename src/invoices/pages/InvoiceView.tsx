@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../../supabase';
 import { useAuth } from '../../App';
 import { useInvoices, useInvoiceTemplates } from '../hooks';
+import { useInvoicePayments } from '../../ledger/hooks';
 import { formatDate, formatCurrency } from '../ui-utils';
 import { downloadInvoicePDF, printInvoicePDF, getInvoicePdfBlobUrl } from '../pdf';
 import type { InvoiceTemplateRecord } from '../api';
@@ -20,7 +21,10 @@ import {
   FileText,
   Plus,
   Loader2,
+  CreditCard,
 } from 'lucide-react';
+import RecordPaymentDrawer from '../components/RecordPaymentDrawer';
+import PaymentHistoryDrawer from '../components/PaymentHistoryDrawer';
 
 export default function InvoiceView() {
   const navigate = useNavigate();
@@ -37,6 +41,21 @@ export default function InvoiceView() {
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
   const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [recordPaymentOpen, setRecordPaymentOpen] = useState(false);
+  const [paymentHistoryOpen, setPaymentHistoryOpen] = useState(false);
+  const [showPaymentMenu, setShowPaymentMenu] = useState(false);
+  const [editingPayment, setEditingPayment] = useState<{
+    id: string;
+    receipt_no: string;
+    amount: number;
+    receipt_date: string;
+    payment_mode: string | null;
+    reference_no: string | null;
+    notes: string | null;
+    status: string | null;
+  } | null>(null);
+
+  const paymentsQuery = useInvoicePayments(invoiceId ?? undefined);
 
   const printMenuRef = useRef<HTMLDivElement>(null);
 
@@ -46,15 +65,16 @@ export default function InvoiceView() {
         setShowPrintMenu(false);
         setShowConvertMenu(false);
         setShowTemplateMenu(false);
+        setShowPaymentMenu(false);
       }
     };
-    if (showPrintMenu || showConvertMenu || showTemplateMenu) {
+    if (showPrintMenu || showConvertMenu || showTemplateMenu || showPaymentMenu) {
       document.addEventListener('mousedown', handleClickOutside);
     }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [showPrintMenu, showConvertMenu, showTemplateMenu]);
+  }, [showPrintMenu, showConvertMenu, showTemplateMenu, showPaymentMenu]);
 
   useEffect(() => {
     return () => {
@@ -68,6 +88,8 @@ export default function InvoiceView() {
   const invoices = invoicesQuery.data ?? [];
 
   const selectedInvoice = invoices.find((inv) => inv.id === invoiceId) ?? null;
+  const totalPaid = (paymentsQuery.data ?? []).filter((p) => p.status === 'paid').reduce((sum, p) => sum + p.amount, 0);
+  const balanceDue = (selectedInvoice?.total ?? 0) - totalPaid;
 
   const getSelectedTemplateName = () => {
     if (!selectedTemplateId) return 'Default';
@@ -229,7 +251,7 @@ export default function InvoiceView() {
   return (
     <div className="flex h-[calc(100vh-48px)] bg-zinc-100 overflow-hidden gap-[20px]">
       {/* Sidebar List (300px) */}
-      <div className="w-[300px] flex flex-col bg-white shadow-sm">
+      <div className="w-[300px] flex flex-col bg-white shadow-sm" style={{ fontFamily: "'Roboto', sans-serif" }}>
         <div className="py-5 px-6 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
           <h2 className="text-sm font-bold text-gray-700">All Invoices</h2>
           <button
@@ -256,26 +278,51 @@ export default function InvoiceView() {
                   style={{ paddingTop: '14px', paddingBottom: '14px' }}
                 >
                   <div className="flex justify-between items-start mb-1">
-                    <span className="text-[13px] font-bold text-gray-900 truncate pr-2">
+                    <span className="text-[13px] font-bold text-gray-900 truncate pr-2" style={{ paddingLeft: '10px', paddingRight: '10px' }}>
                       {inv.client?.name || 'Unknown Client'}
                     </span>
-                    <span className="text-[12px] font-bold text-gray-900">
+                    <span className="text-[12px] font-bold text-gray-900" style={{ paddingLeft: '10px', paddingRight: '10px' }}>
                       {formatCurrency(inv.total)}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center mt-1 gap-4" style={{ paddingRight: '14px' }}>
-                    <div className="text-[11px] text-gray-500 font-mono">
-                      {inv.invoice_no} <span className="mx-1 text-gray-300">•</span> {formatDate(inv.created_at)}
+                  <div className="flex justify-between items-center mt-1 gap-4">
+                    <div className="text-[11px] font-mono" style={{ paddingLeft: '10px', paddingRight: '10px' }}>
+                      <span className="text-gray-700 font-medium">{inv.invoice_no}</span>
+                      <span className="mx-1 text-gray-300">•</span>
+                      <span className="text-blue-500">{formatDate(inv.created_at)}</span>
                     </div>
-                    <span
-                      className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded"
-                      style={{
-                        backgroundColor: inv.status === 'final' ? '#d1fae5' : '#f3f4f6',
-                        color: inv.status === 'final' ? '#047857' : '#6b7280',
-                      }}
-                    >
-                      {inv.status}
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      {(() => {
+                        // Fallback: paid_amount may be null for pre-migration data
+                        // Migration 005 backfills existing data, trigger keeps it in sync
+                        const paid = Number((inv as any).paid_amount ?? 0);
+                        const total = Number(inv.total ?? 0);
+                        if (paid <= 0 || total <= 0) return null;
+                        if (paid >= total) {
+                          return (
+                            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded" style={{ paddingLeft: '8px', paddingRight: '8px', backgroundColor: '#d1fae5', color: '#047857' }}>
+                              Paid
+                            </span>
+                          );
+                        }
+                        return (
+                          <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded" style={{ paddingLeft: '8px', paddingRight: '8px', backgroundColor: '#fef3c7', color: '#b45309' }}>
+                            Partially Paid
+                          </span>
+                        );
+                      })()}
+                      <span
+                        className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded"
+                        style={{
+                          paddingLeft: '10px',
+                          paddingRight: '10px',
+                          backgroundColor: inv.status === 'final' ? '#d1fae5' : '#f3f4f6',
+                          color: inv.status === 'final' ? '#047857' : '#6b7280',
+                        }}
+                      >
+                        {inv.status}
+                      </span>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -312,7 +359,7 @@ export default function InvoiceView() {
               </div>
 
               {/* Action Buttons */}
-              <div className="flex flex-wrap items-center gap-2 mb-6">
+              <div className="flex flex-wrap items-center gap-2 mb-6" style={{ paddingBottom: '16px' }}>
                 <button
                   className="inline-flex items-center gap-2 px-10 h-[25px] min-w-[100px] bg-white text-gray-700 border border-gray-300 rounded hover:bg-gray-50 transition-all text-[12px] font-bold"
                   onClick={() => navigate(`/invoices/edit?id=${selectedInvoice.id}`)}
@@ -328,6 +375,52 @@ export default function InvoiceView() {
                   <Copy className="w-[14px] h-[14px]" />
                   Duplicate
                 </button>
+
+                <div className="relative">
+                  <button
+                    className="inline-flex items-center gap-2 px-10 h-[25px] min-w-[100px] bg-emerald-50 text-emerald-700 border border-emerald-200 rounded hover:bg-emerald-100 transition-all text-[12px] font-bold"
+                    onClick={() => {
+                      setShowPaymentMenu(!showPaymentMenu);
+                    }}
+                  >
+                    <CreditCard className="w-[14px] h-[14px]" />
+                    Payments
+                    <ChevronDown className={`w-[14px] h-[14px] transition-transform ${showPaymentMenu ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {showPaymentMenu && (
+                    <div className="absolute left-0 top-full mt-1 z-50 min-w-[200px] bg-white border border-gray-200 shadow-xl p-1 rounded-sm">
+                      <button
+                        onClick={() => {
+                          setEditingPayment(null);
+                          setRecordPaymentOpen(true);
+                          setShowPaymentMenu(false);
+                        }}
+                        className="flex items-center gap-3 w-full text-left text-xs font-bold text-gray-700 hover:bg-emerald-50 transition-colors"
+                        style={{ padding: '12px' }}
+                      >
+                        <CreditCard className="w-4 h-4 text-emerald-600" />
+                        Record Payment
+                      </button>
+                      <button
+                        onClick={() => {
+                          setPaymentHistoryOpen(true);
+                          setShowPaymentMenu(false);
+                        }}
+                        className="flex items-center gap-3 w-full text-left text-xs font-bold text-gray-700 hover:bg-sky-50 transition-colors"
+                        style={{ padding: '12px' }}
+                      >
+                        <FileText className="w-4 h-4 text-sky-500" />
+                        Payment History
+                        {paymentsQuery.data && paymentsQuery.data.length > 0 && (
+                          <span className="ml-auto text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">
+                            {paymentsQuery.data.filter(p => p.status === 'paid').length}
+                          </span>
+                        )}
+                      </button>
+                    </div>
+                  )}
+                </div>
 
                 <div className="relative">
                   <button
@@ -684,6 +777,36 @@ export default function InvoiceView() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Record Payment Drawer */}
+      {selectedInvoice && (
+        <RecordPaymentDrawer
+          open={recordPaymentOpen}
+          onClose={() => {
+            setRecordPaymentOpen(false);
+            setEditingPayment(null);
+          }}
+          invoice={selectedInvoice}
+          editPayment={editingPayment}
+          onSuccess={() => {
+            paymentsQuery.refetch();
+          }}
+        />
+      )}
+
+      {/* Payment History Drawer */}
+      {selectedInvoice && (
+        <PaymentHistoryDrawer
+          open={paymentHistoryOpen}
+          onClose={() => setPaymentHistoryOpen(false)}
+          invoice={selectedInvoice}
+          onEdit={(payment) => {
+            setEditingPayment(payment);
+            setPaymentHistoryOpen(false);
+            setRecordPaymentOpen(true);
+          }}
+        />
       )}
     </div>
   );

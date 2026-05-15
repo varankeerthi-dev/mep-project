@@ -138,6 +138,8 @@ const ProjectManagementInternal = import('./pages/ProjectManagementInternal');
 const SiteMaterials = lazyAny(() => ProjectManagementInternal.then(m => ({ default: m.SiteMaterials })));
 const ToolsList = lazyAny(() => ProjectManagementInternal.then(m => ({ default: m.ToolsList })));
 const PurchaseModule = lazyAny(() => import('./modules/Purchase/PurchaseModule'));
+const CreditNoteListPage = lazyAny(() => import('./credit-notes/pages/CreditNoteListPage').then(m => ({ default: m.CreditNoteListPage })));
+const CreditNoteEditorPage = lazyAny(() => import('./credit-notes/pages/CreditNoteEditorPage').then(m => ({ default: m.CreditNoteEditorPage })));
 const BOQ = lazyAny(() => import('./pages/BOQ'));
 const BOQList = lazyAny(() => import('./pages/BOQList'));
 const IssueList = lazyAny(() => ProjectManagementInternal.then(m => ({ default: m.IssueList })));
@@ -263,6 +265,9 @@ export default function App() {
       case '/proforma-invoices': return <ProformaListPage />;
       case '/proforma-invoices/create': return <ProformaEditorPage />;
       case '/proforma-invoices/edit': return <ProformaEditorPage />;
+      case '/credit-notes': return <CreditNoteListPage />;
+      case '/credit-notes/create': return <CreditNoteEditorPage />;
+      case '/credit-notes/edit': return <CreditNoteEditorPage />;
       case '/ledger': return <LedgerDashboard onNavigate={navigate} />;
       case '/boq': return <BOQList />;
       case '/boq/create': return <BOQ onSuccess={() => navigate('/boq')} onCancel={() => navigate('/boq')} />;

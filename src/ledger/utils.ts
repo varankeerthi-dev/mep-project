@@ -1,5 +1,5 @@
 import { format, isAfter, parseISO } from 'date-fns';
-import type { LedgerClient, LedgerInvoice, LedgerReceipt, OpeningBalance } from './api';
+import type { LedgerClient, LedgerInvoice, LedgerReceipt, OpeningBalance, LedgerCreditNote } from './api';
 
 export type LedgerStatementRow = {
   id: string;
@@ -89,8 +89,9 @@ function normalizeDate(value?: string | null) {
 }
 
 export function buildLedgerStatementRows(
-  invoices: LedgerInvoice[], 
+  invoices: LedgerInvoice[],
   receipts: LedgerReceipt[],
+  creditNotes: LedgerCreditNote[] = [],
   openingBalance?: OpeningBalance | null
 ): LedgerStatementRow[] {
   const rows: LedgerStatementRow[] = [];
@@ -126,7 +127,16 @@ export function buildLedgerStatementRows(
     credit: Number(receipt.amount || 0),
   }));
 
-  return [...rows, ...debitRows, ...creditRows].sort((left, right) => {
+  const cnRows: LedgerStatementRow[] = creditNotes.map((cn) => ({
+    id: `cn-${cn.id}`,
+    date: cn.cn_date,
+    type: 'Credit' as const,
+    remarks: `Credit Note: ${cn.cn_number}${cn.reason ? ` - ${cn.reason}` : ''}`,
+    debit: 0,
+    credit: Number(cn.total_amount || 0),
+  }));
+
+  return [...rows, ...debitRows, ...creditRows, ...cnRows].sort((left, right) => {
     if (left.type === 'Opening Balance') return -1;
     if (right.type === 'Opening Balance') return 1;
     return normalizeDate(left.date).localeCompare(normalizeDate(right.date));
@@ -137,6 +147,7 @@ export function buildLedgerSummaries(
   clients: LedgerClient[],
   invoices: LedgerInvoice[],
   receipts: LedgerReceipt[],
+  creditNotes: LedgerCreditNote[] = [],
   openingBalances?: OpeningBalance[],
   today = new Date(),
 ): LedgerSummaryRow[] {
@@ -145,6 +156,13 @@ export function buildLedgerSummaries(
     const list = receiptsByClient.get(receipt.client_id) ?? [];
     list.push(receipt);
     receiptsByClient.set(receipt.client_id, list);
+  });
+
+  const cnsByClient = new Map<string, LedgerCreditNote[]>();
+  creditNotes.forEach((cn) => {
+    const list = cnsByClient.get(cn.client_id) ?? [];
+    list.push(cn);
+    cnsByClient.set(cn.client_id, list);
   });
 
   const openingBalanceByClient = new Map<string, OpeningBalance>();
@@ -158,15 +176,20 @@ export function buildLedgerSummaries(
         .filter((invoice) => invoice.client_id === client.id)
         .sort((left, right) => normalizeDate(left.due_date ?? left.invoice_date).localeCompare(normalizeDate(right.due_date ?? right.invoice_date)));
       const clientReceipts = (receiptsByClient.get(client.id) ?? []).sort((left, right) => normalizeDate(left.receipt_date).localeCompare(normalizeDate(right.receipt_date)));
+      const clientCNs = cnsByClient.get(client.id) ?? [];
 
       let remainingReceipts = clientReceipts.reduce((sum, receipt) => sum + Number(receipt.amount || 0), 0);
+      let remainingCNs = clientCNs.reduce((sum, cn) => sum + Number(cn.total_amount || 0), 0);
       let oldestDueDate: string | null = null;
 
       clientInvoices.forEach((invoice) => {
         const invoiceAmount = Number(invoice.total || 0);
         const applied = Math.min(invoiceAmount, remainingReceipts);
         remainingReceipts -= applied;
-        const unpaid = invoiceAmount - applied;
+        const afterReceipts = invoiceAmount - applied;
+        const appliedCN = Math.min(afterReceipts, remainingCNs);
+        remainingCNs -= appliedCN;
+        const unpaid = afterReceipts - appliedCN;
 
         if (unpaid > 0 && !oldestDueDate) {
           oldestDueDate = invoice.due_date ?? invoice.invoice_date ?? null;
@@ -175,8 +198,9 @@ export function buildLedgerSummaries(
 
       const totalInvoices = clientInvoices.reduce((sum, invoice) => sum + Number(invoice.total || 0), 0);
       const totalReceipts = clientReceipts.reduce((sum, receipt) => sum + Number(receipt.amount || 0), 0);
+      const totalCNs = clientCNs.reduce((sum, cn) => sum + Number(cn.total_amount || 0), 0);
       const openingBalance = openingBalanceByClient.get(client.id)?.amount ?? 0;
-      const outstanding = Number((totalInvoices - totalReceipts + openingBalance).toFixed(2));
+      const outstanding = Number((totalInvoices - totalReceipts - totalCNs + openingBalance).toFixed(2));
       const overdue = Boolean(oldestDueDate && isAfter(today, parseISO(oldestDueDate)));
 
       return {

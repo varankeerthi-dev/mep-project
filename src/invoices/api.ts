@@ -61,6 +61,7 @@ const INVOICE_SELECT = `
   sgst,
   igst,
   total,
+  paid_amount,
   status,
   created_at,
   client:clients(id, client_name, gstin, state, default_template_id, email),

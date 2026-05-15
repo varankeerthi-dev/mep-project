@@ -61,6 +61,10 @@ export type LedgerReceipt = {
   receipt_date: string;
   remarks?: string | null;
   payment_type?: string | null;
+  payment_mode?: string | null;
+  reference_no?: string | null;
+  status?: string | null;
+  notes?: string | null;
   created_at?: string | null;
 };
 
@@ -72,10 +76,16 @@ export type LedgerDateRange = {
 export type ReceiptInput = {
   org_id: string;
   client_id: string;
+  invoice_id?: string | null;
+  receipt_no?: string | null;
   amount: number;
   receipt_date: string;
-  remarks: string;
+  remarks?: string | null;
   payment_type?: string | null;
+  payment_mode?: string | null;
+  reference_no?: string | null;
+  status?: string | null;
+  notes?: string | null;
 };
 
 export async function listLedgerClients(orgId: string): Promise<LedgerClient[]> {
@@ -136,8 +146,9 @@ export async function listLedgerInvoices(orgId: string, range?: LedgerDateRange)
 export async function listLedgerReceipts(orgId: string, range?: LedgerDateRange): Promise<LedgerReceipt[]> {
   let query = supabase
     .from('receipts')
-    .select('id, org_id, client_id, invoice_id, receipt_no, amount, receipt_date, remarks, payment_type, created_at')
+    .select('id, org_id, client_id, invoice_id, receipt_no, amount, receipt_date, remarks, payment_type, payment_mode, reference_no, status, notes, created_at')
     .eq('org_id', orgId)
+    .neq('status', 'draft')
     .order('receipt_date', { ascending: true });
 
   if (range && range.startDate !== '2000-01-01') {
@@ -158,6 +169,10 @@ export async function listLedgerReceipts(orgId: string, range?: LedgerDateRange)
     receipt_date: String(row.receipt_date),
     remarks: row.remarks ?? null,
     payment_type: row.payment_type ?? null,
+    payment_mode: row.payment_mode ?? null,
+    reference_no: row.reference_no ?? null,
+    status: row.status ?? null,
+    notes: row.notes ?? null,
     created_at: row.created_at ?? null,
   }));
 }
@@ -168,12 +183,18 @@ export async function createReceipt(input: ReceiptInput): Promise<LedgerReceipt>
     .insert({
       org_id: input.org_id,
       client_id: input.client_id,
+      invoice_id: input.invoice_id || null,
+      receipt_no: input.receipt_no || null,
       amount: input.amount,
       receipt_date: input.receipt_date,
       remarks: input.remarks || null,
       payment_type: input.payment_type || null,
+      payment_mode: input.payment_mode || null,
+      reference_no: input.reference_no || null,
+      status: input.status || 'paid',
+      notes: input.notes || null,
     })
-    .select('id, org_id, client_id, invoice_id, receipt_no, amount, receipt_date, remarks, payment_type, created_at')
+    .select('id, org_id, client_id, invoice_id, receipt_no, amount, receipt_date, remarks, payment_type, payment_mode, reference_no, status, notes, created_at')
     .single();
 
   if (error) throw error;
@@ -189,6 +210,10 @@ export async function createReceipt(input: ReceiptInput): Promise<LedgerReceipt>
     receipt_date: String(data.receipt_date),
     remarks: data.remarks ?? null,
     payment_type: data.payment_type ?? null,
+    payment_mode: data.payment_mode ?? null,
+    reference_no: data.reference_no ?? null,
+    status: data.status ?? null,
+    notes: data.notes ?? null,
     created_at: data.created_at ?? null,
   };
 }
@@ -197,8 +222,12 @@ export type UpdateReceiptInput = {
   id: string;
   amount?: number;
   receipt_date?: string;
-  remarks?: string;
+  remarks?: string | null;
   payment_type?: string | null;
+  payment_mode?: string | null;
+  reference_no?: string | null;
+  status?: string | null;
+  notes?: string | null;
 };
 
 export async function updateReceipt(input: UpdateReceiptInput): Promise<LedgerReceipt> {
@@ -207,11 +236,15 @@ export async function updateReceipt(input: UpdateReceiptInput): Promise<LedgerRe
     .update({
       amount: input.amount,
       receipt_date: input.receipt_date,
-      remarks: input.remarks || null,
-      payment_type: input.payment_type || null,
+      remarks: input.remarks ?? null,
+      payment_type: input.payment_type ?? null,
+      payment_mode: input.payment_mode ?? null,
+      reference_no: input.reference_no ?? null,
+      status: input.status ?? null,
+      notes: input.notes ?? null,
     })
     .eq('id', input.id)
-    .select('id, org_id, client_id, invoice_id, receipt_no, amount, receipt_date, remarks, payment_type, created_at')
+    .select('id, org_id, client_id, invoice_id, receipt_no, amount, receipt_date, remarks, payment_type, payment_mode, reference_no, status, notes, created_at')
     .single();
 
   if (error) throw error;
@@ -227,13 +260,12 @@ export async function updateReceipt(input: UpdateReceiptInput): Promise<LedgerRe
     receipt_date: String(data.receipt_date),
     remarks: data.remarks ?? null,
     payment_type: data.payment_type ?? null,
+    payment_mode: data.payment_mode ?? null,
+    reference_no: data.reference_no ?? null,
+    status: data.status ?? null,
+    notes: data.notes ?? null,
     created_at: data.created_at ?? null,
   };
-}
-
-export async function deleteReceipt(id: string): Promise<void> {
-  const { error } = await supabase.from('receipts').delete().eq('id', id);
-  if (error) throw error;
 }
 
 export async function getOpeningBalances(orgId: string, financialYear: string): Promise<OpeningBalance[]> {
@@ -420,4 +452,123 @@ export function getFyDateRange(financialYear: string, startMonth: number = 4): {
     startDate: `${startYear}-${startMonth.toString().padStart(2, '0')}-01`,
     endDate: `${endYear}-${((startMonth - 1 + 12) % 12 || 12).toString().padStart(2, '0')}-${startMonth === 1 ? '31' : (startMonth === 4 ? '31' : '28')}`,
   };
+}
+
+// ============================================================
+// Invoice Payment Functions
+// ============================================================
+
+export async function getPaymentsByInvoiceId(
+  invoiceId: string,
+  organisationId: string
+): Promise<LedgerReceipt[]> {
+  const { data, error } = await supabase
+    .from('receipts')
+    .select('id, org_id, client_id, invoice_id, receipt_no, amount, receipt_date, remarks, payment_type, payment_mode, reference_no, status, notes, created_at')
+    .eq('invoice_id', invoiceId)
+    .eq('org_id', organisationId)
+    .order('receipt_date', { ascending: false });
+
+  if (error) throw error;
+
+  return (data ?? []).map((row: any) => ({
+    id: String(row.id),
+    org_id: String(row.org_id),
+    client_id: String(row.client_id),
+    invoice_id: row.invoice_id ?? null,
+    receipt_no: row.receipt_no ?? null,
+    amount: Number(row.amount ?? 0),
+    receipt_date: String(row.receipt_date),
+    remarks: row.remarks ?? null,
+    payment_type: row.payment_type ?? null,
+    payment_mode: row.payment_mode ?? null,
+    reference_no: row.reference_no ?? null,
+    status: row.status ?? null,
+    notes: row.notes ?? null,
+    created_at: row.created_at ?? null,
+  }));
+}
+
+export async function generateNextReceiptNo(organisationId: string): Promise<string> {
+  const { data, error } = await supabase
+    .from('receipts')
+    .select('receipt_no')
+    .eq('org_id', organisationId)
+    .order('created_at', { ascending: false })
+    .limit(1);
+
+  if (error) throw error;
+
+  if (!data || data.length === 0) return 'PAY-0001';
+
+  const lastNo = data[0].receipt_no;
+  if (!lastNo) return 'PAY-0001';
+
+  const match = lastNo.match(/(\d+)$/);
+  if (!match) return 'PAY-0001';
+
+  const nextNum = parseInt(match[1]) + 1;
+  return `PAY-${String(nextNum).padStart(4, '0')}`;
+}
+
+export async function refundReceipt(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('receipts')
+    .update({ status: 'refunded' })
+    .eq('id', id);
+
+  if (error) throw error;
+}
+
+export async function deleteReceipt(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('receipts')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw error;
+}
+
+// ============================================================
+// Credit Notes (Ledger Integration)
+// ============================================================
+
+export type LedgerCreditNote = {
+  id: string;
+  client_id: string;
+  cn_number: string;
+  cn_date: string;
+  cn_type: string;
+  reason: string | null;
+  total_amount: number;
+  approval_status: string;
+  created_at: string | null;
+};
+
+export async function listLedgerCreditNotes(orgId: string, range?: LedgerDateRange): Promise<LedgerCreditNote[]> {
+  let query = supabase
+    .from('credit_notes')
+    .select('id, client_id, cn_number, cn_date, cn_type, reason, total_amount, approval_status, created_at')
+    .eq('organisation_id', orgId)
+    .eq('approval_status', 'Approved')
+    .order('cn_date', { ascending: true });
+
+  if (range && range.startDate !== '2000-01-01') {
+    query = query.gte('cn_date', range.startDate).lte('cn_date', range.endDate);
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+
+  return (data ?? []).map((row: any) => ({
+    id: String(row.id),
+    client_id: String(row.client_id),
+    cn_number: String(row.cn_number ?? ''),
+    cn_date: String(row.cn_date ?? ''),
+    cn_type: String(row.cn_type ?? ''),
+    reason: row.reason ?? null,
+    total_amount: Number(row.total_amount ?? 0),
+    approval_status: String(row.approval_status ?? 'Approved'),
+    created_at: row.created_at ?? null,
+  }));
 }

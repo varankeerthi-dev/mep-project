@@ -129,6 +129,14 @@ const menuData: MenuSection[] = [
         ]
       },
       {
+        id: 'credit-notes',
+        label: 'Credit Notes',
+        submenu: [
+          { id: 'credit-note-list', label: 'Credit Note List', path: '/credit-notes' },
+          { id: 'credit-note-create', label: 'Create Credit Note', path: '/credit-notes/create' }
+        ]
+      },
+      {
         id: 'ledger',
         label: 'Ledger',
         path: '/ledger'
@@ -254,6 +262,8 @@ const ICON_MAP: Record<string, keyof typeof HeroIcons> = {
   'client-requests': 'InboxIcon',
   quotation: 'DocumentDuplicateIcon',
   invoice: 'DocumentTextIcon',
+  'credit-notes': 'ArrowUturnLeftIcon',
+  'proforma-invoices': 'DocumentTextIcon',
   ledger: 'DocumentTextIcon',
   boq: 'TableCellsIcon',
   documents: 'FolderOpenIcon',
