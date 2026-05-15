@@ -116,6 +116,7 @@ export function CNItemsEditor({
   }>>([]);
 
   const [searchTerms, setSearchTerms] = useState<Record<number, string>>({});
+  const [editingInputs, setEditingInputs] = useState<Record<number, boolean>>({});
   const [openDropdowns, setOpenDropdowns] = useState<Record<number, boolean>>({});
   const [selectedIndices, setSelectedIndices] = useState<Record<number, number>>({});
   const [variantDropdowns, setVariantDropdowns] = useState<Record<number, boolean>>({});
@@ -261,6 +262,7 @@ export function CNItemsEditor({
 
     setTimeout(() => recalcItem(index), 0);
     setOpenDropdowns(prev => ({ ...prev, [index]: false }));
+    setEditingInputs(prev => ({ ...prev, [index]: false }));
     setSelectedIndices(prev => ({ ...prev, [index]: 0 }));
   }, [materialOptions, setValue, roundOffEnabled, recalcItem, items, defaultWarehouseId]);
 
@@ -282,6 +284,7 @@ export function CNItemsEditor({
 
   const handleSearchChange = useCallback((index: number, value: string) => {
     setSearchTerms(prev => ({ ...prev, [index]: value }));
+    setEditingInputs(prev => ({ ...prev, [index]: true }));
     setOpenDropdowns(prev => ({ ...prev, [index]: true }));
     setSelectedIndices(prev => ({ ...prev, [index]: 0 }));
   }, []);
@@ -297,13 +300,16 @@ export function CNItemsEditor({
   }, [searchTerms, materialOptions]);
 
   const getSelectedMaterialName = useCallback((index: number) => {
+    if (editingInputs[index]) {
+      return searchTerms[index] || '';
+    }
     const materialId = items[index]?.meta_json?.material_id as string | undefined;
     if (materialId) {
       const material = materialOptions.find(m => m.id === materialId);
       return material?.display_name || material?.name || '';
     }
     return searchTerms[index] || '';
-  }, [items, materialOptions, searchTerms]);
+  }, [items, materialOptions, searchTerms, editingInputs]);
 
   const handleKeyDown = useCallback((index: number, e: KeyboardEvent<HTMLInputElement>) => {
     const filtered = getFilteredMaterials(index);
@@ -430,7 +436,24 @@ export function CNItemsEditor({
                       type="text"
                       value={getSelectedMaterialName(index)}
                       onChange={(e) => handleSearchChange(index, e.target.value)}
-                      onFocus={() => setOpenDropdowns(prev => ({ ...prev, [index]: true }))}
+                      onFocus={() => {
+                        const matId = items[index]?.meta_json?.material_id as string | undefined;
+                        if (matId) {
+                          const mat = materialOptions.find(m => m.id === matId);
+                          setSearchTerms(prev => ({ ...prev, [index]: mat?.display_name || mat?.name || '' }));
+                        }
+                        setEditingInputs(prev => ({ ...prev, [index]: true }));
+                        setOpenDropdowns(prev => ({ ...prev, [index]: true }));
+                      }}
+                      onBlur={() => {
+                        setTimeout(() => {
+                          const matId = items[index]?.meta_json?.material_id as string | undefined;
+                          if (matId) {
+                            setEditingInputs(prev => ({ ...prev, [index]: false }));
+                            setSearchTerms(prev => ({ ...prev, [index]: '' }));
+                          }
+                        }, 150);
+                      }}
                       onKeyDown={(e) => handleKeyDown(index, e)}
                       placeholder="Search material..."
                       style={{ width: '100%', padding: '4px 6px', border: '1px solid transparent', borderRadius: '2px', fontSize: '11px', background: 'transparent' }}
@@ -466,15 +489,26 @@ export function CNItemsEditor({
                     />
                   </td>
                   <td style={{ padding: '4px', position: 'relative' }}>
-                    <input
-                      ref={(el) => { variantInputRefs.current[index] = el; }}
-                      type="text"
-                      value={(item.meta_json?.variant as string) || ''}
-                      readOnly={!materialId}
-                      onClick={() => { if (materialId && variants.length > 0) setVariantDropdowns(prev => ({ ...prev, [index]: true })); }}
-                      placeholder="-"
-                      style={{ width: '100%', padding: '4px 6px', border: '1px solid transparent', borderRadius: '2px', fontSize: '11px', background: 'transparent', cursor: materialId && variants.length > 0 ? 'pointer' : 'default', opacity: materialId ? 1 : 0.5 }}
-                    />
+                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                      <input
+                        ref={(el) => { variantInputRefs.current[index] = el; }}
+                        type="text"
+                        value={(item.meta_json?.variant as string) || ''}
+                        readOnly={!materialId || variants.length === 0}
+                        onClick={() => {
+                          if (materialId && variants.length > 0) {
+                            setVariantDropdowns(prev => ({ ...prev, [index]: !prev[index] }));
+                          }
+                        }}
+                        placeholder={materialId && variants.length > 0 ? 'Select variant' : '-'}
+                        style={{ width: '100%', padding: '4px 6px', border: '1px solid transparent', borderRadius: '2px', fontSize: '11px', background: 'transparent', cursor: materialId && variants.length > 0 ? 'pointer' : 'default', opacity: materialId ? 1 : 0.5, paddingRight: materialId && variants.length > 0 ? '18px' : '6px' }}
+                      />
+                      {materialId && variants.length > 0 && (
+                        <div style={{ position: 'absolute', right: '4px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#a3a3a3' }}>
+                          <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 4L5 7L8 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                        </div>
+                      )}
+                    </div>
                     {variantDropdowns[index] && materialId && variants.length > 0 && (
                       <div ref={(el) => { variantDropdownRefs.current[index] = el; }} style={{ position: 'fixed', background: 'white', border: '1px solid #d4d4d4', borderRadius: '4px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', zIndex: 9999, maxHeight: '200px', overflowY: 'auto', minWidth: '120px' }}>
                         {variants.map((v, i) => (
