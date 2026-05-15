@@ -39,7 +39,10 @@ export const InvoiceEditorMaterialSchema = z.object({
 export const InvoiceEditorSchema = z
   .object({
     client_id: z.string().uuid('Client is required.'),
-    template_id: z.string().uuid('Template is required.').nullable().optional(),
+    template_id: z.preprocess(
+      (val) => (val === '' ? null : val),
+      z.string().uuid('Template is required.').nullable().optional()
+    ),
     invoice_no: z.string().optional(),
     invoice_date: z.string().optional(),
     po_number: z.string().optional(),
@@ -55,7 +58,10 @@ export const InvoiceEditorSchema = z
       (val) => (val === '' ? null : val),
       z.string().uuid().nullable().optional()
     ),
-    default_warehouse_id: z.string().uuid().nullable().optional(),
+    default_warehouse_id: z.preprocess(
+      (val) => (val === '' ? null : val),
+      z.string().uuid().nullable().optional()
+    ),
     deduct_stock_on_finalize: z.boolean().optional().default(false),
     allow_insufficient_stock: z.boolean().optional().default(false),
     items: z.array(InvoiceEditorItemSchema).min(1, 'At least one line item is required.').optional(),
