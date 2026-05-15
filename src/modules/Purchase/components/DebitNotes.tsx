@@ -98,11 +98,75 @@ export const DebitNotes: React.FC = () => {
   const [dnNumber, setDnNumber] = useState('');
   const [warehousePanelOpen, setWarehousePanelOpen] = useState(false);
   const [defaultWarehouseId, setDefaultWarehouseId] = useState('');
+  const [rateAlerts, setRateAlerts] = useState<Array<{ description: string; billRate: number; currentRate: number; diff: number }>>([]);
 
   const { data: dns = [], isLoading, refetch } = useDebitNotes(organisation?.id);
   const { data: bills = [] } = usePurchaseBills(organisation?.id);
   const { data: vendors = [] } = useVendors(organisation?.id);
   const createDN = useCreateDebitNote();
+
+  useEffect(() => {
+    const handleConvert = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.billId) {
+        setBillId(detail.billId);
+        setReason(`Debit note for bill ${detail.billNumber || detail.billId}`);
+        setDnType('Purchase Return');
+        setDnDate(new Date().toISOString().split('T')[0]);
+        setItems([createEmptyItem()]);
+        setSaveError(null);
+        setOpenDialog(true);
+
+        if (detail.billId) {
+          supabase
+            .from('purchase_bill_items')
+            .select('*')
+            .eq('bill_id', detail.billId)
+            .then(({ data }) => {
+              if (data && data.length > 0) {
+                const dnItems: DNItem[] = data.map((bi: any) => ({
+                  description: bi.item_name || bi.description || '',
+                  hsn_code: bi.hsn_code || '',
+                  quantity: Number(bi.quantity || 0),
+                  rate: Number(bi.rate || 0),
+                  gst_percent: Number(bi.igst_percent || bi.tax_percent || 18),
+                  taxable_value: Number(bi.taxable_value || 0),
+                  gst_amount: Number(bi.igst_amount || bi.cgst_amount || bi.sgst_amount || 0),
+                  total_amount: Number(bi.total_amount || 0),
+                  material_id: bi.material_id || undefined,
+                  warehouse_id: bi.warehouse_id || undefined,
+                  variant: bi.variant || undefined,
+                  variant_id: bi.variant_id || undefined,
+                  make: bi.make || undefined,
+                }));
+                setItems(dnItems.length > 0 ? dnItems : [createEmptyItem()]);
+
+                const alerts: Array<{ description: string; billRate: number; currentRate: number; diff: number }> = [];
+                dnItems.forEach(item => {
+                  if (item.material_id && item.rate > 0) {
+                    const mat = materialOptions.find(m => m.id === item.material_id);
+                    if (mat) {
+                      let currentRate = mat.sale_price ?? 0;
+                      if (item.variant_id && mat.variants?.length > 0) {
+                        const v = mat.variants.find(vv => vv.variant_id === item.variant_id);
+                        if (v?.sale_price != null) currentRate = v.sale_price;
+                      }
+                      const diff = Math.round((item.rate - currentRate) * 100) / 100;
+                      if (Math.abs(diff) > 0.01) {
+                        alerts.push({ description: item.description, billRate: item.rate, currentRate, diff });
+                      }
+                    }
+                  }
+                });
+                setRateAlerts(alerts);
+              }
+            });
+        }
+      }
+    };
+    window.addEventListener('convert-to-dn', handleConvert);
+    return () => window.removeEventListener('convert-to-dn', handleConvert);
+  }, []);
 
   const warehousesQuery = useQuery({
     queryKey: ['warehouses', organisation?.id],
@@ -452,6 +516,16 @@ export const DebitNotes: React.FC = () => {
           </DialogHeader>
 
           <div className="p-6 space-y-6 max-h-[60vh] overflow-y-auto">
+            {rateAlerts.length > 0 && (
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-md">
+                <div className="text-sm font-semibold text-amber-800 mb-1">Rate Differences Detected</div>
+                {rateAlerts.map((a, i) => (
+                  <div key={i} className="text-xs text-amber-700">
+                    <strong>{a.description}</strong>: Bill ₹{a.billRate.toFixed(2)} → Current ₹{a.currentRate.toFixed(2)} ({a.diff > 0 ? '+' : ''}₹{a.diff.toFixed(2)})
+                  </div>
+                ))}
+              </div>
+            )}
             {saveError && (
               <div className="p-3 bg-red-50 border border-red-200 rounded-md text-red-700 text-sm">{saveError}</div>
             )}

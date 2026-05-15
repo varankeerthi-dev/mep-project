@@ -437,12 +437,22 @@ export default function InvoiceView() {
                   </button>
 
                   {showConvertMenu && (
-                    <div className="absolute left-0 top-full mt-1 z-50 min-w-[200px] bg-white border border-gray-200 shadow-xl p-1">
+                    <div className="absolute left-0 top-full mt-1 z-50 min-w-[220px] bg-white border border-gray-200 shadow-xl p-1">
                       <button
                         onClick={() => handleConvert('invoice')}
                         className="block w-full text-left px-3 py-2 text-xs font-bold text-gray-700 hover:bg-sky-50"
                       >
                         New from this Invoice
+                      </button>
+                      <div className="my-1 border-t border-gray-100" />
+                      <button
+                        onClick={() => {
+                          window.location.href = `/credit-notes/create?from_invoice=${selectedInvoice.id}`;
+                          setShowConvertMenu(false);
+                        }}
+                        className="block w-full text-left px-3 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50"
+                      >
+                        Convert to Credit Note
                       </button>
                     </div>
                   )}

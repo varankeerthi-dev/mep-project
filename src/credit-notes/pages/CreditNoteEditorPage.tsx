@@ -136,12 +136,36 @@ export function CreditNoteEditorPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const editId = searchParams.get('id');
+  const fromInvoiceId = searchParams.get('from_invoice');
   const isEditing = !!editId;
+  const isConversion = !!fromInvoiceId && !isEditing;
 
   const { data: existingCN, isLoading: loadingCN } = useCreditNote(editId ?? undefined);
   const { data: nextCNNumber } = useNextCNNumber();
   const createCN = useCreateCreditNote();
   const updateCN = useUpdateCreditNote();
+
+  const sourceInvoiceQuery = useQuery({
+    queryKey: ['source-invoice', fromInvoiceId],
+    queryFn: async () => {
+      if (!fromInvoiceId || !organisation?.id) return null;
+      const { data, error } = await supabase
+        .from('invoices')
+        .select('*, client:clients(id, client_name, name, state, gstin), items:invoice_items(*)')
+        .eq('id', fromInvoiceId)
+        .eq('organisation_id', organisation.id)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!fromInvoiceId && !!organisation?.id,
+  });
+
+  const [rateAlerts, setRateAlerts] = useState<Array<{ description: string; invoiceRate: number; currentRate: number; diff: number }>>([]);
+  const [materialOptions, setMaterialOptions] = useState<Array<{
+    id: string; name: string; display_name: string; sale_price: number | null; make: string | null;
+    variants: Array<{ variant_id: string; variant_name: string; make: string | null; sale_price: number | null }>;
+  }>>([]);
 
   const [clients, setClients] = useState<Array<{ id: string; name: string; state: string | null; gstin: string | null }>>([]);
   const [invoices, setInvoices] = useState<Array<{ id: string; invoice_number: string; client_id: string; total_amount: number }>>([]);
@@ -213,6 +237,33 @@ export function CreditNoteEditorPage() {
     control,
     name: 'items',
   });
+
+  useEffect(() => {
+    if (!organisation?.id) return;
+    Promise.all([
+      supabase.from('materials').select('id, name, display_name, sale_price, make').eq('organisation_id', organisation.id).order('name'),
+      supabase.from('item_variant_pricing').select('material_id, variant_id, sale_price, make').eq('company_id', organisation.id),
+      supabase.from('company_variants').select('id, variant_name').eq('organisation_id', organisation.id).eq('is_active', true),
+    ]).then(([materialsRes, pricingRes, variantsRes]) => {
+      if (!materialsRes.data) return;
+      const variantNames = new Map<string, string>();
+      variantsRes.data?.forEach(v => variantNames.set(String(v.id), String(v.variant_name)));
+      const pricingByMaterial = new Map<string, Array<{ variant_id: string; variant_name: string; make: string | null; sale_price: number | null }>>();
+      pricingRes.data?.forEach(p => {
+        const matId = String(p.material_id);
+        const vid = String(p.variant_id);
+        const vname = variantNames.get(vid) ?? vid;
+        const list = pricingByMaterial.get(matId) ?? [];
+        list.push({ variant_id: vid, variant_name: vname, make: p.make ?? null, sale_price: p.sale_price ?? null });
+        pricingByMaterial.set(matId, list);
+      });
+      setMaterialOptions(materialsRes.data.map(m => ({
+        id: String(m.id), name: String(m.name ?? ''), display_name: String(m.display_name ?? m.name ?? ''),
+        sale_price: m.sale_price ?? null, make: m.make ?? null,
+        variants: pricingByMaterial.get(String(m.id)) ?? [],
+      })));
+    });
+  }, [organisation?.id]);
 
   const watchedClientId = watch('client_id');
   const watchedItems = watch('items');
@@ -327,6 +378,108 @@ export function CreditNoteEditorPage() {
   }, [existingCN, isEditing, reset]);
 
   useEffect(() => {
+    if (!isConversion || !sourceInvoiceQuery.data) return;
+
+    const inv = sourceInvoiceQuery.data;
+    const clientName = inv.client?.client_name || inv.client?.name || '';
+    const clientState = inv.client?.state ?? null;
+    const companyStateStr = companyState;
+    const isInter = companyStateStr && clientState && companyStateStr !== clientState;
+
+    const cnItems = (inv.items || []).map((invItem: any) => {
+      const meta = invItem.meta_json || {};
+      const qty = Number(invItem.qty || invItem.quantity || 0);
+      const rate = Number(invItem.rate || 0);
+      const cgstPct = isInter ? 0 : Number(invItem.cgst_percent || invItem.tax_percent || 9);
+      const sgstPct = isInter ? 0 : Number(invItem.sgst_percent || invItem.tax_percent || 9);
+      const igstPct = isInter ? Number(invItem.igst_percent || invItem.tax_percent || 18) : 0;
+      const taxable = qty * rate;
+      const cgstAmt = Math.round(taxable * cgstPct / 100 * 100) / 100;
+      const sgstAmt = Math.round(taxable * sgstPct / 100 * 100) / 100;
+      const igstAmt = Math.round(taxable * igstPct / 100 * 100) / 100;
+      const total = Math.round((taxable + cgstAmt + sgstAmt + igstAmt) * 100) / 100;
+
+      return {
+        description: invItem.description || '',
+        hsn_code: invItem.hsn_code || '',
+        quantity: qty,
+        rate,
+        discount_amount: 0,
+        cgst_percent: cgstPct,
+        sgst_percent: sgstPct,
+        igst_percent: igstPct,
+        taxable_value: Math.round(taxable * 100) / 100,
+        cgst_amount: cgstAmt,
+        sgst_amount: sgstAmt,
+        igst_amount: igstAmt,
+        total_amount: total,
+        meta_json: {
+          material_id: meta.material_id || undefined,
+          variant: meta.variant || undefined,
+          variant_id: meta.variant_id || undefined,
+          make: meta.make || undefined,
+          unit: meta.uom || meta.unit || undefined,
+          warehouse_id: meta.warehouse_id || undefined,
+        },
+      };
+    });
+
+    let taxableTotal = 0;
+    let cgstTotal = 0;
+    let sgstTotal = 0;
+    let igstTotal = 0;
+    let grandTotal = 0;
+    const alerts: Array<{ description: string; invoiceRate: number; currentRate: number; diff: number }> = [];
+
+    for (const item of cnItems) {
+      taxableTotal += item.taxable_value;
+      cgstTotal += item.cgst_amount;
+      sgstTotal += item.sgst_amount;
+      igstTotal += item.igst_amount;
+      grandTotal += item.total_amount;
+
+      if (item.meta_json?.material_id && item.rate > 0) {
+        const mat = materialOptions.find(m => m.id === item.meta_json!.material_id);
+        if (mat) {
+          let currentRate = mat.sale_price ?? 0;
+          if (item.meta_json.variant_id && mat.variants?.length > 0) {
+            const v = mat.variants.find(vv => vv.variant_id === item.meta_json!.variant_id);
+            if (v?.sale_price != null) currentRate = v.sale_price;
+          }
+          const diff = Math.round((item.rate - currentRate) * 100) / 100;
+          if (Math.abs(diff) > 0.01) {
+            alerts.push({
+              description: item.description,
+              invoiceRate: item.rate,
+              currentRate,
+              diff,
+            });
+          }
+        }
+      }
+    }
+
+    setRateAlerts(alerts);
+
+    reset({
+      client_id: String(inv.client_id || ''),
+      invoice_id: fromInvoiceId || '',
+      cn_number: nextCNNumber ?? '',
+      cn_date: new Date().toISOString().split('T')[0],
+      cn_type: 'Sales Return',
+      reason: `Credit note for invoice ${inv.invoice_no || inv.invoice_number || fromInvoiceId}`,
+      taxable_amount: Math.round(taxableTotal * 100) / 100,
+      cgst_amount: Math.round(cgstTotal * 100) / 100,
+      sgst_amount: Math.round(sgstTotal * 100) / 100,
+      igst_amount: Math.round(igstTotal * 100) / 100,
+      total_amount: Math.round(grandTotal * 100) / 100,
+      approval_status: 'Pending',
+      default_warehouse_id: '',
+      items: cnItems.length > 0 ? cnItems : [createEmptyItem()],
+    });
+  }, [isConversion, sourceInvoiceQuery.data, nextCNNumber, reset, companyState, materialOptions]);
+
+  useEffect(() => {
     if (!isEditing && nextCNNumber) {
       setValue('cn_number', nextCNNumber);
     }
@@ -437,6 +590,21 @@ export function CreditNoteEditorPage() {
       {isEditing && existingCN && (
         <div style={{ marginBottom: '16px' }}>
           <CNStatusBadge status={existingCN.approval_status} size="md" />
+        </div>
+      )}
+
+      {isConversion && rateAlerts.length > 0 && (
+        <div style={{ padding: '12px 16px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', marginBottom: '16px' }}>
+          <div style={{ fontSize: '13px', fontWeight: 700, color: '#92400e', marginBottom: '6px' }}>
+            Rate Differences Detected
+          </div>
+          <div style={{ fontSize: '12px', color: '#78350f' }}>
+            {rateAlerts.map((a, i) => (
+              <div key={i} style={{ marginBottom: '2px' }}>
+                <strong>{a.description}</strong>: Invoice ₹{a.invoiceRate.toFixed(2)} → Current ₹{a.currentRate.toFixed(2)} ({a.diff > 0 ? '+' : ''}₹{a.diff.toFixed(2)})
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

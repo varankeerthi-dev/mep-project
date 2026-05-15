@@ -5,6 +5,7 @@ import {
   Receipt, 
   FileText, 
   Edit, 
+  FileEdit,
   Trash2, 
   Warehouse, 
   Truck,
@@ -243,19 +244,30 @@ export const Bills: React.FC = () => {
       header: 'Actions',
       cell: ({ row }: any) => (
         <div className="flex items-center gap-1">
-          <ShadcnButton 
-            variant="ghost" 
-            size="sm" 
+          <ShadcnButton
+            variant="ghost"
+            size="sm"
             className="h-8 w-8 text-rose-600 hover:bg-rose-50"
           >
             <FileText className="h-4 w-4" />
           </ShadcnButton>
-          <ShadcnButton 
-            variant="ghost" 
-            size="sm" 
+          <ShadcnButton
+            variant="ghost"
+            size="sm"
             className="h-8 w-8 text-slate-600 hover:bg-slate-100"
           >
             <Edit className="h-4 w-4" />
+          </ShadcnButton>
+          <ShadcnButton
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 text-amber-600 hover:bg-amber-50"
+            title="Convert to Debit Note"
+            onClick={() => {
+              window.dispatchEvent(new CustomEvent('convert-to-dn', { detail: { billId: row.original.id, billNumber: row.original.bill_number, vendorId: row.original.vendor_id } }));
+            }}
+          >
+            <FileEdit className="h-4 w-4" />
           </ShadcnButton>
         </div>
       ),
