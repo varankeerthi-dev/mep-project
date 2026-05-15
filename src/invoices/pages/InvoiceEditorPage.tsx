@@ -494,6 +494,7 @@ export default function InvoiceEditorPage() {
     handleSubmit,
     reset,
     setValue,
+    watch,
     getValues,
     formState,
   } = form;
@@ -2225,6 +2226,10 @@ export default function InvoiceEditorPage() {
               register={register}
               append={materialsFieldArray.append}
               remove={materialsFieldArray.remove}
+              materials={watch('materials')}
+              productOptions={materialsQuery.data ?? []}
+              setValue={setValue}
+              watch={watch}
               warehouses={warehousesQuery.data ?? []}
           defaultWarehouseId={defaultWarehouseId}
             />

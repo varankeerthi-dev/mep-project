@@ -6,6 +6,7 @@ import { supabase } from '../../supabase';
 import { useAuth } from '../../App';
 import { calculateItemTotals, detectInterState } from '../logic';
 import type { CNItemTotals } from '../logic';
+import { InlineDescriptionCell } from '../../components/InlineDescriptionCell';
 
 type CNItemForm = {
   id?: string;
@@ -403,6 +404,7 @@ export function CNItemsEditor({
             <tr style={{ background: '#fafafa', borderBottom: '2px solid #e5e5e5' }}>
               <th style={{ padding: '6px 4px', textAlign: 'center', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.03em', color: '#737373', width: '40px' }}>#</th>
               <th style={{ padding: '6px 4px', textAlign: 'left', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.03em', color: '#737373', minWidth: '160px' }}>MATERIAL</th>
+              <th style={{ padding: '6px 4px', textAlign: 'left', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.03em', color: '#737373', minWidth: '180px' }}>DESCRIPTION</th>
               <th style={{ padding: '6px 4px', textAlign: 'left', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.03em', color: '#737373', width: '70px' }}>HSN</th>
               <th style={{ padding: '6px 4px', textAlign: 'left', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.03em', color: '#737373', width: '80px' }}>MAKE</th>
               <th style={{ padding: '6px 4px', textAlign: 'left', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.03em', color: '#737373', width: '90px' }}>VARIANT</th>
@@ -476,6 +478,13 @@ export function CNItemsEditor({
                         {getFilteredMaterials(index).length === 0 && <div style={{ padding: '8px 12px', fontSize: '11px', color: '#737373' }}>No materials found</div>}
                       </div>
                     )}
+                  </td>
+                  <td style={{ padding: '4px 6px', verticalAlign: 'top' }}>
+                    <InlineDescriptionCell
+                      materialName={getSelectedMaterialName(index)}
+                      description={item.description}
+                      onSave={(desc) => setValue(`items.${index}.description`, desc, { shouldDirty: true })}
+                    />
                   </td>
                   <td style={{ padding: '4px' }}>
                     <input {...register(`items.${index}.hsn_code`)} placeholder="HSN" style={{ width: '100%', padding: '4px 6px', border: '1px solid transparent', borderRadius: '2px', fontSize: '11px', background: 'transparent', textAlign: 'left' }} />

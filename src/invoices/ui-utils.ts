@@ -34,6 +34,7 @@ export const InvoiceEditorMaterialSchema = z.object({
   product_id: z.string().uuid('Product is required.'),
   qty_used: z.coerce.number().positive('Qty used must be greater than zero.'),
   warehouse_id: z.string().uuid().nullable().optional(),
+  description: z.string().optional(),
 });
 
 export const InvoiceEditorSchema = z
@@ -224,6 +225,7 @@ export function createEmptyMaterial(
   return {
     product_id: overrides.product_id ?? '',
     qty_used: overrides.qty_used ?? 1,
+    description: overrides.description ?? '',
   };
 }
 

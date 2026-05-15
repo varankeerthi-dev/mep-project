@@ -1,7 +1,8 @@
-import type { FieldArrayWithId, UseFieldArrayAppend, UseFieldArrayRemove, UseFormRegister } from 'react-hook-form';
+import type { FieldArrayWithId, UseFieldArrayAppend, UseFieldArrayRemove, UseFormRegister, UseFormSetValue, UseFormWatch } from 'react-hook-form';
 import { Minus, Plus } from 'lucide-react';
 import type { InvoiceEditorFormValues, InvoiceMaterialOption } from '../ui-utils';
 import { createEmptyMaterial } from '../ui-utils';
+import { InlineDescriptionCell } from '../../components/InlineDescriptionCell';
 
 type InvoiceMaterialsEditorProps = {
   fields: FieldArrayWithId<InvoiceEditorFormValues, 'materials', 'id'>[];
@@ -10,6 +11,8 @@ type InvoiceMaterialsEditorProps = {
   remove: UseFieldArrayRemove;
   materials: InvoiceEditorFormValues['materials'];
   productOptions: InvoiceMaterialOption[];
+  setValue: UseFormSetValue<InvoiceEditorFormValues>;
+  watch: UseFormWatch<InvoiceEditorFormValues>;
   error?: string;
   warehouses?: Array<{ id: string; warehouse_name?: string; name?: string }>;
   defaultWarehouseId?: string;
@@ -20,7 +23,10 @@ export function InvoiceMaterialsEditor({
   register,
   append,
   remove,
+  materials,
   productOptions,
+  setValue,
+  watch,
   error,
   warehouses = [],
   defaultWarehouseId,
@@ -79,6 +85,18 @@ export function InvoiceMaterialsEditor({
               </th>
               <th style={{ 
                 padding: '6px 8px', 
+                textAlign: 'left', 
+                fontSize: '10px', 
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: '0.03em',
+                color: '#737373',
+                minWidth: '180px'
+              }}>
+                Description
+              </th>
+              <th style={{ 
+                padding: '6px 8px', 
                 textAlign: 'right', 
                 fontSize: '10px', 
                 fontWeight: 600,
@@ -129,6 +147,13 @@ export function InvoiceMaterialsEditor({
                       </option>
                     ))}
                   </select>
+                </td>
+                <td style={{ padding: '4px 8px', verticalAlign: 'top' }}>
+                  <InlineDescriptionCell
+                    materialName={(() => { const p = productOptions.find(x => x.id === (watch(`materials.${index}.product_id`) as string)); return p?.name || ''; })()}
+                    description={watch(`materials.${index}.description`) as string}
+                    onSave={(desc) => setValue(`materials.${index}.description`, desc, { shouldDirty: true })}
+                  />
                 </td>
                 <td style={{ padding: '4px 8px' }}>
                   <input
