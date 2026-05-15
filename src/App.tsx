@@ -61,6 +61,7 @@ const POList = lazyAny(() => import('./pages/POList'));
 const PODetails = lazyAny(() => import('./pages/PODetails'));
 const InvoiceListPage = lazyAny(() => import('./invoices/pages/InvoiceListPage'));
 const InvoiceEditorPage = lazyAny(() => import('./invoices/pages/InvoiceEditorPage'));
+const InvoiceView = lazyAny(() => import('./invoices/pages/InvoiceView'));
 const ProformaListPage = lazyAny(() => import('./proforma-invoices/pages/ProformaListPage'));
 const ProformaEditorPage = lazyAny(() => import('./proforma-invoices/pages/ProformaEditorPage'));
 const LedgerDashboard = lazyAny(() => import('./ledger/LedgerDashboard'));
@@ -256,6 +257,7 @@ export default function App() {
       case '/quotation/view': return <QuotationView />;
       case '/quotation/edit': return <CreateQuotation onSuccess={() => navigate('/quotation')} onCancel={() => navigate('/quotation')} editMode={true} />;
       case '/invoices': return <InvoiceListPage />;
+      case '/invoices/view': return <InvoiceView />;
       case '/invoices/create': return <InvoiceEditorPage />;
       case '/invoices/edit': return <InvoiceEditorPage />;
       case '/proforma-invoices': return <ProformaListPage />;

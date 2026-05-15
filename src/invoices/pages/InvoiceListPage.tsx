@@ -1082,7 +1082,11 @@ export default function InvoiceListPage() {
 
                 {!invoicesQuery.isLoading &&
                   paginatedData.map(({ invoice, row }) => (
-                    <tr key={invoice.id ?? String(row.invoiceNumber)}>
+                    <tr
+                      key={invoice.id ?? String(row.invoiceNumber)}
+                      onClick={() => navigate(`/invoices/view?id=${invoice.id}`)}
+                      style={{ cursor: 'pointer' }}
+                    >
                       {visibleColumns.map((col) => {
                         const hideSm = MOBILE_HIDE_KEYS.has(col.key) ? ' il-hide-sm' : '';
                         const num = col.display.type === 'number' ? ' il-td-num' : '';
@@ -1092,7 +1096,9 @@ export default function InvoiceListPage() {
                           </td>
                         );
                       })}
-                      <td className="il-td-actions">{renderActions(invoice)}</td>
+                      <td className="il-td-actions" onClick={(e) => e.stopPropagation()}>
+                        {renderActions(invoice)}
+                      </td>
                     </tr>
                   ))}
               </tbody>
