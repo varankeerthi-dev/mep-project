@@ -108,8 +108,14 @@ export const InvoiceSchema = z
     total: CurrencySchema,
     status: z.enum(invoiceStatuses).default('draft'),
     created_at: z.string().datetime({ offset: true }).optional(),
-    company_state: z.string().trim().min(1).optional().nullable(),
-    client_state: z.string().trim().min(1).optional().nullable(),
+    company_state: z.preprocess(
+      (val) => (val === '' ? null : val),
+      z.string().trim().min(1).optional().nullable()
+    ),
+    client_state: z.preprocess(
+      (val) => (val === '' ? null : val),
+      z.string().trim().min(1).optional().nullable()
+    ),
     shipping_address_id: z.string().uuid().optional().nullable(),
     deduct_stock_on_finalize: z.boolean().default(false),
     allow_insufficient_stock: z.boolean().default(false),

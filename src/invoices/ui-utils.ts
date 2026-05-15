@@ -53,7 +53,10 @@ export const InvoiceEditorSchema = z
     mode: z.enum(invoiceModes),
     status: z.enum(invoiceStatuses),
     company_state: z.string().trim().min(1, 'Company state is required.'),
-    client_state: z.string().trim().nullable().optional(),
+    client_state: z.preprocess(
+      (val) => (val === '' ? null : val),
+      z.string().trim().nullable().optional()
+    ),
     shipping_address_id: z.preprocess(
       (val) => (val === '' ? null : val),
       z.string().uuid().nullable().optional()
