@@ -24,6 +24,14 @@ export function invoiceToListRow(invoice: InvoiceWithRelations): Record<string, 
 }
 
 export const invoiceListTableSchema = createTableSchema({
+  issueDate: col.presets
+    .timestamp()
+    .label('Invoice Date')
+    .sortable()
+    .commandDisabled()
+    .size(160)
+    .sheet(),
+
   invoiceNumber: col
     .string()
     .label('Invoice No')
@@ -35,17 +43,8 @@ export const invoiceListTableSchema = createTableSchema({
   customerName: col
     .string()
     .label('Client Name')
-    .display('badge')
     .filterable('checkbox', { options: [] })
     .size(160)
-    .sheet(),
-
-  issueDate: col.presets
-    .timestamp()
-    .label('Issue Date')
-    .sortable()
-    .commandDisabled()
-    .size(220)
     .sheet(),
 
   /** Not on invoice row yet — hidden until API provides due_at / due_date. */
