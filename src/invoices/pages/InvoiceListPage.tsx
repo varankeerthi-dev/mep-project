@@ -1169,9 +1169,9 @@ export default function InvoiceListPage() {
             style={{
               display: 'flex',
               flexDirection: 'column',
-              width: '85vw',
+              width: '90vw',
               maxWidth: '1200px',
-              height: '85vh',
+              height: '95vh',
               background: '#fff',
               borderRadius: '0.75rem',
               overflow: 'hidden',
