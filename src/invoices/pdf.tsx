@@ -298,6 +298,14 @@ export async function previewInvoicePDF(
   return url;
 }
 
+export async function getInvoicePdfBlobUrl(
+  invoiceInput: InvoiceLike,
+  options: InvoicePdfOptions = {},
+): Promise<string> {
+  const { blob } = await renderInvoicePdfBlob(invoiceInput, options);
+  return URL.createObjectURL(blob);
+}
+
 export async function printInvoicePDF(
   invoiceInput: InvoiceLike,
   options: InvoicePdfOptions = {},
