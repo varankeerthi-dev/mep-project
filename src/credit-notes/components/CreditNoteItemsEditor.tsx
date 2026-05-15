@@ -130,7 +130,7 @@ export function CNItemsEditor({
 
     Promise.all([
       supabase.from('materials').select('id, name, display_name, hsn_code, unit, sale_price, make').eq('organisation_id', organisation.id).order('name'),
-      supabase.from('item_variant_pricing').select('material_id, variant_id, sale_price, make').eq('company_id', organisation.id),
+      supabase.from('item_variant_pricing').select('item_id, company_variant_id, sale_price, make'),
       supabase.from('company_variants').select('id, variant_name').eq('organisation_id', organisation.id).eq('is_active', true),
     ]).then(([materialsRes, pricingRes, variantsRes]) => {
       if (!materialsRes.data) return;
@@ -140,8 +140,8 @@ export function CNItemsEditor({
 
       const pricingByMaterial = new Map<string, Array<{ variant_id: string; variant_name: string; make: string | null; sale_price: number | null }>>();
       pricingRes.data?.forEach(p => {
-        const matId = String(p.material_id);
-        const vid = String(p.variant_id);
+        const matId = String(p.item_id);
+        const vid = String(p.company_variant_id);
         const vname = variantNames.get(vid) ?? vid;
         const list = pricingByMaterial.get(matId) ?? [];
         list.push({ variant_id: vid, variant_name: vname, make: p.make ?? null, sale_price: p.sale_price ?? null });
