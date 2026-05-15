@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { endOfMonth, format, subMonths, subYears, startOfMonth } from 'date-fns';
-import { ChevronDown, FileText, Filter, Landmark, Loader2, Pencil, Plus, Save, Search, Trash2, Wallet, X, Calculator, Eye } from 'lucide-react';
+import { ChevronDown, FileText, Filter, Landmark, Loader2, Pencil, Plus, Save, Search, Trash2, Wallet, X, Calculator, Eye, Receipt, Printer, Download, FileText as FileTextIcon } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { toast } from '@/lib/logger';
@@ -46,6 +46,8 @@ import {
 } from './api';
 import { buildLedgerSummaries, formatCurrency, formatDisplayDate, generateFyOptions, type LedgerSummaryRow } from './utils';
 import { Party360 } from '../components/Party360';
+import { generatePaymentReceiptPdf } from '../pdf/paymentReceiptPdf';
+import { amountInWords } from '../credit-notes/utils/amountInWords';
 
 const DEFAULT_STORAGE_KEY = 'ledger.dashboard.default-range.v1';
 
@@ -165,6 +167,11 @@ export default function LedgerDashboard() {
   const [openingBalanceDrafts, setOpeningBalanceDrafts] = useState<Record<string, BulkOpeningBalanceInput>>({});
   const [party360Open, setParty360Open] = useState(false);
   const [party360Data, setParty360Data] = useState<{ name: string; vendorId: string | null; clientId: string } | null>(null);
+  const [receiptPreviewOpen, setReceiptPreviewOpen] = useState(false);
+  const [receiptPdfUrl, setReceiptPdfUrl] = useState<string | null>(null);
+  const [receiptSigId, setReceiptSigId] = useState<string>('');
+  const [selectedReceiptForPreview, setSelectedReceiptForPreview] = useState<any>(null);
+  const [receiptLoading, setReceiptLoading] = useState(false);
 
   const clientsQuery = useQuery({
     queryKey: ['ledger', 'clients', orgId],
@@ -447,6 +454,83 @@ export default function LedgerDashboard() {
       payment_type: editingForm.payment_type || null,
       remarks: editingForm.remarks,
     });
+  };
+
+  const handleOpenReceiptPreview = (receipt: any) => {
+    setSelectedReceiptForPreview(receipt);
+    setReceiptSigId('');
+    setReceiptPreviewOpen(true);
+    setReceiptLoading(true);
+    setReceiptPdfUrl(null);
+    // Auto-generate PDF on open
+    setTimeout(() => generateReceiptPdf(''), 100);
+  };
+
+  const generateReceiptPdf = async (sigId?: string) => {
+    if (!selectedReceiptForPreview) return;
+    setReceiptLoading(true);
+    try {
+      const rcpt = selectedReceiptForPreview;
+      const client = clients.find(c => c.id === rcpt.client_id);
+      const sig = sigId || receiptSigId;
+      const sigObj = sig ? ((organisation as any)?.signatures || []).find((s: any) => String(s.id) === String(sig)) : null;
+
+      const unsettledInvoices = invoicesQuery.data
+        ?.filter(inv => inv.client_id === rcpt.client_id)
+        .map(inv => ({
+          invoice_no: inv.invoice_no,
+          invoice_date: inv.invoice_date || '',
+          total: inv.total,
+          balance: inv.total,
+        }))
+        .slice(0, 5) || [];
+
+      const pdfData = {
+        receipt_no: rcpt.receipt_no || `REC-${rcpt.id.slice(0, 8).toUpperCase()}`,
+        receipt_date: rcpt.receipt_date,
+        client_name: client?.name || 'Unknown Client',
+        client_gstin: client?.gstin || null,
+        client_address: null,
+        amount: rcpt.amount,
+        amount_in_words: amountInWords(rcpt.amount),
+        currency: 'INR',
+        payment_mode: rcpt.payment_mode || rcpt.payment_type || null,
+        payment_reference: rcpt.reference_no || null,
+        po_number: null,
+        remarks: rcpt.remarks || null,
+        unsettled_invoices: unsettledInvoices,
+        organisation: organisation || {},
+        signature_url: sigObj?.url || null,
+        signature_name: sigObj?.name || null,
+      };
+
+      const pdfDoc = generatePaymentReceiptPdf(pdfData);
+      const blob = pdfDoc.output('blob');
+      const url = URL.createObjectURL(blob);
+      setReceiptPdfUrl(url);
+    } finally {
+      setReceiptLoading(false);
+    }
+  };
+
+  const handlePrintReceipt = () => {
+    if (!receiptPdfUrl) return;
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    iframe.src = receiptPdfUrl;
+    document.body.appendChild(iframe);
+    iframe.onload = () => {
+      try { iframe.contentWindow?.print(); } catch { window.print(); }
+      setTimeout(() => { document.body.removeChild(iframe); }, 1000);
+    };
+  };
+
+  const handleDownloadReceipt = () => {
+    if (!receiptPdfUrl || !selectedReceiptForPreview) return;
+    const a = document.createElement('a');
+    a.href = receiptPdfUrl;
+    a.download = `${selectedReceiptForPreview.receipt_no || 'receipt'}.pdf`;
+    a.click();
   };
 
   const handleStartOpeningBalanceEdit = () => {
@@ -764,6 +848,14 @@ export default function LedgerDashboard() {
                                 </TableCell>
                                 <TableCell className="py-3 px-4 text-right">
                                   <div className="flex items-center justify-end gap-3 opacity-0 transition-opacity group-hover:opacity-100">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenReceiptPreview(receipt)}
+                                      className="text-emerald-500 hover:text-emerald-700 transition-colors"
+                                      title="Payment Receipt"
+                                    >
+                                      <Receipt size={14} />
+                                    </button>
                                     <button
                                       type="button"
                                       onClick={() => handleStartEdit(receipt)}
@@ -1240,6 +1332,55 @@ export default function LedgerDashboard() {
             clientId={party360Data.clientId}
             onClose={() => setParty360Open(false)}
           />
+        )}
+
+        {/* Payment Receipt Preview Modal */}
+        {receiptPreviewOpen && selectedReceiptForPreview && (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)' }} onClick={() => { setReceiptPreviewOpen(false); if (receiptPdfUrl) URL.revokeObjectURL(receiptPdfUrl); setReceiptPdfUrl(null); }}>
+            <div style={{ display: 'flex', flexDirection: 'column', width: '90vw', maxWidth: '1200px', height: '95vh', background: '#fff', borderRadius: '12px', overflow: 'hidden' }} onClick={(e) => e.stopPropagation()}>
+              {/* Toolbar */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', borderBottom: '1px solid #e5e5e5', background: '#fafafa' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <Receipt size={18} style={{ color: '#059669' }} />
+                  <span style={{ fontWeight: 600, fontSize: '14px' }}>Payment Receipt — {selectedReceiptForPreview.receipt_no || selectedReceiptForPreview.id.slice(0, 8)}</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  {/* Signature selector */}
+                  <select
+                    value={receiptSigId}
+                    onChange={(e) => { setReceiptSigId(e.target.value); generateReceiptPdf(e.target.value); }}
+                    style={{ padding: '6px 10px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '12px', background: '#fff', cursor: 'pointer' }}
+                  >
+                    <option value="">No Signature</option>
+                    {((organisation as any)?.signatures || []).map((sig: any) => (
+                      <option key={sig.id} value={sig.id}>{sig.name}</option>
+                    ))}
+                  </select>
+                  <button onClick={handlePrintReceipt} disabled={!receiptPdfUrl} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '6px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', background: '#fff', fontSize: '12px', cursor: receiptPdfUrl ? 'pointer' : 'not-allowed', opacity: receiptPdfUrl ? 1 : 0.5 }}>
+                    <Printer size={14} /> Print
+                  </button>
+                  <button onClick={handleDownloadReceipt} disabled={!receiptPdfUrl} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '6px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', background: '#fff', fontSize: '12px', cursor: receiptPdfUrl ? 'pointer' : 'not-allowed', opacity: receiptPdfUrl ? 1 : 0.5 }}>
+                    <Download size={14} /> Download
+                  </button>
+                  <button onClick={() => { setReceiptPreviewOpen(false); if (receiptPdfUrl) URL.revokeObjectURL(receiptPdfUrl); setReceiptPdfUrl(null); }} style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: '4px', color: '#737373' }}>
+                    <X size={20} />
+                  </button>
+                </div>
+              </div>
+              {/* Preview */}
+              <div style={{ flex: 1, overflow: 'hidden', background: '#f3f4f6' }}>
+                {receiptLoading ? (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                    <Loader2 size={24} className="animate-spin" style={{ color: '#a3a3a3' }} />
+                  </div>
+                ) : receiptPdfUrl ? (
+                  <iframe src={receiptPdfUrl} style={{ width: '100%', height: '100%', border: 'none' }} title="Payment Receipt Preview" />
+                ) : (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#a3a3a3' }}>Failed to load preview</div>
+                )}
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>

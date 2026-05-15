@@ -24,6 +24,7 @@ export default function SettingsPage() {
     invoice_prefix: 'INV', invoice_start_number: 1, invoice_suffix: '', invoice_padding: 4,
     quotation_prefix: 'QT', quotation_start_number: 1, quotation_suffix: '', quotation_padding: 4,
     nb_dc_prefix: 'NBDC', nb_dc_start_number: 1, nb_dc_suffix: '', nb_dc_padding: 4,
+    receipt_prefix: 'REC', receipt_start_number: 1, receipt_suffix: '', receipt_padding: 4,
   });
 
   const [generalSettings, setGeneralSettings] = useState({
@@ -56,6 +57,7 @@ export default function SettingsPage() {
         invoice_prefix: data.invoice_prefix || 'INV', invoice_start_number: data.invoice_start_number || 1, invoice_suffix: data.invoice_suffix || '', invoice_padding: data.invoice_padding || 4,
         quotation_prefix: data.quotation_prefix || 'QT', quotation_start_number: data.quotation_start_number || 1, quotation_suffix: data.quotation_suffix || '', quotation_padding: data.quotation_padding || 4,
         nb_dc_prefix: data.nb_dc_prefix || 'NBDC', nb_dc_start_number: data.nb_dc_start_number || 1, nb_dc_suffix: data.nb_dc_suffix || '', nb_dc_padding: data.nb_dc_padding || 4,
+        receipt_prefix: data.receipt_prefix || 'REC', receipt_start_number: data.receipt_start_number || 1, receipt_suffix: data.receipt_suffix || '', receipt_padding: data.receipt_padding || 4,
       });
     }
   };
@@ -118,6 +120,7 @@ export default function SettingsPage() {
     { key: 'po', label: 'Purchase Order', icon: FileCode, desc: 'Order sent to your vendors' },
     { key: 'dc', label: 'Delivery Challan', icon: Truck, desc: 'Material delivery proof' },
     { key: 'nb_dc', label: 'Non-Billable DC', icon: Truck, desc: 'Internal or replacement material' },
+    { key: 'receipt', label: 'Payment Receipt', icon: Receipt, desc: 'Receipt issued for client payments' },
     { key: 'vendor', label: 'Vendor', icon: User, desc: 'Vendor ID generation' },
   ];
 
