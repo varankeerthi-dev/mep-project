@@ -1069,48 +1069,68 @@ export default function InvoiceListPage() {
                             const r = sliderFilter[col.key] ?? { min: b.min, max: b.max };
                             const isFiltered = r.min > b.min || r.max < b.max;
                             return (
-                              <div className="il-th-filter-num">
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  value={Number.isFinite(r.min) ? r.min : b.min}
-                                  placeholder="Min"
-                                  onChange={(e) => {
-                                    const v = Number(e.target.value);
-                                    setSliderFilter((prev) => ({
-                                      ...prev,
-                                      [col.key]: { min: v, max: Math.max(v, prev[col.key]?.max ?? b.max) },
-                                    }));
-                                  }}
-                                  aria-label={`${col.label} min`}
-                                  style={isFiltered ? { borderColor: 'var(--accent)', background: 'white' } : {}}
-                                />
-                                <span style={{ fontSize: '0.625rem', color: 'var(--text-muted)' }}>–</span>
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  value={Number.isFinite(r.max) ? r.max : b.max}
-                                  placeholder="Max"
-                                  onChange={(e) => {
-                                    const v = Number(e.target.value);
-                                    setSliderFilter((prev) => ({
-                                      ...prev,
-                                      [col.key]: { min: Math.min(v, prev[col.key]?.min ?? b.min), max: v },
-                                    }));
-                                  }}
-                                  aria-label={`${col.label} max`}
-                                  style={isFiltered ? { borderColor: 'var(--accent)', background: 'white' } : {}}
-                                />
-                                {isFiltered && (
-                                  <button
-                                    type="button"
-                                    onClick={() => setSliderFilter((prev) => ({ ...prev, [col.key]: { min: b.min, max: b.max } }))}
-                                    style={{ padding: '0.125rem', background: 'transparent', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontSize: '0.625rem' }}
-                                  >
-                                    ×
-                                  </button>
+                              <>
+                                <button
+                                  type="button"
+                                  className={`il-th-filter-btn${isFiltered ? ' active' : ''}`}
+                                  onClick={() => setOpenFilterColumn(isFilterOpen ? null : col.key)}
+                                >
+                                  <Filter size={10} />
+                                  {isFiltered ? 'Filtered' : 'Filter'}
+                                </button>
+                                {isFilterOpen && (
+                                  <div className="il-th-filter-dropdown">
+                                    <div style={{ padding: '0.25rem 0.5rem', borderBottom: '1px solid #e5e7eb', fontSize: '0.625rem', fontWeight: 600, color: '#6b7280', marginBottom: '0.25rem' }}>
+                                      {col.label}
+                                    </div>
+                                    <div className="il-th-filter-num" style={{ padding: '0.5rem' }}>
+                                      <input
+                                        type="number"
+                                        step="0.01"
+                                        value={Number.isFinite(r.min) ? r.min : b.min}
+                                        placeholder="Min"
+                                        onChange={(e) => {
+                                          const v = Number(e.target.value);
+                                          setSliderFilter((prev) => ({
+                                            ...prev,
+                                            [col.key]: { min: v, max: Math.max(v, prev[col.key]?.max ?? b.max) },
+                                          }));
+                                        }}
+                                        aria-label={`${col.label} min`}
+                                        style={isFiltered ? { borderColor: '#3b82f6', background: 'white' } : {}}
+                                      />
+                                      <span style={{ fontSize: '0.625rem', color: '#6b7280' }}>–</span>
+                                      <input
+                                        type="number"
+                                        step="0.01"
+                                        value={Number.isFinite(r.max) ? r.max : b.max}
+                                        placeholder="Max"
+                                        onChange={(e) => {
+                                          const v = Number(e.target.value);
+                                          setSliderFilter((prev) => ({
+                                            ...prev,
+                                            [col.key]: { min: Math.min(v, prev[col.key]?.min ?? b.min), max: v },
+                                          }));
+                                        }}
+                                        aria-label={`${col.label} max`}
+                                        style={isFiltered ? { borderColor: '#3b82f6', background: 'white' } : {}}
+                                      />
+                                    </div>
+                                    {isFiltered && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setSliderFilter((prev) => ({ ...prev, [col.key]: { min: b.min, max: b.max } }));
+                                          setOpenFilterColumn(null);
+                                        }}
+                                        style={{ width: '100%', marginTop: '0.25rem', padding: '0.375rem', fontSize: '0.6875rem', color: '#dc2626', background: 'transparent', border: 'none', borderTop: '1px solid #e5e7eb', cursor: 'pointer', textAlign: 'center' }}
+                                      >
+                                        Clear
+                                      </button>
+                                    )}
+                                  </div>
                                 )}
-                              </div>
+                              </>
                             );
                           })()}
                         </div>
