@@ -1159,140 +1159,157 @@ export default function InvoiceListPage() {
             inset: 0,
             zIndex: 9999,
             display: 'flex',
-            flexDirection: 'column',
-            background: '#525659',
-          }}
-        >
-          {/* Toolbar - Chrome PDF viewer style */}
-          <div style={{
-            display: 'flex',
             alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '0.5rem 1rem',
-            background: '#323639',
-            borderBottom: '1px solid #1a1a1a',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <span style={{ color: '#e8eaed', fontSize: '0.875rem', fontWeight: 500 }}>
-                {previewInvoice.invoice_no || `Invoice ${previewInvoice.id?.slice(0, 8)}`}
-              </span>
-              {previewLoading && (
-                <span style={{ color: '#9aa0a6', fontSize: '0.75rem' }}>Loading...</span>
+            justifyContent: 'center',
+            background: 'rgba(0, 0, 0, 0.6)',
+          }}
+          onClick={closePreview}
+        >
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              width: '85vw',
+              maxWidth: '1200px',
+              height: '85vh',
+              background: '#fff',
+              borderRadius: '0.75rem',
+              overflow: 'hidden',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Toolbar */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '0.625rem 1rem',
+              background: '#fff',
+              borderBottom: '1px solid #e5e7eb',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <span style={{ color: '#111827', fontSize: '0.875rem', fontWeight: 600 }}>
+                  {previewInvoice.invoice_no || `Invoice ${previewInvoice.id?.slice(0, 8)}`}
+                </span>
+                {previewLoading && (
+                  <span style={{ color: '#6b7280', fontSize: '0.75rem' }}>Loading...</span>
+                )}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <button
+                  type="button"
+                  onClick={() => navigate(`/invoices/edit?id=${previewInvoice.id}`)}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.375rem',
+                    padding: '0.375rem 0.75rem',
+                    background: 'transparent',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '0.375rem',
+                    color: '#374151',
+                    fontSize: '0.75rem',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = '#f3f4f6'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                >
+                  <Pencil size={14} />
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (previewInvoice.id) {
+                      await downloadInvoicePDF(previewInvoice);
+                    }
+                  }}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.375rem',
+                    padding: '0.375rem 0.75rem',
+                    background: 'transparent',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '0.375rem',
+                    color: '#374151',
+                    fontSize: '0.75rem',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = '#f3f4f6'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                >
+                  <Download size={14} />
+                  Download
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (previewInvoice.id) {
+                      await printInvoicePDF(previewInvoice);
+                    }
+                  }}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.375rem',
+                    padding: '0.375rem 0.75rem',
+                    background: 'transparent',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '0.375rem',
+                    color: '#374151',
+                    fontSize: '0.75rem',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = '#f3f4f6'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                >
+                  <Printer size={14} />
+                  Print
+                </button>
+                <button
+                  type="button"
+                  onClick={closePreview}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '2rem',
+                    height: '2rem',
+                    background: 'transparent',
+                    border: 'none',
+                    borderRadius: '0.375rem',
+                    color: '#6b7280',
+                    cursor: 'pointer',
+                    fontSize: '1.25rem',
+                    lineHeight: 1,
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = '#f3f4f6'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+
+            {/* PDF Viewer */}
+            <div style={{ flex: 1, overflow: 'hidden', background: '#f3f4f6' }}>
+              {previewPdfUrl ? (
+                <iframe
+                  src={previewPdfUrl}
+                  style={{ width: '100%', height: '100%', border: 'none' }}
+                  title="Invoice PDF Preview"
+                />
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#6b7280' }}>
+                  <Loader2 className="animate-spin" size={24} />
+                </div>
               )}
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <button
-                type="button"
-                onClick={() => navigate(`/invoices/edit?id=${previewInvoice.id}`)}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.375rem',
-                  padding: '0.375rem 0.75rem',
-                  background: 'transparent',
-                  border: '1px solid #5f6368',
-                  borderRadius: '0.25rem',
-                  color: '#e8eaed',
-                  fontSize: '0.75rem',
-                  fontWeight: 500,
-                  cursor: 'pointer',
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.background = '#3c4043'}
-                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-              >
-                <Pencil size={14} />
-                Edit
-              </button>
-              <button
-                type="button"
-                onClick={async () => {
-                  if (previewInvoice.id) {
-                    await downloadInvoicePDF(previewInvoice);
-                  }
-                }}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.375rem',
-                  padding: '0.375rem 0.75rem',
-                  background: 'transparent',
-                  border: '1px solid #5f6368',
-                  borderRadius: '0.25rem',
-                  color: '#e8eaed',
-                  fontSize: '0.75rem',
-                  fontWeight: 500,
-                  cursor: 'pointer',
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.background = '#3c4043'}
-                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-              >
-                <Download size={14} />
-                Download PDF
-              </button>
-              <button
-                type="button"
-                onClick={async () => {
-                  if (previewInvoice.id) {
-                    await printInvoicePDF(previewInvoice);
-                  }
-                }}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.375rem',
-                  padding: '0.375rem 0.75rem',
-                  background: 'transparent',
-                  border: '1px solid #5f6368',
-                  borderRadius: '0.25rem',
-                  color: '#e8eaed',
-                  fontSize: '0.75rem',
-                  fontWeight: 500,
-                  cursor: 'pointer',
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.background = '#3c4043'}
-                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-              >
-                <Printer size={14} />
-                Print
-              </button>
-              <button
-                type="button"
-                onClick={closePreview}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  width: '2rem',
-                  height: '2rem',
-                  background: 'transparent',
-                  border: 'none',
-                  borderRadius: '0.25rem',
-                  color: '#9aa0a6',
-                  cursor: 'pointer',
-                  fontSize: '1.25rem',
-                  lineHeight: 1,
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.background = '#3c4043'}
-                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-              >
-                ×
-              </button>
-            </div>
-          </div>
-
-          {/* PDF Viewer */}
-          <div style={{ flex: 1, overflow: 'hidden' }}>
-            {previewPdfUrl ? (
-              <iframe
-                src={previewPdfUrl}
-                style={{ width: '100%', height: '100%', border: 'none' }}
-                title="Invoice PDF Preview"
-              />
-            ) : (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#9aa0a6' }}>
-                <Loader2 className="animate-spin" size={24} />
-              </div>
-            )}
           </div>
         </div>
       )}
