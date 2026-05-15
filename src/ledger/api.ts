@@ -54,19 +54,17 @@ export type LedgerInvoice = {
 
 export type LedgerReceipt = {
   id: string;
-  org_id: string;
   client_id: string;
-  invoice_id?: string | null;
-  receipt_no?: string | null;
-  amount: number;
+  org_id: string | null;
+  receipt_no: string | null;
   receipt_date: string;
-  remarks?: string | null;
-  payment_type?: string | null;
-  payment_mode?: string | null;
-  reference_no?: string | null;
-  status?: string | null;
-  notes?: string | null;
-  created_at?: string | null;
+  amount: number;
+  payment_type: string | null;
+  remarks: string | null;
+  cheque_no: string | null;
+  utr_no: string | null;
+  payment_mode: string | null;
+  reference_no: string | null;
 };
 
 export type LedgerDateRange = {
@@ -148,7 +146,7 @@ export async function listLedgerInvoices(orgId: string, range?: LedgerDateRange)
 export async function listLedgerReceipts(orgId: string, range?: LedgerDateRange): Promise<LedgerReceipt[]> {
   let query = supabase
     .from('receipts')
-    .select('id, org_id, client_id, invoice_id, receipt_no, amount, receipt_date, remarks, payment_type, payment_mode, reference_no, status, notes, created_at')
+    .select('id, org_id, client_id, invoice_id, receipt_no, amount, receipt_date, remarks, payment_type, payment_mode, reference_no, cheque_no, utr_no, status, notes, created_at')
     .eq('org_id', orgId)
     .neq('status', 'draft')
     .order('receipt_date', { ascending: true });

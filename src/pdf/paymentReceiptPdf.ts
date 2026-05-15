@@ -44,32 +44,35 @@ export function generatePaymentReceiptPdf(input: PaymentReceiptInput): jsPDF {
   let y = margin;
 
   const org = input.organisation;
-  const themeColor = (org.theme_color as string) || '#1e40af';
 
-  // ── Header bar ──
-  doc.setFillColor(themeColor);
-  doc.rect(0, 0, pageW, 35, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(22);
-  doc.setFont('helvetica', 'bold');
-  doc.text(String(org.name || 'Organisation'), margin, 18);
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'normal');
-  const orgAddr = [org.address, org.city, org.state].filter(Boolean).join(', ');
-  doc.text(orgAddr || '', margin, 26);
-  if (org.gstin) {
-    doc.text(`GSTIN: ${org.gstin}`, margin, 31);
-  }
-
-  // Logo (top-right)
+  // ── Header: Logo (left) + Organisation details ──
   const logoUrl = org.logo_url as string | undefined;
+  let headerX = margin;
   if (logoUrl) {
     try {
-      doc.addImage(logoUrl, 'PNG', pageW - margin - 25, 5, 25, 25);
+      doc.addImage(logoUrl, 'PNG', headerX, y, 22, 22);
     } catch { /* skip */ }
+    headerX += 28;
   }
 
-  y = 42;
+  doc.setTextColor(30, 30, 30);
+  doc.setFontSize(20);
+  doc.setFont('helvetica', 'bold');
+  doc.text(String(org.name || 'Organisation'), headerX, y + 8);
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(100, 100, 100);
+  const orgAddr = [org.address, org.city, org.state].filter(Boolean).join(', ');
+  doc.text(orgAddr || '', headerX, y + 14);
+  const orgContact = [org.phone, org.email].filter(Boolean).join(' | ');
+  if (orgContact) doc.text(orgContact, headerX, y + 19);
+  if (org.gstin) doc.text(`GSTIN: ${org.gstin}`, headerX, y + 24);
+
+  y += 32;
+  doc.setDrawColor(200, 200, 200);
+  doc.setLineWidth(0.3);
+  doc.line(margin, y, pageW - margin, y);
+  y += 6;
 
   // ── Title ──
   doc.setTextColor(30, 64, 175);
@@ -263,9 +266,6 @@ export function generatePaymentReceiptPdf(input: PaymentReceiptInput): jsPDF {
   doc.setFontSize(10);
   doc.setFont('helvetica', 'bold');
   doc.text('Thank you for your payment!', pageW / 2, y, { align: 'center' });
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'italic');
-  doc.text('This is a computer-generated receipt.', pageW / 2, y + 5, { align: 'center' });
   y += 14;
 
   // ── Authorised Signatory ──
@@ -282,6 +282,13 @@ export function generatePaymentReceiptPdf(input: PaymentReceiptInput): jsPDF {
     doc.text(input.signature_name, sigX + 27.5, y + 5, { align: 'center' });
     doc.text('Authorised Signatory', sigX + 27.5, y + 9, { align: 'center' });
   }
+
+  // ── Footer ──
+  const pageH = doc.internal.pageSize.getHeight();
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'italic');
+  doc.setTextColor(160, 160, 160);
+  doc.text('This is a computer-generated receipt.', pageW / 2, pageH - 8, { align: 'center' });
 
   return doc;
 }
