@@ -3,6 +3,8 @@ import {
   ArrowDown,
   ArrowRight,
   ArrowUp,
+  ChevronLeft,
+  ChevronRight,
   Download,
   Eye,
   Loader2,
@@ -124,7 +126,15 @@ const styles = `
     background: var(--bg-card);
     border: 1px solid var(--border);
     border-radius: 0.5rem;
-    overflow-x: auto;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-height: calc(100vh - 180px);
+  }
+  
+  .il-table-card .il-table-wrapper {
+    flex: 1;
+    overflow: auto;
   }
   
   .il-table {
@@ -199,29 +209,6 @@ const styles = `
     border-radius: 0.5rem;
     padding: 0.5rem;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
-  }
-  
-  .il-th-filter-num {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-    margin-top: 0.25rem;
-  }
-  
-  .il-th-filter-num input {
-    width: 5rem;
-    padding: 0.2rem 0.375rem;
-    border: 1px solid #e5e7eb;
-    border-radius: 0.25rem;
-    font-size: 0.6875rem;
-    background: #f9fafb;
-    font-family: inherit;
-  }
-  
-  .il-th-filter-num input:focus {
-    outline: none;
-    border-color: #3b82f6;
-    background: white;
   }
   
   .il-table th.il-th-sortable:hover { color: #2563eb; }
@@ -490,6 +477,8 @@ export default function InvoiceListPage() {
   const [openColumnsMenu, setOpenColumnsMenu] = useState(false);
   const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
   const [openFilterColumn, setOpenFilterColumn] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 25;
 
   useEffect(() => {
     if (!openMenuInvoiceId) return undefined;
@@ -610,6 +599,12 @@ export default function InvoiceListPage() {
     return list;
   }, [filteredPaired, visibleColumns, sortKey, sortDir]);
 
+  const totalPages = Math.max(1, Math.ceil(sortedPaired.length / PAGE_SIZE));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const startIndex = (safeCurrentPage - 1) * PAGE_SIZE;
+  const endIndex = startIndex + PAGE_SIZE;
+  const paginatedData = sortedPaired.slice(startIndex, endIndex);
+
   const toggleSort = (key: string) => {
     const col = visibleColumns.find((c) => c.key === key);
     if (!col?.sortable) return;
@@ -655,6 +650,11 @@ export default function InvoiceListPage() {
     }
   }, []);
 
+  // Reset pagination when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [checkboxSelections, issueDateFrom, issueDateTo, sliderFilter]);
+
   const resetFilters = () => {
     setCheckboxSelections({});
     setIssueDateFrom('');
@@ -664,6 +664,7 @@ export default function InvoiceListPage() {
       taxAmount: { ...dataBounds.taxAmount },
       totalAmount: { ...dataBounds.totalAmount },
     });
+    setCurrentPage(1);
   };
 
   const handleDownloadPdf = async (invoiceId: string) => {
@@ -920,13 +921,13 @@ export default function InvoiceListPage() {
         </div>
 
         <div className="il-table-card">
-          <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '0.75rem 1rem', borderBottom: '1px solid var(--border-light)' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '0.5rem 1rem', borderBottom: '1px solid var(--border-light)' }}>
             <div style={{ position: 'relative' }} onClick={(e) => e.stopPropagation()}>
               <button
                 type="button"
                 onClick={() => setOpenColumnsMenu((c) => !c)}
                 className="il-btn il-btn-secondary"
-                style={{ padding: '0.5rem 1rem', fontSize: '0.8125rem' }}
+                style={{ padding: '0.4rem 0.75rem', fontSize: '0.8125rem' }}
               >
                 <Columns size={14} />
                 Columns
@@ -983,204 +984,181 @@ export default function InvoiceListPage() {
               )}
             </div>
           </div>
-          <table className="il-table">
-            <thead>
-              <tr>
-                {visibleColumns.map((col) => {
-                  const hideSm = MOBILE_HIDE_KEYS.has(col.key) ? ' il-hide-sm' : '';
-                  const num = col.display.type === 'number' ? ' il-th-num' : '';
-                  const sortable = col.sortable ? ' il-th-sortable' : '';
-                  const hasCheckboxFilter = col.filter?.type === 'checkbox';
-                  const hasSliderFilter = col.filter?.type === 'slider';
-                  const isFilterOpen = openFilterColumn === col.key;
-                  const selectedCount = (checkboxSelections[col.key] ?? []).length;
+          <div className="il-table-wrapper">
+            <table className="il-table">
+              <thead>
+                <tr>
+                  {visibleColumns.map((col) => {
+                    const hideSm = MOBILE_HIDE_KEYS.has(col.key) ? ' il-hide-sm' : '';
+                    const num = col.display.type === 'number' ? ' il-th-num' : '';
+                    const sortable = col.sortable ? ' il-th-sortable' : '';
+                    const hasCheckboxFilter = col.filter?.type === 'checkbox';
+                    const isFilterOpen = openFilterColumn === col.key;
+                    const selectedCount = (checkboxSelections[col.key] ?? []).length;
+                    return (
+                      <th
+                        key={col.key}
+                        className={`${hideSm}${num}${sortable}`}
+                        style={{ minWidth: col.size }}
+                        scope="col"
+                        onClick={(e) => {
+                          if ((e.target as HTMLElement).closest('.il-th-filter-btn, .il-th-filter-dropdown')) return;
+                          col.sortable && toggleSort(col.key);
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          {col.label}
+                          {col.sortable && sortKey === col.key ? (
+                            sortDir === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />
+                          ) : null}
+                        </div>
+                        {hasCheckboxFilter && (
+                          <div className="il-th-filter" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              type="button"
+                              className={`il-th-filter-btn${selectedCount > 0 ? ' active' : ''}`}
+                              onClick={() => setOpenFilterColumn(isFilterOpen ? null : col.key)}
+                            >
+                              <Filter size={10} />
+                              {selectedCount > 0 ? `${selectedCount} selected` : 'Filter'}
+                            </button>
+                            {isFilterOpen && (
+                              <div className="il-th-filter-dropdown">
+                                {(() => {
+                                  const opts = col.filter?.type === 'checkbox' ? col.filter.options : [];
+                                  const selected = new Set(checkboxSelections[col.key] ?? []);
+                                  return (
+                                    <>
+                                      <div style={{ padding: '0.25rem 0.5rem', borderBottom: '1px solid var(--border-light)', fontSize: '0.625rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
+                                        {col.label}
+                                      </div>
+                                      {opts.length === 0 ? (
+                                        <span className="il-muted" style={{ fontSize: '0.75rem', padding: '0.5rem' }}>No values</span>
+                                      ) : (
+                                        opts.map((opt) => (
+                                          <label key={opt.value} className="il-checkbox-row" style={{ padding: '0.35rem 0.5rem', fontSize: '0.75rem' }}>
+                                            <input
+                                              type="checkbox"
+                                              checked={selected.has(opt.value)}
+                                              onChange={(e) => toggleCheckboxValue(col.key, opt.value, e.target.checked)}
+                                            />
+                                            <span title={opt.label}>{opt.label}</span>
+                                          </label>
+                                        ))
+                                      )}
+                                      {selectedCount > 0 && (
+                                        <button
+                                          type="button"
+                                          onClick={() => setCheckboxSelections((prev) => ({ ...prev, [col.key]: [] }))}
+                                          style={{ width: '100%', marginTop: '0.25rem', padding: '0.375rem', fontSize: '0.6875rem', color: 'var(--accent)', background: 'transparent', border: 'none', borderTop: '1px solid var(--border-light)', cursor: 'pointer', textAlign: 'center' }}
+                                        >
+                                          Clear
+                                        </button>
+                                      )}
+                                    </>
+                                  );
+                                })()}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </th>
+                    );
+                  })}
+                  <th className="il-th-actions" scope="col">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {invoicesQuery.isLoading && (
+                  <tr>
+                    <td colSpan={colSpan} className="il-loading">
+                      <div className="il-loading-text">Loading invoices...</div>
+                    </td>
+                  </tr>
+                )}
+
+                {!invoicesQuery.isLoading && sortedPaired.length === 0 && (
+                  <tr>
+                    <td colSpan={colSpan} className="il-empty">
+                      <FileText className="il-empty-icon" />
+                      <div className="il-empty-title">No invoices found</div>
+                      <div className="il-empty-desc">
+                        Adjust filters or create an invoice from a source document.
+                      </div>
+                    </td>
+                  </tr>
+                )}
+
+                {!invoicesQuery.isLoading &&
+                  paginatedData.map(({ invoice, row }) => (
+                    <tr key={invoice.id ?? String(row.invoiceNumber)}>
+                      {visibleColumns.map((col) => {
+                        const hideSm = MOBILE_HIDE_KEYS.has(col.key) ? ' il-hide-sm' : '';
+                        const num = col.display.type === 'number' ? ' il-td-num' : '';
+                        return (
+                          <td key={col.key} className={`${hideSm}${num}`}>
+                            {renderCell(col, row[col.key])}
+                          </td>
+                        );
+                      })}
+                      <td className="il-td-actions">{renderActions(invoice)}</td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination */}
+          {sortedPaired.length > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem 1rem', borderTop: '1px solid #e5e7eb', background: '#f9fafb' }}>
+              <span style={{ fontSize: '0.8125rem', color: '#6b7280' }}>
+                Showing {startIndex + 1}–{Math.min(endIndex, sortedPaired.length)} of {sortedPaired.length}
+              </span>
+              <div style={{ display: 'flex', gap: '0.25rem' }}>
+                <button
+                  onClick={() => setCurrentPage(1)}
+                  disabled={safeCurrentPage === 1}
+                  style={{ padding: '0.375rem 0.625rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', background: safeCurrentPage === 1 ? '#f3f4f6' : '#fff', color: safeCurrentPage === 1 ? '#9ca3af' : '#374151', fontSize: '0.75rem', cursor: safeCurrentPage === 1 ? 'not-allowed' : 'pointer' }}
+                >
+                  <ChevronLeft size={14} />
+                </button>
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let page: number;
+                  if (totalPages <= 5) { page = i + 1; }
+                  else if (safeCurrentPage <= 3) { page = i + 1; }
+                  else if (safeCurrentPage >= totalPages - 2) { page = totalPages - 4 + i; }
+                  else { page = safeCurrentPage - 2 + i; }
                   return (
-                    <th
-                      key={col.key}
-                      className={`${hideSm}${num}${sortable}`}
-                      style={{ minWidth: col.size }}
-                      scope="col"
-                      onClick={(e) => {
-                        if ((e.target as HTMLElement).closest('.il-th-filter-btn, .il-th-filter-dropdown, .il-th-filter-num')) return;
-                        col.sortable && toggleSort(col.key);
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      style={{
+                        padding: '0.375rem 0.625rem',
+                        border: page === safeCurrentPage ? '1px solid #2563eb' : '1px solid #d1d5db',
+                        borderRadius: '0.375rem',
+                        background: page === safeCurrentPage ? '#eff6ff' : '#fff',
+                        color: page === safeCurrentPage ? '#2563eb' : '#374151',
+                        fontSize: '0.75rem',
+                        fontWeight: page === safeCurrentPage ? 600 : 400,
+                        cursor: 'pointer',
                       }}
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                        {col.label}
-                        {col.sortable && sortKey === col.key ? (
-                          sortDir === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />
-                        ) : null}
-                      </div>
-                      {/* Inline filter */}
-                      {hasCheckboxFilter && (
-                        <div className="il-th-filter" onClick={(e) => e.stopPropagation()}>
-                          <button
-                            type="button"
-                            className={`il-th-filter-btn${selectedCount > 0 ? ' active' : ''}`}
-                            onClick={() => setOpenFilterColumn(isFilterOpen ? null : col.key)}
-                          >
-                            <Filter size={10} />
-                            {selectedCount > 0 ? `${selectedCount} selected` : 'Filter'}
-                          </button>
-                          {isFilterOpen && (
-                            <div className="il-th-filter-dropdown">
-                              {(() => {
-                                const opts = col.filter?.type === 'checkbox' ? col.filter.options : [];
-                                const selected = new Set(checkboxSelections[col.key] ?? []);
-                                return (
-                                  <>
-                                    <div style={{ padding: '0.25rem 0.5rem', borderBottom: '1px solid var(--border-light)', fontSize: '0.625rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
-                                      {col.label}
-                                    </div>
-                                    {opts.length === 0 ? (
-                                      <span className="il-muted" style={{ fontSize: '0.75rem', padding: '0.5rem' }}>No values</span>
-                                    ) : (
-                                      opts.map((opt) => (
-                                        <label key={opt.value} className="il-checkbox-row" style={{ padding: '0.35rem 0.5rem', fontSize: '0.75rem' }}>
-                                          <input
-                                            type="checkbox"
-                                            checked={selected.has(opt.value)}
-                                            onChange={(e) => toggleCheckboxValue(col.key, opt.value, e.target.checked)}
-                                          />
-                                          <span title={opt.label}>{opt.label}</span>
-                                        </label>
-                                      ))
-                                    )}
-                                    {selectedCount > 0 && (
-                                      <button
-                                        type="button"
-                                        onClick={() => setCheckboxSelections((prev) => ({ ...prev, [col.key]: [] }))}
-                                        style={{ width: '100%', marginTop: '0.25rem', padding: '0.375rem', fontSize: '0.6875rem', color: 'var(--accent)', background: 'transparent', border: 'none', borderTop: '1px solid var(--border-light)', cursor: 'pointer', textAlign: 'center' }}
-                                      >
-                                        Clear
-                                      </button>
-                                    )}
-                                  </>
-                                );
-                              })()}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      {hasSliderFilter && (
-                        <div className="il-th-filter" onClick={(e) => e.stopPropagation()}>
-                          {(() => {
-                            const b = dataBounds[col.key] ?? { min: 0, max: 1 };
-                            const r = sliderFilter[col.key] ?? { min: b.min, max: b.max };
-                            const isFiltered = r.min > b.min || r.max < b.max;
-                            return (
-                              <>
-                                <button
-                                  type="button"
-                                  className={`il-th-filter-btn${isFiltered ? ' active' : ''}`}
-                                  onClick={() => setOpenFilterColumn(isFilterOpen ? null : col.key)}
-                                >
-                                  <Filter size={10} />
-                                  {isFiltered ? 'Filtered' : 'Filter'}
-                                </button>
-                                {isFilterOpen && (
-                                  <div className="il-th-filter-dropdown">
-                                    <div style={{ padding: '0.25rem 0.5rem', borderBottom: '1px solid #e5e7eb', fontSize: '0.625rem', fontWeight: 600, color: '#6b7280', marginBottom: '0.25rem' }}>
-                                      {col.label}
-                                    </div>
-                                    <div className="il-th-filter-num" style={{ padding: '0.5rem' }}>
-                                      <input
-                                        type="number"
-                                        step="0.01"
-                                        value={Number.isFinite(r.min) ? r.min : b.min}
-                                        placeholder="Min"
-                                        onChange={(e) => {
-                                          const v = Number(e.target.value);
-                                          setSliderFilter((prev) => ({
-                                            ...prev,
-                                            [col.key]: { min: v, max: Math.max(v, prev[col.key]?.max ?? b.max) },
-                                          }));
-                                        }}
-                                        aria-label={`${col.label} min`}
-                                        style={isFiltered ? { borderColor: '#3b82f6', background: 'white' } : {}}
-                                      />
-                                      <span style={{ fontSize: '0.625rem', color: '#6b7280' }}>–</span>
-                                      <input
-                                        type="number"
-                                        step="0.01"
-                                        value={Number.isFinite(r.max) ? r.max : b.max}
-                                        placeholder="Max"
-                                        onChange={(e) => {
-                                          const v = Number(e.target.value);
-                                          setSliderFilter((prev) => ({
-                                            ...prev,
-                                            [col.key]: { min: Math.min(v, prev[col.key]?.min ?? b.min), max: v },
-                                          }));
-                                        }}
-                                        aria-label={`${col.label} max`}
-                                        style={isFiltered ? { borderColor: '#3b82f6', background: 'white' } : {}}
-                                      />
-                                    </div>
-                                    {isFiltered && (
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          setSliderFilter((prev) => ({ ...prev, [col.key]: { min: b.min, max: b.max } }));
-                                          setOpenFilterColumn(null);
-                                        }}
-                                        style={{ width: '100%', marginTop: '0.25rem', padding: '0.375rem', fontSize: '0.6875rem', color: '#dc2626', background: 'transparent', border: 'none', borderTop: '1px solid #e5e7eb', cursor: 'pointer', textAlign: 'center' }}
-                                      >
-                                        Clear
-                                      </button>
-                                    )}
-                                  </div>
-                                )}
-                              </>
-                            );
-                          })()}
-                        </div>
-                      )}
-                    </th>
+                      {page}
+                    </button>
                   );
                 })}
-                <th className="il-th-actions" scope="col">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {invoicesQuery.isLoading && (
-                <tr>
-                  <td colSpan={colSpan} className="il-loading">
-                    <div className="il-loading-text">Loading invoices...</div>
-                  </td>
-                </tr>
-              )}
-
-              {!invoicesQuery.isLoading && sortedPaired.length === 0 && (
-                <tr>
-                  <td colSpan={colSpan} className="il-empty">
-                    <FileText className="il-empty-icon" />
-                    <div className="il-empty-title">No invoices found</div>
-                    <div className="il-empty-desc">
-                      Adjust filters or create an invoice from a source document.
-                    </div>
-                  </td>
-                </tr>
-              )}
-
-              {!invoicesQuery.isLoading &&
-                sortedPaired.map(({ invoice, row }) => (
-                  <tr key={invoice.id ?? String(row.invoiceNumber)}>
-                    {visibleColumns.map((col) => {
-                      const hideSm = MOBILE_HIDE_KEYS.has(col.key) ? ' il-hide-sm' : '';
-                      const num = col.display.type === 'number' ? ' il-td-num' : '';
-                      return (
-                        <td key={col.key} className={`${hideSm}${num}`}>
-                          {renderCell(col, row[col.key])}
-                        </td>
-                      );
-                    })}
-                    <td className="il-td-actions">{renderActions(invoice)}</td>
-                  </tr>
-                ))}
-            </tbody>
-          </table>
+                <button
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={safeCurrentPage === totalPages}
+                  style={{ padding: '0.375rem 0.625rem', border: '1px solid #d1d5db', borderRadius: '0.375rem', background: safeCurrentPage === totalPages ? '#f3f4f6' : '#fff', color: safeCurrentPage === totalPages ? '#9ca3af' : '#374151', fontSize: '0.75rem', cursor: safeCurrentPage === totalPages ? 'not-allowed' : 'pointer' }}
+                >
+                  <ChevronRight size={14} />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
