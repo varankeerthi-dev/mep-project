@@ -39,6 +39,7 @@ export const CreateCreditNoteSchema = z.object({
   igst_amount: z.coerce.number().min(0).default(0),
   total_amount: z.coerce.number().min(0, 'Total must be >= 0'),
   approval_status: z.enum(CN_APPROVAL_STATUSES).default('Pending'),
+  authorized_signatory_id: z.string().uuid().optional().nullable(),
   items: z.array(CreditNoteItemSchema).min(1, 'At least one item is required'),
 });
 

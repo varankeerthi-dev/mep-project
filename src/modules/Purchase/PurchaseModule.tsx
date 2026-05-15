@@ -22,6 +22,7 @@ import { Vendors } from './components/Vendors';
 import { PurchaseOrders } from './components/PurchaseOrders';
 import { Bills } from './components/Bills';
 import { DebitNotes } from './components/DebitNotes';
+import { DebitNoteView } from './components/DebitNoteView';
 import { Payments } from './components/Payments';
 import { PaymentQueue } from './components/PaymentQueue';
 
@@ -49,7 +50,7 @@ export const PurchaseModule: React.FC = () => {
     { value: 'vendors', label: 'Vendors', icon: Building2, component: Vendors },
     { value: 'orders', label: 'Purchase Orders', icon: ShoppingCart, component: PurchaseOrders },
     { value: 'bills', label: 'Bills', icon: Receipt, component: Bills },
-    { value: 'debit-notes', label: 'Debit Notes', icon: FileEdit, component: DebitNotes },
+    { value: 'debit-notes', label: 'Debit Notes', icon: FileEdit, component: DebitNoteView },
     { value: 'payments', label: 'Payments', icon: Banknote, component: Payments },
     { value: 'payment-queue', label: 'Payment Queue', icon: Clock, component: PaymentQueue },
   ];

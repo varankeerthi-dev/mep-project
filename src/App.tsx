@@ -139,6 +139,7 @@ const SiteMaterials = lazyAny(() => ProjectManagementInternal.then(m => ({ defau
 const ToolsList = lazyAny(() => ProjectManagementInternal.then(m => ({ default: m.ToolsList })));
 const PurchaseModule = lazyAny(() => import('./modules/Purchase/PurchaseModule'));
 const CreditNoteListPage = lazyAny(() => import('./credit-notes/pages/CreditNoteListPage').then(m => ({ default: m.CreditNoteListPage })));
+const CreditNoteViewPage = lazyAny(() => import('./credit-notes/pages/CreditNoteViewPage').then(m => ({ default: m.CreditNoteViewPage })));
 const CreditNoteEditorPage = lazyAny(() => import('./credit-notes/pages/CreditNoteEditorPage').then(m => ({ default: m.CreditNoteEditorPage })));
 const BOQ = lazyAny(() => import('./pages/BOQ'));
 const BOQList = lazyAny(() => import('./pages/BOQList'));
@@ -266,6 +267,7 @@ export default function App() {
       case '/proforma-invoices/create': return <ProformaEditorPage />;
       case '/proforma-invoices/edit': return <ProformaEditorPage />;
       case '/credit-notes': return <CreditNoteListPage />;
+      case '/credit-notes/view': return <CreditNoteViewPage />;
       case '/credit-notes/create': return <CreditNoteEditorPage />;
       case '/credit-notes/edit': return <CreditNoteEditorPage />;
       case '/ledger': return <LedgerDashboard onNavigate={navigate} />;

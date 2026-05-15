@@ -45,6 +45,7 @@ type CNEditorFormValues = {
   igst_amount: number;
   total_amount: number;
   approval_status: string;
+  authorized_signatory_id: string;
   default_warehouse_id: string;
   items: CNItemForm[];
 };

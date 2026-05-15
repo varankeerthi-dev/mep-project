@@ -41,6 +41,7 @@ export interface CreditNote {
   igst_amount: number;
   total_amount: number;
   approval_status: string;
+  authorized_signatory_id: string | null;
   created_at: string | null;
   updated_at: string | null;
   client: CreditNoteClient | null;

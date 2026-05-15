@@ -16,6 +16,7 @@ const CN_SELECT = `
   igst_amount,
   total_amount,
   approval_status,
+  authorized_signatory_id,
   created_at,
   updated_at,
   client:clients(id, client_name, name, gstin, state, email),
@@ -49,6 +50,7 @@ function parseCreditNote(row: any): CreditNote {
     igst_amount: Number(row.igst_amount ?? 0),
     total_amount: Number(row.total_amount ?? 0),
     approval_status: String(row.approval_status ?? 'Pending'),
+    authorized_signatory_id: row.authorized_signatory_id ?? null,
     created_at: row.created_at ?? null,
     updated_at: row.updated_at ?? null,
     client: parseClient(row.client),
@@ -126,6 +128,7 @@ export async function createCreditNote(input: {
   igst_amount: number;
   total_amount: number;
   approval_status: string;
+  authorized_signatory_id?: string | null;
   items: Omit<CreditNoteItem, 'id' | 'cn_id' | 'organisation_id' | 'created_at'>[];
 }): Promise<CreditNote> {
   const { data: cn, error: cnError } = await supabase
@@ -144,6 +147,7 @@ export async function createCreditNote(input: {
       igst_amount: input.igst_amount,
       total_amount: input.total_amount,
       approval_status: input.approval_status,
+      authorized_signatory_id: input.authorized_signatory_id || null,
     })
     .select()
     .single();
@@ -195,6 +199,7 @@ export async function updateCreditNote(input: {
   igst_amount: number;
   total_amount: number;
   approval_status: string;
+  authorized_signatory_id?: string | null;
   items: (Omit<CreditNoteItem, 'id' | 'cn_id' | 'organisation_id' | 'created_at'> & { id?: string })[];
 }): Promise<CreditNote> {
   const { error: cnError } = await supabase
@@ -212,6 +217,7 @@ export async function updateCreditNote(input: {
       igst_amount: input.igst_amount,
       total_amount: input.total_amount,
       approval_status: input.approval_status,
+      authorized_signatory_id: input.authorized_signatory_id || null,
     })
     .eq('id', input.id)
     .eq('organisation_id', input.organisation_id);

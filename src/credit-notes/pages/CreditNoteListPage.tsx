@@ -106,6 +106,7 @@ export function CreditNoteListPage() {
         total_amount: cn.total_amount,
         items,
         organisation: organisation ?? {},
+        authorized_signatory_id: cn.authorized_signatory_id,
       });
 
       const blob = pdfDoc.output('blob');
@@ -180,7 +181,7 @@ export function CreditNoteListPage() {
   };
 
   const handleRowClick = (id: string) => {
-    navigate(`/credit-notes/edit?id=${id}`);
+    navigate(`/credit-notes/view?id=${id}`);
   };
 
   const pageNumbers: (number | '...')[] = [];
@@ -415,6 +416,7 @@ export function CreditNoteListPage() {
                       sgst_amount: previewCN.sgst_amount, igst_amount: previewCN.igst_amount, total_amount: previewCN.total_amount,
                       items,
                       organisation: organisation ?? {},
+                      authorized_signatory_id: previewCN.authorized_signatory_id,
                     });
                     pdfDoc.save(`${previewCN.cn_number}.pdf`);
                   }}

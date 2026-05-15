@@ -108,6 +108,7 @@ type CNFormValues = {
   igst_amount: number;
   total_amount: number;
   approval_status: string;
+  authorized_signatory_id: string;
   default_warehouse_id: string;
   items: CNItemForm[];
 };
@@ -228,6 +229,7 @@ export function CreditNoteEditorPage() {
       igst_amount: 0,
       total_amount: 0,
       approval_status: 'Pending',
+      authorized_signatory_id: '',
       default_warehouse_id: '',
       items: [createEmptyItem()],
     },
@@ -355,6 +357,7 @@ export function CreditNoteEditorPage() {
       igst_amount: cn.igst_amount,
       total_amount: cn.total_amount,
       approval_status: cn.approval_status,
+      authorized_signatory_id: cn.authorized_signatory_id ?? '',
       items: cn.items.length > 0
         ? cn.items.map(item => ({
             id: item.id,
@@ -520,6 +523,7 @@ export function CreditNoteEditorPage() {
         igst_amount: data.igst_amount,
         total_amount: roundOffEnabled ? Math.round(data.total_amount) : data.total_amount,
         approval_status: status,
+        authorized_signatory_id: data.authorized_signatory_id || null,
         items: data.items.map(item => ({
           description: item.description,
           hsn_code: item.hsn_code || null,
@@ -666,6 +670,28 @@ export function CreditNoteEditorPage() {
           <label className="cne-label">Reason</label>
           <textarea className="cne-textarea" {...register('reason')} placeholder="Reason for credit note..." />
         </div>
+
+        <div className="cne-form-group">
+          <label className="cne-label">Authorized Signatory</label>
+          <select className="cne-select" {...register('authorized_signatory_id')}>
+            <option value="">Select Signatory...</option>
+            {((organisation as any)?.signatures || []).map((sig: any) => (
+              <option key={sig.id} value={sig.id}>{sig.name}</option>
+            ))}
+          </select>
+        </div>
+
+        {watch('authorized_signatory_id') && (() => {
+          const sig = ((organisation as any)?.signatures || []).find((s: any) => s.id === watch('authorized_signatory_id'));
+          return sig?.url ? (
+            <div className="cne-form-group">
+              <label className="cne-label">Signature Preview</label>
+              <div style={{ background: '#fff', border: '1px solid #e5e5e5', borderRadius: '6px', padding: '8px 12px', marginTop: '4px' }}>
+                <img src={sig.url} alt={sig.name} style={{ maxHeight: '48px', maxWidth: '160px', objectFit: 'contain' }} />
+              </div>
+            </div>
+          ) : null;
+        })()}
       </div>
 
       <div style={{ border: '1px solid #e5e5e5', borderRadius: '4px', marginBottom: '16px', background: '#fafafa' }}>

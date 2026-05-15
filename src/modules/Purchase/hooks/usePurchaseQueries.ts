@@ -562,6 +562,19 @@ export const useCreateDebitNote = () => {
   });
 };
 
+export const useDeleteDebitNote = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: withSessionCheck(async (id: string) => {
+      const { error } = await supabase.from('debit_notes').delete().eq('id', id);
+      if (error) throw error;
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['debit-notes'] });
+    },
+  });
+};
+
 // ============== HELPER FUNCTIONS ==============
 
 const updateVendorBalance = async (vendorId: string, organisationId: string) => {

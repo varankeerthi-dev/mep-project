@@ -32,6 +32,7 @@ export type ProGridAdjustmentNoteInput = {
   amount_in_words?: string;
   items?: { description: string; qty?: number; rate?: number; amount?: number; hsn?: string }[];
   organisation: Record<string, unknown>;
+  authorized_signatory_id?: string | null;
 };
 
 function fmt(n: number | undefined): string {
@@ -107,6 +108,29 @@ export function generateProGridAdjustmentNotePdf(input: ProGridAdjustmentNoteInp
   doc.setFont('helvetica', 'bold');
   const w = doc.splitTextToSize(`INR ${input.amount_in_words || '—'}`, doc.internal.pageSize.getWidth() - 2 * PRO_MARGIN_MM);
   doc.text(w, PRO_MARGIN_MM, y + 2);
+
+  // Signature section
+  if (input.authorized_signatory_id) {
+    const signatures = (organisation.signatures as Array<{ id: string; name: string; url: string }> | undefined) || [];
+    const sig = signatures.find(s => String(s.id) === String(input.authorized_signatory_id));
+    if (sig) {
+      y += 12;
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const sigX = pageWidth - PRO_MARGIN_MM - 50;
+      doc.setDrawColor(180, 180, 180);
+      doc.line(sigX, y, sigX + 50, y);
+      if (sig.url) {
+        try {
+          doc.addImage(sig.url, 'PNG', sigX + 10, y - 12, 30, 12);
+        } catch { /* skip invalid image */ }
+      }
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 100, 100);
+      doc.text(sig.name, sigX + 25, y + 5, { align: 'center' });
+      doc.setTextColor(0, 0, 0);
+    }
+  }
 
   appendProFooterNote(doc, `${kind} — computer generated.`);
   return doc;
