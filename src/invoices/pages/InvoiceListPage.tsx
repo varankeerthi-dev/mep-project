@@ -33,64 +33,36 @@ const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap');
   
   :root {
-    --bg-page: #faf9f7;
+    --bg-page: #f9fafb;
     --bg-card: #ffffff;
-    --bg-hover: #f5f3f0;
-    --bg-muted: #f8f7f5;
-    --border: #e8e5e1;
-    --border-light: #f0eeeb;
-    --border-hover: #d4d0ca;
-    --text-primary: #1a1a1a;
-    --text-secondary: #6b6b6b;
-    --text-muted: #9ca3af;
-    --accent: #e85d04;
-    --accent-hover: #dc4c00;
+    --bg-hover: #f3f4f6;
+    --bg-muted: #f9fafb;
+    --border: #e5e7eb;
+    --border-light: #f3f4f6;
+    --border-hover: #d1d5db;
+    --text-primary: #111827;
+    --text-secondary: #4b5563;
+    --text-muted: #6b7280;
+    --accent: #2563eb;
+    --accent-hover: #1d4ed8;
   }
   
   .il-page {
-    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    background: var(--bg-page);
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #f9fafb;
     min-height: 100vh;
-    padding: 2rem;
+    padding: 1.5rem 2rem;
   }
   
   .il-container { max-width: 1600px; margin: 0 auto; }
   
-  .il-header {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    margin-bottom: 2rem;
-    gap: 1rem;
-  }
-  
-  .il-header-left { flex: 1; }
-  
-  .il-label {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.6875rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--text-muted);
-    margin-bottom: 0.75rem;
-  }
-  
+
   .il-title {
-    font-size: 1.75rem;
-    font-weight: 700;
-    color: var(--text-primary);
-    letter-spacing: -0.02em;
-    margin: 0 0 0.5rem 0;
-  }
-  
-  .il-subtitle {
-    font-size: 0.9375rem;
-    color: var(--text-secondary);
-    line-height: 1.5;
-    max-width: 600px;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #111827;
+    letter-spacing: -0.01em;
+    margin: 0;
   }
   
   .il-btn {
@@ -109,19 +81,19 @@ const styles = `
   }
   
   .il-btn-primary {
-    background: var(--accent);
+    background: #2563eb;
     color: white;
   }
   
-  .il-btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); }
+  .il-btn-primary:hover { background: #1d4ed8; }
   
   .il-btn-secondary {
-    background: var(--bg-card);
-    color: var(--text-primary);
-    border: 1px solid var(--border);
+    background: white;
+    color: #374151;
+    border: 1px solid #e5e7eb;
   }
   
-  .il-btn-secondary:hover { background: var(--bg-hover); border-color: var(--border-hover); }
+  .il-btn-secondary:hover { background: #f9fafb; border-color: #d1d5db; }
   
   .il-input, .il-select {
     padding: 0.5rem 0.75rem;
@@ -151,7 +123,7 @@ const styles = `
   .il-table-card {
     background: var(--bg-card);
     border: 1px solid var(--border);
-    border-radius: 0.75rem;
+    border-radius: 0.5rem;
     overflow-x: auto;
   }
   
@@ -163,31 +135,28 @@ const styles = `
   }
   
   .il-table thead {
-    background: var(--bg-muted);
-    border-bottom: 1px solid var(--border);
+    background: #f9fafb;
+    border-bottom: 1px solid #e5e7eb;
   }
   
   .il-table th {
-    padding: 0.5rem 0.65rem 0.25rem;
+    padding: 0.75rem 1rem;
     text-align: left;
-    font-size: 0.6875rem;
+    font-size: 0.8125rem;
     font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--text-muted);
+    color: #4b5563;
     white-space: nowrap;
-    vertical-align: bottom;
+    vertical-align: middle;
     position: relative;
   }
   
   .il-table th.il-th-sortable {
     cursor: pointer;
     user-select: none;
-    color: var(--text-secondary);
   }
   
   .il-th-filter {
-    padding: 0.25rem 0 0.5rem;
+    padding: 0.25rem 0 0;
     margin-top: 0.25rem;
   }
   
@@ -195,26 +164,26 @@ const styles = `
     display: inline-flex;
     align-items: center;
     gap: 0.25rem;
-    padding: 0.125rem 0.375rem;
+    padding: 0.125rem 0.5rem;
     border-radius: 0.25rem;
     border: 1px solid var(--border);
-    background: var(--bg-muted);
-    font-size: 0.625rem;
+    background: white;
+    font-size: 0.6875rem;
     font-weight: 500;
-    color: var(--text-muted);
+    color: #6b7280;
     cursor: pointer;
     white-space: nowrap;
   }
   
   .il-th-filter-btn:hover {
-    border-color: var(--border-hover);
-    color: var(--text-secondary);
+    border-color: #d1d5db;
+    color: #374151;
   }
   
   .il-th-filter-btn.active {
-    background: var(--accent);
-    color: white;
-    border-color: var(--accent);
+    background: #eff6ff;
+    color: #2563eb;
+    border-color: #bfdbfe;
   }
   
   .il-th-filter-dropdown {
@@ -225,8 +194,8 @@ const styles = `
     min-width: 180px;
     max-height: 280px;
     overflow-y: auto;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
+    background: white;
+    border: 1px solid #e5e7eb;
     border-radius: 0.5rem;
     padding: 0.5rem;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
@@ -242,61 +211,60 @@ const styles = `
   .il-th-filter-num input {
     width: 5rem;
     padding: 0.2rem 0.375rem;
-    border: 1px solid var(--border);
+    border: 1px solid #e5e7eb;
     border-radius: 0.25rem;
     font-size: 0.6875rem;
-    background: var(--bg-muted);
+    background: #f9fafb;
     font-family: inherit;
   }
   
   .il-th-filter-num input:focus {
     outline: none;
-    border-color: var(--accent);
+    border-color: #3b82f6;
     background: white;
   }
   
-  .il-table th.il-th-sortable:hover { color: var(--accent); }
+  .il-table th.il-th-sortable:hover { color: #2563eb; }
   
   .il-table th.il-th-num, .il-table td.il-td-num { text-align: right; }
   
   .il-table th.il-th-actions, .il-table td.il-td-actions { text-align: right; }
   
   .il-table td {
-    padding: 0.55rem 0.65rem;
-    border-bottom: 1px solid var(--border-light);
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #f3f4f6;
     vertical-align: middle;
+    color: #374151;
   }
   
-  .il-table tbody tr:hover { background: var(--bg-hover); }
+  .il-table tbody tr:hover { background: #f9fafb; }
   .il-table tbody tr:last-child td { border-bottom: none; }
   
   .il-invoice-num {
-    font-family: 'JetBrains Mono', monospace;
     font-size: 0.8125rem;
-    font-weight: 600;
-    color: var(--text-primary);
+    font-weight: 500;
+    color: #111827;
   }
   
   .il-amount {
-    font-family: 'JetBrains Mono', monospace;
     font-weight: 600;
-    color: var(--text-primary);
+    color: #111827;
   }
   
-  .il-date { color: var(--text-secondary); font-size: 0.8125rem; }
-  .il-muted { color: var(--text-muted); }
+  .il-date { color: #6b7280; font-size: 0.8125rem; }
+  .il-muted { color: #9ca3af; }
   
   .il-badge {
     display: inline-flex;
     align-items: center;
-    padding: 0.2rem 0.5rem;
-    border-radius: 9999px;
-    font-size: 0.6875rem;
-    font-weight: 600;
+    padding: 0.25rem 0.625rem;
+    border-radius: 0.375rem;
+    font-size: 0.75rem;
+    font-weight: 500;
     text-transform: capitalize;
-    border: 1px solid var(--border);
-    background: var(--bg-muted);
-    color: var(--text-secondary);
+    border: 1px solid #e5e7eb;
+    background: #f9fafb;
+    color: #374151;
     max-width: 12rem;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -307,29 +275,28 @@ const styles = `
     display: flex;
     justify-content: flex-end;
     align-items: center;
-    gap: 0.375rem;
+    gap: 0.25rem;
   }
   
   .il-action-btn {
     display: inline-flex;
     align-items: center;
     gap: 0.375rem;
-    padding: 0.375rem 0.75rem;
+    padding: 0.375rem 0.625rem;
     background: transparent;
-    border: 1px solid var(--border);
+    border: none;
     border-radius: 0.375rem;
     font-size: 0.75rem;
-    font-weight: 600;
-    color: var(--text-secondary);
+    font-weight: 500;
+    color: #6b7280;
     cursor: pointer;
     transition: all 0.15s ease;
     white-space: nowrap;
   }
   
   .il-action-btn:hover {
-    background: var(--bg-hover);
-    border-color: var(--border-hover);
-    color: var(--text-primary);
+    background: #f3f4f6;
+    color: #374151;
   }
   
   .il-dropdown-trigger {
@@ -339,15 +306,15 @@ const styles = `
     width: 1.75rem;
     height: 1.75rem;
     background: transparent;
-    border: 1px solid var(--border);
+    border: 1px solid #e5e7eb;
     border-radius: 0.375rem;
-    color: var(--text-muted);
+    color: #6b7280;
     cursor: pointer;
   }
   
   .il-dropdown-trigger:hover {
-    background: var(--bg-hover);
-    color: var(--text-primary);
+    background: #f3f4f6;
+    color: #374151;
   }
   
   .il-dropdown {
@@ -356,8 +323,8 @@ const styles = `
     top: calc(100% + 0.25rem);
     z-index: 50;
     min-width: 180px;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
+    background: white;
+    border: 1px solid #e5e7eb;
     border-radius: 0.5rem;
     padding: 0.375rem;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
@@ -372,24 +339,24 @@ const styles = `
     border-radius: 0.375rem;
     font-size: 0.8125rem;
     font-weight: 500;
-    color: var(--text-secondary);
+    color: #374151;
     cursor: pointer;
     border: none;
     background: transparent;
     text-align: left;
   }
   
-  .il-dropdown-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+  .il-dropdown-item:hover { background: #f3f4f6; color: #111827; }
   
   .il-loading, .il-empty { padding: 3rem; text-align: center; }
   .il-loading-text, .il-empty-title {
     font-size: 0.9375rem;
     font-weight: 600;
-    color: var(--text-primary);
+    color: #111827;
     margin-bottom: 0.5rem;
   }
-  .il-empty-desc { font-size: 0.8125rem; color: var(--text-muted); }
-  .il-empty-icon { width: 3rem; height: 3rem; margin: 0 auto 1rem; color: var(--text-muted); opacity: 0.4; }
+  .il-empty-desc { font-size: 0.8125rem; color: #6b7280; }
+  .il-empty-icon { width: 3rem; height: 3rem; margin: 0 auto 1rem; color: #d1d5db; }
   
   @media (max-width: 900px) {
     .il-hide-sm { display: none !important; }
@@ -886,38 +853,31 @@ export default function InvoiceListPage() {
   return (
     <div className="il-page">
       <div className="il-container">
-        <div className="il-header">
-          <div className="il-header-left">
-            <div className="il-label">
-              <FileText size={14} />
-              Invoice Module
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+          <h1 className="il-title">Invoices</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 12, color: '#6b7280' }}>PDF:</span>
+              <select
+                value={selectedPdfTemplate}
+                onChange={(e) => setSelectedPdfTemplate(e.target.value as 'default' | 'progrid')}
+                style={{
+                  padding: '4px 8px',
+                  borderRadius: 6,
+                  border: '1px solid #e5e7eb',
+                  fontSize: 12,
+                  backgroundColor: '#fff',
+                  color: '#374151',
+                }}
+              >
+                <option value="default">Default</option>
+                <option value="progrid">Pro Grid</option>
+              </select>
             </div>
-            <h1 className="il-title">Invoices</h1>
-            <p className="il-subtitle">
-              Manage draft and final invoices across quotations, delivery challans, and client purchase orders. Columns and
-              filters follow the shared table schema.
-            </p>
-          </div>
-          <button type="button" onClick={() => navigate('/invoices/create')} className="il-btn il-btn-primary">
-            <Plus size={16} />
-            Create Invoice
-          </button>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 12 }}>
-            <span style={{ fontSize: 12, color: '#64748b' }}>PDF:</span>
-            <select
-              value={selectedPdfTemplate}
-              onChange={(e) => setSelectedPdfTemplate(e.target.value as 'default' | 'progrid')}
-              style={{
-                padding: '4px 8px',
-                borderRadius: 6,
-                border: '1px solid #e2e8f0',
-                fontSize: 12,
-                backgroundColor: '#fff',
-              }}
-            >
-              <option value="default">Default</option>
-              <option value="progrid">Pro Grid</option>
-            </select>
+            <button type="button" onClick={() => navigate('/invoices/create')} className="il-btn il-btn-primary" style={{ background: '#2563eb' }}>
+              <Plus size={16} />
+              Create Invoice
+            </button>
           </div>
         </div>
 
