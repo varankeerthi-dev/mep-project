@@ -85,39 +85,30 @@ export function CreditNoteListPage() {
     try {
       const items = cn.items.map(item => ({
         description: item.description,
-        hsn_code: item.hsn_code ?? '',
-        quantity: item.quantity,
+        hsn: item.hsn_code ?? '—',
+        qty: item.quantity,
         rate: item.rate,
-        discount_amount: item.discount_amount,
-        taxable_value: item.taxable_value,
-        cgst_percent: item.cgst_percent,
-        cgst_amount: item.cgst_amount,
-        sgst_percent: item.sgst_percent,
-        sgst_amount: item.sgst_amount,
-        igst_percent: item.igst_percent,
-        igst_amount: item.igst_amount,
-        total_amount: item.total_amount,
+        amount: item.total_amount,
       }));
 
-      const { blob } = await generateProGridAdjustmentNotePdf({
-        kind: 'credit',
-        docNumber: cn.cn_number,
-        docDate: cn.cn_date,
-        clientName: cn.client?.name ?? 'Unknown Client',
-        clientGstin: cn.client?.gstin ?? '',
-        clientAddress: '',
-        companyName: organisation?.name ?? '',
-        companyGstin: '',
-        companyAddress: '',
+      const pdfDoc = generateProGridAdjustmentNotePdf({
+        kind: 'Credit Note',
+        document_no: cn.cn_number,
+        document_date: cn.cn_date,
+        party_name: cn.client?.name ?? 'Unknown Client',
+        party_gstin: cn.client?.gstin ?? undefined,
+        party_address: undefined,
+        reason: cn.reason ?? undefined,
+        taxable_amount: cn.taxable_amount,
+        cgst_amount: cn.cgst_amount,
+        sgst_amount: cn.sgst_amount,
+        igst_amount: cn.igst_amount,
+        total_amount: cn.total_amount,
         items,
-        taxableAmount: cn.taxable_amount,
-        cgstAmount: cn.cgst_amount,
-        sgstAmount: cn.sgst_amount,
-        igstAmount: cn.igst_amount,
-        totalAmount: cn.total_amount,
-        reason: cn.reason ?? '',
+        organisation: organisation ?? {},
       });
 
+      const blob = pdfDoc.output('blob');
       const url = URL.createObjectURL(blob);
       setPreviewPdfUrl(url);
     } finally {
@@ -414,19 +405,18 @@ export function CreditNoteListPage() {
                 <button
                   onClick={() => {
                     const items = previewCN.items.map(item => ({
-                      description: item.description, hsn_code: item.hsn_code ?? '', quantity: item.quantity, rate: item.rate,
-                      discount_amount: item.discount_amount, taxable_value: item.taxable_value, cgst_percent: item.cgst_percent,
-                      cgst_amount: item.cgst_amount, sgst_percent: item.sgst_percent, sgst_amount: item.sgst_amount,
-                      igst_percent: item.igst_percent, igst_amount: item.igst_amount, total_amount: item.total_amount,
+                      description: item.description, hsn: item.hsn_code ?? '—', qty: item.quantity, rate: item.rate, amount: item.total_amount,
                     }));
-                    generateProGridAdjustmentNotePdf({
-                      kind: 'credit', docNumber: previewCN.cn_number, docDate: previewCN.cn_date,
-                      clientName: previewCN.client?.name ?? '', clientGstin: previewCN.client?.gstin ?? '', clientAddress: '',
-                      companyName: organisation?.name ?? '', companyGstin: '', companyAddress: '',
-                      items, taxableAmount: previewCN.taxable_amount, cgstAmount: previewCN.cgst_amount,
-                      sgstAmount: previewCN.sgst_amount, igstAmount: previewCN.igst_amount, totalAmount: previewCN.total_amount,
-                      reason: previewCN.reason ?? '',
+                    const pdfDoc = generateProGridAdjustmentNotePdf({
+                      kind: 'Credit Note', document_no: previewCN.cn_number, document_date: previewCN.cn_date,
+                      party_name: previewCN.client?.name ?? '', party_gstin: previewCN.client?.gstin ?? undefined,
+                      reason: previewCN.reason ?? undefined,
+                      taxable_amount: previewCN.taxable_amount, cgst_amount: previewCN.cgst_amount,
+                      sgst_amount: previewCN.sgst_amount, igst_amount: previewCN.igst_amount, total_amount: previewCN.total_amount,
+                      items,
+                      organisation: organisation ?? {},
                     });
+                    pdfDoc.save(`${previewCN.cn_number}.pdf`);
                   }}
                   style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '6px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', background: '#fff', fontSize: '12px', cursor: 'pointer' }}
                 >

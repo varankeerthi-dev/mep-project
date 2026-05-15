@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import type { KeyboardEvent } from 'react';
 import type { FieldArrayWithId, UseFieldArrayAppend, UseFieldArrayRemove, UseFormRegister, UseFormSetValue, UseFormWatch } from 'react-hook-form';
 import { Plus, X } from 'lucide-react';
@@ -27,8 +27,8 @@ type CNItemForm = {
     variant?: string;
     variant_id?: string;
     make?: string;
-    base_rate?: number;
     unit?: string;
+    warehouse_id?: string;
   };
 };
 
@@ -45,6 +45,7 @@ type CNEditorFormValues = {
   igst_amount: number;
   total_amount: number;
   approval_status: string;
+  default_warehouse_id: string;
   items: CNItemForm[];
 };
 
@@ -60,6 +61,9 @@ type CNItemsEditorProps = {
   clientState: string | null;
   roundOffEnabled?: boolean;
   error?: string;
+  warehouses?: Array<{ id: string; warehouse_name?: string | null; name?: string | null }>;
+  stockRows?: Array<{ item_id: string; warehouse_id: string; company_variant_id: string | null; current_stock: number }>;
+  defaultWarehouseId?: string;
 };
 
 function createEmptyCNItem(): CNItemForm {
@@ -93,6 +97,9 @@ export function CNItemsEditor({
   clientState,
   roundOffEnabled = false,
   error,
+  warehouses = [],
+  stockRows = [],
+  defaultWarehouseId,
 }: CNItemsEditorProps) {
   const { organisation } = useAuth();
   const isInterState = detectInterState(companyState, clientState);
@@ -105,85 +112,79 @@ export function CNItemsEditor({
     unit: string | null;
     sale_price: number | null;
     make: string | null;
-    variants: Array<{ variant_id?: string | null; variant_name: string | null; make: string | null; sale_price: number | null }>;
+    variants: Array<{ variant_id: string; variant_name: string; make: string | null; sale_price: number | null }>;
   }>>([]);
 
   const [searchTerms, setSearchTerms] = useState<Record<number, string>>({});
   const [openDropdowns, setOpenDropdowns] = useState<Record<number, boolean>>({});
   const [selectedIndices, setSelectedIndices] = useState<Record<number, number>>({});
-  const [makeDropdowns, setMakeDropdowns] = useState<Record<number, boolean>>({});
   const [variantDropdowns, setVariantDropdowns] = useState<Record<number, boolean>>({});
   const inputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const dropdownRefs = useRef<Record<number, HTMLDivElement | null>>({});
-  const makeInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
-  const makeDropdownRefs = useRef<Record<number, HTMLDivElement | null>>({});
   const variantInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const variantDropdownRefs = useRef<Record<number, HTMLDivElement | null>>({});
 
   useEffect(() => {
     if (!organisation?.id) return;
-    supabase
-      .from('materials')
-      .select('id, name, display_name, hsn_code, unit, sale_price, make, variants')
-      .eq('organisation_id', organisation.id)
-      .order('name')
-      .then(({ data }) => {
-        if (data) {
-          setMaterialOptions(data.map(m => ({
-            id: String(m.id),
-            name: String(m.name ?? ''),
-            display_name: String(m.display_name ?? m.name ?? ''),
-            hsn_code: m.hsn_code ?? null,
-            unit: m.unit ?? null,
-            sale_price: m.sale_price ?? null,
-            make: m.make ?? null,
-            variants: (m.variants as any[]) ?? [],
-          })));
-        }
+
+    Promise.all([
+      supabase.from('materials').select('id, name, display_name, hsn_code, unit, sale_price, make').eq('organisation_id', organisation.id).order('name'),
+      supabase.from('item_variant_pricing').select('material_id, variant_id, sale_price, make').eq('company_id', organisation.id),
+      supabase.from('company_variants').select('id, variant_name').eq('organisation_id', organisation.id).eq('is_active', true),
+    ]).then(([materialsRes, pricingRes, variantsRes]) => {
+      if (!materialsRes.data) return;
+
+      const variantNames = new Map<string, string>();
+      variantsRes.data?.forEach(v => variantNames.set(String(v.id), String(v.variant_name)));
+
+      const pricingByMaterial = new Map<string, Array<{ variant_id: string; variant_name: string; make: string | null; sale_price: number | null }>>();
+      pricingRes.data?.forEach(p => {
+        const matId = String(p.material_id);
+        const vid = String(p.variant_id);
+        const vname = variantNames.get(vid) ?? vid;
+        const list = pricingByMaterial.get(matId) ?? [];
+        list.push({ variant_id: vid, variant_name: vname, make: p.make ?? null, sale_price: p.sale_price ?? null });
+        pricingByMaterial.set(matId, list);
       });
+
+      setMaterialOptions(materialsRes.data.map(m => ({
+        id: String(m.id),
+        name: String(m.name ?? ''),
+        display_name: String(m.display_name ?? m.name ?? ''),
+        hsn_code: m.hsn_code ?? null,
+        unit: m.unit ?? null,
+        sale_price: m.sale_price ?? null,
+        make: m.make ?? null,
+        variants: pricingByMaterial.get(String(m.id)) ?? [],
+      })));
+    });
   }, [organisation?.id]);
 
   const getRateForMaterial = useCallback((materialId: string, variantId?: string | null, make?: string | null) => {
     const material = materialOptions.find(m => m.id === materialId);
     if (!material) return 0;
 
-    const targetVariantId = variantId || null;
-    const targetMake = (make || '').trim();
+    if (material.variants.length > 0) {
+      const exactMatch = material.variants.find(v => v.variant_id === variantId && (v.make ?? '') === (make ?? ''));
+      if (exactMatch?.sale_price != null) return exactMatch.sale_price;
 
-    if (material.variants && material.variants.length > 0) {
-      const exactMatch = material.variants.find(v =>
-        (v.variant_id || null) === targetVariantId && (v.make || '').trim() === targetMake
-      );
-      if (exactMatch?.sale_price) return exactMatch.sale_price;
-
-      if (targetVariantId) {
-        const variantMatch = material.variants.find(v => (v.variant_id || null) === targetVariantId);
-        if (variantMatch?.sale_price) return variantMatch.sale_price;
+      if (variantId) {
+        const variantMatch = material.variants.find(v => v.variant_id === variantId);
+        if (variantMatch?.sale_price != null) return variantMatch.sale_price;
       }
 
-      if (targetMake) {
-        const makeMatch = material.variants.find(v => (v.make || '').trim() === targetMake);
-        if (makeMatch?.sale_price) return makeMatch.sale_price;
+      if (make) {
+        const makeMatch = material.variants.find(v => (v.make ?? '') === make);
+        if (makeMatch?.sale_price != null) return makeMatch.sale_price;
       }
     }
 
     return material.sale_price ?? 0;
   }, [materialOptions]);
 
-  const getMaterialMakes = useCallback((materialId: string) => {
-    const material = materialOptions.find(m => m.id === materialId);
-    if (!material) return [];
-    const makesSet = new Set<string>();
-    if (material.make && material.make.trim()) makesSet.add(material.make.trim());
-    (material.variants || []).forEach(v => {
-      if (v.make && v.make.trim()) makesSet.add(v.make.trim());
-    });
-    return Array.from(makesSet).sort();
-  }, [materialOptions]);
-
   const getMaterialVariants = useCallback((materialId: string) => {
     const material = materialOptions.find(m => m.id === materialId);
-    return material?.variants || [];
+    return material?.variants ?? [];
   }, [materialOptions]);
 
   const recalcItem = useCallback(
@@ -239,34 +240,45 @@ export function CNItemsEditor({
     const material = materialOptions.find(m => m.id === materialId);
     if (!material) return;
 
-    const allVariants = getMaterialVariants(materialId);
-    const allMakes = getMaterialMakes(materialId);
-    const firstVariant = allVariants.length > 0 ? allVariants[0] : null;
-    const firstMake = allMakes.length > 0 ? allMakes[0] : (material.make || '');
-
-    const baseRate = getRateForMaterial(materialId, firstVariant?.variant_id, firstVariant?.make || firstMake);
-    const discountPercent = Number(items[index]?.discount_amount) || 0;
-    const rateAfterDiscount = baseRate - (baseRate * discountPercent / 100);
-    const roundedRate = roundOffEnabled ? Math.round(rateAfterDiscount) : rateAfterDiscount;
+    const variants = material.variants;
+    const firstVariant = variants.length > 0 ? variants[0] : null;
+    const baseRate = firstVariant?.sale_price ?? material.sale_price ?? 0;
+    const roundedRate = roundOffEnabled ? Math.round(baseRate) : baseRate;
 
     setValue(`items.${index}.meta_json.material_id`, materialId, { shouldDirty: true });
     setValue(`items.${index}.description`, material.display_name || material.name, { shouldDirty: true });
     setValue(`items.${index}.hsn_code`, material.hsn_code || '', { shouldDirty: true });
-    setValue(`items.${index}.meta_json.variant`, firstVariant?.variant_name || '', { shouldDirty: true });
-    setValue(`items.${index}.meta_json.variant_id`, firstVariant?.variant_id || undefined, { shouldDirty: true });
-    setValue(`items.${index}.meta_json.make`, firstVariant?.make || firstMake, { shouldDirty: true });
+    setValue(`items.${index}.meta_json.make`, firstVariant?.make ?? material.make ?? '', { shouldDirty: true });
     setValue(`items.${index}.meta_json.unit`, material.unit || '', { shouldDirty: true });
-    setValue(`items.${index}.meta_json.base_rate`, baseRate, { shouldDirty: true });
+    setValue(`items.${index}.meta_json.variant`, firstVariant?.variant_name ?? '', { shouldDirty: true });
+    setValue(`items.${index}.meta_json.variant_id`, firstVariant?.variant_id ?? undefined, { shouldDirty: true });
     setValue(`items.${index}.rate`, roundedRate, { shouldDirty: true });
 
-    const qty = Number(items[index]?.quantity) || 0;
-    const amount = Math.round(qty * roundedRate * 100) / 100;
-    setValue(`items.${index}.total_amount`, amount, { shouldDirty: true });
+    const currentWarehouse = items[index]?.meta_json?.warehouse_id as string | undefined;
+    if (!currentWarehouse && defaultWarehouseId) {
+      setValue(`items.${index}.meta_json.warehouse_id`, defaultWarehouseId, { shouldDirty: true });
+    }
 
     setTimeout(() => recalcItem(index), 0);
     setOpenDropdowns(prev => ({ ...prev, [index]: false }));
     setSelectedIndices(prev => ({ ...prev, [index]: 0 }));
-  }, [materialOptions, setValue, items, roundOffEnabled, getMaterialVariants, getMaterialMakes, getRateForMaterial, recalcItem]);
+  }, [materialOptions, setValue, roundOffEnabled, recalcItem, items, defaultWarehouseId]);
+
+  const handleVariantSelect = useCallback((index: number, variant: { variant_id: string; variant_name: string; make: string | null; sale_price: number | null }) => {
+    const materialId = items[index]?.meta_json?.material_id as string | undefined;
+    if (!materialId) return;
+
+    const baseRate = variant.sale_price ?? 0;
+    const roundedRate = roundOffEnabled ? Math.round(baseRate) : baseRate;
+
+    setValue(`items.${index}.meta_json.variant`, variant.variant_name, { shouldDirty: true });
+    setValue(`items.${index}.meta_json.variant_id`, variant.variant_id, { shouldDirty: true });
+    if (variant.make) setValue(`items.${index}.meta_json.make`, variant.make, { shouldDirty: true });
+    setValue(`items.${index}.rate`, roundedRate, { shouldDirty: true });
+
+    setTimeout(() => recalcItem(index), 0);
+    setVariantDropdowns(prev => ({ ...prev, [index]: false }));
+  }, [setValue, items, roundOffEnabled, recalcItem]);
 
   const handleSearchChange = useCallback((index: number, value: string) => {
     setSearchTerms(prev => ({ ...prev, [index]: value }));
@@ -279,7 +291,8 @@ export function CNItemsEditor({
     if (!searchTerm) return materialOptions;
     return materialOptions.filter(m =>
       m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      m.display_name.toLowerCase().includes(searchTerm.toLowerCase())
+      m.display_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (m.make && m.make.toLowerCase().includes(searchTerm.toLowerCase()))
     );
   }, [searchTerms, materialOptions]);
 
@@ -291,41 +304,6 @@ export function CNItemsEditor({
     }
     return searchTerms[index] || '';
   }, [items, materialOptions, searchTerms]);
-
-  const handleMakeSelect = useCallback((index: number, make: string) => {
-    const materialId = items[index]?.meta_json?.material_id as string | undefined;
-    const currentVariantId = items[index]?.meta_json?.variant_id as string | undefined;
-
-    setValue(`items.${index}.meta_json.make`, make, { shouldDirty: true });
-    setMakeDropdowns(prev => ({ ...prev, [index]: false }));
-
-    if (materialId) {
-      const newRate = getRateForMaterial(materialId, currentVariantId, make);
-      const roundedRate = roundOffEnabled ? Math.round(newRate) : newRate;
-      setValue(`items.${index}.meta_json.base_rate`, newRate, { shouldDirty: true });
-      setValue(`items.${index}.rate`, roundedRate, { shouldDirty: true });
-      setTimeout(() => recalcItem(index), 0);
-    }
-  }, [setValue, items, getRateForMaterial, roundOffEnabled, recalcItem]);
-
-  const handleVariantSelect = useCallback((index: number, variant: { variant_name: string | null; variant_id?: string | null; make?: string | null }) => {
-    const materialId = items[index]?.meta_json?.material_id as string | undefined;
-
-    setValue(`items.${index}.meta_json.variant`, variant.variant_name || '', { shouldDirty: true });
-    setValue(`items.${index}.meta_json.variant_id`, variant.variant_id || undefined, { shouldDirty: true });
-    if (variant.make) {
-      setValue(`items.${index}.meta_json.make`, variant.make, { shouldDirty: true });
-    }
-    setVariantDropdowns(prev => ({ ...prev, [index]: false }));
-
-    if (materialId) {
-      const newRate = getRateForMaterial(materialId, variant.variant_id, variant.make);
-      const roundedRate = roundOffEnabled ? Math.round(newRate) : newRate;
-      setValue(`items.${index}.meta_json.base_rate`, newRate, { shouldDirty: true });
-      setValue(`items.${index}.rate`, roundedRate, { shouldDirty: true });
-      setTimeout(() => recalcItem(index), 0);
-    }
-  }, [setValue, items, getRateForMaterial, roundOffEnabled, recalcItem]);
 
   const handleKeyDown = useCallback((index: number, e: KeyboardEvent<HTMLInputElement>) => {
     const filtered = getFilteredMaterials(index);
@@ -360,13 +338,6 @@ export function CNItemsEditor({
           setOpenDropdowns(prev => ({ ...prev, [Number(index)]: false }));
         }
       });
-      Object.keys(makeDropdownRefs.current).forEach(index => {
-        const dropdown = makeDropdownRefs.current[Number(index)];
-        const input = makeInputRefs.current[Number(index)];
-        if (dropdown && !dropdown.contains(e.target as Node) && input && !input.contains(e.target as Node)) {
-          setMakeDropdowns(prev => ({ ...prev, [Number(index)]: false }));
-        }
-      });
       Object.keys(variantDropdownRefs.current).forEach(index => {
         const dropdown = variantDropdownRefs.current[Number(index)];
         const input = variantInputRefs.current[Number(index)];
@@ -392,18 +363,6 @@ export function CNItemsEditor({
         }
       }
     });
-    Object.keys(makeDropdowns).forEach(index => {
-      if (makeDropdowns[Number(index)]) {
-        const input = makeInputRefs.current[Number(index)];
-        const dropdown = makeDropdownRefs.current[Number(index)];
-        if (input && dropdown) {
-          const rect = input.getBoundingClientRect();
-          dropdown.style.top = `${rect.bottom + window.scrollY + 2}px`;
-          dropdown.style.left = `${rect.left + window.scrollX}px`;
-          dropdown.style.width = `${Math.max(rect.width, 120)}px`;
-        }
-      }
-    });
     Object.keys(variantDropdowns).forEach(index => {
       if (variantDropdowns[Number(index)]) {
         const input = variantInputRefs.current[Number(index)];
@@ -416,7 +375,7 @@ export function CNItemsEditor({
         }
       }
     });
-  }, [openDropdowns, makeDropdowns, variantDropdowns]);
+  }, [openDropdowns, variantDropdowns]);
 
   return (
     <div style={{ border: '1px solid #d4d4d4', borderRadius: '4px', overflow: 'hidden' }}>
@@ -436,10 +395,12 @@ export function CNItemsEditor({
           <thead>
             <tr style={{ background: '#fafafa', borderBottom: '2px solid #e5e5e5' }}>
               <th style={{ padding: '6px 4px', textAlign: 'center', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.03em', color: '#737373', width: '40px' }}>#</th>
-              <th style={{ padding: '6px 4px', textAlign: 'left', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.03em', color: '#737373', minWidth: '150px' }}>MATERIAL</th>
-              <th style={{ padding: '6px 4px', textAlign: 'left', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.03em', color: '#737373', width: '80px' }}>HSN</th>
-              <th style={{ padding: '6px 4px', textAlign: 'left', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.03em', color: '#737373', width: '70px' }}>MAKE</th>
-              <th style={{ padding: '6px 4px', textAlign: 'left', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.03em', color: '#737373', width: '70px' }}>VARIANT</th>
+              <th style={{ padding: '6px 4px', textAlign: 'left', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.03em', color: '#737373', minWidth: '160px' }}>MATERIAL</th>
+              <th style={{ padding: '6px 4px', textAlign: 'left', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.03em', color: '#737373', width: '70px' }}>HSN</th>
+              <th style={{ padding: '6px 4px', textAlign: 'left', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.03em', color: '#737373', width: '80px' }}>MAKE</th>
+              <th style={{ padding: '6px 4px', textAlign: 'left', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.03em', color: '#737373', width: '90px' }}>VARIANT</th>
+              <th style={{ padding: '6px 4px', textAlign: 'right', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.03em', color: '#737373', width: '120px' }}>WAREHOUSE</th>
+              <th style={{ padding: '6px 4px', textAlign: 'right', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.03em', color: '#737373', width: '50px' }}>STOCK</th>
               <th style={{ padding: '6px 4px', textAlign: 'right', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.03em', color: '#737373', width: '70px' }}>RATE</th>
               <th style={{ padding: '6px 4px', textAlign: 'right', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.03em', color: '#737373', width: '50px' }}>QTY</th>
               <th style={{ padding: '6px 4px', textAlign: 'right', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.03em', color: '#737373', width: '60px' }}>DISC</th>
@@ -456,6 +417,7 @@ export function CNItemsEditor({
               const item = items[index] ?? createEmptyCNItem();
               const materialId = item.meta_json?.material_id as string | undefined;
               const material = materialId ? materialOptions.find(m => m.id === materialId) : null;
+              const variants = getMaterialVariants(materialId);
 
               return (
                 <tr key={field.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
@@ -477,7 +439,14 @@ export function CNItemsEditor({
                       <div ref={(el) => { dropdownRefs.current[index] = el; }} style={{ position: 'fixed', background: 'white', border: '1px solid #d4d4d4', borderRadius: '4px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', zIndex: 9999, maxHeight: '200px', overflowY: 'auto', minWidth: '200px' }}>
                         {getFilteredMaterials(index).map((m, idx) => (
                           <div key={m.id} onClick={() => handleMaterialSelect(index, m.id)} style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '11px', borderBottom: '1px solid #f3f4f6', background: selectedIndices[index] === idx ? '#f5f5f5' : 'white' }} onMouseEnter={(e) => e.currentTarget.style.background = '#f5f5f5'} onMouseLeave={(e) => e.currentTarget.style.background = 'white'}>
-                            {m.display_name || m.name}
+                            <div style={{ fontWeight: 500 }}>{m.display_name || m.name}</div>
+                            {(m.make || m.sale_price) && (
+                              <div style={{ fontSize: '10px', color: '#737373', marginTop: '2px' }}>
+                                {m.make && <span>{m.make}</span>}
+                                {m.make && m.sale_price && <span> · </span>}
+                                {m.sale_price && <span>₹{m.sale_price}</span>}
+                              </div>
+                            )}
                           </div>
                         ))}
                         {getFilteredMaterials(index).length === 0 && <div style={{ padding: '8px 12px', fontSize: '11px', color: '#737373' }}>No materials found</div>}
@@ -487,32 +456,14 @@ export function CNItemsEditor({
                   <td style={{ padding: '4px' }}>
                     <input {...register(`items.${index}.hsn_code`)} placeholder="HSN" style={{ width: '100%', padding: '4px 6px', border: '1px solid transparent', borderRadius: '2px', fontSize: '11px', background: 'transparent', textAlign: 'left' }} />
                   </td>
-                  <td style={{ padding: '4px', position: 'relative' }}>
+                  <td style={{ padding: '4px' }}>
                     <input
-                      ref={(el) => { makeInputRefs.current[index] = el; }}
                       type="text"
                       value={(item.meta_json?.make as string) || ''}
-                      readOnly={!materialId}
-                      onClick={() => { if (materialId) setMakeDropdowns(prev => ({ ...prev, [index]: true })); }}
+                      readOnly
                       placeholder="-"
-                      style={{ width: '100%', padding: '4px 6px', border: '1px solid transparent', borderRadius: '2px', fontSize: '11px', background: 'transparent', cursor: materialId ? 'pointer' : 'default', opacity: materialId ? 1 : 0.5 }}
+                      style={{ width: '100%', padding: '4px 6px', border: '1px solid transparent', borderRadius: '2px', fontSize: '11px', background: 'transparent', opacity: material ? 1 : 0.5 }}
                     />
-                    {makeDropdowns[index] && materialId && (
-                      <div ref={(el) => { makeDropdownRefs.current[index] = el; }} style={{ position: 'fixed', background: 'white', border: '1px solid #d4d4d4', borderRadius: '4px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', zIndex: 9999, maxHeight: '200px', overflowY: 'auto', minWidth: '120px' }}>
-                        {(() => {
-                          const makes = getMaterialMakes(materialId);
-                          if (makes.length === 0) return <div style={{ padding: '8px 12px', fontSize: '11px', color: '#737373', fontStyle: 'italic' }}>No makes</div>;
-                          return (
-                            <>
-                              <div onClick={() => handleMakeSelect(index, '')} style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '11px', borderBottom: '1px solid #f3f4f6', fontStyle: 'italic', color: '#737373' }}>-- None --</div>
-                              {makes.map((make, i) => (
-                                <div key={i} onClick={() => handleMakeSelect(index, make)} style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '11px', borderBottom: '1px solid #f3f4f6' }}>{make}</div>
-                              ))}
-                            </>
-                          );
-                        })()}
-                      </div>
-                    )}
                   </td>
                   <td style={{ padding: '4px', position: 'relative' }}>
                     <input
@@ -520,26 +471,50 @@ export function CNItemsEditor({
                       type="text"
                       value={(item.meta_json?.variant as string) || ''}
                       readOnly={!materialId}
-                      onClick={() => { if (materialId) setVariantDropdowns(prev => ({ ...prev, [index]: true })); }}
+                      onClick={() => { if (materialId && variants.length > 0) setVariantDropdowns(prev => ({ ...prev, [index]: true })); }}
                       placeholder="-"
-                      style={{ width: '100%', padding: '4px 6px', border: '1px solid transparent', borderRadius: '2px', fontSize: '11px', background: 'transparent', cursor: materialId ? 'pointer' : 'default', opacity: materialId ? 1 : 0.5 }}
+                      style={{ width: '100%', padding: '4px 6px', border: '1px solid transparent', borderRadius: '2px', fontSize: '11px', background: 'transparent', cursor: materialId && variants.length > 0 ? 'pointer' : 'default', opacity: materialId ? 1 : 0.5 }}
                     />
-                    {variantDropdowns[index] && materialId && (
+                    {variantDropdowns[index] && materialId && variants.length > 0 && (
                       <div ref={(el) => { variantDropdownRefs.current[index] = el; }} style={{ position: 'fixed', background: 'white', border: '1px solid #d4d4d4', borderRadius: '4px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', zIndex: 9999, maxHeight: '200px', overflowY: 'auto', minWidth: '120px' }}>
-                        {(() => {
-                          const variants = getMaterialVariants(materialId);
-                          if (variants.length === 0) return <div style={{ padding: '8px 12px', fontSize: '11px', color: '#737373', fontStyle: 'italic' }}>No variants</div>;
-                          return (
-                            <>
-                              <div onClick={() => handleVariantSelect(index, { variant_name: '', variant_id: null, make: null })} style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '11px', borderBottom: '1px solid #f3f4f6', fontStyle: 'italic', color: '#737373' }}>-- None --</div>
-                              {variants.map((v, i) => (
-                                <div key={i} onClick={() => handleVariantSelect(index, v)} style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '11px', borderBottom: '1px solid #f3f4f6' }}>{v.variant_name || 'Unnamed'}</div>
-                              ))}
-                            </>
-                          );
-                        })()}
+                        {variants.map((v, i) => (
+                          <div key={v.variant_id} onClick={() => handleVariantSelect(index, v)} style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '11px', borderBottom: '1px solid #f3f4f6', background: 'white' }} onMouseEnter={(e) => e.currentTarget.style.background = '#f5f5f5'} onMouseLeave={(e) => e.currentTarget.style.background = 'white'}>
+                            <div style={{ fontWeight: 500 }}>{v.variant_name}</div>
+                            {v.sale_price != null && <div style={{ fontSize: '10px', color: '#737373' }}>₹{v.sale_price}</div>}
+                          </div>
+                        ))}
                       </div>
                     )}
+                  </td>
+                  <td style={{ padding: '4px' }}>
+                    {item.meta_json?.material_id ? (
+                      <select
+                        {...register(`items.${index}.meta_json.warehouse_id` as any)}
+                        style={{ width: '100%', padding: '4px 6px', border: '1px solid transparent', borderRadius: '2px', fontSize: '11px', background: 'transparent' }}
+                      >
+                        <option value="">Select</option>
+                        {warehouses.map((wh) => (
+                          <option key={wh.id} value={wh.id}>{wh.warehouse_name || wh.name || 'Warehouse'}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <span style={{ fontSize: '11px', color: '#a3a3a3' }}>-</span>
+                    )}
+                  </td>
+                  <td style={{ padding: '4px', textAlign: 'right' }}>
+                    {(() => {
+                      const matId = item.meta_json?.material_id as string | undefined;
+                      const whId = item.meta_json?.warehouse_id as string | undefined;
+                      const varId = item.meta_json?.variant_id as string | undefined;
+                      if (!matId || !whId) return <span style={{ fontSize: '11px', color: '#a3a3a3' }}>-</span>;
+                      const stockRow = stockRows.find(s =>
+                        s.item_id === matId &&
+                        s.warehouse_id === whId &&
+                        (varId ? s.company_variant_id === varId : s.company_variant_id === null)
+                      );
+                      const stock = stockRow?.current_stock || 0;
+                      return <span style={{ fontSize: '11px', fontWeight: 600, color: stock > 0 ? '#171717' : '#dc2626' }}>{stock}</span>;
+                    })()}
                   </td>
                   <td style={{ padding: '4px' }}>
                     <input

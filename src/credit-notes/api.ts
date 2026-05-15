@@ -195,7 +195,7 @@ export async function updateCreditNote(input: {
   igst_amount: number;
   total_amount: number;
   approval_status: string;
-  items: Omit<CreditNoteItem, 'cn_id' | 'organisation_id' | 'created_at'>[];
+  items: (Omit<CreditNoteItem, 'id' | 'cn_id' | 'organisation_id' | 'created_at'> & { id?: string })[];
 }): Promise<CreditNote> {
   const { error: cnError } = await supabase
     .from('credit_notes')

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   Plus,
   Search,
@@ -9,7 +9,11 @@ import {
   Pencil,
   Eye,
   Loader2,
+  Warehouse,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { Button as ShadcnButton } from '../../../components/ui/button';
 import { Badge } from '../../../components/ui/Badge';
 import { AppTable } from '../../../components/ui/AppTable';
@@ -34,6 +38,7 @@ import { cn } from '../../../lib/utils';
 import { supabase } from '../../../supabase';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useDebitNotes, usePurchaseBills, useVendors, useCreateDebitNote } from '../hooks/usePurchaseQueries';
+import { adjustCNStock } from '../../../credit-notes/stock-adjustment';
 
 const DN_TYPES = ['Purchase Return', 'Rate Difference', 'Discount', 'Rejection', 'Other'];
 
@@ -46,6 +51,11 @@ interface DNItem {
   taxable_value: number;
   gst_amount: number;
   total_amount: number;
+  material_id?: string;
+  warehouse_id?: string;
+  variant?: string;
+  variant_id?: string;
+  make?: string;
 }
 
 function createEmptyItem(): DNItem {
@@ -86,11 +96,81 @@ export const DebitNotes: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [dnNumber, setDnNumber] = useState('');
+  const [warehousePanelOpen, setWarehousePanelOpen] = useState(false);
+  const [defaultWarehouseId, setDefaultWarehouseId] = useState('');
 
   const { data: dns = [], isLoading, refetch } = useDebitNotes(organisation?.id);
   const { data: bills = [] } = usePurchaseBills(organisation?.id);
   const { data: vendors = [] } = useVendors(organisation?.id);
   const createDN = useCreateDebitNote();
+
+  const warehousesQuery = useQuery({
+    queryKey: ['warehouses', organisation?.id],
+    queryFn: async () => {
+      if (!organisation?.id) return [];
+      const { data, error } = await supabase
+        .from('warehouses')
+        .select('*')
+        .eq('organisation_id', organisation.id)
+        .eq('is_active', true)
+        .order('warehouse_name');
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!organisation?.id,
+  });
+
+  const stockQuery = useQuery({
+    queryKey: ['item-stock', organisation?.id],
+    queryFn: async () => {
+      if (!organisation?.id) return [];
+      const { data, error } = await supabase
+        .from('item_stock')
+        .select('item_id, warehouse_id, company_variant_id, current_stock')
+        .eq('organisation_id', organisation.id);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!organisation?.id,
+    staleTime: 2 * 60 * 1000,
+  });
+
+  const [materialOptions, setMaterialOptions] = useState<Array<{
+    id: string; name: string; display_name: string; hsn_code: string | null;
+    unit: string | null; sale_price: number | null; make: string | null;
+    variants: Array<{ variant_id: string; variant_name: string; make: string | null; sale_price: number | null }>;
+  }>>([]);
+
+  const [variantDropdowns, setVariantDropdowns] = useState<Record<number, boolean>>({});
+  const variantInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
+  const variantDropdownRefs = useRef<Record<number, HTMLDivElement | null>>({});
+
+  useEffect(() => {
+    if (!organisation?.id) return;
+    Promise.all([
+      supabase.from('materials').select('id, name, display_name, hsn_code, unit, sale_price, make').eq('organisation_id', organisation.id).order('name'),
+      supabase.from('item_variant_pricing').select('material_id, variant_id, sale_price, make').eq('company_id', organisation.id),
+      supabase.from('company_variants').select('id, variant_name').eq('organisation_id', organisation.id).eq('is_active', true),
+    ]).then(([materialsRes, pricingRes, variantsRes]) => {
+      if (!materialsRes.data) return;
+      const variantNames = new Map<string, string>();
+      variantsRes.data?.forEach(v => variantNames.set(String(v.id), String(v.variant_name)));
+      const pricingByMaterial = new Map<string, Array<{ variant_id: string; variant_name: string; make: string | null; sale_price: number | null }>>();
+      pricingRes.data?.forEach(p => {
+        const matId = String(p.material_id);
+        const vid = String(p.variant_id);
+        const vname = variantNames.get(vid) ?? vid;
+        const list = pricingByMaterial.get(matId) ?? [];
+        list.push({ variant_id: vid, variant_name: vname, make: p.make ?? null, sale_price: p.sale_price ?? null });
+        pricingByMaterial.set(matId, list);
+      });
+      setMaterialOptions(materialsRes.data.map(m => ({
+        id: String(m.id), name: String(m.name ?? ''), display_name: String(m.display_name ?? m.name ?? ''),
+        hsn_code: m.hsn_code ?? null, unit: m.unit ?? null, sale_price: m.sale_price ?? null, make: m.make ?? null,
+        variants: pricingByMaterial.get(String(m.id)) ?? [],
+      })));
+    });
+  }, [organisation?.id]);
 
   const selectedBill = useMemo(() => {
     return bills.find((b: any) => b.id === billId) ?? null;
@@ -165,6 +245,20 @@ export const DebitNotes: React.FC = () => {
     }
   };
 
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      Object.keys(variantDropdownRefs.current).forEach(index => {
+        const dropdown = variantDropdownRefs.current[Number(index)];
+        const input = variantInputRefs.current[Number(index)];
+        if (dropdown && !dropdown.contains(e.target as Node) && input && !input.contains(e.target as Node)) {
+          setVariantDropdowns(prev => ({ ...prev, [Number(index)]: false }));
+        }
+      });
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const handleSave = async () => {
     if (!billId || !reason || items.length === 0) return;
     if (!organisation?.id || !selectedBill) return;
@@ -201,6 +295,23 @@ export const DebitNotes: React.FC = () => {
       }));
 
       await createDN.mutateAsync({ dnData, items: dnItems });
+
+      const stockItems = items
+        .filter(item => item.material_id && item.warehouse_id)
+        .map(item => ({
+          material_id: item.material_id!,
+          warehouse_id: item.warehouse_id!,
+          quantity: item.quantity,
+        }));
+
+      if (stockItems.length > 0 && organisation?.id) {
+        try {
+          await adjustCNStock('', organisation.id, stockItems, 'deduct');
+        } catch (stockErr) {
+          console.error('DN stock deduction failed:', stockErr);
+        }
+      }
+
       setOpenDialog(false);
       refetch();
     } catch (err) {
@@ -400,6 +511,36 @@ export const DebitNotes: React.FC = () => {
               </div>
             </div>
 
+            <div style={{ border: '1px solid #e2e8f0', borderRadius: '6px', marginBottom: '12px', background: '#f8fafc' }}>
+              <div
+                onClick={() => setWarehousePanelOpen(!warehousePanelOpen)}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', cursor: 'pointer', userSelect: 'none' }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Warehouse size={14} style={{ color: '#64748b' }} />
+                  <span style={{ fontSize: '11px', fontWeight: 600, color: '#1e293b' }}>Stock & Warehouse</span>
+                </div>
+                {warehousePanelOpen ? <ChevronDown size={14} style={{ color: '#94a3b8' }} /> : <ChevronRight size={14} style={{ color: '#94a3b8' }} />}
+              </div>
+              {warehousePanelOpen && (
+                <div style={{ padding: '10px 12px', borderTop: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ flex: 1, maxWidth: '250px' }}>
+                    <label style={{ fontSize: '10px', fontWeight: 600, color: '#64748b', display: 'block', marginBottom: '3px' }}>Default Warehouse</label>
+                    <select
+                      value={defaultWarehouseId}
+                      onChange={(e) => setDefaultWarehouseId(e.target.value)}
+                      style={{ width: '100%', padding: '5px 8px', border: '1px solid #e2e8f0', borderRadius: '4px', fontSize: '11px', background: '#fff' }}
+                    >
+                      <option value="">Select warehouse</option>
+                      {warehousesQuery.data?.map((wh: any) => (
+                        <option key={wh.id} value={wh.id}>{wh.warehouse_name || wh.name || 'Warehouse'}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div>
               <div className="flex items-center justify-between mb-2">
                 <Label className="text-xs font-bold uppercase text-slate-500 tracking-wider">Line Items</Label>
@@ -413,8 +554,12 @@ export const DebitNotes: React.FC = () => {
                   <thead>
                     <tr className="bg-slate-50 border-b">
                       <th className="px-3 py-2 text-left font-semibold text-slate-600 w-8">#</th>
-                      <th className="px-3 py-2 text-left font-semibold text-slate-600">Description</th>
-                      <th className="px-3 py-2 text-left font-semibold text-slate-600 w-16">HSN</th>
+                      <th className="px-3 py-2 text-left font-semibold text-slate-600">MATERIAL</th>
+                      <th className="px-3 py-2 text-left font-semibold text-slate-600 w-14">HSN</th>
+                      <th className="px-3 py-2 text-left font-semibold text-slate-600 w-16">MAKE</th>
+                      <th className="px-3 py-2 text-left font-semibold text-slate-600 w-20">VARIANT</th>
+                      <th className="px-3 py-2 text-left font-semibold text-slate-600 w-20">WAREHOUSE</th>
+                      <th className="px-3 py-2 text-right font-semibold text-slate-600 w-14">STOCK</th>
                       <th className="px-3 py-2 text-right font-semibold text-slate-600 w-16">Qty</th>
                       <th className="px-3 py-2 text-right font-semibold text-slate-600 w-20">Rate</th>
                       <th className="px-3 py-2 text-right font-semibold text-slate-600 w-16">GST%</th>
@@ -429,12 +574,31 @@ export const DebitNotes: React.FC = () => {
                       <tr key={index} className="border-b last:border-b-0">
                         <td className="px-3 py-1.5 text-center text-slate-400">{index + 1}</td>
                         <td className="px-3 py-1.5">
-                          <Input
-                            value={item.description}
-                            onChange={(e) => updateItem(index, 'description', e.target.value)}
-                            placeholder="Description"
-                            className="h-7 text-xs border-transparent focus:border-slate-200"
-                          />
+                          <select
+                            value={item.material_id || ''}
+                            onChange={(e) => {
+                              const mat = materialOptions.find(m => m.id === e.target.value);
+                              if (mat) {
+                                const firstVariant = mat.variants.length > 0 ? mat.variants[0] : null;
+                                updateItem(index, 'material_id', mat.id);
+                                updateItem(index, 'description', mat.display_name || mat.name);
+                                updateItem(index, 'hsn_code', mat.hsn_code || '');
+                                updateItem(index, 'make', firstVariant?.make ?? mat.make ?? '');
+                                updateItem(index, 'variant', firstVariant?.variant_name ?? '');
+                                updateItem(index, 'variant_id', firstVariant?.variant_id ?? '');
+                                updateItem(index, 'rate', firstVariant?.sale_price ?? mat.sale_price ?? 0);
+                                if (defaultWarehouseId && !item.warehouse_id) {
+                                  updateItem(index, 'warehouse_id', defaultWarehouseId);
+                                }
+                              }
+                            }}
+                            style={{ width: '100%', padding: '3px 6px', border: '1px solid transparent', borderRadius: '2px', fontSize: '10px', background: 'transparent' }}
+                          >
+                            <option value="">Select material</option>
+                            {materialOptions.map(m => (
+                              <option key={m.id} value={m.id}>{m.display_name || m.name}</option>
+                            ))}
+                          </select>
                         </td>
                         <td className="px-3 py-1.5">
                           <Input
@@ -443,6 +607,77 @@ export const DebitNotes: React.FC = () => {
                             placeholder="HSN"
                             className="h-7 text-xs border-transparent focus:border-slate-200"
                           />
+                        </td>
+                        <td className="px-3 py-1.5">
+                          <input
+                            type="text"
+                            value={item.make || ''}
+                            readOnly
+                            placeholder="-"
+                            style={{ width: '100%', padding: '3px 6px', border: '1px solid transparent', borderRadius: '2px', fontSize: '10px', background: 'transparent', opacity: item.material_id ? 1 : 0.5 }}
+                          />
+                        </td>
+                        <td className="px-3 py-1.5" style={{ position: 'relative' }}>
+                          <input
+                            ref={(el) => { variantInputRefs.current[index] = el; }}
+                            type="text"
+                            value={item.variant || ''}
+                            readOnly={!item.material_id}
+                            onClick={() => {
+                              const mat = materialOptions.find(m => m.id === item.material_id);
+                              if (mat && mat.variants.length > 0) setVariantDropdowns(prev => ({ ...prev, [index]: true }));
+                            }}
+                            placeholder="-"
+                            style={{ width: '100%', padding: '3px 6px', border: '1px solid transparent', borderRadius: '2px', fontSize: '10px', background: 'transparent', cursor: item.material_id ? 'pointer' : 'default', opacity: item.material_id ? 1 : 0.5 }}
+                          />
+                          {variantDropdowns[index] && item.material_id && (() => {
+                            const mat = materialOptions.find(m => m.id === item.material_id);
+                            if (!mat || mat.variants.length === 0) return null;
+                            return (
+                              <div ref={(el) => { variantDropdownRefs.current[index] = el; }} style={{ position: 'fixed', background: 'white', border: '1px solid #e2e8f0', borderRadius: '4px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', zIndex: 9999, maxHeight: '200px', overflowY: 'auto', minWidth: '120px' }}>
+                                {mat.variants.map((v) => (
+                                  <div key={v.variant_id} onClick={() => {
+                                    updateItem(index, 'variant', v.variant_name);
+                                    updateItem(index, 'variant_id', v.variant_id);
+                                    if (v.make) updateItem(index, 'make', v.make);
+                                    updateItem(index, 'rate', v.sale_price ?? 0);
+                                    setVariantDropdowns(prev => ({ ...prev, [index]: false }));
+                                  }} style={{ padding: '6px 10px', cursor: 'pointer', fontSize: '10px', borderBottom: '1px solid #f1f5f9' }} onMouseEnter={(e) => e.currentTarget.style.background = '#f8fafc'} onMouseLeave={(e) => e.currentTarget.style.background = 'white'}>
+                                    <div style={{ fontWeight: 500 }}>{v.variant_name}</div>
+                                    {v.sale_price != null && <div style={{ fontSize: '9px', color: '#94a3b8' }}>₹{v.sale_price}</div>}
+                                  </div>
+                                ))}
+                              </div>
+                            );
+                          })()}
+                        </td>
+                        <td className="px-3 py-1.5">
+                          {item.material_id ? (
+                            <select
+                              value={item.warehouse_id || ''}
+                              onChange={(e) => updateItem(index, 'warehouse_id', e.target.value)}
+                              style={{ width: '100%', padding: '3px 6px', border: '1px solid transparent', borderRadius: '2px', fontSize: '10px', background: 'transparent' }}
+                            >
+                              <option value="">Select</option>
+                              {warehousesQuery.data?.map((wh: any) => (
+                                <option key={wh.id} value={wh.id}>{wh.warehouse_name || wh.name}</option>
+                              ))}
+                            </select>
+                          ) : (
+                            <span className="text-[10px] text-slate-400">-</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-1.5 text-right">
+                          {(() => {
+                            if (!item.material_id || !item.warehouse_id) return <span className="text-[10px] text-slate-400">-</span>;
+                            const sr = stockQuery.data?.find((s: any) =>
+                              s.item_id === item.material_id &&
+                              s.warehouse_id === item.warehouse_id &&
+                              (item.variant_id ? s.company_variant_id === item.variant_id : s.company_variant_id === null)
+                            );
+                            const stock = sr?.current_stock || 0;
+                            return <span className={`text-[10px] font-semibold ${stock > 0 ? 'text-slate-800' : 'text-red-600'}`}>{stock}</span>;
+                          })()}
                         </td>
                         <td className="px-3 py-1.5">
                           <Input

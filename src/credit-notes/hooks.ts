@@ -35,7 +35,7 @@ export type UpdateCreditNoteMutationInput = {
   igst_amount: number;
   total_amount: number;
   approval_status: string;
-  items: (Omit<CreditNoteItem, 'cn_id' | 'organisation_id' | 'created_at'> & { id?: string })[];
+  items: (Omit<CreditNoteItem, 'id' | 'cn_id' | 'organisation_id' | 'created_at'> & { id?: string })[];
 };
 
 export function useCreditNotes(filters: CreditNoteFilters = {}) {

@@ -1,7 +1,8 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useForm, useFieldArray } from 'react-hook-form';
-import { ArrowLeft, Save, FileDown, Loader2 } from 'lucide-react';
+import { useForm, useFieldArray, useWatch } from 'react-hook-form';
+import { ArrowLeft, Save, FileDown, Loader2, ChevronDown, ChevronRight, Warehouse } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '../../supabase';
 import { useAuth } from '../../App';
 import { useCreditNote, useCreateCreditNote, useUpdateCreditNote, useNextCNNumber } from '../../credit-notes/hooks';
@@ -11,7 +12,7 @@ import { formatCurrency, formatDate } from '../../credit-notes/ui-utils';
 import { amountInWords } from '../../credit-notes/utils/amountInWords';
 import { CN_TYPES, CN_TYPE_LABELS, CN_APPROVAL_STATUSES } from '../../credit-notes/schemas';
 import type { CreditNote } from '../../credit-notes/types';
-import { generateProGridAdjustmentNotePdf } from '../../pdf/proGridAdjustmentNotePdf';
+import { adjustCNStock } from '../../credit-notes/stock-adjustment';
 import { toast } from '../../lib/logger';
 
 const styles = `
@@ -90,6 +91,7 @@ type CNItemForm = {
     make?: string;
     base_rate?: number;
     unit?: string;
+    warehouse_id?: string;
   };
 };
 
@@ -106,6 +108,7 @@ type CNFormValues = {
   igst_amount: number;
   total_amount: number;
   approval_status: string;
+  default_warehouse_id: string;
   items: CNItemForm[];
 };
 
@@ -145,7 +148,39 @@ export function CreditNoteEditorPage() {
   const [companyState, setCompanyState] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  const [roundOffEnabled, setRoundOffEnabled] = useState(organisation?.round_off_enabled ?? false);
+  const [roundOffEnabled, setRoundOffEnabled] = useState((organisation as any)?.round_off_enabled === true);
+  const [warehousePanelOpen, setWarehousePanelOpen] = useState(false);
+
+  const warehousesQuery = useQuery({
+    queryKey: ['warehouses', organisation?.id],
+    queryFn: async () => {
+      if (!organisation?.id) return [];
+      const { data, error } = await supabase
+        .from('warehouses')
+        .select('*')
+        .eq('organisation_id', organisation.id)
+        .eq('is_active', true)
+        .order('warehouse_name');
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!organisation?.id,
+  });
+
+  const stockQuery = useQuery({
+    queryKey: ['item-stock', organisation?.id],
+    queryFn: async () => {
+      if (!organisation?.id) return [];
+      const { data, error } = await supabase
+        .from('item_stock')
+        .select('item_id, warehouse_id, company_variant_id, current_stock')
+        .eq('organisation_id', organisation.id);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!organisation?.id,
+    staleTime: 2 * 60 * 1000,
+  });
 
   const {
     register,
@@ -169,6 +204,7 @@ export function CreditNoteEditorPage() {
       igst_amount: 0,
       total_amount: 0,
       approval_status: 'Pending',
+      default_warehouse_id: '',
       items: [createEmptyItem()],
     },
   });
@@ -181,6 +217,17 @@ export function CreditNoteEditorPage() {
   const watchedClientId = watch('client_id');
   const watchedItems = watch('items');
   const watchedTotal = watch('total_amount');
+  const defaultWarehouseId = useWatch({ control, name: 'default_warehouse_id' });
+
+  useEffect(() => {
+    const wh = defaultWarehouseId;
+    if (!wh) return;
+    watchedItems.forEach((item: any, idx: number) => {
+      if (item.meta_json?.material_id && !item.meta_json?.warehouse_id) {
+        setValue(`items.${idx}.meta_json.warehouse_id`, wh);
+      }
+    });
+  }, [defaultWarehouseId, watchedItems, setValue]);
 
   useEffect(() => { injectStyles(); }, []);
 
@@ -337,10 +384,29 @@ export function CreditNoteEditorPage() {
         })),
       };
 
+      let savedCN: any;
       if (isEditing && editId) {
-        await updateCN.mutateAsync({ id: editId, ...payload, organisation_id: organisation.id });
+        savedCN = await updateCN.mutateAsync({ id: editId, ...payload, organisation_id: organisation.id });
       } else {
-        await createCN.mutateAsync({ ...payload, organisation_id: organisation.id });
+        savedCN = await createCN.mutateAsync({ ...payload, organisation_id: organisation.id });
+      }
+
+      if (status === 'Approved') {
+        const stockItems = data.items
+          .filter(item => item.meta_json?.material_id && item.meta_json?.warehouse_id)
+          .map(item => ({
+            material_id: item.meta_json!.material_id!,
+            warehouse_id: item.meta_json!.warehouse_id!,
+            quantity: item.quantity,
+          }));
+
+        if (stockItems.length > 0) {
+          try {
+            await adjustCNStock(savedCN.id, organisation.id, stockItems, 'restore');
+          } catch (stockErr) {
+            console.error('Stock adjustment failed:', stockErr);
+          }
+        }
       }
 
       toast.success(status === 'Pending' ? 'Credit note saved as draft' : 'Credit note saved successfully');
@@ -434,6 +500,35 @@ export function CreditNoteEditorPage() {
         </div>
       </div>
 
+      <div style={{ border: '1px solid #e5e5e5', borderRadius: '4px', marginBottom: '16px', background: '#fafafa' }}>
+        <div
+          onClick={() => setWarehousePanelOpen(!warehousePanelOpen)}
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', cursor: 'pointer', userSelect: 'none' }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Warehouse size={16} style={{ color: '#525252' }} />
+            <span style={{ fontSize: '12px', fontWeight: 600, color: '#171717' }}>Stock & Warehouse</span>
+          </div>
+          {warehousePanelOpen ? <ChevronDown size={16} style={{ color: '#737373' }} /> : <ChevronRight size={16} style={{ color: '#737373' }} />}
+        </div>
+        {warehousePanelOpen && (
+          <div style={{ padding: '12px 14px', borderTop: '1px solid #e5e5e5', display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div style={{ flex: 1, maxWidth: '300px' }}>
+              <label style={{ fontSize: '11px', fontWeight: 600, color: '#525252', display: 'block', marginBottom: '4px' }}>Default Warehouse</label>
+              <select
+                {...register('default_warehouse_id')}
+                style={{ width: '100%', padding: '6px 10px', border: '1px solid #d4d4d4', borderRadius: '4px', fontSize: '12px', background: '#fff' }}
+              >
+                <option value="">Select warehouse</option>
+                {warehousesQuery.data?.map((wh) => (
+                  <option key={wh.id} value={wh.id}>{wh.warehouse_name || wh.name || 'Warehouse'}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        )}
+      </div>
+
       <CNItemsEditor
         fields={fields}
         items={watchedItems}
@@ -446,6 +541,9 @@ export function CreditNoteEditorPage() {
         clientState={clientState}
         roundOffEnabled={roundOffEnabled}
         error={errors.items?.message}
+        warehouses={warehousesQuery.data ?? []}
+        stockRows={stockQuery.data ?? []}
+        defaultWarehouseId={defaultWarehouseId}
       />
 
       <div className="cne-totals-card">
