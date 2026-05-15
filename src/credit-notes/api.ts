@@ -147,7 +147,7 @@ export async function createCreditNote(input: {
       igst_amount: input.igst_amount,
       total_amount: input.total_amount,
       approval_status: input.approval_status,
-      authorized_signatory_id: input.authorized_signatory_id || null,
+      authorized_signatory_id: (input.authorized_signatory_id && input.authorized_signatory_id !== '') ? input.authorized_signatory_id : null,
     })
     .select()
     .single();
@@ -217,7 +217,7 @@ export async function updateCreditNote(input: {
       igst_amount: input.igst_amount,
       total_amount: input.total_amount,
       approval_status: input.approval_status,
-      authorized_signatory_id: input.authorized_signatory_id || null,
+      authorized_signatory_id: (input.authorized_signatory_id && input.authorized_signatory_id !== '') ? input.authorized_signatory_id : null,
     })
     .eq('id', input.id)
     .eq('organisation_id', input.organisation_id);

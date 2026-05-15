@@ -523,7 +523,7 @@ export function CreditNoteEditorPage() {
         igst_amount: data.igst_amount,
         total_amount: roundOffEnabled ? Math.round(data.total_amount) : data.total_amount,
         approval_status: status,
-        authorized_signatory_id: data.authorized_signatory_id || null,
+        authorized_signatory_id: data.authorized_signatory_id && data.authorized_signatory_id !== '' ? data.authorized_signatory_id : null,
         items: data.items.map(item => ({
           description: item.description,
           hsn_code: item.hsn_code || null,
