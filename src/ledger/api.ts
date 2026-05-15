@@ -8,6 +8,7 @@ export type LedgerClient = {
   state?: string | null;
   email?: string | null;
   contact?: string | null;
+  linked_vendor_id?: string | null;
 };
 
 export type OpeningBalance = {
@@ -91,7 +92,7 @@ export type ReceiptInput = {
 export async function listLedgerClients(orgId: string): Promise<LedgerClient[]> {
   const { data, error } = await supabase
     .from('clients')
-    .select('id, org_id, client_name, name, gstin, gst_number, state, email, contact')
+    .select('id, org_id, client_name, name, gstin, gst_number, state, email, contact, linked_vendor_id')
     .or(`org_id.eq.${orgId},org_id.is.null`)
     .order('client_name', { ascending: true });
 
@@ -105,6 +106,7 @@ export async function listLedgerClients(orgId: string): Promise<LedgerClient[]> 
     state: row.state ?? null,
     email: row.email ?? null,
     contact: row.contact ?? null,
+    linked_vendor_id: row.linked_vendor_id ?? null,
   }));
 }
 

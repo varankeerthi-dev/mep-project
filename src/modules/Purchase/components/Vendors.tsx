@@ -14,12 +14,15 @@ import {
   MoreHorizontal,
   ChevronRight,
   ShieldCheck,
-  AlertCircle
+  AlertCircle,
+  UserPlus,
+  Eye
 } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useVendors, useCreateVendor, useUpdateVendor } from '../hooks/usePurchaseQueries';
 import { supabase } from '../../../supabase';
 import VendorLedgerDialog from './VendorLedgerDialog';
+import { Party360 } from '../../../components/Party360';
 
 // Import local UI components
 import { Modal } from '../../../components/ui/Modal';
@@ -117,6 +120,9 @@ export const Vendors: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [docSettings, setDocSettings] = useState<any>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [party360Open, setParty360Open] = useState(false);
+  const [party360Data, setParty360Data] = useState<{ name: string; vendorId: string; clientId: string | null } | null>(null);
+  const [addingAsClient, setAddingAsClient] = useState<string | null>(null);
 
   const { data: vendors = [], isLoading } = useVendors(organisation?.id);
   const createVendor = useCreateVendor();
@@ -158,6 +164,64 @@ export const Vendors: React.FC = () => {
   const handleOpenLedger = (vendor: any) => {
     setSelectedVendor(vendor);
     setOpenLedgerDialog(true);
+  };
+
+  const handleAddAsClient = async (vendor: any) => {
+    if (!organisation?.id) return;
+    setAddingAsClient(vendor.id);
+    try {
+      const { data: existingClient } = await supabase
+        .from('clients')
+        .select('id')
+        .eq('organisation_id', organisation.id)
+        .eq('linked_vendor_id', vendor.id)
+        .single();
+
+      if (existingClient) {
+        setParty360Data({ name: vendor.company_name, vendorId: vendor.id, clientId: existingClient.id });
+        setParty360Open(true);
+        return;
+      }
+
+      const { data: newClient, error } = await supabase
+        .from('clients')
+        .insert({
+          organisation_id: organisation.id,
+          client_name: vendor.company_name,
+          name: vendor.company_name,
+          contact_person: vendor.contact_person || null,
+          email: vendor.email || null,
+          phone: vendor.phone || null,
+          gstin: vendor.gstin || null,
+          state: vendor.state || null,
+          address: vendor.address || null,
+          linked_vendor_id: vendor.id,
+          party_type: 'both',
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      await supabase
+        .from('purchase_vendors')
+        .update({ linked_client_id: newClient.id, party_type: 'both' })
+        .eq('id', vendor.id);
+
+      setParty360Data({ name: vendor.company_name, vendorId: vendor.id, clientId: newClient.id });
+      setParty360Open(true);
+    } catch (err: any) {
+      console.error('Error adding vendor as client:', err);
+      alert('Failed to add as client: ' + (err.message || 'Unknown error'));
+    } finally {
+      setAddingAsClient(null);
+    }
+  };
+
+  const handleViewParty360 = (vendor: any) => {
+    const linkedClientId = vendor.linked_client_id || null;
+    setParty360Data({ name: vendor.company_name, vendorId: vendor.id, clientId: linkedClientId });
+    setParty360Open(true);
   };
 
   const generateVendorCode = () => {
@@ -357,28 +421,59 @@ export const Vendors: React.FC = () => {
     {
       accessorKey: 'actions',
       header: '',
-      cell: ({ row }: any) => (
-        <div className="flex items-center justify-end gap-1">
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={() => handleOpenLedger(row.original)}
-            className="text-slate-500 hover:text-blue-600"
-            title="Vendor Ledger"
-          >
-            <BookOpen className="w-4 h-4" />
-          </Button>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={() => handleEdit(row.original)}
-            className="text-slate-500 hover:text-blue-600"
-            title="Edit Vendor"
-          >
-            <FileEdit className="w-4 h-4" />
-          </Button>
-        </div>
-      ),
+      cell: ({ row }: any) => {
+        const vendor = row.original;
+        const hasLinkedClient = !!vendor.linked_client_id;
+        return (
+          <div className="flex items-center justify-end gap-1">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => handleOpenLedger(vendor)}
+              className="text-slate-500 hover:text-blue-600"
+              title="Vendor Ledger"
+            >
+              <BookOpen className="w-4 h-4" />
+            </Button>
+            {hasLinkedClient && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => handleViewParty360(vendor)}
+                className="text-slate-500 hover:text-purple-600"
+                title="Party 360°"
+              >
+                <Eye className="w-4 h-4" />
+              </Button>
+            )}
+            {!hasLinkedClient && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => handleAddAsClient(vendor)}
+                className="text-slate-500 hover:text-emerald-600"
+                title="Also a Client"
+                disabled={addingAsClient === vendor.id}
+              >
+                {addingAsClient === vendor.id ? (
+                  <div className="w-4 h-4 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <UserPlus className="w-4 h-4" />
+                )}
+              </Button>
+            )}
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => handleEdit(vendor)}
+              className="text-slate-500 hover:text-blue-600"
+              title="Edit Vendor"
+            >
+              <FileEdit className="w-4 h-4" />
+            </Button>
+          </div>
+        );
+      },
     },
   ];
 
@@ -805,6 +900,15 @@ export const Vendors: React.FC = () => {
         organisationId={organisation?.id}
         vendor={selectedVendor}
       />
+
+      {party360Open && party360Data && (
+        <Party360
+          partyName={party360Data.name}
+          vendorId={party360Data.vendorId}
+          clientId={party360Data.clientId}
+          onClose={() => setParty360Open(false)}
+        />
+      )}
     </div>
   );
 };

@@ -2,11 +2,12 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { endOfMonth, format, subMonths, subYears, startOfMonth } from 'date-fns';
-import { ChevronDown, FileText, Filter, Landmark, Loader2, Pencil, Plus, Save, Search, Trash2, Wallet, X, Calculator } from 'lucide-react';
+import { ChevronDown, FileText, Filter, Landmark, Loader2, Pencil, Plus, Save, Search, Trash2, Wallet, X, Calculator, Eye } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { toast } from '@/lib/logger';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '../supabase';
 import {
   Table,
   TableBody,
@@ -44,6 +45,7 @@ import {
   type BulkOpeningBalanceInput,
 } from './api';
 import { buildLedgerSummaries, formatCurrency, formatDisplayDate, generateFyOptions, type LedgerSummaryRow } from './utils';
+import { Party360 } from '../components/Party360';
 
 const DEFAULT_STORAGE_KEY = 'ledger.dashboard.default-range.v1';
 
@@ -161,6 +163,8 @@ export default function LedgerDashboard() {
   const [paymentsEndDate, setPaymentsEndDate] = useState('');
   const [openingBalanceEditMode, setOpeningBalanceEditMode] = useState(false);
   const [openingBalanceDrafts, setOpeningBalanceDrafts] = useState<Record<string, BulkOpeningBalanceInput>>({});
+  const [party360Open, setParty360Open] = useState(false);
+  const [party360Data, setParty360Data] = useState<{ name: string; vendorId: string | null; clientId: string } | null>(null);
 
   const clientsQuery = useQuery({
     queryKey: ['ledger', 'clients', orgId],
@@ -168,6 +172,25 @@ export default function LedgerDashboard() {
     enabled: Boolean(orgId) && showLedger,
     staleTime: 5 * 60 * 1000,
   });
+
+  // Fetch linked vendor info for clients
+  const clientVendorLinksQuery = useQuery({
+    queryKey: ['ledger', 'client-vendor-links', orgId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('clients')
+        .select('id, linked_vendor_id')
+        .eq('organisation_id', orgId)
+        .not('linked_vendor_id', 'is', null);
+      const map: Record<string, string> = {};
+      data?.forEach(c => { map[String(c.id)] = String(c.linked_vendor_id); });
+      return map;
+    },
+    enabled: Boolean(orgId) && showLedger,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const clientVendorLinks = clientVendorLinksQuery.data ?? {};
 
 
 
@@ -889,6 +912,20 @@ export default function LedgerDashboard() {
                               >
                                 Edit
                               </button>
+                              {clientVendorLinks[summary.clientId] && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const client = clients.find(c => c.id === summary.clientId);
+                                    setParty360Data({ name: summary.clientName, vendorId: clientVendorLinks[summary.clientId], clientId: summary.clientId });
+                                    setParty360Open(true);
+                                  }}
+                                  className="inline-flex h-9 items-center justify-center rounded border border-purple-200 px-3 text-sm font-medium text-purple-600 transition-colors hover:bg-purple-50"
+                                  title="Party 360°"
+                                >
+                                  <Eye size={14} />
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -1195,6 +1232,15 @@ export default function LedgerDashboard() {
           onManageDetails={handleEditLedger}
           openingBalance={selectedClientId ? openingBalancesMap[selectedClientId] ?? null : null}
         />
+
+        {party360Open && party360Data && (
+          <Party360
+            partyName={party360Data.name}
+            vendorId={party360Data.vendorId}
+            clientId={party360Data.clientId}
+            onClose={() => setParty360Open(false)}
+          />
+        )}
       </div>
     </div>
   );
