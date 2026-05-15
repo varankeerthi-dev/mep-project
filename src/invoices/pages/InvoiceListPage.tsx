@@ -123,46 +123,6 @@ const styles = `
   
   .il-btn-secondary:hover { background: var(--bg-hover); border-color: var(--border-hover); }
   
-  .il-filters-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 0.75rem;
-    padding: 1rem 1.25rem;
-    margin-bottom: 1.5rem;
-  }
-  
-  .il-filters-row {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: flex-end;
-    gap: 1rem 1.5rem;
-    margin-bottom: 1rem;
-  }
-  
-  .il-filters-row:last-child { margin-bottom: 0; }
-  
-  .il-filter-block {
-    display: flex;
-    flex-direction: column;
-    gap: 0.375rem;
-    min-width: 0;
-  }
-  
-  .il-filter-block-title {
-    font-size: 0.6875rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--text-muted);
-  }
-  
-  .il-date-row {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-  }
-  
   .il-input, .il-select {
     padding: 0.5rem 0.75rem;
     background: var(--bg-muted);
@@ -179,17 +139,6 @@ const styles = `
     background: white;
   }
   
-  .il-checkbox-scroll {
-    max-height: 7rem;
-    overflow-y: auto;
-    border: 1px solid var(--border-light);
-    border-radius: 0.5rem;
-    padding: 0.35rem 0.5rem;
-    background: var(--bg-muted);
-    min-width: 10rem;
-    max-width: 14rem;
-  }
-  
   .il-checkbox-row {
     display: flex;
     align-items: center;
@@ -197,29 +146,6 @@ const styles = `
     font-size: 0.75rem;
     color: var(--text-secondary);
     padding: 0.15rem 0;
-  }
-  
-  .il-slider-row {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.75rem;
-    color: var(--text-secondary);
-  }
-  
-  .il-slider-row input[type="number"] {
-    width: 5.5rem;
-    padding: 0.35rem 0.5rem;
-    border: 1px solid var(--border);
-    border-radius: 0.375rem;
-    font-size: 0.75rem;
-  }
-  
-  .il-count {
-    margin-left: auto;
-    font-size: 0.8125rem;
-    color: var(--text-muted);
-    font-weight: 500;
   }
   
   .il-table-card {
@@ -242,7 +168,7 @@ const styles = `
   }
   
   .il-table th {
-    padding: 0.75rem 0.65rem;
+    padding: 0.5rem 0.65rem 0.25rem;
     text-align: left;
     font-size: 0.6875rem;
     font-weight: 600;
@@ -251,12 +177,82 @@ const styles = `
     color: var(--text-muted);
     white-space: nowrap;
     vertical-align: bottom;
+    position: relative;
   }
   
   .il-table th.il-th-sortable {
     cursor: pointer;
     user-select: none;
     color: var(--text-secondary);
+  }
+  
+  .il-th-filter {
+    padding: 0.25rem 0 0.5rem;
+    margin-top: 0.25rem;
+  }
+  
+  .il-th-filter-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.125rem 0.375rem;
+    border-radius: 0.25rem;
+    border: 1px solid var(--border);
+    background: var(--bg-muted);
+    font-size: 0.625rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  
+  .il-th-filter-btn:hover {
+    border-color: var(--border-hover);
+    color: var(--text-secondary);
+  }
+  
+  .il-th-filter-btn.active {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+  }
+  
+  .il-th-filter-dropdown {
+    position: absolute;
+    top: calc(100% + 0.25rem);
+    left: 0;
+    z-index: 50;
+    min-width: 180px;
+    max-height: 280px;
+    overflow-y: auto;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    padding: 0.5rem;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+  }
+  
+  .il-th-filter-num {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin-top: 0.25rem;
+  }
+  
+  .il-th-filter-num input {
+    width: 5rem;
+    padding: 0.2rem 0.375rem;
+    border: 1px solid var(--border);
+    border-radius: 0.25rem;
+    font-size: 0.6875rem;
+    background: var(--bg-muted);
+    font-family: inherit;
+  }
+  
+  .il-th-filter-num input:focus {
+    outline: none;
+    border-color: var(--accent);
+    background: white;
   }
   
   .il-table th.il-th-sortable:hover { color: var(--accent); }
@@ -526,6 +522,7 @@ export default function InvoiceListPage() {
   const [openMenuInvoiceId, setOpenMenuInvoiceId] = useState<string | null>(null);
   const [openColumnsMenu, setOpenColumnsMenu] = useState(false);
   const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
+  const [openFilterColumn, setOpenFilterColumn] = useState<string | null>(null);
 
   useEffect(() => {
     if (!openMenuInvoiceId) return undefined;
@@ -554,6 +551,20 @@ export default function InvoiceListPage() {
       document.removeEventListener('keydown', handleEscape);
     };
   }, [openColumnsMenu]);
+
+  useEffect(() => {
+    if (!openFilterColumn) return undefined;
+    const handleClose = () => setOpenFilterColumn(null);
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpenFilterColumn(null);
+    };
+    document.addEventListener('click', handleClose);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('click', handleClose);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [openFilterColumn]);
 
   const invoicesQuery = useInvoices();
   const { mutate: deleteMutate } = useDeleteInvoice();
@@ -734,8 +745,6 @@ export default function InvoiceListPage() {
     deleteMutate(invoice.id!);
   };
 
-  const checkboxFilterColumns = visibleColumns.filter((c) => c.filter?.type === 'checkbox');
-  const sliderFilterColumns = visibleColumns.filter((c) => c.filter?.type === 'slider');
   const colSpan = visibleColumns.length + 1;
 
   const renderActions = (invoice: InvoiceWithRelations) => (
@@ -912,116 +921,42 @@ export default function InvoiceListPage() {
           </div>
         </div>
 
-        <div className="il-filters-card">
-          <div className="il-filters-row">
-            <div className="il-filter-block">
-              <span className="il-filter-block-title">
-                <Filter size={12} style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }} />
-                Issue date range
-              </span>
-              <div className="il-date-row">
-                <input
-                  type="date"
-                  className="il-input"
-                  value={issueDateFrom}
-                  onChange={(e) => setIssueDateFrom(e.target.value)}
-                  aria-label="Issue date from"
-                />
-                <span className="il-muted" style={{ fontSize: '0.75rem' }}>
-                  to
-                </span>
-                <input
-                  type="date"
-                  className="il-input"
-                  value={issueDateTo}
-                  onChange={(e) => setIssueDateTo(e.target.value)}
-                  aria-label="Issue date to"
-                />
-              </div>
-            </div>
-
-            {sliderFilterColumns.map((col) => {
-              const b = dataBounds[col.key] ?? { min: 0, max: 1 };
-              const r = sliderFilter[col.key] ?? { min: b.min, max: b.max };
-              return (
-                <div key={col.key} className="il-filter-block">
-                  <span className="il-filter-block-title">{col.label}</span>
-                  <div className="il-slider-row">
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={Number.isFinite(r.min) ? r.min : b.min}
-                      min={b.min}
-                      max={b.max}
-                      onChange={(e) => {
-                        const v = Number(e.target.value);
-                        setSliderFilter((prev) => ({
-                          ...prev,
-                          [col.key]: { min: v, max: Math.max(v, prev[col.key]?.max ?? b.max) },
-                        }));
-                      }}
-                      aria-label={`${col.label} min`}
-                    />
-                    <span>–</span>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={Number.isFinite(r.max) ? r.max : b.max}
-                      min={b.min}
-                      max={b.max}
-                      onChange={(e) => {
-                        const v = Number(e.target.value);
-                        setSliderFilter((prev) => ({
-                          ...prev,
-                          [col.key]: { min: Math.min(v, prev[col.key]?.min ?? b.min), max: v },
-                        }));
-                      }}
-                      aria-label={`${col.label} max`}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-
-            <button type="button" className="il-btn il-btn-secondary" onClick={resetFilters}>
-              <RotateCcw size={14} />
-              Reset filters
-            </button>
-
-            <span className="il-count">
-              {sortedPaired.length} invoice{sortedPaired.length === 1 ? '' : 's'}
-            </span>
+        {/* Compact toolbar */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.75rem',
+          marginBottom: '0.75rem',
+          padding: '0.5rem 0',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+            <Filter size={12} style={{ color: 'var(--text-muted)' }} />
+            <span style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Date</span>
+            <input
+              type="date"
+              className="il-input"
+              value={issueDateFrom}
+              onChange={(e) => setIssueDateFrom(e.target.value)}
+              aria-label="From"
+              style={{ padding: '0.35rem 0.5rem', fontSize: '0.75rem' }}
+            />
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>–</span>
+            <input
+              type="date"
+              className="il-input"
+              value={issueDateTo}
+              onChange={(e) => setIssueDateTo(e.target.value)}
+              aria-label="To"
+              style={{ padding: '0.35rem 0.5rem', fontSize: '0.75rem' }}
+            />
           </div>
-
-          <div className="il-filters-row" style={{ alignItems: 'flex-start' }}>
-            {checkboxFilterColumns.map((col) => {
-              const opts = col.filter?.type === 'checkbox' ? col.filter.options : [];
-              const selected = new Set(checkboxSelections[col.key] ?? []);
-              return (
-                <div key={col.key} className="il-filter-block">
-                  <span className="il-filter-block-title">{col.label}</span>
-                  <div className="il-checkbox-scroll">
-                    {opts.length === 0 ? (
-                      <span className="il-muted" style={{ fontSize: '0.75rem' }}>
-                        No values
-                      </span>
-                    ) : (
-                      opts.map((opt) => (
-                        <label key={opt.value} className="il-checkbox-row">
-                          <input
-                            type="checkbox"
-                            checked={selected.has(opt.value)}
-                            onChange={(e) => toggleCheckboxValue(col.key, opt.value, e.target.checked)}
-                          />
-                          <span title={opt.label}>{opt.label}</span>
-                        </label>
-                      ))
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          <button type="button" className="il-btn il-btn-secondary" onClick={resetFilters} style={{ padding: '0.4rem 0.75rem', fontSize: '0.75rem' }}>
+            <RotateCcw size={12} />
+            Reset
+          </button>
+          <span style={{ marginLeft: 'auto', fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 500 }}>
+            {sortedPaired.length} invoice{sortedPaired.length === 1 ? '' : 's'}
+          </span>
         </div>
 
         <div className="il-table-card">
@@ -1095,24 +1030,131 @@ export default function InvoiceListPage() {
                   const hideSm = MOBILE_HIDE_KEYS.has(col.key) ? ' il-hide-sm' : '';
                   const num = col.display.type === 'number' ? ' il-th-num' : '';
                   const sortable = col.sortable ? ' il-th-sortable' : '';
+                  const hasCheckboxFilter = col.filter?.type === 'checkbox';
+                  const hasSliderFilter = col.filter?.type === 'slider';
+                  const isFilterOpen = openFilterColumn === col.key;
+                  const selectedCount = (checkboxSelections[col.key] ?? []).length;
                   return (
                     <th
                       key={col.key}
                       className={`${hideSm}${num}${sortable}`}
                       style={{ minWidth: col.size }}
-                      onClick={() => col.sortable && toggleSort(col.key)}
                       scope="col"
+                      onClick={(e) => {
+                        if ((e.target as HTMLElement).closest('.il-th-filter-btn, .il-th-filter-dropdown, .il-th-filter-num')) return;
+                        col.sortable && toggleSort(col.key);
+                      }}
                     >
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                         {col.label}
                         {col.sortable && sortKey === col.key ? (
-                          sortDir === 'asc' ? (
-                            <ArrowUp size={12} />
-                          ) : (
-                            <ArrowDown size={12} />
-                          )
+                          sortDir === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />
                         ) : null}
-                      </span>
+                      </div>
+                      {/* Inline filter */}
+                      {hasCheckboxFilter && (
+                        <div className="il-th-filter" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            type="button"
+                            className={`il-th-filter-btn${selectedCount > 0 ? ' active' : ''}`}
+                            onClick={() => setOpenFilterColumn(isFilterOpen ? null : col.key)}
+                          >
+                            <Filter size={10} />
+                            {selectedCount > 0 ? `${selectedCount} selected` : 'Filter'}
+                          </button>
+                          {isFilterOpen && (
+                            <div className="il-th-filter-dropdown">
+                              {(() => {
+                                const opts = col.filter?.type === 'checkbox' ? col.filter.options : [];
+                                const selected = new Set(checkboxSelections[col.key] ?? []);
+                                return (
+                                  <>
+                                    <div style={{ padding: '0.25rem 0.5rem', borderBottom: '1px solid var(--border-light)', fontSize: '0.625rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.25rem' }}>
+                                      {col.label}
+                                    </div>
+                                    {opts.length === 0 ? (
+                                      <span className="il-muted" style={{ fontSize: '0.75rem', padding: '0.5rem' }}>No values</span>
+                                    ) : (
+                                      opts.map((opt) => (
+                                        <label key={opt.value} className="il-checkbox-row" style={{ padding: '0.35rem 0.5rem', fontSize: '0.75rem' }}>
+                                          <input
+                                            type="checkbox"
+                                            checked={selected.has(opt.value)}
+                                            onChange={(e) => toggleCheckboxValue(col.key, opt.value, e.target.checked)}
+                                          />
+                                          <span title={opt.label}>{opt.label}</span>
+                                        </label>
+                                      ))
+                                    )}
+                                    {selectedCount > 0 && (
+                                      <button
+                                        type="button"
+                                        onClick={() => setCheckboxSelections((prev) => ({ ...prev, [col.key]: [] }))}
+                                        style={{ width: '100%', marginTop: '0.25rem', padding: '0.375rem', fontSize: '0.6875rem', color: 'var(--accent)', background: 'transparent', border: 'none', borderTop: '1px solid var(--border-light)', cursor: 'pointer', textAlign: 'center' }}
+                                      >
+                                        Clear
+                                      </button>
+                                    )}
+                                  </>
+                                );
+                              })()}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {hasSliderFilter && (
+                        <div className="il-th-filter" onClick={(e) => e.stopPropagation()}>
+                          {(() => {
+                            const b = dataBounds[col.key] ?? { min: 0, max: 1 };
+                            const r = sliderFilter[col.key] ?? { min: b.min, max: b.max };
+                            const isFiltered = r.min > b.min || r.max < b.max;
+                            return (
+                              <div className="il-th-filter-num">
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  value={Number.isFinite(r.min) ? r.min : b.min}
+                                  placeholder="Min"
+                                  onChange={(e) => {
+                                    const v = Number(e.target.value);
+                                    setSliderFilter((prev) => ({
+                                      ...prev,
+                                      [col.key]: { min: v, max: Math.max(v, prev[col.key]?.max ?? b.max) },
+                                    }));
+                                  }}
+                                  aria-label={`${col.label} min`}
+                                  style={isFiltered ? { borderColor: 'var(--accent)', background: 'white' } : {}}
+                                />
+                                <span style={{ fontSize: '0.625rem', color: 'var(--text-muted)' }}>–</span>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  value={Number.isFinite(r.max) ? r.max : b.max}
+                                  placeholder="Max"
+                                  onChange={(e) => {
+                                    const v = Number(e.target.value);
+                                    setSliderFilter((prev) => ({
+                                      ...prev,
+                                      [col.key]: { min: Math.min(v, prev[col.key]?.min ?? b.min), max: v },
+                                    }));
+                                  }}
+                                  aria-label={`${col.label} max`}
+                                  style={isFiltered ? { borderColor: 'var(--accent)', background: 'white' } : {}}
+                                />
+                                {isFiltered && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setSliderFilter((prev) => ({ ...prev, [col.key]: { min: b.min, max: b.max } }))}
+                                    style={{ padding: '0.125rem', background: 'transparent', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontSize: '0.625rem' }}
+                                  >
+                                    ×
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      )}
                     </th>
                   );
                 })}
