@@ -19,6 +19,7 @@ import type { ConversionType } from '../conversions/types';
 import ItemCreateDrawer from '../components/ItemCreateDrawer';
 import { TermsConditionsDrawer } from '../components/TermsConditionsDrawer';
 import { FileText, Plus, Mail } from 'lucide-react';
+import { InlineDescriptionCell } from '../components/InlineDescriptionCell';
 import { autoCreateOrUpdateErection } from '../utils/erectionUtils';
 import { lookupServiceRate } from '../hooks/useErectionCharges';
 import { ErectionSection } from '../components/ErectionSection';
@@ -2784,6 +2785,7 @@ const itemsToInsert = items.map(item => ({
                     {templateSettings?.column_settings?.labels?.item || 'ITEM'}
                   </th>
                 )}
+                <th className="col-item" style={{ minWidth: '180px' }}>DESCRIPTION</th>
                 {(templateSettings?.column_settings?.optional?.client_part_no === true) && (
                   <th className="col-code">{templateSettings?.column_settings?.labels?.client_part_no || 'CLIENT PART NO'}</th>
                 )}
@@ -3015,6 +3017,13 @@ const itemsToInsert = items.map(item => ({
                         )}
                       </td>
                       )}
+                      <td className="col-item align-top" style={{ padding: '4px 6px' }}>
+                        <InlineDescriptionCell
+                          materialName={(() => { const m = materials.find(x => x.id === item.item_id); return m?.display_name || m?.name || ''; })()}
+                          description={item.description}
+                          onSave={(desc) => updateItem(item.id, 'description', desc)}
+                        />
+                      </td>
                       {(templateSettings?.column_settings?.optional?.client_part_no === true) && (
                         <td className="col-shrink cell-static">
                           <div style={{ fontSize: '10px', color: '#64748b', padding: '4px', textAlign: 'center' }}>
