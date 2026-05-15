@@ -1250,7 +1250,6 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
                 <tr>
                   <th className="col-shrink">#</th>
                   <th className="col-item">ITEM</th>
-                  <th className="col-item" style={{ minWidth: '180px' }}>DESCRIPTION</th>
                   <th className="col-variant">VARIANT</th>
                   {formData.source_type === 'WAREHOUSE' && <th className="col-avail">AVAIL</th>}
                   <th className="col-qty">QTY</th>
@@ -1289,10 +1288,8 @@ export default function CreateDC({ onSuccess, onCancel, editDC }: CreateDCProps)
                           <option key={m.id} value={m.id}>{m.display_name || m.name}</option>
                         ))}
                       </select>
-                    </td>
-                    <td className="col-item align-top" style={{ padding: '4px 6px' }}>
                       <InlineDescriptionCell
-                        materialName={(() => { const m = materials.find(x => x.id === item.material_id); return m?.display_name || m?.name || ''; })()}
+                        materialName=""
                         description={item.description}
                         onSave={(desc) => handleItemChange(item.id, 'description', desc)}
                       />

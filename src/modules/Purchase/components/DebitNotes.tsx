@@ -630,7 +630,6 @@ export const DebitNotes: React.FC = () => {
                     <tr className="bg-slate-50 border-b">
                       <th className="px-3 py-2 text-left font-semibold text-slate-600 w-8">#</th>
                       <th className="px-3 py-2 text-left font-semibold text-slate-600">MATERIAL</th>
-                      <th className="px-3 py-2 text-left font-semibold text-slate-600 min-w-[180px]">DESCRIPTION</th>
                       <th className="px-3 py-2 text-left font-semibold text-slate-600 w-14">HSN</th>
                       <th className="px-3 py-2 text-left font-semibold text-slate-600 w-16">MAKE</th>
                       <th className="px-3 py-2 text-left font-semibold text-slate-600 w-20">VARIANT</th>
@@ -675,10 +674,8 @@ export const DebitNotes: React.FC = () => {
                               <option key={m.id} value={m.id}>{m.display_name || m.name}</option>
                             ))}
                           </select>
-                        </td>
-                        <td className="px-3 py-1.5 align-top">
                           <InlineDescriptionCell
-                            materialName={(() => { const m = materialOptions.find(x => x.id === item.material_id); return m?.display_name || m?.name || ''; })()}
+                            materialName=""
                             description={item.description}
                             onSave={(desc) => updateItem(index, 'description', desc)}
                           />

@@ -115,19 +115,16 @@ export const InlineDescriptionCell: React.FC<InlineDescriptionCellProps> = ({
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', position: 'relative' }}>
-      <div style={{ fontSize: '12px', fontWeight: 600, color: '#171717', lineHeight: '1.3' }}>
-        {materialName || '—'}
-      </div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', position: 'relative', marginTop: '2px' }}>
       {description ? (
         <div
           onClick={() => setIsEditing(true)}
           style={{
-            fontSize: '11px',
+            fontSize: '10px',
             color: '#737373',
             lineHeight: '1.3',
             cursor: 'pointer',
-            paddingRight: '16px',
+            paddingRight: '14px',
             position: 'relative',
             wordBreak: 'break-word',
           }}
@@ -145,8 +142,8 @@ export const InlineDescriptionCell: React.FC<InlineDescriptionCellProps> = ({
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
-              width: '14px',
-              height: '14px',
+              width: '12px',
+              height: '12px',
               borderRadius: '2px',
               color: '#a3a3a3',
               cursor: 'pointer',
@@ -163,14 +160,14 @@ export const InlineDescriptionCell: React.FC<InlineDescriptionCellProps> = ({
               (e.currentTarget as HTMLElement).style.background = 'transparent';
             }}
           >
-            <Pencil size={10} />
+            <Pencil size={9} />
           </span>
         </div>
       ) : (
         <div
           onClick={() => setIsEditing(true)}
           style={{
-            fontSize: '11px',
+            fontSize: '10px',
             color: '#a3a3a3',
             cursor: 'pointer',
             fontStyle: 'italic',

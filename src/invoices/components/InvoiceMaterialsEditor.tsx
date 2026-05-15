@@ -85,18 +85,6 @@ export function InvoiceMaterialsEditor({
               </th>
               <th style={{ 
                 padding: '6px 8px', 
-                textAlign: 'left', 
-                fontSize: '10px', 
-                fontWeight: 600,
-                textTransform: 'uppercase',
-                letterSpacing: '0.03em',
-                color: '#737373',
-                minWidth: '180px'
-              }}>
-                Description
-              </th>
-              <th style={{ 
-                padding: '6px 8px', 
                 textAlign: 'right', 
                 fontSize: '10px', 
                 fontWeight: 600,
@@ -147,10 +135,8 @@ export function InvoiceMaterialsEditor({
                       </option>
                     ))}
                   </select>
-                </td>
-                <td style={{ padding: '4px 8px', verticalAlign: 'top' }}>
                   <InlineDescriptionCell
-                    materialName={(() => { const p = productOptions.find(x => x.id === (watch(`materials.${index}.product_id`) as string)); return p?.name || ''; })()}
+                    materialName=""
                     description={watch(`materials.${index}.description`) as string}
                     onSave={(desc) => setValue(`materials.${index}.description`, desc, { shouldDirty: true })}
                   />

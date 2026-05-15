@@ -403,8 +403,7 @@ export function CNItemsEditor({
           <thead>
             <tr style={{ background: '#fafafa', borderBottom: '2px solid #e5e5e5' }}>
               <th style={{ padding: '6px 4px', textAlign: 'center', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.03em', color: '#737373', width: '40px' }}>#</th>
-              <th style={{ padding: '6px 4px', textAlign: 'left', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.03em', color: '#737373', minWidth: '160px' }}>MATERIAL</th>
-              <th style={{ padding: '6px 4px', textAlign: 'left', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.03em', color: '#737373', minWidth: '180px' }}>DESCRIPTION</th>
+              <th style={{ padding: '6px 4px', textAlign: 'left', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.03em', color: '#737373', minWidth: '180px' }}>MATERIAL</th>
               <th style={{ padding: '6px 4px', textAlign: 'left', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.03em', color: '#737373', width: '70px' }}>HSN</th>
               <th style={{ padding: '6px 4px', textAlign: 'left', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.03em', color: '#737373', width: '80px' }}>MAKE</th>
               <th style={{ padding: '6px 4px', textAlign: 'left', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.03em', color: '#737373', width: '90px' }}>VARIANT</th>
@@ -478,10 +477,8 @@ export function CNItemsEditor({
                         {getFilteredMaterials(index).length === 0 && <div style={{ padding: '8px 12px', fontSize: '11px', color: '#737373' }}>No materials found</div>}
                       </div>
                     )}
-                  </td>
-                  <td style={{ padding: '4px 6px', verticalAlign: 'top' }}>
                     <InlineDescriptionCell
-                      materialName={getSelectedMaterialName(index)}
+                      materialName=""
                       description={item.description}
                       onSave={(desc) => setValue(`items.${index}.description`, desc, { shouldDirty: true })}
                     />
