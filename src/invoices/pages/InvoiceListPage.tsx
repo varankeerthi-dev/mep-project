@@ -727,51 +727,11 @@ export default function InvoiceListPage() {
       </button>
       <button
         type="button"
-        onClick={() => navigate(`/invoices/create?from=${invoice.id}`)}
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '0.375rem',
-          padding: '0.375rem 0.75rem',
-          background: '#0891b2',
-          color: 'white',
-          border: 'none',
-          borderRadius: '0.375rem',
-          fontSize: '0.75rem',
-          fontWeight: 600,
-          cursor: 'pointer',
-          transition: 'all 0.15s ease',
-          whiteSpace: 'nowrap',
-        }}
-        onMouseEnter={(e) => e.currentTarget.style.background = '#0e7490'}
-        onMouseLeave={(e) => e.currentTarget.style.background = '#0891b2'}
-      >
-        <Plus size={14} />
-        Create from Existing
-      </button>
-      <button
-        type="button"
         onClick={() => navigate(`/invoices/edit?id=${invoice.id}`)}
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '0.375rem',
-          padding: '0.375rem 0.75rem',
-          background: '#16a34a',
-          color: 'white',
-          border: 'none',
-          borderRadius: '0.375rem',
-          fontSize: '0.75rem',
-          fontWeight: 600,
-          cursor: 'pointer',
-          transition: 'all 0.15s ease',
-          whiteSpace: 'nowrap',
-        }}
-        onMouseEnter={(e) => e.currentTarget.style.background = '#15803d'}
-        onMouseLeave={(e) => e.currentTarget.style.background = '#16a34a'}
+        className="il-action-btn"
       >
-        <Pencil size={14} />
         Edit
+        <Pencil size={14} />
       </button>
       <div style={{ position: 'relative' }} onClick={(e) => e.stopPropagation()}>
         <button
@@ -789,6 +749,17 @@ export default function InvoiceListPage() {
         </button>
         {openMenuInvoiceId === invoice.id && (
           <div className="il-dropdown">
+            <button
+              type="button"
+              onClick={() => {
+                setOpenMenuInvoiceId(null);
+                navigate(`/invoices/create?from=${invoice.id}`);
+              }}
+              className="il-dropdown-item"
+            >
+              <Plus size={14} />
+              Create from Existing
+            </button>
             <button
               type="button"
               onClick={() => {
