@@ -12,16 +12,18 @@ export type PaymentReceiptInput = {
   currency?: string;
   payment_mode?: string | null;
   payment_reference?: string | null;
+  cheque_no?: string | null;
+  utr_no?: string | null;
   po_number?: string | null;
   remarks?: string | null;
-  unsettled_invoices?: Array<{ invoice_no: string; invoice_date: string; total: number; balance: number }>;
+  unsettled_invoices?: Array<{ invoice_no: string; invoice_date: string; amount_applied: number; total: number; balance: number }>;
   organisation: Record<string, unknown>;
   signature_url?: string | null;
   signature_name?: string | null;
 };
 
 function fmt(n: number, currency?: string): string {
-  const sym = currency === 'USD' ? '$' : currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : '₹';
+  const sym = currency === 'USD' ? '$' : currency === 'EUR' ? '€' : currency === 'GBP' ? 'GBP ' : currency === 'AED' ? 'AED ' : 'Rs. ';
   return sym + new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
 }
 
@@ -140,7 +142,7 @@ export function generatePaymentReceiptPdf(input: PaymentReceiptInput): jsPDF {
   y += 24;
 
   // ── Payment details ──
-  if (input.payment_mode || input.payment_reference || input.remarks) {
+  if (input.payment_mode || input.payment_reference || input.cheque_no || input.utr_no || input.remarks) {
     y += 2;
     doc.setTextColor(100, 100, 100);
     doc.setFontSize(9);
@@ -158,6 +160,24 @@ export function generatePaymentReceiptPdf(input: PaymentReceiptInput): jsPDF {
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(60, 60, 60);
       doc.text(String(input.payment_mode), margin + 25, y);
+      y += 6;
+    }
+    if (input.cheque_no) {
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(100, 100, 100);
+      doc.text('Cheque No:', margin + 4, y);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(60, 60, 60);
+      doc.text(String(input.cheque_no), margin + 25, y);
+      y += 6;
+    }
+    if (input.utr_no) {
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(100, 100, 100);
+      doc.text('UTR / Ref:', margin + 4, y);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(60, 60, 60);
+      doc.text(String(input.utr_no), margin + 25, y);
       y += 6;
     }
     if (input.payment_reference) {
@@ -211,21 +231,23 @@ export function generatePaymentReceiptPdf(input: PaymentReceiptInput): jsPDF {
     autoTable(doc, {
       startY: y,
       margin: { left: margin, right: margin },
-      head: [['Invoice No.', 'Date', 'Total', 'Balance']],
+      head: [['Invoice No.', 'Date', 'Total', 'Applied', 'Balance']],
       body: input.unsettled_invoices.map(inv => [
         inv.invoice_no,
         formatDate(inv.invoice_date),
         fmt(inv.total, input.currency),
+        fmt(inv.amount_applied, input.currency),
         fmt(inv.balance, input.currency),
       ]),
       theme: 'grid',
       headStyles: { fillColor: [245, 247, 250], textColor: [100, 100, 100], fontStyle: 'bold', fontSize: 8 },
       styles: { fontSize: 8, cellPadding: 3 },
       columnStyles: {
-        0: { cellWidth: 40 },
-        1: { cellWidth: 30 },
-        2: { cellWidth: 35, halign: 'right' },
-        3: { cellWidth: 35, halign: 'right', fontStyle: 'bold' },
+        0: { cellWidth: 35 },
+        1: { cellWidth: 25 },
+        2: { cellWidth: 28, halign: 'right' },
+        3: { cellWidth: 28, halign: 'right', fontStyle: 'bold', textColor: [22, 101, 52] },
+        4: { cellWidth: 28, halign: 'right', fontStyle: 'bold' },
       },
     });
     y = (doc as any).lastAutoTable.finalY + 6;

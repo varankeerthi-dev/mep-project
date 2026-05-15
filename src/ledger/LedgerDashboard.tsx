@@ -172,6 +172,9 @@ export default function LedgerDashboard() {
   const [receiptSigId, setReceiptSigId] = useState<string>('');
   const [selectedReceiptForPreview, setSelectedReceiptForPreview] = useState<any>(null);
   const [receiptLoading, setReceiptLoading] = useState(false);
+  const [receiptChequeNo, setReceiptChequeNo] = useState('');
+  const [receiptUtrNo, setReceiptUtrNo] = useState('');
+  const [receiptAppliedInvoices, setReceiptAppliedInvoices] = useState<Record<string, number>>({});
 
   const clientsQuery = useQuery({
     queryKey: ['ledger', 'clients', orgId],
@@ -459,10 +462,12 @@ export default function LedgerDashboard() {
   const handleOpenReceiptPreview = (receipt: any) => {
     setSelectedReceiptForPreview(receipt);
     setReceiptSigId('');
+    setReceiptChequeNo('');
+    setReceiptUtrNo('');
+    setReceiptAppliedInvoices({});
     setReceiptPreviewOpen(true);
     setReceiptLoading(true);
     setReceiptPdfUrl(null);
-    // Auto-generate PDF on open
     setTimeout(() => generateReceiptPdf(''), 100);
   };
 
@@ -477,12 +482,17 @@ export default function LedgerDashboard() {
 
       const unsettledInvoices = invoicesQuery.data
         ?.filter(inv => inv.client_id === rcpt.client_id)
-        .map(inv => ({
-          invoice_no: inv.invoice_no,
-          invoice_date: inv.invoice_date || '',
-          total: inv.total,
-          balance: inv.total,
-        }))
+        .map(inv => {
+          const applied = receiptAppliedInvoices[inv.id] || 0;
+          return {
+            invoice_no: inv.invoice_no,
+            invoice_date: inv.invoice_date || '',
+            total: inv.total,
+            amount_applied: applied,
+            balance: inv.total - applied,
+          };
+        })
+        .filter(inv => inv.total > 0)
         .slice(0, 5) || [];
 
       const pdfData = {
@@ -496,6 +506,8 @@ export default function LedgerDashboard() {
         currency: 'INR',
         payment_mode: rcpt.payment_mode || rcpt.payment_type || null,
         payment_reference: rcpt.reference_no || null,
+        cheque_no: receiptChequeNo || null,
+        utr_no: receiptUtrNo || null,
         po_number: null,
         remarks: rcpt.remarks || null,
         unsettled_invoices: unsettledInvoices,
@@ -1337,47 +1349,118 @@ export default function LedgerDashboard() {
         {/* Payment Receipt Preview Modal */}
         {receiptPreviewOpen && selectedReceiptForPreview && (
           <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)' }} onClick={() => { setReceiptPreviewOpen(false); if (receiptPdfUrl) URL.revokeObjectURL(receiptPdfUrl); setReceiptPdfUrl(null); }}>
-            <div style={{ display: 'flex', flexDirection: 'column', width: '90vw', maxWidth: '1200px', height: '95vh', background: '#fff', borderRadius: '12px', overflow: 'hidden' }} onClick={(e) => e.stopPropagation()}>
-              {/* Toolbar */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', borderBottom: '1px solid #e5e5e5', background: '#fafafa' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <Receipt size={18} style={{ color: '#059669' }} />
-                  <span style={{ fontWeight: 600, fontSize: '14px' }}>Payment Receipt — {selectedReceiptForPreview.receipt_no || selectedReceiptForPreview.id.slice(0, 8)}</span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  {/* Signature selector */}
-                  <select
-                    value={receiptSigId}
-                    onChange={(e) => { setReceiptSigId(e.target.value); generateReceiptPdf(e.target.value); }}
-                    style={{ padding: '6px 10px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '12px', background: '#fff', cursor: 'pointer' }}
-                  >
-                    <option value="">No Signature</option>
-                    {((organisation as any)?.signatures || []).map((sig: any) => (
-                      <option key={sig.id} value={sig.id}>{sig.name}</option>
-                    ))}
-                  </select>
-                  <button onClick={handlePrintReceipt} disabled={!receiptPdfUrl} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '6px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', background: '#fff', fontSize: '12px', cursor: receiptPdfUrl ? 'pointer' : 'not-allowed', opacity: receiptPdfUrl ? 1 : 0.5 }}>
-                    <Printer size={14} /> Print
-                  </button>
-                  <button onClick={handleDownloadReceipt} disabled={!receiptPdfUrl} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '6px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', background: '#fff', fontSize: '12px', cursor: receiptPdfUrl ? 'pointer' : 'not-allowed', opacity: receiptPdfUrl ? 1 : 0.5 }}>
-                    <Download size={14} /> Download
-                  </button>
-                  <button onClick={() => { setReceiptPreviewOpen(false); if (receiptPdfUrl) URL.revokeObjectURL(receiptPdfUrl); setReceiptPdfUrl(null); }} style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: '4px', color: '#737373' }}>
-                    <X size={20} />
-                  </button>
+            <div style={{ display: 'flex', width: '95vw', maxWidth: '1400px', height: '95vh', background: '#fff', borderRadius: '12px', overflow: 'hidden' }} onClick={(e) => e.stopPropagation()}>
+              {/* Left Sidebar - Form Fields */}
+              <div style={{ width: '320px', borderRight: '1px solid #e5e5e5', background: '#fafafa', overflow: 'auto', padding: '20px' }}>
+                <h3 style={{ margin: '0 0 16px', fontSize: '14px', fontWeight: 700, color: '#171717' }}>Receipt Details</h3>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {/* Cheque No */}
+                  <div>
+                    <label style={{ fontSize: '11px', fontWeight: 600, color: '#525252', display: 'block', marginBottom: '4px' }}>Cheque No (optional)</label>
+                    <input
+                      type="text"
+                      value={receiptChequeNo}
+                      onChange={(e) => { setReceiptChequeNo(e.target.value); setTimeout(() => generateReceiptPdf(receiptSigId), 300); }}
+                      placeholder="Enter cheque number"
+                      style={{ width: '100%', padding: '8px 10px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '12px', background: '#fff' }}
+                    />
+                  </div>
+
+                  {/* UTR No */}
+                  <div>
+                    <label style={{ fontSize: '11px', fontWeight: 600, color: '#525252', display: 'block', marginBottom: '4px' }}>UTR / Reference No (optional)</label>
+                    <input
+                      type="text"
+                      value={receiptUtrNo}
+                      onChange={(e) => { setReceiptUtrNo(e.target.value); setTimeout(() => generateReceiptPdf(receiptSigId), 300); }}
+                      placeholder="Enter UTR / bank reference"
+                      style={{ width: '100%', padding: '8px 10px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '12px', background: '#fff' }}
+                    />
+                  </div>
+
+                  {/* Invoice Allocation */}
+                  <div>
+                    <label style={{ fontSize: '11px', fontWeight: 600, color: '#525252', display: 'block', marginBottom: '8px' }}>Allocate to Invoices (optional)</label>
+                    {invoicesQuery.data?.filter(inv => inv.client_id === selectedReceiptForPreview.client_id).slice(0, 5).map(inv => {
+                      const applied = receiptAppliedInvoices[inv.id] || 0;
+                      return (
+                        <div key={inv.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 8px', background: '#fff', borderRadius: '6px', marginBottom: '4px', border: '1px solid #e5e5e5' }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: '11px', fontWeight: 600, color: '#171717', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{inv.invoice_no}</div>
+                            <div style={{ fontSize: '10px', color: '#737373' }}>Total: Rs. {inv.total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
+                          </div>
+                          <input
+                            type="number"
+                            value={applied || ''}
+                            onChange={(e) => {
+                              const val = parseFloat(e.target.value) || 0;
+                              setReceiptAppliedInvoices(prev => ({ ...prev, [inv.id]: val }));
+                              setTimeout(() => generateReceiptPdf(receiptSigId), 300);
+                            }}
+                            placeholder="0.00"
+                            min={0}
+                            max={inv.total}
+                            step="0.01"
+                            style={{ width: '80px', padding: '4px 6px', border: '1px solid #d4d4d4', borderRadius: '4px', fontSize: '11px', textAlign: 'right' }}
+                          />
+                        </div>
+                      );
+                    })}
+                    {(!invoicesQuery.data || invoicesQuery.data.filter(inv => inv.client_id === selectedReceiptForPreview.client_id).length === 0) && (
+                      <div style={{ fontSize: '11px', color: '#a3a3a3', textAlign: 'center', padding: '12px' }}>No unsettled invoices</div>
+                    )}
+                  </div>
+
+                  {/* Signature */}
+                  <div>
+                    <label style={{ fontSize: '11px', fontWeight: 600, color: '#525252', display: 'block', marginBottom: '4px' }}>Authorised Signatory</label>
+                    <select
+                      value={receiptSigId}
+                      onChange={(e) => { setReceiptSigId(e.target.value); generateReceiptPdf(e.target.value); }}
+                      style={{ width: '100%', padding: '8px 10px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '12px', background: '#fff', cursor: 'pointer' }}
+                    >
+                      <option value="">No Signature</option>
+                      {((organisation as any)?.signatures || []).map((sig: any) => (
+                        <option key={sig.id} value={sig.id}>{sig.name}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               </div>
-              {/* Preview */}
-              <div style={{ flex: 1, overflow: 'hidden', background: '#f3f4f6' }}>
-                {receiptLoading ? (
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-                    <Loader2 size={24} className="animate-spin" style={{ color: '#a3a3a3' }} />
+
+              {/* Right - Preview */}
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                {/* Toolbar */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', borderBottom: '1px solid #e5e5e5', background: '#fafafa' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <Receipt size={18} style={{ color: '#059669' }} />
+                    <span style={{ fontWeight: 600, fontSize: '14px' }}>Payment Receipt — {selectedReceiptForPreview.receipt_no || selectedReceiptForPreview.id.slice(0, 8)}</span>
                   </div>
-                ) : receiptPdfUrl ? (
-                  <iframe src={receiptPdfUrl} style={{ width: '100%', height: '100%', border: 'none' }} title="Payment Receipt Preview" />
-                ) : (
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#a3a3a3' }}>Failed to load preview</div>
-                )}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <button onClick={handlePrintReceipt} disabled={!receiptPdfUrl} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '6px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', background: '#fff', fontSize: '12px', cursor: receiptPdfUrl ? 'pointer' : 'not-allowed', opacity: receiptPdfUrl ? 1 : 0.5 }}>
+                      <Printer size={14} /> Print
+                    </button>
+                    <button onClick={handleDownloadReceipt} disabled={!receiptPdfUrl} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '6px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', background: '#fff', fontSize: '12px', cursor: receiptPdfUrl ? 'pointer' : 'not-allowed', opacity: receiptPdfUrl ? 1 : 0.5 }}>
+                      <Download size={14} /> Download
+                    </button>
+                    <button onClick={() => { setReceiptPreviewOpen(false); if (receiptPdfUrl) URL.revokeObjectURL(receiptPdfUrl); setReceiptPdfUrl(null); }} style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: '4px', color: '#737373' }}>
+                      <X size={20} />
+                    </button>
+                  </div>
+                </div>
+                {/* Preview Area */}
+                <div style={{ flex: 1, overflow: 'hidden', background: '#f3f4f6' }}>
+                  {receiptLoading ? (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                      <Loader2 size={24} className="animate-spin" style={{ color: '#a3a3a3' }} />
+                    </div>
+                  ) : receiptPdfUrl ? (
+                    <iframe src={receiptPdfUrl} style={{ width: '100%', height: '100%', border: 'none' }} title="Payment Receipt Preview" />
+                  ) : (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#a3a3a3' }}>Failed to load preview</div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
