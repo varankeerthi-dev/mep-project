@@ -511,6 +511,7 @@ export default function InvoiceEditorPage() {
   const companyState = useWatch({ control, name: 'company_state' }) ?? DEFAULT_COMPANY_STATE;
   const clientState = useWatch({ control, name: 'client_state' }) ?? null;
   const selectedShippingAddressId = useWatch({ control, name: 'shipping_address_id' }) ?? null;
+  const deductStockOnFinalize = useWatch({ control, name: 'deduct_stock_on_finalize' });
 
   const { errors } = formState;
 
@@ -1025,13 +1026,12 @@ export default function InvoiceEditorPage() {
     const defaultWh = defaultWarehouseId;
     if (!defaultWh) return;
     
-    const items = useWatch({ control, name: 'items' });
-    items.forEach((item, idx) => {
+    watchedItems.forEach((item: any, idx: number) => {
       if (item.meta_json?.material_id && !item.meta_json?.warehouse_id) {
         setValue(`items.${idx}.meta_json.warehouse_id`, defaultWh);
       }
     });
-  }, [defaultWarehouseId]);
+  }, [defaultWarehouseId, watchedItems, setValue]);
 
   console.log('InvoiceEditorPage - fields:', itemsFieldArray.fields.length, 'watchedItems:', watchedItems.length);
 
@@ -2151,7 +2151,7 @@ export default function InvoiceEditorPage() {
                     Deduct stock on finalize
                   </label>
                   
-                  {useWatch({ control, name: 'deduct_stock_on_finalize' }) && (
+                  {deductStockOnFinalize && (
                     <label style={{ 
                       fontSize: '11px', 
                       fontWeight: 600, 
@@ -2211,7 +2211,7 @@ export default function InvoiceEditorPage() {
           isApplyingPOItems={isApplyingPOItems}
           warehouses={warehousesQuery.data ?? []}
           stockRows={stockQuery.data ?? []}
-          defaultWarehouseId={useWatch({ control, name: 'default_warehouse_id' })}
+          defaultWarehouseId={defaultWarehouseId}
           variantOptions={variantRows.map((v: any) => ({ id: String(v.id), variant_name: String(v.variant_name || '') }))}
           itemVariantIdsMap={itemVariantIdsMapQuery.data?.variantIdsMap ?? {}}
           itemMakesMap={itemVariantIdsMapQuery.data?.makesMap ?? {}}
@@ -2226,7 +2226,7 @@ export default function InvoiceEditorPage() {
               append={materialsFieldArray.append}
               remove={materialsFieldArray.remove}
               warehouses={warehousesQuery.data ?? []}
-              defaultWarehouseId={useWatch({ control, name: 'default_warehouse_id' })}
+          defaultWarehouseId={defaultWarehouseId}
             />
           </div>
         )}
