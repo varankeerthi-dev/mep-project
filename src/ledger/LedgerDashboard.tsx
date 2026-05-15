@@ -66,6 +66,9 @@ const recordPaymentSchema = z.object({
   amount: z.coerce.number().positive('Amount must be greater than zero'),
   receipt_date: z.string().min(1, 'Date is required'),
   payment_type: z.string().optional(),
+  payment_mode: z.string().optional(),
+  cheque_no: z.string().optional(),
+  utr_no: z.string().optional(),
   remarks: z.string().min(2, 'Remarks are required'),
 });
 
@@ -175,6 +178,7 @@ export default function LedgerDashboard() {
   const [receiptChequeNo, setReceiptChequeNo] = useState('');
   const [receiptUtrNo, setReceiptUtrNo] = useState('');
   const [receiptAppliedInvoices, setReceiptAppliedInvoices] = useState<Record<string, number>>({});
+  const [paymentDrawerOpen, setPaymentDrawerOpen] = useState(false);
 
   const clientsQuery = useQuery({
     queryKey: ['ledger', 'clients', orgId],
@@ -285,6 +289,9 @@ export default function LedgerDashboard() {
       amount: undefined,
       receipt_date: toDateInput(new Date()),
       payment_type: '',
+      payment_mode: '',
+      cheque_no: '',
+      utr_no: '',
       remarks: '',
     },
   });
@@ -297,6 +304,9 @@ export default function LedgerDashboard() {
         amount: values.amount,
         receipt_date: values.receipt_date,
         payment_type: values.payment_type || null,
+        payment_mode: values.payment_mode || null,
+        cheque_no: values.cheque_no || null,
+        utr_no: values.utr_no || null,
         remarks: values.remarks,
       }),
     onSuccess: () => {
@@ -306,8 +316,12 @@ export default function LedgerDashboard() {
         amount: undefined,
         receipt_date: toDateInput(new Date()),
         payment_type: '',
+        payment_mode: '',
+        cheque_no: '',
+        utr_no: '',
         remarks: '',
       });
+      setPaymentDrawerOpen(false);
 
       void qc.invalidateQueries({ queryKey: ['ledger'] });
     },
@@ -1226,101 +1240,23 @@ export default function LedgerDashboard() {
               )}
             </div>
 
-            {/* Payment Form - Hidden for opening-balance tab */}
+            {/* Add Payment Button */}
             {activeTab !== 'opening-balance' && (
             <div ref={paymentCardRef} className="h-fit bg-white">
               <div className="p-5">
-                <span className="text-[11px] font-medium uppercase tracking-wider text-zinc-400">Record Payment</span>
-                <h2 className="mt-1.5 text-lg font-semibold tracking-tight text-zinc-700">Add receipt</h2>
+                <span className="text-[11px] font-medium uppercase tracking-wider text-zinc-400">Receipts</span>
+                <h2 className="mt-1.5 text-lg font-semibold tracking-tight text-zinc-700">Payment History</h2>
                 <p className="mt-1 text-sm leading-relaxed text-zinc-500">
-                  Receipts refresh the ledger immediately after save.
+                  View and manage all client payments.
                 </p>
-
-                <form
-                  onSubmit={paymentForm.handleSubmit((values) => recordPaymentMutation.mutate(values))}
-                  className="mt-4 space-y-3"
+                <button
+                  type="button"
+                  onClick={() => setPaymentDrawerOpen(true)}
+                  className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-emerald-700 hover:shadow-md"
                 >
-                  <div className="space-y-1.5">
-                    <label className="block text-[12px] font-semibold uppercase tracking-wider text-zinc-500">Client</label>
-                    <select
-                      {...paymentForm.register('client_id')}
-                      className="h-9 w-full rounded border border-zinc-200 bg-zinc-50 px-3 text-sm text-zinc-900 outline-none transition focus:border-zinc-400 focus:bg-white"
-                    >
-                      <option value="">Select client</option>
-                      {clients.map((client) => (
-                        <option key={client.id} value={client.id}>
-                          {client.name}
-                        </option>
-                      ))}
-                    </select>
-                    {paymentForm.formState.errors.client_id && (
-                      <p className="text-[12px] text-rose-600">{paymentForm.formState.errors.client_id.message}</p>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <label className="block text-[12px] font-semibold uppercase tracking-wider text-zinc-500">Amount</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        {...paymentForm.register('amount')}
-                        className="h-9 w-full rounded border border-zinc-200 bg-zinc-50 px-3 text-sm text-zinc-900 outline-none transition focus:border-zinc-400 focus:bg-white"
-                        placeholder="0.00"
-                      />
-                      {paymentForm.formState.errors.amount && (
-                        <p className="text-[12px] text-rose-600">{paymentForm.formState.errors.amount.message}</p>
-                      )}
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="block text-[12px] font-semibold uppercase tracking-wider text-zinc-500">Date</label>
-                      <input
-                        type="date"
-                        {...paymentForm.register('receipt_date')}
-                        className="h-9 w-full rounded border border-zinc-200 bg-zinc-50 px-3 text-sm text-zinc-900 outline-none transition focus:border-zinc-400 focus:bg-white"
-                      />
-                      {paymentForm.formState.errors.receipt_date && (
-                        <p className="text-[12px] text-rose-600">{paymentForm.formState.errors.receipt_date.message}</p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="block text-[12px] font-semibold uppercase tracking-wider text-zinc-500">Payment Type</label>
-                    <select
-                      {...paymentForm.register('payment_type')}
-                      className="h-9 w-full rounded border border-zinc-200 bg-zinc-50 px-3 text-sm text-zinc-900 outline-none transition focus:border-zinc-400 focus:bg-white"
-                    >
-                      <option value="">-- Select (Optional) --</option>
-                      <option value="Opening Balance">Opening Balance</option>
-                      <option value="Advance">Advance</option>
-                    </select>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="block text-[12px] font-semibold uppercase tracking-wider text-zinc-500">Remarks</label>
-                    <textarea
-                      {...paymentForm.register('remarks')}
-                      rows={2}
-                      className="w-full rounded border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-900 outline-none transition focus:border-zinc-400 focus:bg-white resize-none"
-                      placeholder="Advance, part payment, retention release..."
-                    />
-                    {paymentForm.formState.errors.remarks && (
-                      <p className="text-[12px] text-rose-600">{paymentForm.formState.errors.remarks.message}</p>
-                    )}
-                  </div>
-
-                  <Button
-                    type="submit"
-                    disabled={recordPaymentMutation.isPending || clients.length === 0}
-                    isLoading={recordPaymentMutation.isPending}
-                    leftIcon={<Plus size={14} />}
-                    className="w-full"
-                  >
-                    Record Payment
-                  </Button>
-                </form>
+                  <Plus size={16} />
+                  Add Payment
+                </button>
               </div>
             </div>
             )}
@@ -1344,6 +1280,193 @@ export default function LedgerDashboard() {
             clientId={party360Data.clientId}
             onClose={() => setParty360Open(false)}
           />
+        )}
+
+        {/* Add Payment Side Drawer */}
+        {paymentDrawerOpen && (
+          <>
+            <div style={{ position: 'fixed', inset: 0, zIndex: 40, background: 'rgba(0,0,0,0.3)' }} onClick={() => setPaymentDrawerOpen(false)} />
+            <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, zIndex: 50, width: '420px', background: '#fff', boxShadow: '-4px 0 24px rgba(0,0,0,0.12)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+              {/* Drawer Header */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid #e5e5e5' }}>
+                <div>
+                  <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#171717' }}>Add Payment</h2>
+                  <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#737373' }}>Record a new client payment receipt</p>
+                </div>
+                <button onClick={() => setPaymentDrawerOpen(false)} style={{ border: 'none', background: '#f5f5f5', borderRadius: '8px', padding: '8px', cursor: 'pointer', color: '#525252' }}>
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Drawer Body */}
+              <form
+                onSubmit={paymentForm.handleSubmit((values) => recordPaymentMutation.mutate(values))}
+                style={{ flex: 1, overflow: 'auto', padding: '20px' }}
+              >
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {/* Client */}
+                  <div>
+                    <label style={{ fontSize: '11px', fontWeight: 600, color: '#525252', display: 'block', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Client *</label>
+                    <select
+                      {...paymentForm.register('client_id')}
+                      style={{ width: '100%', padding: '8px 10px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '13px', background: '#fff' }}
+                    >
+                      <option value="">Select client</option>
+                      {clients.map((client) => (
+                        <option key={client.id} value={client.id}>{client.name}</option>
+                      ))}
+                    </select>
+                    {paymentForm.formState.errors.client_id && (
+                      <p style={{ margin: '4px 0 0', fontSize: '11px', color: '#dc2626' }}>{paymentForm.formState.errors.client_id.message}</p>
+                    )}
+                  </div>
+
+                  {/* Amount + Date */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div>
+                      <label style={{ fontSize: '11px', fontWeight: 600, color: '#525252', display: 'block', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Amount *</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        {...paymentForm.register('amount')}
+                        placeholder="0.00"
+                        style={{ width: '100%', padding: '8px 10px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '13px', background: '#fff' }}
+                      />
+                      {paymentForm.formState.errors.amount && (
+                        <p style={{ margin: '4px 0 0', fontSize: '11px', color: '#dc2626' }}>{paymentForm.formState.errors.amount.message}</p>
+                      )}
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '11px', fontWeight: 600, color: '#525252', display: 'block', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Date *</label>
+                      <input
+                        type="date"
+                        {...paymentForm.register('receipt_date')}
+                        style={{ width: '100%', padding: '8px 10px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '13px', background: '#fff' }}
+                      />
+                      {paymentForm.formState.errors.receipt_date && (
+                        <p style={{ margin: '4px 0 0', fontSize: '11px', color: '#dc2626' }}>{paymentForm.formState.errors.receipt_date.message}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Payment Mode */}
+                  <div>
+                    <label style={{ fontSize: '11px', fontWeight: 600, color: '#525252', display: 'block', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Payment Mode</label>
+                    <select
+                      {...paymentForm.register('payment_mode')}
+                      style={{ width: '100%', padding: '8px 10px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '13px', background: '#fff' }}
+                    >
+                      <option value="">Select mode</option>
+                      <option value="Cash">Cash</option>
+                      <option value="Bank Transfer">Bank Transfer</option>
+                      <option value="Cheque">Cheque</option>
+                      <option value="UPI">UPI</option>
+                      <option value="Credit Card">Credit Card</option>
+                      <option value="Debit Card">Debit Card</option>
+                      <option value="NEFT">NEFT</option>
+                      <option value="RTGS">RTGS</option>
+                      <option value="IMPS">IMPS</option>
+                    </select>
+                  </div>
+
+                  {/* Cheque No (conditional) */}
+                  {paymentForm.watch('payment_mode') === 'Cheque' && (
+                    <div>
+                      <label style={{ fontSize: '11px', fontWeight: 600, color: '#525252', display: 'block', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Cheque No</label>
+                      <input
+                        type="text"
+                        {...paymentForm.register('cheque_no')}
+                        placeholder="Enter cheque number"
+                        style={{ width: '100%', padding: '8px 10px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '13px', background: '#fff' }}
+                      />
+                    </div>
+                  )}
+
+                  {/* UTR No (conditional) */}
+                  {['Bank Transfer', 'UPI', 'NEFT', 'RTGS', 'IMPS'].includes(paymentForm.watch('payment_mode') || '') && (
+                    <div>
+                      <label style={{ fontSize: '11px', fontWeight: 600, color: '#525252', display: 'block', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>UTR / Reference No</label>
+                      <input
+                        type="text"
+                        {...paymentForm.register('utr_no')}
+                        placeholder="Enter UTR or bank reference"
+                        style={{ width: '100%', padding: '8px 10px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '13px', background: '#fff' }}
+                      />
+                    </div>
+                  )}
+
+                  {/* Payment Type */}
+                  <div>
+                    <label style={{ fontSize: '11px', fontWeight: 600, color: '#525252', display: 'block', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Payment Type</label>
+                    <select
+                      {...paymentForm.register('payment_type')}
+                      style={{ width: '100%', padding: '8px 10px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '13px', background: '#fff' }}
+                    >
+                      <option value="">-- Select (Optional) --</option>
+                      <option value="Opening Balance">Opening Balance</option>
+                      <option value="Advance">Advance</option>
+                    </select>
+                  </div>
+
+                  {/* Unsettled Invoices */}
+                  {paymentForm.watch('client_id') && (() => {
+                    const clientInvoices = invoicesQuery.data?.filter(inv => inv.client_id === paymentForm.watch('client_id')) || [];
+                    if (clientInvoices.length === 0) return null;
+                    return (
+                      <div>
+                        <label style={{ fontSize: '11px', fontWeight: 600, color: '#525252', display: 'block', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Unsettled Invoices</label>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '200px', overflow: 'auto' }}>
+                          {clientInvoices.slice(0, 8).map(inv => (
+                            <div key={inv.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 10px', background: '#fafafa', borderRadius: '6px', border: '1px solid #e5e5e5' }}>
+                              <div>
+                                <div style={{ fontSize: '12px', fontWeight: 600, color: '#171717' }}>{inv.invoice_no}</div>
+                                <div style={{ fontSize: '10px', color: '#737373' }}>{inv.invoice_date}</div>
+                              </div>
+                              <div style={{ fontSize: '13px', fontWeight: 700, color: '#dc2626' }}>Rs. {inv.total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Remarks */}
+                  <div>
+                    <label style={{ fontSize: '11px', fontWeight: 600, color: '#525252', display: 'block', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Remarks *</label>
+                    <textarea
+                      {...paymentForm.register('remarks')}
+                      rows={2}
+                      placeholder="Advance, part payment, retention release..."
+                      style={{ width: '100%', padding: '8px 10px', border: '1px solid #d4d4d4', borderRadius: '6px', fontSize: '13px', background: '#fff', resize: 'none' }}
+                    />
+                    {paymentForm.formState.errors.remarks && (
+                      <p style={{ margin: '4px 0 0', fontSize: '11px', color: '#dc2626' }}>{paymentForm.formState.errors.remarks.message}</p>
+                    )}
+                  </div>
+                </div>
+              </form>
+
+              {/* Drawer Footer */}
+              <div style={{ padding: '16px 20px', borderTop: '1px solid #e5e5e5', background: '#fafafa' }}>
+                <button
+                  type="button"
+                  onClick={paymentForm.handleSubmit((values) => recordPaymentMutation.mutate(values))}
+                  disabled={recordPaymentMutation.isPending || clients.length === 0}
+                  style={{ width: '100%', padding: '10px 16px', border: 'none', borderRadius: '8px', background: '#059669', color: '#fff', fontSize: '14px', fontWeight: 600, cursor: recordPaymentMutation.isPending ? 'not-allowed' : 'pointer', opacity: recordPaymentMutation.isPending ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                >
+                  {recordPaymentMutation.isPending ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" /> Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Plus size={16} /> Record Payment
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </>
         )}
 
         {/* Payment Receipt Preview Modal */}
