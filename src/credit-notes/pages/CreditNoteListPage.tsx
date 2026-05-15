@@ -1,12 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Filter, X, ChevronLeft, ChevronRight, Eye, Pencil, Trash2, FileText } from 'lucide-react';
+import { Plus, Search, X, ChevronLeft, ChevronRight, Eye, Pencil, Trash2, FileText, Loader2, Download, XCircle } from 'lucide-react';
 import { useCreditNotes, useDeleteCreditNote } from '../../credit-notes/hooks';
 import { CNStatusBadge } from '../../credit-notes/components/StatusBadge';
 import { formatCurrency, formatDate } from '../../credit-notes/ui-utils';
 import { CN_TYPE_LABELS } from '../../credit-notes/schemas';
 import type { CreditNote } from '../../credit-notes/types';
 import { useAuth } from '../../App';
+import { generateProGridAdjustmentNotePdf } from '../../pdf/proGridAdjustmentNotePdf';
 
 const PAGE_SIZE = 25;
 
@@ -72,8 +73,63 @@ export function CreditNoteListPage() {
   const [dateTo, setDateTo] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [previewCN, setPreviewCN] = useState<CreditNote | null>(null);
+  const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   useEffect(() => { injectStyles(); }, []);
+
+  const handlePreview = useCallback(async (cn: CreditNote) => {
+    setPreviewCN(cn);
+    setPreviewLoading(true);
+    try {
+      const items = cn.items.map(item => ({
+        description: item.description,
+        hsn_code: item.hsn_code ?? '',
+        quantity: item.quantity,
+        rate: item.rate,
+        discount_amount: item.discount_amount,
+        taxable_value: item.taxable_value,
+        cgst_percent: item.cgst_percent,
+        cgst_amount: item.cgst_amount,
+        sgst_percent: item.sgst_percent,
+        sgst_amount: item.sgst_amount,
+        igst_percent: item.igst_percent,
+        igst_amount: item.igst_amount,
+        total_amount: item.total_amount,
+      }));
+
+      const { blob } = await generateProGridAdjustmentNotePdf({
+        kind: 'credit',
+        docNumber: cn.cn_number,
+        docDate: cn.cn_date,
+        clientName: cn.client?.name ?? 'Unknown Client',
+        clientGstin: cn.client?.gstin ?? '',
+        clientAddress: '',
+        companyName: organisation?.name ?? '',
+        companyGstin: '',
+        companyAddress: '',
+        items,
+        taxableAmount: cn.taxable_amount,
+        cgstAmount: cn.cgst_amount,
+        sgstAmount: cn.sgst_amount,
+        igstAmount: cn.igst_amount,
+        totalAmount: cn.total_amount,
+        reason: cn.reason ?? '',
+      });
+
+      const url = URL.createObjectURL(blob);
+      setPreviewPdfUrl(url);
+    } finally {
+      setPreviewLoading(false);
+    }
+  }, [organisation]);
+
+  const closePreview = useCallback(() => {
+    if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
+    setPreviewCN(null);
+    setPreviewPdfUrl(null);
+  }, [previewPdfUrl]);
 
   const filteredNotes = useMemo(() => {
     let result = creditNotes;
@@ -134,10 +190,6 @@ export function CreditNoteListPage() {
 
   const handleRowClick = (id: string) => {
     navigate(`/credit-notes/edit?id=${id}`);
-  };
-
-  const handleActionClick = (e: React.MouseEvent, id: string) => {
-    e.stopPropagation();
   };
 
   const pageNumbers: (number | '...')[] = [];
@@ -263,7 +315,7 @@ export function CreditNoteListPage() {
                       <td><CNStatusBadge status={cn.approval_status} /></td>
                       <td>
                         <div className="cnl-actions-cell" onClick={(e) => { e.stopPropagation(); }}>
-                          <button className="cnl-action-btn" title="View" onClick={() => handleRowClick(cn.id)}>
+                          <button className="cnl-action-btn" title="Preview" onClick={(e) => { e.stopPropagation(); handlePreview(cn as CreditNote); }}>
                             <Eye size={15} />
                           </button>
                           <button className="cnl-action-btn" title="Edit" onClick={() => navigate(`/credit-notes/edit?id=${cn.id}`)}>
@@ -339,6 +391,62 @@ export function CreditNoteListPage() {
               >
                 Delete
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {previewCN && (
+        <div
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}
+          onClick={closePreview}
+        >
+          <div
+            style={{ width: '90vw', maxWidth: '1200px', height: '95vh', background: '#fff', borderRadius: '12px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', borderBottom: '1px solid #e5e5e5', background: '#fafafa' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <FileText size={18} style={{ color: '#2563eb' }} />
+                <span style={{ fontWeight: 600, fontSize: '14px' }}>{previewCN.cn_number} — {previewCN.client?.name}</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button
+                  onClick={() => {
+                    const items = previewCN.items.map(item => ({
+                      description: item.description, hsn_code: item.hsn_code ?? '', quantity: item.quantity, rate: item.rate,
+                      discount_amount: item.discount_amount, taxable_value: item.taxable_value, cgst_percent: item.cgst_percent,
+                      cgst_amount: item.cgst_amount, sgst_percent: item.sgst_percent, sgst_amount: item.sgst_amount,
+                      igst_percent: item.igst_percent, igst_amount: item.igst_amount, total_amount: item.total_amount,
+                    }));
+                    generateProGridAdjustmentNotePdf({
+                      kind: 'credit', docNumber: previewCN.cn_number, docDate: previewCN.cn_date,
+                      clientName: previewCN.client?.name ?? '', clientGstin: previewCN.client?.gstin ?? '', clientAddress: '',
+                      companyName: organisation?.name ?? '', companyGstin: '', companyAddress: '',
+                      items, taxableAmount: previewCN.taxable_amount, cgstAmount: previewCN.cgst_amount,
+                      sgstAmount: previewCN.sgst_amount, igstAmount: previewCN.igst_amount, totalAmount: previewCN.total_amount,
+                      reason: previewCN.reason ?? '',
+                    });
+                  }}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '6px 12px', border: '1px solid #d4d4d4', borderRadius: '6px', background: '#fff', fontSize: '12px', cursor: 'pointer' }}
+                >
+                  <Download size={14} /> Download
+                </button>
+                <button onClick={closePreview} style={{ border: 'none', background: 'transparent', cursor: 'pointer', padding: '4px', color: '#737373' }}>
+                  <XCircle size={20} />
+                </button>
+              </div>
+            </div>
+            <div style={{ flex: 1, overflow: 'hidden', background: '#f3f4f6' }}>
+              {previewLoading ? (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                  <Loader2 size={24} className="animate-spin" style={{ color: '#a3a3a3' }} />
+                </div>
+              ) : previewPdfUrl ? (
+                <iframe src={previewPdfUrl} style={{ width: '100%', height: '100%', border: 'none' }} title="Credit Note PDF Preview" />
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#a3a3a3' }}>Failed to load preview</div>
+              )}
             </div>
           </div>
         </div>

@@ -315,6 +315,7 @@ export default function LedgerDashboard() {
       clients,
       invoicesQuery.data ?? [],
       receiptsQuery.data ?? [],
+      [],
       openingBalances,
     ),
     [clients, invoicesQuery.data, receiptsQuery.data, openingBalances],

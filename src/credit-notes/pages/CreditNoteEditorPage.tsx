@@ -1,19 +1,21 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useForm, useFieldArray } from 'react-hook-form';
-import { ArrowLeft, Save, Download } from 'lucide-react';
+import { ArrowLeft, Save, FileDown, Loader2 } from 'lucide-react';
 import { supabase } from '../../supabase';
 import { useAuth } from '../../App';
 import { useCreditNote, useCreateCreditNote, useUpdateCreditNote, useNextCNNumber } from '../../credit-notes/hooks';
 import { CNItemsEditor } from '../../credit-notes/components/CreditNoteItemsEditor';
 import { CNStatusBadge } from '../../credit-notes/components/StatusBadge';
 import { formatCurrency, formatDate } from '../../credit-notes/ui-utils';
+import { amountInWords } from '../../credit-notes/utils/amountInWords';
 import { CN_TYPES, CN_TYPE_LABELS, CN_APPROVAL_STATUSES } from '../../credit-notes/schemas';
 import type { CreditNote } from '../../credit-notes/types';
 import { generateProGridAdjustmentNotePdf } from '../../pdf/proGridAdjustmentNotePdf';
+import { toast } from '../../lib/logger';
 
 const styles = `
-  .cne-page { padding: 24px 32px; max-width: 1200px; margin: 0 auto; }
+  .cne-page { padding: 24px 32px 100px; max-width: 1200px; margin: 0 auto; }
   .cne-header { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
   .cne-back-btn { display: inline-flex; align-items: center; gap: 4px; padding: 6px 12px; border: 1px solid #d4d4d4; border-radius: 6px; background: #fff; font-size: 13px; color: #525252; cursor: pointer; }
   .cne-back-btn:hover { background: #f5f5f5; }
@@ -22,6 +24,9 @@ const styles = `
   .cne-btn-save { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border: none; border-radius: 6px; background: #2563eb; color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; }
   .cne-btn-save:hover { background: #1d4ed8; }
   .cne-btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
+  .cne-btn-draft { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border: 1px solid #d4d4d4; border-radius: 6px; background: #fff; font-size: 13px; color: #525252; cursor: pointer; }
+  .cne-btn-draft:hover { background: #f5f5f5; }
+  .cne-btn-draft:disabled { opacity: 0.5; cursor: not-allowed; }
   .cne-btn-pdf { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border: 1px solid #d4d4d4; border-radius: 6px; background: #fff; font-size: 13px; color: #525252; cursor: pointer; }
   .cne-btn-pdf:hover { background: #f5f5f5; }
   .cne-form-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
@@ -41,6 +46,15 @@ const styles = `
   .cne-error { color: #dc2626; font-size: 12px; margin-top: 2px; }
   .cne-form-error { padding: 12px 16px; background: #fef2f2; border: 1px solid #fee2e2; border-radius: 8px; color: #dc2626; font-size: 13px; margin-bottom: 16px; }
   .cne-loading { text-align: center; padding: 48px; color: #a3a3a3; font-size: 14px; }
+  .cne-sticky-footer { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1px solid #e5e5e5; padding: 12px 32px; display: flex; align-items: center; justify-content: space-between; z-index: 100; box-shadow: 0 -2px 8px rgba(0,0,0,0.06); }
+  .cne-footer-left { display: flex; align-items: center; gap: 12px; }
+  .cne-footer-right { display: flex; align-items: center; gap: 8px; }
+  .cne-roundoff-toggle { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #525252; }
+  .cne-toggle-switch { position: relative; width: 36px; height: 20px; background: #d4d4d4; border-radius: 10px; cursor: pointer; transition: background 0.2s; }
+  .cne-toggle-switch.active { background: #2563eb; }
+  .cne-toggle-switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; background: #fff; border-radius: 50%; transition: transform 0.2s; }
+  .cne-toggle-switch.active::after { transform: translateX(16px); }
+  .cne-amount-words { font-size: 12px; color: #737373; font-style: italic; max-width: 500px; }
 `;
 
 let stylesInjected = false;
@@ -53,6 +67,31 @@ function injectStyles() {
     stylesInjected = true;
   }
 }
+
+type CNItemForm = {
+  id?: string;
+  description: string;
+  hsn_code: string;
+  quantity: number;
+  rate: number;
+  discount_amount: number;
+  cgst_percent: number;
+  sgst_percent: number;
+  igst_percent: number;
+  taxable_value: number;
+  cgst_amount: number;
+  sgst_amount: number;
+  igst_amount: number;
+  total_amount: number;
+  meta_json?: {
+    material_id?: string;
+    variant?: string;
+    variant_id?: string;
+    make?: string;
+    base_rate?: number;
+    unit?: string;
+  };
+};
 
 type CNFormValues = {
   client_id: string;
@@ -67,25 +106,10 @@ type CNFormValues = {
   igst_amount: number;
   total_amount: number;
   approval_status: string;
-  items: {
-    id?: string;
-    description: string;
-    hsn_code: string;
-    quantity: number;
-    rate: number;
-    discount_amount: number;
-    cgst_percent: number;
-    sgst_percent: number;
-    igst_percent: number;
-    taxable_value: number;
-    cgst_amount: number;
-    sgst_amount: number;
-    igst_amount: number;
-    total_amount: number;
-  }[];
+  items: CNItemForm[];
 };
 
-function createEmptyItem(): CNFormValues['items'][number] {
+function createEmptyItem(): CNItemForm {
   return {
     description: '',
     hsn_code: '',
@@ -100,6 +124,7 @@ function createEmptyItem(): CNFormValues['items'][number] {
     sgst_amount: 0,
     igst_amount: 0,
     total_amount: 0,
+    meta_json: {},
   };
 }
 
@@ -120,6 +145,7 @@ export function CreditNoteEditorPage() {
   const [companyState, setCompanyState] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [roundOffEnabled, setRoundOffEnabled] = useState(organisation?.round_off_enabled ?? false);
 
   const {
     register,
@@ -154,23 +180,23 @@ export function CreditNoteEditorPage() {
 
   const watchedClientId = watch('client_id');
   const watchedItems = watch('items');
+  const watchedTotal = watch('total_amount');
 
   useEffect(() => { injectStyles(); }, []);
 
-  // Load organisation state
   useEffect(() => {
     if (!organisation?.id) return;
     supabase
       .from('organisations')
-      .select('id, state')
+      .select('id, state, round_off_enabled')
       .eq('id', organisation.id)
       .single()
       .then(({ data }) => {
         if (data?.state) setCompanyState(data.state);
+        if (typeof data?.round_off_enabled === 'boolean') setRoundOffEnabled(data.round_off_enabled);
       });
   }, [organisation?.id]);
 
-  // Load clients
   useEffect(() => {
     if (!organisation?.id) return;
     supabase
@@ -190,7 +216,6 @@ export function CreditNoteEditorPage() {
       });
   }, [organisation?.id]);
 
-  // Load invoices for the selected client
   useEffect(() => {
     if (!organisation?.id || !watchedClientId) {
       setInvoices([]);
@@ -215,7 +240,6 @@ export function CreditNoteEditorPage() {
       });
   }, [organisation?.id, watchedClientId]);
 
-  // Populate form when editing
   useEffect(() => {
     if (!existingCN || !isEditing) return;
 
@@ -249,12 +273,12 @@ export function CreditNoteEditorPage() {
             sgst_amount: item.sgst_amount,
             igst_amount: item.igst_amount,
             total_amount: item.total_amount,
+            meta_json: {},
           }))
         : [createEmptyItem()],
     });
   }, [existingCN, isEditing, reset]);
 
-  // Set CN number when creating new
   useEffect(() => {
     if (!isEditing && nextCNNumber) {
       setValue('cn_number', nextCNNumber);
@@ -267,16 +291,22 @@ export function CreditNoteEditorPage() {
 
   const clientState = selectedClient?.state ?? null;
 
-  const selectedInvoice = useMemo(() => {
-    return invoices.find(inv => inv.id === watch('invoice_id')) ?? null;
-  }, [invoices, watch('invoice_id')]);
+  const finalTotal = useMemo(() => {
+    const raw = watchedTotal ?? 0;
+    return roundOffEnabled ? Math.round(raw) : Math.round(raw * 100) / 100;
+  }, [watchedTotal, roundOffEnabled]);
 
-  const onSubmit = async (data: CNFormValues) => {
+  const amountWords = useMemo(() => {
+    return amountInWords(finalTotal);
+  }, [finalTotal]);
+
+  const doSave = useCallback(async (status: string) => {
     if (!organisation?.id) return;
     setFormError(null);
     setSaving(true);
 
     try {
+      const data = watch();
       const payload = {
         client_id: data.client_id,
         invoice_id: data.invoice_id || null,
@@ -288,8 +318,8 @@ export function CreditNoteEditorPage() {
         cgst_amount: data.cgst_amount,
         sgst_amount: data.sgst_amount,
         igst_amount: data.igst_amount,
-        total_amount: data.total_amount,
-        approval_status: data.approval_status,
+        total_amount: roundOffEnabled ? Math.round(data.total_amount) : data.total_amount,
+        approval_status: status,
         items: data.items.map(item => ({
           description: item.description,
           hsn_code: item.hsn_code || null,
@@ -313,54 +343,14 @@ export function CreditNoteEditorPage() {
         await createCN.mutateAsync({ ...payload, organisation_id: organisation.id });
       }
 
+      toast.success(status === 'Pending' ? 'Credit note saved as draft' : 'Credit note saved successfully');
       navigate('/credit-notes');
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'Failed to save credit note');
     } finally {
       setSaving(false);
     }
-  };
-
-  const handleGeneratePDF = () => {
-    const cn = existingCN as CreditNote | null;
-    if (!cn) return;
-
-    const clientName = cn.client?.name ?? 'Unknown Client';
-    const items = cn.items.map(item => ({
-      description: item.description,
-      hsn_code: item.hsn_code ?? '',
-      quantity: item.quantity,
-      rate: item.rate,
-      discount_amount: item.discount_amount,
-      taxable_value: item.taxable_value,
-      cgst_percent: item.cgst_percent,
-      cgst_amount: item.cgst_amount,
-      sgst_percent: item.sgst_percent,
-      sgst_amount: item.sgst_amount,
-      igst_percent: item.igst_percent,
-      igst_amount: item.igst_amount,
-      total_amount: item.total_amount,
-    }));
-
-    generateProGridAdjustmentNotePdf({
-      kind: 'credit',
-      docNumber: cn.cn_number,
-      docDate: cn.cn_date,
-      clientName,
-      clientGstin: cn.client?.gstin ?? '',
-      clientAddress: '',
-      companyName: organisation?.name ?? '',
-      companyGstin: '',
-      companyAddress: '',
-      items,
-      taxableAmount: cn.taxable_amount,
-      cgstAmount: cn.cgst_amount,
-      sgstAmount: cn.sgst_amount,
-      igstAmount: cn.igst_amount,
-      totalAmount: cn.total_amount,
-      reason: cn.reason ?? '',
-    });
-  };
+  }, [organisation?.id, watch, roundOffEnabled, isEditing, editId, updateCN, createCN, navigate]);
 
   if (loadingCN) {
     return <div className="cne-loading">Loading credit note...</div>;
@@ -376,18 +366,6 @@ export function CreditNoteEditorPage() {
         <h1 className="cne-title">
           {isEditing ? `Edit ${existingCN?.cn_number}` : 'New Credit Note'}
         </h1>
-        <div className="cne-actions">
-          {isEditing && existingCN && (
-            <button className="cne-btn-pdf" onClick={handleGeneratePDF}>
-              <Download size={16} />
-              PDF
-            </button>
-          )}
-          <button className="cne-btn-save" onClick={handleSubmit(onSubmit)} disabled={saving}>
-            <Save size={16} />
-            {saving ? 'Saving...' : 'Save'}
-          </button>
-        </div>
       </div>
 
       {isEditing && existingCN && (
@@ -398,111 +376,130 @@ export function CreditNoteEditorPage() {
 
       {formError && <div className="cne-form-error">{formError}</div>}
 
-      <form onSubmit={handleSubmit(onSubmit)}>
-        <div className="cne-form-grid">
-          <div className="cne-form-group">
-            <label className="cne-label">CN Number <span className="required">*</span></label>
-            <input className="cne-input" {...register('cn_number', { required: 'CN number is required' })} />
-            {errors.cn_number && <span className="cne-error">{errors.cn_number.message}</span>}
-          </div>
-
-          <div className="cne-form-group">
-            <label className="cne-label">Date <span className="required">*</span></label>
-            <input className="cne-input" type="date" {...register('cn_date', { required: 'Date is required' })} />
-            {errors.cn_date && <span className="cne-error">{errors.cn_date.message}</span>}
-          </div>
-
-          <div className="cne-form-group">
-            <label className="cne-label">Type <span className="required">*</span></label>
-            <select className="cne-select" {...register('cn_type', { required: 'Type is required' })}>
-              {CN_TYPES.map(type => (
-                <option key={type} value={type}>{CN_TYPE_LABELS[type]}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="cne-form-group">
-            <label className="cne-label">Client <span className="required">*</span></label>
-            <select className="cne-select" {...register('client_id', { required: 'Client is required' })}>
-              <option value="">Select client</option>
-              {clients.map(client => (
-                <option key={client.id} value={client.id}>{client.name}</option>
-              ))}
-            </select>
-            {errors.client_id && <span className="cne-error">{errors.client_id.message}</span>}
-          </div>
-
-          <div className="cne-form-group">
-            <label className="cne-label">Linked Invoice</label>
-            <select className="cne-select" {...register('invoice_id')}>
-              <option value="">None (optional)</option>
-              {invoices.map(inv => (
-                <option key={inv.id} value={inv.id}>{inv.invoice_number} — {formatCurrency(inv.total_amount)}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="cne-form-group">
-            <label className="cne-label">Approval Status</label>
-            <select className="cne-select" {...register('approval_status')}>
-              {CN_APPROVAL_STATUSES.map(status => (
-                <option key={status} value={status}>{status}</option>
-              ))}
-            </select>
-          </div>
-
-          <div className="cne-form-group full">
-            <label className="cne-label">Reason</label>
-            <textarea className="cne-textarea" {...register('reason')} placeholder="Reason for credit note..." />
-          </div>
+      <div className="cne-form-grid">
+        <div className="cne-form-group">
+          <label className="cne-label">CN Number <span className="required">*</span></label>
+          <input className="cne-input" {...register('cn_number', { required: 'CN number is required' })} />
+          {errors.cn_number && <span className="cne-error">{errors.cn_number.message}</span>}
         </div>
 
-        <CNItemsEditor
-          fields={fields}
-          items={watchedItems}
-          register={register}
-          append={append}
-          remove={remove}
-          setValue={setValue}
-          watch={watch}
-          companyState={companyState}
-          clientState={clientState}
-          error={errors.items?.message}
-        />
-
-        <div className="cne-totals-card">
-          <table className="cne-totals-table">
-            <tbody>
-              <tr>
-                <td>Taxable Amount</td>
-                <td>{formatCurrency(watch('taxable_amount'))}</td>
-              </tr>
-              {watch('cgst_amount') > 0 && (
-                <tr>
-                  <td>CGST</td>
-                  <td>{formatCurrency(watch('cgst_amount'))}</td>
-                </tr>
-              )}
-              {watch('sgst_amount') > 0 && (
-                <tr>
-                  <td>SGST</td>
-                  <td>{formatCurrency(watch('sgst_amount'))}</td>
-                </tr>
-              )}
-              {watch('igst_amount') > 0 && (
-                <tr>
-                  <td>IGST</td>
-                  <td>{formatCurrency(watch('igst_amount'))}</td>
-                </tr>
-              )}
-              <tr>
-                <td>Total Amount</td>
-                <td>{formatCurrency(watch('total_amount'))}</td>
-              </tr>
-            </tbody>
-          </table>
+        <div className="cne-form-group">
+          <label className="cne-label">Date <span className="required">*</span></label>
+          <input className="cne-input" type="date" {...register('cn_date', { required: 'Date is required' })} />
+          {errors.cn_date && <span className="cne-error">{errors.cn_date.message}</span>}
         </div>
-      </form>
+
+        <div className="cne-form-group">
+          <label className="cne-label">Type <span className="required">*</span></label>
+          <select className="cne-select" {...register('cn_type', { required: 'Type is required' })}>
+            {CN_TYPES.map(type => (
+              <option key={type} value={type}>{CN_TYPE_LABELS[type]}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="cne-form-group">
+          <label className="cne-label">Client <span className="required">*</span></label>
+          <select className="cne-select" {...register('client_id', { required: 'Client is required' })}>
+            <option value="">Select client</option>
+            {clients.map(client => (
+              <option key={client.id} value={client.id}>{client.name}</option>
+            ))}
+          </select>
+          {errors.client_id && <span className="cne-error">{errors.client_id.message}</span>}
+        </div>
+
+        <div className="cne-form-group">
+          <label className="cne-label">Linked Invoice</label>
+          <select className="cne-select" {...register('invoice_id')}>
+            <option value="">None (optional)</option>
+            {invoices.map(inv => (
+              <option key={inv.id} value={inv.id}>{inv.invoice_number} — {formatCurrency(inv.total_amount)}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="cne-form-group">
+          <label className="cne-label">Approval Status</label>
+          <select className="cne-select" {...register('approval_status')}>
+            {CN_APPROVAL_STATUSES.map(status => (
+              <option key={status} value={status}>{status}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="cne-form-group full">
+          <label className="cne-label">Reason</label>
+          <textarea className="cne-textarea" {...register('reason')} placeholder="Reason for credit note..." />
+        </div>
+      </div>
+
+      <CNItemsEditor
+        fields={fields}
+        items={watchedItems}
+        register={register}
+        append={append}
+        remove={remove}
+        setValue={setValue}
+        watch={watch}
+        companyState={companyState}
+        clientState={clientState}
+        roundOffEnabled={roundOffEnabled}
+        error={errors.items?.message}
+      />
+
+      <div className="cne-totals-card">
+        <table className="cne-totals-table">
+          <tbody>
+            <tr>
+              <td>Taxable Amount</td>
+              <td>{formatCurrency(watch('taxable_amount'))}</td>
+            </tr>
+            {watch('cgst_amount') > 0 && (
+              <tr><td>CGST</td><td>{formatCurrency(watch('cgst_amount'))}</td></tr>
+            )}
+            {watch('sgst_amount') > 0 && (
+              <tr><td>SGST</td><td>{formatCurrency(watch('sgst_amount'))}</td></tr>
+            )}
+            {watch('igst_amount') > 0 && (
+              <tr><td>IGST</td><td>{formatCurrency(watch('igst_amount'))}</td></tr>
+            )}
+            <tr>
+              <td>Total Amount</td>
+              <td>{formatCurrency(finalTotal)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+        <div className="cne-roundoff-toggle">
+          <span>Round Off</span>
+          <div
+            className={`cne-toggle-switch ${roundOffEnabled ? 'active' : ''}`}
+            onClick={() => setRoundOffEnabled(prev => !prev)}
+          />
+        </div>
+        <div className="cne-amount-words">{amountWords}</div>
+      </div>
+
+      <div className="cne-sticky-footer">
+        <div className="cne-footer-left">
+          <span style={{ fontSize: '13px', color: '#737373' }}>
+            {isEditing ? `Editing ${existingCN?.cn_number}` : 'New Credit Note'}
+          </span>
+        </div>
+        <div className="cne-footer-right">
+          <button className="cne-btn-draft" onClick={() => doSave('Pending')} disabled={saving}>
+            <FileDown size={14} />
+            Save as Draft
+          </button>
+          <button className="cne-btn-save" onClick={() => doSave('Approved')} disabled={saving}>
+            {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+            {saving ? 'Saving...' : 'Save'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

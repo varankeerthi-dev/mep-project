@@ -22,6 +22,7 @@ export const creditNoteKeys = {
 
 export type UpdateCreditNoteMutationInput = {
   id: string;
+  organisation_id: string;
   client_id: string;
   invoice_id?: string | null;
   cn_number: string;

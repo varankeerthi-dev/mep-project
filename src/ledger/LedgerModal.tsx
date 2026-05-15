@@ -181,7 +181,7 @@ export default function LedgerModal({
   const [endDate, setEndDate] = useState('');
 
   const rows = useMemo(() => {
-    let allRows = buildLedgerStatementRows(summary?.invoices ?? [], summary?.receipts ?? [], openingBalance);
+    let allRows = buildLedgerStatementRows(summary?.invoices ?? [], summary?.receipts ?? [], [], openingBalance);
 
     if (startDate) {
       let carriedForward = 0;
