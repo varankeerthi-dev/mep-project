@@ -101,6 +101,60 @@ export default function ProcurementDetail() {
     enabled: !!orgId,
   });
 
+  // Fetch warehouses
+  const { data: warehouses = [] } = useQuery({
+    queryKey: ['procurement-warehouses', orgId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('warehouses')
+        .select('id, warehouse_name')
+        .eq('organisation_id', orgId)
+        .eq('is_active', true)
+        .order('warehouse_name');
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!orgId,
+  });
+
+  // Fetch item stock from all warehouses
+  const itemIds = items.filter((i) => !i.is_header_row && i.item_id).map((i) => i.item_id);
+  const { data: warehouseStock = [] } = useQuery({
+    queryKey: ['procurement-item-stock', listId, itemIds],
+    queryFn: async () => {
+      if (!itemIds.length) return [];
+      const { data, error } = await supabase
+        .from('item_stock')
+        .select('item_id, warehouse_id, current_stock')
+        .in('item_id', itemIds);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: itemIds.length > 0,
+  });
+
+  // Build warehouse stock lookup: { itemId: { warehouseId: qty } }
+  const stockLookup = useMemo(() => {
+    const lookup: Record<string, Record<string, number>> = {};
+    warehouseStock.forEach((s: any) => {
+      if (!lookup[s.item_id]) lookup[s.item_id] = {};
+      lookup[s.item_id][s.warehouse_id] = parseFloat(s.current_stock) || 0;
+    });
+    return lookup;
+  }, [warehouseStock]);
+
+  // Get stock for a specific item in a specific warehouse
+  const getItemWarehouseStock = useCallback((itemId: string | null, warehouseId: string) => {
+    if (!itemId || !stockLookup[itemId]) return 0;
+    return stockLookup[itemId][warehouseId] || 0;
+  }, [stockLookup]);
+
+  // Calculate total warehouse stock for an item
+  const getWarehouseStockTotal = useCallback((itemId: string | null) => {
+    if (!itemId || !stockLookup[itemId]) return 0;
+    return Object.values(stockLookup[itemId]).reduce((sum, qty) => sum + qty, 0);
+  }, [stockLookup]);
+
   // Fetch items
   const { data: rawItems = [], isLoading: itemsLoading } = useQuery({
     queryKey: ['procurement-items', listId],
@@ -396,35 +450,39 @@ export default function ProcurementDetail() {
       </div>
 
       {/* Main Table Area */}
-      <div className="overflow-hidden rounded-3xl border border-zinc-200 bg-white shadow-2xl shadow-zinc-200/50 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200">
+      <div className="overflow-hidden border border-zinc-300 bg-white animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200">
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-[13px]">
             <thead>
-              <tr className="border-b border-zinc-100 bg-zinc-50/50">
-                <th className="px-4 py-4 text-center text-[10px] font-black uppercase tracking-widest text-zinc-400 w-12">#</th>
-                <th className="px-2 py-4 text-left text-[10px] font-black uppercase tracking-widest text-zinc-400 min-w-[240px]">Item Description</th>
-                <th className="px-2 py-4 text-left text-[10px] font-black uppercase tracking-widest text-zinc-400 min-w-[120px]">Make</th>
-                <th className="px-2 py-4 text-left text-[10px] font-black uppercase tracking-widest text-zinc-400 min-w-[120px]">Variant</th>
-                <th className="px-2 py-4 text-center text-[10px] font-black uppercase tracking-widest text-zinc-400 w-20">UOM</th>
-                <th className="px-2 py-4 text-right text-[10px] font-black uppercase tracking-widest text-zinc-400 w-24">BOQ Qty</th>
-                <th className="px-2 py-4 text-right text-[10px] font-black uppercase tracking-widest text-zinc-400 w-24">Stock</th>
-                <th className="px-2 py-4 text-right text-[10px] font-black uppercase tracking-widest text-zinc-400 w-24">Local</th>
-                <th className="px-4 py-4 text-right text-[10px] font-black uppercase tracking-widest text-rose-400 w-24">Gap</th>
-                <th className="px-2 py-4 text-left text-[10px] font-black uppercase tracking-widest text-zinc-400 min-w-[160px]">Vendor</th>
-                <th className="px-2 py-4 text-left text-[10px] font-black uppercase tracking-widest text-zinc-400 min-w-[150px]">Current Status</th>
-                <th className="px-2 py-4 text-left text-[10px] font-black uppercase tracking-widest text-zinc-400 min-w-[150px]">Notes</th>
-                <th className="px-4 py-4 w-10"></th>
+              <tr className="bg-zinc-100">
+                <th className="border border-zinc-300 px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-zinc-500 w-10">#</th>
+                <th className="border border-zinc-300 px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-zinc-500 min-w-[240px]">Item Description</th>
+                <th className="border border-zinc-300 px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-zinc-500 min-w-[100px]">Make</th>
+                <th className="border border-zinc-300 px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-zinc-500 min-w-[100px]">Variant</th>
+                <th className="border border-zinc-300 px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-zinc-500 w-16">UOM</th>
+                <th className="border border-zinc-300 px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wider text-zinc-500 w-20">BOQ Qty</th>
+                {warehouses.map((wh: any) => (
+                  <th key={wh.id} className="border border-zinc-300 px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wider text-zinc-500 w-20" title={wh.warehouse_name}>
+                    {wh.warehouse_name.length > 8 ? wh.warehouse_name.substring(0, 8) + '…' : wh.warehouse_name}
+                  </th>
+                ))}
+                <th className="border border-zinc-300 px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wider text-blue-600 w-20">WH Total</th>
+                <th className="border border-zinc-300 px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wider text-zinc-500 w-20">Stock</th>
+                <th className="border border-zinc-300 px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wider text-zinc-500 w-20">Local</th>
+                <th className="border border-zinc-300 px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wider text-rose-500 w-20">Gap</th>
+                <th className="border border-zinc-300 px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-zinc-500 min-w-[140px]">Vendor</th>
+                <th className="border border-zinc-300 px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-zinc-500 min-w-[120px]">Status</th>
+                <th className="border border-zinc-300 px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-zinc-500 min-w-[140px]">Notes</th>
+                <th className="border border-zinc-300 px-3 py-2 w-10"></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-50">
+            <tbody>
               {filteredItems.length === 0 ? (
                 <tr>
-                  <td colSpan={13} className="py-20 text-center">
+                  <td colSpan={15 + warehouses.length} className="py-20 text-center">
                     <div className="flex flex-col items-center gap-3">
-                      <div className="rounded-full bg-zinc-50 p-4">
-                        <Package size={32} className="text-zinc-200" />
-                      </div>
-                      <p className="text-sm font-medium text-zinc-400">No items found. Click "+ Add Row" to begin sourcing.</p>
+                      <Package size={32} className="text-zinc-200" />
+                      <p className="text-sm font-medium text-zinc-400">No items found.</p>
                     </div>
                   </td>
                 </tr>
@@ -432,24 +490,21 @@ export default function ProcurementDetail() {
                 filteredItems.map((item, idx) => {
                   if (item.is_header_row) {
                     return (
-                      <tr key={item.id} className="group bg-zinc-50/80 transition-colors hover:bg-zinc-100/80">
-                        <td className="px-4 py-3 text-center">
+                      <tr key={item.id} className="bg-zinc-50">
+                        <td className="border border-zinc-300 px-3 py-2 text-center">
                           <Layout size={14} className="mx-auto text-blue-400" />
                         </td>
-                        <td colSpan={11} className="px-2 py-3">
+                        <td colSpan={13 + warehouses.length} className="border border-zinc-300 px-3 py-2">
                           <input
                             type="text"
                             value={item.header_text || ''}
                             onChange={(e) => updateItem(item.id, 'header_text', e.target.value)}
-                            className="w-full border-none bg-transparent p-0 text-xs font-black uppercase tracking-widest text-zinc-900 outline-none placeholder:text-zinc-300"
+                            className="w-full border-none bg-transparent p-0 text-xs font-black uppercase tracking-wider text-zinc-900 outline-none placeholder:text-zinc-300"
                             placeholder="Section Title..."
                           />
                         </td>
-                        <td className="px-4 py-3 text-center">
-                          <button 
-                            onClick={() => handleDeleteRow(item)} 
-                            className="opacity-0 transition-opacity hover:text-rose-500 group-hover:opacity-100"
-                          >
+                        <td className="border border-zinc-300 px-3 py-2 text-center">
+                          <button onClick={() => handleDeleteRow(item)} className="opacity-0 transition-opacity hover:text-rose-500 group-hover:opacity-100">
                             <Trash2 size={16} />
                           </button>
                         </td>
@@ -467,110 +522,121 @@ export default function ProcurementDetail() {
                     <tr
                       key={item.id}
                       className={cn(
-                        "group transition-all hover:bg-zinc-50/50",
-                        item._dirty && "bg-amber-50/30",
-                        isDispatched && "opacity-60 grayscale-[0.5]"
+                        "group",
+                        item._dirty && "bg-amber-50/40",
+                        !item._dirty && idx % 2 === 0 && "bg-white",
+                        !item._dirty && idx % 2 !== 0 && "bg-zinc-50/30",
+                        isDispatched && "opacity-60"
                       )}
                     >
-                      <td className="relative px-4 py-3 text-center text-[11px] font-bold text-zinc-300">
-                        {item._dirty && (
-                          <div className="absolute left-0 top-0 h-full w-1 bg-amber-400 animate-in fade-in slide-in-from-left-1 duration-300" />
-                        )}
+                      <td className="border border-zinc-300 px-3 py-3 text-center text-[11px] font-medium text-zinc-400">
                         {idx + 1}
                       </td>
 
-                      <td className="px-2 py-3">
+                      <td className="border border-zinc-300 px-2 py-3">
                         <input
                           type="text"
                           value={item.item_name}
                           onChange={(e) => updateItem(item.id, 'item_name', e.target.value)}
                           disabled={isDispatched}
                           placeholder="Search or enter item name..."
-                          className={cn(inputClass, "font-semibold")}
+                          className="w-full border-none bg-transparent px-1.5 py-1 text-[13px] text-zinc-900 outline-none placeholder:text-zinc-300 focus:ring-1 focus:ring-blue-500/20 rounded"
                         />
                       </td>
 
-                      <td className="px-2 py-3">
+                      <td className="border border-zinc-300 px-2 py-3">
                         <input
                           type="text"
                           value={item.make || ''}
                           onChange={(e) => updateItem(item.id, 'make', e.target.value)}
                           disabled={isDispatched}
                           placeholder="Make..."
-                          className={inputClass}
+                          className="w-full border-none bg-transparent px-1.5 py-1 text-[13px] text-zinc-900 outline-none placeholder:text-zinc-300 focus:ring-1 focus:ring-blue-500/20 rounded"
                         />
                       </td>
 
-                      <td className="px-2 py-3">
+                      <td className="border border-zinc-300 px-2 py-3">
                         <input
                           type="text"
                           value={item.variant_name || ''}
                           onChange={(e) => updateItem(item.id, 'variant_name', e.target.value)}
                           disabled={isDispatched}
                           placeholder="Variant..."
-                          className={inputClass}
+                          className="w-full border-none bg-transparent px-1.5 py-1 text-[13px] text-zinc-900 outline-none placeholder:text-zinc-300 focus:ring-1 focus:ring-blue-500/20 rounded"
                         />
                       </td>
 
-                      <td className="px-2 py-3">
+                      <td className="border border-zinc-300 px-2 py-3">
                         <input
                           type="text"
                           value={item.uom || ''}
                           onChange={(e) => updateItem(item.id, 'uom', e.target.value)}
                           disabled={isDispatched}
                           placeholder="UOM"
-                          className={cn(inputClass, "text-center font-bold")}
+                          className="w-full border-none bg-transparent px-1.5 py-1 text-[13px] text-center text-zinc-900 outline-none placeholder:text-zinc-300 focus:ring-1 focus:ring-blue-500/20 rounded"
                         />
                       </td>
 
-                      <td className="px-2 py-3">
+                      <td className="border border-zinc-300 px-2 py-3">
                         <input
                           type="number"
                           value={item.boq_qty || ''}
                           onChange={(e) => updateItem(item.id, 'boq_qty', parseFloat(e.target.value) || 0)}
                           disabled={isDispatched}
-                          className={cn(inputClass, "text-right font-medium")}
+                          className="w-full border-none bg-transparent px-1.5 py-1 text-[13px] text-right tabular-nums text-zinc-900 outline-none placeholder:text-zinc-300 focus:ring-1 focus:ring-blue-500/20 rounded"
                         />
                       </td>
 
-                      <td className="px-2 py-3">
+                      {warehouses.map((wh: any) => (
+                        <td key={wh.id} className="border border-zinc-300 px-2 py-3 text-right">
+                          <span className="text-[13px] tabular-nums text-zinc-500">
+                            {getItemWarehouseStock(item.item_id, wh.id) || '-'}
+                          </span>
+                        </td>
+                      ))}
+                      <td className="border border-zinc-300 px-2 py-3 text-right">
+                        <span className="text-[13px] font-semibold tabular-nums text-blue-600">
+                          {getWarehouseStockTotal(item.item_id)}
+                        </span>
+                      </td>
+
+                      <td className="border border-zinc-300 px-2 py-3">
                         <input
                           type="number"
                           value={item.stock_qty || ''}
                           onChange={(e) => updateItem(item.id, 'stock_qty', parseFloat(e.target.value) || 0)}
                           disabled={isDispatched}
-                          className={cn(inputClass, "text-right font-medium")}
+                          className="w-full border-none bg-transparent px-1.5 py-1 text-[13px] text-right tabular-nums text-zinc-900 outline-none placeholder:text-zinc-300 focus:ring-1 focus:ring-blue-500/20 rounded"
                         />
                       </td>
 
-                      <td className="px-2 py-3">
+                      <td className="border border-zinc-300 px-2 py-3">
                         <input
                           type="number"
                           value={item.local_qty || ''}
                           onChange={(e) => updateItem(item.id, 'local_qty', parseFloat(e.target.value) || 0)}
                           disabled={isDispatched}
-                          className={cn(inputClass, "text-right font-medium")}
+                          className="w-full border-none bg-transparent px-1.5 py-1 text-[13px] text-right tabular-nums text-zinc-900 outline-none placeholder:text-zinc-300 focus:ring-1 focus:ring-blue-500/20 rounded"
                         />
                       </td>
 
-                      <td className="px-4 py-3 text-right">
-                        <div className={cn(
-                          "inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-black ring-1 ring-inset",
+                      <td className="border border-zinc-300 px-2 py-3 text-right">
+                        <span className={cn(
+                          "inline-flex items-center rounded px-2 py-1 text-xs font-bold tabular-nums",
                           isGap 
-                            ? "bg-rose-50 text-rose-600 ring-rose-500/10" 
-                            : "bg-emerald-50 text-emerald-600 ring-emerald-500/10"
+                            ? "bg-rose-50 text-rose-600 border border-rose-200" 
+                            : "bg-emerald-50 text-emerald-600 border border-emerald-200"
                         )}>
-                          {gap > 0 ? <Plus size={10} /> : null}
                           {gap}
-                        </div>
+                        </span>
                       </td>
 
-                      <td className="px-2 py-3">
+                      <td className="border border-zinc-300 px-2 py-3">
                         <select
                           value={item.vendor_id || ''}
                           onChange={(e) => updateItem(item.id, 'vendor_id', e.target.value || null)}
                           disabled={isDispatched}
-                          className={cn(inputClass, "cursor-pointer appearance-none truncate")}
+                          className="w-full border-none bg-transparent px-1.5 py-1 text-[13px] text-zinc-900 outline-none focus:ring-1 focus:ring-blue-500/20 rounded cursor-pointer"
                         >
                           <option value="">Select Vendor...</option>
                           {vendors.map((v: any) => (
@@ -579,21 +645,16 @@ export default function ProcurementDetail() {
                         </select>
                       </td>
 
-                      <td className="px-2 py-3">
+                      <td className="border border-zinc-300 px-2 py-3">
                         <div className="relative">
-                          <StatusIcon size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: cfg.color }} />
                           <select
                             value={item.status}
                             onChange={(e) => updateItem(item.id, 'status', e.target.value as Status)}
                             className={cn(
-                              "w-full cursor-pointer appearance-none rounded-lg border px-9 py-1.5 text-[11px] font-black uppercase tracking-wider outline-none transition-all",
+                              "w-full cursor-pointer appearance-none rounded border px-2 py-1 text-[11px] font-bold uppercase tracking-wider outline-none transition-all",
                               "hover:brightness-95 active:scale-[0.98]"
                             )}
-                            style={{ 
-                              backgroundColor: cfg.bg, 
-                              color: cfg.color, 
-                              borderColor: cfg.border 
-                            }}
+                            style={{ backgroundColor: cfg.bg, color: cfg.color, borderColor: cfg.border }}
                           >
                             {STATUSES.map((s) => (
                               <option key={s} value={s}>{s}</option>
@@ -602,23 +663,20 @@ export default function ProcurementDetail() {
                         </div>
                       </td>
 
-                      <td className="px-2 py-3">
+                      <td className="border border-zinc-300 px-2 py-3">
                         <input
                           type="text"
                           value={item.notes || ''}
                           onChange={(e) => updateItem(item.id, 'notes', e.target.value)}
                           disabled={isDispatched}
                           placeholder="Item notes..."
-                          className={inputClass}
+                          className="w-full border-none bg-transparent px-1.5 py-1 text-[13px] text-zinc-900 outline-none placeholder:text-zinc-300 focus:ring-1 focus:ring-blue-500/20 rounded"
                         />
                       </td>
 
-                      <td className="px-4 py-3 text-center">
+                      <td className="border border-zinc-300 px-2 py-3 text-center">
                         {!isDispatched && (
-                          <button 
-                            onClick={() => handleDeleteRow(item)} 
-                            className="text-zinc-200 transition-colors hover:text-rose-500 group-hover:text-zinc-400"
-                          >
+                          <button onClick={() => handleDeleteRow(item)} className="text-zinc-200 transition-colors hover:text-rose-500 group-hover:text-zinc-400">
                             <Trash2 size={16} />
                           </button>
                         )}

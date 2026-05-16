@@ -287,6 +287,7 @@ export default function App() {
         return <PurchaseModule />;
       // Inventory
       case '/procurement': return <ProcurementList />;
+      case '/procurement/detail': return <ProcurementDetail />;
       case '/store/materials': return <MaterialsList />;
       case '/store/inward': return <MaterialInward />;
       case '/store/outward': return <MaterialOutward />;

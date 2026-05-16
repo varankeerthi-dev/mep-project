@@ -273,28 +273,28 @@ export function GridMinimalDocumentWithTerms({ vm, columns }: GridMinimalDocumen
         <View style={styles.tableHeader}>
           {columns.sno !== false && <Text style={[styles.cell, { flex: 0.5 }]}>S.No</Text>}
           {columns.hsn && <Text style={[styles.cell, { flex: 1 }]}>HSN/SAC</Text>}
-          <Text style={[styles.cell, { flex: 3 }]}>Description</Text>}
+          <Text style={[styles.cell, { flex: 3 }]}>Description</Text>
           {columns.make && <Text style={[styles.cell, { flex: 1 }]}>Make</Text>}
           {columns.unit && <Text style={[styles.cellCenter, { flex: 0.5 }]}>Unit</Text>}
-          <Text style={[styles.cellCenter, { flex: 0.5 }]}>Qty</Text>}
+          <Text style={[styles.cellCenter, { flex: 0.5 }]}>Qty</Text>
           {columns.discPct && <Text style={[styles.cellRight, { flex: 0.5 }]}>Disc%</Text>}
           {columns.gst && <Text style={[styles.cellRight, { flex: 0.5 }]}>GST%</Text>}
-          <Text style={[styles.cellRight, { flex: 1 }]}>Rate</Text>}
-          <Text style={[styles.cellRight, { flex: 1.2, borderRight: 'none' }]}>Amount</Text>}
+          <Text style={[styles.cellRight, { flex: 1 }]}>Rate</Text>
+          <Text style={[styles.cellRight, { flex: 1.2, borderRight: 'none' }]}>Amount</Text>
         </View>
 
         {vm.items.map((item) => (
           <View key={item.id} style={styles.tableRow}>
             {columns.sno !== false && <Text style={[styles.cell, { flex: 0.5 }]}>{item.sno}</Text>}
             {columns.hsn && <Text style={[styles.cell, { flex: 1 }]}>{item.hsn}</Text>}
-            <Text style={[styles.cell, { flex: 3 }]}>{item.description}</Text>}
+            <Text style={[styles.cell, { flex: 3 }]}>{item.description}</Text>
             {columns.make && <Text style={[styles.cell, { flex: 1 }]}>{item.make}</Text>}
             {columns.unit && <Text style={[styles.cellCenter, { flex: 0.5 }]}>{item.unit}</Text>}
-            <Text style={[styles.cellCenter, { flex: 0.5 }]}>{item.qty}</Text>}
+            <Text style={[styles.cellCenter, { flex: 0.5 }]}>{item.qty}</Text>
             {columns.discPct && <Text style={[styles.cellRight, { flex: 0.5 }]}>{item.discPct}%</Text>}
             {columns.gst && <Text style={[styles.cellRight, { flex: 0.5 }]}>{item.gstPct}%</Text>}
-            <Text style={[styles.cellRight, { flex: 1 }]}>{fmt(item.rate)}</Text>}
-            <Text style={[styles.cellRight, { flex: 1.2, borderRight: 'none' }]}>{fmt(item.amount)}</Text>}
+            <Text style={[styles.cellRight, { flex: 1 }]}>{fmt(item.rate)}</Text>
+            <Text style={[styles.cellRight, { flex: 1.2, borderRight: 'none' }]}>{fmt(item.amount)}</Text>
           </View>
         ))}
 

@@ -33,6 +33,9 @@ export default function QuotationView() {
   const [showConvertMenu, setShowConvertMenu] = useState(false);
   const [showPrintMenu, setShowPrintMenu] = useState(false);
   const [showTemplateMenu, setShowTemplateMenu] = useState(false);
+  const [showActionsMenu, setShowActionsMenu] = useState(false);
+  const [showStockCheckModal, setShowStockCheckModal] = useState(false);
+  const [launchingStockCheck, setLaunchingStockCheck] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState(null);
   const [printMenuView, setPrintMenuView] = useState('main'); // 'main' or 'templates'
   const [printLoading, setPrintLoading] = useState(false);
@@ -48,7 +51,7 @@ export default function QuotationView() {
         setShowConvertMenu(false);
       }
     };
-    if (showPrintMenu || showConvertMenu) {
+    if (showPrintMenu || showConvertMenu || showActionsMenu) {
       document.addEventListener('mousedown', handleClickOutside);
     }
     return () => {
@@ -337,6 +340,71 @@ export default function QuotationView() {
     }
   };
 
+  const handleLaunchStockCheck = async () => {
+    setLaunchingStockCheck(true);
+    try {
+      const client = quotation.client;
+      const project = quotation.project;
+
+      const { data: listData, error: listError } = await supabase
+        .from('procurement_lists')
+        .insert({
+          organisation_id: organisation?.id,
+          title: `${quotation.quotation_no || 'Quotation'} — Stock Check`,
+          source: 'quotation',
+          quotation_id: quotation.id || null,
+          quotation_no: quotation.quotation_no || null,
+          client_id: quotation.client_id || client?.id || null,
+          client_name: client?.client_name || client?.name || null,
+          project_id: quotation.project_id || project?.id || null,
+          project_name: project?.project_name || null,
+          status: 'Active',
+        })
+        .select()
+        .single();
+
+      if (listError) throw listError;
+
+      const rows = (quotation.items || [])
+        .filter((item: any) => !item.is_header && (item.description || item.item_id || item.qty))
+        .map((item: any, index: number) => {
+          const material = item.item || {};
+          const clientId = quotation.client_id || client?.id;
+          const mapping = clientId && material?.mappings?.find((m: any) => m.client_id === clientId);
+          return {
+            list_id: listData.id,
+            organisation_id: organisation?.id,
+            item_id: material.id || item.item_id || null,
+            item_name: mapping?.client_description || item.description || material.display_name || material.name || '',
+            make: item.make || material.make || null,
+            variant_name: item.variant?.variant_name || null,
+            uom: item.uom || material.unit || null,
+            boq_qty: parseFloat(String(item.qty)) || 0,
+            stock_qty: 0,
+            local_qty: 0,
+            vendor_id: null,
+            notes: null,
+            status: 'Pending',
+            display_order: index,
+            is_header_row: false,
+          };
+        });
+
+      if (rows.length > 0) {
+        const { error } = await supabase.from('procurement_items').insert(rows);
+        if (error) throw error;
+      }
+
+      setShowStockCheckModal(false);
+      setShowActionsMenu(false);
+      navigate(`/procurement/detail?id=${listData.id}`);
+    } catch (e: any) {
+      alert('Error launching stock check: ' + e.message);
+    } finally {
+      setLaunchingStockCheck(false);
+    }
+  };
+
   const handlePrintAction = async (action, templateId = null) => {
     try {
       setPrintLoading(true);
@@ -385,17 +453,19 @@ export default function QuotationView() {
       if (action === 'preview') {
         previewQuotation(template);
       } else if (action === 'download') {
-        downloadPDF(template);
+        await downloadPDF(template);
       } else if (action === 'email') {
         alert('Email feature coming soon!');
       } else if (action === 'print') {
-        downloadPDF(template); // Fallback to download for default print
+        await downloadPDF(template); // Fallback to download for default print
       }
 
       setShowPrintMenu(false);
     } catch (err) {
       console.error('Error preparing print action:', err);
       alert('Unable to load print template. Please verify template settings.');
+    } finally {
+      setPrintLoading(false);
     }
   };
 
@@ -1257,7 +1327,7 @@ export default function QuotationView() {
             <div className="relative">
               <button 
                 className="inline-flex items-center gap-2 px-10 h-[25px] min-w-[100px] bg-white text-zinc-700 border border-zinc-300 rounded hover:bg-zinc-50 transition-all text-[12px] font-bold" 
-                onClick={() => { setShowConvertMenu(!showConvertMenu); setShowPrintMenu(false); setShowTemplateMenu(false); }}
+                onClick={() => { setShowConvertMenu(!showConvertMenu); setShowPrintMenu(false); setShowTemplateMenu(false); setShowActionsMenu(false); }}
               >
                 <FileText className="w-[14px] h-[14px]" />
                 Convert
@@ -1279,6 +1349,7 @@ export default function QuotationView() {
                   setShowPrintMenu(!showPrintMenu); 
                   setShowConvertMenu(false); 
                   setShowTemplateMenu(false);
+                  setShowActionsMenu(false);
                 }}
                 disabled={printLoading}
               >
@@ -1353,6 +1424,44 @@ export default function QuotationView() {
                       </div>
                     </>
                   )}
+                </div>
+              )}
+            </div>
+
+            <div className="relative">
+              <button 
+                className="inline-flex items-center gap-2 px-4 h-[25px] min-w-[40px] bg-white text-zinc-700 border border-zinc-300 rounded hover:bg-zinc-50 transition-all text-[12px] font-bold" 
+                onClick={() => { 
+                  setShowActionsMenu(!showActionsMenu); 
+                  setShowPrintMenu(false); 
+                  setShowConvertMenu(false);
+                  setShowTemplateMenu(false);
+                }}
+              >
+                <MoreHorizontal className="w-[14px] h-[14px]" />
+              </button>
+
+              {showActionsMenu && (
+                <div className="absolute left-0 top-full mt-1 z-50 min-w-[200px] bg-white border border-zinc-200 shadow-xl p-1 rounded-sm">
+                  <button 
+                    onClick={() => {
+                      setShowActionsMenu(false);
+                      handleLaunchStockCheck();
+                    }}
+                    disabled={launchingStockCheck}
+                    className="flex items-center gap-3 w-full text-left text-xs font-bold text-zinc-700 hover:bg-sky-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{ padding: '12px' }}
+                  >
+                    {launchingStockCheck ? (
+                      <Loader2 className="w-4 h-4 text-sky-500 animate-spin" />
+                    ) : (
+                      <span className="text-base">📦</span>
+                    )}
+                    <div>
+                      <div>Stock Check</div>
+                      <div className="text-[10px] font-normal text-zinc-400">Create procurement tracker</div>
+                    </div>
+                  </button>
                 </div>
               )}
             </div>
@@ -1490,7 +1599,10 @@ export default function QuotationView() {
                           {hasItemCode && <td className="border-r border-zinc-100" style={{ padding: '14px 7px' }}><span className="text-[10px] text-zinc-500 block">{item.item?.item_code || '-'}</span></td>}
                           {hasMake && <td className="border-r border-zinc-100" style={{ padding: '14px 7px' }}><span className="text-[10px] text-zinc-400 italic block">{item.make || '-'}</span></td>}
                           <td className="border-r border-zinc-100" style={{ padding: '14px 7px' }}>
-                            <div className="text-[12px] font-medium text-zinc-900 leading-tight">{item.description || item.item?.display_name || item.item?.name}</div>
+                            <div className="text-[12px] font-medium text-zinc-900 leading-tight">{item.item?.display_name || item.item?.name || '-'}</div>
+                            {item.description && item.description !== (item.item?.display_name || item.item?.name) && (
+                              <div className="text-[11px] text-zinc-500 leading-snug mt-1">{item.description}</div>
+                            )}
                             {item.override_flag && (
                               <span className="inline-flex items-center px-1 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-amber-50 text-amber-600 border border-amber-100">Modified</span>
                             )}
@@ -1690,6 +1802,56 @@ export default function QuotationView() {
                 dangerouslySetInnerHTML={{ __html: previewHTML }}
               />
             )}
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* Stock Check Confirmation Modal */}
+    {showStockCheckModal && (
+      <div className="fixed inset-0 z-[2000] bg-black/45 flex items-center justify-center" onClick={() => setShowStockCheckModal(false)}>
+        <div className="bg-white rounded-lg shadow-2xl w-[420px] max-h-[80vh] overflow-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="p-6 border-b border-zinc-100">
+            <h3 className="text-lg font-bold text-zinc-900">Launch Stock Check</h3>
+            <p className="text-sm text-zinc-500 mt-1">Create a procurement tracker from this quotation's line items.</p>
+          </div>
+          <div className="p-6">
+            <div className="bg-zinc-50 border border-zinc-200 rounded p-4 mb-4">
+              <div className="flex items-center gap-3 mb-2">
+                <span className="text-2xl">📦</span>
+                <div>
+                  <div className="text-sm font-bold text-zinc-900">{quotation.quotation_no || 'Quotation'}</div>
+                  <div className="text-xs text-zinc-500">{(quotation.items || []).filter((i: any) => !i.is_header).length} line items will be imported</div>
+                </div>
+              </div>
+            </div>
+            <div className="text-xs text-zinc-400 space-y-1">
+              <p>• BOQ quantities will be copied as required quantities</p>
+              <p>• Stock & local quantities start at 0</p>
+              <p>• You'll be taken to the procurement tracker to fill gaps</p>
+            </div>
+          </div>
+          <div className="p-6 border-t border-zinc-100 flex gap-3 justify-end">
+            <button
+              onClick={() => setShowStockCheckModal(false)}
+              className="px-4 py-2 text-sm font-bold text-zinc-700 bg-white border border-zinc-300 rounded hover:bg-zinc-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleLaunchStockCheck}
+              disabled={launchingStockCheck || !(quotation.items || []).some((i: any) => !i.is_header)}
+              className="px-4 py-2 text-sm font-bold text-white bg-green-600 rounded hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              {launchingStockCheck ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                'Launch Stock Check'
+              )}
+            </button>
           </div>
         </div>
       </div>

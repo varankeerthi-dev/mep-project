@@ -1,6 +1,7 @@
 export type PrintStyle = 'default' | 'grid_minimal' | 'pro_grid';
 
 export type GridMinimalColumns = {
+  sno: boolean;
   hsn: boolean;
   make: boolean;
   unit: boolean;
@@ -39,6 +40,7 @@ export function getPrintConfig(columnSettings: unknown): PrintConfig {
   const cols = isRecord(grid.columns) ? grid.columns : {};
 
   const columns: GridMinimalColumns = {
+    sno: cols.sno !== false,
     hsn: cols.hsn !== false,
     make: cols.make !== false,
     unit: cols.unit !== false,
