@@ -404,76 +404,31 @@ export default function ProcurementDetail() {
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="mb-10 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100">
-        {[
-          { label: 'Total items', value: stats.total, filter: 'all', icon: Package, color: 'slate' },
-          { label: 'Needs sourcing', value: stats.needsSourcing, filter: 'needs', icon: AlertCircle, color: 'rose' },
-          { label: 'Pending', value: stats.pending, filter: 'Pending', icon: CircleDashed, color: 'amber' },
-          { label: 'Sourcing', value: stats.sourcing, filter: 'Sourcing', icon: Search, color: 'cyan' },
-          { label: 'PO Raised', value: stats.poRaised, filter: 'PO Raised', icon: Clock, color: 'indigo' },
-          { label: 'Received', value: stats.received, filter: 'Received', icon: CheckCircle2, color: 'emerald' },
-          { label: 'Dispatched', value: stats.dispatched, filter: 'Dispatched', icon: Truck, color: 'slate' },
-        ].map((s) => {
-          const Icon = s.icon;
-          const isActive = filterStatus === s.filter;
-          const colorMap: any = {
-            slate: "bg-zinc-500",
-            rose: "bg-rose-500",
-            amber: "bg-amber-500",
-            cyan: "bg-cyan-600",
-            indigo: "bg-indigo-600",
-            emerald: "bg-emerald-600"
-          };
-          
-          return (
-            <button
-              key={s.filter}
-              onClick={() => setFilterStatus(s.filter)}
-              className={cn(
-                "flex flex-col items-start gap-1 rounded-2xl border p-4 text-left transition-all hover:translate-y-[-2px]",
-                isActive 
-                  ? "border-blue-200 bg-white shadow-xl shadow-blue-500/5 ring-2 ring-blue-500/10" 
-                  : "border-zinc-100 bg-white shadow-sm hover:shadow-md"
-              )}
-            >
-              <div className="flex w-full items-center justify-between">
-                <div className={cn("flex h-8 w-8 items-center justify-center rounded-lg bg-opacity-10", colorMap[s.color].replace('bg-', 'text-'))}>
-                  <Icon size={18} />
-                </div>
-                <div className="text-xl font-black text-zinc-900">{s.value}</div>
-              </div>
-              <div className="mt-1 text-[11px] font-bold uppercase tracking-wider text-zinc-400">{s.label}</div>
-            </button>
-          );
-        })}
-      </div>
-
       {/* Main Table Area */}
       <div className="overflow-hidden border border-zinc-300 bg-white animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200">
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-[13px]">
+          <table className="w-full border-collapse text-[12px]">
             <thead>
               <tr className="bg-zinc-100">
-                <th className="border border-zinc-300 px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-zinc-500 w-10">#</th>
-                <th className="border border-zinc-300 px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-zinc-500 min-w-[240px]">Item Description</th>
-                <th className="border border-zinc-300 px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-zinc-500 min-w-[100px]">Make</th>
-                <th className="border border-zinc-300 px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-zinc-500 min-w-[100px]">Variant</th>
-                <th className="border border-zinc-300 px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wider text-zinc-500 w-16">UOM</th>
-                <th className="border border-zinc-300 px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wider text-zinc-500 w-20">BOQ Qty</th>
+                <th className="border border-zinc-300 px-3 py-2.5 text-center text-[10px] font-bold uppercase tracking-wider text-zinc-500 w-10">#</th>
+                <th className="border border-zinc-300 px-3 py-2.5 text-center text-[10px] font-bold uppercase tracking-wider text-zinc-500 min-w-[240px]">Item Description</th>
+                <th className="border border-zinc-300 px-3 py-2.5 text-center text-[10px] font-bold uppercase tracking-wider text-zinc-500 min-w-[100px]">Make</th>
+                <th className="border border-zinc-300 px-3 py-2.5 text-center text-[10px] font-bold uppercase tracking-wider text-zinc-500 min-w-[100px]">Variant</th>
+                <th className="border border-zinc-300 px-3 py-2.5 text-center text-[10px] font-bold uppercase tracking-wider text-zinc-500 w-16">UOM</th>
+                <th className="border border-zinc-300 px-3 py-2.5 text-center text-[10px] font-bold uppercase tracking-wider text-zinc-500 w-20">BOQ Qty</th>
                 {warehouses.map((wh: any) => (
-                  <th key={wh.id} className="border border-zinc-300 px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wider text-zinc-500 w-20" title={wh.warehouse_name}>
+                  <th key={wh.id} className="border border-zinc-300 px-3 py-2.5 text-center text-[10px] font-bold uppercase tracking-wider text-zinc-500 w-20" title={wh.warehouse_name}>
                     {wh.warehouse_name.length > 8 ? wh.warehouse_name.substring(0, 8) + '…' : wh.warehouse_name}
                   </th>
                 ))}
-                <th className="border border-zinc-300 px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wider text-blue-600 w-20">WH Total</th>
-                <th className="border border-zinc-300 px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wider text-zinc-500 w-20">Stock</th>
-                <th className="border border-zinc-300 px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wider text-zinc-500 w-20">Local</th>
-                <th className="border border-zinc-300 px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wider text-rose-500 w-20">Gap</th>
-                <th className="border border-zinc-300 px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-zinc-500 min-w-[140px]">Vendor</th>
-                <th className="border border-zinc-300 px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-zinc-500 min-w-[120px]">Status</th>
-                <th className="border border-zinc-300 px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wider text-zinc-500 min-w-[140px]">Notes</th>
-                <th className="border border-zinc-300 px-3 py-2 w-10"></th>
+                <th className="border border-zinc-300 px-3 py-2.5 text-center text-[10px] font-bold uppercase tracking-wider text-blue-600 w-20">WH Total</th>
+                <th className="border border-zinc-300 px-3 py-2.5 text-center text-[10px] font-bold uppercase tracking-wider text-zinc-500 w-20">Stock</th>
+                <th className="border border-zinc-300 px-3 py-2.5 text-center text-[10px] font-bold uppercase tracking-wider text-zinc-500 w-20">Local</th>
+                <th className="border border-zinc-300 px-3 py-2.5 text-center text-[10px] font-bold uppercase tracking-wider text-rose-500 w-20">Gap</th>
+                <th className="border border-zinc-300 px-3 py-2.5 text-center text-[10px] font-bold uppercase tracking-wider text-zinc-500 min-w-[140px]">Vendor</th>
+                <th className="border border-zinc-300 px-3 py-2.5 text-center text-[10px] font-bold uppercase tracking-wider text-zinc-500 min-w-[120px]">Status</th>
+                <th className="border border-zinc-300 px-3 py-2.5 text-center text-[10px] font-bold uppercase tracking-wider text-zinc-500 min-w-[140px]">Notes</th>
+                <th className="border border-zinc-300 px-3 py-2.5 text-center w-10"></th>
               </tr>
             </thead>
             <tbody>
@@ -491,10 +446,10 @@ export default function ProcurementDetail() {
                   if (item.is_header_row) {
                     return (
                       <tr key={item.id} className="bg-zinc-50">
-                        <td className="border border-zinc-300 px-3 py-2 text-center">
+                        <td className="border border-zinc-300 px-3 py-4 text-center">
                           <Layout size={14} className="mx-auto text-blue-400" />
                         </td>
-                        <td colSpan={13 + warehouses.length} className="border border-zinc-300 px-3 py-2">
+                        <td colSpan={13 + warehouses.length} className="border border-zinc-300 px-3 py-4">
                           <input
                             type="text"
                             value={item.header_text || ''}
@@ -503,7 +458,7 @@ export default function ProcurementDetail() {
                             placeholder="Section Title..."
                           />
                         </td>
-                        <td className="border border-zinc-300 px-3 py-2 text-center">
+                        <td className="border border-zinc-300 px-3 py-4 text-center">
                           <button onClick={() => handleDeleteRow(item)} className="opacity-0 transition-opacity hover:text-rose-500 group-hover:opacity-100">
                             <Trash2 size={16} />
                           </button>
@@ -529,100 +484,100 @@ export default function ProcurementDetail() {
                         isDispatched && "opacity-60"
                       )}
                     >
-                      <td className="border border-zinc-300 px-3 py-3 text-center text-[11px] font-medium text-zinc-400">
+                      <td className="border border-zinc-300 px-3 py-5 text-center text-[11px] font-medium text-zinc-400">
                         {idx + 1}
                       </td>
 
-                      <td className="border border-zinc-300 px-2 py-3">
+                      <td className="border border-zinc-300 px-2 py-5">
                         <input
                           type="text"
                           value={item.item_name}
                           onChange={(e) => updateItem(item.id, 'item_name', e.target.value)}
                           disabled={isDispatched}
                           placeholder="Search or enter item name..."
-                          className="w-full border-none bg-transparent px-1.5 py-1 text-[13px] text-zinc-900 outline-none placeholder:text-zinc-300 focus:ring-1 focus:ring-blue-500/20 rounded"
+                          className="w-full border-none bg-transparent px-1.5 py-1 text-[12px] text-center text-zinc-900 outline-none placeholder:text-zinc-300 focus:ring-1 focus:ring-blue-500/20 rounded"
                         />
                       </td>
 
-                      <td className="border border-zinc-300 px-2 py-3">
+                      <td className="border border-zinc-300 px-2 py-5">
                         <input
                           type="text"
                           value={item.make || ''}
                           onChange={(e) => updateItem(item.id, 'make', e.target.value)}
                           disabled={isDispatched}
                           placeholder="Make..."
-                          className="w-full border-none bg-transparent px-1.5 py-1 text-[13px] text-zinc-900 outline-none placeholder:text-zinc-300 focus:ring-1 focus:ring-blue-500/20 rounded"
+                          className="w-full border-none bg-transparent px-1.5 py-1 text-[12px] text-center text-zinc-900 outline-none placeholder:text-zinc-300 focus:ring-1 focus:ring-blue-500/20 rounded"
                         />
                       </td>
 
-                      <td className="border border-zinc-300 px-2 py-3">
+                      <td className="border border-zinc-300 px-2 py-5">
                         <input
                           type="text"
                           value={item.variant_name || ''}
                           onChange={(e) => updateItem(item.id, 'variant_name', e.target.value)}
                           disabled={isDispatched}
                           placeholder="Variant..."
-                          className="w-full border-none bg-transparent px-1.5 py-1 text-[13px] text-zinc-900 outline-none placeholder:text-zinc-300 focus:ring-1 focus:ring-blue-500/20 rounded"
+                          className="w-full border-none bg-transparent px-1.5 py-1 text-[12px] text-center text-zinc-900 outline-none placeholder:text-zinc-300 focus:ring-1 focus:ring-blue-500/20 rounded"
                         />
                       </td>
 
-                      <td className="border border-zinc-300 px-2 py-3">
+                      <td className="border border-zinc-300 px-2 py-5">
                         <input
                           type="text"
                           value={item.uom || ''}
                           onChange={(e) => updateItem(item.id, 'uom', e.target.value)}
                           disabled={isDispatched}
                           placeholder="UOM"
-                          className="w-full border-none bg-transparent px-1.5 py-1 text-[13px] text-center text-zinc-900 outline-none placeholder:text-zinc-300 focus:ring-1 focus:ring-blue-500/20 rounded"
+                          className="w-full border-none bg-transparent px-1.5 py-1 text-[12px] text-center text-zinc-900 outline-none placeholder:text-zinc-300 focus:ring-1 focus:ring-blue-500/20 rounded"
                         />
                       </td>
 
-                      <td className="border border-zinc-300 px-2 py-3">
+                      <td className="border border-zinc-300 px-2 py-5">
                         <input
                           type="number"
                           value={item.boq_qty || ''}
                           onChange={(e) => updateItem(item.id, 'boq_qty', parseFloat(e.target.value) || 0)}
                           disabled={isDispatched}
-                          className="w-full border-none bg-transparent px-1.5 py-1 text-[13px] text-right tabular-nums text-zinc-900 outline-none placeholder:text-zinc-300 focus:ring-1 focus:ring-blue-500/20 rounded"
+                          className="w-full border-none bg-transparent px-1.5 py-1 text-[12px] text-center tabular-nums text-zinc-900 outline-none placeholder:text-zinc-300 focus:ring-1 focus:ring-blue-500/20 rounded"
                         />
                       </td>
 
                       {warehouses.map((wh: any) => (
-                        <td key={wh.id} className="border border-zinc-300 px-2 py-3 text-right">
-                          <span className="text-[13px] tabular-nums text-zinc-500">
+                        <td key={wh.id} className="border border-zinc-300 px-2 py-5 text-center">
+                          <span className="text-[12px] tabular-nums text-zinc-500">
                             {getItemWarehouseStock(item.item_id, wh.id) || '-'}
                           </span>
                         </td>
                       ))}
-                      <td className="border border-zinc-300 px-2 py-3 text-right">
-                        <span className="text-[13px] font-semibold tabular-nums text-blue-600">
+                      <td className="border border-zinc-300 px-2 py-5 text-center">
+                        <span className="text-[12px] font-semibold tabular-nums text-blue-600">
                           {getWarehouseStockTotal(item.item_id)}
                         </span>
                       </td>
 
-                      <td className="border border-zinc-300 px-2 py-3">
+                      <td className="border border-zinc-300 px-2 py-5">
                         <input
                           type="number"
                           value={item.stock_qty || ''}
                           onChange={(e) => updateItem(item.id, 'stock_qty', parseFloat(e.target.value) || 0)}
                           disabled={isDispatched}
-                          className="w-full border-none bg-transparent px-1.5 py-1 text-[13px] text-right tabular-nums text-zinc-900 outline-none placeholder:text-zinc-300 focus:ring-1 focus:ring-blue-500/20 rounded"
+                          className="w-full border-none bg-transparent px-1.5 py-1 text-[12px] text-center tabular-nums text-zinc-900 outline-none placeholder:text-zinc-300 focus:ring-1 focus:ring-blue-500/20 rounded"
                         />
                       </td>
 
-                      <td className="border border-zinc-300 px-2 py-3">
+                      <td className="border border-zinc-300 px-2 py-5">
                         <input
                           type="number"
                           value={item.local_qty || ''}
                           onChange={(e) => updateItem(item.id, 'local_qty', parseFloat(e.target.value) || 0)}
                           disabled={isDispatched}
-                          className="w-full border-none bg-transparent px-1.5 py-1 text-[13px] text-right tabular-nums text-zinc-900 outline-none placeholder:text-zinc-300 focus:ring-1 focus:ring-blue-500/20 rounded"
+                          className="w-full border-none bg-transparent px-1.5 py-1 text-[12px] text-center tabular-nums text-zinc-900 outline-none placeholder:text-zinc-300 focus:ring-1 focus:ring-blue-500/20 rounded"
                         />
                       </td>
 
-                      <td className="border border-zinc-300 px-2 py-3 text-right">
+                      <td className="border border-zinc-300 px-2 py-5 text-center">
                         <span className={cn(
-                          "inline-flex items-center rounded px-2 py-1 text-xs font-bold tabular-nums",
+                          "inline-flex items-center rounded px-2 py-1 text-[11px] font-bold tabular-nums",
                           isGap 
                             ? "bg-rose-50 text-rose-600 border border-rose-200" 
                             : "bg-emerald-50 text-emerald-600 border border-emerald-200"
@@ -631,12 +586,12 @@ export default function ProcurementDetail() {
                         </span>
                       </td>
 
-                      <td className="border border-zinc-300 px-2 py-3">
+                      <td className="border border-zinc-300 px-2 py-5">
                         <select
                           value={item.vendor_id || ''}
                           onChange={(e) => updateItem(item.id, 'vendor_id', e.target.value || null)}
                           disabled={isDispatched}
-                          className="w-full border-none bg-transparent px-1.5 py-1 text-[13px] text-zinc-900 outline-none focus:ring-1 focus:ring-blue-500/20 rounded cursor-pointer"
+                          className="w-full border-none bg-transparent px-1.5 py-1 text-[12px] text-center text-zinc-900 outline-none focus:ring-1 focus:ring-blue-500/20 rounded cursor-pointer"
                         >
                           <option value="">Select Vendor...</option>
                           {vendors.map((v: any) => (
@@ -645,7 +600,7 @@ export default function ProcurementDetail() {
                         </select>
                       </td>
 
-                      <td className="border border-zinc-300 px-2 py-3">
+                      <td className="border border-zinc-300 px-2 py-5">
                         <div className="relative">
                           <select
                             value={item.status}
@@ -663,18 +618,18 @@ export default function ProcurementDetail() {
                         </div>
                       </td>
 
-                      <td className="border border-zinc-300 px-2 py-3">
+                      <td className="border border-zinc-300 px-2 py-5">
                         <input
                           type="text"
                           value={item.notes || ''}
                           onChange={(e) => updateItem(item.id, 'notes', e.target.value)}
                           disabled={isDispatched}
                           placeholder="Item notes..."
-                          className="w-full border-none bg-transparent px-1.5 py-1 text-[13px] text-zinc-900 outline-none placeholder:text-zinc-300 focus:ring-1 focus:ring-blue-500/20 rounded"
+                          className="w-full border-none bg-transparent px-1.5 py-1 text-[12px] text-center text-zinc-900 outline-none placeholder:text-zinc-300 focus:ring-1 focus:ring-blue-500/20 rounded"
                         />
                       </td>
 
-                      <td className="border border-zinc-300 px-2 py-3 text-center">
+                      <td className="border border-zinc-300 px-2 py-5 text-center">
                         {!isDispatched && (
                           <button onClick={() => handleDeleteRow(item)} className="text-zinc-200 transition-colors hover:text-rose-500 group-hover:text-zinc-400">
                             <Trash2 size={16} />
