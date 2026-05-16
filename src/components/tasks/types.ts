@@ -486,3 +486,80 @@ export const ROLE_PERMISSIONS: Record<string, TaskPermission[]> = {
     'tasks.manage_views',
   ],
 };
+
+// ============================================
+// BACKWARD COMPATIBILITY ALIASES
+// For legacy components (ProjectTaskGroup, TaskCreateDrawer, etc.)
+// ============================================
+
+export type ProjectTask = Task;
+
+export const PRIORITY_COLORS: Record<string, { bg: string; text: string; dot: string; label: string }> = {
+  ...PRIORITY_CONFIG,
+  None:      { bg: '#f8fafc', text: '#94a3b8', dot: '#cbd5e1', label: 'None' },
+  Low:       PRIORITY_CONFIG.low,
+  Medium:    PRIORITY_CONFIG.medium,
+  High:      PRIORITY_CONFIG.high,
+  Critical:  PRIORITY_CONFIG.critical,
+};
+
+export const STATUS_COLORS: Record<string, { bg: string; text: string; border: string; dot: string; label: string }> = {
+  ...STATUS_CONFIG,
+  'Not Started':    STATUS_CONFIG.not_started,
+  'In Progress':    STATUS_CONFIG.in_progress,
+  'Possible Delay': STATUS_CONFIG.under_review,
+  'On Hold':        STATUS_CONFIG.on_hold,
+  'Completed':      STATUS_CONFIG.completed,
+  'Cancelled':      STATUS_CONFIG.cancelled,
+};
+
+export const TASK_COLORS = ['#3b82f6', '#ef4444', '#f59e0b', '#22c55e', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316', '#6366f1', '#6b7280'];
+
+export type TaskColumns = TaskColumnConfig;
+
+export const DEFAULT_TASK_COLUMNS: TaskColumns = DEFAULT_COLUMNS;
+
+export type { TaskColumns as TaskColumnsType };
+
+export interface TaskUpdateInputLegacy {
+  title?: string;
+  description?: string;
+  status?: string;
+  priority?: string;
+  assignee_ids?: string[];
+  task_group_id?: string | null;
+  parent_task_id?: string | null;
+  start_date?: string | null;
+  due_date?: string | null;
+  duration_days?: number | null;
+  estimated_hours?: number | null;
+  tags?: string[];
+  color?: string | null;
+  is_following?: boolean;
+  is_archived?: boolean;
+  completion_percentage?: number;
+  discipline?: string | null;
+  location?: string | null;
+  drawing_ref?: string | null;
+  wbs_code?: string | null;
+  task_no?: number;
+}
+
+export const COLUMN_LABELS: Record<string, string> = {
+  task_no: 'No.',
+  title: 'Task Name',
+  status: 'Status',
+  priority: 'Priority',
+  assignees: 'Assignees',
+  discipline: 'Discipline',
+  start_date: 'Start',
+  due_date: 'Due',
+  duration_days: 'Duration',
+  completion_percentage: 'Progress',
+  tags: 'Tags',
+  location: 'Location',
+  drawing_ref: 'Drawing',
+  wbs_code: 'WBS',
+  estimated_hours: 'Est. Hrs',
+  actual_hours: 'Act. Hrs',
+};

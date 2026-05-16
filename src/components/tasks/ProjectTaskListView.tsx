@@ -21,9 +21,13 @@ import {
 } from 'lucide-react';
 import { ProjectTask, TaskGroup, TaskColumns, DEFAULT_TASK_COLUMNS, COLUMN_LABELS, TaskCreateInput, TaskUpdateInput, GroupCreateInput } from './types';
 import ProjectTaskGroup from './ProjectTaskGroup';
+import ProjectTaskBoard from './ProjectTaskBoard';
+import ProjectTaskGantt from './ProjectTaskGantt';
+import ProjectTaskCalendar from './ProjectTaskCalendar';
 import TaskEditDrawer from './TaskEditDrawer';
 import TaskCreateDrawer from './TaskCreateDrawer';
 import GroupCreateModal from './GroupCreateModal';
+import { TaskViewType } from './types';
 
 interface ProjectTaskListViewProps {
   projectId: string;
@@ -226,6 +230,12 @@ const styles = `
     background: #f9fafb;
   }
   
+  .ptl-view-btn.active {
+    background: #eff6ff;
+    color: #2563eb;
+    border-color: #bfdbfe;
+  }
+  
   .ptl-toolbar-right {
     display: flex;
     align-items: center;
@@ -406,13 +416,31 @@ export default function ProjectTaskListView({
 }: ProjectTaskListViewProps) {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState('');
-  const [viewColumns, setViewColumns] = useState<TaskColumns>(DEFAULT_TASK_COLUMNS);
+  const [viewColumns, setViewColumns] = useState<Record<string, boolean>>({
+    task_no: true,
+    title: true,
+    assignees: true,
+    status: true,
+    priority: true,
+    start_date: true,
+    due_date: true,
+    completion_percentage: true,
+    tags: false,
+    discipline: false,
+    duration_days: false,
+    location: false,
+    drawing_ref: false,
+    wbs_code: false,
+    estimated_hours: false,
+    actual_hours: false,
+  });
   const [showColumnDropdown, setShowColumnDropdown] = useState(false);
   const [selectedTask, setSelectedTask] = useState<ProjectTask | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showGroupModal, setShowGroupModal] = useState(false);
   const [createForGroupId, setCreateForGroupId] = useState<string | null>(null);
   const [toolbarCollapsed, setToolbarCollapsed] = useState(false);
+  const [currentView, setCurrentView] = useState<TaskViewType>('table');
 
   // Fetch task groups with tasks
   const { data: groups = [], isLoading } = useQuery({
@@ -427,10 +455,11 @@ export default function ProjectTaskListView({
       if (groupsError) throw groupsError;
 
       const { data: tasks, error: tasksError } = await supabase
-        .from('project_tasks')
+        .from('tasks')
         .select('*')
         .eq('project_id', projectId)
         .is('parent_task_id', null)
+        .is('deleted_at', null)
         .order('task_no', { ascending: true });
 
       if (tasksError) throw tasksError;
@@ -470,7 +499,7 @@ export default function ProjectTaskListView({
   const createTaskMutation = useMutation({
     mutationFn: async (input: TaskCreateInput) => {
       const { data, error } = await supabase
-        .from('project_tasks')
+        .from('tasks')
         .insert({
           ...input,
           organisation_id: organisationId,
@@ -492,7 +521,7 @@ export default function ProjectTaskListView({
   const updateTaskMutation = useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: TaskUpdateInput }) => {
       const { data, error } = await supabase
-        .from('project_tasks')
+        .from('tasks')
         .update(updates)
         .eq('id', id)
         .select()
@@ -510,7 +539,7 @@ export default function ProjectTaskListView({
   const deleteTaskMutation = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
-        .from('project_tasks')
+        .from('tasks')
         .delete()
         .eq('id', id);
       if (error) throw error;
@@ -558,7 +587,7 @@ export default function ProjectTaskListView({
   });
 
   // Toggle column visibility
-  const toggleColumn = (col: keyof TaskColumns) => {
+  const toggleColumn = (col: string) => {
     setViewColumns(prev => ({ ...prev, [col]: !prev[col] }));
   };
 
@@ -569,7 +598,7 @@ export default function ProjectTaskListView({
 
   // Handle inline name edit
   const handleNameInlineEdit = async (taskId: string, newName: string) => {
-    updateTaskMutation.mutate({ id: taskId, updates: { name: newName } });
+    updateTaskMutation.mutate({ id: taskId, updates: { title: newName } });
   };
 
   // Handle create task
@@ -581,8 +610,8 @@ export default function ProjectTaskListView({
   // Filter tasks by search
   const filteredGroups = groups.map(group => ({
     ...group,
-    tasks: group.tasks?.filter(task =>
-      task.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    tasks: group.tasks?.filter((task: any) =>
+      task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       task.task_no.toString().includes(searchTerm)
     ),
   })).filter(group => group.tasks && group.tasks.length > 0);
@@ -591,13 +620,13 @@ export default function ProjectTaskListView({
   const getColumnWidths = () => {
     const widths: Record<string, string> = {
       task_no: '80px',
-      name: '1fr',
+      title: '1fr',
       assignees: '160px',
       status: '140px',
       tags: '120px',
       start_date: '120px',
       due_date: '120px',
-      duration: '100px',
+      duration_days: '100px',
       priority: '100px',
       completion_percentage: '140px',
     };
@@ -649,6 +678,22 @@ export default function ProjectTaskListView({
         <div className="ptl-toolbar-right">
           {!toolbarCollapsed && (
             <>
+              <div style={{ display: 'flex', gap: '0.25rem', marginRight: '0.5rem' }}>
+                {(['table', 'board', 'gantt', 'calendar'] as TaskViewType[]).map(view => (
+                  <button
+                    key={view}
+                    className={`ptl-view-btn ${currentView === view ? 'active' : ''}`}
+                    onClick={() => setCurrentView(view)}
+                  >
+                    {view === 'table' && <LayoutList size={14} />}
+                    {view === 'board' && <Grid3X3 size={14} />}
+                    {view === 'gantt' && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="4" rx="1"/><rect x="3" y="12" width="12" height="4" rx="1"/></svg>}
+                    {view === 'calendar' && <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>}
+                    {view.charAt(0).toUpperCase() + view.slice(1)}
+                  </button>
+                ))}
+              </div>
+              <div className="ptl-divider" />
               <div style={{ position: 'relative' }}>
                 <button
                   className="ptl-view-btn"
@@ -659,11 +704,11 @@ export default function ProjectTaskListView({
                 </button>
                 {showColumnDropdown && (
                   <div className="ptl-col-dropdown">
-                    {(Object.keys(COLUMN_LABELS) as (keyof TaskColumns)[]).map(col => (
+                    {Object.keys(COLUMN_LABELS).map(col => (
                       <div
                         key={col}
                         className="ptl-col-item"
-                        onClick={() => toggleColumn(col)}
+                        onClick={() => toggleColumn(col as string)}
                       >
                         <div className={`ptl-col-checkbox ${viewColumns[col] ? 'checked' : ''}`}>
                           {viewColumns[col] && <Check size={12} color="white" />}
@@ -739,8 +784,9 @@ export default function ProjectTaskListView({
         )}
       </div>
 
-      {/* Task List */}
-      <div className="ptl-card">
+      {/* View Content */}
+      {currentView === 'table' && (
+        <div className="ptl-card">
           {filteredGroups.length === 0 ? (
             <div className="ptl-empty">
               <div className="ptl-empty-icon">
@@ -794,6 +840,30 @@ export default function ProjectTaskListView({
             </>
           )}
         </div>
+      )}
+
+      {currentView === 'board' && (
+        <ProjectTaskBoard
+          projectId={projectId}
+          organisationId={organisationId}
+          userId={userId}
+        />
+      )}
+
+      {currentView === 'gantt' && (
+        <ProjectTaskGantt
+          projectId={projectId}
+          projectName={projectName}
+          organisationId={organisationId}
+        />
+      )}
+
+      {currentView === 'calendar' && (
+        <ProjectTaskCalendar
+          projectId={projectId}
+          organisationId={organisationId}
+        />
+      )}
 
       {/* Task Edit Drawer */}
       {selectedTask && (

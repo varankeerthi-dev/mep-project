@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, Suspense } from 'react';
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { Folder, Plus, ClipboardList, Package, ArrowLeft, List, Calendar, BarChart3 } from 'lucide-react';
 import { supabase } from '../supabase';
@@ -13,10 +13,10 @@ import MaterialUsageTracker from './MaterialUsageTracker';
 import MaterialConsumptionReport from './MaterialConsumptionReport';
 import ToolsDashboard from './ToolsDashboard';
 
-const ProjectList = () => import('./ProjectList').then(m => ({ default: m.default }));
-const CreateProject = () => import('./CreateProject').then(m => ({ default: m.default }));
-const DailyUpdates = () => import('./DailyUpdates').then(m => ({ default: m.default }));
-const SiteMaterials = () => import('./ProjectManagementInternal').then(m => ({ default: m.SiteMaterials }));
+const ProjectList = React.lazy(() => import('./ProjectList'));
+const CreateProject = React.lazy(() => import('./CreateProject'));
+const DailyUpdates = React.lazy(() => import('./DailyUpdates'));
+const SiteMaterials = React.lazy(() => import('./ProjectManagementInternal').then(m => ({ default: m.SiteMaterials })));
 
 const TABS = [
   { id: 'list', label: 'Projects', icon: Folder, component: ProjectList },
@@ -39,7 +39,6 @@ export default function Projects() {
   const navigate = useNavigate();
   const { organisation } = useAuth();
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'list');
-  const [Component, setComponent] = useState<React.ComponentType | null>(null);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(searchParams.get('projectId'));
   const [projectName, setProjectName] = useState<string>(searchParams.get('projectName') || '');
   const [materialSubTab, setMaterialSubTab] = useState(searchParams.get('subtab') || 'select-project');
@@ -63,21 +62,9 @@ export default function Projects() {
 
   const safeProjectId = validProjectId !== undefined ? validProjectId : selectedProjectId;
 
-  const loadComponent = (tabId: string) => {
-    const tabConfig = TABS.find(t => t.id === tabId);
-    if (tabConfig && tabConfig.component) {
-      tabConfig.component().then(mod => {
-        setComponent(() => mod.default);
-      });
-    } else {
-      setComponent(null);
-    }
-  };
-
   useEffect(() => {
     const tab = searchParams.get('tab') || 'list';
     setActiveTab(tab);
-    loadComponent(tab);
   }, [searchParams]);
 
   const handleTabChange = (tabId: string) => {
@@ -187,9 +174,11 @@ export default function Projects() {
             </div>
           </div>
         ) : isToolsManagement ? (
-          <ToolsDashboard organisationId={organisationId} />
+          <ToolsDashboard />
         ) : (
-          Component && <Component />
+          <Suspense fallback={<div className="flex h-64 items-center justify-center text-zinc-400">Loading projects...</div>}>
+            <ProjectList />
+          </Suspense>
         )}
       </div>
     </div>

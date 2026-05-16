@@ -250,6 +250,7 @@ const ICON_MAP: Record<string, keyof typeof HeroIcons> = {
   dashboard: 'HomeIcon',
   projects: 'FolderIcon',
   todo: 'ClipboardDocumentCheckIcon',
+  tasks: 'ListBulletIcon',
   approvals: 'CheckCircleIcon',
   clients: 'UsersIcon',
   'client-po': 'DocumentTextIcon',

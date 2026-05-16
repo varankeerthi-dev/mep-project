@@ -17,15 +17,20 @@ interface TaskCreateDrawerProps {
   isLoading: boolean;
 }
 
-const STATUS_OPTIONS: TaskStatus[] = [
-  'Not Started',
-  'In Progress',
-  'Possible Delay',
-  'On Hold',
-  'Completed',
+const STATUS_OPTIONS: { value: TaskStatus; label: string }[] = [
+  { value: 'not_started', label: 'Not Started' },
+  { value: 'in_progress', label: 'In Progress' },
+  { value: 'under_review', label: 'Possible Delay' },
+  { value: 'on_hold', label: 'On Hold' },
+  { value: 'completed', label: 'Completed' },
 ];
 
-const PRIORITY_OPTIONS: TaskPriority[] = ['None', 'Low', 'Medium', 'High'];
+const PRIORITY_OPTIONS: { value: TaskPriority; label: string }[] = [
+  { value: 'low', label: 'Low' },
+  { value: 'medium', label: 'Medium' },
+  { value: 'high', label: 'High' },
+  { value: 'critical', label: 'Critical' },
+];
 
 export default function TaskCreateDrawer({
   projectId,
@@ -38,8 +43,8 @@ export default function TaskCreateDrawer({
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [taskGroupId, setTaskGroupId] = useState<string | null>(defaultGroupId);
-  const [status, setStatus] = useState<TaskStatus>('Not Started');
-  const [priority, setPriority] = useState<TaskPriority>('None');
+  const [status, setStatus] = useState<TaskStatus>('not_started');
+  const [priority, setPriority] = useState<TaskPriority>('medium');
   const [startDate, setStartDate] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [duration, setDuration] = useState('');
@@ -49,13 +54,13 @@ export default function TaskCreateDrawer({
     onSubmit({
       project_id: projectId,
       task_group_id: taskGroupId,
-      name: name.trim(),
+      title: name.trim(),
       description: description.trim() || undefined,
       status,
       priority,
       start_date: startDate || null,
       due_date: dueDate || null,
-      duration: duration || undefined,
+      duration_days: duration ? parseInt(duration) : null,
     });
   };
 
@@ -213,12 +218,12 @@ export default function TaskCreateDrawer({
                   borderRadius: '0.5rem',
                   fontSize: '0.8125rem',
                   outline: 'none',
-                  background: STATUS_COLORS[status].bg,
-                  color: STATUS_COLORS[status].text,
+                  background: STATUS_COLORS[status]?.bg || '#f1f5f9',
+                  color: STATUS_COLORS[status]?.text || '#64748b',
                 }}
               >
                 {STATUS_OPTIONS.map((s) => (
-                  <option key={s} value={s}>{s}</option>
+                  <option key={s.value} value={s.value}>{s.label}</option>
                 ))}
               </select>
             </div>
@@ -249,12 +254,12 @@ export default function TaskCreateDrawer({
                   borderRadius: '0.5rem',
                   fontSize: '0.8125rem',
                   outline: 'none',
-                  background: PRIORITY_COLORS[priority].bg,
-                  color: PRIORITY_COLORS[priority].text,
+                  background: PRIORITY_COLORS[priority]?.bg || '#f8fafc',
+                  color: PRIORITY_COLORS[priority]?.text || '#94a3b8',
                 }}
               >
                 {PRIORITY_OPTIONS.map((p) => (
-                  <option key={p} value={p}>{p}</option>
+                  <option key={p.value} value={p.value}>{p.label}</option>
                 ))}
               </select>
             </div>

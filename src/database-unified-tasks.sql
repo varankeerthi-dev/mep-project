@@ -10,6 +10,21 @@
 -- ============================================
 
 -- ============================================
+-- 0. BACKUP & CLEANUP OLD TABLES
+-- Renames legacy tables to preserve data
+-- ============================================
+-- Rename old 'tasks' table (TodoList) if it exists
+ALTER TABLE IF EXISTS tasks RENAME TO legacy_tasks;
+-- Rename old 'project_tasks' table if it exists
+ALTER TABLE IF EXISTS project_tasks RENAME TO legacy_project_tasks;
+-- Rename old 'task_groups' table if it exists
+ALTER TABLE IF EXISTS task_groups RENAME TO legacy_task_groups;
+-- Rename old 'task_views' table if it exists
+ALTER TABLE IF EXISTS task_views RENAME TO legacy_task_views;
+-- Drop old 'reminders' table if it exists (was in same migration)
+DROP TABLE IF EXISTS reminders CASCADE;
+
+-- ============================================
 -- 1. TASK GROUPS (Phases/Milestones/WBS)
 -- ============================================
 CREATE TABLE IF NOT EXISTS task_groups (

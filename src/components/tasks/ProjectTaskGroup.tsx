@@ -26,7 +26,7 @@ import {
 
 interface ProjectTaskGroupProps {
   group: TaskGroup;
-  viewColumns: TaskColumns;
+  viewColumns: Record<string, boolean>;
   columnWidths: Record<string, string>;
   gridTemplate: string;
   onTaskClick: (task: ProjectTask) => void;
@@ -55,7 +55,7 @@ export default function ProjectTaskGroup({
 
   const handleStartEdit = (task: ProjectTask) => {
     setEditingTaskId(task.id);
-    setEditingName(task.name);
+    setEditingName(task.title);
   };
 
   const handleSaveEdit = () => {
@@ -232,8 +232,8 @@ export default function ProjectTaskGroup({
                       );
                     }
 
-                    // Name (with inline edit)
-                    if (col === 'name') {
+                    // Title (with inline edit)
+                    if (col === 'title') {
                       return (
                         <div key={col} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                           {task.color && (
@@ -297,7 +297,7 @@ export default function ProjectTaskGroup({
                               }}
                               title="Double-click to edit"
                             >
-                              {task.name}
+                              {task.title}
                             </span>
                           )}
                         </div>
@@ -308,9 +308,9 @@ export default function ProjectTaskGroup({
                     if (col === 'assignees') {
                       return (
                         <div key={col} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                          {task.assignees && task.assignees.length > 0 ? (
+                          {task.assignee_ids && task.assignee_ids.length > 0 ? (
                             <>
-                              {task.assignees.slice(0, 3).map((assignee, i) => (
+                              {task.assignee_ids.slice(0, 3).map((id: string, i: number) => (
                                 <div
                                   key={i}
                                   style={{
@@ -327,14 +327,14 @@ export default function ProjectTaskGroup({
                                     marginLeft: i > 0 ? '-0.5rem' : 0,
                                     border: '2px solid white',
                                   }}
-                                  title={assignee.name}
+                                  title={id}
                                 >
-                                  {assignee.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                                  {id.slice(0, 2).toUpperCase()}
                                 </div>
                               ))}
-                              {task.assignees.length > 3 && (
+                              {task.assignee_ids.length > 3 && (
                                 <span style={{ fontSize: '0.6875rem', color: '#6b7280', marginLeft: '0.25rem' }}>
-                                  +{task.assignees.length - 3}
+                                  +{task.assignee_ids.length - 3}
                                 </span>
                               )}
                             </>
@@ -427,10 +427,10 @@ export default function ProjectTaskGroup({
                     }
 
                     // Duration
-                    if (col === 'duration') {
+                    if (col === 'duration_days') {
                       return (
                         <div key={col} style={{ fontSize: '0.75rem', color: '#6b7280' }}>
-                          {task.duration || '—'}
+                          {task.duration_days ? `${task.duration_days}d` : '—'}
                         </div>
                       );
                     }
