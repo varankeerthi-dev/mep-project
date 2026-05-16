@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "runId": "20260516T043801-459e2a",
+  "command": "review",
+  "args": [
+    "review"
+  ],
+  "rootPath": "C:/Users/admin/mep-project",
+  "headSha": "c01003b69c605553b888445a78276992461dc70f",
+  "startedAt": "2026-05-16T04:38:02.350Z",
+  "finishedAt": "2026-05-16T04:38:02.872Z",
+  "status": "failed",
+  "claimedFeatureIds": [
+    "feat_config_0c1c23856a"
+  ],
+  "findingIds": [],
+  "patchAttemptIds": [],
+  "errors": [
+    {
+      "message": "codex provider failed: Error: The filename, directory name, or volume label syntax is incorrect. (os error 123)\n",
+      "code": "provider-failure"
+    }
+  ]
+}

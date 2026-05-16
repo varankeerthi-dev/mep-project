@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "featureId": "feat_config_7528cb5b98",
+  "title": "Project config package.json",
+  "summary": "Build, release, or quality configuration in package.json.",
+  "kind": "config",
+  "source": "shared-infra-heuristic",
+  "confidence": "medium",
+  "entrypoints": [
+    {
+      "path": "package.json",
+      "symbol": null,
+      "route": null,
+      "command": null
+    }
+  ],
+  "ownedFiles": [
+    {
+      "path": "package.json",
+      "reason": "entrypoint"
+    }
+  ],
+  "contextFiles": [],
+  "tests": [],
+  "tags": [
+    "config"
+  ],
+  "trustBoundaries": [
+    "process-exec",
+    "filesystem"
+  ],
+  "status": "error",
+  "lock": null,
+  "findingIds": [],
+  "patchAttemptIds": [],
+  "analysisHistory": [
+    {
+      "runId": "20260516T043550-8fa9bf",
+      "kind": "review-error",
+      "summary": "codex provider failed: Error: The filename, directory name, or volume label syntax is incorrect. (os error 123)\n",
+      "provider": "codex",
+      "model": null,
+      "createdAt": "2026-05-16T04:35:52.400Z"
+    },
+    {
+      "runId": "20260516T043627-2abf44",
+      "kind": "review-error",
+      "summary": "codex provider failed: Error: The filename, directory name, or volume label syntax is incorrect. (os error 123)\n",
+      "provider": "codex",
+      "model": null,
+      "createdAt": "2026-05-16T04:36:28.135Z"
+    }
+  ],
+  "createdAt": "2026-05-16T04:35:20.959Z",
+  "updatedAt": "2026-05-16T04:36:28.135Z"
+}

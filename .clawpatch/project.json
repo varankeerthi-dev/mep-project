@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "projectId": "prj_https-github-com-varankeerthi-de_dc51b81bdd",
+  "name": "mep-project",
+  "rootPath": "C:/Users/admin/mep-project",
+  "git": {
+    "remoteUrl": "https://github.com/varankeerthi-dev/mep-project",
+    "defaultBranch": "main",
+    "currentBranch": "main",
+    "headSha": "c01003b69c605553b888445a78276992461dc70f"
+  },
+  "detected": {
+    "languages": [
+      "typescript",
+      "javascript"
+    ],
+    "frameworks": [],
+    "packageManagers": [
+      "npm"
+    ],
+    "commands": {
+      "typecheck": "npm run typecheck",
+      "lint": "npm run lint",
+      "format": null,
+      "test": null
+    }
+  },
+  "createdAt": "2026-05-16T04:34:59.128Z",
+  "updatedAt": "2026-05-16T04:34:59.128Z"
+}

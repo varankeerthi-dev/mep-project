@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "featureId": "feat_release_51170e0f9c",
+  "title": "Package script build",
+  "summary": "Package script 'build': vite build",
+  "kind": "release",
+  "source": "package-json-script",
+  "confidence": "medium",
+  "entrypoints": [
+    {
+      "path": "package.json",
+      "symbol": "build",
+      "route": null,
+      "command": "build"
+    }
+  ],
+  "ownedFiles": [
+    {
+      "path": "package.json",
+      "reason": "entrypoint"
+    }
+  ],
+  "contextFiles": [],
+  "tests": [],
+  "tags": [
+    "node",
+    "package-script"
+  ],
+  "trustBoundaries": [
+    "process-exec",
+    "filesystem"
+  ],
+  "status": "error",
+  "lock": null,
+  "findingIds": [],
+  "patchAttemptIds": [],
+  "analysisHistory": [
+    {
+      "runId": "20260516T043550-8fa9bf",
+      "kind": "review-error",
+      "summary": "codex provider failed: Error: The filename, directory name, or volume label syntax is incorrect. (os error 123)\n",
+      "provider": "codex",
+      "model": null,
+      "createdAt": "2026-05-16T04:35:52.389Z"
+    }
+  ],
+  "createdAt": "2026-05-16T04:35:20.959Z",
+  "updatedAt": "2026-05-16T04:35:52.389Z"
+}
