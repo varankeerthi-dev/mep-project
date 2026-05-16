@@ -78,8 +78,7 @@ export default function QuotationView() {
         .eq('organisation_id', organisation?.id || '00000000-0000-0000-0000-000000000000')
         .single();
 
-      const { data, error } = await timedSupabaseQuery(query, 'Quotation view');
-      if (error) throw error;
+      const data = await timedSupabaseQuery(query, 'Quotation view');
       return data;
     },
     enabled: !!quotationId,
