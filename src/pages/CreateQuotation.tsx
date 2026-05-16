@@ -2353,27 +2353,26 @@ const itemsToInsert = items.map(item => ({
         <div className="bg-white border border-gray-200 mb-6 shadow-sm">
           <div className="px-4 py-3 border-b border-gray-200 flex items-center gap-2">
               <div className="w-1 h-4 bg-blue-600 rounded-sm"></div>
-              <h2 className="text-xs font-bold text-gray-700 tracking-wider uppercase">Quotation Details</h2>
             </div>
             
-            <div className="grid grid-cols-[1fr_1.4fr_400px] gap-6 p-5">
+            <div className="grid grid-cols-[1fr_1.5fr_320px] gap-6 px-6 pt-6 pb-6">
               
               {/* Column 1: DOCUMENT */}
-              <div className="space-y-4">
-                <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">Document</h3>
+              <div className="space-y-4 pl-4">
+                <h3 className="text-[11px] font-semibold text-gray-500 mb-3">Document</h3>
                 
-                <div className="grid grid-cols-2 gap-x-6 gap-y-5">
+                <div className="grid grid-cols-2 gap-x-6 gap-y-4 pb-[14px]">
                   <div className="flex flex-col">
-                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Quotation No <span className="text-red-500">*</span></label>
-                    <div className="w-full px-2 py-1.5 border border-blue-200 bg-blue-50 text-blue-700 text-xs font-medium focus:outline-none transition-colors min-h-[34px] flex items-center">
+                    <label className="text-[11px] font-semibold text-gray-600 mb-1.5">Quotation No <span className="text-red-500">*</span></label>
+                    <div className="w-full px-2 py-1.5 border border-gray-200 bg-gray-50 text-gray-600 text-xs font-medium focus:outline-none transition-colors min-h-[34px] flex items-center">
                       {formData.quotation_no || quoteNoPreview || 'Auto-generating...'}
                     </div>
                   </div>
                   <div className="flex flex-col">
-                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Prepared By</label>
+                    <label className="text-[11px] font-semibold text-gray-600 mb-1.5">Prepared By</label>
                     <input 
                       type="text" 
-                      className="w-full px-2 py-1.5 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[34px]" 
+                      className="w-full px-3 py-2 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[34px]" 
                       value={formData.prepared_by || ''} 
                       onChange={(e) => setFormData({ ...formData, prepared_by: e.target.value })} 
                       placeholder="Sales executive..."
@@ -2381,32 +2380,32 @@ const itemsToInsert = items.map(item => ({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-x-6 gap-y-5">
+                <div className="grid grid-cols-2 gap-x-6 gap-y-5 pb-[14px]">
                   <div className="flex flex-col">
-                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Quotation Date <span className="text-red-500">*</span></label>
+                    <label className="text-[11px] font-semibold text-gray-600 mb-1.5">Quotation Date <span className="text-red-500">*</span></label>
                     <input 
                       type="date" 
-                      className="w-full px-2 py-1.5 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[34px]" 
+                      className="w-full px-3 py-2 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[34px]" 
                       value={formData.date} 
                       onChange={(e) => setFormData({ ...formData, date: e.target.value })} 
                     />
                   </div>
                   <div className="flex flex-col">
-                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Valid Till</label>
+                    <label className="text-[11px] font-semibold text-gray-600 mb-1.5">Valid Till</label>
                     <input 
                       type="date" 
-                      className="w-full px-2 py-1.5 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[34px]" 
+                      className="w-full px-3 py-2 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[34px]" 
                       value={formData.valid_till} 
                       onChange={(e) => setFormData({ ...formData, valid_till: e.target.value })} 
                     />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-x-6 gap-y-5">
+                <div className="grid grid-cols-2 gap-x-6 gap-y-5 pb-[14px]">
                   <div className="flex flex-col">
-                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Variant</label>
+                    <label className="text-[11px] font-semibold text-gray-600 mb-1.5">Variant</label>
                     <select 
-                      className="w-full px-2 py-1.5 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[34px]" 
+                      className="w-full px-3 py-2 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[34px]" 
                       value={formData.variant_id} 
                       onChange={(e) => setFormData({ ...formData, variant_id: e.target.value })}
                     >
@@ -2417,10 +2416,10 @@ const itemsToInsert = items.map(item => ({
                     </select>
                   </div>
                   <div className="flex flex-col">
-                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Reference</label>
+                    <label className="text-[11px] font-semibold text-gray-600 mb-1.5">Reference</label>
                     <input 
                       type="text" 
-                      className="w-full px-2 py-1.5 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[34px]" 
+                      className="w-full px-3 py-2 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[34px]" 
                       value={formData.reference || ''} 
                       onChange={(e) => setFormData({ ...formData, reference: e.target.value })} 
                       placeholder="Client RFQ No..."
@@ -2429,10 +2428,10 @@ const itemsToInsert = items.map(item => ({
                 </div>
 
                 <div className="flex flex-col">
-                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Payment Terms</label>
+                  <label className="text-[11px] font-semibold text-gray-600 mb-1.5">Payment Terms</label>
                   <input 
                     type="text" 
-                    className="w-full px-2 py-1.5 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[34px]" 
+                    className="w-full px-3 py-2 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[34px]" 
                     value={formData.payment_terms} 
                     onChange={(e) => setFormData({ ...formData, payment_terms: e.target.value })} 
                     placeholder="Net 30 Days"
@@ -2442,15 +2441,15 @@ const itemsToInsert = items.map(item => ({
 
               {/* Column 2: CLIENT */}
               <div className="space-y-4">
-                <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">Client</h3>
+                <h3 className="text-[11px] font-semibold text-gray-500 mb-3">Client</h3>
                 
-                <div className="flex flex-col client-dropdown-container">
-                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Client <span className="text-red-500">*</span></label>
+                <div className="flex flex-col client-dropdown-container space-y-4">
+                  <label className="text-[11px] font-semibold text-gray-600 mb-1">Client <span className="text-red-500">*</span></label>
                   <div className="relative">
                     <div className="relative">
                       <input 
                         type="text"
-                        className="w-full px-2 py-1.5 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none cursor-pointer transition-colors min-h-[34px]"
+                        className="w-full px-3 py-2 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none cursor-pointer transition-colors min-h-[34px]"
                         placeholder="Search or select..."
                         value={clientSearch || (formData.client_id ? clients.find(c => c.id === formData.client_id)?.client_name : '')}
                         onChange={(e) => {
@@ -2468,7 +2467,7 @@ const itemsToInsert = items.map(item => ({
                           .map(c => (
                             <div 
                               key={c.id}
-                              className="px-3 hover:bg-blue-50 cursor-pointer text-sm border-b border-gray-100 last:border-0" style={{ paddingTop: '14px', paddingBottom: '14px' }}
+                              className="px-4 py-2.5 hover:bg-blue-50 cursor-pointer text-sm border-b border-gray-100 last:border-0"
                               onClick={() => {
                               handleClientChange(c.id);
                               setClientSearch(c.client_name);
@@ -2490,10 +2489,10 @@ const itemsToInsert = items.map(item => ({
                 </div>
 
                 <div className="flex flex-col">
-                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Contact</label>
+                  <label className="text-[11px] font-semibold text-gray-600 mb-1">Contact</label>
                   <input 
                     type="text" 
-                    className="w-full px-2 py-1.5 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[34px]" 
+                    className="w-full px-3 py-2 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[34px]" 
                     value={formData.client_contact} 
                     onChange={(e) => setFormData({ ...formData, client_contact: e.target.value })} 
                     placeholder="+91 98765 43210"
@@ -2501,31 +2500,31 @@ const itemsToInsert = items.map(item => ({
                 </div>
 
                 <div className="flex flex-col">
-                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Billing Address</label>
+                  <label className="text-[11px] font-semibold text-gray-600 mb-1">Billing Address</label>
                   <textarea 
-                    className="w-full px-2 py-1.5 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[50px] resize-y" 
+                    className="w-full px-3 py-2 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[50px] resize-y" 
                     value={formData.billing_address} 
                     onChange={(e) => setFormData({ ...formData, billing_address: e.target.value })} 
                     placeholder="Full billing address..."
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-x-6 gap-y-3">
+                <div className="grid grid-cols-2 gap-x-6 gap-y-4 pb-[14px]">
                   <div className="flex flex-col">
-                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">GSTIN</label>
+                    <label className="text-[11px] font-semibold text-gray-600 mb-1">GSTIN</label>
                     <input 
                       type="text" 
-                      className="w-full px-2 py-1.5 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[34px]" 
+                      className="w-full px-3 py-2 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[34px]" 
                       value={formData.gstin} 
                       onChange={(e) => setFormData({ ...formData, gstin: e.target.value })} 
                       placeholder="27AABCU9603R1ZX"
                     />
                   </div>
                   <div className="flex flex-col">
-                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">State</label>
+                    <label className="text-[11px] font-semibold text-gray-600 mb-1">State</label>
                     <div className="relative">
                       <select 
-                        className="w-full px-2 py-1.5 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[34px] appearance-none" 
+                        className="w-full px-3 py-2 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[34px] appearance-none" 
                         value={formData.state} 
                         onChange={(e) => setFormData({ ...formData, state: e.target.value })}
                       >
@@ -2542,11 +2541,11 @@ const itemsToInsert = items.map(item => ({
 
               {/* Column 3: PROJECT & DISCOUNTS */}
               <div className="space-y-4">
-                <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-3">Project</h3>
+                <h3 className="text-[11px] font-semibold text-gray-500 mb-3">Project</h3>
                 
-                <div className="flex flex-col relative">
+                <div className="space-y-4">
                   <select 
-                    className="w-full px-2 py-1.5 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[34px] appearance-none" 
+                    className="w-full px-3 py-2 border border-gray-200 bg-white text-xs text-gray-800 focus:border-blue-500 focus:outline-none transition-colors min-h-[34px] appearance-none" 
                     value={formData.project_id} 
                     onChange={(e) => setFormData({ ...formData, project_id: e.target.value })}
                   >
@@ -2562,7 +2561,7 @@ const itemsToInsert = items.map(item => ({
 
                 <div className="pt-3">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Discounts</h3>
+                    <h3 className="text-[11px] font-semibold text-gray-500">Discounts</h3>
                     {variants.length > 0 && (
                       <button 
                         type="button" 
@@ -2716,7 +2715,7 @@ const itemsToInsert = items.map(item => ({
             </div>
           </div>
 
-      <div className="bg-white rounded-none border border-gray-200 shadow-sm overflow-hidden mb-6" ref={itemsTableRef}>
+      <div className="bg-white rounded-none border border-gray-200 shadow-sm overflow-hidden mb-6 mt-8" ref={itemsTableRef}>
         <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 bg-gray-50/50">
           <div className="flex items-center gap-2">
             <div className="w-1.5 h-6 bg-sky-600 rounded-none"></div>
